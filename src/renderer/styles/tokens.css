@@ -1,0 +1,55 @@
+:root {
+  --font-family: 'Segoe UI', system-ui, sans-serif;
+  --font-size: 13px;
+}
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #12141a;
+  --bg-elevated: #1a1d26;
+  --bg-panel: #161922;
+  --border: #2a2f3a;
+  --text: #e8eaef;
+  --text-dim: #9aa3b2;
+  --accent: #3b82f6;
+  --accent-dim: rgba(59, 130, 246, 0.22);
+  --danger: #ef4444;
+  --success: #22c55e;
+  --folder-fill: #e8b64c;
+  --file-fill: #8b94a6;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  /* Preview syntax — VS Code / Cursor Dark+ */
+  --code-fg: #d4d4d4;
+  --code-comment: #6a9955;
+  --code-keyword: #569cd6;
+  --code-string: #ce9178;
+  --code-number: #b5cea8;
+  --code-property: #9cdcfe;
+  --code-function: #dcdcaa;
+  --code-type: #4ec9b0;
+}
+
+:root[data-theme='light'] {
+  --bg: #f5f6f8;
+  --bg-elevated: #ffffff;
+  --bg-panel: #ececf0;
+  --border: #d4d7de;
+  --text: #1b1e26;
+  --text-dim: #5d6472;
+  --accent: #2563eb;
+  --accent-dim: rgba(37, 99, 235, 0.16);
+  --danger: #dc2626;
+  --success: #16a34a;
+  --folder-fill: #e8b64c;
+  --file-fill: #7a8294;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  /* Preview syntax — VS Code / Cursor Light+ */
+  --code-fg: #000000;
+  --code-comment: #008000;
+  --code-keyword: #0000ff;
+  --code-string: #a31515;
+  --code-number: #098658;
+  --code-property: #001080;
+  --code-function: #795e26;
+  --code-type: #267f99;
+}

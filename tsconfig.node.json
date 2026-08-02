@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "out/types-node",
+    "paths": {
+      "@shared/*": ["./src/shared/*"],
+      "@main/*": ["./src/main/*"]
+    }
+  },
+  "include": [
+    "electron.vite.config.ts",
+    "eslint.config.mjs",
+    "vitest.config.ts",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*",
+    "src/tests/**/*",
+    "src/renderer/lib/paths.ts",
+    "src/renderer/lib/viewFilter.ts",
+    "src/renderer/lib/quickAccess.ts",
+    "src/renderer/lib/nextSelection.ts",
+    "src/renderer/lib/undoHistory.ts",
+    "src/renderer/lib/pdfPreview.ts",
+    "src/renderer/lib/highlight.ts"
+  ]
+}

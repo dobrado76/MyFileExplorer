@@ -1,0 +1,31 @@
+---
+description: MyFileExplorer project rules — standalone Windows Electron file manager
+alwaysApply: true
+---
+
+# MyFileExplorer agent rules
+
+## Scope
+
+- This repo is **MyFileExplorer** — a standalone Windows file manager (Electron + React).
+- **Do not** reference, import, copy from, or depend on any other project (including any LoRA / training apps).
+- Canonical plan: `PLAN.md`. Specs: `docs/`. Implement against those files only.
+
+## Architecture
+
+- Electron main owns filesystem, shell, session, settings, preview parse, search index, thumbs.
+- Renderer is React + Zustand; **no Node integration**.
+- Typed preload IPC + Zod; Result envelope `{ ok, value } | { ok: false, error }`.
+- App state only under Electron `userData` — never write app sidecars into arbitrary browsed folders.
+
+## Safety
+
+- Validate/normalize all paths in main before IO.
+- Custom media protocol is allowlisted only.
+- Del → Recycle Bin; Shift+Del permanent with confirms for multi/dir.
+- Do not browse or exfiltrate user home/disk “to verify” beyond what the user asked.
+
+## Specs vs code
+
+Until scaffold exists, prefer updating `docs/` + `PLAN.md` when product decisions change; then implement.
+Keep [docs/DECISIONS.md](docs/DECISIONS.md) in sync when locking behavior.

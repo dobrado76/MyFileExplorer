@@ -1,0 +1,29 @@
+appId: com.myfileexplorer.app
+productName: MyFileExplorer
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - resources/**
+  - package.json
+asarUnpack:
+  - node_modules/sharp/**
+  - node_modules/@img/**
+  - node_modules/koffi/**
+  - node_modules/@koromix/koffi-*/**
+win:
+  icon: build/icon.ico
+  target:
+    - nsis
+protocols:
+  - name: MyFileExplorer
+    schemes:
+      - mfe
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  # Settings live in %APPDATA%\MyFileExplorer — never wipe on uninstall/reinstall.
+  deleteAppDataOnUninstall: false
+electronLanguages:
+  - en-US

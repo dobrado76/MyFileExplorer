@@ -1,0 +1,106 @@
+# Architecture
+
+**Version:** 0.0.0 (spec)
+
+Standalone Electron + React desktop app. Clear process boundaries; **no Node APIs in the renderer**.
+
+---
+
+## Process model
+
+```
+Renderer (React + Zustand)
+        │  typed preload (contextIsolation + sandbox)
+Main (fs, shell, session, settings, preview, search, thumbs)
+        │
+   Real filesystem  +  Electron userData (app state, index, thumb cache)
+```
+
+| Concern                                          | Owner                                                       |
+| ------------------------------------------------ | ----------------------------------------------------------- |
+| Navigation UI, selection highlight, open dialogs | Renderer Zustand                                            |
+| Directory listings, watch, mutations             | Main `fs`                                                   |
+| Tabs/session snapshot persistence                | Main `session` (renderer proposes; main validates & writes) |
+| Settings / theme                                 | Main `settings`                                             |
+| Thumbnail generation & cache                     | Main `thumbs`                                               |
+| Preview metadata parse                           | Main `preview`                                              |
+| Search index & queries                           | Main `search`                                               |
+| OS open / trash / clipboard files                | Main `shell`                                                |
+
+---
+
+## Repository layout (target)
+
+```
+src/
+├─ main/
+│  ├─ ipc/           register handlers
+│  ├─ fs/            list, stat, mkdir, rename, copy, move, watch
+│  ├─ shell/         openPath, trash, showItemInFolder, clipboard
+│  ├─ session/       tabs + UI chrome persistence
+│  ├─ settings/      theme, font, behavior
+│  ├─ preview/       metadata extractors
+│  ├─ search/        indexer + FTS query
+│  ├─ thumbs/        sharp cache
+│  ├─ media/         custom protocol
+│  ├─ security/      path guards
+│  └─ logging/
+├─ preload/          window.myFileExplorer
+├─ renderer/
+│  ├─ components/
+│  ├─ screens/       ExplorerShell (primary)
+│  ├─ store/
+│  └─ styles/
+├─ shared/
+│  ├─ schemas/       zod
+│  └─ ipc/           channel names + types
+└─ tests/
+docs/
+PLAN.md
+```
+
+---
+
+## Media protocol
+
+Custom protocol (e.g. `mfe-media://`) serves:
+
+- File bytes for preview (images, text sniffs)
+- Thumbnail images from cache
+
+**Allowlist:** only paths that main has approved (currently visible tab roots, explicit preview target, thumb cache dir). Never arbitrary disk read from renderer-supplied URLs without validation.
+
+---
+
+## Folder watching
+
+Main watches the **active tab’s directory** (and optionally expanded tree nodes) via `fs.watch` / `chokidar`-style debounce. Broadcast `fs-changed` events so the renderer refreshes listings without full app reload. Mute briefly after in-app mutations to avoid selection jumps.
+
+---
+
+## Error model
+
+IPC returns a Result envelope:
+
+```ts
+type Ok<T> = { ok: true; value: T }
+type Err = { ok: false; error: { code: string; message: string; remediation?: string } }
+type Result<T> = Ok<T> | Err
+```
+
+Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, `cancelled`, `io`.
+
+---
+
+## Concurrency
+
+- Directory list: cancel/supersede stale requests when path changes quickly.
+- Search: single active query per window; cancel previous.
+- Indexer: background queue; one writer; progress events.
+- File ops: serialize destructive ops that touch the same path.
+
+---
+
+## Related
+
+[PROJECT_FORMAT.md](PROJECT_FORMAT.md) · [IPC_CONTRACT.md](IPC_CONTRACT.md) · [SECURITY.md](SECURITY.md)

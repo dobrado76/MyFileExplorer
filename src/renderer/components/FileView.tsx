@@ -1,0 +1,1024 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import type { DirEntry } from '@shared/schemas/fs'
+import type { SortKey } from '@shared/schemas/session'
+import type { DetailsColumnId } from '@shared/schemas/settings'
+import {
+  COLUMN_GROUP_LABELS,
+  COLUMN_GROUP_ORDER,
+  DETAILS_COLUMN_IDS,
+  DETAILS_COLUMN_META,
+  isAsyncColumn,
+  type EntryColumnValues
+} from '@shared/schemas/columns'
+import { resolveFolderView } from '@shared/folderViews'
+import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
+import { samePath, isUnderPath, parentOf } from '../lib/paths'
+import { formatBytes, formatDate, typeLabel } from '../lib/format'
+import { isImageExt } from '../lib/icons'
+import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { api } from '../lib/ipc'
+import { ThumbImage } from './ThumbImage'
+import { ShellIcon } from './ShellIcon'
+import { RenameInput } from './RenameInput'
+
+const GRID_SPECS = {
+  extraLargeIcons: { cellW: 260, cellH: 300, thumb: 240 },
+  largeIcons: { cellW: 164, cellH: 200, thumb: 144 },
+  mediumIcons: { cellW: 120, cellH: 148, thumb: 96 },
+  smallIcons: { cellW: 88, cellH: 108, thumb: 64 }
+} as const
+
+type GridMode = keyof typeof GRID_SPECS
+
+const SYNC_SORT_KEYS = new Set<SortKey>(['name', 'mtime', 'ctime', 'size', 'type', 'ext'])
+
+function isEditingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+}
+
+function detailCellValue(
+  id: DetailsColumnId,
+  e: DirEntry,
+  meta: EntryColumnValues | undefined
+): string {
+  switch (id) {
+    case 'mtime':
+      return formatDate(e.mtimeMs)
+    case 'ctime':
+      return e.birthtimeMs ? formatDate(e.birthtimeMs) : ''
+    case 'type':
+      return typeLabel(e.ext, e.kind === 'dir')
+    case 'size':
+      return e.kind === 'dir' ? '' : formatBytes(e.size)
+    case 'ext':
+      return e.ext
+    default:
+      return meta?.[id] ?? ''
+  }
+}
+
+function parseDurationSort(s: string): number {
+  const parts = s.split(':').map((p) => Number(p))
+  if (parts.length < 2 || parts.some((n) => !Number.isFinite(n))) return NaN
+  if (parts.length === 3) return parts[0]! * 3600 + parts[1]! * 60 + parts[2]!
+  return parts[0]! * 60 + parts[1]!
+}
+
+function compareColumnValues(id: DetailsColumnId, a: string, b: string): number {
+  if (!a && !b) return 0
+  if (!a) return 1
+  if (!b) return -1
+  if (id === 'duration') {
+    const na = parseDurationSort(a)
+    const nb = parseDurationSort(b)
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
+  }
+  if (DETAILS_COLUMN_META[id].numeric) {
+    const na = parseFloat(a.replace(/[^0-9.-]+/g, ' ').trim())
+    const nb = parseFloat(b.replace(/[^0-9.-]+/g, ' ').trim())
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
+  }
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+export function FileView(): JSX.Element {
+  const listing = useAppStore((s) => s.listing)
+  const settings = useAppStore((s) => s.settings)
+  const tab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
+  const setSelection = useAppStore((s) => s.setSelection)
+  const selectionAnchor = useAppStore((s) => s.selectionAnchor)
+  const focusedPath = useAppStore((s) => s.focusedPath)
+  const openEntry = useAppStore((s) => s.openEntry)
+  const renamingPath = useAppStore((s) => s.renamingPath)
+  const submitRename = useAppStore((s) => s.submitRename)
+  const cancelRename = useAppStore((s) => s.cancelRename)
+  const clipboard = useAppStore((s) => s.clipboard)
+  const dragPaths = useAppStore((s) => s.dragPaths)
+  const setDragPaths = useAppStore((s) => s.setDragPaths)
+  const performTransfer = useAppStore((s) => s.performTransfer)
+  const openContextMenu = useAppStore((s) => s.openContextMenu)
+  const setSort = useAppStore((s) => s.setSort)
+  const setScrollOffset = useAppStore((s) => s.setScrollOffset)
+  const patchDetailsLayout = useAppStore((s) => s.patchDetailsLayout)
+  const folderViews = useAppStore((s) => s.settings.folderViews)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const [width, setWidth] = useState(800)
+  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
+  const [bgDropActive, setBgDropActive] = useState(false)
+  const [marquee, setMarquee] = useState<{ l: number; t: number; w: number; h: number } | null>(
+    null
+  )
+  const suppressClickRef = useRef(false)
+
+  // details-view column customization
+  const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null)
+  const [headerMenu, setHeaderMenu] = useState<{ x: number; y: number } | null>(null)
+  const [colDrag, setColDrag] = useState<DetailsColumnId | null>(null)
+  const [colDrop, setColDrop] = useState<DetailsColumnId | 'end' | null>(null)
+  const [metaByPath, setMetaByPath] = useState<Record<string, EntryColumnValues>>({})
+
+  const folderPath = tab?.path ?? ''
+  const owningView = useMemo(
+    () => (folderPath ? resolveFolderView(folderPath, folderViews) : null),
+    [folderPath, folderViews]
+  )
+  const detailsColumns = owningView?.detailsColumns ?? settings.detailsColumns
+  const detailsNameWidth = owningView?.detailsNameWidth ?? settings.detailsNameWidth
+  const effectiveSort = useMemo(
+    () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
+    [owningView, tab?.sort]
+  )
+  const viewMode = owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons'
+
+  const nameColWidth = liveWidths?.['name'] ?? detailsNameWidth
+  const colWidth = (id: DetailsColumnId): number =>
+    liveWidths?.[id] ??
+    detailsColumns.find((c) => c.id === id)?.width ??
+    DETAILS_COLUMN_META[id].defaultWidth
+
+  const startColResize = useCallback(
+    (e: React.PointerEvent, id: 'name' | DetailsColumnId): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      const startX = e.clientX
+      const s = useAppStore.getState()
+      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const cols = owning?.detailsColumns ?? s.settings.detailsColumns
+      const nameW = owning?.detailsNameWidth ?? s.settings.detailsNameWidth
+      const startW =
+        id === 'name'
+          ? nameW
+          : (cols.find((c) => c.id === id)?.width ?? DETAILS_COLUMN_META[id].defaultWidth)
+      const min = id === 'name' ? 120 : 50
+      let w = startW
+      const onMove = (ev: PointerEvent): void => {
+        w = Math.max(min, Math.min(1200, Math.round(startW + ev.clientX - startX)))
+        setLiveWidths({ [id]: w })
+      }
+      const onUp = (): void => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        setLiveWidths(null)
+        if (id === 'name') void patchDetailsLayout({ detailsNameWidth: w })
+        else
+          void patchDetailsLayout({
+            detailsColumns: cols.map((c) => (c.id === id ? { ...c, width: w } : c))
+          })
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    },
+    [patchDetailsLayout]
+  )
+
+  const moveColumn = useCallback(
+    (dragId: DetailsColumnId, target: DetailsColumnId | 'end'): void => {
+      const s = useAppStore.getState()
+      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const cur = owning?.detailsColumns ?? s.settings.detailsColumns
+      const dragged = cur.find((c) => c.id === dragId)
+      if (!dragged) return
+      const without = cur.filter((c) => c.id !== dragId)
+      const idx = target === 'end' ? -1 : without.findIndex((c) => c.id === target)
+      const next =
+        idx < 0 ? [...without, dragged] : [...without.slice(0, idx), dragged, ...without.slice(idx)]
+      void patchDetailsLayout({ detailsColumns: next })
+    },
+    [patchDetailsLayout]
+  )
+
+  const toggleColumn = useCallback(
+    (id: DetailsColumnId): void => {
+      const s = useAppStore.getState()
+      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const cur = owning?.detailsColumns ?? s.settings.detailsColumns
+      const next = cur.some((c) => c.id === id)
+        ? cur.filter((c) => c.id !== id)
+        : [...cur, { id, width: DETAILS_COLUMN_META[id].defaultWidth }]
+      void patchDetailsLayout({ detailsColumns: next })
+    },
+    [patchDetailsLayout]
+  )
+
+  useEffect(() => {
+    if (!headerMenu) return
+    const close = (): void => setHeaderMenu(null)
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') close()
+    }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [headerMenu])
+
+  // Callback ref: the scroll element is not rendered on every code path (empty
+  // tab / error states), so a mount-only effect can miss it entirely and leave
+  // `width` stuck at its initial value. Attaching here observes whichever
+  // element is actually mounted. Transient 0 widths (detach/hide) are ignored.
+  const setScrollEl = useCallback((el: HTMLDivElement | null): void => {
+    scrollRef.current = el
+    resizeObserverRef.current?.disconnect()
+    resizeObserverRef.current = null
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth > 0) setWidth(el.clientWidth)
+    })
+    ro.observe(el)
+    if (el.clientWidth > 0) setWidth(el.clientWidth)
+    resizeObserverRef.current = ro
+  }, [])
+
+  const viewFilterOn = settings.viewFilterEnabled
+  const viewPatterns = settings.viewFilterPatterns
+  const isExcluded = useMemo(
+    () => (e: { path: string; isHidden: boolean }) =>
+      isExcludedByViewFilter(e, viewPatterns, viewFilterOn),
+    [viewPatterns, viewFilterOn]
+  )
+  const asyncColumns = useMemo(
+    () => detailsColumns.map((c) => c.id).filter(isAsyncColumn),
+    [detailsColumns]
+  )
+
+  // Reset / fetch async column metadata when the folder or enabled columns change.
+  useEffect(() => {
+    setMetaByPath({})
+    if (!folderPath || asyncColumns.length === 0) return
+    const files = listing.entries
+      .filter((e) => e.kind === 'file' && !isExcluded(e))
+      .map((e) => e.path)
+    if (files.length === 0) return
+    let cancelled = false
+    const run = async (): Promise<void> => {
+      const chunkSize = 40
+      for (let i = 0; i < files.length; i += chunkSize) {
+        if (cancelled) return
+        const chunk = files.slice(i, i + chunkSize)
+        const res = await api.meta.getMany({ paths: chunk, columns: asyncColumns })
+        if (cancelled || !res.ok) continue
+        setMetaByPath((prev) => ({ ...prev, ...res.value.values }))
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [folderPath, listing.entries, asyncColumns, isExcluded])
+
+  const entries = useMemo(() => {
+    const filtered = listing.entries.filter((e) => !isExcluded(e))
+    const sort = effectiveSort
+    if (SYNC_SORT_KEYS.has(sort.key)) {
+      return sortEntries(filtered, sort, settings.foldersFirst)
+    }
+    const colId = sort.key as DetailsColumnId
+    const dir = sort.dir === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      if (settings.foldersFirst) {
+        const ad = a.kind === 'dir' ? 0 : 1
+        const bd = b.kind === 'dir' ? 0 : 1
+        if (ad !== bd) return ad - bd
+      }
+      const av = detailCellValue(colId, a, metaByPath[a.path])
+      const bv = detailCellValue(colId, b, metaByPath[b.path])
+      let cmp = compareColumnValues(colId, av, bv)
+      if (cmp === 0) {
+        cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      }
+      return cmp * dir
+    })
+  }, [listing.entries, effectiveSort, settings.foldersFirst, isExcluded, metaByPath])
+  const selected = useMemo(
+    () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
+    [tab?.selected]
+  )
+  const cutSet = useMemo(
+    () => new Set(clipboard?.mode === 'cut' ? clipboard.paths.map((p) => p.toLowerCase()) : []),
+    [clipboard]
+  )
+
+  const isGrid = viewMode in GRID_SPECS
+  const spec = isGrid ? GRID_SPECS[viewMode as GridMode] : null
+  const columns = spec ? Math.max(1, Math.floor(width / spec.cellW)) : 1
+  const rowCount = spec ? Math.ceil(entries.length / columns) : entries.length
+  const rowHeight = spec ? spec.cellH : 24
+
+  const virtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 8
+  })
+
+  // TanStack Virtual caches row sizes and does not re-measure when
+  // estimateSize changes (e.g. switching view modes) — force it.
+  useLayoutEffect(() => {
+    virtualizer.measure()
+  }, [rowHeight, columns, virtualizer])
+
+  // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      const s = useAppStore.getState()
+      if (
+        s.dialog ||
+        s.contextMenu ||
+        s.imageViewer ||
+        s.renamingPath ||
+        s.addressEditing ||
+        s.search.active
+      ) {
+        return
+      }
+      if (isEditingTarget(e.target)) return
+      if (entries.length === 0) return
+
+      const key = e.key
+      const navKeys = new Set([
+        'Home',
+        'End',
+        'ArrowUp',
+        'ArrowDown',
+        'ArrowLeft',
+        'ArrowRight',
+        'PageUp',
+        'PageDown'
+      ])
+      if (!navKeys.has(key)) return
+      // Leave Alt+arrows to shell back/forward.
+      if (e.altKey) return
+      // List/details: horizontal arrows unused (reserved for future tree focus).
+      if (!spec && (key === 'ArrowLeft' || key === 'ArrowRight')) return
+
+      e.preventDefault()
+
+      const focusIdx = ((): number => {
+        if (focusedPath) {
+          const i = entries.findIndex((en) => samePath(en.path, focusedPath))
+          if (i >= 0) return i
+        }
+        const sel = tab?.selected ?? []
+        for (let i = sel.length - 1; i >= 0; i--) {
+          const idx = entries.findIndex((en) => samePath(en.path, sel[i]!))
+          if (idx >= 0) return idx
+        }
+        return -1
+      })()
+
+      const pageRows = Math.max(
+        1,
+        Math.floor((scrollRef.current?.clientHeight ?? rowHeight * 10) / rowHeight) - 1
+      )
+      const last = entries.length - 1
+      let target = focusIdx
+
+      switch (key) {
+        case 'Home':
+          target = 0
+          break
+        case 'End':
+          target = last
+          break
+        case 'ArrowUp':
+          if (focusIdx < 0) target = 0
+          else target = spec ? Math.max(0, focusIdx - columns) : Math.max(0, focusIdx - 1)
+          break
+        case 'ArrowDown':
+          if (focusIdx < 0) target = 0
+          else target = spec ? Math.min(last, focusIdx + columns) : Math.min(last, focusIdx + 1)
+          break
+        case 'ArrowLeft':
+          target = focusIdx < 0 ? 0 : Math.max(0, focusIdx - 1)
+          break
+        case 'ArrowRight':
+          target = focusIdx < 0 ? 0 : Math.min(last, focusIdx + 1)
+          break
+        case 'PageUp':
+          if (focusIdx < 0) target = 0
+          else
+            target = spec
+              ? Math.max(0, focusIdx - pageRows * columns)
+              : Math.max(0, focusIdx - pageRows)
+          break
+        case 'PageDown':
+          if (focusIdx < 0) target = 0
+          else
+            target = spec
+              ? Math.min(last, focusIdx + pageRows * columns)
+              : Math.min(last, focusIdx + pageRows)
+          break
+      }
+
+      target = Math.max(0, Math.min(last, target))
+      const targetPath = entries[target]!.path
+
+      if (e.shiftKey) {
+        const anchorPath = selectionAnchor ?? (focusIdx >= 0 ? entries[focusIdx]!.path : targetPath)
+        const anchorIdx = entries.findIndex((en) => samePath(en.path, anchorPath))
+        const a = anchorIdx >= 0 ? anchorIdx : target
+        const [from, to] = a < target ? [a, target] : [target, a]
+        setSelection(
+          entries.slice(from, to + 1).map((en) => en.path),
+          anchorPath,
+          targetPath
+        )
+      } else {
+        setSelection([targetPath], targetPath, targetPath)
+      }
+
+      const rowIdx = spec ? Math.floor(target / columns) : target
+      virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [
+    entries,
+    focusedPath,
+    tab?.selected,
+    selectionAnchor,
+    setSelection,
+    spec,
+    columns,
+    rowHeight,
+    virtualizer
+  ])
+
+  // Layout is deterministic, so marquee hits are pure math over all entries
+  // (not just the virtualized ones). Rect is in content coordinates.
+  const marqueeHitTest = (l: number, t: number, w: number, h: number): string[] => {
+    const r = l + w
+    const b = t + h
+    const hits: string[] = []
+    for (let i = 0; i < entries.length; i++) {
+      let x: number, y: number, cw: number, ch: number
+      if (spec) {
+        x = (i % columns) * spec.cellW
+        y = Math.floor(i / columns) * spec.cellH
+        cw = spec.cellW - 8
+        ch = spec.cellH - 8
+      } else {
+        x = 0
+        y = i * rowHeight
+        cw = width
+        ch = rowHeight
+      }
+      if (l < x + cw && r > x && t < y + ch && b > y) hits.push(entries[i]!.path)
+    }
+    return hits
+  }
+  const marqueeHitTestRef = useRef(marqueeHitTest)
+  useEffect(() => {
+    marqueeHitTestRef.current = marqueeHitTest
+  })
+
+  const startMarquee = useCallback(
+    (e: React.MouseEvent): void => {
+      const el = scrollRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      // ignore presses on the scrollbars
+      if (e.clientX - rect.left >= el.clientWidth || e.clientY - rect.top >= el.clientHeight)
+        return
+      e.preventDefault()
+
+      const additive = e.ctrlKey || e.shiftKey
+      const base = additive
+        ? (useAppStore.getState().tabs.find((t) => t.id === useAppStore.getState().activeTabId)
+            ?.selected ?? [])
+        : []
+      const baseSet = new Set(base.map((p) => p.toLowerCase()))
+
+      const toContent = (cx: number, cy: number): { x: number; y: number } => {
+        const r = el.getBoundingClientRect()
+        return {
+          x: Math.max(0, Math.min(cx - r.left + el.scrollLeft, el.scrollWidth)),
+          y: Math.max(0, Math.min(cy - r.top + el.scrollTop, el.scrollHeight))
+        }
+      }
+      const origin = toContent(e.clientX, e.clientY)
+      let lastClient = { x: e.clientX, y: e.clientY }
+      let active = false
+      let raf = 0
+
+      const apply = (): void => {
+        const cur = toContent(lastClient.x, lastClient.y)
+        const l = Math.min(origin.x, cur.x)
+        const t = Math.min(origin.y, cur.y)
+        const w = Math.abs(origin.x - cur.x)
+        const h = Math.abs(origin.y - cur.y)
+        setMarquee({ l, t, w, h })
+        const hits = marqueeHitTestRef.current(l, t, w, h)
+        const sel = additive ? [...base, ...hits.filter((p) => !baseSet.has(p.toLowerCase()))] : hits
+        setSelection(sel, null, null)
+      }
+
+      const onMove = (ev: MouseEvent): void => {
+        lastClient = { x: ev.clientX, y: ev.clientY }
+        if (!active) {
+          if (Math.abs(ev.clientX - e.clientX) < 4 && Math.abs(ev.clientY - e.clientY) < 4) return
+          active = true
+        }
+        apply()
+      }
+      // Auto-scroll while the pointer sits near/beyond the top or bottom edge.
+      const tick = (): void => {
+        if (active) {
+          const r = el.getBoundingClientRect()
+          let dy = 0
+          if (lastClient.y < r.top + 24) dy = -Math.ceil((r.top + 24 - lastClient.y) / 4)
+          else if (lastClient.y > r.bottom - 24) dy = Math.ceil((lastClient.y - (r.bottom - 24)) / 4)
+          if (dy !== 0) {
+            el.scrollTop += dy
+            apply()
+          }
+        }
+        raf = requestAnimationFrame(tick)
+      }
+      const onUp = (): void => {
+        cancelAnimationFrame(raf)
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+        setMarquee(null)
+        // A plain background click (no drag) clears / keeps the base selection.
+        if (!active) setSelection(base, null, null)
+      }
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+      raf = requestAnimationFrame(tick)
+    },
+    [setSelection]
+  )
+
+  // Restore scroll offset when path changes; save on scroll.
+  const listingPath = listing.path
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el && tab) el.scrollTop = tab.scrollOffset
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listingPath, tab?.id])
+
+  const onScroll = useCallback((): void => {
+    const el = scrollRef.current
+    if (el) setScrollOffset(el.scrollTop)
+  }, [setScrollOffset])
+
+  const selectWithModifiers = useCallback(
+    (entry: DirEntry, e: React.MouseEvent): void => {
+      const path = entry.path
+      const current = tab?.selected ?? []
+      if (e.ctrlKey) {
+        const has = current.some((p) => samePath(p, path))
+        setSelection(
+          has ? current.filter((p) => !samePath(p, path)) : [...current, path],
+          path,
+          path
+        )
+      } else if (e.shiftKey && selectionAnchor) {
+        const anchorIdx = entries.findIndex((en) => samePath(en.path, selectionAnchor))
+        const idx = entries.findIndex((en) => samePath(en.path, path))
+        if (anchorIdx >= 0 && idx >= 0) {
+          const [from, to] = anchorIdx < idx ? [anchorIdx, idx] : [idx, anchorIdx]
+          setSelection(
+            entries.slice(from, to + 1).map((en) => en.path),
+            selectionAnchor,
+            path
+          )
+        } else {
+          setSelection([path], path, path)
+        }
+      } else {
+        setSelection([path], path, path)
+      }
+    },
+    [tab?.selected, selectionAnchor, entries, setSelection]
+  )
+
+  const onItemMouseDown = useCallback(
+    (entry: DirEntry, e: React.MouseEvent): void => {
+      if (e.button === 2) {
+        // right-click: keep multi-selection if target already selected
+        if (!selected.has(entry.path.toLowerCase()))
+          setSelection([entry.path], entry.path, entry.path)
+        return
+      }
+      if (!e.ctrlKey && !e.shiftKey && selected.has(entry.path.toLowerCase())) {
+        // defer to click so dragging a multi-selection works
+        suppressClickRef.current = false
+        return
+      }
+      suppressClickRef.current = true
+      selectWithModifiers(entry, e)
+    },
+    [selected, selectWithModifiers, setSelection]
+  )
+
+  const onItemClick = useCallback(
+    (entry: DirEntry, e: React.MouseEvent): void => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false
+        return
+      }
+      selectWithModifiers(entry, e)
+    },
+    [selectWithModifiers]
+  )
+
+  const onItemContextMenu = useCallback(
+    (entry: DirEntry, e: React.MouseEvent): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
+      if (!selected.has(entry.path.toLowerCase()))
+        setSelection([entry.path], entry.path, entry.path)
+      openContextMenu({ x: e.clientX, y: e.clientY, paths })
+    },
+    [selected, tab?.selected, setSelection, openContextMenu]
+  )
+
+  const onItemDragStart = useCallback(
+    (entry: DirEntry, e: React.DragEvent): void => {
+      const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
+      setDragPaths(paths)
+      e.dataTransfer.effectAllowed = 'copyMove'
+      e.dataTransfer.setData('application/x-mfe-paths', JSON.stringify(paths))
+    },
+    [selected, tab?.selected, setDragPaths]
+  )
+
+  // dragend fires on the source element even when the drag is cancelled
+  // (Esc / invalid drop) — clear all drag visuals so nothing lingers.
+  const onItemDragEnd = useCallback((): void => {
+    setDragPaths([])
+    setDropTargetPath(null)
+    setBgDropActive(false)
+  }, [setDragPaths])
+
+  const onItemDrop = useCallback(
+    (entry: DirEntry, e: React.DragEvent): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      setDropTargetPath(null)
+      setBgDropActive(false)
+      const src = dragPaths[0]
+      if (entry.kind !== 'dir' || dragPaths.length === 0 || !src) return
+      if (dragPaths.some((p) => samePath(p, entry.path) || isUnderPath(entry.path, p))) return
+      void performTransfer(
+        dropOperation(src, entry.path, e.ctrlKey, e.shiftKey),
+        dragPaths,
+        entry.path
+      )
+      setDragPaths([])
+    },
+    [dragPaths, performTransfer, setDragPaths]
+  )
+
+  const onBackgroundDrop = useCallback(
+    (e: React.DragEvent): void => {
+      e.preventDefault()
+      setBgDropActive(false)
+      setDropTargetPath(null)
+      const dest = listing.path
+      const src = dragPaths[0]
+      if (dragPaths.length === 0 || !src || !dest) return
+      // dropping into own folder is a no-op for move
+      if (dragPaths.every((p) => samePath(parentOf(p) ?? '', dest)) && !e.ctrlKey) return
+      void performTransfer(dropOperation(src, dest, e.ctrlKey, e.shiftKey), dragPaths, dest)
+      setDragPaths([])
+    },
+    [dragPaths, listing.path, performTransfer, setDragPaths]
+  )
+
+  if (!tab) return <div className="fileview" />
+
+  if (listing.offline) {
+    return (
+      <div className="fileview">
+        <div className="fileview-offline">
+          <div className="fileview-offline-title">Offline</div>
+          <p className="fileview-offline-path" title={listing.path}>
+            {listing.path}
+          </p>
+          <p className="fileview-offline-hint">
+            This folder isn’t available right now — common after reboot while encrypted or network
+            drives are still mounting. Checking again every few seconds…
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void useAppStore.getState().refresh()}
+          >
+            Retry now
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (listing.error) {
+    return (
+      <div className="fileview">
+        <div className="fileview-empty">{listing.error}</div>
+      </div>
+    )
+  }
+
+  const renameEditor = (entry: DirEntry): JSX.Element => (
+    <RenameInput
+      name={entry.name}
+      isDir={entry.kind === 'dir'}
+      onSubmit={(v) => void submitRename(v)}
+      onCancel={cancelRename}
+    />
+  )
+
+  const toggleSort = (key: SortKey): void =>
+    setSort({
+      key,
+      dir: effectiveSort.key === key && effectiveSort.dir === 'asc' ? 'desc' : 'asc'
+    })
+  const sortArrow = (key: SortKey): string =>
+    effectiveSort.key === key ? (effectiveSort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+
+  return (
+    <>
+      {viewMode === 'details' && (
+        <div
+          className="details-header"
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setHeaderMenu({ x: e.clientX, y: e.clientY })
+          }}
+          onDragOver={(e) => {
+            if (colDrag && e.target === e.currentTarget) {
+              e.preventDefault()
+              setColDrop('end')
+            }
+          }}
+          onDrop={(e) => {
+            if (colDrag) {
+              e.preventDefault()
+              moveColumn(colDrag, colDrop ?? 'end')
+              setColDrag(null)
+              setColDrop(null)
+            }
+          }}
+        >
+          <div className="hcell" style={{ width: nameColWidth }}>
+            <button className="hlabel" onClick={() => toggleSort('name')}>
+              Name{sortArrow('name')}
+            </button>
+            <div
+              className="hresize"
+              draggable={false}
+              onPointerDown={(e) => startColResize(e, 'name')}
+              title="Resize column"
+            />
+          </div>
+          {detailsColumns.map((c) => {
+            const meta = DETAILS_COLUMN_META[c.id]
+            return (
+              <div
+                key={c.id}
+                className={`hcell${colDrop === c.id ? ' drop-before' : ''}`}
+                style={{ width: colWidth(c.id) }}
+                draggable
+                onDragStart={(e) => {
+                  setColDrag(c.id)
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/x-mfe-column', c.id)
+                }}
+                onDragEnd={() => {
+                  setColDrag(null)
+                  setColDrop(null)
+                }}
+                onDragOver={(e) => {
+                  if (colDrag && colDrag !== c.id) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setColDrop(c.id)
+                  }
+                }}
+                onDrop={(e) => {
+                  if (colDrag) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    moveColumn(colDrag, c.id)
+                    setColDrag(null)
+                    setColDrop(null)
+                  }
+                }}
+              >
+                <button className="hlabel" onClick={() => toggleSort(c.id)}>
+                  {meta.label}
+                  {sortArrow(c.id)}
+                </button>
+                <div
+                  className="hresize"
+                  draggable={false}
+                  onPointerDown={(e) => startColResize(e, c.id)}
+                  title="Resize column"
+                />
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {headerMenu && (
+        <div
+          className="context-menu details-columns-menu"
+          style={{ left: headerMenu.x, top: headerMenu.y }}
+          role="menu"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button className="menu-item" disabled>
+            <span className="menu-check">✓</span>Name
+          </button>
+          {COLUMN_GROUP_ORDER.map((group) => {
+            const ids = DETAILS_COLUMN_IDS.filter((id) => DETAILS_COLUMN_META[id].group === group)
+            return (
+              <div key={group}>
+                <div className="menu-hint">{COLUMN_GROUP_LABELS[group]}</div>
+                {ids.map((id) => (
+                  <button
+                    key={id}
+                    className="menu-item"
+                    onClick={() => toggleColumn(id)}
+                    role="menuitem"
+                  >
+                    <span className="menu-check">
+                      {detailsColumns.some((c) => c.id === id) ? '✓' : ''}
+                    </span>
+                    {DETAILS_COLUMN_META[id].label}
+                  </button>
+                ))}
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div
+        ref={setScrollEl}
+        className={`fileview${bgDropActive ? ' drop-target' : ''}`}
+        onScroll={onScroll}
+        tabIndex={0}
+        role={isGrid ? 'grid' : 'listbox'}
+        aria-label="Files"
+        onMouseDown={(e) => {
+          if (e.target === e.currentTarget || (e.target as HTMLElement).dataset['bg'] === '1') {
+            if (e.button === 0) startMarquee(e)
+            else setSelection([], null, null)
+          }
+        }}
+        onContextMenu={(e) => {
+          if (e.target === e.currentTarget || (e.target as HTMLElement).dataset['bg'] === '1') {
+            e.preventDefault()
+            openContextMenu({ x: e.clientX, y: e.clientY, paths: [] })
+          }
+        }}
+        onDragOver={(e) => {
+          if (dragPaths.length > 0) {
+            e.preventDefault()
+            setBgDropActive(true)
+          }
+        }}
+        onDragLeave={(e) => {
+          if (e.target === e.currentTarget) setBgDropActive(false)
+        }}
+        onDrop={onBackgroundDrop}
+      >
+        {entries.length === 0 && !listing.loading && (
+          <div className="fileview-empty" data-bg="1">
+            This folder is empty
+          </div>
+        )}
+        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }} data-bg="1">
+          {virtualizer.getVirtualItems().map((vRow) => {
+            if (spec) {
+              const start = vRow.index * columns
+              const rowEntries = entries.slice(start, start + columns)
+              return rowEntries.map((entry, i) => {
+                const isSel = selected.has(entry.path.toLowerCase())
+                const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
+                const iconPx = Math.min(spec.thumb, 48)
+                return (
+                  <div
+                    key={entry.path}
+                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
+                    style={{
+                      top: vRow.start,
+                      left: i * spec.cellW,
+                      width: spec.cellW - 8,
+                      height: spec.cellH - 8
+                    }}
+                    draggable={renamingPath !== entry.path}
+                    onMouseDown={(e) => onItemMouseDown(entry, e)}
+                    onClick={(e) => onItemClick(entry, e)}
+                    onDoubleClick={() => void openEntry(entry)}
+                    onContextMenu={(e) => onItemContextMenu(entry, e)}
+                    onDragStart={(e) => onItemDragStart(entry, e)}
+                    onDragEnd={onItemDragEnd}
+                    onDragOver={(e) => {
+                      if (entry.kind === 'dir' && dragPaths.length > 0) {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setDropTargetPath(entry.path)
+                        setBgDropActive(false)
+                      }
+                    }}
+                    onDragLeave={() => setDropTargetPath((t) => (t === entry.path ? null : t))}
+                    onDrop={(e) => onItemDrop(entry, e)}
+                    title={entry.name}
+                  >
+                    <div className="cell-thumb">
+                      {entry.kind === 'file' && isImageExt(entry.ext) ? (
+                        <ThumbImage
+                          path={entry.path}
+                          mtimeMs={entry.mtimeMs}
+                          size={spec.thumb}
+                          fallback={<ShellIcon path={entry.path} size={iconPx} />}
+                        />
+                      ) : (
+                        <ShellIcon path={entry.path} size={iconPx} isDir={entry.kind === 'dir'} />
+                      )}
+                    </div>
+                    {renamingPath === entry.path ? (
+                      renameEditor(entry)
+                    ) : (
+                      <div className="cell-name">{entry.name}</div>
+                    )}
+                  </div>
+                )
+              })
+            }
+
+            const entry = entries[vRow.index]
+            if (!entry) return null
+            const isSel = selected.has(entry.path.toLowerCase())
+            const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
+            return (
+              <div
+                key={entry.path}
+                className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
+                style={{ top: vRow.start, height: rowHeight }}
+                draggable={renamingPath !== entry.path}
+                onMouseDown={(e) => onItemMouseDown(entry, e)}
+                onClick={(e) => onItemClick(entry, e)}
+                onDoubleClick={() => void openEntry(entry)}
+                onContextMenu={(e) => onItemContextMenu(entry, e)}
+                onDragStart={(e) => onItemDragStart(entry, e)}
+                onDragEnd={onItemDragEnd}
+                onDragOver={(e) => {
+                  if (entry.kind === 'dir' && dragPaths.length > 0) {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setDropTargetPath(entry.path)
+                    setBgDropActive(false)
+                  }
+                }}
+                onDragLeave={() => setDropTargetPath((t) => (t === entry.path ? null : t))}
+                onDrop={(e) => onItemDrop(entry, e)}
+              >
+                <div
+                  className="row-name"
+                  style={
+                    viewMode === 'details' ? { width: nameColWidth, flex: '0 0 auto' } : undefined
+                  }
+                >
+                  <ShellIcon path={entry.path} size={16} isDir={entry.kind === 'dir'} />
+                  {renamingPath === entry.path ? renameEditor(entry) : <span>{entry.name}</span>}
+                </div>
+                {viewMode === 'details' &&
+                  detailsColumns.map((c) => (
+                    <span
+                      key={c.id}
+                      className={`col${DETAILS_COLUMN_META[c.id].numeric ? ' col-num' : ''}`}
+                      style={{ width: colWidth(c.id) }}
+                      title={detailCellValue(c.id, entry, metaByPath[entry.path]) || undefined}
+                    >
+                      {detailCellValue(c.id, entry, metaByPath[entry.path])}
+                    </span>
+                  ))}
+              </div>
+            )
+          })}
+        </div>
+        {marquee && marquee.w + marquee.h > 0 && (
+          <div
+            className="marquee"
+            style={{ left: marquee.l, top: marquee.t, width: marquee.w, height: marquee.h }}
+          />
+        )}
+      </div>
+    </>
+  )
+}
+

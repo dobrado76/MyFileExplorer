@@ -1,0 +1,4 @@
+downloads ERR Expected 2 arguments, got 1
+documents ERR Expected 2 arguments, got 1
+desktop ERR Expected 2 arguments, got 1
+pictures ERR Expected 2 arguments, got 1

@@ -1,0 +1,190 @@
+# Product specification
+
+**Version:** 0.0.0 (spec)  
+**App:** MyFileExplorer
+
+Windows desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, optional indexed search.
+
+---
+
+## Personas & jobs
+
+| Job                     | Outcome                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| Browse many folders     | Open several tabs; restore them next launch (offline volumes wait) |
+| Inspect AI images       | See prompt / parameters / workflow fields in preview when embedded |
+| Routine file ops        | Create, rename, cut/copy/paste, DnD, delete; Ctrl+Z / Ctrl+Y undo  |
+| Find files in hot trees | Mark folders for index; search returns fast                        |
+| Comfortable UI          | Dark/light/custom theme; font family & size                        |
+
+---
+
+## Shell layout
+
+```
+┌─ Tab bar (reorder, rename, close, new) ─────────────────────────┐
+├─ Nav: Back Forward Up | Breadcrumb ──────────── Search ─────────┤
+├─ Folder tree │ File view (icons/list/details) │ Preview (opt) ─┤
+│              │                                │                 │
+│              │                                │                 │
+└──────────────┴────────────────────────────────┴─────────────────┘
+└─ Status: selection count, free space optional ──────────────────┘
+```
+
+- **Tree | files | preview** — two splitters; positions persisted.
+- Preview pane **collapsible**; collapsed state persisted.
+- Tree collapsible (optional convenience); if implemented, persist width + collapsed.
+- **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.
+
+---
+
+## Tabs
+
+| Requirement      | Detail                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Multiple folders | One path + view state per tab                                                              |
+| Persist          | Tabs + active index restored on launch                                                     |
+| Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
+| Reorder          | Drag tabs to reorder; order persisted                                                      |
+| Close            | Middle-click / close button; confirm if that tab has an in-progress destructive op (rare)  |
+| New tab          | Clone current path or open profile default (This PC / home — Settings)                     |
+
+Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `treeExpanded` (folder-tree expand/collapse paths).
+
+---
+
+## Navigation
+
+- Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths)
+- **Back / Forward / Up**
+- Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` and Enter
+- Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred)
+
+---
+
+## View modes
+
+| Mode              | Behavior                                                    |
+| ----------------- | ----------------------------------------------------------- |
+| Extra large icons | Image/PSD content thumbs; otherwise Windows shell icons     |
+| Large icons       | Same                                                        |
+| Medium icons      | Same                                                        |
+| Small icons       | Same                                                        |
+| List / Details    | Compact name + Windows shell icon                           |
+| Details           | Columns: Name (pinned) + show/hide catalog via header right-click. Groups: File (modified/created/type/size/ext), Image (dimensions, width/height, bit depth, color space, orientation, alpha, format), Audio/video (duration, bit rate, sample rate, channels, codec, container, frame rate, media size), Tags (title/artist/album/…), Generation (A1111 seed/model/steps/sampler/CFG/size/prompts). Resizable, reorderable; layout persisted in settings. Media columns fill asynchronously. |
+
+- Sort by any visible column (incl. media once values load); asc/desc; folders-first toggle in Settings (default on).
+- Virtualize grids/lists for large directories.
+- **Images:** double-click / Enter opens an in-app full-size viewer (navigate siblings with arrow keys). **Open with default app** (context menu) uses the system association for external editors.
+- **Customize this folder** (context menu on folder / empty pane): save current view mode, sort, and Details columns for that path — **this folder only** or **this folder and subfolders**. Exact entry wins over the longest recursive ancestor; other folders keep the tab’s baseline view + global columns. Live view/sort/column edits while a customization applies update that owning entry. Manage in Settings → Folder views.
+
+---
+
+## File operations
+
+| Op                 | Behavior                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| New folder         | Inline rename or dialog                                                                                                                          |
+| New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
+| Rename             | F2 / context; inline                                                                                                                             |
+| Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
+| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer) |
+| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows)                                                                         |
+| Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory                                                                       |
+| Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
+| Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
+| Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar (not a full shell property sheet) |
+
+Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dates/type for all) then Replace / Skip / Keep both (rename), per file or apply to all.
+
+---
+
+## Context menu (curated)
+
+**Show only** (adjust during implementation, keep short):
+
+- Open
+- Open in new tab
+- Open as root in new tab (scoped tab: folder becomes the tree root, navigation stays inside)
+- Pin to Quick access / Unpin from Quick access (folders)
+- Cut / Copy / Paste
+- Rename
+- Delete / Delete permanently
+- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / Other…
+- Copy path / Copy name
+- Show in system Explorer
+- Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
+- Add folder to search index / Remove from index (folders)
+- Properties
+
+**Do not** dump every Explorer verb (Send to, Share, Git overlays, 20+ third-party entries).
+
+---
+
+## Preview pane
+
+See [PREVIEW.md](PREVIEW.md).
+
+- Toggle show/hide; remember width.
+- Selection: single file → rich preview; multi → summary (count, total size).
+- Type-specific fields; for images, parse embedded generation metadata when present.
+- Inline video/audio playback in-pane for common containers (see PREVIEW.md); unsupported codecs → open with default app.
+
+---
+
+## Search
+
+See [SEARCH.md](SEARCH.md).
+
+- Search box in chrome; scope = current folder (recursive) or “indexed roots only” toggle.
+- Folders can be **marked for indexing**; indexed search is fast (FTS).
+- Unindexed scope: best-effort walk with progress + cancel; never pretend to be instant.
+
+---
+
+## Settings
+
+| Area         | Fields                                                                             |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Appearance   | Theme dark / light / custom; font family; font size                                |
+| Behavior     | Default new-tab path; folders-first; confirm permanent delete always on/off        |
+| Quick access | Manage tree shortcuts                                                              |
+| Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
+| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
+| Preview      | Show preview by default; max preview bytes for text                                |
+| Search       | List indexed roots; reindex button; exclude patterns (e.g. `node_modules`, `.git`) |
+| Advanced     | Updates folder + check/run installer; clear shell-icon + thumb cache               |
+
+---
+
+## Keyboard (minimum)
+
+| Key             | Action                |
+| --------------- | --------------------- |
+| Backspace       | Up (when not editing) |
+| Alt+← / →       | Back / Forward        |
+| Ctrl+T / W      | New tab / Close tab   |
+| Ctrl+Tab        | Next tab              |
+| F2              | Rename                |
+| Ctrl+C/X/V      | Copy / Cut / Paste    |
+| Del / Shift+Del | Trash / Permanent     |
+| ↑↓ / ←→         | Move focus in file view (grid uses all four) |
+| Home / End      | First / last item     |
+| Shift+Home/End  | Select from cursor to first / last |
+| Shift+arrows    | Extend selection      |
+| PageUp / PageDown | Page through file view |
+| Ctrl+F / Ctrl+E | Focus search          |
+| Ctrl+Shift+P    | Toggle preview        |
+| F5              | Refresh               |
+
+---
+
+## Acceptance highlights (v1)
+
+- [ ] Launch restores previous tabs and active folder
+- [ ] Splitter positions and preview collapsed state restore
+- [ ] Del trashes; Shift+Del permanently deletes with confirm rules
+- [ ] DnD move vs copy respects modifiers
+- [ ] PNG with A1111/Comfy metadata shows prompt fields in preview when parseable
+- [ ] Indexed folder search returns results without full-tree walk
+- [ ] Theme + font changes apply live and persist

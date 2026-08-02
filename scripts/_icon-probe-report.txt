@@ -1,0 +1,9 @@
+start 2026-08-02T04:24:01.635Z
+ready
+home	1256	3f5e748dffe9df67	C:\Users\domin
+desktop	1256	3f5e748dffe9df67	C:\Users\domin\OneDrive\Desktop
+downloads	1256	3f5e748dffe9df67	C:\Users\domin\Downloads
+documents	1256	3f5e748dffe9df67	C:\Users\domin\OneDrive\Dropbox\Documents
+pictures	1256	3f5e748dffe9df67	C:\Users\domin\OneDrive\Pictures
+plain-folder	1256	3f5e748dffe9df67	C:\Users\domin\OneDrive\Dropbox\Documents\Adobe
+done
