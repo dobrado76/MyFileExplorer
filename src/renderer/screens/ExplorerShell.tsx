@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type JSX } from 'react'
+import { useCallback, useEffect, lazy, Suspense, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { TabBar } from '../components/TabBar'
 import { Toolbar } from '../components/Toolbar'
@@ -13,6 +13,11 @@ import { ImageViewer } from '../components/ImageViewer'
 import { Splitter } from '../components/Splitter'
 import { basename } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
+
+const ImageEditor = lazy(async () => {
+  const m = await import('../components/ImageEditor')
+  return { default: m.ImageEditor }
+})
 
 const TREE_MIN = 140
 const PREVIEW_MIN = 200
@@ -35,11 +40,31 @@ function isEditingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
 }
 
+/** True when the user highlighted text (e.g. preview) — let the browser handle Ctrl+C. */
+function hasTextSelection(): boolean {
+  const sel = window.getSelection()
+  return !!sel && !sel.isCollapsed && (sel.toString().length ?? 0) > 0
+}
+
+function isTreeTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && !!target.closest('.tree, .pane-tree')
+}
+
+/** File-view selection, or the focused tree folder when the tree has keyboard/mouse focus. */
+function clipboardActionPaths(s: ReturnType<typeof useAppStore.getState>, target: EventTarget | null): string[] {
+  if (isTreeTarget(target)) {
+    const p = s.treeFocusPath ?? s.activeTab().path
+    return p ? [p] : []
+  }
+  return s.activeTab().selected
+}
+
 export function ExplorerShell(): JSX.Element {
   const splitters = useAppStore((s) => s.splitters)
   const setSplitters = useAppStore((s) => s.setSplitters)
   const searchActive = useAppStore((s) => s.search.active)
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
+  const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
 
   // Window title follows the active tab.
   useEffect(() => {
@@ -89,20 +114,23 @@ export function ExplorerShell(): JSX.Element {
       const sel = s.activeTab().selected
       if (inTree) {
         const treePath = s.treeFocusPath ?? s.activeTab().path
-        if (treePath) s.startRename(treePath)
+        if (treePath) s.startRename(treePath, 'tree')
       } else if (sel.length === 1 && sel[0]) {
-        s.startRename(sel[0])
+        s.startRename(sel[0], 'files')
       } else if (s.treeFocusPath) {
         // No file-view selection — rename the tree-focused folder
-        s.startRename(s.treeFocusPath)
+        s.startRename(s.treeFocusPath, 'tree')
       }
-    } else if (ctrl && key.toLowerCase() === 'c') {
+    } else if (ctrl && !alt && key.toLowerCase() === 'c') {
+      // Preview / selectable text: native copy. Otherwise copy selected files (or tree focus).
+      if (hasTextSelection()) return
       e.preventDefault()
-      s.copySelection()
-    } else if (ctrl && key.toLowerCase() === 'x') {
+      s.copySelection(clipboardActionPaths(s, e.target))
+    } else if (ctrl && !alt && key.toLowerCase() === 'x') {
+      if (hasTextSelection()) return
       e.preventDefault()
-      s.cutSelection()
-    } else if (ctrl && key.toLowerCase() === 'v') {
+      s.cutSelection(clipboardActionPaths(s, e.target))
+    } else if (ctrl && !alt && key.toLowerCase() === 'v') {
       e.preventDefault()
       void s.paste()
     } else if (ctrl && key.toLowerCase() === 'a') {
@@ -116,7 +144,9 @@ export function ExplorerShell(): JSX.Element {
       void s.redo()
     } else if (key === 'Delete') {
       e.preventDefault()
-      void s.deleteSelection(shift)
+      // Tree focus → delete that folder; file view → delete selection (same as F2 / Ctrl+C).
+      const paths = isTreeTarget(e.target) ? clipboardActionPaths(s, e.target) : undefined
+      void s.deleteSelection(shift, paths)
     } else if (ctrl && (key.toLowerCase() === 'f' || key.toLowerCase() === 'e')) {
       e.preventDefault()
       document.querySelector<HTMLInputElement>('[data-search-input]')?.focus()
@@ -200,6 +230,11 @@ export function ExplorerShell(): JSX.Element {
       <ContextMenu />
       <Dialogs />
       <ImageViewer />
+      {imageEditorOpen ? (
+        <Suspense fallback={null}>
+          <ImageEditor />
+        </Suspense>
+      ) : null}
     </div>
   )
 }

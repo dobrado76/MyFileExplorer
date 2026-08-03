@@ -19,6 +19,13 @@ export const IPC = {
   fsProperties: 'fs:properties',
   fsMeasureFolder: 'fs:measureFolder',
   fsSetAttributes: 'fs:setAttributes',
+  fsSaveEditedImage: 'fs:saveEditedImage',
+  fsHasImageOriginal: 'fs:hasImageOriginal',
+  fsRevertImageOriginal: 'fs:revertImageOriginal',
+  fsReadImageForEdit: 'fs:readImageForEdit',
+  fsSaveEditedImageAs: 'fs:saveEditedImageAs',
+  /** Ensure LaMa ONNX is cached under userData; returns fetchable model URL. */
+  fsEnsureLamaModel: 'fs:ensureLamaModel',
 
   shellOpenPath: 'shell:openPath',
   shellShowItemInFolder: 'shell:showItemInFolder',
@@ -43,6 +50,7 @@ export const IPC = {
   searchCancel: 'search:cancel',
 
   thumbsGet: 'thumbs:get',
+  thumbsGenerateVidCache: 'thumbs:generateVidCache',
   iconsGet: 'icons:get',
   metaGetMany: 'meta:getMany',
 
@@ -70,7 +78,20 @@ export type MfeEvent =
       type: 'index-progress'
       payload: { rootPath: string; processed: number; total?: number; done?: boolean }
     }
-  | { type: 'op-progress'; payload: { opId: string; done: number; total: number } }
+  | {
+      type: 'op-progress'
+      payload: {
+        opId: string
+        kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs'
+        done: number
+        total: number
+        /** Basename (or short path) of the item currently being processed. */
+        current?: string
+        /** Human label e.g. "Copying…". */
+        label?: string
+        phase: 'running' | 'done'
+      }
+    }
   | {
       type: 'external-open'
       /** Open/reveal a path from CLI, protocol URL, or a second-instance launch. */

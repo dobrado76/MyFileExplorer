@@ -24,6 +24,8 @@ export type PreviewField = {
   value: string
   group?: PreviewFieldGroup
   mono?: boolean
+  /** When set, renderer syntax-highlights `value` (e.g. JSON blocks). */
+  syntax?: 'json'
   copyable?: boolean
 }
 
@@ -35,6 +37,8 @@ export type SpreadsheetSheet = {
 export type PreviewModel = {
   path: string
   kind: PreviewKind
+  /** Optional header subtitle (e.g. “SafeTensors · LoRA · 229 M”). */
+  subtitle?: string
   mediaUrl?: string
   textSample?: string
   /** HTML fragment for Word / RTF (renderer sanitizes before inject). */

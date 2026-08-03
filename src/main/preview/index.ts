@@ -10,8 +10,10 @@ import { parseA1111Parameters } from './a1111'
 import { listIndexRoots } from '../search'
 import { buildSpreadsheetSheets } from './spreadsheet'
 import { docxToHtml, docToHtml } from './office'
+import { pptxToHtml, pptToHtml } from './powerpoint'
 import { rtfToHtml } from './rtf'
 import { rasterizePsd } from './psd'
+import { buildSafetensorsPreviewFields } from './safetensors'
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -80,8 +82,11 @@ const MARKDOWN_EXTS = new Set(['md', 'markdown'])
 const SPREADSHEET_EXTS = new Set(['xls', 'xlsx', 'xlsm', 'xlsb', 'ods', 'csv'])
 const WORD_DOCX_EXTS = new Set(['docx'])
 const WORD_DOC_EXTS = new Set(['doc'])
+const PPTX_EXTS = new Set(['pptx'])
+const PPT_EXTS = new Set(['ppt'])
 const RTF_EXTS = new Set(['rtf'])
 const PSD_EXTS = new Set(['psd'])
+const SAFETENSORS_EXTS = new Set(['safetensors'])
 
 const DISPLAY_CAP = 64 * 1024 // cap long prompt/JSON display text
 
@@ -132,7 +137,6 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
   const ext = path.extname(file).slice(1).toLowerCase()
 
   fields.push({ id: 'file.name', label: 'Name', value: name, group: 'file', copyable: true })
-  fields.push({ id: 'file.path', label: 'Path', value: file, group: 'file', copyable: true })
 
   let model: PreviewModel
 
@@ -198,17 +202,36 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       fields.push({ id: 'file.readonly', label: 'Read-only', value: 'Yes', group: 'file' })
     }
 
+    const mediaCacheKey = `${st.mtimeMs}-${st.size}`
     if (IMAGE_EXTS.has(ext)) {
-      model = await buildImagePreview(file, ext, fields, warnings)
+      model = await buildImagePreview(file, ext, fields, warnings, mediaCacheKey)
     } else if (AUDIO_EXTS.has(ext)) {
       protocolAllowlist.allowDir(path.dirname(file))
-      model = { path: file, kind: 'audio', mediaUrl: mediaUrlFor(file), fields, warnings }
+      model = {
+        path: file,
+        kind: 'audio',
+        mediaUrl: mediaUrlFor(file, mediaCacheKey),
+        fields,
+        warnings
+      }
     } else if (VIDEO_EXTS.has(ext)) {
       protocolAllowlist.allowDir(path.dirname(file))
-      model = { path: file, kind: 'video', mediaUrl: mediaUrlFor(file), fields, warnings }
+      model = {
+        path: file,
+        kind: 'video',
+        mediaUrl: mediaUrlFor(file, mediaCacheKey),
+        fields,
+        warnings
+      }
     } else if (ext === 'pdf') {
       protocolAllowlist.allowDir(path.dirname(file))
-      model = { path: file, kind: 'pdf', mediaUrl: mediaUrlFor(file), fields, warnings }
+      model = {
+        path: file,
+        kind: 'pdf',
+        mediaUrl: mediaUrlFor(file, mediaCacheKey),
+        fields,
+        warnings
+      }
     } else if (MARKDOWN_EXTS.has(ext)) {
       model = await buildMarkdownPreview(file, st.size, fields, warnings)
     } else if (SPREADSHEET_EXTS.has(ext) && ext !== 'csv') {
@@ -217,10 +240,16 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildWordPreview(file, 'docx', fields, warnings)
     } else if (WORD_DOC_EXTS.has(ext)) {
       model = await buildWordPreview(file, 'doc', fields, warnings)
+    } else if (PPTX_EXTS.has(ext)) {
+      model = await buildPowerPointPreview(file, 'pptx', fields, warnings)
+    } else if (PPT_EXTS.has(ext)) {
+      model = await buildPowerPointPreview(file, 'ppt', fields, warnings)
     } else if (RTF_EXTS.has(ext)) {
       model = await buildRtfPreview(file, st.size, fields, warnings)
     } else if (PSD_EXTS.has(ext)) {
       model = await buildPsdPreview(file, fields, warnings)
+    } else if (SAFETENSORS_EXTS.has(ext)) {
+      model = await buildSafetensorsPreview(file, fields, warnings)
     } else {
       // CSV stays as spreadsheet when small-enough to parse as workbook, else text.
       if (ext === 'csv') {
@@ -247,7 +276,8 @@ async function buildImagePreview(
   file: string,
   ext: string,
   fields: PreviewField[],
-  warnings: string[]
+  warnings: string[],
+  mediaCacheKey: string
 ): Promise<PreviewModel> {
   protocolAllowlist.allowDir(path.dirname(file))
 
@@ -259,15 +289,7 @@ async function buildImagePreview(
         id: 'image.dimensions',
         label: 'Dimensions',
         value: `${meta.width} × ${meta.height}`,
-        group: 'image'
-      })
-    }
-    if (meta.depth) {
-      fields.push({
-        id: 'image.depth',
-        label: 'Bit depth',
-        value: String(meta.depth),
-        group: 'image'
+        group: 'file'
       })
     }
   } catch {
@@ -282,7 +304,13 @@ async function buildImagePreview(
     }
   }
 
-  return { path: file, kind: 'image', mediaUrl: mediaUrlFor(file), fields, warnings }
+  return {
+    path: file,
+    kind: 'image',
+    mediaUrl: mediaUrlFor(file, mediaCacheKey),
+    fields,
+    warnings
+  }
 }
 
 async function addPngGenerationFields(
@@ -401,7 +429,7 @@ async function buildPsdPreview(
         id: 'image.dimensions',
         label: 'Dimensions',
         value: `${raster.width} × ${raster.height}`,
-        group: 'image'
+        group: 'file'
       })
     }
     if (raster.layerCount > 0) {
@@ -427,6 +455,24 @@ async function buildPsdPreview(
     }
   }
   return { path: file, kind: 'binary', fields, warnings }
+}
+
+async function buildSafetensorsPreview(
+  file: string,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  let subtitle: string | undefined
+  try {
+    const built = await buildSafetensorsPreviewFields(file, warnings)
+    if (built) {
+      subtitle = built.subtitle
+      fields.push(...built.fields)
+    }
+  } catch {
+    warnings.push('SafeTensors metadata parse incomplete')
+  }
+  return { path: file, kind: 'binary', subtitle, fields, warnings }
 }
 
 async function buildMarkdownPreview(
@@ -497,6 +543,28 @@ async function buildWordPreview(
     return { path: file, kind: 'document', htmlBody, fields, warnings }
   } catch (e) {
     warnings.push(e instanceof Error ? e.message : 'Could not parse Word document')
+    return { path: file, kind: 'binary', fields, warnings }
+  }
+}
+
+async function buildPowerPointPreview(
+  file: string,
+  format: 'pptx' | 'ppt',
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  try {
+    const htmlBody = format === 'pptx' ? await pptxToHtml(file, warnings) : await pptToHtml(file, warnings)
+    return {
+      path: file,
+      kind: 'document',
+      subtitle: 'PowerPoint',
+      htmlBody,
+      fields,
+      warnings
+    }
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not parse PowerPoint file')
     return { path: file, kind: 'binary', fields, warnings }
   }
 }

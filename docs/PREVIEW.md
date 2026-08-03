@@ -39,19 +39,23 @@ type PreviewField = {
 When available from `stat`:
 
 - Name
-- Path
 - Type / extension
 - Size (human)
 - Date modified / created (if available on Windows)
 - Read-only / hidden attributes (if cheap)
+- Dimensions (images / PSD — shown in the bottom details strip)
+
+Details strip layout: Name (+ Dimensions when present), then a responsive pair — **Type / Size** beside **Date modified / Date created** when the pane is wide enough; stacks on narrow panes. Path is omitted (redundant with Name for browsing).
 
 ---
 
 ## Images
 
-**Display:** image via protocol URL (respect EXIF orientation when feasible).
+**Display:** image via protocol URL (respect EXIF orientation when feasible). Uses as much vertical space as possible above the details strip (`object-fit: contain`).
 
-**Image fields:** dimensions (via Sharp or header parse), bit depth if cheap.
+**Edit:** pencil button in the preview header (and context menu **Edit image…**) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). **Save** backs up the pristine file under `userData/image-originals/` then overwrites the live path; **Revert to original** restores that backup (D27). **Save as…** writes a new file via the system save dialog with no backup/revert. Not for SVG/PSD.
+
+**Image fields:** dimensions in the file details strip. Generation metadata (when present) still appears in the scrollable content area.
 
 ### Photoshop (`.psd`)
 
@@ -143,6 +147,14 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ---
 
+## PowerPoint (`.pptx`, `.ppt`)
+
+- `.pptx` → slide text HTML via JSZip + DrawingML `<a:t>` extract (`subtitle: PowerPoint`); images/charts omitted
+- `.ppt` (legacy OLE) → best-effort UTF-16LE text scrape; incomplete vs native PowerPoint
+- Same `kind: 'document'` / HTML preview surface as Word; truncated at ~200 KB of HTML
+
+---
+
 ## RTF (`.rtf`)
 
 - Lightweight RTF → text/HTML in main (`kind: 'rtf'`); not a full layout engine
@@ -158,6 +170,18 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Playback depends on Chromium’s codecs (H.264/AAC MP4 and WebM usually work; AVI/MPEG/WMV/many MKV often need “Open with default app”)
 - On decode error: short message + open-with-default-app button
 
+### Icon-view video strips (`!VIDTHUMB_CACHE`, D26)
+
+- Sibling hidden folder next to the video: `{videoName}.thumb_1.jpg` … `thumb_20.jpg`
+- Icon / thumbnail views loop frames (`vidThumbFrameMs` in Settings → Behavior)
+- Context menu **Video previews**:
+  - **Generate missing** — this folder only
+  - **Generate missing (all subfolders)** — recursive walk (skips cache dirs)
+  - **Regenerate all** — overwrite strips for videos in this folder
+  - On selected video(s): **Generate video preview(s)**
+- Generation uses bundled ffmpeg: 20 frames sampled evenly across duration; progress via `op-progress` / status bar
+- Missing or incomplete strips fall back to the Windows shell icon
+
 ---
 
 ## PDF
@@ -172,6 +196,23 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - Child count (non-recursive) + sum size optional (expensive — skip or cache)
 - “Indexed for search: yes/no”
+
+---
+
+## SafeTensors (`.safetensors`)
+
+Header-only parse (8-byte length + JSON); **weights are never loaded**. No large file icon — header subtitle carries the summary.
+
+**Subtitle:** `SafeTensors · {type} · {params} · {dtype} · {N} tensors`
+
+**Weights** (compact): parameters, tensor count, dtype, short tensor-name sample.
+
+**Training** (from `__metadata__`, deduped — no full raw dump):
+
+- Nested JSON strings (`software`, `training_info`, …) are deep-parsed
+- Promoted rows: name, software, base model, dim/alpha, steps/LR/optimizer, hashes, …
+- Remaining keys as a single syntax-highlighted **More metadata** JSON block
+- Tag frequency / datasets as highlighted JSON when present
 
 ---
 

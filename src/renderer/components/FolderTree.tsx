@@ -62,6 +62,7 @@ export function FolderTree(): JSX.Element {
   const treeMutation = useAppStore((s) => s.treeMutation)
   const pinQuickAccess = useAppStore((s) => s.pinQuickAccess)
   const renamingPath = useAppStore((s) => s.renamingPath)
+  const renameSource = useAppStore((s) => s.renameSource)
   const submitRename = useAppStore((s) => s.submitRename)
   const cancelRename = useAppStore((s) => s.cancelRename)
   const setTreeFocusPath = useAppStore((s) => s.setTreeFocusPath)
@@ -330,7 +331,19 @@ export function FolderTree(): JSX.Element {
       samePath(path, activePath) && !(inQuickAccess && section === 'drives')
     const treeFocused = treeFocusPath !== null && samePath(path, treeFocusPath)
     const fsHidden = isFsHidden(path, parentPath)
-    const renaming = renamingPath !== null && samePath(path, renamingPath)
+    const renaming =
+      renameSource === 'tree' && renamingPath !== null && samePath(path, renamingPath)
+    const visibleChildren =
+      node?.children?.filter((child) => {
+        const winHidden = !!node.childHidden?.[child.toLowerCase()]
+        return !isExcludedByViewFilter(
+          { path: child, isHidden: winHidden },
+          viewPatterns,
+          viewFilterOn
+        )
+      }) ?? null
+    // Explorer: keep the chevron until we know there are no subfolders; hide once listed empty.
+    const showTwisty = visibleChildren === null || visibleChildren.length > 0
     return (
       <div key={`${section}:${path}`}>
         <div
@@ -341,7 +354,9 @@ export function FolderTree(): JSX.Element {
             treeRef.current?.focus()
             void navigate(path)
           }}
-          onDoubleClick={() => toggle(path)}
+          onDoubleClick={() => {
+            if (showTwisty) toggle(path)
+          }}
           onContextMenu={(e) => {
             e.preventDefault()
             setTreeFocusPath(path)
@@ -366,19 +381,24 @@ export function FolderTree(): JSX.Element {
             }
           }}
           role="treeitem"
-          aria-expanded={expanded}
+          aria-expanded={showTwisty ? expanded : undefined}
           aria-selected={selected}
         >
-          <button
-            className="twisty"
-            aria-label={expanded ? 'Collapse' : 'Expand'}
-            onClick={(e) => {
-              e.stopPropagation()
-              toggle(path)
-            }}
-          >
-            {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-          </button>
+          {showTwisty ? (
+            <button
+              type="button"
+              className="twisty"
+              aria-label={expanded ? 'Collapse' : 'Expand'}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggle(path)
+              }}
+            >
+              {expanded ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+            </button>
+          ) : (
+            <span className="twisty twisty-spacer" aria-hidden />
+          )}
           <ShellIcon path={path} size={16} isDir />
           {renaming ? (
             <RenameInput
@@ -393,16 +413,9 @@ export function FolderTree(): JSX.Element {
           )}
         </div>
         {expanded &&
-          node?.children
-            ?.filter((child) => {
-              const winHidden = !!node.childHidden?.[child.toLowerCase()]
-              return !isExcludedByViewFilter(
-                { path: child, isHidden: winHidden },
-                viewPatterns,
-                viewFilterOn
-              )
-            })
-            .map((child) => renderNode(child, basename(child), depth + 1, section, path))}
+          visibleChildren?.map((child) =>
+            renderNode(child, basename(child), depth + 1, section, path)
+          )}
       </div>
     )
   }

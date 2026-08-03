@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { resolveFolderView, upsertFolderView, type FolderView } from '@shared/folderViews'
+import {
+  folderViewSummary,
+  resolveFolderView,
+  upsertFolderView,
+  type FolderView
+} from '@shared/folderViews'
 
 const base = {
   viewMode: 'details' as const,
@@ -34,5 +39,13 @@ describe('resolveFolderView', () => {
     expect(list).toHaveLength(1)
     expect(list[0]!.recursive).toBe(true)
     expect(list[0]!.viewMode).toBe('list')
+  })
+})
+
+describe('folderViewSummary', () => {
+  it('labels the no-filename extra-large mode', () => {
+    expect(folderViewSummary(fv('E:\\', false, 'extraLargeIconsNoName'))).toContain(
+      'no filename'
+    )
   })
 })

@@ -17,6 +17,7 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   window-state.json      # x, y, width, height, maximized
   search-index.sqlite    # FTS index + indexed roots registry
   thumbs/                # thumbnail cache files
+  image-originals/       # pristine copies before in-app image edits (D27)
   shell-icons/           # Windows shell icon cache
   logs/                  # optional main log files
 ```
@@ -46,7 +47,10 @@ Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and 
   "confirmPermanentDeleteAlways": false,
   "previewVisibleDefault": true,
   "textPreviewMaxBytes": 1048576,
+  "vidThumbFrameMs": 300,
   "searchExcludeDirNames": ["node_modules", ".git", ".hg", ".svn", "Thumbs.db"],
+  "layouts": [],
+  "folderViews": [],
   "indexedRoots": []
 }
 ```
@@ -54,6 +58,9 @@ Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and 
 Notes:
 
 - `theme`: `"dark" | "light" | "custom"`
+- `vidThumbFrameMs`: delay between `!VIDTHUMB_CACHE` strip frames in icon views (50–2000, default 300). Strips themselves live next to videos as a sibling hidden `!VIDTHUMB_CACHE` folder (not under `userData` — D26 external convention / optional in-app generate).
+- `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, tabs: [{ path, title, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs.
+- `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
 

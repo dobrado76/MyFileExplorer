@@ -194,14 +194,32 @@ function queryRestartManager(files: string[]): LockingProcess[] {
   }
 }
 
+/** Shell hosts that often appear as false lockers (cwd / our own scan cmdline). */
+function isIgnorableLockerName(name: string): boolean {
+  const n = name.toLowerCase().replace(/\.exe$/i, '')
+  return (
+    n === 'powershell' ||
+    n === 'pwsh' ||
+    n === 'conhost' ||
+    n === 'cmd' ||
+    n === 'windowsterminal' ||
+    n === 'openconsole'
+  )
+}
+
 /**
  * Processes whose executable or command line references the path.
  * Helps when RM returns empty for directory locks.
+ *
+ * Important: the scan itself is a PowerShell process whose -Command contains the
+ * path — that must not be reported as a locker (marker + name filter).
  */
 async function findProcessesReferencingPath(targetPath: string): Promise<LockingProcess[]> {
   if (process.platform !== 'win32') return []
   const escaped = targetPath.replace(/'/g, "''")
+  // Unique marker so this scan process never matches its own CommandLine.
   const script = `
+# MFE_LOCK_SCAN
 $ErrorActionPreference = 'SilentlyContinue'
 $t = '${escaped}'.ToLowerInvariant().TrimEnd('\\')
 $out = @()
@@ -211,6 +229,7 @@ Get-CimInstance Win32_Process | ForEach-Object {
   $name = $_.Name
   $procId = $_.ProcessId
   if (-not $procId) { return }
+  if ($cmd -and $cmd.Contains('MFE_LOCK_SCAN')) { return }
   $hit = $false
   if ($exe) {
     $el = $exe.ToLowerInvariant()
@@ -239,7 +258,13 @@ if ($out.Count -eq 0) { '' } else { $out | ConvertTo-Json -Compress }
     const rows = Array.isArray(parsed) ? parsed : [parsed]
     const self = process.pid
     return rows
-      .filter((r) => r && typeof r.pid === 'number' && r.pid !== self)
+      .filter(
+        (r) =>
+          r &&
+          typeof r.pid === 'number' &&
+          r.pid !== self &&
+          !isIgnorableLockerName(r.name || '')
+      )
       .map((r) => ({ pid: r.pid, name: r.name || `PID ${r.pid}` }))
   } catch {
     return []
@@ -247,10 +272,12 @@ if ($out.Count -eq 0) { '' } else { $out | ConvertTo-Json -Compress }
 }
 
 function mergeLockers(...lists: LockingProcess[][]): LockingProcess[] {
+  const self = process.pid
   const byPid = new Map<number, LockingProcess>()
   for (const list of lists) {
     for (const p of list) {
-      if (!p.pid) continue
+      if (!p.pid || p.pid === self) continue
+      if (isIgnorableLockerName(p.name)) continue
       const prev = byPid.get(p.pid)
       if (!prev || (p.name && p.name.length > prev.name.length)) byPid.set(p.pid, p)
     }

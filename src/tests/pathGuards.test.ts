@@ -88,6 +88,10 @@ describe('media protocol URL parsing', () => {
     const p = 'C:\\Users\\someone\\img.png'
     expect(mediaPathFromUrl(mediaUrlFor(p))).toBe(p)
   })
+  it('round-trips a path with cache-busting version', () => {
+    const p = 'C:\\Users\\someone\\img.png'
+    expect(mediaPathFromUrl(mediaUrlFor(p, '123-456'))).toBe(p)
+  })
   it('rejects other protocols', () => {
     expect(mediaPathFromUrl('file:///C:/x.png')).toBeNull()
   })

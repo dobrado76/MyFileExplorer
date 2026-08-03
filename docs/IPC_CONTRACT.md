@@ -30,6 +30,11 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:watch`           | `{ path }`                                       | `{ watching: true }` (main tracks per window) |
 | `fs:unwatch`         | `{ path }`                                       | `{ ok: true }`                                |
 | `fs:listDrives`      | —                                                | `{ drives: { path, label }[] }`               |
+| `fs:saveEditedImage` | `{ path, dataBase64 }`                           | `{ path, preservedOriginal }` (D27)           |
+| `fs:hasImageOriginal`| `{ path }`                                       | `{ hasOriginal }`                             |
+| `fs:revertImageOriginal` | `{ path }`                                   | `{ path, reverted }`                          |
+| `fs:readImageForEdit` | `{ path }`                                      | `{ dataBase64, mime }` (editor load)          |
+| `fs:saveEditedImageAs` | `{ dataBase64, defaultPath }`                  | `{ path, cancelled }` — no original backup    |
 
 `conflictPolicy`: `'fail' (default) | 'replace' | 'skip' | 'rename'` — applied to the whole batch (D18). Renderer prechecks with `fs:checkConflicts` and prompts once.
 
@@ -82,7 +87,8 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 | Channel      | Purpose                                           |
 | ------------ | ------------------------------------------------- |
-| `thumbs:get` | `{ path, size }` → `{ url }` protocol URL or null |
+| `thumbs:get` | `{ path, size }` → `{ url, frames? }` — image/PSD thumb URL, or video strip frame URLs from `!VIDTHUMB_CACHE` (D26); `url` null when unavailable |
+| `thumbs:generateVidCache` | `{ paths[], mode: 'missing' \| 'all', recursive? }` → `{ generated, skipped, failed[] }` — write 20 evenly sampled JPEG frames into sibling `!VIDTHUMB_CACHE` (folders = videos in that folder; `recursive` walks subfolders) |
 
 ### `app.*`
 
@@ -103,7 +109,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `fs-changed`              | `{ path, reason }`                            |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
-| `op-progress`             | `{ opId, done, total }` copy/move large trees |
+| `op-progress`             | `{ opId, kind, done, total, current?, label?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs |
 | `session-external-change` | rare: multi-window later                      |
 
 ---
@@ -118,8 +124,10 @@ window.myFileExplorer = {
   settings: { get, set, clearThumbCache },
   preview: { get },
   search: { query, addRoot, removeRoot, reindex, listRoots, cancel },
-  thumbs: { get },
-  app: { getPath, pickFolder },
+  thumbs: { get, generateVidCache },
+  app: { getPath, pickFolder, ready, … },
   onEvent: (handler) => unsubscribe
 }
 ```
+
+`onEvent` receives `fs-changed`, `search-progress`, `index-progress`, `op-progress`, `external-open`.

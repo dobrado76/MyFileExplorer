@@ -30,7 +30,13 @@ const api: MyFileExplorerApi = {
     listDrives: invokeVoid(IPC.fsListDrives),
     properties: invoke(IPC.fsProperties),
     measureFolder: invoke(IPC.fsMeasureFolder),
-    setAttributes: invoke(IPC.fsSetAttributes)
+    setAttributes: invoke(IPC.fsSetAttributes),
+    saveEditedImage: invoke(IPC.fsSaveEditedImage),
+    hasImageOriginal: invoke(IPC.fsHasImageOriginal),
+    revertImageOriginal: invoke(IPC.fsRevertImageOriginal),
+    readImageForEdit: invoke(IPC.fsReadImageForEdit),
+    saveEditedImageAs: invoke(IPC.fsSaveEditedImageAs),
+    ensureLamaModel: invokeVoid(IPC.fsEnsureLamaModel)
   },
   shell: {
     openPath: invoke(IPC.shellOpenPath),
@@ -60,7 +66,8 @@ const api: MyFileExplorerApi = {
     cancel: invokeVoid(IPC.searchCancel)
   },
   thumbs: {
-    get: invoke(IPC.thumbsGet)
+    get: invoke(IPC.thumbsGet),
+    generateVidCache: invoke(IPC.thumbsGenerateVidCache)
   },
   icons: {
     get: invoke(IPC.iconsGet)

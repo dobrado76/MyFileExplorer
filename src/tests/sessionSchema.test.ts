@@ -88,5 +88,8 @@ describe('settings schema migration', () => {
   })
   it('clamps invalid font size to default', () => {
     expect(settingsSchema.parse({ fontSizePx: 900 }).fontSizePx).toBe(13)
+    expect(settingsSchema.parse({}).vidThumbFrameMs).toBe(300)
+    expect(settingsSchema.parse({ vidThumbFrameMs: 10 }).vidThumbFrameMs).toBe(300)
+    expect(settingsSchema.parse({ vidThumbFrameMs: 500 }).vidThumbFrameMs).toBe(500)
   })
 })

@@ -9,7 +9,10 @@
  *
  * Pattern forms (case-insensitive, `/` and `\` interchangeable):
  *   *\name        hide anything named "name" anywhere
- *   *\*.tmp       wildcards inside names work too
+ *   *\*.tmp       hide by extension (any name ending in .tmp)
+ *   .tmp          same as *\*.tmp (extension shorthand)
+ *   *\cache*      wildcards in the name (`*` any chars, `?` one char)
+ *   *foo*         substring match anywhere in the path
  *   D:\a\b        hide this exact path (and everything under it)
  *   name          bare names are treated as *\name
  *   # comment     lines starting with # are ignored
@@ -32,6 +35,12 @@ function normalizePattern(raw: string): string | null {
   // Strip trailing separators (except a bare drive root like "D:\")
   if (!/^[a-zA-Z]:\\$/.test(p)) p = p.replace(/\\+$/, '')
   if (!p) return null
+
+  // ".tmp" / ".tar.gz" → hide any file/folder whose name ends with that suffix.
+  if (/^\.[^\\/:*?"<>|\s]+$/.test(p)) {
+    return `*\\*${p}`
+  }
+
   // Anything not anchored to a drive, UNC root or wildcard applies everywhere.
   const anchored = /^[a-zA-Z]:/.test(p) || p.startsWith('\\\\') || p.startsWith('*')
   if (!anchored) p = '*\\' + p

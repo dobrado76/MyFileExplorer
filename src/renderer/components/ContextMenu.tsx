@@ -2,8 +2,18 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { findExactFolderView } from '@shared/folderViews'
 import { useAppStore } from '../store/appStore'
 import { samePath, basename } from '../lib/paths'
-import { isImageExt } from '../lib/icons'
+import { isImageExt, isVideoExt } from '../lib/icons'
+import { isEditableImagePath } from '@shared/imageEdit'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
+import { api, call } from '../lib/ipc'
+
+/** File extension including leading dot (e.g. `.ffs_gui`), or null. */
+function fileExtension(filePath: string): string | null {
+  const name = basename(filePath)
+  const dot = name.lastIndexOf('.')
+  if (dot <= 0 || dot === name.length - 1) return null
+  return name.slice(dot)
+}
 
 type SubEntry = { label: string; action(): void; sep?: boolean }
 
@@ -76,19 +86,23 @@ export function ContextMenu(): JSX.Element | null {
   const store = useAppStore
 
   const ref = useRef<HTMLDivElement>(null)
+  const subRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
   const [subFocusIdx, setSubFocusIdx] = useState(-1)
-  const [subFlip, setSubFlip] = useState(false)
+  /** Submenu placement relative to its parent row (after viewport clamp). */
+  const [subPlace, setSubPlace] = useState<{
+    flipX: boolean
+    top: number
+    maxHeight: number | null
+    ready: boolean
+  }>({ flipX: false, top: -5, maxHeight: null, ready: false })
 
   const showSub = useCallback((i: number | null): void => {
     setOpenSub(i)
     setSubFocusIdx(-1)
-    if (i !== null && ref.current) {
-      const rect = ref.current.getBoundingClientRect()
-      setSubFlip(rect.right + 260 > window.innerWidth)
-    }
+    setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
   }, [])
 
   const items = useMemo<MenuItem[]>(() => {
@@ -143,7 +157,6 @@ export function ContextMenu(): JSX.Element | null {
           type: 'item',
           label: 'Paste',
           hint: 'Ctrl+V',
-          disabled: !s.clipboard,
           action: () => {
             close()
             void s.paste()
@@ -200,6 +213,33 @@ export function ContextMenu(): JSX.Element | null {
           }
         },
         {
+          type: 'submenu',
+          label: 'Video previews',
+          items: [
+            {
+              label: 'Generate missing',
+              action: () => {
+                close()
+                void s.generateVideoThumbs([folderPath], 'missing')
+              }
+            },
+            {
+              label: 'Generate missing (all subfolders)',
+              action: () => {
+                close()
+                void s.generateVideoThumbs([folderPath], 'missing', { recursive: true })
+              }
+            },
+            {
+              label: 'Regenerate all',
+              action: () => {
+                close()
+                void s.generateVideoThumbs([folderPath], 'all')
+              }
+            }
+          ]
+        },
+        {
           type: 'item',
           label: 'Properties',
           action: () => {
@@ -252,6 +292,59 @@ export function ContextMenu(): JSX.Element | null {
           void s.openPath(single)
         }
       })
+      if (isEditableImagePath(single)) {
+        result.push({
+          type: 'item',
+          label: 'Edit image…',
+          action: () => {
+            close()
+            void (async () => {
+              const res = await api.preview.get({ path: single })
+              if (res.ok && res.value.mediaUrl) {
+                s.openImageEditor(single, res.value.mediaUrl)
+              } else {
+                s.notify(res.ok ? 'No image preview available' : res.error.message, true)
+              }
+            })()
+          }
+        })
+        result.push({
+          type: 'item',
+          label: 'Revert to original',
+          action: () => {
+            close()
+            void s.revertImageOriginal(single)
+          }
+        })
+      }
+      if (isVideoExt(singleEntry?.ext ?? fileExtension(single)?.slice(1) ?? '')) {
+        result.push({
+          type: 'item',
+          label: 'Generate video preview',
+          action: () => {
+            close()
+            void s.generateVideoThumbs([single], 'all')
+          }
+        })
+      }
+    }
+    // Multi-select of videos only
+    if (!isDir && paths.length > 1) {
+      const allVideos = paths.every((p) => {
+        const e = entries.find((en) => samePath(en.path, p))
+        const ext = e?.ext ?? fileExtension(p)?.slice(1) ?? ''
+        return isVideoExt(ext)
+      })
+      if (allVideos) {
+        result.push({
+          type: 'item',
+          label: 'Generate video previews',
+          action: () => {
+            close()
+            void s.generateVideoThumbs(paths, 'all')
+          }
+        })
+      }
     }
     if (isDir && single) {
       result.push(
@@ -324,6 +417,33 @@ export function ContextMenu(): JSX.Element | null {
             }
           ]
         },
+        {
+          type: 'submenu',
+          label: 'Video previews',
+          items: [
+            {
+              label: 'Generate missing',
+              action: () => {
+                close()
+                void s.generateVideoThumbs([single], 'missing')
+              }
+            },
+            {
+              label: 'Generate missing (all subfolders)',
+              action: () => {
+                close()
+                void s.generateVideoThumbs([single], 'missing', { recursive: true })
+              }
+            },
+            {
+              label: 'Regenerate all',
+              action: () => {
+                close()
+                void s.generateVideoThumbs([single], 'all')
+              }
+            }
+          ]
+        },
         ...(hasExact
           ? [
               {
@@ -373,22 +493,20 @@ export function ContextMenu(): JSX.Element | null {
         type: 'item',
         label: 'Cut',
         hint: 'Ctrl+X',
+        disabled: paths.length === 0,
         action: () => {
           close()
-          if (!menu.inTree) s.cutSelection()
+          s.cutSelection(menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined)
         }
       },
       {
         type: 'item',
         label: 'Copy',
         hint: 'Ctrl+C',
+        disabled: paths.length === 0,
         action: () => {
           close()
-          if (menu.inTree && single) {
-            useAppStore.setState({ clipboard: { mode: 'copy', paths: [single] } })
-          } else {
-            s.copySelection()
-          }
+          s.copySelection(menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined)
         }
       }
     )
@@ -396,18 +514,26 @@ export function ContextMenu(): JSX.Element | null {
       result.push({
         type: 'item',
         label: 'Paste into folder',
-        disabled: !s.clipboard,
         action: () => {
           close()
-          const clip = store.getState().clipboard
-          if (clip) {
-            void s.performTransfer(
+          void (async () => {
+            let clip = store.getState().clipboard
+            if (!clip || clip.paths.length === 0) {
+              try {
+                const os = await call(api.shell.clipboardReadFiles())
+                if (os.paths.length > 0) clip = { mode: 'copy', paths: os.paths }
+              } catch {
+                clip = null
+              }
+            }
+            if (!clip || clip.paths.length === 0) return
+            await s.performTransfer(
               clip.mode === 'cut' ? 'move' : 'copy',
               clip.paths,
               single,
               clip.mode === 'cut'
             )
-          }
+          })()
         }
       })
     }
@@ -420,7 +546,7 @@ export function ContextMenu(): JSX.Element | null {
         disabled: paths.length !== 1,
         action: () => {
           close()
-          if (single) s.startRename(single)
+          if (single) s.startRename(single, menu.inTree ? 'tree' : 'files')
         }
       },
       {
@@ -429,15 +555,11 @@ export function ContextMenu(): JSX.Element | null {
         hint: 'Del',
         action: () => {
           close()
-          if (menu.inTree && single) {
-            useAppStore.setState((state) => ({
-              tabs: state.tabs.map((t) =>
-                t.id === state.activeTabId ? { ...t, selected: [single] } : t
-              )
-            }))
-          }
           // Del → Recycle Bin (never permanent).
-          void s.deleteSelection(false)
+          void s.deleteSelection(
+            false,
+            menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
+          )
         }
       },
       {
@@ -447,14 +569,10 @@ export function ContextMenu(): JSX.Element | null {
         danger: true,
         action: () => {
           close()
-          if (menu.inTree && single) {
-            useAppStore.setState((state) => ({
-              tabs: state.tabs.map((t) =>
-                t.id === state.activeTabId ? { ...t, selected: [single] } : t
-              )
-            }))
-          }
-          void s.deleteSelection(true)
+          void s.deleteSelection(
+            true,
+            menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
+          )
         }
       },
       { type: 'sep' },
@@ -487,39 +605,79 @@ export function ContextMenu(): JSX.Element | null {
         type: 'submenu',
         label: 'Hide from view',
         items: single
-          ? [
-              {
-                label: `All instances (*\\${basename(single)})`,
-                action: () => {
-                  close()
-                  void s.addViewFilterPatterns([`*\\${basename(single)}`])
-                }
-              },
-              {
-                label: `Only this instance (this ${isDir ? 'folder' : 'file'})`,
-                action: () => {
-                  close()
-                  void s.addViewFilterPatterns([single])
-                }
+          ? (() => {
+              const name = basename(single)
+              const ext = !isDir ? fileExtension(single) : null
+              const items: SubEntry[] = []
+              if (ext) {
+                items.push({
+                  label: `All *.${ext.slice(1)} files`,
+                  action: () => {
+                    close()
+                    void s.addViewFilterPatterns([`*.${ext.slice(1)}`])
+                  }
+                })
               }
-            ]
-          : [
-              {
-                label: `All instances (${paths.length} names)`,
-                action: () => {
-                  close()
-                  const names = [...new Set(paths.map((p) => basename(p).toLowerCase()))]
-                  void s.addViewFilterPatterns(names.map((n) => `*\\${n}`))
+              items.push(
+                {
+                  label: `All instances (*\\${name})`,
+                  action: () => {
+                    close()
+                    void s.addViewFilterPatterns([`*\\${name}`])
+                  }
+                },
+                {
+                  label: `Only this instance (this ${isDir ? 'folder' : 'file'})`,
+                  action: () => {
+                    close()
+                    void s.addViewFilterPatterns([single])
+                  }
                 }
-              },
-              {
-                label: `Only these instances (${paths.length} items)`,
-                action: () => {
-                  close()
-                  void s.addViewFilterPatterns([...paths])
-                }
+              )
+              return items
+            })()
+          : (() => {
+              const items: SubEntry[] = []
+              const exts = [
+                ...new Set(
+                  paths
+                    .filter((p) => {
+                      const e = entries.find((en) => samePath(en.path, p))
+                      return !e || e.kind !== 'dir'
+                    })
+                    .map((p) => fileExtension(p))
+                    .filter((x): x is string => !!x)
+                    .map((x) => x.toLowerCase())
+                )
+              ]
+              for (const ext of exts.slice(0, 5)) {
+                items.push({
+                  label: `All *.${ext.slice(1)} files`,
+                  action: () => {
+                    close()
+                    void s.addViewFilterPatterns([`*.${ext.slice(1)}`])
+                  }
+                })
               }
-            ]
+              items.push(
+                {
+                  label: `All instances (${paths.length} names)`,
+                  action: () => {
+                    close()
+                    const names = [...new Set(paths.map((p) => basename(p).toLowerCase()))]
+                    void s.addViewFilterPatterns(names.map((n) => `*\\${n}`))
+                  }
+                },
+                {
+                  label: `Only these instances (${paths.length} items)`,
+                  action: () => {
+                    close()
+                    void s.addViewFilterPatterns([...paths])
+                  }
+                }
+              )
+              return items
+            })()
       }
     )
     if (isDir && single) {
@@ -558,6 +716,37 @@ export function ContextMenu(): JSX.Element | null {
     )
     return result
   }, [menu, closeContextMenu, store])
+
+  // Clamp open submenu into the viewport (flip X, shift Y, scroll if taller than screen).
+  useLayoutEffect(() => {
+    if (openSub === null) return
+    const sub = subRef.current
+    if (!sub) return
+    const wrap = sub.parentElement
+    if (!wrap) return
+
+    const margin = 4
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const wrapRect = wrap.getBoundingClientRect()
+    const raw = sub.getBoundingClientRect()
+    const maxHeight = Math.max(80, vh - margin * 2)
+    const height = Math.min(raw.height, maxHeight)
+
+    const fitsRight = wrapRect.right + 2 + raw.width <= vw - margin
+    const fitsLeft = wrapRect.left - 2 - raw.width >= margin
+    const flipX = !fitsRight && fitsLeft
+
+    let top = -5
+    if (wrapRect.top + top + height > vh - margin) {
+      top = vh - margin - height - wrapRect.top
+    }
+    if (wrapRect.top + top < margin) {
+      top = margin - wrapRect.top
+    }
+
+    setSubPlace({ flipX, top, maxHeight, ready: true })
+  }, [openSub, items])
 
   useLayoutEffect(() => {
     if (!menu) {
@@ -682,7 +871,16 @@ export function ContextMenu(): JSX.Element | null {
                 <span className="menu-hint">▸</span>
               </button>
               {open && (
-                <div className={`context-menu context-submenu${subFlip ? ' flip' : ''}`} role="menu">
+                <div
+                  ref={subRef}
+                  className={`context-menu context-submenu${subPlace.flipX ? ' flip' : ''}`}
+                  role="menu"
+                  style={{
+                    top: subPlace.top,
+                    maxHeight: subPlace.maxHeight ?? undefined,
+                    visibility: subPlace.ready ? 'visible' : 'hidden'
+                  }}
+                >
                   {item.items.map((sub, j) =>
                     sub.sep ? (
                       <div key={j} className="menu-sep" />

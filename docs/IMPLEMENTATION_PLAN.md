@@ -115,9 +115,11 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 ## Phase 9 — Polish & package
 
 - [x] Keyboard map from PRODUCT_SPEC
-- [x] Status bar details
+- [x] Status bar details (+ file-op / video-preview progress, D28)
 - [x] Window state restore
 - [x] Properties dialog
+- [x] Video strip generate (missing / recursive missing / regenerate, D26)
+- [x] Context menu viewport clamp (main + submenus)
 - [x] `npm run build:win` smoke (NSIS installer builds)
 - [x] First CHANGELOG release notes (0.1.0)
 
@@ -133,16 +135,19 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 | Session migrate       | `src/tests/sessionSchema.test.ts`                                 |
 | Result envelope       | `src/tests/result.test.ts`                                        |
 | Renderer path helpers | `src/tests/rendererPaths.test.ts`                                 |
+| Video thumb naming    | `src/tests/vidThumbCache.test.ts`, `src/tests/vidThumbSample.test.ts` |
 
 ---
 
 ## Phase 10 candidates (not started)
 
-- Marquee selection, type-ahead select
+- Marquee selection
 - Ctrl+click / middle-click tree or folder → new tab
 - Comfy workflow node summary
+- ~~Type-ahead select in file view~~ (done)
 - ~~Inline audio/video playback~~ (done), PDF first-page raster (still optional; PDF uses Chromium iframe)
 - FS-watch-triggered reindex of indexed roots
+- Cancel in-flight multi-file ops / video-preview generation
 
 ---
 

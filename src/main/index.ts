@@ -2,6 +2,8 @@ import path from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import appIcon from '../../resources/icon.png?asset'
 import { registerMediaSchemeAsPrivileged, registerMediaProtocolHandler } from './media/protocol'
+import { registerOrtProtocolHandler } from './media/ortProtocol'
+import { registerModelProtocolHandler } from './media/modelProtocol'
 import { registerIpcHandlers } from './ipc/register'
 import { loadWindowState, trackWindowState } from './windowState'
 import { sessionStore } from './session/store'
@@ -98,6 +100,8 @@ if (!gotLock) {
     }
 
     registerMediaProtocolHandler()
+    registerOrtProtocolHandler()
+    registerModelProtocolHandler()
     registerIpcHandlers()
     thumbCacheDir()
     shellIconCacheDir()

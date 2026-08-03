@@ -28,6 +28,18 @@ export default defineConfig({
     plugins: [react()],
     resolve: {
       alias: { '@shared': shared, '@renderer': resolve(__dirname, 'src/renderer') }
+    },
+    optimizeDeps: {
+      exclude: ['onnxruntime-web']
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('onnxruntime-web')) return 'ort'
+          }
+        }
+      }
     }
   }
 })

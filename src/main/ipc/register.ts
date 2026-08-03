@@ -34,6 +34,13 @@ import {
   trashEntries,
   deletePermanently
 } from '../fs/ops'
+import {
+  saveEditedImage,
+  hasImageOriginal,
+  revertImageOriginal,
+  readImageForEdit,
+  writeEditedImageToPath
+} from '../fs/imageEdit'
 import { restoreFromRecycleBin } from '../fs/recycle'
 import { watchDirectory, unwatchDirectory, muteWatchers } from '../fs/watch'
 import { markRendererReady } from '../externalOpen'
@@ -49,6 +56,7 @@ import { sessionStore } from '../session/store'
 import { settingsStore, patchSettings } from '../settings/store'
 import { getPreview } from '../preview'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
+import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
 import { getColumnMetaMany } from '../meta/columns'
 import { metaGetManyRequestSchema } from '@shared/schemas/meta'
@@ -61,6 +69,8 @@ import {
   cancelSearch
 } from '../search'
 import { logMain } from '../logging'
+import { ensureLamaModel } from '../images/lamaModel'
+import { lamaModelFetchUrl } from '../media/modelProtocol'
 
 function handle<S extends ZodType, T>(
   channel: string,
@@ -101,6 +111,11 @@ const getPathRequestSchema = z.object({
 const thumbRequestSchema = z.object({
   path: z.string().min(1),
   size: z.number().int().min(16).max(1024)
+})
+const generateVidThumbsSchema = z.object({
+  paths: z.array(z.string().min(1)).min(1),
+  mode: z.enum(['missing', 'all']),
+  recursive: z.boolean().optional()
 })
 
 export function registerIpcHandlers(): void {
@@ -160,6 +175,55 @@ export function registerIpcHandlers(): void {
       system: req.system
     })
   )
+  handle(
+    IPC.fsSaveEditedImage,
+    z.object({ path: z.string().min(1), dataBase64: z.string().min(1) }),
+    (req) => saveEditedImage(req.path, req.dataBase64)
+  )
+  handle(IPC.fsHasImageOriginal, pathRequestSchema, (req) => hasImageOriginal(req.path))
+  handle(IPC.fsRevertImageOriginal, pathRequestSchema, async (req) => {
+    muteWatchers()
+    return revertImageOriginal(req.path)
+  })
+  handle(IPC.fsReadImageForEdit, pathRequestSchema, (req) => readImageForEdit(req.path))
+  handle(IPC.fsEnsureLamaModel, emptySchema, async () => {
+    const result = await ensureLamaModel()
+    return {
+      ...result,
+      modelUrl: lamaModelFetchUrl()
+    }
+  })
+  handle(
+    IPC.fsSaveEditedImageAs,
+    z.object({ dataBase64: z.string().min(1), defaultPath: z.string().min(1) }),
+    async (req, event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      const opts = {
+        title: 'Save image as',
+        defaultPath: req.defaultPath,
+        filters: [
+          { name: 'JPEG', extensions: ['jpg', 'jpeg'] },
+          { name: 'PNG', extensions: ['png'] },
+          { name: 'WebP', extensions: ['webp'] },
+          { name: 'GIF', extensions: ['gif'] },
+          { name: 'TIFF', extensions: ['tif', 'tiff'] },
+          {
+            name: 'All supported',
+            extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'tif', 'tiff', 'bmp']
+          }
+        ]
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, opts)
+        : await dialog.showSaveDialog(opts)
+      if (result.canceled || !result.filePath) {
+        return { path: null as string | null, cancelled: true }
+      }
+      muteWatchers()
+      const written = await writeEditedImageToPath(result.filePath, req.dataBase64)
+      return { path: written.path, cancelled: false }
+    }
+  )
 
   // shell
   handle(IPC.shellOpenPath, pathRequestSchema, (req) => openPath(req.path))
@@ -193,6 +257,9 @@ export function registerIpcHandlers(): void {
 
   // thumbs / shell icons / column metadata
   handle(IPC.thumbsGet, thumbRequestSchema, (req) => getThumbUrl(req.path, req.size))
+  handle(IPC.thumbsGenerateVidCache, generateVidThumbsSchema, (req) =>
+    generateVidThumbStrips(req.paths, req.mode, req.recursive ?? false)
+  )
   handle(IPC.iconsGet, thumbRequestSchema, (req) => getShellIconUrl(req.path, req.size))
   handle(IPC.metaGetMany, metaGetManyRequestSchema, async (req) => ({
     values: await getColumnMetaMany(req.paths, req.columns)

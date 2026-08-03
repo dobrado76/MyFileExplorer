@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { DETAILS_COLUMN_IDS } from './columns'
 
 export const viewModeSchema = z.enum([
+  'extraLargeIconsNoName',
   'extraLargeIcons',
   'largeIcons',
   'mediumIcons',

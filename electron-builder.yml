@@ -7,11 +7,15 @@ files:
   - out/**
   - resources/**
   - package.json
+  - node_modules/onnxruntime-web/**
+  - node_modules/onnxruntime-common/**
 asarUnpack:
   - node_modules/sharp/**
   - node_modules/@img/**
   - node_modules/koffi/**
   - node_modules/@koromix/koffi-*/**
+  - node_modules/onnxruntime-web/dist/**
+  - node_modules/ffmpeg-static/**
 win:
   icon: build/icon.ico
   target:

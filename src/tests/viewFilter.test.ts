@@ -42,6 +42,28 @@ describe('compileViewFilter', () => {
     expect(f('C:\\a\\mycache')).toBe(false)
   })
 
+  it('treats .ext as an extension filter', () => {
+    const f = compileViewFilter(['.tmp', '.tar.gz'], true)
+    expect(f('C:\\a\\junk.tmp')).toBe(true)
+    expect(f('C:\\a\\JUNK.TMP')).toBe(true)
+    expect(f('C:\\a\\junk.tmpx')).toBe(false)
+    expect(f('C:\\a\\archive.tar.gz')).toBe(true)
+    expect(f('C:\\a\\archive.tar')).toBe(false)
+  })
+
+  it('treats *.ext as an extension filter', () => {
+    const f = compileViewFilter(['*.log'], true)
+    expect(f('D:\\logs\\app.log')).toBe(true)
+    expect(f('D:\\logs\\app.log.bak')).toBe(false)
+  })
+
+  it('supports substring patterns with leading *', () => {
+    const f = compileViewFilter(['*cache*'], true)
+    expect(f('C:\\a\\mycache')).toBe(true)
+    expect(f('C:\\a\\cache-v2')).toBe(true)
+    expect(f('C:\\a\\other')).toBe(false)
+  })
+
   it('treats ? as a single character within a name', () => {
     const f = compileViewFilter(['*\\v?'], true)
     expect(f('C:\\x\\v1')).toBe(true)

@@ -101,6 +101,12 @@ export const ArrowRight = svg(<path d="M5 12h14m-6-7l7 7-7 7" />)
 export const ArrowUp = svg(<path d="M12 19V5m-7 6l7-7 7 7" />)
 export const RefreshIcon = svg(<path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6" />)
 export const CloseIcon = svg(<path d="M6 6l12 12M18 6L6 18" />)
+export const EditImageIcon = svg(
+  <>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </>
+)
 export const PlusIcon = svg(<path d="M12 5v14M5 12h14" />)
 export const RecycleBinIcon = svg(
   <>
@@ -132,6 +138,15 @@ export const PanelIcon = svg(
   <>
     <rect x="3" y="4" width="18" height="16" rx="2" />
     <path d="M15 4v16" />
+  </>
+)
+/** Named workspace layouts (tabs + chrome). */
+export const LayoutsIcon = svg(
+  <>
+    <rect x="3" y="3" width="8" height="8" rx="1.5" />
+    <rect x="13" y="3" width="8" height="8" rx="1.5" />
+    <rect x="3" y="13" width="8" height="8" rx="1.5" />
+    <rect x="13" y="13" width="8" height="8" rx="1.5" />
   </>
 )
 export const SpinnerIcon = svg(<path d="M21 12a9 9 0 1 1-6.2-8.6" />)
@@ -228,4 +243,8 @@ export function iconForEntry(ext: string, isDir: boolean): (props: IconProps) =>
 
 export function isImageExt(ext: string): boolean {
   return IMAGE_EXTS.has(ext) && ext !== 'svg' && ext !== 'ico'
+}
+
+export function isVideoExt(ext: string): boolean {
+  return VIDEO_EXTS.has(ext.toLowerCase())
 }

@@ -6,6 +6,8 @@ import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { formatBytes, formatDate } from '../lib/format'
 import { folderViewSummary } from '@shared/folderViews'
+import { formatLayoutUpdatedAt, layoutSummary } from '@shared/layouts'
+import { VID_THUMB_FRAME_MS_MAX, VID_THUMB_FRAME_MS_MIN } from '@shared/vidThumbCache'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { basename } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
@@ -65,12 +67,94 @@ export function Dialogs(): JSX.Element | null {
     case 'properties':
       return <PropertiesDialog path={dialog.path} />
     case 'settings':
-      return <SettingsDialog />
+      return <SettingsDialog initialSection={dialog.section} />
+    case 'layout-name':
+      return (
+        <LayoutNameDialog
+          mode={dialog.mode}
+          layoutId={dialog.layoutId}
+          initialName={dialog.initialName}
+          returnSection={dialog.returnSection}
+        />
+      )
     case 'alert':
       return (
         <AlertDialog title={dialog.title} message={dialog.message} detail={dialog.detail} />
       )
   }
+}
+
+function LayoutNameDialog({
+  mode,
+  layoutId,
+  initialName,
+  returnSection
+}: {
+  mode: 'save' | 'rename'
+  layoutId?: string
+  initialName?: string
+  returnSection?: string
+}): JSX.Element {
+  const closeDialog = useAppStore((s) => s.closeDialog)
+  const openDialog = useAppStore((s) => s.openDialog)
+  const saveLayout = useAppStore((s) => s.saveLayout)
+  const renameLayoutAction = useAppStore((s) => s.renameLayout)
+  const [name, setName] = useState(initialName ?? '')
+  const title = mode === 'save' ? 'Save layout' : 'Rename layout'
+  const finish = (): void => {
+    if (returnSection) openDialog({ kind: 'settings', section: returnSection })
+    else closeDialog()
+  }
+  const submit = (): void => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    if (mode === 'save') {
+      void saveLayout(trimmed).then((layout) => {
+        if (layout) finish()
+      })
+      return
+    }
+    if (!layoutId) return
+    void renameLayoutAction(layoutId, trimmed).then(finish)
+  }
+  return (
+    <Modal
+      title={title}
+      onClose={finish}
+      actions={
+        <>
+          <button type="button" className="btn" onClick={finish}>
+            Cancel
+          </button>
+          <button type="button" className="btn primary" disabled={!name.trim()} onClick={submit}>
+            {mode === 'save' ? 'Save' : 'Rename'}
+          </button>
+        </>
+      }
+    >
+      <div className="form-row">
+        <label htmlFor="layout-name-input">Name</label>
+        <input
+          id="layout-name-input"
+          type="text"
+          autoFocus
+          value={name}
+          placeholder="e.g. AI training, Book editing, Project X"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+            e.stopPropagation()
+          }}
+        />
+      </div>
+      {mode === 'save' && (
+        <p className="settings-help" style={{ marginTop: 10 }}>
+          Saves the current tabs (paths, titles, view/sort, tree expand, scoped roots) and pane
+          widths. History and selection are not stored.
+        </p>
+      )}
+    </Modal>
+  )
 }
 
 function AlertDialog({
@@ -784,6 +868,7 @@ type SettingsSection =
   | 'appearance'
   | 'behavior'
   | 'quickaccess'
+  | 'layouts'
   | 'folderviews'
   | 'filter'
   | 'preview'
@@ -794,6 +879,7 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'behavior', label: 'Behavior' },
   { id: 'quickaccess', label: 'Quick access' },
+  { id: 'layouts', label: 'Layouts' },
   { id: 'folderviews', label: 'Folder views' },
   { id: 'filter', label: 'View filter' },
   { id: 'preview', label: 'Preview' },
@@ -830,10 +916,11 @@ function SettingsToggle({
   )
 }
 
-function SettingsDialog(): JSX.Element {
+function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const closeDialog = useAppStore((s) => s.closeDialog)
+  const openDialog = useAppStore((s) => s.openDialog)
   const clearThumbCache = useAppStore((s) => s.clearThumbCache)
   const indexRoots = useAppStore((s) => s.indexRoots)
   const indexProgress = useAppStore((s) => s.indexProgress)
@@ -850,10 +937,17 @@ function SettingsDialog(): JSX.Element {
   const resetQuickAccess = useAppStore((s) => s.resetQuickAccess)
   const removeFolderCustomization = useAppStore((s) => s.removeFolderCustomization)
   const setFolderViewRecursive = useAppStore((s) => s.setFolderViewRecursive)
+  const applyLayout = useAppStore((s) => s.applyLayout)
+  const updateLayout = useAppStore((s) => s.updateLayout)
+  const removeLayoutAction = useAppStore((s) => s.removeLayout)
   const navigate = useAppStore((s) => s.navigate)
   const folderViews = useAppStore((s) => s.settings.folderViews)
+  const layouts = useAppStore((s) => s.settings.layouts)
 
-  const [section, setSection] = useState<SettingsSection>('appearance')
+  const startSection = SETTINGS_NAV.some((s) => s.id === initialSection)
+    ? (initialSection as SettingsSection)
+    : 'appearance'
+  const [section, setSection] = useState<SettingsSection>(startSection)
   const [excludeText, setExcludeText] = useState(settings.searchExcludeDirNames.join(', '))
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
   const [appVersion, setAppVersion] = useState('')
@@ -1030,6 +1124,30 @@ function SettingsDialog(): JSX.Element {
                 checked={settings.foldersFirst}
                 onChange={(v) => void applySettingsPatch({ foldersFirst: v })}
               />
+              <label className="settings-field settings-field-narrow" htmlFor="set-vidthumbms">
+                <span>Video thumbnail frame delay (ms)</span>
+                <input
+                  id="set-vidthumbms"
+                  type="number"
+                  min={VID_THUMB_FRAME_MS_MIN}
+                  max={VID_THUMB_FRAME_MS_MAX}
+                  step={50}
+                  value={settings.vidThumbFrameMs}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    if (
+                      Number.isInteger(v) &&
+                      v >= VID_THUMB_FRAME_MS_MIN &&
+                      v <= VID_THUMB_FRAME_MS_MAX
+                    ) {
+                      void applySettingsPatch({ vidThumbFrameMs: v })
+                    }
+                  }}
+                />
+                <span className="settings-field-hint">
+                  Time each `!VIDTHUMB_CACHE` strip frame is shown in icon views (default 300)
+                </span>
+              </label>
               <SettingsToggle
                 id="set-confirmdel"
                 label="Always confirm permanent delete"
@@ -1117,6 +1235,95 @@ function SettingsDialog(): JSX.Element {
             </div>
           )}
 
+          {section === 'layouts' && (
+            <div className="settings-stack">
+              <p className="settings-help">
+                Named workspaces for different tasks (AI training, book editing, a coding project…).
+                Each layout stores the full tab set — folders, custom titles, view/sort, tree
+                expand, scoped roots — plus tree/preview pane sizes. Applying a layout replaces the
+                current tabs. Per-folder Details customizations (Folder views) stay separate.
+              </p>
+              <div className="settings-qa-actions" style={{ justifyContent: 'flex-start' }}>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() =>
+                    openDialog({
+                      kind: 'layout-name',
+                      mode: 'save',
+                      returnSection: 'layouts'
+                    })
+                  }
+                >
+                  Save current as…
+                </button>
+              </div>
+              {layouts.length === 0 ? (
+                <p className="settings-help">No saved layouts yet.</p>
+              ) : (
+                <div className="settings-qa-list">
+                  {[...layouts]
+                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+                    .map((entry) => (
+                      <div className="settings-qa-row" key={entry.id}>
+                        <div className="settings-qa-meta">
+                          <span className="settings-qa-label">{entry.name}</span>
+                          <span className="settings-field-hint">{layoutSummary(entry)}</span>
+                          {formatLayoutUpdatedAt(entry.updatedAt) && (
+                            <span className="settings-qa-path">
+                              Updated {formatLayoutUpdatedAt(entry.updatedAt)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="settings-qa-actions">
+                          <button
+                            type="button"
+                            className="btn primary"
+                            onClick={() => {
+                              closeDialog()
+                              void applyLayout(entry.id)
+                            }}
+                          >
+                            Apply
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            title="Overwrite this layout with the current tabs and panes"
+                            onClick={() => void updateLayout(entry.id)}
+                          >
+                            Update
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() =>
+                              openDialog({
+                                kind: 'layout-name',
+                                mode: 'rename',
+                                layoutId: entry.id,
+                                initialName: entry.name,
+                                returnSection: 'layouts'
+                              })
+                            }
+                          >
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => void removeLayoutAction(entry.id)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {section === 'folderviews' && (
             <div className="settings-stack">
               <p className="settings-help">
@@ -1189,9 +1396,11 @@ function SettingsDialog(): JSX.Element {
               <p className="settings-help">
                 When enabled, hides Windows Hidden items and any pattern matches from the file view,
                 tree, and search (view-only — attributes are unchanged). One pattern per line.
-                Wildcards: <code>*</code>, <code>?</code>. Examples:{' '}
-                <code>*\node_modules</code>, <code>*\*.tmp</code>, <code>D:\Art\WIP</code>. Use the
-                toolbar eye to toggle quickly; turn Hidden on/off in Properties → Attributes.
+                Wildcards: <code>*</code> (any chars), <code>?</code> (one char). Examples:{' '}
+                <code>.tmp</code> or <code>*.tmp</code> (by extension), <code>*cache*</code>{' '}
+                (partial name), <code>*\node_modules</code> (exact name anywhere),{' '}
+                <code>D:\Art\WIP</code> (this folder). Toolbar eye toggles the filter; Hidden
+                attribute is in Properties → Attributes.
               </p>
               <SettingsToggle
                 id="set-filter-enabled"
@@ -1202,7 +1411,7 @@ function SettingsDialog(): JSX.Element {
               <textarea
                 className="filter-textarea"
                 aria-label="View filter patterns"
-                placeholder={'*\\node_modules\n*\\*.tmp\nD:\\folder\\foldername'}
+                placeholder={'.tmp\n*.log\n*cache*\n*\\node_modules\nD:\\folder\\foldername'}
                 spellCheck={false}
                 rows={10}
                 value={filterText}

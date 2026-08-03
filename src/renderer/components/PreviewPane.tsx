@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
 import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
-import { basename } from '../lib/paths'
+import { basename, samePath } from '../lib/paths'
+import { highlightLanguage } from '../lib/highlight'
 import {
   CopyIcon,
   FileIcon,
@@ -11,8 +12,10 @@ import {
   AudioFileIcon,
   VideoFileIcon,
   PdfFileIcon,
-  SpinnerIcon
+  SpinnerIcon,
+  EditImageIcon
 } from '../lib/icons'
+import { isEditableImagePath } from '@shared/imageEdit'
 import {
   AudioPreview,
   HtmlDocumentPreview,
@@ -24,11 +27,11 @@ import {
 import { CodePreview } from './preview/CodePreview'
 
 /* The "file" group is rendered separately as the compact details strip
-   pinned to the bottom of the pane. */
+   pinned to the bottom of the pane. Weights/summary ("other") before training. */
 const CONTENT_GROUPS: { key: string; label: string }[] = [
+  { key: 'other', label: 'Other' },
   { key: 'generation', label: 'Generation' },
-  { key: 'image', label: 'Image' },
-  { key: 'other', label: 'Other' }
+  { key: 'image', label: 'Image' }
 ]
 
 let previewSeq = 0
@@ -38,11 +41,19 @@ export function PreviewPane(): JSX.Element {
   const entries = useAppStore((s) => s.listing.entries)
   const notify = useAppStore((s) => s.notify)
   const openPath = useAppStore((s) => s.openPath)
+  const openImageEditor = useAppStore((s) => s.openImageEditor)
+  const mediaHold = useAppStore((s) => s.mediaHold)
 
   const [model, setModel] = useState<PreviewModel | null>(null)
   const [loading, setLoading] = useState(false)
 
   const single = selected.length === 1 ? selected[0]! : null
+  // After in-place edits, path is unchanged but mtime/size update via refresh().
+  const selectedStamp = useMemo(() => {
+    if (!single) return null
+    const e = entries.find((en) => samePath(en.path, single))
+    return e ? `${e.mtimeMs}:${e.size}` : null
+  }, [single, entries])
 
   useEffect(() => {
     if (!single) {
@@ -52,12 +63,15 @@ export function PreviewPane(): JSX.Element {
     }
     const seq = ++previewSeq
     setLoading(true)
+    // Same path after an in-place edit: drop the old model so we don't keep
+    // painting stale pixels while the new preview (cache-busted URL) loads.
+    setModel((prev) => (prev && samePath(prev.path, single) ? null : prev))
     void api.preview.get({ path: single }).then((res) => {
       if (seq !== previewSeq) return // superseded — cancel stale preview
       setLoading(false)
       setModel(res.ok ? res.value : null)
     })
-  }, [single])
+  }, [single, selectedStamp])
 
   const multiSummary = useMemo(() => {
     if (selected.length <= 1) return null
@@ -121,17 +135,35 @@ export function PreviewPane(): JSX.Element {
   }
 
   const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
+  const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
+  const hasRichFields = contentFields.length > 0
+
+  const headerSub = model.subtitle ?? kindLabel(model.kind)
 
   return (
-    <div className="preview">
-      <div className="preview-header">
-        <div className="preview-title">{basename(model.path)}</div>
-        <div className="preview-sub">{kindLabel(model.kind)}</div>
-      </div>
+    <div className={`preview${model.kind === 'image' ? ' preview-kind-image' : ''}`}>
+      {headerSub || (model.kind === 'image' && model.mediaUrl) ? (
+        <div className="preview-header preview-header-compact">
+          <div className="preview-sub">{headerSub}</div>
+          {model.kind === 'image' &&
+            model.mediaUrl &&
+            isEditableImagePath(model.path) && (
+              <button
+                type="button"
+                className="icon-btn preview-edit-btn"
+                aria-label="Edit image"
+                title="Edit image"
+                onClick={() => openImageEditor(model.path, model.mediaUrl!)}
+              >
+                <EditImageIcon size={16} />
+              </button>
+            )}
+        </div>
+      ) : null}
 
       <div className="preview-content">
-        {model.kind === 'image' && model.mediaUrl && (
-          <div className="preview-media">
+        {model.kind === 'image' && model.mediaUrl && !mediaHold && (
+          <div className="preview-media preview-media-fill">
             <img src={model.mediaUrl} alt={basename(model.path)} draggable={false} />
           </div>
         )}
@@ -145,20 +177,22 @@ export function PreviewPane(): JSX.Element {
           <HtmlDocumentPreview html={model.htmlBody} />
         )}
         {model.kind === 'spreadsheet' && model.sheets && <SpreadsheetPreview sheets={model.sheets} />}
-        {model.kind === 'pdf' && model.mediaUrl && <PdfPreview url={model.mediaUrl} />}
-        {model.kind === 'video' && model.mediaUrl && (
+        {model.kind === 'pdf' && model.mediaUrl && !mediaHold && (
+          <PdfPreview url={model.mediaUrl} />
+        )}
+        {model.kind === 'video' && model.mediaUrl && !mediaHold && (
           <VideoPreview
             url={model.mediaUrl}
             onOpenExternal={() => void openPath(model.path)}
           />
         )}
-        {model.kind === 'audio' && model.mediaUrl && (
+        {model.kind === 'audio' && model.mediaUrl && !mediaHold && (
           <AudioPreview
             url={model.mediaUrl}
             onOpenExternal={() => void openPath(model.path)}
           />
         )}
-        {model.kind === 'binary' && (
+        {model.kind === 'binary' && !hasRichFields && (
           <div className="preview-icon">
             <FileIcon size={56} />
           </div>
@@ -198,14 +232,20 @@ export function PreviewPane(): JSX.Element {
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
         )}
 
-        {model.fields.some((f) => (f.group ?? 'other') !== 'file') && (
-          <div className="preview-fields">
+        {hasRichFields && (
+          <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
             {CONTENT_GROUPS.map(({ key, label }) => {
-              const fields = model.fields.filter((f) => (f.group ?? 'other') === key)
+              const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
               if (fields.length === 0) return null
+              const groupLabel =
+                key === 'generation' && model.subtitle?.startsWith('SafeTensors')
+                  ? 'Training'
+                  : key === 'other' && model.subtitle?.startsWith('SafeTensors')
+                    ? 'Weights'
+                    : label
               return (
                 <div key={key}>
-                  <div className="preview-group-title">{label}</div>
+                  <div className="preview-group-title">{groupLabel}</div>
                   {fields.map((f) => (
                     <Field key={f.id} field={f} onCopy={copyValue} />
                   ))}
@@ -216,32 +256,65 @@ export function PreviewPane(): JSX.Element {
         )}
       </div>
 
-      {fileFields.length > 0 && (
-        <div className="preview-details">
-          {fileFields.map((f) => (
-            <Fragment key={f.id}>
-              <div className="d-label">
-                {f.label}
-                {f.copyable && (
-                  <button
-                    className="field-copy"
-                    aria-label={`Copy ${f.label}`}
-                    onClick={() => void copyValue(f.value)}
-                  >
-                    <CopyIcon size={12} />
-                  </button>
-                )}
-              </div>
-              <div className={`d-value${f.mono ? ' mono' : ''}`}>{f.value}</div>
-            </Fragment>
-          ))}
-        </div>
-      )}
+      {fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={copyValue} />}
     </div>
   )
 }
 
-function Field({
+const DETAILS_LEAD = ['file.name', 'image.dimensions'] as const
+
+function DetailsStrip({
+  fields,
+  onCopy
+}: {
+  fields: PreviewField[]
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  const byId = new Map(fields.map((f) => [f.id, f]))
+  const used = new Set<string>()
+
+  const take = (id: string): PreviewField | undefined => {
+    const f = byId.get(id)
+    if (f) used.add(id)
+    return f
+  }
+
+  const lead = DETAILS_LEAD.map((id) => take(id)).filter(Boolean) as PreviewField[]
+  const left = (['file.type', 'file.size'] as const).map((id) => take(id)).filter(Boolean) as PreviewField[]
+  const right = (['file.modified', 'file.created'] as const)
+    .map((id) => take(id))
+    .filter(Boolean) as PreviewField[]
+  const rest = fields.filter((f) => !used.has(f.id) && f.id !== 'file.path')
+
+  const hasPair = left.length > 0 || right.length > 0
+
+  return (
+    <div className="preview-details">
+      {lead.map((f) => (
+        <DetailRow key={f.id} field={f} onCopy={onCopy} />
+      ))}
+      {hasPair && (
+        <div className="preview-details-pair">
+          <div className="preview-details-col">
+            {left.map((f) => (
+              <DetailRow key={f.id} field={f} onCopy={onCopy} />
+            ))}
+          </div>
+          <div className="preview-details-col">
+            {right.map((f) => (
+              <DetailRow key={f.id} field={f} onCopy={onCopy} />
+            ))}
+          </div>
+        </div>
+      )}
+      {rest.map((f) => (
+        <DetailRow key={f.id} field={f} onCopy={onCopy} />
+      ))}
+    </div>
+  )
+}
+
+function DetailRow({
   field,
   onCopy
 }: {
@@ -249,8 +322,8 @@ function Field({
   onCopy(v: string): Promise<void>
 }): JSX.Element {
   return (
-    <div className="preview-field">
-      <div className="field-label">
+    <div className="d-row">
+      <div className="d-label">
         {field.label}
         {field.copyable && (
           <button
@@ -262,7 +335,45 @@ function Field({
           </button>
         )}
       </div>
-      <div className={`field-value${field.mono ? ' mono' : ''}`}>{field.value}</div>
+      <div className={`d-value${field.mono ? ' mono' : ''}`}>{field.value}</div>
+    </div>
+  )
+}
+
+function Field({
+  field,
+  onCopy
+}: {
+  field: PreviewField
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  const highlighted = useMemo(() => {
+    if (field.syntax !== 'json') return null
+    return highlightLanguage(field.value, 'json').html
+  }, [field.syntax, field.value])
+  const multiline = highlighted !== null || !!field.mono || field.value.includes('\n')
+
+  return (
+    <div className={`preview-field${multiline ? ' is-multiline' : ''}`}>
+      <div className="field-label">
+        <span className="field-label-text">{field.label}</span>
+        {field.copyable && (
+          <button
+            className="field-copy"
+            aria-label={`Copy ${field.label}`}
+            onClick={() => void onCopy(field.value)}
+          >
+            <CopyIcon size={12} />
+          </button>
+        )}
+      </div>
+      {highlighted !== null ? (
+        <pre className="field-value mono preview-code field-code">
+          <code dangerouslySetInnerHTML={{ __html: highlighted }} />
+        </pre>
+      ) : (
+        <div className={`field-value${field.mono || multiline ? ' mono' : ''}`}>{field.value}</div>
+      )}
     </div>
   )
 }

@@ -41,7 +41,7 @@ src/
 │  ├─ settings/      theme, font, behavior
 │  ├─ preview/       metadata extractors
 │  ├─ search/        indexer + FTS query
-│  ├─ thumbs/        sharp cache
+│  ├─ thumbs/        sharp cache + `!VIDTHUMB_CACHE` resolve/generate (ffmpeg)
 │  ├─ media/         custom protocol
 │  ├─ security/      path guards
 │  └─ logging/
@@ -68,7 +68,7 @@ Custom protocol (e.g. `mfe-media://`) serves:
 - File bytes for preview (images, text sniffs)
 - Thumbnail images from cache
 
-**Allowlist:** only paths that main has approved (currently visible tab roots, explicit preview target, thumb cache dir). Never arbitrary disk read from renderer-supplied URLs without validation.
+**Allowlist:** only paths that main has approved (currently visible tab roots, explicit preview target, thumb cache dir, and `!VIDTHUMB_CACHE` when video strip frames resolve or are generated). Never arbitrary disk read from renderer-supplied URLs without validation.
 
 ---
 
@@ -97,6 +97,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 - Directory list: cancel/supersede stale requests when path changes quickly.
 - Search: single active query per window; cancel previous.
 - Indexer: background queue; one writer; progress events.
+- File ops / video-preview generation: throttled `op-progress` events to the status bar (D28).
 - File ops: serialize destructive ops that touch the same path.
 
 ---

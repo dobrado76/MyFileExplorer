@@ -5,6 +5,7 @@ import { app } from 'electron'
 import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
+import { resolveVidThumbFrames } from './vidCache'
 
 const THUMB_EXTS = new Set([
   'png',
@@ -51,8 +52,17 @@ export function isThumbable(filePath: string): boolean {
   return THUMB_EXTS.has(ext)
 }
 
-export async function getThumbUrl(rawPath: string, size: number): Promise<{ url: string | null }> {
+export async function getThumbUrl(
+  rawPath: string,
+  size: number
+): Promise<{ url: string | null; frames?: string[] }> {
   const file = requireAbsolute(rawPath)
+
+  const frames = await resolveVidThumbFrames(file)
+  if (frames.length > 0) {
+    return { url: frames[0]!, frames }
+  }
+
   if (!isThumbable(file)) return { url: null }
 
   let st

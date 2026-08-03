@@ -48,8 +48,11 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 | Reorder          | Drag tabs to reorder; order persisted                                                      |
 | Close            | Middle-click / close button; confirm if that tab has an in-progress destructive op (rare)  |
 | New tab          | Clone current path or open profile default (This PC / home — Settings)                     |
+| Named layouts    | Save/load the whole tab set + chrome as a named workspace (see Settings → Layouts)         |
 
 Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `treeExpanded` (folder-tree expand/collapse paths).
+
+**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/view/sort/rootPath/treeExpanded + splitter chrome) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 
@@ -66,7 +69,8 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 
 | Mode              | Behavior                                                    |
 | ----------------- | ----------------------------------------------------------- |
-| Extra large icons | Image/PSD content thumbs; otherwise Windows shell icons     |
+| Extra large icons only, no filename | Like Extra large; hide the filename for files that show a content preview (image/PSD thumb or video strip). Folders and files without a preview keep their names |
+| Extra large icons | Image/PSD content thumbs; videos use `!VIDTHUMB_CACHE` strip animation when present (generate via context menu — D26); otherwise Windows shell icons |
 | Large icons       | Same                                                        |
 | Medium icons      | Same                                                        |
 | Small icons       | Same                                                        |
@@ -75,7 +79,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 
 - Sort by any visible column (incl. media once values load); asc/desc; folders-first toggle in Settings (default on).
 - Virtualize grids/lists for large directories.
-- **Images:** double-click / Enter opens an in-app full-size viewer (navigate siblings with arrow keys). **Open with default app** (context menu) uses the system association for external editors.
+- **Images:** double-click / Enter opens an in-app full-size viewer (navigate siblings with arrow keys). Preview **Edit** opens Filerobot (D27). **Open with default app** (context menu) uses the system association for external editors.
 - **Customize this folder** (context menu on folder / empty pane): save current view mode, sort, and Details columns for that path — **this folder only** or **this folder and subfolders**. Exact entry wins over the longest recursive ancestor; other folders keep the tab’s baseline view + global columns. Live view/sort/column edits while a customization applies update that owning entry. Manage in Settings → Folder views.
 
 ---
@@ -86,11 +90,12 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | New folder         | Inline rename or dialog                                                                                                                          |
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
-| Rename             | F2 / context; inline                                                                                                                             |
+| Rename             | F2 / context; inline. Enter commits; Escape cancels; click-away / blur **commits** (Explorer-style)                                              |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer) |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows)                                                                         |
 | Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory                                                                       |
+| Progress           | Lengthy copy/move/trash/delete (and video-preview generation) show a determinate **status-bar** progress bar (D28)                               |
 | Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
 | Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
 | Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar (not a full shell property sheet) |
@@ -113,6 +118,7 @@ Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dat
 - Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / Other…
 - Copy path / Copy name
 - Show in system Explorer
+- Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index (folders)
 - Properties
@@ -129,6 +135,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Selection: single file → rich preview; multi → summary (count, total size).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Inline video/audio playback in-pane for common containers (see PREVIEW.md); unsupported codecs → open with default app.
+- Office docs: Word, PowerPoint (`.pptx` slide text; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 
 ---
 
@@ -147,8 +154,9 @@ See [SEARCH.md](SEARCH.md).
 | Area         | Fields                                                                             |
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size                                |
-| Behavior     | Default new-tab path; folders-first; confirm permanent delete always on/off        |
+| Behavior     | Default new-tab path; folders-first; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off |
 | Quick access | Manage tree shortcuts                                                              |
+| Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
 | View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
 | Preview      | Show preview by default; max preview bytes for text                                |
@@ -185,6 +193,9 @@ See [SEARCH.md](SEARCH.md).
 - [ ] Splitter positions and preview collapsed state restore
 - [ ] Del trashes; Shift+Del permanently deletes with confirm rules
 - [ ] DnD move vs copy respects modifiers
+- [ ] Lengthy copy/move/delete shows status-bar progress
+- [ ] Video preview strips generate from context menu (missing / recursive / regenerate)
 - [ ] PNG with A1111/Comfy metadata shows prompt fields in preview when parseable
 - [ ] Indexed folder search returns results without full-tree walk
 - [ ] Theme + font changes apply live and persist
+- [ ] CLI `--reveal` / `mfe://` opens the path in a tab

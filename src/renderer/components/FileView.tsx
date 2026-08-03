@@ -15,7 +15,7 @@ import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf } from '../lib/paths'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
-import { isImageExt } from '../lib/icons'
+import { isImageExt, isVideoExt } from '../lib/icons'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
@@ -23,6 +23,8 @@ import { ShellIcon } from './ShellIcon'
 import { RenameInput } from './RenameInput'
 
 const GRID_SPECS = {
+  // Same cell footprint as Extra large; name row omitted when a content thumb is ready.
+  extraLargeIconsNoName: { cellW: 260, cellH: 300, thumb: 248 },
   extraLargeIcons: { cellW: 260, cellH: 300, thumb: 240 },
   largeIcons: { cellW: 164, cellH: 200, thumb: 144 },
   mediumIcons: { cellW: 120, cellH: 148, thumb: 96 },
@@ -37,6 +39,24 @@ function isEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   const tag = target.tagName
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+}
+
+/** Explorer-style typeahead: clear buffer after this idle gap. */
+const TYPEAHEAD_MS = 750
+
+function entryStartsWith(name: string, prefix: string): boolean {
+  return name.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase())
+}
+
+/** Next index after `from` (exclusive) matching prefix; wraps. `-1` if none. */
+function findTypeaheadIndex(entries: DirEntry[], prefix: string, from: number): number {
+  if (!prefix || entries.length === 0) return -1
+  const start = from < 0 ? 0 : from + 1
+  for (let i = 0; i < entries.length; i++) {
+    const idx = (start + i) % entries.length
+    if (entryStartsWith(entries[idx]!.name, prefix)) return idx
+  }
+  return -1
 }
 
 function detailCellValue(
@@ -93,6 +113,7 @@ export function FileView(): JSX.Element {
   const focusedPath = useAppStore((s) => s.focusedPath)
   const openEntry = useAppStore((s) => s.openEntry)
   const renamingPath = useAppStore((s) => s.renamingPath)
+  const renameSource = useAppStore((s) => s.renameSource)
   const submitRename = useAppStore((s) => s.submitRename)
   const cancelRename = useAppStore((s) => s.cancelRename)
   const clipboard = useAppStore((s) => s.clipboard)
@@ -107,6 +128,7 @@ export function FileView(): JSX.Element {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const typeaheadRef = useRef<{ buffer: string; timer: number }>({ buffer: '', timer: 0 })
   const [width, setWidth] = useState(800)
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
   const [bgDropActive, setBgDropActive] = useState(false)
@@ -114,6 +136,15 @@ export function FileView(): JSX.Element {
     null
   )
   const suppressClickRef = useRef(false)
+  /** Paths with a content thumb (image / video strip) — used to hide names in no-filename view. */
+  const contentThumbPaths = useRef(new Map<string, boolean>())
+  const [, setContentThumbTick] = useState(0)
+  const noteContentThumb = useCallback((filePath: string, has: boolean) => {
+    const k = filePath.toLowerCase()
+    if (contentThumbPaths.current.get(k) === has) return
+    contentThumbPaths.current.set(k, has)
+    setContentThumbTick((n) => n + 1)
+  }, [])
 
   // details-view column customization
   const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null)
@@ -134,6 +165,15 @@ export function FileView(): JSX.Element {
     [owningView, tab?.sort]
   )
   const viewMode = owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons'
+  const noFilenameView = viewMode === 'extraLargeIconsNoName'
+
+  useEffect(() => {
+    contentThumbPaths.current.clear()
+    setContentThumbTick((n) => n + 1)
+    const ta = typeaheadRef.current
+    window.clearTimeout(ta.timer)
+    ta.buffer = ''
+  }, [folderPath])
 
   const nameColWidth = liveWidths?.['name'] ?? detailsNameWidth
   const colWidth = (id: DetailsColumnId): number =>
@@ -315,7 +355,9 @@ export function FileView(): JSX.Element {
     count: rowCount,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => rowHeight,
-    overscan: 8
+    // Keep a small buffer for scroll smoothness; ThumbImage also gates
+    // network/decode work with IntersectionObserver (~180px margin).
+    overscan: 2
   })
 
   // TanStack Virtual caches row sizes and does not re-measure when
@@ -324,7 +366,17 @@ export function FileView(): JSX.Element {
     virtualizer.measure()
   }, [rowHeight, columns, virtualizer])
 
-  // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range).
+  // Keep the item being renamed in view (new folder/file, F2, etc.).
+  useLayoutEffect(() => {
+    if (!renamingPath) return
+    const idx = entries.findIndex((en) => samePath(en.path, renamingPath))
+    if (idx < 0) return
+    const rowIdx = spec ? Math.floor(idx / columns) : idx
+    virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
+  }, [renamingPath, entries, spec, columns, virtualizer])
+
+  // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range),
+  // and letter typeahead (next name starting with typed prefix).
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const s = useAppStore.getState()
@@ -332,6 +384,7 @@ export function FileView(): JSX.Element {
         s.dialog ||
         s.contextMenu ||
         s.imageViewer ||
+        s.imageEditor ||
         s.renamingPath ||
         s.addressEditing ||
         s.search.active
@@ -340,6 +393,61 @@ export function FileView(): JSX.Element {
       }
       if (isEditingTarget(e.target)) return
       if (entries.length === 0) return
+      // Don't steal keys while the folder tree / preview has focus.
+      if (
+        e.target instanceof Element &&
+        e.target.closest('.tree, .pane-tree, .preview, .pane-preview')
+      ) {
+        return
+      }
+
+      const focusIdx = ((): number => {
+        if (focusedPath) {
+          const i = entries.findIndex((en) => samePath(en.path, focusedPath))
+          if (i >= 0) return i
+        }
+        const sel = tab?.selected ?? []
+        for (let i = sel.length - 1; i >= 0; i--) {
+          const idx = entries.findIndex((en) => samePath(en.path, sel[i]!))
+          if (idx >= 0) return idx
+        }
+        return -1
+      })()
+
+      const selectAndScroll = (target: number): void => {
+        const targetPath = entries[target]!.path
+        setSelection([targetPath], targetPath, targetPath)
+        const rowIdx = spec ? Math.floor(target / columns) : target
+        virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
+      }
+
+      // Typeahead: printable character → next item whose name starts with the buffer.
+      if (
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        e.key.length === 1 &&
+        e.key !== ' '
+      ) {
+        // Ignore non-printable / control characters (e.g. Escape is length > 1 anyway).
+        if (e.key < ' ' || e.key === '\x7f') return
+        e.preventDefault()
+        const ta = typeaheadRef.current
+        window.clearTimeout(ta.timer)
+        const ch = e.key
+        if (ta.buffer.length === 1 && ta.buffer.toLocaleLowerCase() === ch.toLocaleLowerCase()) {
+          // Same letter again → cycle matches for that letter (Explorer-style).
+        } else {
+          ta.buffer += ch
+        }
+        ta.timer = window.setTimeout(() => {
+          ta.buffer = ''
+        }, TYPEAHEAD_MS)
+
+        const found = findTypeaheadIndex(entries, ta.buffer, focusIdx)
+        if (found >= 0) selectAndScroll(found)
+        return
+      }
 
       const key = e.key
       const navKeys = new Set([
@@ -359,19 +467,7 @@ export function FileView(): JSX.Element {
       if (!spec && (key === 'ArrowLeft' || key === 'ArrowRight')) return
 
       e.preventDefault()
-
-      const focusIdx = ((): number => {
-        if (focusedPath) {
-          const i = entries.findIndex((en) => samePath(en.path, focusedPath))
-          if (i >= 0) return i
-        }
-        const sel = tab?.selected ?? []
-        for (let i = sel.length - 1; i >= 0; i--) {
-          const idx = entries.findIndex((en) => samePath(en.path, sel[i]!))
-          if (idx >= 0) return idx
-        }
-        return -1
-      })()
+      typeaheadRef.current.buffer = ''
 
       const pageRows = Math.max(
         1,
@@ -430,12 +526,11 @@ export function FileView(): JSX.Element {
           anchorPath,
           targetPath
         )
+        const rowIdx = spec ? Math.floor(target / columns) : target
+        virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
       } else {
-        setSelection([targetPath], targetPath, targetPath)
+        selectAndScroll(target)
       }
-
-      const rowIdx = spec ? Math.floor(target / columns) : target
-      virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
     }
 
     window.addEventListener('keydown', onKey)
@@ -867,7 +962,7 @@ export function FileView(): JSX.Element {
       )}
       <div
         ref={setScrollEl}
-        className={`fileview${bgDropActive ? ' drop-target' : ''}`}
+        className={`fileview${isGrid ? ' fileview-icons' : ''}${bgDropActive ? ' drop-target' : ''}`}
         onScroll={onScroll}
         tabIndex={0}
         role={isGrid ? 'grid' : 'listbox'}
@@ -909,17 +1004,27 @@ export function FileView(): JSX.Element {
                 const isSel = selected.has(entry.path.toLowerCase())
                 const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
                 const iconPx = Math.min(spec.thumb, 48)
+                const hasContentPreview =
+                  entry.kind === 'file' &&
+                  contentThumbPaths.current.get(entry.path.toLowerCase()) === true
+                const hideName = noFilenameView && hasContentPreview
                 return (
                   <div
                     key={entry.path}
-                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
+                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}${hideName ? ' no-filename' : ''}${hasContentPreview ? ' has-preview' : ' icon-only'}`}
                     style={{
                       top: vRow.start,
                       left: i * spec.cellW,
                       width: spec.cellW - 8,
                       height: spec.cellH - 8
                     }}
-                    draggable={renamingPath !== entry.path}
+                    draggable={
+                      !(
+                        renameSource === 'files' &&
+                        renamingPath !== null &&
+                        samePath(renamingPath, entry.path)
+                      )
+                    }
                     onMouseDown={(e) => onItemMouseDown(entry, e)}
                     onClick={(e) => onItemClick(entry, e)}
                     onDoubleClick={() => void openEntry(entry)}
@@ -939,20 +1044,24 @@ export function FileView(): JSX.Element {
                     title={entry.name}
                   >
                     <div className="cell-thumb">
-                      {entry.kind === 'file' && isImageExt(entry.ext) ? (
+                      {entry.kind === 'file' &&
+                      (isImageExt(entry.ext) || isVideoExt(entry.ext)) ? (
                         <ThumbImage
                           path={entry.path}
                           mtimeMs={entry.mtimeMs}
                           size={spec.thumb}
                           fallback={<ShellIcon path={entry.path} size={iconPx} />}
+                          onHasContent={(has) => noteContentThumb(entry.path, has)}
                         />
                       ) : (
                         <ShellIcon path={entry.path} size={iconPx} isDir={entry.kind === 'dir'} />
                       )}
                     </div>
-                    {renamingPath === entry.path ? (
+                    {renameSource === 'files' &&
+                    renamingPath !== null &&
+                    samePath(renamingPath, entry.path) ? (
                       renameEditor(entry)
-                    ) : (
+                    ) : hideName ? null : (
                       <div className="cell-name">{entry.name}</div>
                     )}
                   </div>
@@ -969,7 +1078,13 @@ export function FileView(): JSX.Element {
                 key={entry.path}
                 className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
                 style={{ top: vRow.start, height: rowHeight }}
-                draggable={renamingPath !== entry.path}
+                draggable={
+                  !(
+                    renameSource === 'files' &&
+                    renamingPath !== null &&
+                    samePath(renamingPath, entry.path)
+                  )
+                }
                 onMouseDown={(e) => onItemMouseDown(entry, e)}
                 onClick={(e) => onItemClick(entry, e)}
                 onDoubleClick={() => void openEntry(entry)}
@@ -994,7 +1109,11 @@ export function FileView(): JSX.Element {
                   }
                 >
                   <ShellIcon path={entry.path} size={16} isDir={entry.kind === 'dir'} />
-                  {renamingPath === entry.path ? renameEditor(entry) : <span>{entry.name}</span>}
+                  {renameSource === 'files' &&
+                  renamingPath !== null &&
+                  samePath(renamingPath, entry.path)
+                    ? renameEditor(entry)
+                    : <span>{entry.name}</span>}
                 </div>
                 {viewMode === 'details' &&
                   detailsColumns.map((c) => (

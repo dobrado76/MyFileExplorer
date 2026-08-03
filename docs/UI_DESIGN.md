@@ -26,7 +26,7 @@ Custom theme = user-editable map of these tokens in settings.
 1. **Tab bar** — strip with overflow; drag reorder; double-click title to rename; `×` close; `+` new tab
 2. **Toolbar** — Back, Forward, Up, breadcrumb (flex), Search
 3. **Body** — Tree | Files | Preview (splitters)
-4. **Status bar** — item count, selected count, optional path of focus
+4. **Status bar** — item count, selected count; during copy/move/delete/trash/video-preview generation a determinate progress bar (`op-progress`) with current file name
 
 ### Splitters
 
@@ -77,7 +77,7 @@ Prefer compact confirm dialogs; Enter confirms when safe.
 
 ## Context menu
 
-App-drawn menu (not OS full shell menu). Position clamped to viewport. Keyboard: Escape closes; arrows move.
+App-drawn menu (not OS full shell menu). Position clamped to viewport. Submenus flip horizontally and shift vertically (or scroll) so they stay on-screen. Keyboard: Escape closes; arrows move.
 
 ---
 

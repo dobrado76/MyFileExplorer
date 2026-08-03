@@ -2,9 +2,16 @@ import { z } from 'zod'
 import { DETAILS_COLUMN_IDS, detailsColumnIdSchema, type DetailsColumnId } from './columns'
 import { viewModeSchema, sortSchema } from './session'
 import { MAX_FOLDER_VIEWS, type FolderView } from '../folderViews'
+import { MAX_LAYOUTS, workspaceLayoutSchema, type WorkspaceLayout } from '../layouts'
+import {
+  DEFAULT_VID_THUMB_FRAME_MS,
+  VID_THUMB_FRAME_MS_MAX,
+  VID_THUMB_FRAME_MS_MIN
+} from '../vidThumbCache'
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
+export type { WorkspaceLayout } from '../layouts'
 
 export const themeModeSchema = z.enum(['dark', 'light', 'custom'])
 export type ThemeMode = z.infer<typeof themeModeSchema>
@@ -82,6 +89,13 @@ export const settingsSchema = z.object({
   confirmPermanentDeleteAlways: z.boolean().catch(false),
   previewVisibleDefault: z.boolean().catch(true),
   textPreviewMaxBytes: z.number().min(1024).catch(1048576),
+  /** Delay between `!VIDTHUMB_CACHE` strip frames in icon views (ms). */
+  vidThumbFrameMs: z
+    .number()
+    .int()
+    .min(VID_THUMB_FRAME_MS_MIN)
+    .max(VID_THUMB_FRAME_MS_MAX)
+    .catch(DEFAULT_VID_THUMB_FRAME_MS),
   searchExcludeDirNames: z
     .array(z.string())
     .catch(['node_modules', '.git', '.hg', '.svn', 'Thumbs.db']),
@@ -112,6 +126,24 @@ export const settingsSchema = z.object({
     return out
   }, z.array(folderViewSchema).catch([])),
   /**
+   * Named workspace layouts: tab set + per-tab view/sort/tree + chrome splitters.
+   * Cap enforced on parse/write.
+   */
+  layouts: z.preprocess((raw) => {
+    if (!Array.isArray(raw)) return []
+    const seen = new Set<string>()
+    const out: WorkspaceLayout[] = []
+    for (const item of raw) {
+      const parsed = workspaceLayoutSchema.safeParse(item)
+      if (!parsed.success) continue
+      if (seen.has(parsed.data.id)) continue
+      seen.add(parsed.data.id)
+      out.push(parsed.data)
+      if (out.length >= MAX_LAYOUTS) break
+    }
+    return out
+  }, z.array(workspaceLayoutSchema).catch([])),
+  /**
    * Ordered Quick access: builtin ids (`desktop`, …) or absolute folder paths.
    * Empty = factory defaults (Desktop / Downloads / Documents / Pictures).
    */
@@ -138,12 +170,14 @@ export const defaultSettings: Settings = settingsSchema.parse({
   confirmPermanentDeleteAlways: false,
   previewVisibleDefault: true,
   textPreviewMaxBytes: 1048576,
+  vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   viewFilterEnabled: true,
   viewFilterPatterns: [],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,
   folderViews: [] satisfies FolderView[],
+  layouts: [] satisfies WorkspaceLayout[],
   quickAccess: [],
   quickAccessPins: [],
   quickAccessHiddenDefaults: [],

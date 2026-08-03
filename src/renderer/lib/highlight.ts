@@ -139,22 +139,30 @@ export type HighlightResult = {
   html: string
 }
 
-/** Highlight source; falls back to escaped plaintext on failure / unknown lang. */
-export function highlightCode(source: string, filePath: string): HighlightResult {
+/** Highlight source with an explicit language id (e.g. preview JSON fields). */
+export function highlightLanguage(source: string, language: string): HighlightResult {
   ensureRegistered()
-  const lang = languageFromPath(filePath)
-  if (!lang || lang === 'plaintext') {
-    return { language: lang, html: escapeHtml(source) }
+  if (!language || language === 'plaintext') {
+    return { language, html: escapeHtml(source) }
   }
   try {
-    if (hljs.getLanguage(lang)) {
-      const result = hljs.highlight(source, { language: lang, ignoreIllegals: true })
-      return { language: lang, html: result.value }
+    if (hljs.getLanguage(language)) {
+      const result = hljs.highlight(source, { language, ignoreIllegals: true })
+      return { language, html: result.value }
     }
   } catch {
     /* fall through */
   }
-  return { language: lang, html: escapeHtml(source) }
+  return { language, html: escapeHtml(source) }
+}
+
+/** Highlight source; falls back to escaped plaintext on failure / unknown lang. */
+export function highlightCode(source: string, filePath: string): HighlightResult {
+  const lang = languageFromPath(filePath)
+  if (!lang || lang === 'plaintext') {
+    return { language: lang, html: escapeHtml(source) }
+  }
+  return highlightLanguage(source, lang)
 }
 
 function escapeHtml(s: string): string {

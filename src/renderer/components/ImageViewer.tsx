@@ -10,6 +10,7 @@ import { CloseIcon, ArrowLeft, ArrowRight, SpinnerIcon } from '../lib/icons'
  */
 export function ImageViewer(): JSX.Element | null {
   const viewer = useAppStore((s) => s.imageViewer)
+  const mediaHold = useAppStore((s) => s.mediaHold)
   const closeImageViewer = useAppStore((s) => s.closeImageViewer)
   const imageViewerNavigate = useAppStore((s) => s.imageViewerNavigate)
   const imageViewerDelete = useAppStore((s) => s.imageViewerDelete)
@@ -177,7 +178,7 @@ export function ImageViewer(): JSX.Element | null {
             </div>
           )}
           {!loading && error && <div className="image-viewer-status">{error}</div>}
-          {!loading && url && (
+          {!loading && url && !mediaHold && (
             <img
               src={url}
               alt={name}
@@ -185,6 +186,9 @@ export function ImageViewer(): JSX.Element | null {
               onClick={() => setFit((f) => !f)}
               title={fit ? 'Click for actual size' : 'Click to fit'}
             />
+          )}
+          {!loading && url && mediaHold && (
+            <div className="image-viewer-status">Releasing file…</div>
           )}
         </div>
 

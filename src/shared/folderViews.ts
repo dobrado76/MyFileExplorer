@@ -64,17 +64,19 @@ export function patchFolderView(
 
 export function folderViewSummary(entry: FolderView): string {
   const mode =
-    entry.viewMode === 'extraLargeIcons'
-      ? 'Extra large icons'
-      : entry.viewMode === 'largeIcons'
-        ? 'Large icons'
-        : entry.viewMode === 'mediumIcons'
-          ? 'Medium icons'
-          : entry.viewMode === 'smallIcons'
-            ? 'Small icons'
-            : entry.viewMode === 'list'
-              ? 'List'
-              : 'Details'
+    entry.viewMode === 'extraLargeIconsNoName'
+      ? 'Extra large icons only, no filename'
+      : entry.viewMode === 'extraLargeIcons'
+        ? 'Extra large icons'
+        : entry.viewMode === 'largeIcons'
+          ? 'Large icons'
+          : entry.viewMode === 'mediumIcons'
+            ? 'Medium icons'
+            : entry.viewMode === 'smallIcons'
+              ? 'Small icons'
+              : entry.viewMode === 'list'
+                ? 'List'
+                : 'Details'
   const sortLabel = entry.sort.key === 'name' ? 'Name' : entry.sort.key
   return `${mode} · ${sortLabel}`
 }

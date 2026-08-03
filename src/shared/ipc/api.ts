@@ -57,6 +57,24 @@ export type MyFileExplorerApi = {
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
     setAttributes(req: SetAttributesRequest): Promise<Result<SetAttributesResponse>>
+    /** Save Filerobot output; first edit backs up pristine bytes under userData. */
+    saveEditedImage(req: {
+      path: string
+      dataBase64: string
+    }): Promise<Result<{ path: string; preservedOriginal: boolean }>>
+    hasImageOriginal(req: PathRequest): Promise<Result<{ hasOriginal: boolean }>>
+    revertImageOriginal(req: PathRequest): Promise<Result<{ path: string; reverted: boolean }>>
+    /** Load image bytes for Filerobot (data URL-safe base64). */
+    readImageForEdit(req: PathRequest): Promise<Result<{ dataBase64: string; mime: string }>>
+    /** Save dialog + write; no original backup (Save As). */
+    saveEditedImageAs(req: {
+      dataBase64: string
+      defaultPath: string
+    }): Promise<Result<{ path: string | null; cancelled: boolean }>>
+    /** Ensure LaMa ONNX is cached; returns path + fetchable modelUrl for ORT. */
+    ensureLamaModel(): Promise<
+      Result<{ path: string; downloaded: boolean; modelUrl: string }>
+    >
   }
   shell: {
     openPath(req: PathRequest): Promise<Result<{ opened: boolean; message?: string }>>
@@ -87,7 +105,21 @@ export type MyFileExplorerApi = {
     cancel(): Promise<Result<{ cancelled: boolean }>>
   }
   thumbs: {
-    get(req: { path: string; size: number }): Promise<Result<{ url: string | null }>>
+    get(req: {
+      path: string
+      size: number
+    }): Promise<Result<{ url: string | null; frames?: string[] }>>
+    generateVidCache(req: {
+      paths: string[]
+      mode: 'missing' | 'all'
+      recursive?: boolean
+    }): Promise<
+      Result<{
+        generated: number
+        skipped: number
+        failed: { path: string; message: string }[]
+      }>
+    >
   }
   icons: {
     /** Windows shell icon (folder / file-type / exe) via app.getFileIcon. */

@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs** — README, PLAN, and `docs/*` updated for video-preview generation (incl. recursive missing), file-op progress (D28), Recycle Bin (D7), and integration entry points.
+
 ### Fixed
 
+- **Folder rename in file view** — F2 / Rename on a selected folder no longer fights the tree’s rename field (rename source is tree vs files).
+- **Rename click-away commits** — leaving the inline rename field commits the name (Escape still cancels).
+- **Context submenu clipping** — submenus flip/shift/scroll to stay inside the window.
+- **Image preview uses the pane** — photo fills the space above details (contain/fit); dimensions move into the compact bottom strip; Path and bit-depth rows removed. Details use two columns when wide enough (Type/Size beside Date modified/Date created).
+- **Delete/rename while previewing images** — image preview/viewer no longer keeps the source file open on Windows (buffered `mfe-media` responses + briefly detaching media before delete/move/rename), so Del is not blocked by our own preview.
+- **False “locked by PowerShell” on delete** — the process scanner no longer reports its own PowerShell helper (the path was on that process’s command line) as the locker.
 - **File ops never fail silently** — rename, move, copy, delete (Recycle Bin + permanent), undo/redo, and new file/folder failures always open a modal with an Explorer-style message. Lockers are resolved via Restart Manager plus a process path/command-line scan; when found, the dialog lists process name and PID. Own folder watchers are released before mutating so we don’t lock ourselves out.
 - **Tree rename** — F2 and context-menu Rename work on folders in the left tree (inline edit), not only in the file view.
 - **View filter hides Windows Hidden** — with the filter on (toolbar eye), items with the Hidden attribute are omitted from the list/tree (not just greyed). Turn the filter off to see them dimmed. Dotfiles are not treated as hidden unless Windows says so.
@@ -27,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Generate video previews** — context menu on folder background / folder / videos: write 20 evenly sampled frames into `!VIDTHUMB_CACHE` (Generate missing, Generate missing for all subfolders, or Regenerate all). Uses bundled ffmpeg; progress in the status bar (D26).
+- **File-op progress bar** — copy, move, Recycle Bin, permanent delete, and video-preview generation show a determinate status-bar progress bar with “N of M” and the current file name (D28).
+- **In-app image editor** — Edit button on image previews (and context menu) opens Filerobot (crop/adjust/filters/annotate/resize). **Save** keeps a pristine copy under AppData for Revert; **Save as…** writes a new file with no backup (D27).
+- **PowerPoint preview** — `.pptx` shows slide text in the preview pane; legacy `.ppt` gets a best-effort text scrape (layout/images not rendered).
+- **Extra large icons only, no filename** — new view mode above Extra large icons. Hides the label for files that actually show a content preview (image/PSD or video strip); folders and files without a preview still show their names.
+- **Animated video thumbs in icon view** — when a sibling hidden `!VIDTHUMB_CACHE` folder has `{videoName}.thumb_1.jpg`…`thumb_20.jpg`, icon/thumbnail modes loop those frames instead of the plain shell video icon. Frame delay is Settings → Behavior → Video thumbnail frame delay (default 300ms; D26). Strips load lazily near the viewport; frames advance only after decode (no black flash); off-screen cells pause.
+- **SafeTensors preview metadata** — `.safetensors` files show a compact summary (type/params/dtype), promoted training fields, and syntax-highlighted JSON for nested leftovers — header-only, no weight load, no redundant raw dump or filler icon.
+- **Named workspace layouts** — save the current tabs (paths, titles, view/sort, tree expand, scoped roots) and pane chrome under a name (e.g. AI training, book editing, a project). Toolbar Layouts menu to apply/save; Settings → Layouts to update, rename, or remove. Stored in `settings.json` (D25).
 - **Syntax-highlighted text previews** — HTML/XML, JSON, TypeScript/JavaScript, YAML, CSS, and other common languages in the preview pane (`highlight.js`, theme-aware colors).
 - **Conflict compare** — on name conflicts while copying/moving, side-by-side Incoming vs Existing (image thumbs, size, dimensions, modified/created, paths). Decide per file or Skip/Keep both/Replace all; newer/larger sides are highlighted.
 - **Recycle Bin on the tab bar** — far-right control opens the Windows Recycle Bin in system Explorer.

@@ -19,6 +19,13 @@ import {
   upsertFolderView,
   type FolderView
 } from '@shared/folderViews'
+import {
+  buildLayoutFromSnapshot,
+  removeLayout as removeLayoutFromList,
+  renameLayout as renameLayoutInList,
+  upsertLayout,
+  type WorkspaceLayout
+} from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
 import {
@@ -81,7 +88,15 @@ export type DialogState =
     }
   | { kind: 'new-file'; parent: string }
   | { kind: 'properties'; path: string }
-  | { kind: 'settings' }
+  | { kind: 'settings'; section?: string }
+  | {
+      kind: 'layout-name'
+      mode: 'save' | 'rename'
+      layoutId?: string
+      initialName?: string
+      /** Re-open Settings on this section after success. */
+      returnSection?: string
+    }
   | { kind: 'alert'; title: string; message: string; detail?: string }
   | null
 
@@ -106,6 +121,16 @@ export type SearchState = {
 
 export type Notice = { text: string; isError: boolean } | null
 
+/** Live progress for copy / move / trash / permanent delete (main → op-progress). */
+export type FileOpProgress = {
+  opId: string
+  kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs'
+  done: number
+  total: number
+  current?: string
+  label?: string
+}
+
 let tabCounter = 0
 function newTabId(): string {
   return `tab_${Date.now().toString(36)}_${(tabCounter++).toString(36)}`
@@ -129,6 +154,11 @@ type AppState = {
   selectionAnchor: string | null
   focusedPath: string | null
   renamingPath: string | null
+  /**
+   * Where the inline rename UI should appear. Folders exist in both the tree and
+   * file view — only one surface mounts RenameInput so focus isn't stolen.
+   */
+  renameSource: 'tree' | 'files' | null
   /** Last folder clicked/focused in the tree (for F2 rename). */
   treeFocusPath: string | null
   clipboard: ClipboardState
@@ -136,10 +166,23 @@ type AppState = {
   dialog: DialogState
   /** In-app full-size image viewer (double-click / Enter on images). */
   imageViewer: { path: string; siblings: string[] } | null
+  /** In-app Filerobot image editor (preview Edit button / context menu). */
+  imageEditor: { path: string; mediaUrl: string } | null
+  /**
+   * When true, preview/viewer detach media elements so Windows can delete/rename
+   * files that Chromium had open via mfe-media.
+   */
+  mediaHold: boolean
   contextMenu: ContextMenuState
   search: SearchState
   indexRoots: IndexRootInfo[]
   indexProgress: Record<string, number>
+  /** Determinate progress for lengthy multi-file FS ops. */
+  fileOp: FileOpProgress | null
+  /**
+   * Bumped when `!VIDTHUMB_CACHE` strips are generated so icon thumbs refetch.
+   */
+  videoThumbRev: number
   notice: Notice
   addressEditing: boolean
   /**
@@ -203,12 +246,21 @@ type AppState = {
     detailsNameWidth?: number
   }): Promise<void>
 
+  /** Save current tabs + chrome as a new named layout (or overwrite via updateLayout). */
+  saveLayout(name: string): Promise<WorkspaceLayout | null>
+  /** Overwrite an existing layout with the current workspace. */
+  updateLayout(id: string): Promise<void>
+  renameLayout(id: string, name: string): Promise<void>
+  removeLayout(id: string): Promise<void>
+  /** Replace live tabs/splitters with a saved layout (regenerates tab ids). */
+  applyLayout(id: string): Promise<void>
+
   // selection
   setSelection(paths: string[], anchor?: string | null, focused?: string | null): void
   selectAll(): void
 
   // fs ops
-  startRename(path: string): void
+  startRename(path: string, source?: 'tree' | 'files'): void
   submitRename(newName: string): Promise<void>
   cancelRename(): void
   setTreeFocusPath(path: string | null): void
@@ -216,8 +268,10 @@ type AppState = {
   createNewFile(parent: string, name: string): Promise<void>
   /** Create “New …ext” with a unique name and start inline rename. */
   createTypedFile(parent: string, stem: string, ext: string): Promise<void>
-  copySelection(): void
-  cutSelection(): void
+  /** Copy paths to in-app + OS file clipboard. Defaults to the file-view selection. */
+  copySelection(paths?: string[]): void
+  /** Cut paths to in-app + OS file clipboard. Defaults to the file-view selection. */
+  cutSelection(paths?: string[]): void
   paste(): Promise<void>
   performTransfer(
     op: 'copy' | 'move',
@@ -232,12 +286,20 @@ type AppState = {
   resolveConflict(
     choice: null | ConflictDecision | Record<string, ConflictDecision>
   ): Promise<void>
-  deleteSelection(permanent: boolean): Promise<void>
+  /** Delete file-view selection, or explicit `paths` (e.g. tree-focused folder). */
+  deleteSelection(permanent: boolean, paths?: string[]): Promise<void>
   confirmPermanentDelete(confirmed: boolean): Promise<void>
   openEntry(entry: DirEntry): Promise<void>
   openPath(path: string): Promise<void>
   openImageViewer(path: string, siblings?: string[]): void
   closeImageViewer(): void
+  openImageEditor(path: string, mediaUrl: string): void
+  closeImageEditor(): void
+  /** Save Filerobot output over the live file (pristine backup under userData). */
+  saveEditedImage(path: string, dataBase64: string): Promise<void>
+  /** Save to a new path via dialog — no original backup. */
+  saveEditedImageAs(sourcePath: string, dataBase64: string): Promise<string | null>
+  revertImageOriginal(path: string): Promise<void>
   imageViewerNavigate(delta: number | 'first' | 'last'): void
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
@@ -257,6 +319,16 @@ type AppState = {
   applySettingsPatch(patch: SettingsPatch): Promise<void>
   addViewFilterPatterns(patterns: string[]): Promise<void>
   clearThumbCache(): Promise<void>
+  /**
+   * Generate `!VIDTHUMB_CACHE` strip frames for videos (or videos in folders).
+   * `missing` skips complete strips; `all` regenerates.
+   * `recursive` walks subfolders when paths include directories.
+   */
+  generateVideoThumbs(
+    paths: string[],
+    mode: 'missing' | 'all',
+    opts?: { recursive?: boolean }
+  ): Promise<void>
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
@@ -403,26 +475,33 @@ export const useAppStore = create<AppState>()((set, get) => {
     policy: ConflictPolicy,
     clearCut: boolean
   ): Promise<void> {
-    const r = await runTransfer(op2, src, dest, policy)
-    if (op2 === 'copy') {
-      if (r.copyPaths.length > 0) {
-        recordUndo({ kind: 'copy', paths: r.copyPaths, label: basename(r.copyPaths[0]!) })
+    if (op2 === 'move') await releaseMediaLocks()
+    try {
+      const r = await runTransfer(op2, src, dest, policy)
+      if (op2 === 'copy') {
+        if (r.copyPaths.length > 0) {
+          recordUndo({ kind: 'copy', paths: r.copyPaths, label: basename(r.copyPaths[0]!) })
+        }
+        get().notify(`Copied ${r.copied}, skipped ${r.skipped}`)
+        notifyTreeReload([dest])
+      } else {
+        if (r.movePairs.length > 0) {
+          recordUndo({
+            kind: 'move',
+            pairs: r.movePairs,
+            label: basename(r.movePairs[0]!.to)
+          })
+        }
+        get().notify(`Moved ${r.moved}, skipped ${r.skipped}`)
+        notifyTreeMutation({ removed: src, reloadParents: [dest] })
       }
-      get().notify(`Copied ${r.copied}, skipped ${r.skipped}`)
-      notifyTreeReload([dest])
-    } else {
-      if (r.movePairs.length > 0) {
-        recordUndo({
-          kind: 'move',
-          pairs: r.movePairs,
-          label: basename(r.movePairs[0]!.to)
-        })
-      }
-      get().notify(`Moved ${r.moved}, skipped ${r.skipped}`)
-      notifyTreeMutation({ removed: src, reloadParents: [dest] })
+      if (clearCut) set({ clipboard: null })
+      if (get().mediaHold) set({ mediaHold: false })
+      await get().refresh()
+    } catch (e) {
+      set({ mediaHold: false })
+      throw e
     }
-    if (clearCut) set({ clipboard: null })
-    await get().refresh()
   }
 
   async function runTransfer(
@@ -580,7 +659,16 @@ export const useAppStore = create<AppState>()((set, get) => {
     set({ imageViewer: { path: siblings[nextIdx]!, siblings } })
   }
 
+  /** Drop preview/viewer media briefly so OS file locks are released. */
+  async function releaseMediaLocks(): Promise<void> {
+    set({ mediaHold: true })
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 60)
+    })
+  }
+
   async function afterPathsRemoved(removed: string[]): Promise<void> {
+    if (get().mediaHold) set({ mediaHold: false })
     syncImageViewerAfterDelete(removed)
     notifyTreeRemoved(removed)
     const tab = get().activeTab()
@@ -687,6 +775,17 @@ export const useAppStore = create<AppState>()((set, get) => {
     return out
   }
 
+  /** Commit in-progress inline rename before tearing UI down (navigate / tab switch). */
+  function flushPendingRename(): void {
+    if (!get().renamingPath) return
+    const el = document.querySelector('input.rename-input') as HTMLInputElement | null
+    if (el) {
+      void get().submitRename(el.value)
+      return
+    }
+    get().cancelRename()
+  }
+
   async function selectPathsPreferParent(paths: string[]): Promise<void> {
     if (paths.length === 0) {
       updateActiveTab({ selected: [] })
@@ -791,11 +890,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     selectionAnchor: null,
     focusedPath: null,
     renamingPath: null,
+    renameSource: null,
     treeFocusPath: null,
     clipboard: null,
     dragPaths: [],
     dialog: null,
     imageViewer: null,
+    imageEditor: null,
+    mediaHold: false,
     contextMenu: null,
     search: {
       active: false,
@@ -809,6 +911,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
     indexRoots: [],
     indexProgress: {},
+    fileOp: null,
+    videoThumbRev: 0,
     notice: null,
     addressEditing: false,
     treeMutation: { rev: 0, removed: [], reloadParents: [] },
@@ -978,6 +1082,24 @@ export const useAppStore = create<AppState>()((set, get) => {
             }
           }))
           if (event.payload.done) void get().refreshIndexRoots()
+        } else if (event.type === 'op-progress') {
+          const p = event.payload
+          if (p.phase === 'done') {
+            set((state) =>
+              state.fileOp?.opId === p.opId ? { fileOp: null } : {}
+            )
+          } else {
+            set({
+              fileOp: {
+                opId: p.opId,
+                kind: p.kind,
+                done: p.done,
+                total: p.total,
+                current: p.current,
+                label: p.label
+              }
+            })
+          }
         } else if (event.type === 'external-open') {
           void get().openExternalTarget(event.payload.path, event.payload.reveal)
         }
@@ -1036,6 +1158,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       if (get().search.active) get().clearSearch()
+      flushPendingRename()
       if (push && !samePath(old, path)) {
         updateActiveTab({
           path,
@@ -1047,7 +1170,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       } else {
         updateActiveTab({ path, selected: [] })
       }
-      set({ selectionAnchor: null, focusedPath: null, renamingPath: null, addressEditing: false })
+      set({ selectionAnchor: null, focusedPath: null, renamingPath: null, renameSource: null, addressEditing: false })
       if (!samePath(old, path)) void api.fs.unwatch({ path: old })
       await loadListing(path)
     },
@@ -1144,6 +1267,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     async activateTab(id) {
       if (get().activeTabId === id) return
       if (get().search.active) get().clearSearch()
+      flushPendingRename()
       const tab = get().tabs.find((t) => t.id === id)
       if (!tab) return
       const focus = focusFromSelection(tab.selected)
@@ -1151,7 +1275,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         activeTabId: id,
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
-        renamingPath: null
+        renamingPath: null,
+        renameSource: null
       })
       scheduleSessionSave()
       await loadListing(tab.path)
@@ -1269,6 +1394,122 @@ export const useAppStore = create<AppState>()((set, get) => {
       await get().applySettingsPatch(patch)
     },
 
+    async saveLayout(name) {
+      const s = get()
+      try {
+        const activeIdx = Math.max(
+          0,
+          s.tabs.findIndex((t) => t.id === s.activeTabId)
+        )
+        const layout = buildLayoutFromSnapshot(name, {
+          tabs: s.tabs,
+          activeTabIndex: activeIdx,
+          splitters: s.splitters
+        })
+        await get().applySettingsPatch({
+          layouts: upsertLayout(s.settings.layouts, layout)
+        })
+        get().notify(`Saved layout “${layout.name}”`)
+        return layout
+      } catch (e) {
+        get().notify(e instanceof Error ? e.message : String(e), true)
+        return null
+      }
+    },
+
+    async updateLayout(id) {
+      const s = get()
+      const existing = s.settings.layouts.find((l) => l.id === id)
+      if (!existing) {
+        get().notify('Layout not found', true)
+        return
+      }
+      try {
+        const activeIdx = Math.max(
+          0,
+          s.tabs.findIndex((t) => t.id === s.activeTabId)
+        )
+        const layout = buildLayoutFromSnapshot(
+          existing.name,
+          {
+            tabs: s.tabs,
+            activeTabIndex: activeIdx,
+            splitters: s.splitters
+          },
+          existing.id
+        )
+        await get().applySettingsPatch({
+          layouts: upsertLayout(s.settings.layouts, layout)
+        })
+        get().notify(`Updated layout “${layout.name}”`)
+      } catch (e) {
+        get().notify(e instanceof Error ? e.message : String(e), true)
+      }
+    },
+
+    async renameLayout(id, name) {
+      const s = get()
+      const next = renameLayoutInList(s.settings.layouts, id, name)
+      if (!next) {
+        get().notify('Enter a layout name', true)
+        return
+      }
+      await get().applySettingsPatch({ layouts: next })
+      const renamed = next.find((l) => l.id === id)
+      if (renamed) get().notify(`Renamed layout “${renamed.name}”`)
+    },
+
+    async removeLayout(id) {
+      const s = get()
+      const existing = s.settings.layouts.find((l) => l.id === id)
+      if (!existing) return
+      await get().applySettingsPatch({
+        layouts: removeLayoutFromList(s.settings.layouts, id)
+      })
+      get().notify(`Removed layout “${existing.name}”`)
+    },
+
+    async applyLayout(id) {
+      const s = get()
+      const layout = s.settings.layouts.find((l) => l.id === id)
+      if (!layout || layout.tabs.length === 0) {
+        get().notify('Layout not found', true)
+        return
+      }
+      const tabs: Tab[] = layout.tabs.map((t) => ({
+        id: newTabId(),
+        path: t.path,
+        title: t.title,
+        viewMode: t.viewMode,
+        sort: t.sort,
+        rootPath: t.rootPath,
+        treeExpanded: t.treeExpanded,
+        back: [],
+        forward: [],
+        selected: [],
+        scrollOffset: 0
+      }))
+      const idx = Math.min(Math.max(0, layout.activeTabIndex), tabs.length - 1)
+      const active = tabs[idx]!
+      get().clearSearch()
+      flushPendingRename()
+      set({
+        tabs,
+        activeTabId: active.id,
+        splitters: { ...layout.splitters },
+        selectionAnchor: null,
+        focusedPath: null,
+        renamingPath: null,
+        renameSource: null,
+        treeFocusPath: null,
+        dialog: null,
+        contextMenu: null
+      })
+      scheduleSessionSave()
+      await loadListing(active.path)
+      get().notify(`Applied layout “${layout.name}”`)
+    },
+
     setScrollOffset(offset) {
       // no session save churn for every scroll — update silently, save on other triggers
       set((s) => ({
@@ -1301,12 +1542,16 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
     },
 
-    startRename(path) {
-      set({ renamingPath: path, treeFocusPath: path })
+    startRename(path, source = 'files') {
+      set({
+        renamingPath: path,
+        renameSource: source,
+        ...(source === 'tree' ? { treeFocusPath: path } : {})
+      })
     },
 
     cancelRename() {
-      set({ renamingPath: null })
+      set({ renamingPath: null, renameSource: null })
     },
 
     setTreeFocusPath(path) {
@@ -1315,11 +1560,13 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async submitRename(newName) {
       const path = get().renamingPath
-      set({ renamingPath: null })
-      if (!path || !newName.trim()) return
+      if (!path) return
+      set({ renamingPath: null, renameSource: null })
+      if (!newName.trim()) return
       const oldName = basename(path)
       if (newName === oldName) return
       try {
+        await releaseMediaLocks()
         const res = await call(api.fs.rename({ path, newName: newName.trim() }))
         recordUndo({
           kind: 'rename',
@@ -1339,6 +1586,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           return p
         }
         set((s) => ({
+          mediaHold: false,
           tabs: s.tabs.map((t) => ({
             ...t,
             path: rewrite(t.path),
@@ -1352,6 +1600,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
       } catch (e) {
+        set({ mediaHold: false })
         reportOperationError('Rename failed', e)
       }
     },
@@ -1367,7 +1616,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         notifyTreeReload([dir])
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
-        set({ renamingPath: res.path })
+        get().startRename(res.path)
       } catch (e) {
         reportOperationError('New folder failed', e)
       }
@@ -1380,7 +1629,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         recordUndo({ kind: 'create', paths: [res.path], label: name })
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
-        set({ dialog: null, renamingPath: res.path })
+        set({ dialog: null })
+        get().startRename(res.path)
       } catch (e) {
         reportOperationError('New file failed', e)
       }
@@ -1395,22 +1645,22 @@ export const useAppStore = create<AppState>()((set, get) => {
         recordUndo({ kind: 'create', paths: [res.path], label: name })
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
-        set({ renamingPath: res.path })
+        get().startRename(res.path)
       } catch (e) {
         reportOperationError('New file failed', e)
       }
     },
 
-    copySelection() {
-      const selected = get().activeTab().selected
+    copySelection(paths) {
+      const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
       set({ clipboard: { mode: 'copy', paths: selected } })
       void api.shell.clipboardWriteFiles({ paths: selected })
       get().notify(`Copied ${selected.length} item${selected.length > 1 ? 's' : ''}`)
     },
 
-    cutSelection() {
-      const selected = get().activeTab().selected
+    cutSelection(paths) {
+      const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
       set({ clipboard: { mode: 'cut', paths: selected } })
       void api.shell.clipboardWriteFiles({ paths: selected })
@@ -1418,18 +1668,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async paste() {
-      const s = get()
-      let clip = s.clipboard
-      if (!clip) {
-        try {
-          const os = await call(api.shell.clipboardReadFiles())
-          if (os.paths.length > 0) clip = { mode: 'copy', paths: os.paths }
-        } catch {
-          // no OS file clipboard
-        }
-      }
+      const clip = await resolveClipboard(get)
       if (!clip || clip.paths.length === 0) return
-      const dest = s.activeTab().path
+      const dest = get().activeTab().path
       await get().performTransfer(
         clip.mode === 'cut' ? 'move' : 'copy',
         clip.paths,
@@ -1558,43 +1799,47 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
-    async deleteSelection(permanent) {
+    async deleteSelection(permanent, paths) {
       const s = get()
-      const paths = s.activeTab().selected
-      if (paths.length === 0) return
+      const target = paths ?? s.activeTab().selected
+      if (target.length === 0) return
       if (!permanent) {
         try {
-          await call(api.fs.trash({ paths }))
+          await releaseMediaLocks()
+          await call(api.fs.trash({ paths: target }))
           recordUndo({
             kind: 'trash',
-            paths: [...paths],
-            label: basename(paths[0]!)
+            paths: [...target],
+            label: basename(target[0]!)
           })
-          get().notify(`Moved ${paths.length} item${paths.length > 1 ? 's' : ''} to Recycle Bin`)
-          await afterPathsRemoved(paths)
+          get().notify(`Moved ${target.length} item${target.length > 1 ? 's' : ''} to Recycle Bin`)
+          await afterPathsRemoved(target)
         } catch (e) {
+          set({ mediaHold: false })
           reportOperationError('Delete failed', e)
         }
         return
       }
       // Paths deleted from the tree may not appear in the current listing.
-      const anyDir = paths.some((p) => {
+      const anyDir = target.some((p) => {
         const e = s.listing.entries.find((en) => samePath(en.path, p))
         return e ? e.kind === 'dir' : true
       })
-      const needsConfirm = paths.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
+      const needsConfirm = target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
       if (needsConfirm) {
-        set({ dialog: { kind: 'confirm-permanent-delete', paths } })
+        set({ dialog: { kind: 'confirm-permanent-delete', paths: target } })
       } else {
-        await doPermanentDelete(paths)
+        await doPermanentDelete(target)
       }
 
-      async function doPermanentDelete(target: string[]): Promise<void> {
+      async function doPermanentDelete(toDelete: string[]): Promise<void> {
         try {
-          await call(api.fs.deletePermanent({ paths: target }))
-          get().notify(`Permanently deleted ${target.length} item${target.length > 1 ? 's' : ''}`)
-          await afterPathsRemoved(target)
+          await releaseMediaLocks()
+          await call(api.fs.deletePermanent({ paths: toDelete }))
+          get().notify(`Permanently deleted ${toDelete.length} item${toDelete.length > 1 ? 's' : ''}`)
+          await afterPathsRemoved(toDelete)
         } catch (e) {
+          set({ mediaHold: false })
           reportOperationError('Delete failed', e)
         }
       }
@@ -1605,12 +1850,14 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ dialog: null })
       if (!dialog || dialog.kind !== 'confirm-permanent-delete' || !confirmed) return
       try {
+        await releaseMediaLocks()
         await call(api.fs.deletePermanent({ paths: dialog.paths }))
         get().notify(
           `Permanently deleted ${dialog.paths.length} item${dialog.paths.length > 1 ? 's' : ''}`
         )
         await afterPathsRemoved(dialog.paths)
       } catch (e) {
+        set({ mediaHold: false })
         reportOperationError('Delete failed', e)
       }
     },
@@ -1652,6 +1899,67 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     closeImageViewer() {
       set({ imageViewer: null })
+    },
+
+    openImageEditor(path, mediaUrl) {
+      set({
+        imageEditor: { path, mediaUrl },
+        imageViewer: null,
+        contextMenu: null
+      })
+    },
+
+    closeImageEditor() {
+      set({ imageEditor: null })
+    },
+
+    async saveEditedImage(path, dataBase64) {
+      await releaseMediaLocks()
+      try {
+        await call(api.fs.saveEditedImage({ path, dataBase64 }))
+        get().notify('Image saved')
+        set({ imageEditor: null })
+        await get().refresh()
+        set({ mediaHold: false })
+      } catch (e) {
+        set({ mediaHold: false })
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        throw e
+      }
+    },
+
+    async saveEditedImageAs(sourcePath, dataBase64) {
+      const base = basename(sourcePath)
+      const dot = base.lastIndexOf('.')
+      const stem = dot > 0 ? base.slice(0, dot) : base
+      const ext = dot > 0 ? base.slice(dot) : '.jpg'
+      const parent = parentOf(sourcePath) ?? sourcePath
+      const defaultPath = joinPath(parent, `${stem}_edited${ext}`)
+      try {
+        const res = await call(
+          api.fs.saveEditedImageAs({ dataBase64, defaultPath })
+        )
+        if (res.cancelled || !res.path) return null
+        get().notify(`Saved as ${basename(res.path)}`)
+        await get().refresh()
+        return res.path
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        throw e
+      }
+    },
+
+    async revertImageOriginal(path) {
+      await releaseMediaLocks()
+      try {
+        await call(api.fs.revertImageOriginal({ path }))
+        get().notify('Reverted to original')
+        await get().refresh()
+        set({ mediaHold: false })
+      } catch (e) {
+        set({ mediaHold: false })
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
     },
 
     imageViewerNavigate(delta) {
@@ -1842,6 +2150,41 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async generateVideoThumbs(paths, mode, opts) {
+      if (paths.length === 0) return
+      try {
+        const res = await call(
+          api.thumbs.generateVidCache({
+            paths,
+            mode,
+            recursive: opts?.recursive ?? false
+          })
+        )
+        set((s) => ({ videoThumbRev: s.videoThumbRev + 1 }))
+        const failN = res.failed.length
+        if (res.generated === 0 && failN === 0 && res.skipped > 0) {
+          get().notify(
+            res.skipped === 1
+              ? 'Video preview already exists'
+              : `All ${res.skipped} video previews already exist`
+          )
+        } else if (failN > 0) {
+          get().notify(
+            `Video previews: ${res.generated} generated, ${res.skipped} skipped, ${failN} failed`,
+            true
+          )
+        } else {
+          get().notify(
+            res.generated === 1
+              ? 'Generated video preview'
+              : `Generated ${res.generated} video previews${res.skipped > 0 ? ` (${res.skipped} skipped)` : ''}`
+          )
+        }
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     setSearchQuery(q) {
       set((s) => ({ search: { ...s.search, query: q } }))
     },
@@ -1995,6 +2338,21 @@ export function sortEntries(
     return cmp * dir
   })
   return sorted
+}
+
+/** Prefer in-app clipboard; otherwise read CF_HDROP from the OS (Explorer → MFE paste). */
+async function resolveClipboard(
+  get: () => { clipboard: ClipboardState }
+): Promise<ClipboardState> {
+  const local = get().clipboard
+  if (local && local.paths.length > 0) return local
+  try {
+    const os = await call(api.shell.clipboardReadFiles())
+    if (os.paths.length > 0) return { mode: 'copy', paths: os.paths }
+  } catch {
+    // no OS file clipboard
+  }
+  return null
 }
 
 /** Explorer drag-drop convention: default move on same volume, copy across; Ctrl forces copy, Shift forces move. */

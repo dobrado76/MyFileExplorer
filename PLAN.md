@@ -8,7 +8,7 @@ Status: **v0.1.0 implemented** — Phases 0–9 of [docs/IMPLEMENTATION_PLAN.md]
 
 ## What we are building
 
-A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops, and **opt-in folder search indexing**.
+A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **opt-in folder search indexing**, and optional **video preview-strip generation** into `!VIDTHUMB_CACHE`.
 
 ## Stack (locked)
 
@@ -19,9 +19,9 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | State (renderer) | Zustand                                                    |
 | Validation       | Zod on IPC / settings                                      |
 | Tests / quality  | Vitest, ESLint (0 warnings), Prettier                      |
-| Thumbs           | Sharp                                                      |
+| Thumbs           | Sharp (images/PSD); video strips via `!VIDTHUMB_CACHE` + ffmpeg |
 | Search index     | SQLite + FTS5 under Electron `userData`                    |
-| Delete           | `shell.trashItem` (Recycle Bin); Shift+Del permanent       |
+| Delete           | Recycle Bin via `SHFileOperation` + `FOF_ALLOWUNDO` (D7); Shift+Del permanent |
 
 ## Non-goals (v1)
 
@@ -44,12 +44,15 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/PREVIEW.md](docs/PREVIEW.md)                         | Preview + gen metadata        |
 | [docs/SEARCH.md](docs/SEARCH.md)                           | Indexing & search             |
 | [docs/SECURITY.md](docs/SECURITY.md)                       | Path guards & deletes         |
+| [docs/INTEGRATION.md](docs/INTEGRATION.md)                 | CLI / `mfe://` from other apps |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
+| [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 
 ## Immediate next work
 
 1. Manual acceptance pass against the PRODUCT_SPEC checklist
-2. Phase 10 candidates: marquee selection, type-ahead, Ctrl+click tree → new tab, Comfy node summary, inline media playback
+2. Phase 10 candidates: marquee selection, Ctrl+click tree → new tab, Comfy node summary
+3. Optional: cancel button for in-flight file ops / video-preview generation
 
 ## Agent rules
 

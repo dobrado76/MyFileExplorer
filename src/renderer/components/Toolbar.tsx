@@ -16,8 +16,10 @@ import {
 } from '../lib/icons'
 import { parentOf } from '../lib/paths'
 import type { ViewMode } from '@shared/schemas/session'
+import { LayoutsMenu } from './LayoutsMenu'
 
 const VIEW_MODES: { mode: ViewMode; label: string }[] = [
+  { mode: 'extraLargeIconsNoName', label: 'Extra large icons only, no filename' },
   { mode: 'extraLargeIcons', label: 'Extra large icons' },
   { mode: 'largeIcons', label: 'Large icons' },
   { mode: 'mediumIcons', label: 'Medium icons' },
@@ -158,6 +160,7 @@ export function Toolbar(): JSX.Element {
       >
         <PanelIcon />
       </button>
+      <LayoutsMenu />
       <button
         className="icon-btn"
         aria-label="Settings"
