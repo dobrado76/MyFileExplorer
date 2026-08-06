@@ -66,16 +66,44 @@ async function probeDuration(videoPath: string): Promise<number> {
   return dur
 }
 
+function stripFramePath(cacheDir: string, videoBase: string, index: number): string {
+  return path.join(cacheDir, vidThumbFrameFileName(videoBase, index))
+}
+
+/**
+ * A strip is complete only when frames 1…20 all exist as non-empty files.
+ * Interrupted runs often leave a prefix (or empty placeholders) — those are not complete.
+ */
 async function hasCompleteStrip(cacheDir: string, videoBase: string): Promise<boolean> {
   for (let i = 1; i <= VID_THUMB_FRAME_COUNT; i++) {
-    const frame = path.join(cacheDir, vidThumbFrameFileName(videoBase, i))
+    const frame = stripFramePath(cacheDir, videoBase, i)
     try {
-      await fsp.access(frame)
+      const st = await fsp.stat(frame)
+      if (!st.isFile() || st.size <= 0) return false
     } catch {
       return false
     }
   }
   return true
+}
+
+/** Remove every strip frame / temp file for this video (partial or complete). */
+async function clearVidThumbStrip(cacheDir: string, videoBase: string): Promise<void> {
+  let names: string[]
+  try {
+    names = await fsp.readdir(cacheDir)
+  } catch {
+    return
+  }
+  const prefix = `${videoBase}.thumb_`
+  for (const name of names) {
+    if (!name.startsWith(prefix)) continue
+    try {
+      await fsp.unlink(path.join(cacheDir, name))
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 async function ensureCacheDir(parentDir: string): Promise<string> {
@@ -226,7 +254,8 @@ export async function generateVidThumbStrips(
   let skipped = 0
   for (const video of videos) {
     const cacheDir = path.join(path.dirname(video), VID_THUMB_CACHE_DIR)
-    if (mode === 'missing' && (await hasCompleteStrip(cacheDir, path.basename(video)))) {
+    const base = path.basename(video)
+    if (mode === 'missing' && (await hasCompleteStrip(cacheDir, base))) {
       skipped++
       continue
     }
@@ -240,15 +269,26 @@ export async function generateVidThumbStrips(
 
   try {
     for (const video of todo) {
+      progress.throwIfCancelled()
       let framesDone = 0
       try {
         const cacheDir = await ensureCacheDir(path.dirname(video))
+        const base = path.basename(video)
+        // Drop partial / stale strips (interrupted generate) before rewriting.
+        await clearVidThumbStrip(cacheDir, base)
         await extractFrames(video, cacheDir, (name) => {
+          progress.throwIfCancelled()
           framesDone++
           progress.tick(name)
         })
+        // If ffmpeg somehow wrote fewer than 20, treat as failure and clean up.
+        if (!(await hasCompleteStrip(cacheDir, base))) {
+          await clearVidThumbStrip(cacheDir, base)
+          throw new AppError('io', `Incomplete strip for ${base} (expected ${VID_THUMB_FRAME_COUNT} frames)`)
+        }
         generated++
       } catch (e) {
+        if (e instanceof AppError && e.code === 'cancelled') throw e
         const message = e instanceof AppError ? e.message : e instanceof Error ? e.message : String(e)
         failed.push({ path: video, message })
         const remain = VID_THUMB_FRAME_COUNT - framesDone

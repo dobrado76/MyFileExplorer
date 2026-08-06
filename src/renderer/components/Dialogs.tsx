@@ -60,6 +60,10 @@ export function Dialogs(): JSX.Element | null {
   switch (dialog.kind) {
     case 'confirm-permanent-delete':
       return <ConfirmPermanentDelete paths={dialog.paths} />
+    case 'confirm-empty-recycle-bin':
+      return <ConfirmEmptyRecycleBin />
+    case 'confirm-delete-from-recycle-bin':
+      return <ConfirmDeleteFromRecycleBin paths={dialog.paths} />
     case 'conflict':
       return <ConflictDialog />
     case 'new-file':
@@ -210,6 +214,69 @@ function ConfirmPermanentDelete({ paths }: { paths: string[] }): JSX.Element {
           : `${paths.length} items will be permanently deleted.`}
       </p>
       <p className="dim">This cannot be undone — items skip the Recycle Bin.</p>
+    </Modal>
+  )
+}
+
+function ConfirmEmptyRecycleBin(): JSX.Element {
+  const confirmEmptyRecycleBin = useAppStore((s) => s.confirmEmptyRecycleBin)
+  const count = useAppStore((s) => s.recycleBin.items.length)
+  return (
+    <Modal
+      title="Empty Recycle Bin?"
+      onClose={() => void confirmEmptyRecycleBin(false)}
+      actions={
+        <>
+          <button className="btn" onClick={() => void confirmEmptyRecycleBin(false)}>
+            Cancel
+          </button>
+          <button
+            className="btn danger"
+            autoFocus
+            onClick={() => void confirmEmptyRecycleBin(true)}
+          >
+            Empty Recycle Bin
+          </button>
+        </>
+      }
+    >
+      <p>
+        {count === 1
+          ? 'Permanently delete the 1 item in the Recycle Bin?'
+          : `Permanently delete all ${count} items in the Recycle Bin?`}
+      </p>
+      <p className="dim">This cannot be undone.</p>
+    </Modal>
+  )
+}
+
+function ConfirmDeleteFromRecycleBin({ paths }: { paths: string[] }): JSX.Element {
+  const confirmDeleteFromRecycleBin = useAppStore((s) => s.confirmDeleteFromRecycleBin)
+  return (
+    <Modal
+      title="Delete from Recycle Bin?"
+      onClose={() => void confirmDeleteFromRecycleBin(false)}
+      actions={
+        <>
+          <button className="btn" onClick={() => void confirmDeleteFromRecycleBin(false)}>
+            Cancel
+          </button>
+          <button
+            className="btn danger"
+            autoFocus
+            onClick={() => void confirmDeleteFromRecycleBin(true)}
+          >
+            Delete permanently
+          </button>
+        </>
+      }
+    >
+      <p>
+        {paths.length === 1
+          ? `"${basename(paths[0]!)}" will be permanently removed from the Recycle Bin.`
+          : `${paths.length} items will be permanently removed from the Recycle Bin.`}
+      </p>
+      <p className="dim">This cannot be undone.</p>
     </Modal>
   )
 }
@@ -544,6 +611,19 @@ function percent(part: number, whole: number): number {
   return Math.min(100, Math.max(0, (part / whole) * 100))
 }
 
+function PropsValue({ value }: { value: string }): JSX.Element {
+  return (
+    <input
+      className="props-value"
+      type="text"
+      readOnly
+      value={value}
+      spellCheck={false}
+      onFocus={(e) => e.currentTarget.select()}
+    />
+  )
+}
+
 function PropertiesDialog({ path }: { path: string }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
   const refresh = useAppStore((s) => s.refresh)
@@ -626,9 +706,35 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
     }
   }
 
+  const sizeText =
+    model?.sizeBytes != null
+      ? `${formatBytes(model.sizeBytes)} (${model.sizeBytes.toLocaleString()} bytes)`
+      : model?.canMeasure
+        ? measuring && !measure
+          ? 'Calculating…'
+          : measure
+            ? `${formatBytes(measure.totalBytes)} (${measure.totalBytes.toLocaleString()} bytes)${
+                measure.truncated ? ' — partial (large folder)' : ''
+              }`
+            : '—'
+        : null
+
+  const containsText = model?.canMeasure
+    ? measuring && !measure
+      ? 'Calculating…'
+      : measure
+        ? `${measure.fileCount.toLocaleString()} files, ${measure.folderCount.toLocaleString()} folders`
+        : model.contains
+          ? `${model.contains.files.toLocaleString()} files, ${model.contains.folders.toLocaleString()} folders (top level)`
+          : '—'
+    : model?.contains
+      ? `${model.contains.files.toLocaleString()} files, ${model.contains.folders.toLocaleString()} folders (top level)`
+      : null
+
   return (
     <Modal
       title={title}
+      className="modal-properties"
       onClose={closeDialog}
       actions={
         <button className="btn primary" onClick={closeDialog}>
@@ -644,95 +750,84 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
             <tbody>
               <tr>
                 <td>Name</td>
-                <td>{model.name}</td>
+                <td>
+                  <PropsValue value={model.name} />
+                </td>
               </tr>
               {model.drive?.volumeLabel && (
                 <tr>
                   <td>Volume label</td>
-                  <td>{model.drive.volumeLabel}</td>
+                  <td>
+                    <PropsValue value={model.drive.volumeLabel} />
+                  </td>
                 </tr>
               )}
               <tr>
                 <td>Type</td>
-                <td>{model.typeLabel}</td>
+                <td>
+                  <PropsValue value={model.typeLabel} />
+                </td>
               </tr>
               {model.location && (
                 <tr>
                   <td>Location</td>
-                  <td style={{ wordBreak: 'break-all' }}>{model.location}</td>
+                  <td>
+                    <PropsValue value={model.location} />
+                  </td>
                 </tr>
               )}
               <tr>
                 <td>Path</td>
-                <td style={{ wordBreak: 'break-all' }}>{model.path}</td>
+                <td>
+                  <PropsValue value={model.path} />
+                </td>
               </tr>
               {model.linkTarget && (
                 <tr>
                   <td>Link target</td>
-                  <td style={{ wordBreak: 'break-all' }}>{model.linkTarget}</td>
+                  <td>
+                    <PropsValue value={model.linkTarget} />
+                  </td>
                 </tr>
               )}
-              {model.sizeBytes != null && (
+              {sizeText != null && (
                 <tr>
                   <td>Size</td>
                   <td>
-                    {formatBytes(model.sizeBytes)} ({model.sizeBytes.toLocaleString()} bytes)
+                    <PropsValue value={sizeText} />
                   </td>
                 </tr>
               )}
-              {model.canMeasure && (
-                <tr>
-                  <td>Size</td>
-                  <td>
-                    {measuring && !measure
-                      ? 'Calculating…'
-                      : measure
-                        ? `${formatBytes(measure.totalBytes)} (${measure.totalBytes.toLocaleString()} bytes)${
-                            measure.truncated ? ' — partial (large folder)' : ''
-                          }`
-                        : '—'}
-                  </td>
-                </tr>
-              )}
-              {model.canMeasure && (
+              {containsText != null && (
                 <tr>
                   <td>Contains</td>
                   <td>
-                    {measuring && !measure
-                      ? 'Calculating…'
-                      : measure
-                        ? `${measure.fileCount.toLocaleString()} files, ${measure.folderCount.toLocaleString()} folders`
-                        : model.contains
-                          ? `${model.contains.files.toLocaleString()} files, ${model.contains.folders.toLocaleString()} folders (top level)`
-                          : '—'}
-                  </td>
-                </tr>
-              )}
-              {!model.canMeasure && model.contains && (
-                <tr>
-                  <td>Contains</td>
-                  <td>
-                    {model.contains.files.toLocaleString()} files,{' '}
-                    {model.contains.folders.toLocaleString()} folders (top level)
+                    <PropsValue value={containsText} />
                   </td>
                 </tr>
               )}
               {model.createdMs != null && (
                 <tr>
                   <td>Created</td>
-                  <td>{formatDate(model.createdMs)}</td>
+                  <td>
+                    <PropsValue value={formatDate(model.createdMs)} />
+                  </td>
                 </tr>
               )}
               {model.modifiedMs != null && (
                 <tr>
                   <td>Modified</td>
-                  <td>{formatDate(model.modifiedMs)}</td>
+                  <td>
+                    <PropsValue value={formatDate(model.modifiedMs)} />
+                  </td>
                 </tr>
               )}
               {model.accessedMs != null && (
                 <tr>
                   <td>Accessed</td>
-                  <td>{formatDate(model.accessedMs)}</td>
+                  <td>
+                    <PropsValue value={formatDate(model.accessedMs)} />
+                  </td>
                 </tr>
               )}
               <tr>
@@ -779,7 +874,7 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
                       {attrError && <div className="props-attr-error">{attrError}</div>}
                     </div>
                   ) : (
-                    model.attributes.join(', ')
+                    <PropsValue value={model.attributes.join(', ') || '—'} />
                   )}
                 </td>
               </tr>
@@ -794,30 +889,33 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
                   {model.drive.fileSystem && (
                     <tr>
                       <td>File system</td>
-                      <td>{model.drive.fileSystem}</td>
+                      <td>
+                        <PropsValue value={model.drive.fileSystem} />
+                      </td>
                     </tr>
                   )}
                   <tr>
                     <td>Used space</td>
                     <td>
-                      {formatBytes(model.drive.usedBytes)} (
-                      {model.drive.usedBytes.toLocaleString()} bytes) —{' '}
-                      {percent(model.drive.usedBytes, model.drive.capacityBytes).toFixed(1)}%
+                      <PropsValue
+                        value={`${formatBytes(model.drive.usedBytes)} (${model.drive.usedBytes.toLocaleString()} bytes) — ${percent(model.drive.usedBytes, model.drive.capacityBytes).toFixed(1)}%`}
+                      />
                     </td>
                   </tr>
                   <tr>
                     <td>Free space</td>
                     <td>
-                      {formatBytes(model.drive.freeBytes)} (
-                      {model.drive.freeBytes.toLocaleString()} bytes) —{' '}
-                      {percent(model.drive.freeBytes, model.drive.capacityBytes).toFixed(1)}%
+                      <PropsValue
+                        value={`${formatBytes(model.drive.freeBytes)} (${model.drive.freeBytes.toLocaleString()} bytes) — ${percent(model.drive.freeBytes, model.drive.capacityBytes).toFixed(1)}%`}
+                      />
                     </td>
                   </tr>
                   <tr>
                     <td>Capacity</td>
                     <td>
-                      {formatBytes(model.drive.capacityBytes)} (
-                      {model.drive.capacityBytes.toLocaleString()} bytes)
+                      <PropsValue
+                        value={`${formatBytes(model.drive.capacityBytes)} (${model.drive.capacityBytes.toLocaleString()} bytes)`}
+                      />
                     </td>
                   </tr>
                 </tbody>
@@ -950,6 +1048,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const [section, setSection] = useState<SettingsSection>(startSection)
   const [excludeText, setExcludeText] = useState(settings.searchExcludeDirNames.join(', '))
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
+  const [hideExtText, setHideExtText] = useState(settings.hideNameExtensions.join('\n'))
   const [appVersion, setAppVersion] = useState('')
   const [userDataPath, setUserDataPath] = useState('')
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
@@ -982,6 +1081,15 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     void applySettingsPatch({
       viewFilterPatterns: filterText
         .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    })
+  }
+
+  const commitHideNameExtensions = (): void => {
+    void applySettingsPatch({
+      hideNameExtensions: hideExtText
+        .split(/[\n,]+/)
         .map((s) => s.trim())
         .filter(Boolean)
     })
@@ -1155,6 +1263,23 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.confirmPermanentDeleteAlways}
                 onChange={(v) => void applySettingsPatch({ confirmPermanentDeleteAlways: v })}
               />
+              <label className="settings-field" htmlFor="set-hide-exts">
+                <span>Hide extensions in names</span>
+                <textarea
+                  id="set-hide-exts"
+                  rows={3}
+                  spellCheck={false}
+                  value={hideExtText}
+                  onChange={(e) => setHideExtText(e.target.value)}
+                  onBlur={commitHideNameExtensions}
+                  aria-label="Extensions to hide from display names"
+                  placeholder={'lnk\nurl'}
+                />
+                <span className="settings-field-hint">
+                  One extension per line (no dot). Strips “.ext” from labels in the file view and
+                  search — files stay listed. Rename still uses the full name. Default: lnk
+                </span>
+              </label>
             </div>
           )}
 

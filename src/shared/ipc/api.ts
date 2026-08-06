@@ -32,6 +32,7 @@ import type {
   SearchQueryRequest,
   SearchQueryResponse
 } from '../schemas/search'
+import type { RecycleBinListResponse } from '../schemas/recycle'
 import type { MfeEvent } from './contract'
 
 export type MyFileExplorerApi = {
@@ -50,6 +51,16 @@ export type MyFileExplorerApi = {
     deletePermanent(req: PathsRequest): Promise<Result<{ deleted: string[] }>>
     /** Restore trashed items by their original full paths (Windows Recycle Bin). */
     restoreFromTrash(req: PathsRequest): Promise<Result<{ restored: string[]; missing: string[] }>>
+    /** List items currently in the Windows Recycle Bin. */
+    listRecycleBin(): Promise<Result<RecycleBinListResponse>>
+    /** Permanently empty the Recycle Bin. */
+    emptyRecycleBin(): Promise<Result<{ emptied: true }>>
+    /** Permanently delete selected items from the Recycle Bin. */
+    deleteFromRecycleBin(
+      req: PathsRequest
+    ): Promise<Result<{ deleted: string[]; missing: string[] }>>
+    /** Request cancel of the in-flight copy/move/trash/delete/vid-thumbs op. */
+    cancelOp(): Promise<Result<{ cancelled: boolean }>>
     exists(req: PathRequest): Promise<Result<{ exists: boolean }>>
     watch(req: PathRequest): Promise<Result<{ watching: true }>>
     unwatch(req: PathRequest): Promise<Result<{ ok: true }>>
@@ -79,10 +90,16 @@ export type MyFileExplorerApi = {
   shell: {
     openPath(req: PathRequest): Promise<Result<{ opened: boolean; message?: string }>>
     showItemInFolder(req: PathRequest): Promise<Result<{ shown: true }>>
-    /** Open the Windows Recycle Bin in system Explorer. */
+    /** Open the Windows Recycle Bin in system Explorer (legacy fallback). */
     openRecycleBin(): Promise<Result<{ opened: boolean; message?: string }>>
     clipboardWriteFiles(req: PathsRequest): Promise<Result<{ written: boolean }>>
     clipboardReadFiles(): Promise<Result<{ paths: string[] }>>
+    /**
+     * Hand file paths to the OS drag (Explorer / Photoshop / mail / etc.).
+     * Synchronous — blocks until the drag ends. Call from dragstart after
+     * preventDefault(). Returns whether startDrag ran.
+     */
+    startDrag(req: PathsRequest): boolean
   }
   session: {
     get(): Promise<Result<SessionState>>

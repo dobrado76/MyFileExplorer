@@ -3,8 +3,13 @@ import {
   buildFtsMatchExpression,
   escapeLike,
   buildLikeContains,
+  buildNameLikeParams,
   buildPathPrefixLike,
-  nameMatches
+  globToLike,
+  globToRegExp,
+  nameMatches,
+  queryTokens,
+  tokenHasWildcards
 } from '../main/search/queryBuilder'
 
 describe('buildFtsMatchExpression', () => {
@@ -31,9 +36,32 @@ describe('LIKE building', () => {
     expect(buildLikeContains('cat')).toBe('%cat%')
     expect(buildLikeContains(' 5% off ')).toBe('%5\\% off%')
   })
+  it('builds substring LIKE for plain tokens and glob LIKE for * / ?', () => {
+    expect(buildNameLikeParams('trip 2024')).toEqual(['%trip%', '%2024%'])
+    expect(buildNameLikeParams('*.jpg')).toEqual(['%.jpg'])
+    expect(buildNameLikeParams('img_????.png')).toEqual(['img\\_____.png'])
+    expect(buildNameLikeParams('.jpg')).toEqual(['%.jpg'])
+  })
   it('builds path prefix filters that include children only', () => {
     expect(buildPathPrefixLike('C:\\data')).toBe('C:\\\\data\\\\%')
     expect(buildPathPrefixLike('C:\\data\\')).toBe('C:\\\\data\\\\%')
+  })
+})
+
+describe('glob helpers', () => {
+  it('detects wildcards', () => {
+    expect(tokenHasWildcards('*.jpg')).toBe(true)
+    expect(tokenHasWildcards('photo')).toBe(false)
+  })
+  it('maps glob to LIKE', () => {
+    expect(globToLike('*.jpg')).toBe('%.jpg')
+    expect(globToLike('a?b')).toBe('a_b')
+    expect(globToLike('100%')).toBe('100\\%')
+  })
+  it('maps glob to RegExp', () => {
+    expect(globToRegExp('*.jpg').test('photo.jpg')).toBe(true)
+    expect(globToRegExp('*.jpg').test('photo.jpeg')).toBe(false)
+    expect(globToRegExp('img_??.png').test('img_01.png')).toBe(true)
   })
 })
 
@@ -45,7 +73,20 @@ describe('nameMatches', () => {
     expect(nameMatches('summer-trip-2024.jpg', 'trip 2024')).toBe(true)
     expect(nameMatches('summer-trip-2024.jpg', 'trip 2025')).toBe(false)
   })
+  it('supports *.ext and bare .ext', () => {
+    expect(nameMatches('vacation.JPG', '*.jpg')).toBe(true)
+    expect(nameMatches('vacation.JPG', '.jpg')).toBe(true)
+    expect(nameMatches('vacation.jpeg', '*.jpg')).toBe(false)
+    expect(nameMatches('notjpg', '*.jpg')).toBe(false)
+  })
   it('rejects empty queries', () => {
     expect(nameMatches('anything', '  ')).toBe(false)
+  })
+})
+
+describe('queryTokens', () => {
+  it('splits on whitespace and expands bare extensions', () => {
+    expect(queryTokens('  a  b ')).toEqual(['a', 'b'])
+    expect(queryTokens('.jpg')).toEqual(['*.jpg'])
   })
 })

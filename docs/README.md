@@ -1,8 +1,8 @@
 # MyFileExplorer documentation
 
-**Status:** v0.1.0 implemented (Phases 0–9). Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D28).
+**Status:** v0.2.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D29).
 
-Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../CHANGELOG.md](../CHANGELOG.md).
+Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
@@ -27,7 +27,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D28               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D29               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [SEARCH.md](SEARCH.md)                           | Indexing & search                     |
@@ -37,12 +37,14 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 ---
 
-## Recent behavior (v0.1.x)
+## Recent behavior (v0.2.x)
 
 | Area | Spec |
 | ---- | ---- |
+| OS drag-out | D11 — left-drag `startDrag` / CF_HDROP to other apps; right-drag for in-app Copy/Move menu |
+| Search results | D29 — normal `FileView` (banner + path under names) |
 | Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate via context menu + ffmpeg |
-| File-op progress | D28 — status bar bar for copy/move/trash/delete/video-preview generation (`op-progress`) |
+| File-op progress | D28 — status bar for copy/move/rename/trash/delete/video-preview; Cancel; indeterminate after 1 s or until units/bytes advance |
 | Image editor | D27 — Filerobot; originals under `userData` |
-| Recycle Bin | D7 — `SHFileOperation` + `FOF_ALLOWUNDO` (not Electron `shell.trashItem`) |
+| Recycle Bin | D7 — in-app bin view (list/restore/empty); Details shows Original location + Date deleted |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |

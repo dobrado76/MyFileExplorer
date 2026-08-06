@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.1.0 (implemented)
+**Version:** 0.2.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -70,7 +70,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] New folder / new file
 - [x] Rename (F2)
 - [x] Cut/copy/paste + conflict prompts (batch policy, D18)
-- [x] Drag-drop move/copy (D11)
+- [x] Drag-drop move/copy (D11) + OS export via `startDrag` when leaving the window
 - [x] Trash + permanent delete (D7)
 - [x] Undo/redo for trash, move, copy, rename, new (Ctrl+Z/Y, D23)
 - [x] Open / Show in system Explorer
@@ -122,6 +122,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] Context menu viewport clamp (main + submenus)
 - [x] `npm run build:win` smoke (NSIS installer builds)
 - [x] First CHANGELOG release notes (0.1.0)
+- [x] v0.2.0 release notes ([RELEASE_NOTES.md](../RELEASE_NOTES.md), CHANGELOG)
 
 ---
 
@@ -147,10 +148,14 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - ~~Type-ahead select in file view~~ (done)
 - ~~Inline audio/video playback~~ (done), PDF first-page raster (still optional; PDF uses Chromium iframe)
 - FS-watch-triggered reindex of indexed roots
-- Cancel in-flight multi-file ops / video-preview generation
+- [x] Cancel in-flight multi-file ops / video-preview generation
 
 ---
 
 ## Definition of done (v0.1.0 product)
 
 All Phase 0–8 exits green; Phase 9 packaging works; PRODUCT_SPEC acceptance checklist mostly checked. ✅
+
+## Definition of done (v0.2.0 product)
+
+v0.1.0 plus: search-as-file-view (D29), OS drag-out (D11), reliable Recycle Bin / media handles (D7), file-op Cancel (D28), tree DnD, faster move/trash; README / CHANGELOG / RELEASE_NOTES / docs aligned to 0.2.0. ✅

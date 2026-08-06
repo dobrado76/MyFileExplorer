@@ -127,7 +127,11 @@ async function extractImage(
   if (needImage && ext !== 'psd') {
     try {
       const { default: sharp } = await import('sharp')
-      const meta = await sharp(file, { failOn: 'truncated', limitInputPixels: 512 * 1024 * 1024 }).metadata()
+      const bytes = await fsp.readFile(file)
+      const meta = await sharp(bytes, {
+        failOn: 'truncated',
+        limitInputPixels: 512 * 1024 * 1024
+      }).metadata()
       const w = meta.width
       const h = meta.height
       if (w && h) pick(wanted, 'dimensions', `${w} × ${h}`, out)

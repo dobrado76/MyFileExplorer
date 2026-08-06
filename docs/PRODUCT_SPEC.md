@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.0.0 (spec)  
+**Version:** 0.2.0  
 **App:** MyFileExplorer
 
 Windows desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, optional indexed search.
@@ -92,10 +92,10 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
 | Rename             | F2 / context; inline. Enter commits; Escape cancels; click-away / blur **commits** (Explorer-style)                                              |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
-| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer) |
-| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows)                                                                         |
+| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here menu on drop. **Drag out** to other apps via `webContents.startDrag` (real file paths). Prefer right-drag or cut/paste for in-app rearranging on Windows |
+| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
 | Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory                                                                       |
-| Progress           | Lengthy copy/move/trash/delete (and video-preview generation) show a determinate **status-bar** progress bar (D28)                               |
+| Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
 | Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
 | Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
 | Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar (not a full shell property sheet) |
@@ -136,6 +136,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Inline video/audio playback in-pane for common containers (see PREVIEW.md); unsupported codecs → open with default app.
 - Office docs: Word, PowerPoint (`.pptx` slide text; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
+- Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 
 ---
 
@@ -154,7 +155,7 @@ See [SEARCH.md](SEARCH.md).
 | Area         | Fields                                                                             |
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size                                |
-| Behavior     | Default new-tab path; folders-first; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off |
+| Behavior     | Default new-tab path; folders-first; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
 | Quick access | Manage tree shortcuts                                                              |
 | Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |

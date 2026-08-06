@@ -1,7 +1,6 @@
 import { useRef, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { basename, samePath } from '../lib/paths'
-import { call, api, IpcError } from '../lib/ipc'
 import { CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 
 export function TabBar(): JSX.Element {
@@ -9,12 +8,14 @@ export function TabBar(): JSX.Element {
   const activeTabId = useAppStore((s) => s.activeTabId)
   const listingOffline = useAppStore((s) => s.listing.offline)
   const listingPath = useAppStore((s) => s.listing.path)
+  const recycleBinActive = useAppStore((s) => s.recycleBin.active)
   const activateTab = useAppStore((s) => s.activateTab)
   const closeTab = useAppStore((s) => s.closeTab)
   const newTab = useAppStore((s) => s.newTab)
   const renameTab = useAppStore((s) => s.renameTab)
   const reorderTab = useAppStore((s) => s.reorderTab)
-  const notify = useAppStore((s) => s.notify)
+  const openRecycleBinView = useAppStore((s) => s.openRecycleBinView)
+  const closeRecycleBinView = useAppStore((s) => s.closeRecycleBinView)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -26,15 +27,9 @@ export function TabBar(): JSX.Element {
     setEditingId(null)
   }
 
-  const openRecycleBin = (): void => {
-    void (async () => {
-      try {
-        const res = await call(api.shell.openRecycleBin())
-        if (!res.opened) notify(res.message ?? 'Could not open Recycle Bin', true)
-      } catch (e) {
-        notify(e instanceof IpcError ? e.message : String(e), true)
-      }
-    })()
+  const onRecycleClick = (): void => {
+    if (recycleBinActive) closeRecycleBinView()
+    else void openRecycleBinView()
   }
 
   return (
@@ -42,7 +37,7 @@ export function TabBar(): JSX.Element {
       <div className="tabbar-tabs">
         {tabs.map((tab, index) => {
           const title = tab.title ?? basename(tab.path)
-          const active = tab.id === activeTabId
+          const active = tab.id === activeTabId && !recycleBinActive
           const offline = active && listingOffline && samePath(tab.path, listingPath)
           return (
             <div
@@ -72,7 +67,10 @@ export function TabBar(): JSX.Element {
                   void closeTab(tab.id)
                 }
               }}
-              onClick={() => void activateTab(tab.id)}
+              onClick={() => {
+                if (recycleBinActive) closeRecycleBinView()
+                void activateTab(tab.id)
+              }}
               onDoubleClick={() => {
                 setEditingId(tab.id)
                 setEditText(tab.title ?? '')
@@ -123,10 +121,11 @@ export function TabBar(): JSX.Element {
       </div>
       <button
         type="button"
-        className="tabbar-recycle"
+        className={`tabbar-recycle${recycleBinActive ? ' active' : ''}`}
         aria-label="Recycle Bin"
-        title="Open Recycle Bin"
-        onClick={openRecycleBin}
+        aria-pressed={recycleBinActive}
+        title={recycleBinActive ? 'Close Recycle Bin' : 'Open Recycle Bin'}
+        onClick={onRecycleClick}
       >
         <RecycleBinIcon size={16} />
         <span className="tabbar-recycle-label">Recycle Bin</span>

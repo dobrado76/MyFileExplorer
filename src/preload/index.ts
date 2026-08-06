@@ -24,6 +24,10 @@ const api: MyFileExplorerApi = {
     trash: invoke(IPC.fsTrash),
     deletePermanent: invoke(IPC.fsDeletePermanent),
     restoreFromTrash: invoke(IPC.fsRestoreFromTrash),
+    listRecycleBin: invokeVoid(IPC.fsListRecycleBin),
+    emptyRecycleBin: invokeVoid(IPC.fsEmptyRecycleBin),
+    deleteFromRecycleBin: invoke(IPC.fsDeleteFromRecycleBin),
+    cancelOp: invokeVoid(IPC.fsCancelOp),
     exists: invoke(IPC.fsExists),
     watch: invoke(IPC.fsWatch),
     unwatch: invoke(IPC.fsUnwatch),
@@ -43,7 +47,13 @@ const api: MyFileExplorerApi = {
     showItemInFolder: invoke(IPC.shellShowItemInFolder),
     openRecycleBin: invokeVoid(IPC.shellOpenRecycleBin),
     clipboardWriteFiles: invoke(IPC.shellClipboardWriteFiles),
-    clipboardReadFiles: invokeVoid(IPC.shellClipboardReadFiles)
+    clipboardReadFiles: invokeVoid(IPC.shellClipboardReadFiles),
+    /**
+     * Sync: main runs webContents.startDrag during this call (blocks until the
+     * OS drag ends). Must be invoked from dragstart after preventDefault —
+     * async send is too late and drops land with no file payload.
+     */
+    startDrag: (req) => ipcRenderer.sendSync(IPC.shellStartDrag, req) as boolean
   },
   session: {
     get: invokeVoid(IPC.sessionGet),

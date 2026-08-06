@@ -32,6 +32,10 @@ function headlineFor(
 /**
  * Turn a failed rename/move/delete/copy into an Explorer-grade AppError, including
  * Restart Manager lockers when Windows can identify them.
+ *
+ * Important: Recycle Bin failures often happen while permanent delete still works
+ * (open directory watches). Do **not** rewrite those as “file is locked” unless
+ * Restart Manager actually lists external lockers.
  */
 export async function appErrorFromFsFailure(
   e: unknown,
@@ -60,32 +64,23 @@ export async function appErrorFromFsFailure(
     return new AppError('not-found', `The ${item} no longer exists.`, 'Refresh and try again.')
   }
 
-  // Always ask Restart Manager for mutating ops — shell/trash errors rarely set EPERM.
   const lockers = await findLockingProcesses(opts.path)
   const lockerBlock = formatLockingProcesses(lockers)
-  const looksLocked =
-    lockers.length > 0 ||
-    isLockish(code) ||
-    /in use|sharing|access is denied|cannot|recycle|open in/i.test(raw)
 
-  if (looksLocked || opts.action === 'delete' || opts.action === 'move' || opts.action === 'rename') {
+  // Only claim “open in another program” when we have lockers or a real errno lock.
+  if (lockers.length > 0 || isLockish(code)) {
     const headline = headlineFor(opts.action, isDir)
-    const base =
-      e instanceof AppError && !isLockish(code) && lockers.length === 0
-        ? e.message
-        : headline
-    const message = lockerBlock ? `${base}\n\nOpen in:\n${lockerBlock}` : base
+    const message = lockerBlock ? `${headline}\n\nOpen in:\n${lockerBlock}` : headline
     return new AppError(
       'busy',
       message,
       lockerBlock
         ? 'Close the listed program(s), then try again.'
-        : e instanceof AppError && e.remediation
-          ? e.remediation
-          : 'If nothing obvious is open, check File Explorer windows, terminals with that folder as the current directory, or preview panes.'
+        : 'If nothing obvious is open, check File Explorer windows or terminals with that folder as the current directory.'
     )
   }
 
+  // Preserve intentional Recycle Bin / IO messages — do not invent a lock story.
   if (e instanceof AppError) return e
 
   let errCode: ErrCode = 'io'

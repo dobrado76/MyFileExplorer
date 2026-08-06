@@ -4,6 +4,8 @@ import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
 import { basename, samePath } from '../lib/paths'
+import { searchResultsToEntries } from '../lib/searchEntries'
+import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { highlightLanguage } from '../lib/highlight'
 import {
   CopyIcon,
@@ -29,6 +31,7 @@ import { CodePreview } from './preview/CodePreview'
 /* The "file" group is rendered separately as the compact details strip
    pinned to the bottom of the pane. Weights/summary ("other") before training. */
 const CONTENT_GROUPS: { key: string; label: string }[] = [
+  { key: 'shortcut', label: 'Shortcut' },
   { key: 'other', label: 'Other' },
   { key: 'generation', label: 'Generation' },
   { key: 'image', label: 'Image' }
@@ -38,11 +41,23 @@ let previewSeq = 0
 
 export function PreviewPane(): JSX.Element {
   const selected = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.selected ?? [])
-  const entries = useAppStore((s) => s.listing.entries)
+  const listingEntries = useAppStore((s) => s.listing.entries)
+  const search = useAppStore((s) => s.search)
+  const recycleBin = useAppStore((s) => s.recycleBin)
   const notify = useAppStore((s) => s.notify)
   const openPath = useAppStore((s) => s.openPath)
   const openImageEditor = useAppStore((s) => s.openImageEditor)
   const mediaHold = useAppStore((s) => s.mediaHold)
+
+  const entries = useMemo(
+    () =>
+      recycleBin.active
+        ? recycleBinItemsToEntries(recycleBin.items)
+        : search.active
+          ? searchResultsToEntries(search.results)
+          : listingEntries,
+    [recycleBin.active, recycleBin.items, search.active, search.results, listingEntries]
+  )
 
   const [model, setModel] = useState<PreviewModel | null>(null)
   const [loading, setLoading] = useState(false)
@@ -212,6 +227,34 @@ export function PreviewPane(): JSX.Element {
         {model.kind === 'directory' && (
           <div className="preview-icon">
             <FolderIcon size={56} />
+          </div>
+        )}
+        {model.kind === 'shortcut' && (
+          <div className="preview-shortcut">
+            <div className="preview-icon">
+              <FileIcon size={56} />
+            </div>
+            <div className="preview-shortcut-caption">Windows shortcut</div>
+            {(() => {
+              const target = model.fields.find((f) => f.id === 'lnk.target')?.value
+              if (!target) return null
+              return <div className="preview-shortcut-target mono">{target}</div>
+            })()}
+            <div className="preview-shortcut-actions">
+              <button className="btn" onClick={() => void openPath(model.path)}>
+                Open shortcut
+              </button>
+              {(() => {
+                const target = model.fields.find((f) => f.id === 'lnk.target')?.value
+                const kind = model.fields.find((f) => f.id === 'lnk.targetKind')?.value ?? ''
+                if (!target || kind.includes('URL') || kind.includes('Missing')) return null
+                return (
+                  <button className="btn" onClick={() => void openPath(target)}>
+                    Open target
+                  </button>
+                )
+              })()}
+            </div>
           </div>
         )}
         {model.kind === 'pdf' && !model.mediaUrl && (
@@ -400,6 +443,8 @@ function kindLabel(kind: PreviewModel['kind']): string {
       return 'PDF'
     case 'directory':
       return 'Folder'
+    case 'shortcut':
+      return 'Shortcut'
     case 'missing':
       return 'Missing'
     default:

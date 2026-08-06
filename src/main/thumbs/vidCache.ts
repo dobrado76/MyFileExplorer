@@ -27,7 +27,8 @@ export async function resolveVidThumbFrames(rawPath: string): Promise<string[]> 
   for (let i = 1; i <= VID_THUMB_FRAME_COUNT; i++) {
     const frame = path.join(cacheDir, vidThumbFrameFileName(base, i))
     try {
-      await fsp.access(frame)
+      const st = await fsp.stat(frame)
+      if (!st.isFile() || st.size <= 0) break
       absFrames.push(frame)
     } catch {
       break

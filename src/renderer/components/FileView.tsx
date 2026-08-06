@@ -13,14 +13,38 @@ import {
 } from '@shared/schemas/columns'
 import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
-import { samePath, isUnderPath, parentOf } from '../lib/paths'
+import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
+import {
+  beginRightDragGesture,
+  getLiveRightDragSession,
+  shouldSuppressContextMenu
+} from '../lib/rightDrag'
+import { startOsFileDragFromDragStart } from '../lib/osFileDrag'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
+import { displayFileName } from '@shared/hideNameExtensions'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { searchResultsToEntries } from '../lib/searchEntries'
+import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
+import type { RecycleBinItem } from '@shared/schemas/recycle'
 import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { RenameInput } from './RenameInput'
+
+/** Details columns only while browsing the Recycle Bin (not part of folder column layout). */
+type RecycleDetailsColId = 'origin' | 'dateDeleted' | 'size' | 'type'
+const RECYCLE_DETAILS_COLS: {
+  id: RecycleDetailsColId
+  label: string
+  width: number
+  numeric?: boolean
+}[] = [
+  { id: 'origin', label: 'Original location', width: 340 },
+  { id: 'dateDeleted', label: 'Date deleted', width: 150 },
+  { id: 'size', label: 'Size', width: 90, numeric: true },
+  { id: 'type', label: 'Type', width: 120 }
+]
 
 const GRID_SPECS = {
   // Same cell footprint as Extra large; name row omitted when a content thumb is ready.
@@ -57,6 +81,23 @@ function findTypeaheadIndex(entries: DirEntry[], prefix: string, from: number): 
     if (entryStartsWith(entries[idx]!.name, prefix)) return idx
   }
   return -1
+}
+
+function recycleDetailCellValue(
+  id: RecycleDetailsColId,
+  e: DirEntry,
+  item: RecycleBinItem | undefined
+): string {
+  switch (id) {
+    case 'origin':
+      return item?.deletedFrom || ''
+    case 'dateDeleted':
+      return formatDate(item?.dateDeletedMs ?? e.mtimeMs)
+    case 'size':
+      return e.kind === 'dir' ? '' : formatBytes(e.size)
+    case 'type':
+      return typeLabel(e.ext, e.kind === 'dir')
+  }
 }
 
 function detailCellValue(
@@ -124,7 +165,16 @@ export function FileView(): JSX.Element {
   const setSort = useAppStore((s) => s.setSort)
   const setScrollOffset = useAppStore((s) => s.setScrollOffset)
   const patchDetailsLayout = useAppStore((s) => s.patchDetailsLayout)
+  const search = useAppStore((s) => s.search)
+  const recycleBin = useAppStore((s) => s.recycleBin)
+  const restoreFromRecycleBinView = useAppStore((s) => s.restoreFromRecycleBinView)
+  const searchMode = search.active
+  const recycleMode = recycleBin.active
+  const overlayMode = searchMode || recycleMode
   const folderViews = useAppStore((s) => s.settings.folderViews)
+  const hideNameExtensions = settings.hideNameExtensions
+  const labelFor = (entry: DirEntry): string =>
+    entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
@@ -149,6 +199,11 @@ export function FileView(): JSX.Element {
   // details-view column customization
   const [liveWidths, setLiveWidths] = useState<Record<string, number> | null>(null)
   const [headerMenu, setHeaderMenu] = useState<{ x: number; y: number } | null>(null)
+  const [recycleSort, setRecycleSort] = useState<{
+    key: 'name' | RecycleDetailsColId
+    dir: 'asc' | 'desc'
+  }>({ key: 'dateDeleted', dir: 'desc' })
+  const [recycleColWidths, setRecycleColWidths] = useState<Record<string, number>>({})
   const [colDrag, setColDrag] = useState<DetailsColumnId | null>(null)
   const [colDrop, setColDrop] = useState<DetailsColumnId | 'end' | null>(null)
   const [metaByPath, setMetaByPath] = useState<Record<string, EntryColumnValues>>({})
@@ -173,7 +228,7 @@ export function FileView(): JSX.Element {
     const ta = typeaheadRef.current
     window.clearTimeout(ta.timer)
     ta.buffer = ''
-  }, [folderPath])
+  }, [folderPath, searchMode, search.results, recycleMode, recycleBin.items])
 
   const nameColWidth = liveWidths?.['name'] ?? detailsNameWidth
   const colWidth = (id: DetailsColumnId): number =>
@@ -288,11 +343,66 @@ export function FileView(): JSX.Element {
     [detailsColumns]
   )
 
+  const recycleByPath = useMemo(() => {
+    const m = new Map<string, RecycleBinItem>()
+    for (const it of recycleBin.items) m.set(it.originalPath.toLowerCase(), it)
+    return m
+  }, [recycleBin.items])
+
+  const recycleColWidth = (id: RecycleDetailsColId): number =>
+    recycleColWidths[id] ?? RECYCLE_DETAILS_COLS.find((c) => c.id === id)!.width
+
+  const startRecycleColResize = useCallback(
+    (e: React.PointerEvent, id: 'name' | RecycleDetailsColId): void => {
+      e.preventDefault()
+      e.stopPropagation()
+      const startX = e.clientX
+      const startW =
+        id === 'name'
+          ? nameColWidth
+          : (recycleColWidths[id] ??
+            RECYCLE_DETAILS_COLS.find((c) => c.id === id)!.width)
+      const onMove = (ev: PointerEvent): void => {
+        const w = Math.max(60, startW + (ev.clientX - startX))
+        if (id === 'name') {
+          setLiveWidths((prev) => ({ ...(prev ?? {}), name: w }))
+        } else {
+          setRecycleColWidths((prev) => ({ ...prev, [id]: w }))
+        }
+      }
+      const onUp = (): void => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    },
+    [nameColWidth, recycleColWidths]
+  )
+
+  const sourceEntries = useMemo(() => {
+    if (recycleMode) {
+      if (recycleBin.loading) return []
+      return recycleBinItemsToEntries(recycleBin.items)
+    }
+    if (!searchMode) return listing.entries
+    if (search.running) return []
+    return searchResultsToEntries(search.results)
+  }, [
+    recycleMode,
+    recycleBin.loading,
+    recycleBin.items,
+    searchMode,
+    search.running,
+    search.results,
+    listing.entries
+  ])
+
   // Reset / fetch async column metadata when the folder or enabled columns change.
   useEffect(() => {
     setMetaByPath({})
-    if (!folderPath || asyncColumns.length === 0) return
-    const files = listing.entries
+    if (asyncColumns.length === 0) return
+    const files = sourceEntries
       .filter((e) => e.kind === 'file' && !isExcluded(e))
       .map((e) => e.path)
     if (files.length === 0) return
@@ -311,10 +421,42 @@ export function FileView(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [folderPath, listing.entries, asyncColumns, isExcluded])
+  }, [folderPath, sourceEntries, asyncColumns, isExcluded, searchMode, recycleMode])
 
   const entries = useMemo(() => {
-    const filtered = listing.entries.filter((e) => !isExcluded(e))
+    const filtered = sourceEntries.filter((e) => !isExcluded(e))
+    if (recycleMode) {
+      const dirMul = recycleSort.dir === 'asc' ? 1 : -1
+      return [...filtered].sort((a, b) => {
+        if (settings.foldersFirst) {
+          const ad = a.kind === 'dir' ? 0 : 1
+          const bd = b.kind === 'dir' ? 0 : 1
+          if (ad !== bd) return ad - bd
+        }
+        let cmp = 0
+        if (recycleSort.key === 'name') {
+          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        } else if (recycleSort.key === 'dateDeleted') {
+          cmp = (a.mtimeMs || 0) - (b.mtimeMs || 0)
+        } else if (recycleSort.key === 'size') {
+          cmp = (a.size || 0) - (b.size || 0)
+        } else if (recycleSort.key === 'type') {
+          cmp = typeLabel(a.ext, a.kind === 'dir').localeCompare(
+            typeLabel(b.ext, b.kind === 'dir'),
+            undefined,
+            { sensitivity: 'base' }
+          )
+        } else if (recycleSort.key === 'origin') {
+          const ao = recycleByPath.get(a.path.toLowerCase())?.deletedFrom ?? ''
+          const bo = recycleByPath.get(b.path.toLowerCase())?.deletedFrom ?? ''
+          cmp = ao.localeCompare(bo, undefined, { numeric: true, sensitivity: 'base' })
+        }
+        if (cmp === 0) {
+          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        }
+        return cmp * dirMul
+      })
+    }
     const sort = effectiveSort
     if (SYNC_SORT_KEYS.has(sort.key)) {
       return sortEntries(filtered, sort, settings.foldersFirst)
@@ -335,7 +477,16 @@ export function FileView(): JSX.Element {
       }
       return cmp * dir
     })
-  }, [listing.entries, effectiveSort, settings.foldersFirst, isExcluded, metaByPath])
+  }, [
+    sourceEntries,
+    effectiveSort,
+    settings.foldersFirst,
+    isExcluded,
+    metaByPath,
+    recycleMode,
+    recycleSort,
+    recycleByPath
+  ])
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
     [tab?.selected]
@@ -386,8 +537,7 @@ export function FileView(): JSX.Element {
         s.imageViewer ||
         s.imageEditor ||
         s.renamingPath ||
-        s.addressEditing ||
-        s.search.active
+        s.addressEditing
       ) {
         return
       }
@@ -697,14 +847,72 @@ export function FileView(): JSX.Element {
     [tab?.selected, selectionAnchor, entries, setSelection]
   )
 
+  const onItemPointerDown = useCallback(
+    (entry: DirEntry, e: React.PointerEvent): void => {
+      if (e.button !== 2) return
+      e.preventDefault()
+      e.stopPropagation()
+
+      const dragPathsNow = selected.has(entry.path.toLowerCase())
+        ? (tab?.selected ?? [entry.path])
+        : [entry.path]
+      if (!selected.has(entry.path.toLowerCase())) {
+        setSelection([entry.path], entry.path, entry.path)
+      }
+
+      const ghostLabel =
+        dragPathsNow.length === 1 ? basename(dragPathsNow[0]!) : `${dragPathsNow.length} items`
+
+      beginRightDragGesture(
+        dragPathsNow,
+        e.clientX,
+        e.clientY,
+        e.currentTarget,
+        e.pointerId,
+        {
+          ghostLabel,
+          onActivated: (paths) => setDragPaths(paths),
+          onHighlight: (dest) => {
+            if (dest && listing.path && samePath(dest, listing.path)) {
+              setBgDropActive(true)
+              setDropTargetPath(null)
+            } else {
+              setBgDropActive(false)
+              setDropTargetPath(dest)
+            }
+          },
+          onFinish: ({ active, paths, clientX, clientY, dest }) => {
+            setDragPaths([])
+            if (!active) {
+              openContextMenu({ x: clientX, y: clientY, paths })
+              return
+            }
+            if (dest) {
+              openContextMenu({
+                x: clientX,
+                y: clientY,
+                paths,
+                dropTransfer: { destDir: dest }
+              })
+            }
+          },
+          onCancel: () => setDragPaths([])
+        }
+      )
+    },
+    [
+      selected,
+      setSelection,
+      tab?.selected,
+      setDragPaths,
+      listing.path,
+      openContextMenu
+    ]
+  )
+
   const onItemMouseDown = useCallback(
     (entry: DirEntry, e: React.MouseEvent): void => {
-      if (e.button === 2) {
-        // right-click: keep multi-selection if target already selected
-        if (!selected.has(entry.path.toLowerCase()))
-          setSelection([entry.path], entry.path, entry.path)
-        return
-      }
+      if (e.button === 2) return // handled by onItemPointerDown
       if (!e.ctrlKey && !e.shiftKey && selected.has(entry.path.toLowerCase())) {
         // defer to click so dragging a multi-selection works
         suppressClickRef.current = false
@@ -713,7 +921,7 @@ export function FileView(): JSX.Element {
       suppressClickRef.current = true
       selectWithModifiers(entry, e)
     },
-    [selected, selectWithModifiers, setSelection]
+    [selected, selectWithModifiers]
   )
 
   const onItemClick = useCallback(
@@ -731,6 +939,7 @@ export function FileView(): JSX.Element {
     (entry: DirEntry, e: React.MouseEvent): void => {
       e.preventDefault()
       e.stopPropagation()
+      if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
       const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
       if (!selected.has(entry.path.toLowerCase()))
         setSelection([entry.path], entry.path, entry.path)
@@ -743,8 +952,9 @@ export function FileView(): JSX.Element {
     (entry: DirEntry, e: React.DragEvent): void => {
       const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
       setDragPaths(paths)
-      e.dataTransfer.effectAllowed = 'copyMove'
-      e.dataTransfer.setData('application/x-mfe-paths', JSON.stringify(paths))
+      // Required: cancel web-only drag and hand paths to the OS (CF_HDROP).
+      e.preventDefault()
+      startOsFileDragFromDragStart(paths)
     },
     [selected, tab?.selected, setDragPaths]
   )
@@ -835,6 +1045,15 @@ export function FileView(): JSX.Element {
     />
   )
 
+  const toggleRecycleSort = (key: 'name' | RecycleDetailsColId): void => {
+    setRecycleSort((prev) => ({
+      key,
+      dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc'
+    }))
+  }
+  const recycleSortArrow = (key: 'name' | RecycleDetailsColId): string =>
+    recycleSort.key === key ? (recycleSort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+
   const toggleSort = (key: SortKey): void =>
     setSort({
       key,
@@ -844,8 +1063,37 @@ export function FileView(): JSX.Element {
     effectiveSort.key === key ? (effectiveSort.dir === 'asc' ? ' ▲' : ' ▼') : ''
 
   return (
-    <>
-      {viewMode === 'details' && (
+    <div className="fileview-pane">
+      {viewMode === 'details' && recycleMode && (
+        <div className="details-header">
+          <div className="hcell" style={{ width: nameColWidth }}>
+            <button className="hlabel" type="button" onClick={() => toggleRecycleSort('name')}>
+              Name{recycleSortArrow('name')}
+            </button>
+            <div
+              className="hresize"
+              draggable={false}
+              onPointerDown={(e) => startRecycleColResize(e, 'name')}
+              title="Resize column"
+            />
+          </div>
+          {RECYCLE_DETAILS_COLS.map((c) => (
+            <div key={c.id} className="hcell" style={{ width: recycleColWidth(c.id) }}>
+              <button className="hlabel" type="button" onClick={() => toggleRecycleSort(c.id)}>
+                {c.label}
+                {recycleSortArrow(c.id)}
+              </button>
+              <div
+                className="hresize"
+                draggable={false}
+                onPointerDown={(e) => startRecycleColResize(e, c.id)}
+                title="Resize column"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {viewMode === 'details' && !recycleMode && (
         <div
           className="details-header"
           onContextMenu={(e) => {
@@ -927,7 +1175,7 @@ export function FileView(): JSX.Element {
           })}
         </div>
       )}
-      {headerMenu && (
+      {headerMenu && !recycleMode && (
         <div
           className="context-menu details-columns-menu"
           style={{ left: headerMenu.x, top: headerMenu.y }}
@@ -962,7 +1210,7 @@ export function FileView(): JSX.Element {
       )}
       <div
         ref={setScrollEl}
-        className={`fileview${isGrid ? ' fileview-icons' : ''}${bgDropActive ? ' drop-target' : ''}`}
+        className={`fileview${isGrid ? ' fileview-icons' : ''}${overlayMode ? ' fileview-search' : ''}${bgDropActive ? ' drop-target' : ''}`}
         onScroll={onScroll}
         tabIndex={0}
         role={isGrid ? 'grid' : 'listbox'}
@@ -976,6 +1224,7 @@ export function FileView(): JSX.Element {
         onContextMenu={(e) => {
           if (e.target === e.currentTarget || (e.target as HTMLElement).dataset['bg'] === '1') {
             e.preventDefault()
+            if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
             openContextMenu({ x: e.clientX, y: e.clientY, paths: [] })
           }
         }}
@@ -989,10 +1238,24 @@ export function FileView(): JSX.Element {
           if (e.target === e.currentTarget) setBgDropActive(false)
         }}
         onDrop={onBackgroundDrop}
+        data-drop-dir={listing.path}
       >
-        {entries.length === 0 && !listing.loading && (
+        {entries.length === 0 && !listing.loading && !search.running && !recycleBin.loading && (
           <div className="fileview-empty" data-bg="1">
-            This folder is empty
+            {recycleMode
+              ? recycleBin.items.length === 0
+                ? 'Recycle Bin is empty'
+                : 'All items hidden by view filter'
+              : searchMode
+                ? search.results.length === 0
+                  ? 'No results'
+                  : 'All results hidden by view filter'
+                : 'This folder is empty'}
+          </div>
+        )}
+        {(search.running || recycleBin.loading) && (
+          <div className="fileview-empty" data-bg="1">
+            {recycleBin.loading ? 'Loading Recycle Bin…' : 'Searching…'}
           </div>
         )}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }} data-bg="1">
@@ -1018,16 +1281,22 @@ export function FileView(): JSX.Element {
                       width: spec.cellW - 8,
                       height: spec.cellH - 8
                     }}
+                    {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
                     draggable={
+                      !recycleMode &&
                       !(
                         renameSource === 'files' &&
                         renamingPath !== null &&
                         samePath(renamingPath, entry.path)
                       )
                     }
+                    onPointerDown={(e) => onItemPointerDown(entry, e)}
                     onMouseDown={(e) => onItemMouseDown(entry, e)}
                     onClick={(e) => onItemClick(entry, e)}
-                    onDoubleClick={() => void openEntry(entry)}
+                    onDoubleClick={() => {
+                      if (recycleMode) void restoreFromRecycleBinView([entry.path])
+                      else void openEntry(entry)
+                    }}
                     onContextMenu={(e) => onItemContextMenu(entry, e)}
                     onDragStart={(e) => onItemDragStart(entry, e)}
                     onDragEnd={onItemDragEnd}
@@ -1045,6 +1314,7 @@ export function FileView(): JSX.Element {
                   >
                     <div className="cell-thumb">
                       {entry.kind === 'file' &&
+                      !recycleMode &&
                       (isImageExt(entry.ext) || isVideoExt(entry.ext)) ? (
                         <ThumbImage
                           path={entry.path}
@@ -1062,7 +1332,14 @@ export function FileView(): JSX.Element {
                     samePath(renamingPath, entry.path) ? (
                       renameEditor(entry)
                     ) : hideName ? null : (
-                      <div className="cell-name">{entry.name}</div>
+                      <div className="cell-name">
+                        <span className="cell-name-primary">{labelFor(entry)}</span>
+                        {searchMode || (recycleMode && viewMode !== 'details') ? (
+                          <span className="cell-name-path" title={entry.path}>
+                            {entry.path}
+                          </span>
+                        ) : null}
+                      </div>
                     )}
                   </div>
                 )
@@ -1078,16 +1355,22 @@ export function FileView(): JSX.Element {
                 key={entry.path}
                 className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
                 style={{ top: vRow.start, height: rowHeight }}
+                {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
                 draggable={
+                  !recycleMode &&
                   !(
                     renameSource === 'files' &&
                     renamingPath !== null &&
                     samePath(renamingPath, entry.path)
                   )
                 }
+                onPointerDown={(e) => onItemPointerDown(entry, e)}
                 onMouseDown={(e) => onItemMouseDown(entry, e)}
                 onClick={(e) => onItemClick(entry, e)}
-                onDoubleClick={() => void openEntry(entry)}
+                onDoubleClick={() => {
+                  if (recycleMode) void restoreFromRecycleBinView([entry.path])
+                  else void openEntry(entry)
+                }}
                 onContextMenu={(e) => onItemContextMenu(entry, e)}
                 onDragStart={(e) => onItemDragStart(entry, e)}
                 onDragEnd={onItemDragEnd}
@@ -1113,9 +1396,35 @@ export function FileView(): JSX.Element {
                   renamingPath !== null &&
                   samePath(renamingPath, entry.path)
                     ? renameEditor(entry)
-                    : <span>{entry.name}</span>}
+                    : (
+                        <span className="row-name-text" title={entry.name}>
+                          <span className="cell-name-primary">{labelFor(entry)}</span>
+                          {searchMode || (recycleMode && viewMode !== 'details') ? (
+                            <span className="cell-name-path" title={entry.path}>
+                              {entry.path}
+                            </span>
+                          ) : null}
+                        </span>
+                      )}
                 </div>
                 {viewMode === 'details' &&
+                  recycleMode &&
+                  RECYCLE_DETAILS_COLS.map((c) => {
+                    const item = recycleByPath.get(entry.path.toLowerCase())
+                    const text = recycleDetailCellValue(c.id, entry, item)
+                    return (
+                      <span
+                        key={c.id}
+                        className={`col${c.numeric ? ' col-num' : ''}`}
+                        style={{ width: recycleColWidth(c.id) }}
+                        title={text || undefined}
+                      >
+                        {text}
+                      </span>
+                    )
+                  })}
+                {viewMode === 'details' &&
+                  !recycleMode &&
                   detailsColumns.map((c) => (
                     <span
                       key={c.id}
@@ -1137,7 +1446,7 @@ export function FileView(): JSX.Element {
           />
         )}
       </div>
-    </>
+    </div>
   )
 }
 

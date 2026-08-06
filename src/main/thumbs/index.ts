@@ -40,6 +40,8 @@ export async function clearThumbCache(): Promise<void> {
   await clearShellIconCache()
   const { clearColumnMetaCache } = await import('../meta/columns')
   await clearColumnMetaCache()
+  const { clearMediaScratch } = await import('../media/protocol')
+  await clearMediaScratch()
 }
 
 function nearestSize(requested: number): number {
@@ -99,12 +101,15 @@ export async function getThumbUrl(
       await fsp.mkdir(thumbCacheDir(), { recursive: true })
       const tmp = cacheFile + '.tmp'
       const ext = path.extname(file).slice(1).toLowerCase()
-      let input: string | Buffer = file
+      let input: Buffer
       if (ext === 'psd') {
         const { rasterizePsd } = await import('../preview/psd')
         const raster = await rasterizePsd(file, [])
         if (!raster) return null
-        input = raster.cachePath
+        input = await fsp.readFile(raster.cachePath)
+      } else {
+        // Buffer so sharp does not hold the browsed file open on Windows.
+        input = await fsp.readFile(file)
       }
       await sharp(input, { failOn: 'truncated', limitInputPixels: 512 * 1024 * 1024 })
         .rotate()

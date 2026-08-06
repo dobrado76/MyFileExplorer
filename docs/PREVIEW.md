@@ -1,6 +1,6 @@
 # Preview & metadata
 
-**Version:** 0.0.0 (spec)
+**Version:** 0.2.0
 
 The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params).
 
@@ -13,7 +13,7 @@ type PreviewModel = {
   path: string
   kind:
     | 'image' | 'text' | 'markdown' | 'spreadsheet' | 'document' | 'rtf'
-    | 'audio' | 'video' | 'pdf' | 'binary' | 'directory' | 'missing'
+    | 'audio' | 'video' | 'pdf' | 'binary' | 'directory' | 'shortcut' | 'missing'
   mediaUrl?: string // protocol URL for display (images, PDF)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
@@ -26,7 +26,7 @@ type PreviewField = {
   id: string // stable key e.g. "gen.prompt"
   label: string // UI label
   value: string // display string (may be long)
-  group?: 'file' | 'image' | 'generation' | 'other'
+  group?: 'file' | 'image' | 'generation' | 'shortcut' | 'other'
   mono?: boolean // use monospace / multiline block
   copyable?: boolean
 }
@@ -180,6 +180,8 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
   - **Regenerate all** — overwrite strips for videos in this folder
   - On selected video(s): **Generate video preview(s)**
 - Generation uses bundled ffmpeg: 20 frames sampled evenly across duration; progress via `op-progress` / status bar
+- **Generate missing** skips only strips with all **20 non-empty** frames; partial/interrupted strips are deleted and regenerated
+- **Regenerate all** clears each video’s strip files then rewrites all 20 frames
 - Missing or incomplete strips fall back to the Windows shell icon
 
 ---
@@ -196,6 +198,15 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - Child count (non-recursive) + sum size optional (expensive — skip or cache)
 - “Indexed for search: yes/no”
+
+---
+
+## Windows shortcuts (`.lnk`)
+
+- `kind: 'shortcut'` — resolved via `WScript.Shell` CreateShortcut (Windows only)
+- Fields (`group: shortcut`): Target, Target type (file/folder/URL/missing), Arguments, Start in, Comment, Icon location, Shortcut key, Run (if not Normal)
+- Preview body shows the target path plus **Open shortcut** / **Open target** (when the target exists on disk)
+- Missing or unreadable links still show file details with a warning
 
 ---
 

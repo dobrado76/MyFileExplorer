@@ -12,11 +12,12 @@ export const previewKindSchema = z.enum([
   'pdf',
   'binary',
   'directory',
+  'shortcut',
   'missing'
 ])
 export type PreviewKind = z.infer<typeof previewKindSchema>
 
-export type PreviewFieldGroup = 'file' | 'image' | 'generation' | 'other'
+export type PreviewFieldGroup = 'file' | 'image' | 'generation' | 'shortcut' | 'other'
 
 export type PreviewField = {
   id: string

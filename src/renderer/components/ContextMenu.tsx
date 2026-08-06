@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { findExactFolderView } from '@shared/folderViews'
-import { useAppStore } from '../store/appStore'
+import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename } from '../lib/paths'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
@@ -109,6 +109,121 @@ export function ContextMenu(): JSX.Element | null {
     if (!menu) return []
     const s = store.getState()
     const { paths } = menu
+    const close = closeContextMenu
+
+    // Explorer-style right-drag drop menu — only Copy / Move / Cancel.
+    if (menu.dropTransfer) {
+      const dest = menu.dropTransfer.destDir
+      const src = paths[0]
+      const defaultOp = src
+        ? dropOperation(src, dest, false, false)
+        : ('move' as const)
+      return [
+        {
+          type: 'item',
+          label: 'Copy here',
+          hint: defaultOp === 'copy' ? 'default' : undefined,
+          action: () => {
+            close()
+            void s.performTransfer('copy', paths, dest)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Move here',
+          hint: defaultOp === 'move' ? 'default' : undefined,
+          action: () => {
+            close()
+            void s.performTransfer('move', paths, dest)
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Cancel',
+          action: () => close()
+        }
+      ]
+    }
+
+    // In-app Recycle Bin — Restore / permanent delete only.
+    if (s.recycleBin.active) {
+      const binItems: MenuItem[] = []
+      if (paths.length === 0) {
+        binItems.push(
+          {
+            type: 'item',
+            label: 'Empty Recycle Bin',
+            danger: true,
+            disabled: s.recycleBin.items.length === 0,
+            action: () => {
+              close()
+              s.emptyRecycleBinView()
+            }
+          },
+          {
+            type: 'item',
+            label: 'Refresh',
+            action: () => {
+              close()
+              void s.refreshRecycleBinView()
+            }
+          },
+          { type: 'sep' },
+          {
+            type: 'item',
+            label: 'Close Recycle Bin',
+            action: () => {
+              close()
+              s.closeRecycleBinView()
+            }
+          }
+        )
+        return binItems
+      }
+      binItems.push(
+        {
+          type: 'item',
+          label: paths.length > 1 ? `Restore ${paths.length} items` : 'Restore',
+          hint: 'Enter',
+          action: () => {
+            close()
+            void s.restoreFromRecycleBinView(paths)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Delete permanently',
+          hint: 'Del',
+          danger: true,
+          action: () => {
+            close()
+            s.deleteFromRecycleBinView(paths)
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Copy original path',
+          action: () => {
+            close()
+            void s.copyPathsToClipboard(paths, false)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Empty Recycle Bin',
+          danger: true,
+          disabled: s.recycleBin.items.length === 0,
+          action: () => {
+            close()
+            s.emptyRecycleBinView()
+          }
+        }
+      )
+      return binItems
+    }
+
     const entries = s.listing.entries
     const isBackground = paths.length === 0
     const single = paths.length === 1 ? paths[0]! : null
@@ -117,8 +232,6 @@ export function ContextMenu(): JSX.Element | null {
     const indexRoots = s.indexRoots
     const isIndexedRoot = single ? indexRoots.some((r) => samePath(r.path, single)) : false
     const result: MenuItem[] = []
-
-    const close = closeContextMenu
 
     if (isBackground) {
       const folderPath = s.activeTab().path

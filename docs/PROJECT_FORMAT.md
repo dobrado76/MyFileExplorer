@@ -1,6 +1,6 @@
 # Project / app data format
 
-**Version:** 0.0.0 (spec)
+**Version:** 0.2.0
 
 MyFileExplorer browses the **real filesystem**. App-owned state lives only under Electron **`userData`** — always **`%APPDATA%\MyFileExplorer`** for both `npm run dev` and packaged installs (D17). Optional overrides: `MFE_USER_DATA`, or `MFE_ISOLATED_USER_DATA=1` for a repo-local `.dev-user-data/`.
 
@@ -48,6 +48,7 @@ Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and 
   "previewVisibleDefault": true,
   "textPreviewMaxBytes": 1048576,
   "vidThumbFrameMs": 300,
+  "hideNameExtensions": ["lnk"],
   "searchExcludeDirNames": ["node_modules", ".git", ".hg", ".svn", "Thumbs.db"],
   "layouts": [],
   "folderViews": [],
@@ -59,6 +60,7 @@ Notes:
 
 - `theme`: `"dark" | "light" | "custom"`
 - `vidThumbFrameMs`: delay between `!VIDTHUMB_CACHE` strip frames in icon views (50–2000, default 300). Strips themselves live next to videos as a sibling hidden `!VIDTHUMB_CACHE` folder (not under `userData` — D26 external convention / optional in-app generate).
+- `hideNameExtensions`: extensions (no leading dot) whose “.ext” is omitted from file-view/search **labels** only (default `["lnk"]`). Does not hide files from the listing; rename/tooltips still use the real name.
 - `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, tabs: [{ path, title, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs.
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)

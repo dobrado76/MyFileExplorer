@@ -41,8 +41,9 @@ import {
   readImageForEdit,
   writeEditedImageToPath
 } from '../fs/imageEdit'
-import { restoreFromRecycleBin } from '../fs/recycle'
+import { restoreFromRecycleBin, listRecycleBin, emptyRecycleBin, deleteFromRecycleBin } from '../fs/recycle'
 import { watchDirectory, unwatchDirectory, muteWatchers } from '../fs/watch'
+import { requestCancelActiveOps } from '../fs/opProgress'
 import { markRendererReady } from '../externalOpen'
 import { findUpdateInstaller, runUpdateInstaller } from '../update/installers'
 import {
@@ -50,7 +51,8 @@ import {
   showItemInFolder,
   openRecycleBin,
   clipboardWriteFiles,
-  clipboardReadFiles
+  clipboardReadFiles,
+  startOsFileDrag
 } from '../shell'
 import { sessionStore } from '../session/store'
 import { settingsStore, patchSettings } from '../settings/store'
@@ -157,10 +159,20 @@ export function registerIpcHandlers(): void {
     muteWatchers()
     return restoreFromRecycleBin(req.paths)
   })
+  handle(IPC.fsListRecycleBin, emptySchema, () => listRecycleBin())
+  handle(IPC.fsEmptyRecycleBin, emptySchema, async () => {
+    muteWatchers()
+    return emptyRecycleBin()
+  })
+  handle(IPC.fsDeleteFromRecycleBin, pathsRequestSchema, async (req) => {
+    muteWatchers()
+    return deleteFromRecycleBin(req.paths)
+  })
   handle(IPC.fsDeletePermanent, pathsRequestSchema, async (req) => {
     muteWatchers()
     return deletePermanently(req.paths)
   })
+  handle(IPC.fsCancelOp, emptySchema, () => requestCancelActiveOps())
   handle(IPC.fsExists, pathRequestSchema, async (req) => ({ exists: await pathExists(req.path) }))
   handle(IPC.fsWatch, pathRequestSchema, (req, event) => watchDirectory(event.sender, req.path))
   handle(IPC.fsUnwatch, pathRequestSchema, (req, event) => unwatchDirectory(event.sender, req.path))
@@ -231,6 +243,21 @@ export function registerIpcHandlers(): void {
   handle(IPC.shellOpenRecycleBin, emptySchema, () => openRecycleBin())
   handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
+  // Sync + blocking: startDrag must run inside the renderer's dragstart stack.
+  ipcMain.on(IPC.shellStartDrag, (event, raw) => {
+    const parsed = pathsRequestSchema.safeParse(raw)
+    if (!parsed.success) {
+      logMain('warn', 'shell:startDrag: invalid payload')
+      event.returnValue = false
+      return
+    }
+    try {
+      event.returnValue = startOsFileDrag(event.sender, parsed.data.paths)
+    } catch (e) {
+      logMain('warn', `shell:startDrag failed: ${e instanceof Error ? e.message : String(e)}`)
+      event.returnValue = false
+    }
+  })
 
   // session
   handle(IPC.sessionGet, emptySchema, () => sessionStore().get())

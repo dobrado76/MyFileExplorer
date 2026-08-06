@@ -10,6 +10,7 @@ import type { SessionState, SortSpec, TabState, ViewMode, Splitters } from '@sha
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
 import type { IndexRootInfo, SearchResultItem } from '@shared/schemas/search'
+import type { RecycleBinItem } from '@shared/schemas/recycle'
 import type { MfeEvent } from '@shared/ipc/contract'
 import {
   findExactFolderView,
@@ -37,6 +38,8 @@ import {
   type QuickAccessEntry
 } from '../lib/quickAccess'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { searchResultsToEntries } from '../lib/searchEntries'
+import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
 import { nextSelectionAfterDelete } from '../lib/nextSelection'
 import {
@@ -77,6 +80,8 @@ export type ClipboardState = { mode: 'copy' | 'cut'; paths: string[] } | null
 
 export type DialogState =
   | { kind: 'confirm-permanent-delete'; paths: string[] }
+  | { kind: 'confirm-empty-recycle-bin' }
+  | { kind: 'confirm-delete-from-recycle-bin'; paths: string[] }
   | {
       kind: 'conflict'
       op: 'copy' | 'move'
@@ -106,6 +111,11 @@ export type ContextMenuState = {
   /** paths the menu applies to; empty = folder background */
   paths: string[]
   inTree?: boolean
+  /**
+   * Right-button drag drop menu (Explorer: Copy here / Move here).
+   * `paths` are the dragged items; `destDir` is the folder under the pointer.
+   */
+  dropTransfer?: { destDir: string }
 } | null
 
 export type SearchState = {
@@ -119,6 +129,14 @@ export type SearchState = {
   progress: string | null
 }
 
+/** In-app Recycle Bin overlay (like search — FileView shows bin items). */
+export type RecycleBinState = {
+  active: boolean
+  loading: boolean
+  items: RecycleBinItem[]
+  truncated: boolean
+}
+
 export type Notice = { text: string; isError: boolean } | null
 
 /** Live progress for copy / move / trash / permanent delete (main → op-progress). */
@@ -129,7 +147,13 @@ export type FileOpProgress = {
   total: number
   current?: string
   label?: string
+  bytesDone?: number
+  bytesTotal?: number
 }
+
+/** Show status-bar busy if an awaited FS op is still running after this delay. */
+const BUSY_FEEDBACK_MS = 1000
+let busyFeedbackSeq = 0
 
 let tabCounter = 0
 function newTabId(): string {
@@ -175,6 +199,7 @@ type AppState = {
   mediaHold: boolean
   contextMenu: ContextMenuState
   search: SearchState
+  recycleBin: RecycleBinState
   indexRoots: IndexRootInfo[]
   indexProgress: Record<string, number>
   /** Determinate progress for lengthy multi-file FS ops. */
@@ -190,6 +215,11 @@ type AppState = {
    * reload a parent's children (e.g. after mkdir / paste / rename).
    */
   treeMutation: { rev: number; removed: string[]; reloadParents: string[] }
+  /**
+   * Bumped by Refresh (F5) so the folder tree reloads every folder it has already
+   * listed — listing alone does not update the tree cache.
+   */
+  treeRefreshRev: number
   /** In-memory Explorer-style undo stack (not persisted). */
   undoStack: UndoEntry[]
   redoStack: UndoEntry[]
@@ -321,7 +351,8 @@ type AppState = {
   clearThumbCache(): Promise<void>
   /**
    * Generate `!VIDTHUMB_CACHE` strip frames for videos (or videos in folders).
-   * `missing` skips complete strips; `all` regenerates.
+   * `missing` skips only complete 20-frame strips (partials are cleared and redone);
+   * `all` regenerates everything.
    * `recursive` walks subfolders when paths include directories.
    */
   generateVideoThumbs(
@@ -346,6 +377,16 @@ type AppState = {
   removeIndexRootAction(path: string): Promise<void>
   reindexAction(path?: string): Promise<void>
   refreshIndexRoots(): Promise<void>
+
+  // recycle bin (in-app view)
+  openRecycleBinView(): Promise<void>
+  closeRecycleBinView(): void
+  refreshRecycleBinView(): Promise<void>
+  restoreFromRecycleBinView(paths?: string[]): Promise<void>
+  emptyRecycleBinView(): void
+  confirmEmptyRecycleBin(confirmed: boolean): Promise<void>
+  deleteFromRecycleBinView(paths?: string[]): void
+  confirmDeleteFromRecycleBin(confirmed: boolean): Promise<void>
 }
 
 /** Unique child name: `stem` / `stem (2)` + optional extension (e.g. `.txt`). */
@@ -468,6 +509,42 @@ export const useAppStore = create<AppState>()((set, get) => {
     }, OFFLINE_POLL_MS)
   }
 
+  /**
+   * After BUSY_FEEDBACK_MS, show an indeterminate status-bar busy state if main
+   * has not already pushed real `op-progress`. Clears local busy when `work` ends.
+   */
+  async function withBusyFeedback<T>(
+    kind: FileOpProgress['kind'],
+    label: string,
+    current: string | undefined,
+    work: () => Promise<T>
+  ): Promise<T> {
+    const localId = `local-${kind}-${++busyFeedbackSeq}`
+    let active = true
+    const timer = setTimeout(() => {
+      if (!active) return
+      const cur = get().fileOp
+      if (cur && !cur.opId.startsWith('local-')) return
+      set({
+        fileOp: {
+          opId: localId,
+          kind,
+          done: 0,
+          total: 0,
+          current,
+          label
+        }
+      })
+    }, BUSY_FEEDBACK_MS)
+    try {
+      return await work()
+    } finally {
+      active = false
+      clearTimeout(timer)
+      set((s) => (s.fileOp?.opId === localId ? { fileOp: null } : {}))
+    }
+  }
+
   async function executeTransfer(
     op2: 'copy' | 'move',
     src: string[],
@@ -477,7 +554,12 @@ export const useAppStore = create<AppState>()((set, get) => {
   ): Promise<void> {
     if (op2 === 'move') await releaseMediaLocks()
     try {
-      const r = await runTransfer(op2, src, dest, policy)
+      const r = await withBusyFeedback(
+        op2,
+        op2 === 'copy' ? 'Copying…' : 'Moving…',
+        src.length === 1 ? basename(src[0]!) : `${src.length} items`,
+        () => runTransfer(op2, src, dest, policy)
+      )
       if (op2 === 'copy') {
         if (r.copyPaths.length > 0) {
           recordUndo({ kind: 'copy', paths: r.copyPaths, label: basename(r.copyPaths[0]!) })
@@ -581,6 +663,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       })
       void api.fs.watch({ path })
+      const parent = parentOf(path)
+      if (parent) void api.fs.watch({ path: parent })
     } catch (e) {
       if (seq !== listRequestSeq) return
       const offline = isOfflineFailure(e)
@@ -608,6 +692,10 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   /** Always surface FS failures in a modal — never status-bar-only. */
   function reportOperationError(title: string, e: unknown): void {
+    if (e instanceof IpcError && e.code === 'cancelled') {
+      get().notify('Cancelled')
+      return
+    }
     const message = e instanceof IpcError ? e.message : String(e)
     const detail = e instanceof IpcError ? e.envelope.remediation : undefined
     set({ dialog: { kind: 'alert', title, message, detail } })
@@ -659,11 +747,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     set({ imageViewer: { path: siblings[nextIdx]!, siblings } })
   }
 
-  /** Drop preview/viewer media briefly so OS file locks are released. */
+  /** Drop preview/viewer media so Chromium releases any remaining holds. */
   async function releaseMediaLocks(): Promise<void> {
     set({ mediaHold: true })
+    // Two animation frames is enough for React to unmount <img>/<video>.
     await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, 60)
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => resolve())
+      })
     })
   }
 
@@ -813,7 +904,12 @@ export const useAppStore = create<AppState>()((set, get) => {
   async function applyHistoryEntry(entry: UndoEntry, direction: 'undo' | 'redo'): Promise<void> {
     if (entry.kind === 'trash') {
       if (direction === 'undo') {
-        const res = await call(api.fs.restoreFromTrash({ paths: entry.paths }))
+        const res = await withBusyFeedback(
+          'trash',
+          'Restoring…',
+          entry.label,
+          () => call(api.fs.restoreFromTrash({ paths: entry.paths }))
+        )
         notifyTreeReload(parentsOfPaths(res.restored))
         if (res.missing.length > 0) {
           get().notify(
@@ -826,18 +922,24 @@ export const useAppStore = create<AppState>()((set, get) => {
         ))
         return
       }
-      await call(api.fs.trash({ paths: entry.paths }))
+      await withBusyFeedback('trash', 'Moving to Recycle Bin…', entry.label, () =>
+        call(api.fs.trash({ paths: entry.paths }))
+      )
       await afterPathsRemoved(entry.paths)
       return
     }
 
     if (entry.kind === 'create' || entry.kind === 'copy') {
       if (direction === 'undo') {
-        await call(api.fs.trash({ paths: entry.paths }))
+        await withBusyFeedback('trash', 'Moving to Recycle Bin…', entry.label, () =>
+          call(api.fs.trash({ paths: entry.paths }))
+        )
         await afterPathsRemoved(entry.paths)
         return
       }
-      const res = await call(api.fs.restoreFromTrash({ paths: entry.paths }))
+      const res = await withBusyFeedback('trash', 'Restoring…', entry.label, () =>
+        call(api.fs.restoreFromTrash({ paths: entry.paths }))
+      )
       notifyTreeReload(parentsOfPaths(res.restored))
       await selectPathsPreferParent(
         pathsAfterRedo(entry).filter((p) => res.restored.some((r) => samePath(r, p)))
@@ -850,7 +952,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         direction === 'undo'
           ? [{ from: entry.to, to: entry.from }]
           : [{ from: entry.from, to: entry.to }]
-      await call(api.fs.relocate({ pairs }))
+      await withBusyFeedback('relocate', 'Moving…', entry.label, () =>
+        call(api.fs.relocate({ pairs }))
+      )
       notifyTreeMutation({
         removed: [pairs[0]!.from],
         reloadParents: parentsOfPaths([pairs[0]!.from, pairs[0]!.to])
@@ -864,7 +968,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       direction === 'undo'
         ? entry.pairs.map((p) => ({ from: p.to, to: p.from }))
         : entry.pairs.map((p) => ({ from: p.from, to: p.to }))
-    await call(api.fs.relocate({ pairs }))
+    await withBusyFeedback(
+      'relocate',
+      'Moving…',
+      entry.label ?? (pairs.length === 1 ? basename(pairs[0]!.from) : `${pairs.length} items`),
+      () => call(api.fs.relocate({ pairs }))
+    )
     notifyTreeMutation({
       removed: pairs.map((p) => p.from),
       reloadParents: parentsOfPaths(pairs.flatMap((p) => [p.from, p.to]))
@@ -909,6 +1018,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       source: null,
       progress: null
     },
+    recycleBin: {
+      active: false,
+      loading: false,
+      items: [],
+      truncated: false
+    },
     indexRoots: [],
     indexProgress: {},
     fileOp: null,
@@ -916,6 +1031,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     notice: null,
     addressEditing: false,
     treeMutation: { rev: 0, removed: [], reloadParents: [] },
+    treeRefreshRev: 0,
     undoStack: [],
     redoStack: [],
 
@@ -1061,9 +1177,26 @@ export const useAppStore = create<AppState>()((set, get) => {
       api.onEvent((event: MfeEvent) => {
         const s = get()
         if (event.type === 'fs-changed') {
-          if (samePath(event.payload.path, s.activeTab().path)) {
-            void loadListing(s.activeTab().path, { preserveSelection: true })
+          const changed = event.payload.path
+          const tab = s.activeTab()
+          const parent = parentOf(tab.path)
+          if (samePath(changed, tab.path)) {
+            void loadListing(tab.path, { preserveSelection: true, soft: true })
+          } else if (parent && samePath(changed, parent)) {
+            void (async () => {
+              try {
+                const ex = await call(api.fs.exists({ path: tab.path }))
+                if (!ex.exists) {
+                  await get().navigate(parent, { push: false })
+                  return
+                }
+              } catch {
+                /* ignore */
+              }
+              // Sibling create/rename/delete — listing unchanged, tree parent must reload.
+            })()
           }
+          notifyTreeReload([changed])
         } else if (event.type === 'search-progress') {
           if (s.search.running) {
             set({
@@ -1096,7 +1229,9 @@ export const useAppStore = create<AppState>()((set, get) => {
                 done: p.done,
                 total: p.total,
                 current: p.current,
-                label: p.label
+                label: p.label,
+                bytesDone: p.bytesDone,
+                bytesTotal: p.bytesTotal
               }
             })
           }
@@ -1158,6 +1293,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       if (get().search.active) get().clearSearch()
+      if (get().recycleBin.active) get().closeRecycleBinView()
       flushPendingRename()
       if (push && !samePath(old, path)) {
         updateActiveTab({
@@ -1171,7 +1307,18 @@ export const useAppStore = create<AppState>()((set, get) => {
         updateActiveTab({ path, selected: [] })
       }
       set({ selectionAnchor: null, focusedPath: null, renamingPath: null, renameSource: null, addressEditing: false })
-      if (!samePath(old, path)) void api.fs.unwatch({ path: old })
+      if (!samePath(old, path)) {
+        void api.fs.unwatch({ path: old })
+        const oldParent = parentOf(old)
+        const newParent = parentOf(path)
+        if (
+          oldParent &&
+          !samePath(oldParent, path) &&
+          !(newParent && samePath(oldParent, newParent))
+        ) {
+          void api.fs.unwatch({ path: oldParent })
+        }
+      }
       await loadListing(path)
     },
 
@@ -1210,7 +1357,35 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async refresh() {
-      await loadListing(get().activeTab().path, { preserveSelection: true })
+      if (get().recycleBin.active) {
+        await get().refreshRecycleBinView()
+        return
+      }
+      const tab = get().activeTab()
+      const path = tab.path
+      // If this folder was renamed/removed externally, land on the parent instead.
+      try {
+        const ex = await call(api.fs.exists({ path }))
+        if (!ex.exists) {
+          const parent = parentOf(path)
+          if (parent) {
+            await get().navigate(parent, { push: false })
+            set((s) => ({ treeRefreshRev: s.treeRefreshRev + 1 }))
+            return
+          }
+        }
+      } catch {
+        /* loadListing will surface the error */
+      }
+      try {
+        const d = await call(api.fs.listDrives())
+        set({ drives: d.drives })
+      } catch {
+        /* ignore */
+      }
+      await loadListing(path, { preserveSelection: true })
+      // File list and tree keep separate caches — always refresh both.
+      set((s) => ({ treeRefreshRev: s.treeRefreshRev + 1 }))
     },
 
     setAddressEditing(v) {
@@ -1267,6 +1442,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     async activateTab(id) {
       if (get().activeTabId === id) return
       if (get().search.active) get().clearSearch()
+      if (get().recycleBin.active) get().closeRecycleBinView()
       flushPendingRename()
       const tab = get().tabs.find((t) => t.id === id)
       if (!tab) return
@@ -1492,6 +1668,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const idx = Math.min(Math.max(0, layout.activeTabIndex), tabs.length - 1)
       const active = tabs[idx]!
       get().clearSearch()
+      get().closeRecycleBinView()
       flushPendingRename()
       set({
         tabs,
@@ -1532,13 +1709,21 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     selectAll() {
       const s = get()
-      updateActiveTab({
-        selected: s.listing.entries
-          .filter(
-            (e) =>
-              !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
-          )
-          .map((e) => e.path)
+      const pool = s.recycleBin.active
+        ? recycleBinItemsToEntries(s.recycleBin.items)
+        : s.search.active
+          ? searchResultsToEntries(s.search.results)
+          : s.listing.entries
+      const selected = pool
+        .filter(
+          (e) =>
+            !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
+        )
+        .map((e) => e.path)
+      updateActiveTab({ selected })
+      set({
+        selectionAnchor: selected[0] ?? null,
+        focusedPath: selected[selected.length - 1] ?? null
       })
     },
 
@@ -1567,7 +1752,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (newName === oldName) return
       try {
         await releaseMediaLocks()
-        const res = await call(api.fs.rename({ path, newName: newName.trim() }))
+        const res = await withBusyFeedback('relocate', 'Renaming…', newName.trim(), () =>
+          call(api.fs.rename({ path, newName: newName.trim() }))
+        )
         recordUndo({
           kind: 'rename',
           from: path,
@@ -1740,33 +1927,40 @@ export const useAppStore = create<AppState>()((set, get) => {
         let skipped = skippedConflicts
         const copyPaths: string[] = []
         const movePairs: { from: string; to: string }[] = []
+        const busyLabel = dialog.op === 'copy' ? 'Copying…' : 'Moving…'
+        const busyCurrent =
+          dialog.sources.length === 1
+            ? basename(dialog.sources[0]!)
+            : `${dialog.sources.length} items`
 
-        if (replaceSources.length > 0) {
-          const r = await runTransfer(
-            dialog.op,
-            replaceSources,
-            dialog.destinationDir,
-            'replace'
-          )
-          copied += r.copied
-          moved += r.moved
-          skipped += r.skipped
-          copyPaths.push(...r.copyPaths)
-          movePairs.push(...r.movePairs)
-        }
-        if (renameSources.length > 0) {
-          const r = await runTransfer(
-            dialog.op,
-            renameSources,
-            dialog.destinationDir,
-            'rename'
-          )
-          copied += r.copied
-          moved += r.moved
-          skipped += r.skipped
-          copyPaths.push(...r.copyPaths)
-          movePairs.push(...r.movePairs)
-        }
+        await withBusyFeedback(dialog.op, busyLabel, busyCurrent, async () => {
+          if (replaceSources.length > 0) {
+            const r = await runTransfer(
+              dialog.op,
+              replaceSources,
+              dialog.destinationDir,
+              'replace'
+            )
+            copied += r.copied
+            moved += r.moved
+            skipped += r.skipped
+            copyPaths.push(...r.copyPaths)
+            movePairs.push(...r.movePairs)
+          }
+          if (renameSources.length > 0) {
+            const r = await runTransfer(
+              dialog.op,
+              renameSources,
+              dialog.destinationDir,
+              'rename'
+            )
+            copied += r.copied
+            moved += r.moved
+            skipped += r.skipped
+            copyPaths.push(...r.copyPaths)
+            movePairs.push(...r.movePairs)
+          }
+        })
 
         if (dialog.op === 'copy') {
           if (copyPaths.length > 0) {
@@ -1801,12 +1995,22 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async deleteSelection(permanent, paths) {
       const s = get()
+      if (s.recycleBin.active) {
+        // In the bin: Del / Shift+Del permanently remove from the Recycle Bin.
+        get().deleteFromRecycleBinView(paths)
+        return
+      }
       const target = paths ?? s.activeTab().selected
       if (target.length === 0) return
       if (!permanent) {
         try {
           await releaseMediaLocks()
-          await call(api.fs.trash({ paths: target }))
+          await withBusyFeedback(
+            'trash',
+            'Moving to Recycle Bin…',
+            target.length === 1 ? basename(target[0]!) : `${target.length} items`,
+            () => call(api.fs.trash({ paths: target }))
+          )
           recordUndo({
             kind: 'trash',
             paths: [...target],
@@ -1835,7 +2039,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       async function doPermanentDelete(toDelete: string[]): Promise<void> {
         try {
           await releaseMediaLocks()
-          await call(api.fs.deletePermanent({ paths: toDelete }))
+          await withBusyFeedback(
+            'delete',
+            'Deleting…',
+            toDelete.length === 1 ? basename(toDelete[0]!) : `${toDelete.length} items`,
+            () => call(api.fs.deletePermanent({ paths: toDelete }))
+          )
           get().notify(`Permanently deleted ${toDelete.length} item${toDelete.length > 1 ? 's' : ''}`)
           await afterPathsRemoved(toDelete)
         } catch (e) {
@@ -1851,7 +2060,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (!dialog || dialog.kind !== 'confirm-permanent-delete' || !confirmed) return
       try {
         await releaseMediaLocks()
-        await call(api.fs.deletePermanent({ paths: dialog.paths }))
+        await withBusyFeedback(
+          'delete',
+          'Deleting…',
+          dialog.paths.length === 1 ? basename(dialog.paths[0]!) : `${dialog.paths.length} items`,
+          () => call(api.fs.deletePermanent({ paths: dialog.paths }))
+        )
         get().notify(
           `Permanently deleted ${dialog.paths.length} item${dialog.paths.length > 1 ? 's' : ''}`
         )
@@ -1868,7 +2082,19 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       if (isImageExt(entry.ext)) {
-        get().openImageViewer(entry.path)
+        get().openImageViewer(
+          entry.path,
+          get().search.active
+            ? get()
+                .search.results.filter((r) => {
+                  if (r.isDir) return false
+                  const d = r.name.lastIndexOf('.')
+                  const ext = d > 0 ? r.name.slice(d + 1).toLowerCase() : ''
+                  return isImageExt(ext)
+                })
+                .map((r) => r.path)
+            : undefined
+        )
         return
       }
       await get().openPath(entry.path)
@@ -2153,12 +2379,18 @@ export const useAppStore = create<AppState>()((set, get) => {
     async generateVideoThumbs(paths, mode, opts) {
       if (paths.length === 0) return
       try {
-        const res = await call(
-          api.thumbs.generateVidCache({
-            paths,
-            mode,
-            recursive: opts?.recursive ?? false
-          })
+        const res = await withBusyFeedback(
+          'vid-thumbs',
+          'Video previews…',
+          paths.length === 1 ? basename(paths[0]!) : `${paths.length} items`,
+          () =>
+            call(
+              api.thumbs.generateVidCache({
+                paths,
+                mode,
+                recursive: opts?.recursive ?? false
+              })
+            )
         )
         set((s) => ({ videoThumbRev: s.videoThumbRev + 1 }))
         const failN = res.failed.length
@@ -2197,6 +2429,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const s = get()
       const query = s.search.query.trim()
       if (!query) return
+      if (s.recycleBin.active) get().closeRecycleBinView()
       set({
         search: {
           ...s.search,
@@ -2208,6 +2441,8 @@ export const useAppStore = create<AppState>()((set, get) => {
           progress: null
         }
       })
+      updateActiveTab({ selected: [] })
+      set({ selectionAnchor: null, focusedPath: null })
       try {
         const res = await call(
           api.search.query({
@@ -2256,6 +2491,146 @@ export const useAppStore = create<AppState>()((set, get) => {
           query: ''
         }
       }))
+    },
+
+    async openRecycleBinView() {
+      get().clearSearch()
+      set({
+        recycleBin: { active: true, loading: true, items: [], truncated: false }
+      })
+      updateActiveTab({ selected: [] })
+      set({ selectionAnchor: null, focusedPath: null })
+      try {
+        const res = await call(api.fs.listRecycleBin())
+        set({
+          recycleBin: {
+            active: true,
+            loading: false,
+            items: res.items,
+            truncated: Boolean(res.truncated)
+          }
+        })
+      } catch (e) {
+        set({
+          recycleBin: { active: true, loading: false, items: [], truncated: false }
+        })
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    closeRecycleBinView() {
+      set({
+        recycleBin: { active: false, loading: false, items: [], truncated: false }
+      })
+    },
+
+    async refreshRecycleBinView() {
+      if (!get().recycleBin.active) return
+      set((s) => ({ recycleBin: { ...s.recycleBin, loading: true } }))
+      try {
+        const res = await call(api.fs.listRecycleBin())
+        set({
+          recycleBin: {
+            active: true,
+            loading: false,
+            items: res.items,
+            truncated: Boolean(res.truncated)
+          }
+        })
+      } catch (e) {
+        set((s) => ({ recycleBin: { ...s.recycleBin, loading: false } }))
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async restoreFromRecycleBinView(paths) {
+      const s = get()
+      const target = paths ?? s.activeTab().selected
+      if (target.length === 0) return
+      try {
+        const res = await withBusyFeedback(
+          'trash',
+          'Restoring…',
+          target.length === 1 ? basename(target[0]!) : `${target.length} items`,
+          () => call(api.fs.restoreFromTrash({ paths: target }))
+        )
+        const msg =
+          res.missing.length > 0
+            ? `Restored ${res.restored.length}; ${res.missing.length} not found in Recycle Bin`
+            : `Restored ${res.restored.length} item${res.restored.length === 1 ? '' : 's'}`
+        get().notify(msg, res.missing.length > 0)
+        await get().refreshRecycleBinView()
+        updateActiveTab({ selected: [] })
+        set({ selectionAnchor: null, focusedPath: null })
+        if (res.restored.length > 0) {
+          notifyTreeReload(parentsOfPaths(res.restored))
+        }
+      } catch (e) {
+        reportOperationError('Restore failed', e)
+      }
+    },
+
+    emptyRecycleBinView() {
+      set({ dialog: { kind: 'confirm-empty-recycle-bin' } })
+    },
+
+    async confirmEmptyRecycleBin(confirmed) {
+      set({ dialog: null })
+      if (!confirmed) return
+      try {
+        await withBusyFeedback('trash', 'Emptying Recycle Bin…', undefined, () =>
+          call(api.fs.emptyRecycleBin())
+        )
+        get().notify('Recycle Bin emptied')
+        await get().refreshRecycleBinView()
+        updateActiveTab({ selected: [] })
+        set({ selectionAnchor: null, focusedPath: null })
+      } catch (e) {
+        reportOperationError('Empty Recycle Bin failed', e)
+      }
+    },
+
+    deleteFromRecycleBinView(paths) {
+      const s = get()
+      const target = paths ?? s.activeTab().selected
+      if (target.length === 0) return
+      const anyDir = target.some((p) => {
+        const it = s.recycleBin.items.find((i) => samePath(i.originalPath, p))
+        return it?.isDir ?? true
+      })
+      const needsConfirm = target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
+      if (needsConfirm) {
+        set({ dialog: { kind: 'confirm-delete-from-recycle-bin', paths: target } })
+        return
+      }
+      set({ dialog: { kind: 'confirm-delete-from-recycle-bin', paths: target } })
+      void get().confirmDeleteFromRecycleBin(true)
+    },
+
+    async confirmDeleteFromRecycleBin(confirmed) {
+      const dialog = get().dialog
+      const paths =
+        dialog && dialog.kind === 'confirm-delete-from-recycle-bin' ? dialog.paths : null
+      set({ dialog: null })
+      if (!confirmed || !paths || paths.length === 0) return
+      try {
+        const res = await withBusyFeedback(
+          'delete',
+          'Deleting from Recycle Bin…',
+          paths.length === 1 ? basename(paths[0]!) : `${paths.length} items`,
+          () => call(api.fs.deleteFromRecycleBin({ paths }))
+        )
+        get().notify(
+          res.missing.length > 0
+            ? `Deleted ${res.deleted.length}; ${res.missing.length} missing`
+            : `Permanently deleted ${res.deleted.length} item${res.deleted.length === 1 ? '' : 's'}`
+        )
+        await get().refreshRecycleBinView()
+        updateActiveTab({ selected: [] })
+        set({ selectionAnchor: null, focusedPath: null })
+      } catch (e) {
+        reportOperationError('Delete from Recycle Bin failed', e)
+      }
     },
 
     async addIndexRootAction(path) {

@@ -1,8 +1,8 @@
 # MyFileExplorer
 
-**v0.1.0** — Windows desktop file manager (Electron + React).
+**v0.2.0** — Windows desktop file manager (Electron + React).
 
-A highly functional Explorer-style app: tabs, persisted views, curated context menu, rich previews (including AI image generation metadata when present), standard file operations with progress feedback, optional indexed search, and in-app video preview-strip generation.
+A highly functional Explorer-style app: tabs, persisted views, curated context menu, rich previews (including AI image generation metadata when present), standard file operations with progress/cancel, optional indexed search, drag-out to other apps, and in-app video preview-strip generation.
 
 |          |                                                                                                 |
 | -------- | ----------------------------------------------------------------------------------------------- |
@@ -15,9 +15,9 @@ A highly functional Explorer-style app: tabs, persisted views, curated context m
 - **Tabs & layouts** — session restore; named workspace layouts; per-folder view overrides
 - **Views** — icon sizes through Details; Windows shell icons; image/PSD thumbs; animated video strips from `!VIDTHUMB_CACHE`
 - **Video previews** — context menu can generate missing strips (this folder or all subfolders) or regenerate; 20 frames sampled evenly via bundled ffmpeg
-- **File ops** — cut/copy/paste, DnD, Recycle Bin delete, undo/redo; status-bar progress for lengthy copy/move/delete/trash/video-preview jobs
+- **File ops** — cut/copy/paste, DnD (including **drag-out** to Photoshop / mail / chat), Recycle Bin delete with **in-app Recycle Bin** view (restore / empty), undo/redo; status-bar progress + **Cancel**
 - **Preview** — images (edit in Filerobot), video/audio, PDF, Office-ish text, SafeTensors / A1111 / Comfy metadata when present
-- **Search** — opt-in indexed roots (FTS5) plus honest live-walk fallback with progress
+- **Search** — opt-in indexed roots (FTS5) plus honest live-walk fallback; results use the **normal file view**
 - **Integration** — CLI `--reveal` / `--open` and `mfe://` for “Reveal in MyFileExplorer” from other apps
 
 ## Quick start
@@ -36,7 +36,8 @@ npm run build:win  # Windows installer into dist/
 1. **[PLAN.md](PLAN.md)** — canonical project plan
 2. **[docs/README.md](docs/README.md)** — documentation index
 3. **[docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md)** — build phases
-4. **[CHANGELOG.md](CHANGELOG.md)** — what shipped
+4. **[CHANGELOG.md](CHANGELOG.md)** — full history
+5. **[RELEASE_NOTES.md](RELEASE_NOTES.md)** — v0.2.0 summary
 
 Open **this folder** as the workspace. Everything needed to implement lives here.
 

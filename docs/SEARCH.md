@@ -1,11 +1,13 @@
 # Search & indexing
 
-**Version:** 0.0.0 (spec)
+**Version:** 0.2.0
 
 Two speeds:
 
-1. **Indexed** — folders the user marks; SQLite FTS5 under userData
-2. **Live walk** — anywhere else; slower; progress + cancel required (D15)
+1. **Indexed** — folders the user marks; SQLite under userData (faster when a ready root covers the folder)
+2. **Live walk** — default for anywhere else, and when no index covers the folder; slower; progress + cancel required (D15)
+
+**Index is optional.** Unchecking “indexed” in the toolbar searches the **current folder recursively** via live walk (or via the index only as a speed-up when that folder is under a ready root). Name matching is always case-insensitive **substring** (multi-word = AND), whether indexed or walking — not FTS token-prefix-only.
 
 ---
 
@@ -77,18 +79,20 @@ CREATE VIRTUAL TABLE files_fts USING fts5(
 
 Behavior:
 
-- `indexed`: FTS across all ready roots
-- `folder` + `useIndexIfCovered`: if path is under a ready root, query FTS with path prefix filter; else live walk
+- `indexed`: search all ready roots (substring on `name`); errors clearly if no ready roots — user can uncheck “indexed” to search the current folder without an index
+- `folder` + recursive: if `useIndexIfCovered` and a **ready non-empty** root covers the path, query the index with path prefix; otherwise **live walk** all subfolders (D15)
+- Name match: case-insensitive **substring** per whitespace token (AND), or shell **globs** (`*.jpg`, `img_??.png`, bare `.jpg` → `*.jpg`) — same for index and walk
 - Results: `{ path, name, score?, mtimeMs, size }[]` plus `partial: boolean` if cancelled/truncated
 
 ---
 
 ## UI
 
-- Search box submits on Enter; Escape clears focus
-- Results view replaces file pane or shows as overlay list (pick **replace file pane with results list + clear button** for v1)
-- Click result → select in containing folder (navigate tab path to parent, select file)
-- Banner when results came from live walk: “Not indexed — slow search”
+- Search box submits on Enter; Escape clears search (or clears focus when inactive)
+- Results appear in the **normal file view** (same list / details / thumbnails, multi-select, preview pane, drag-drop, context menu) — not a separate results list. Full path is shown under each name while search is active
+- Banner above the file view: result count, Clear/Cancel, and “Not indexed — slow search” when results came from a live walk
+- Double-click / Open a folder navigates there (clears search); opening an image uses search hits as viewer siblings
+- Toolbar view-mode and sort controls apply to search results the same as a folder listing
 
 ---
 
@@ -96,4 +100,4 @@ Behavior:
 
 - Content-inside-file full text (only names/paths)
 - Everything-on-all-drives automatic indexing
-- Regex engine (simple FTS / substring sufficient)
+- Regex engine (simple substring + `*` / `?` globs sufficient)

@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** 0.0.0 (spec)
+**Version:** 0.2.0
 
 Standalone Electron + React desktop app. Clear process boundaries; **no Node APIs in the renderer**.
 
@@ -74,7 +74,7 @@ Custom protocol (e.g. `mfe-media://`) serves:
 
 ## Folder watching
 
-Main watches the **active tab’s directory** (and optionally expanded tree nodes) via `fs.watch` / `chokidar`-style debounce. Broadcast `fs-changed` events so the renderer refreshes listings without full app reload. Mute briefly after in-app mutations to avoid selection jumps.
+Main watches the **active tab’s directory** and its **parent** via `fs.watch` (debounced). Broadcast `fs-changed` so the renderer soft-refreshes the listing and reloads that folder’s children in the tree. Mute briefly after in-app mutations to avoid selection jumps. **Refresh (F5)** always reloads the listing and every tree folder already loaded for the tab.
 
 ---
 
@@ -97,7 +97,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 - Directory list: cancel/supersede stale requests when path changes quickly.
 - Search: single active query per window; cancel previous.
 - Indexer: background queue; one writer; progress events.
-- File ops / video-preview generation: throttled `op-progress` events to the status bar (D28).
+- File ops / video-preview generation: throttled `op-progress` events to the status bar (D28); renderer 1 s busy fallback when main is still silent.
 - File ops: serialize destructive ops that touch the same path.
 
 ---

@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.1.0 implemented** — Phases 0–9 of [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) are built and passing `npm run check`. See [CHANGELOG.md](CHANGELOG.md) for what shipped.
+Status: **v0.2.0** — Phases 0–9 shipped; post-0.1 reliability and Explorer-replacement polish (search-as-file-view, OS drag-out, Recycle Bin, progress/cancel). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -47,6 +47,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/INTEGRATION.md](docs/INTEGRATION.md)                 | CLI / `mfe://` from other apps |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
+| [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
 ## Immediate next work
 

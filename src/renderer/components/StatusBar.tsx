@@ -2,6 +2,9 @@ import { useMemo, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { formatBytes } from '../lib/format'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { searchResultsToEntries } from '../lib/searchEntries'
+import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
+import { api } from '../lib/ipc'
 
 function fileOpTitle(kind: string, label?: string): string {
   if (label) return label.replace(/…$/, '')
@@ -27,10 +30,12 @@ export function StatusBar(): JSX.Element {
   const selected = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.selected ?? [])
   const notice = useAppStore((s) => s.notice)
   const search = useAppStore((s) => s.search)
+  const recycleBin = useAppStore((s) => s.recycleBin)
   const indexProgress = useAppStore((s) => s.indexProgress)
   const indexRoots = useAppStore((s) => s.indexRoots)
   const settings = useAppStore((s) => s.settings)
   const fileOp = useAppStore((s) => s.fileOp)
+  const notify = useAppStore((s) => s.notify)
 
   const hiddenCount = useMemo(() => {
     let hidden = 0
@@ -45,55 +50,105 @@ export function StatusBar(): JSX.Element {
   const selectionSize = useMemo(() => {
     if (selected.length === 0) return 0
     const sel = new Set(selected.map((p) => p.toLowerCase()))
+    const pool = recycleBin.active
+      ? recycleBinItemsToEntries(recycleBin.items)
+      : search.active
+        ? searchResultsToEntries(search.results)
+        : listing.entries
     let total = 0
-    for (const e of listing.entries) {
+    for (const e of pool) {
       if (e.kind !== 'dir' && sel.has(e.path.toLowerCase())) total += e.size
     }
     return total
-  }, [selected, listing.entries])
+  }, [
+    selected,
+    listing.entries,
+    search.active,
+    search.results,
+    recycleBin.active,
+    recycleBin.items
+  ])
 
   const indexingRoot = indexRoots.find((r) => r.status === 'indexing')
 
-  const opPct =
-    fileOp && fileOp.total > 0
-      ? Math.min(100, Math.round((fileOp.done / fileOp.total) * 100))
-      : fileOp
-        ? 0
-        : null
+  const hasBytes =
+    fileOp != null &&
+    fileOp.bytesTotal != null &&
+    fileOp.bytesTotal > 0 &&
+    fileOp.bytesDone != null
+  const indeterminate =
+    !!fileOp && (fileOp.total <= 0 || (fileOp.done === 0 && !hasBytes))
+  const opPct = !fileOp
+    ? null
+    : hasBytes
+      ? Math.min(100, Math.round((fileOp.bytesDone! / fileOp.bytesTotal!) * 100))
+      : fileOp.total > 0
+        ? Math.min(100, Math.round((fileOp.done / fileOp.total) * 100))
+        : 0
+
+  const opCounts =
+    fileOp == null
+      ? ''
+      : fileOp.total > 0
+        ? `${Math.min(fileOp.done, fileOp.total)} of ${fileOp.total}`
+        : '…'
+
+  let opCurrent = ''
+  if (fileOp?.current) opCurrent = fileOp.current
+  if (fileOp && hasBytes && fileOp.bytesTotal! > 0) {
+    opCurrent =
+      (opCurrent ? `${opCurrent} · ` : '') +
+      `${formatBytes(fileOp.bytesDone!)} / ${formatBytes(fileOp.bytesTotal!)}`
+  }
+
+  const itemCountLabel = recycleBin.active
+    ? recycleBin.loading
+      ? 'Loading Recycle Bin…'
+      : `${recycleBin.items.length} item${recycleBin.items.length === 1 ? '' : 's'} in Recycle Bin`
+    : search.active
+      ? `${search.results.length} search result${search.results.length === 1 ? '' : 's'}`
+      : listing.loading
+        ? 'Loading…'
+        : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}`
 
   return (
     <div className="statusbar">
       {fileOp ? (
         <div className="status-op" role="status" aria-live="polite">
-          <span className="status-op-label">
-            {fileOpTitle(fileOp.kind, fileOp.label)}
-            {fileOp.total > 0
-              ? ` ${Math.min(fileOp.done, fileOp.total)} of ${fileOp.total}`
-              : '…'}
-            {fileOp.current ? ` — ${fileOp.current}` : ''}
-          </span>
           <div
             className="status-op-track"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={opPct ?? 0}
+            aria-valuenow={indeterminate ? undefined : (opPct ?? 0)}
             aria-label={fileOpTitle(fileOp.kind, fileOp.label)}
           >
             <div
-              className={`status-op-fill${fileOp.total <= 0 ? ' indeterminate' : ''}`}
-              style={fileOp.total > 0 ? { width: `${opPct}%` } : undefined}
+              className={`status-op-fill${indeterminate ? ' indeterminate' : ''}`}
+              style={!indeterminate ? { width: `${opPct}%` } : undefined}
             />
           </div>
+          <span className="status-op-title">{fileOpTitle(fileOp.kind, fileOp.label)}</span>
+          {opCounts ? <span className="status-op-counts">{opCounts}</span> : null}
+          {opCurrent ? (
+            <span className="status-op-current" title={opCurrent}>
+              {opCurrent}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="status-op-cancel"
+            onClick={() => {
+              void api.fs.cancelOp().then((res) => {
+                if (res.ok && res.value.cancelled) notify('Cancelling…')
+              })
+            }}
+          >
+            Cancel
+          </button>
         </div>
-      ) : search.active ? (
-        <span>{search.results.length} search results</span>
       ) : (
-        <span>
-          {listing.loading
-            ? 'Loading…'
-            : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}`}
-        </span>
+        <span>{itemCountLabel}</span>
       )}
       {!fileOp && selected.length > 0 && (
         <span>

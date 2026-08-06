@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import { Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { shell } from 'electron'
 import { AppError } from '@shared/result'
 import type {
@@ -13,8 +15,8 @@ import type {
 } from '@shared/schemas/fs'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
-import { recyclePathsWin32 } from './trashWin32'
-import { muteWatchers, releaseWatchersForTree } from './watch'
+import { recyclePathWin32Robust } from './trashWin32'
+import { muteWatchers, releaseWatchersAffecting, suspendWatching, resumeWatching } from './watch'
 import { appErrorFromFsFailure } from './fsErrors'
 import { beginOp, type OpReporter } from './opProgress'
 
@@ -65,14 +67,23 @@ export async function renameEntry(p: string, newName: string): Promise<{ path: s
   }
 
   // Drop our own directory watches on this tree — they hold the folder open.
-  releaseWatchersForTree(source)
-  muteWatchers(600)
+  releaseWatchersAffecting([source])
+  muteWatchers(400)
 
+  const progress = beginOp('relocate', 1, 'Renaming…')
+  const name = path.basename(source)
+  progress.pulse(name)
+  const heartbeat = setInterval(() => progress.pulse(name), 500)
   try {
     await fsp.rename(source, target)
+    progress.tick(path.basename(target))
+    progress.finish()
     return { path: target }
   } catch (e) {
+    progress.fail()
     throw await appErrorFromFsFailure(e, { action: 'rename', path: source, isDir })
+  } finally {
+    clearInterval(heartbeat)
   }
 }
 
@@ -109,7 +120,8 @@ async function readConflictSide(filePath: string): Promise<ConflictSide> {
   if (kind === 'file' && IMAGE_DIM_EXTS.has(ext)) {
     try {
       const { default: sharp } = await import('sharp')
-      const meta = await sharp(p, {
+      const bytes = await fsp.readFile(p)
+      const meta = await sharp(bytes, {
         failOn: 'none',
         limitInputPixels: 512 * 1024 * 1024
       }).metadata()
@@ -226,11 +238,54 @@ async function countWorkUnits(roots: string[]): Promise<number> {
   return Math.max(n, 1)
 }
 
+/** Stream copies for files at/above this size so the status bar can show bytes. */
+const LARGE_FILE_COPY_BYTES = 8 * 1024 * 1024
+
+async function copyFileWithProgress(
+  source: string,
+  target: string,
+  size: number,
+  progress: OpReporter | null,
+  displayName: string
+): Promise<void> {
+  progress?.throwIfCancelled()
+  if (!progress || size < LARGE_FILE_COPY_BYTES) {
+    await fsp.copyFile(source, target)
+    progress?.tick(displayName)
+    return
+  }
+
+  progress.reportBytes(0, size, displayName)
+  let copied = 0
+  const counter = new Transform({
+    transform(chunk, _enc, cb) {
+      try {
+        progress.throwIfCancelled()
+      } catch (e) {
+        cb(e instanceof Error ? e : new Error(String(e)))
+        return
+      }
+      copied += (chunk as Buffer).length
+      progress.reportBytes(copied, size, displayName)
+      cb(null, chunk)
+    }
+  })
+  try {
+    await pipeline(fs.createReadStream(source), counter, fs.createWriteStream(target))
+  } catch (e) {
+    await fsp.rm(target, { force: true }).catch(() => undefined)
+    if (e instanceof AppError && e.code === 'cancelled') throw e
+    throw e
+  }
+  progress.tick(displayName)
+}
+
 async function copyTree(
   source: string,
   target: string,
   progress: OpReporter | null
 ): Promise<void> {
+  progress?.throwIfCancelled()
   let st: fs.Stats
   try {
     st = await fsp.lstat(source)
@@ -251,30 +306,32 @@ async function copyTree(
       return
     }
     for (const name of ents) {
+      progress?.throwIfCancelled()
       await copyTree(path.join(source, name), path.join(target, name), progress)
     }
     return
   }
 
-  // Symlinks / files: copy bytes (follow for non-symlink via copyFile).
   try {
     if (st.isSymbolicLink()) {
       const link = await fsp.readlink(source)
       try {
         await fsp.symlink(link, target)
       } catch {
-        await fsp.copyFile(source, target)
+        await copyFileWithProgress(source, target, st.size, progress, path.basename(source))
+        return
       }
+      progress?.tick(path.basename(source))
     } else {
-      await fsp.copyFile(source, target)
+      await copyFileWithProgress(source, target, st.size, progress, path.basename(source))
     }
-    progress?.tick(path.basename(source))
   } catch (e) {
     throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })
   }
 }
 
 async function deleteTree(target: string, progress: OpReporter | null): Promise<void> {
+  progress?.throwIfCancelled()
   let st: fs.Stats
   try {
     st = await fsp.lstat(target)
@@ -290,6 +347,7 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
       throw await appErrorFromFsFailure(e, { action: 'delete', path: target, isDir: true })
     }
     for (const name of ents) {
+      progress?.throwIfCancelled()
       await deleteTree(path.join(target, name), progress)
     }
     try {
@@ -302,6 +360,7 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
   }
 
   try {
+    progress?.pulse(path.basename(target))
     await fsp.unlink(target)
     progress?.tick(path.basename(target))
   } catch (e) {
@@ -327,6 +386,7 @@ export async function copyEntries(
   const progress = beginOp('copy', total, 'Copying…')
   try {
     for (const item of plan) {
+      progress.throwIfCancelled()
       if ('skip' in item) continue
       let isDir = false
       try {
@@ -360,6 +420,7 @@ async function relocateOne(
   progress: OpReporter | null,
   units: number
 ): Promise<void> {
+  progress?.throwIfCancelled()
   if (source === target) {
     progress?.advance(units, path.basename(source))
     return
@@ -376,20 +437,31 @@ async function relocateOne(
   } catch {
     /* ignore */
   }
-  releaseWatchersForTree(source)
-  muteWatchers(600)
+  // Close watches on the item and ancestors (parent listing watch blocks rename).
+  releaseWatchersAffecting([source])
+  muteWatchers(400)
+  const name = path.basename(source)
+  progress?.pulse(name)
+  // Heartbeat only for long same-volume renames (cloud / network volumes).
+  const heartbeat = progress
+    ? setInterval(() => progress.pulse(name), 500)
+    : null
   try {
-    await fsp.rename(source, target)
-    // Same-volume rename is atomic — jump progress by this root's work units.
-    progress?.advance(units, path.basename(target))
-  } catch (e) {
-    const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
-    if (code === 'EXDEV') {
-      await copyTree(source, target, progress)
-      await deleteTree(source, null)
-    } else {
-      throw await appErrorFromFsFailure(e, { action: 'move', path: source, isDir })
+    try {
+      await fsp.rename(source, target)
+      // Same-volume rename is atomic — jump by this root's work units.
+      progress?.advance(units, path.basename(target))
+    } catch (e) {
+      const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
+      if (code === 'EXDEV') {
+        await copyTree(source, target, progress)
+        await deleteTree(source, null)
+      } else {
+        throw await appErrorFromFsFailure(e, { action: 'move', path: source, isDir })
+      }
     }
+  } finally {
+    if (heartbeat) clearInterval(heartbeat)
   }
 }
 
@@ -398,31 +470,28 @@ export async function relocateEntries(
   pairs: { from: string; to: string }[]
 ): Promise<{ moved: string[] }> {
   const moved: string[] = []
-  const unitsBySource = new Map<string, number>()
-  let total = 0
-  for (const pair of pairs) {
-    const source = requireAbsolute(pair.from)
-    const u = await countWorkUnits([source])
-    unitsBySource.set(source.toLowerCase(), u)
-    total += u
-  }
-  const progress = beginOp('relocate', total, 'Moving…')
+  // Same-volume moves are one rename per root — don't pre-walk trees for progress.
+  const progress = beginOp('relocate', Math.max(pairs.length, 1), 'Moving…')
+  suspendWatching()
+  muteWatchers(1500)
   try {
     for (const pair of pairs) {
+      progress.throwIfCancelled()
       const source = requireAbsolute(pair.from)
       const target = requireAbsolute(pair.to)
       if (!(await pathExists(source))) {
         throw new AppError('not-found', `Not found: ${source}`)
       }
       assertTransferLegal(source, path.dirname(target))
-      const units = unitsBySource.get(source.toLowerCase()) ?? 1
-      await relocateOne(source, target, progress, units)
+      await relocateOne(source, target, progress, 1)
       moved.push(target)
     }
     progress.finish()
   } catch (e) {
     progress.fail()
     throw e
+  } finally {
+    resumeWatching()
   }
   return { moved }
 }
@@ -436,28 +505,25 @@ export async function moveEntries(
   const moved: string[] = []
   const moves: { from: string; to: string }[] = []
   const skipped: string[] = []
-  const workSources: string[] = []
+  let workCount = 0
   for (const item of plan) {
     if ('skip' in item) skipped.push(item.skip)
-    else workSources.push(item.source)
+    else workCount++
   }
 
-  const unitsBySource = new Map<string, number>()
-  let total = 0
-  for (const s of workSources) {
-    const u = await countWorkUnits([s])
-    unitsBySource.set(s.toLowerCase(), u)
-    total += u
-  }
-  const progress = beginOp('move', total, 'Moving…')
+  // One progress unit per top-level item. Same-volume rename is atomic — walking
+  // every file first made big folder moves feel multi-second before anything moved.
+  const progress = beginOp('move', Math.max(workCount, 1), 'Moving…')
+  suspendWatching()
+  muteWatchers(1500)
   try {
     for (const item of plan) {
+      progress.throwIfCancelled()
       if ('skip' in item) continue
       if (policy === 'replace' && (await pathExists(item.target))) {
         await fsp.rm(item.target, { recursive: true, force: true })
       }
-      const units = unitsBySource.get(item.source.toLowerCase()) ?? 1
-      await relocateOne(item.source, item.target, progress, units)
+      await relocateOne(item.source, item.target, progress, 1)
       moved.push(item.target)
       moves.push({ from: item.source, to: item.target })
     }
@@ -465,6 +531,8 @@ export async function moveEntries(
   } catch (e) {
     progress.fail()
     throw e
+  } finally {
+    resumeWatching()
   }
   return { moved, moves, skipped }
 }
@@ -475,23 +543,40 @@ export async function trashEntries(paths: string[]): Promise<{ trashed: string[]
     const p = requireAbsolute(raw)
     if (!(await pathExists(p))) throw new AppError('not-found', `Not found: ${p}`)
     absolute.push(p)
-    releaseWatchersForTree(p)
   }
-  muteWatchers(600)
+
+  // Suspend watching so loadListing cannot re-open ReadDirectoryChanges mid-recycle.
+  suspendWatching()
+  muteWatchers(1500)
 
   const progress = beginOp('trash', absolute.length, 'Moving to Recycle Bin…')
   try {
-    // Windows: SHFileOperation + FOF_ALLOWUNDO → real Recycle Bin (D7 / product spec).
-    // Process one-at-a-time so the status bar can show determinate progress.
     if (process.platform === 'win32') {
       for (const p of absolute) {
-        recyclePathsWin32([p])
-        progress.tick(path.basename(p))
+        progress.throwIfCancelled()
+        const name = path.basename(p)
+        progress.pulse(name)
+        try {
+          await recyclePathWin32Robust(p)
+        } catch (e) {
+          if (e instanceof AppError && e.code === 'validation') throw e
+          // One quick retry only if the file is still there (no multi-second waits).
+          if (!fs.existsSync(p)) {
+            progress.tick(name)
+            continue
+          }
+          await new Promise<void>((r) => setTimeout(r, 40))
+          await recyclePathWin32Robust(p)
+        }
+        progress.tick(name)
       }
     } else {
       for (const p of absolute) {
+        progress.throwIfCancelled()
+        const name = path.basename(p)
+        progress.pulse(name)
         await shell.trashItem(p)
-        progress.tick(path.basename(p))
+        progress.tick(name)
       }
     }
     progress.finish()
@@ -505,7 +590,10 @@ export async function trashEntries(paths: string[]): Promise<{ trashed: string[]
     } catch {
       /* ignore */
     }
+    // appErrorFromFsFailure only claims “locked” when Restart Manager finds lockers.
     throw await appErrorFromFsFailure(e, { action: 'delete', path: stuck, isDir })
+  } finally {
+    resumeWatching()
   }
   return { trashed: absolute }
 }
@@ -520,13 +608,14 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
   const deleted: string[] = []
   try {
     for (const p of absolute) {
+      progress.throwIfCancelled()
       let isDir = false
       try {
         isDir = (await fsp.stat(p)).isDirectory()
       } catch {
         /* ignore */
       }
-      releaseWatchersForTree(p)
+      releaseWatchersAffecting([p])
       muteWatchers(600)
       try {
         await deleteTree(p, progress)

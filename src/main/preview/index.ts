@@ -14,6 +14,7 @@ import { pptxToHtml, pptToHtml } from './powerpoint'
 import { rtfToHtml } from './rtf'
 import { rasterizePsd } from './psd'
 import { buildSafetensorsPreviewFields } from './safetensors'
+import { lnkDetailsToFields, readLnkDetails } from './lnk'
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -250,6 +251,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildPsdPreview(file, fields, warnings)
     } else if (SAFETENSORS_EXTS.has(ext)) {
       model = await buildSafetensorsPreview(file, fields, warnings)
+    } else if (ext === 'lnk') {
+      model = await buildShortcutPreview(file, fields, warnings)
     } else {
       // CSV stays as spreadsheet when small-enough to parse as workbook, else text.
       if (ext === 'csv') {
@@ -283,7 +286,9 @@ async function buildImagePreview(
 
   try {
     const { default: sharp } = await import('sharp')
-    const meta = await sharp(file).metadata()
+    // Read then close — sharp(path) can keep a Win32 handle on some builds.
+    const bytes = await fsp.readFile(file)
+    const meta = await sharp(bytes).metadata()
     if (meta.width && meta.height) {
       fields.push({
         id: 'image.dimensions',
@@ -591,6 +596,40 @@ async function buildRtfPreview(
   } catch (e) {
     warnings.push(e instanceof Error ? e.message : 'Could not parse RTF')
     return { path: file, kind: 'binary', fields, warnings }
+  }
+}
+
+async function buildShortcutPreview(
+  file: string,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = { id: 'file.type', label: 'Type', value: 'Shortcut', group: 'file' }
+  }
+  try {
+    const details = await readLnkDetails(file)
+    fields.push(...lnkDetailsToFields(details))
+    const subtitle = details.targetPath
+      ? `Shortcut → ${path.basename(details.targetPath) || details.targetPath}`
+      : 'Shortcut'
+    return {
+      path: file,
+      kind: 'shortcut',
+      subtitle,
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not read shortcut')
+    return {
+      path: file,
+      kind: 'shortcut',
+      subtitle: 'Shortcut',
+      fields,
+      warnings
+    }
   }
 }
 

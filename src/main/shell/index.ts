@@ -86,3 +86,5 @@ export function clipboardReadFiles(): { paths: string[] } {
   }
   return { paths: [] }
 }
+
+export { startOsFileDrag } from './startDrag'

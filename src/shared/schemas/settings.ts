@@ -8,6 +8,7 @@ import {
   VID_THUMB_FRAME_MS_MAX,
   VID_THUMB_FRAME_MS_MIN
 } from '../vidThumbCache'
+import { normalizeHideNameExtensions } from '../hideNameExtensions'
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
@@ -101,6 +102,14 @@ export const settingsSchema = z.object({
     .catch(['node_modules', '.git', '.hg', '.svn', 'Thumbs.db']),
   viewFilterEnabled: z.boolean().catch(true),
   viewFilterPatterns: z.array(z.string()).catch([]),
+  /**
+   * Extensions whose “.ext” is omitted from file-view / search labels (display only).
+   * Values without a leading dot, e.g. `lnk`. Default includes `lnk`.
+   */
+  hideNameExtensions: z.preprocess((raw) => {
+    if (raw === undefined || raw === null) return ['lnk']
+    return normalizeHideNameExtensions(raw)
+  }, z.array(z.string()).catch(['lnk'])),
   detailsNameWidth: z.number().int().min(120).max(1600).catch(320),
   detailsColumns: z.preprocess(
     sanitizeDetailsColumns,
@@ -174,6 +183,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   viewFilterEnabled: true,
   viewFilterPatterns: [],
+  hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,
   folderViews: [] satisfies FolderView[],

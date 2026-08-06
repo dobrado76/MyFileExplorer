@@ -2,6 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'rea
 import { useAppStore, dropOperation } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { samePath, isUnderPath, basename, segmentsOf } from '../lib/paths'
+import {
+  beginRightDragGesture,
+  findDropDirAt,
+  getLiveRightDragSession,
+  isValidDropDest,
+  isVolumeRootPath,
+  shouldSuppressContextMenu
+} from '../lib/rightDrag'
+import { startOsFileDragFromDragStart } from '../lib/osFileDrag'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
@@ -58,8 +67,10 @@ export function FolderTree(): JSX.Element {
   const navigate = useAppStore((s) => s.navigate)
   const performTransfer = useAppStore((s) => s.performTransfer)
   const dragPaths = useAppStore((s) => s.dragPaths)
+  const setDragPaths = useAppStore((s) => s.setDragPaths)
   const openContextMenu = useAppStore((s) => s.openContextMenu)
   const treeMutation = useAppStore((s) => s.treeMutation)
+  const treeRefreshRev = useAppStore((s) => s.treeRefreshRev)
   const pinQuickAccess = useAppStore((s) => s.pinQuickAccess)
   const renamingPath = useAppStore((s) => s.renamingPath)
   const renameSource = useAppStore((s) => s.renameSource)
@@ -105,11 +116,24 @@ export function FolderTree(): JSX.Element {
   )
 
   const loadChildren = useCallback(
-    async (path: string, tabId = activeTabId): Promise<string[]> => {
-      setNodes((n) => ({
-        ...n,
-        [path]: { expanded: true, children: n[path]?.children ?? null, loading: true }
-      }), tabId)
+    async (
+      path: string,
+      tabId = activeTabId,
+      opts?: { preserveExpanded?: boolean }
+    ): Promise<string[]> => {
+      const preserve = opts?.preserveExpanded === true
+      setNodes((n) => {
+        const prev = n[path]
+        return {
+          ...n,
+          [path]: {
+            expanded: preserve ? (prev?.expanded ?? false) : true,
+            children: prev?.children ?? null,
+            loading: true,
+            childHidden: prev?.childHidden
+          }
+        }
+      }, tabId)
       try {
         const res = await call(api.fs.list({ path, includeHidden: true }))
         const dirEntries = res.entries
@@ -123,19 +147,35 @@ export function FolderTree(): JSX.Element {
           if (e.isHidden) childHidden[e.path.toLowerCase()] = true
         }
         setNodes(
-          (n) => ({
-            ...n,
-            [path]: { expanded: true, children: dirs, loading: false, childHidden }
-          }),
+          (n) => {
+            const prev = n[path]
+            return {
+              ...n,
+              [path]: {
+                expanded: preserve ? (prev?.expanded ?? false) : true,
+                children: dirs,
+                loading: false,
+                childHidden
+              }
+            }
+          },
           tabId
         )
         return dirs
       } catch {
         setNodes(
-          (n) => ({
-            ...n,
-            [path]: { expanded: true, children: [], loading: false, childHidden: {} }
-          }),
+          (n) => {
+            const prev = n[path]
+            return {
+              ...n,
+              [path]: {
+                expanded: preserve ? (prev?.expanded ?? false) : true,
+                children: [],
+                loading: false,
+                childHidden: {}
+              }
+            }
+          },
           tabId
         )
         return []
@@ -176,6 +216,23 @@ export function FolderTree(): JSX.Element {
   // Clear the drop highlight when the drag ends anywhere (incl. cancelled).
   useEffect(() => {
     if (dragPaths.length === 0) setDropTarget(null)
+  }, [dragPaths])
+
+  // Right-button drag (custom) does not fire HTML5 dragover — highlight tree targets manually.
+  useEffect(() => {
+    if (dragPaths.length === 0) return
+    const onMove = (e: PointerEvent | MouseEvent): void => {
+      if (!document.body.classList.contains('right-dragging')) return
+      const dest = findDropDirAt(e.clientX, e.clientY)
+      if (dest && isValidDropDest(dragPaths, dest)) setDropTarget(dest)
+      else setDropTarget(null)
+    }
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('mousemove', onMove, true)
+    return () => {
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('mousemove', onMove, true)
+    }
   }, [dragPaths])
 
   // Latest node map for the active tab (async walks).
@@ -240,9 +297,21 @@ export function FolderTree(): JSX.Element {
     }
     const tabId = activeTabIdRef.current
     for (const parent of treeMutation.reloadParents) {
-      void loadChildren(parent, tabId)
+      void loadChildren(parent, tabId, { preserveExpanded: true })
     }
   }, [treeMutation.rev, treeMutation.removed, treeMutation.reloadParents, loadChildren])
+
+  // Refresh (F5): re-list every folder this tab has already loaded in the tree.
+  useEffect(() => {
+    if (treeRefreshRev === 0) return
+    const tabId = activeTabIdRef.current
+    const map = nodesRef.current
+    for (const [path, node] of Object.entries(map)) {
+      if (node.children !== null || node.loading) {
+        void loadChildren(path, tabId, { preserveExpanded: true })
+      }
+    }
+  }, [treeRefreshRev, loadChildren])
 
   // Scoped tabs open with the root folder expanded (this tab only).
   useEffect(() => {
@@ -344,11 +413,14 @@ export function FolderTree(): JSX.Element {
       }) ?? null
     // Explorer: keep the chevron until we know there are no subfolders; hide once listed empty.
     const showTwisty = visibleChildren === null || visibleChildren.length > 0
+    const canDrag = !renaming && !isVolumeRootPath(path)
     return (
       <div key={`${section}:${path}`}>
         <div
           className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${dropTarget === path ? ' drop-target' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
+          data-drop-dir={path}
+          draggable={canDrag}
           onClick={() => {
             setTreeFocusPath(path)
             treeRef.current?.focus()
@@ -357,10 +429,58 @@ export function FolderTree(): JSX.Element {
           onDoubleClick={() => {
             if (showTwisty) toggle(path)
           }}
+          onPointerDown={(e) => {
+            if (e.button !== 2 || !canDrag) return
+            e.preventDefault()
+            e.stopPropagation()
+            setTreeFocusPath(path)
+            beginRightDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
+              ghostLabel: label,
+              onActivated: (paths) => setDragPaths(paths),
+              onHighlight: (dest) => setDropTarget(dest),
+              onFinish: ({ active, paths, clientX, clientY, dest }) => {
+                setDragPaths([])
+                if (!active) {
+                  openContextMenu({
+                    x: clientX,
+                    y: clientY,
+                    paths,
+                    inTree: true
+                  })
+                  return
+                }
+                if (dest) {
+                  openContextMenu({
+                    x: clientX,
+                    y: clientY,
+                    paths,
+                    dropTransfer: { destDir: dest }
+                  })
+                }
+              },
+              onCancel: () => setDragPaths([])
+            })
+          }}
           onContextMenu={(e) => {
             e.preventDefault()
+            // Right-drag owns the menu (opened from pointerup).
+            if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
             setTreeFocusPath(path)
             openContextMenu({ x: e.clientX, y: e.clientY, paths: [path], inTree: true })
+          }}
+          onDragStart={(e) => {
+            if (!canDrag) {
+              e.preventDefault()
+              return
+            }
+            setTreeFocusPath(path)
+            setDragPaths([path])
+            e.preventDefault()
+            startOsFileDragFromDragStart([path])
+          }}
+          onDragEnd={() => {
+            setDragPaths([])
+            setDropTarget(null)
           }}
           onDragOver={(e) => {
             if (

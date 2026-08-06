@@ -4,7 +4,8 @@ import { TabBar } from '../components/TabBar'
 import { Toolbar } from '../components/Toolbar'
 import { FolderTree } from '../components/FolderTree'
 import { FileView } from '../components/FileView'
-import { SearchResults } from '../components/SearchResults'
+import { SearchBanner } from '../components/SearchBanner'
+import { RecycleBinBanner } from '../components/RecycleBinBanner'
 import { PreviewPane } from '../components/PreviewPane'
 import { StatusBar } from '../components/StatusBar'
 import { ContextMenu } from '../components/ContextMenu'
@@ -62,7 +63,6 @@ function clipboardActionPaths(s: ReturnType<typeof useAppStore.getState>, target
 export function ExplorerShell(): JSX.Element {
   const splitters = useAppStore((s) => s.splitters)
   const setSplitters = useAppStore((s) => s.setSplitters)
-  const searchActive = useAppStore((s) => s.search.active)
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
   const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
 
@@ -103,11 +103,16 @@ export function ExplorerShell(): JSX.Element {
       void s.goForward()
     } else if (key === 'Backspace') {
       e.preventDefault()
+      if (s.recycleBin.active) {
+        s.closeRecycleBinView()
+        return
+      }
       void s.goUp()
     } else if (key === 'F5') {
       e.preventDefault()
       void s.refresh()
     } else if (key === 'F2') {
+      if (s.recycleBin.active) return
       e.preventDefault()
       const inTree =
         e.target instanceof Element && !!e.target.closest('.tree, .pane-tree')
@@ -128,9 +133,11 @@ export function ExplorerShell(): JSX.Element {
       s.copySelection(clipboardActionPaths(s, e.target))
     } else if (ctrl && !alt && key.toLowerCase() === 'x') {
       if (hasTextSelection()) return
+      if (s.recycleBin.active) return
       e.preventDefault()
       s.cutSelection(clipboardActionPaths(s, e.target))
     } else if (ctrl && !alt && key.toLowerCase() === 'v') {
+      if (s.recycleBin.active) return
       e.preventDefault()
       void s.paste()
     } else if (ctrl && key.toLowerCase() === 'a') {
@@ -161,8 +168,16 @@ export function ExplorerShell(): JSX.Element {
       const sel = s.activeTab().selected
       if (sel.length >= 1) {
         e.preventDefault()
+        if (s.recycleBin.active) {
+          void s.restoreFromRecycleBinView(sel)
+          return
+        }
+        const pool = s.search.active
+          ? // search entries resolved in FileView; use listing fallback for open
+            s.listing.entries
+          : s.listing.entries
         const selectedEntries = sel
-          .map((p) => s.listing.entries.find((en) => en.path.toLowerCase() === p.toLowerCase()))
+          .map((p) => pool.find((en) => en.path.toLowerCase() === p.toLowerCase()))
           .filter((en): en is NonNullable<typeof en> => !!en)
         const imagePaths = selectedEntries
           .filter((en) => en.kind === 'file' && isImageExt(en.ext))
@@ -175,6 +190,7 @@ export function ExplorerShell(): JSX.Element {
       }
     } else if (key === 'Escape') {
       if (s.imageViewer) s.closeImageViewer()
+      else if (s.recycleBin.active) s.closeRecycleBinView()
       else if (s.search.active) s.clearSearch()
       else s.setSelection([], null, null)
     }
@@ -208,7 +224,11 @@ export function ExplorerShell(): JSX.Element {
             />
           </>
         )}
-        <div className="pane-files">{searchActive ? <SearchResults /> : <FileView />}</div>
+        <div className="pane-files">
+          <RecycleBinBanner />
+          <SearchBanner />
+          <FileView />
+        </div>
         {!splitters.previewCollapsed && (
           <>
             <Splitter

@@ -112,7 +112,7 @@ export function Toolbar(): JSX.Element {
         <input
           ref={searchInputRef}
           data-search-input
-          placeholder="Search"
+          placeholder="Search..."
           value={search.query}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -125,7 +125,7 @@ export function Toolbar(): JSX.Element {
           }}
           aria-label="Search"
         />
-        <label title="Search all indexed roots instead of the current folder">
+        <label title="Search only indexed roots (optional). Leave unchecked to search the current folder and all subfolders — index not required.">
           <input
             type="checkbox"
             checked={search.indexedOnly}

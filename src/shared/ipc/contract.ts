@@ -12,6 +12,10 @@ export const IPC = {
   fsTrash: 'fs:trash',
   fsDeletePermanent: 'fs:deletePermanent',
   fsRestoreFromTrash: 'fs:restoreFromTrash',
+  fsListRecycleBin: 'fs:listRecycleBin',
+  fsEmptyRecycleBin: 'fs:emptyRecycleBin',
+  fsDeleteFromRecycleBin: 'fs:deleteFromRecycleBin',
+  fsCancelOp: 'fs:cancelOp',
   fsExists: 'fs:exists',
   fsWatch: 'fs:watch',
   fsUnwatch: 'fs:unwatch',
@@ -32,6 +36,8 @@ export const IPC = {
   shellOpenRecycleBin: 'shell:openRecycleBin',
   shellClipboardWriteFiles: 'shell:clipboardWriteFiles',
   shellClipboardReadFiles: 'shell:clipboardReadFiles',
+  /** Sync: webContents.startDrag — must run during an active drag gesture. */
+  shellStartDrag: 'shell:startDrag',
 
   sessionGet: 'session:get',
   sessionSet: 'session:set',
@@ -89,6 +95,9 @@ export type MfeEvent =
         current?: string
         /** Human label e.g. "Copying…". */
         label?: string
+        /** Optional byte progress within the current large file. */
+        bytesDone?: number
+        bytesTotal?: number
         phase: 'running' | 'done'
       }
     }

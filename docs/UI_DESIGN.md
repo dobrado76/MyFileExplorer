@@ -1,6 +1,6 @@
 # UI design
 
-**Version:** 0.0.0 (spec)
+**Version:** 0.2.0
 
 Dark-first workbench aesthetic; light and custom themes via CSS variables. This is a **tool**, not a marketing site.
 
@@ -26,7 +26,7 @@ Custom theme = user-editable map of these tokens in settings.
 1. **Tab bar** — strip with overflow; drag reorder; double-click title to rename; `×` close; `+` new tab
 2. **Toolbar** — Back, Forward, Up, breadcrumb (flex), Search
 3. **Body** — Tree | Files | Preview (splitters)
-4. **Status bar** — item count, selected count; during copy/move/delete/trash/video-preview generation a determinate progress bar (`op-progress`) with current file name
+4. **Status bar** — item count, selected count; during copy/move/rename/delete/trash/video-preview (and any FS wait >1 s) a progress bar (`op-progress`) — determinate when advancing, indeterminate otherwise — with current file name
 
 ### Splitters
 

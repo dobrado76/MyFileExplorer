@@ -8,13 +8,8 @@ import type {
 } from '@shared/schemas/search'
 import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { settingsStore } from '../settings/store'
-import { searchDb, isFtsAvailable } from './db'
-import {
-  buildFtsMatchExpression,
-  buildLikeContains,
-  buildPathPrefixLike,
-  nameMatches
-} from './queryBuilder'
+import { searchDb } from './db'
+import { buildNameLikeParams, buildPathPrefixLike, nameMatches, queryTokens } from './queryBuilder'
 import { liveWalkSearch, type CancelToken } from './liveWalk'
 import {
   listIndexRoots,
@@ -50,53 +45,76 @@ function rowsToItems(rows: FileRow[]): SearchResultItem[] {
   }))
 }
 
+/**
+ * Substring name search against the SQLite index (same semantics as live walk).
+ * Uses LIKE per token — not FTS prefix — so “photo” finds MyPhoto.jpg.
+ */
 function queryIndex(
   query: string,
   pathPrefix: string | null,
   limit: number,
   offset: number
 ): SearchResultItem[] {
+  const nameParams = buildNameLikeParams(query)
+  if (nameParams.length === 0) return []
+
   const db = searchDb()
-  if (isFtsAvailable()) {
-    const match = buildFtsMatchExpression(query)
-    if (!match) return []
-    const sql = `
-      SELECT f.path, f.name, f.size, f.mtime_ms, f.is_dir
-      FROM files_fts
-      JOIN files f ON f.id = files_fts.rowid
-      WHERE files_fts MATCH ?
-      ${pathPrefix ? "AND f.path LIKE ? ESCAPE '\\'" : ''}
-      ORDER BY rank
-      LIMIT ? OFFSET ?`
-    const params = pathPrefix
-      ? [match, buildPathPrefixLike(pathPrefix), limit, offset]
-      : [match, limit, offset]
-    return rowsToItems(db.prepare(sql).all(...params) as unknown as FileRow[])
-  }
+  const nameClauses = nameParams.map(() => `name LIKE ? ESCAPE '\\'`).join(' AND ')
   const sql = `
     SELECT path, name, size, mtime_ms, is_dir
     FROM files
-    WHERE name LIKE ? ESCAPE '\\'
+    WHERE ${nameClauses}
     ${pathPrefix ? "AND path LIKE ? ESCAPE '\\'" : ''}
     ORDER BY name
     LIMIT ? OFFSET ?`
-  const params = pathPrefix
-    ? [buildLikeContains(query), buildPathPrefixLike(pathPrefix), limit, offset]
-    : [buildLikeContains(query), limit, offset]
+  const params: (string | number)[] = [...nameParams]
+  if (pathPrefix) params.push(buildPathPrefixLike(pathPrefix))
+  params.push(limit, offset)
   return rowsToItems(db.prepare(sql).all(...params) as unknown as FileRow[])
 }
 
-function readyRootCovering(dirPath: string): string | null {
+function readyRootCovering(dirPath: string): { path: string; fileCount: number } | null {
   for (const root of listIndexRoots()) {
-    if (root.status === 'ready' && isSameOrUnder(dirPath, root.path)) return root.path
+    if (root.status === 'ready' && isSameOrUnder(dirPath, root.path)) {
+      return { path: root.path, fileCount: root.fileCount }
+    }
   }
   return null
 }
 
+async function runLiveWalk(
+  dir: string,
+  query: string,
+  limit: number
+): Promise<SearchQueryResponse> {
+  if (activeWalk) activeWalk.cancelled = true
+  const token: CancelToken = { cancelled: false }
+  activeWalk = token
+  try {
+    const excludes = settingsStore().get().searchExcludeDirNames
+    const { items, partial } = await liveWalkSearch(dir, query, excludes, limit, token)
+    return { items, partial, source: 'walk' }
+  } finally {
+    if (activeWalk === token) activeWalk = null
+  }
+}
+
 export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQueryResponse> {
   const { query, scope, limit, offset } = req
+  if (queryTokens(query).length === 0) {
+    return { items: [], partial: false, source: 'walk' }
+  }
 
   if (scope.type === 'indexed') {
+    const ready = listIndexRoots().filter((r) => r.status === 'ready')
+    if (ready.length === 0) {
+      throw new AppError(
+        'validation',
+        'No indexed folders are ready.',
+        'Uncheck “indexed” to search the current folder (works without an index), or add a folder under Settings → Search index.'
+      )
+    }
+    // Global indexed search — still substring LIKE, not FTS-only.
     return { items: queryIndex(query, null, limit, offset), partial: false, source: 'index' }
   }
 
@@ -126,19 +144,17 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
     return { items, partial: items.length >= limit, source: 'walk' }
   }
 
-  if (scope.useIndexIfCovered && readyRootCovering(dir)) {
-    return { items: queryIndex(query, dir, limit, offset), partial: false, source: 'index' }
+  // Index is an accelerator only — empty/missing coverage must still live-walk (D15).
+  if (scope.useIndexIfCovered) {
+    const covered = readyRootCovering(dir)
+    if (covered && covered.fileCount > 0) {
+      return {
+        items: queryIndex(query, dir, limit, offset),
+        partial: false,
+        source: 'index'
+      }
+    }
   }
 
-  // Live walk fallback (D15)
-  if (activeWalk) activeWalk.cancelled = true
-  const token: CancelToken = { cancelled: false }
-  activeWalk = token
-  try {
-    const excludes = settingsStore().get().searchExcludeDirNames
-    const { items, partial } = await liveWalkSearch(dir, query, excludes, limit, token)
-    return { items, partial, source: 'walk' }
-  } finally {
-    if (activeWalk === token) activeWalk = null
-  }
+  return runLiveWalk(dir, query, limit)
 }
