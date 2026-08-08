@@ -26,7 +26,10 @@ A highly functional Explorer-style app: tabs, persisted views, curated context m
 npm install
 npm run dev        # launch with HMR (same %APPDATA%\MyFileExplorer settings as installed)
 npm run check      # typecheck + lint + tests
-npm run build:win  # Windows installer into dist/
+npm run dist       # bump patch, wipe old Setup*.exe in dist/ (+ Updates folder), build installer
+npm run dist:nobump  # rebuild without bumping version
+npm run build:win  # build only (no bump / no clean)
+
 ```
 
 ---
@@ -65,7 +68,9 @@ Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linu
 | `npm run check`     | typecheck + lint + test              |
 | `npm run test`      | Vitest unit tests                    |
 | `npm run build`     | electron-vite production build       |
-| `npm run build:win` | Windows installer (electron-builder) |
+| `npm run dist` | Bump patch version, delete prior Setup*.exe in `dist/` (and Settings → Updates folder), build Windows installer |
+| `npm run dist:nobump` | Same as dist without version bump |
+| `npm run build:win` | Windows installer only (no bump / no clean) |
 
 App state lives in `%APPDATA%\MyFileExplorer` (same for `npm run dev` and installed builds — see D17).
 

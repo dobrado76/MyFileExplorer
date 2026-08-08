@@ -161,6 +161,17 @@ textarea:focus {
   background: color-mix(in srgb, var(--bg) 70%, var(--bg-elevated));
 }
 
+/* File drag onto a tab → move/copy into that tab's folder. */
+.tab.drop-target {
+  background: var(--accent-dim);
+  color: var(--text);
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+.tab.drop-target .tab-close {
+  color: var(--text-dim);
+}
+
 .tab .tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -974,7 +985,7 @@ body.right-dragging * {
 }
 .preview.preview-kind-image .preview-fields {
   flex: 0 1 auto;
-  max-height: 42%;
+  max-height: 38%;
   overflow-y: auto;
   min-height: 0;
 }
@@ -1320,6 +1331,46 @@ body.right-dragging * {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin: 0 0 6px;
+}
+/* Short gen scalars (Steps, Seed, CFG, …) share rows; wrap when narrow. */
+.preview-gen-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 6px;
+}
+.preview-field.is-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 0;
+  max-width: 100%;
+  grid-template-columns: unset;
+}
+.preview-field.is-compact .field-label {
+  padding-top: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.preview-field.is-compact .field-label-text {
+  overflow: visible;
+  text-overflow: clip;
+}
+.preview-field.is-compact .field-value {
+  padding: 2px 6px;
+  font-size: 0.85em;
+  line-height: 1.25;
+  white-space: nowrap;
+  max-width: min(100%, 36ch);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.preview-field.is-compact .field-copy {
+  opacity: 0.45;
+}
+.preview-field.is-compact:hover .field-copy {
+  opacity: 1;
 }
 .preview-field {
   display: grid;
@@ -2446,6 +2497,31 @@ body > .SfxModal-Wrapper,
   color: var(--text-dim);
   font-size: 0.9em;
   line-height: 1.4;
+}
+.settings-subheading {
+  margin: 16px 0 0;
+  font-size: 0.95em;
+  font-weight: 600;
+}
+.settings-check-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 2px 8px;
+}
+.settings-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.92em;
+  cursor: pointer;
+  user-select: none;
+}
+.settings-check input {
+  margin-top: 2px;
+}
+.settings-check input:disabled + span {
+  opacity: 0.55;
 }
 .settings-toggle {
   display: flex;

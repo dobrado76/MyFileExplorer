@@ -79,7 +79,7 @@ Negative prompt: {negative}
 Steps: 20, Sampler: …, CFG scale: 7, Seed: 123, Size: 512x768, Model hash: …, Model: …
 ```
 
-Extract when present:
+Extract when present (from PNG `parameters`/`Comment`, or JPEG/WebP EXIF UserComment / XPComment / COM — Explorer’s **Comments** field):
 
 | Field id            | Label                               |
 | ------------------- | ----------------------------------- |
@@ -87,11 +87,15 @@ Extract when present:
 | `gen.negative`      | Negative prompt                     |
 | `gen.steps`         | Steps                               |
 | `gen.sampler`       | Sampler                             |
+| `gen.scheduleType`  | Schedule type                       |
 | `gen.cfg`           | CFG scale                           |
 | `gen.seed`          | Seed                                |
 | `gen.size`          | Size                                |
 | `gen.model`         | Model                               |
 | `gen.modelHash`     | Model hash                          |
+| `gen.vae`           | VAE                                 |
+| `gen.denoising`     | Denoising strength                  |
+| `gen.setting.*`     | Any other `Key: value` pairs        |
 | `gen.rawParameters` | Raw parameters (collapsible / copy) |
 
 Keep raw text if structured parse fails but chunk exists.
@@ -112,7 +116,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 #### Other
 
-- JPEG/WebP: EXIF UserComment / ImageDescription best-effort; if looks like A1111 parameters, run same parser
+- JPEG/WebP: EXIF UserComment / XPComment / ImageDescription and JPEG COM markers; if the text looks like A1111 parameters (ComfyUI savers), run the same decomposed parser (prompt, negative, Steps, Sampler, Schedule type, VAE, …)
 - `.json` sidecar next to image (`name.json`) — optional later; not required for v1
 
 ---
@@ -232,3 +236,4 @@ Header-only parse (8-byte length + JSON); **weights are never loaded**. No large
 - Cap JSON / prompt display length in UI (e.g. 32–64 KiB) with Copy / Reveal raw
 - Parse on main process; cache preview parse result keyed by path+mtime+size until change
 - Cancel in-flight preview when selection changes
+- Multi-select: preview the focused / most recently selected path (not a blank summary)

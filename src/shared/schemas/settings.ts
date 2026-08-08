@@ -9,6 +9,11 @@ import {
   VID_THUMB_FRAME_MS_MIN
 } from '../vidThumbCache'
 import { normalizeHideNameExtensions } from '../hideNameExtensions'
+import {
+  DEFAULT_GEN_FAMILY_FILTER,
+  GEN_MODEL_FAMILIES,
+  type GenModelFamily
+} from '../genModelFamily'
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
@@ -103,6 +108,24 @@ export const settingsSchema = z.object({
   viewFilterEnabled: z.boolean().catch(true),
   viewFilterPatterns: z.array(z.string()).catch([]),
   /**
+   * When on, hide PNG/A1111 images whose checkpoint family is not in
+   * `genFamilyFilter` (Krea / SDXL / SD1.5 / …). Folders and files without a
+   * Model field stay visible.
+   */
+  genFamilyFilterEnabled: z.boolean().catch(false),
+  genFamilyFilter: z.preprocess((raw) => {
+    if (!Array.isArray(raw)) return [...DEFAULT_GEN_FAMILY_FILTER]
+    const allowed = new Set<string>(GEN_MODEL_FAMILIES)
+    const out: GenModelFamily[] = []
+    const seen = new Set<string>()
+    for (const item of raw) {
+      if (typeof item !== 'string' || !allowed.has(item) || seen.has(item)) continue
+      seen.add(item)
+      out.push(item as GenModelFamily)
+    }
+    return out.length > 0 ? out : [...DEFAULT_GEN_FAMILY_FILTER]
+  }, z.array(z.enum(GEN_MODEL_FAMILIES)).catch([...DEFAULT_GEN_FAMILY_FILTER])),
+  /**
    * Extensions whose “.ext” is omitted from file-view / search labels (display only).
    * Values without a leading dot, e.g. `lnk`. Default includes `lnk`.
    */
@@ -162,7 +185,13 @@ export const settingsSchema = z.object({
   /** @deprecated Migrated into `quickAccess` on edit. */
   quickAccessHiddenDefaults: z.array(z.string()).catch([]),
   /** Folder scanned for `MyFileExplorer Setup x.y.z.exe` installers. */
-  updatesFolder: z.string().catch('')
+  updatesFolder: z.string().catch(''),
+  /**
+   * Chromium GPU compositing off (Electron `app.disableHardwareAcceleration`).
+   * Applied at process start — restart required after change. Frees VRAM when
+   * sharing a GPU with training / other CUDA apps.
+   */
+  disableHardwareAcceleration: z.boolean().catch(false)
 })
 
 export type DetailsColumn = { id: DetailsColumnId; width: number }
@@ -183,6 +212,8 @@ export const defaultSettings: Settings = settingsSchema.parse({
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   viewFilterEnabled: true,
   viewFilterPatterns: [],
+  genFamilyFilterEnabled: false,
+  genFamilyFilter: [...DEFAULT_GEN_FAMILY_FILTER],
   hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,
@@ -191,7 +222,8 @@ export const defaultSettings: Settings = settingsSchema.parse({
   quickAccess: [],
   quickAccessPins: [],
   quickAccessHiddenDefaults: [],
-  updatesFolder: ''
+  updatesFolder: '',
+  disableHardwareAcceleration: false
 })
 
 export const settingsPatchSchema = settingsSchema.partial().omit({ version: true })

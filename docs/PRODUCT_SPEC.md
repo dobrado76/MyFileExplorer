@@ -46,6 +46,7 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 | Persist          | Tabs + active index restored on launch                                                     |
 | Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
 | Reorder          | Drag tabs to reorder; order persisted                                                      |
+| Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
 | Close            | Middle-click / close button; confirm if that tab has an in-progress destructive op (rare)  |
 | New tab          | Clone current path or open profile default (This PC / home — Settings)                     |
 | Named layouts    | Save/load the whole tab set + chrome as a named workspace (see Settings → Layouts)         |
@@ -92,7 +93,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
 | Rename             | F2 / context; inline. Enter commits; Escape cancels; click-away / blur **commits** (Explorer-style)                                              |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
-| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here menu on drop. **Drag out** to other apps via `webContents.startDrag` (real file paths). Prefer right-drag or cut/paste for in-app rearranging on Windows |
+| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here menu on drop. **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
 | Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory                                                                       |
 | Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
@@ -132,7 +133,7 @@ Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dat
 See [PREVIEW.md](PREVIEW.md).
 
 - Toggle show/hide; remember width.
-- Selection: single file → rich preview; multi → summary (count, total size).
+- Selection: preview the **most recently selected** item (keyboard/mouse focus); when multi-select, still show that file’s rich preview and a “N selected” badge (not a blank summary).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Inline video/audio playback in-pane for common containers (see PREVIEW.md); unsupported codecs → open with default app.
 - Office docs: Word, PowerPoint (`.pptx` slide text; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
@@ -159,10 +160,10 @@ See [SEARCH.md](SEARCH.md).
 | Quick access | Manage tree shortcuts                                                              |
 | Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
-| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
+| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count. **Generation base model** (same Settings page): optionally keep only checkpoint families you choose (default Krea + SDXL/Pony/Illustrious); hides SD 1.5 etc. when enabled; uses PNG `Model` metadata |
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | List indexed roots; reindex button; exclude patterns (e.g. `node_modules`, `.git`) |
-| Advanced     | Updates folder + check/run installer; clear shell-icon + thumb cache               |
+| Advanced     | Updates folder + check/run installer; clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training) |
 
 ---
 

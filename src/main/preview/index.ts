@@ -7,6 +7,11 @@ import { requireAbsolute, statPath } from '../fs/list'
 import { settingsStore } from '../settings/store'
 import { extractPngTextChunks } from './pngText'
 import { parseA1111Parameters } from './a1111'
+import {
+  pushA1111GenerationFields,
+  resolveGenerationParametersText,
+  capGenText
+} from './genFields'
 import { listIndexRoots } from '../search'
 import { buildSpreadsheetSheets } from './spreadsheet'
 import { docxToHtml, docToHtml } from './office'
@@ -284,10 +289,12 @@ async function buildImagePreview(
 ): Promise<PreviewModel> {
   protocolAllowlist.allowDir(path.dirname(file))
 
+  let bytes: Buffer | null = null
+  let exifBuf: Buffer | null = null
   try {
+    bytes = await fsp.readFile(file)
     const { default: sharp } = await import('sharp')
     // Read then close — sharp(path) can keep a Win32 handle on some builds.
-    const bytes = await fsp.readFile(file)
     const meta = await sharp(bytes).metadata()
     if (meta.width && meta.height) {
       fields.push({
@@ -297,13 +304,14 @@ async function buildImagePreview(
         group: 'file'
       })
     }
+    if (meta.exif) exifBuf = Buffer.from(meta.exif)
   } catch {
     warnings.push('Could not read image metadata')
   }
 
-  if (ext === 'png') {
+  if (bytes) {
     try {
-      await addPngGenerationFields(file, fields, warnings)
+      addImageGenerationFields(ext, bytes, exifBuf, fields, warnings)
     } catch {
       warnings.push('Generation metadata parse incomplete')
     }
@@ -318,12 +326,41 @@ async function buildImagePreview(
   }
 }
 
-async function addPngGenerationFields(
-  file: string,
+function addImageGenerationFields(
+  ext: string,
+  bytes: Buffer,
+  exifBuf: Buffer | null | undefined,
   fields: PreviewField[],
   warnings: string[]
-): Promise<void> {
-  const buf = await fsp.readFile(file)
+): void {
+  const paramsText = resolveGenerationParametersText(bytes, ext, exifBuf ?? null)
+  if (paramsText) {
+    const parsed = parseA1111Parameters(paramsText)
+    if (parsed) {
+      pushA1111GenerationFields(parsed, fields, warnings)
+    } else {
+      fields.push({
+        id: 'gen.rawParameters',
+        label: 'Raw parameters',
+        value: capGenText(paramsText, warnings, 'Raw parameters'),
+        group: 'generation',
+        mono: true,
+        copyable: true
+      })
+    }
+  }
+
+  // ComfyUI workflow JSON still lives in PNG tEXt.
+  if (ext === 'png') {
+    addPngComfyJsonFields(bytes, fields, warnings)
+  }
+}
+
+function addPngComfyJsonFields(
+  buf: Buffer,
+  fields: PreviewField[],
+  warnings: string[]
+): void {
   const chunks = extractPngTextChunks(buf)
   if (chunks.length === 0) return
 
@@ -332,65 +369,6 @@ async function addPngGenerationFields(
     if (!byKeyword.has(c.keyword)) byKeyword.set(c.keyword, c.text)
   }
 
-  // A1111 / Forge
-  const parametersText = byKeyword.get('parameters') ?? byKeyword.get('Comment')
-  if (parametersText) {
-    const parsed = parseA1111Parameters(parametersText)
-    if (parsed) {
-      if (parsed.prompt) {
-        fields.push({
-          id: 'gen.prompt',
-          label: 'Prompt',
-          value: capText(parsed.prompt, warnings, 'Prompt'),
-          group: 'generation',
-          mono: true,
-          copyable: true
-        })
-      }
-      if (parsed.negative) {
-        fields.push({
-          id: 'gen.negative',
-          label: 'Negative prompt',
-          value: capText(parsed.negative, warnings, 'Negative prompt'),
-          group: 'generation',
-          mono: true,
-          copyable: true
-        })
-      }
-      const s = parsed.settings
-      const pick = (key: string, id: string, label: string): void => {
-        const v = s[key]
-        if (v) fields.push({ id, label, value: v, group: 'generation', copyable: true })
-      }
-      pick('Steps', 'gen.steps', 'Steps')
-      pick('Sampler', 'gen.sampler', 'Sampler')
-      pick('CFG scale', 'gen.cfg', 'CFG scale')
-      pick('Seed', 'gen.seed', 'Seed')
-      pick('Size', 'gen.size', 'Size')
-      pick('Model', 'gen.model', 'Model')
-      pick('Model hash', 'gen.modelHash', 'Model hash')
-      fields.push({
-        id: 'gen.rawParameters',
-        label: 'Raw parameters',
-        value: capText(parsed.raw, warnings, 'Raw parameters'),
-        group: 'generation',
-        mono: true,
-        copyable: true
-      })
-    } else {
-      // chunk exists but not structured — keep raw text (spec)
-      fields.push({
-        id: 'gen.rawParameters',
-        label: 'Raw parameters',
-        value: capText(parametersText, warnings, 'Raw parameters'),
-        group: 'generation',
-        mono: true,
-        copyable: true
-      })
-    }
-  }
-
-  // ComfyUI
   const addJsonField = (keyword: string, id: string, label: string): void => {
     const text = byKeyword.get(keyword)
     if (!text) return
@@ -403,7 +381,7 @@ async function addPngGenerationFields(
     fields.push({
       id,
       label,
-      value: capText(pretty, warnings, label),
+      value: capGenText(pretty, warnings, label),
       group: 'generation',
       mono: true,
       copyable: true

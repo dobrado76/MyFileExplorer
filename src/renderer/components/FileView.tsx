@@ -19,11 +19,15 @@ import {
   getLiveRightDragSession,
   shouldSuppressContextMenu
 } from '../lib/rightDrag'
-import { startOsFileDragFromDragStart } from '../lib/osFileDrag'
+import {
+  beginLeftFileDragGesture,
+  shouldSuppressClickAfterLeftDrag
+} from '../lib/leftFileDrag'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { genModelFamilyAllowed } from '@shared/genModelFamily'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
@@ -333,15 +337,22 @@ export function FileView(): JSX.Element {
 
   const viewFilterOn = settings.viewFilterEnabled
   const viewPatterns = settings.viewFilterPatterns
+  const genFamilyOn = settings.genFamilyFilterEnabled
+  const genFamilies = settings.genFamilyFilter
   const isExcluded = useMemo(
     () => (e: { path: string; isHidden: boolean }) =>
       isExcludedByViewFilter(e, viewPatterns, viewFilterOn),
     [viewPatterns, viewFilterOn]
   )
-  const asyncColumns = useMemo(
-    () => detailsColumns.map((c) => c.id).filter(isAsyncColumn),
-    [detailsColumns]
-  )
+  const asyncColumns = useMemo(() => {
+    const cols = detailsColumns.map((c) => c.id).filter(isAsyncColumn)
+    // Generation filter needs Model (+ Size hint) even when those columns are hidden.
+    if (genFamilyOn) {
+      if (!cols.includes('genModel')) cols.push('genModel')
+      if (!cols.includes('genSize')) cols.push('genSize')
+    }
+    return cols
+  }, [detailsColumns, genFamilyOn])
 
   const recycleByPath = useMemo(() => {
     const m = new Map<string, RecycleBinItem>()
@@ -424,7 +435,17 @@ export function FileView(): JSX.Element {
   }, [folderPath, sourceEntries, asyncColumns, isExcluded, searchMode, recycleMode])
 
   const entries = useMemo(() => {
-    const filtered = sourceEntries.filter((e) => !isExcluded(e))
+    const filtered = sourceEntries.filter((e) => {
+      if (isExcluded(e)) return false
+      if (!genFamilyOn || recycleMode) return true
+      if (e.kind === 'dir') return true
+      if (!isImageExt(e.ext)) return true
+      // Until metadata arrives, keep the row (avoid empty flash); hide once we
+      // know the checkpoint family is outside the allowlist.
+      const meta = metaByPath[e.path]
+      if (!meta) return true
+      return genModelFamilyAllowed(meta.genModel, genFamilies, { size: meta.genSize })
+    })
     if (recycleMode) {
       const dirMul = recycleSort.dir === 'asc' ? 1 : -1
       return [...filtered].sort((a, b) => {
@@ -485,7 +506,9 @@ export function FileView(): JSX.Element {
     metaByPath,
     recycleMode,
     recycleSort,
-    recycleByPath
+    recycleByPath,
+    genFamilyOn,
+    genFamilies
   ])
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
@@ -763,7 +786,11 @@ export function FileView(): JSX.Element {
         setMarquee({ l, t, w, h })
         const hits = marqueeHitTestRef.current(l, t, w, h)
         const sel = additive ? [...base, ...hits.filter((p) => !baseSet.has(p.toLowerCase()))] : hits
-        setSelection(sel, null, null)
+        const focus = hits[hits.length - 1] ?? sel[sel.length - 1] ?? null
+        const anchor = additive
+          ? (useAppStore.getState().selectionAnchor ?? sel[0] ?? null)
+          : (sel[0] ?? null)
+        setSelection(sel, anchor, focus)
       }
 
       const onMove = (ev: MouseEvent): void => {
@@ -847,23 +874,86 @@ export function FileView(): JSX.Element {
     [tab?.selected, selectionAnchor, entries, setSelection]
   )
 
+  const highlightDropDest = useCallback(
+    (dest: string | null): void => {
+      if (dest && listing.path && samePath(dest, listing.path)) {
+        setBgDropActive(true)
+        setDropTargetPath(null)
+      } else {
+        setBgDropActive(false)
+        setDropTargetPath(dest)
+      }
+    },
+    [listing.path]
+  )
+
+  const clearDragVisuals = useCallback((): void => {
+    setDragPaths([])
+    setDropTargetPath(null)
+    setBgDropActive(false)
+  }, [setDragPaths])
+
   const onItemPointerDown = useCallback(
     (entry: DirEntry, e: React.PointerEvent): void => {
-      if (e.button !== 2) return
-      e.preventDefault()
-      e.stopPropagation()
+      if (recycleMode) return
+      if (e.button !== 0 && e.button !== 2) return
+      if (renameSource === 'files' && renamingPath !== null && samePath(renamingPath, entry.path)) {
+        return
+      }
 
       const dragPathsNow = selected.has(entry.path.toLowerCase())
         ? (tab?.selected ?? [entry.path])
         : [entry.path]
-      if (!selected.has(entry.path.toLowerCase())) {
-        setSelection([entry.path], entry.path, entry.path)
-      }
 
       const ghostLabel =
         dragPathsNow.length === 1 ? basename(dragPathsNow[0]!) : `${dragPathsNow.length} items`
 
-      beginRightDragGesture(
+      if (e.button === 2) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!selected.has(entry.path.toLowerCase())) {
+          setSelection([entry.path], entry.path, entry.path)
+        }
+        beginRightDragGesture(
+          dragPathsNow,
+          e.clientX,
+          e.clientY,
+          e.currentTarget,
+          e.pointerId,
+          {
+            ghostLabel,
+            onActivated: (paths) => setDragPaths(paths),
+            onHighlight: highlightDropDest,
+            onFinish: ({ active, paths, clientX, clientY, dest }) => {
+              clearDragVisuals()
+              if (!active) {
+                openContextMenu({ x: clientX, y: clientY, paths })
+                return
+              }
+              if (dest) {
+                openContextMenu({
+                  x: clientX,
+                  y: clientY,
+                  paths,
+                  dropTransfer: { destDir: dest }
+                })
+              }
+            },
+            onCancel: () => clearDragVisuals()
+          }
+        )
+        return
+      }
+
+      // Ctrl/Shift clicks are for selection only (mousedown/click handlers).
+      if (e.ctrlKey || e.shiftKey) return
+
+      if (!selected.has(entry.path.toLowerCase())) {
+        setSelection([entry.path], entry.path, entry.path)
+      }
+
+      // Left-button: pointer drag for in-app drops; OS startDrag when leaving the window.
+      beginLeftFileDragGesture(
         dragPathsNow,
         e.clientX,
         e.clientY,
@@ -871,42 +961,33 @@ export function FileView(): JSX.Element {
         e.pointerId,
         {
           ghostLabel,
-          onActivated: (paths) => setDragPaths(paths),
-          onHighlight: (dest) => {
-            if (dest && listing.path && samePath(dest, listing.path)) {
-              setBgDropActive(true)
-              setDropTargetPath(null)
-            } else {
-              setBgDropActive(false)
-              setDropTargetPath(dest)
-            }
+          onActivated: (paths) => {
+            setDragPaths(paths)
+            suppressClickRef.current = true
           },
-          onFinish: ({ active, paths, clientX, clientY, dest }) => {
-            setDragPaths([])
-            if (!active) {
-              openContextMenu({ x: clientX, y: clientY, paths })
-              return
-            }
-            if (dest) {
-              openContextMenu({
-                x: clientX,
-                y: clientY,
-                paths,
-                dropTransfer: { destDir: dest }
-              })
-            }
+          onHighlight: highlightDropDest,
+          onDrop: ({ paths, dest, ctrlKey, shiftKey }) => {
+            clearDragVisuals()
+            const src = paths[0]
+            if (!dest || !src) return
+            void performTransfer(dropOperation(src, dest, ctrlKey, shiftKey), paths, dest)
           },
-          onCancel: () => setDragPaths([])
+          onCancel: () => clearDragVisuals()
         }
       )
     },
     [
+      recycleMode,
+      renameSource,
+      renamingPath,
       selected,
       setSelection,
       tab?.selected,
       setDragPaths,
-      listing.path,
-      openContextMenu
+      highlightDropDest,
+      clearDragVisuals,
+      openContextMenu,
+      performTransfer
     ]
   )
 
@@ -926,7 +1007,7 @@ export function FileView(): JSX.Element {
 
   const onItemClick = useCallback(
     (entry: DirEntry, e: React.MouseEvent): void => {
-      if (suppressClickRef.current) {
+      if (suppressClickRef.current || shouldSuppressClickAfterLeftDrag()) {
         suppressClickRef.current = false
         return
       }
@@ -948,24 +1029,9 @@ export function FileView(): JSX.Element {
     [selected, tab?.selected, setSelection, openContextMenu]
   )
 
-  const onItemDragStart = useCallback(
-    (entry: DirEntry, e: React.DragEvent): void => {
-      const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
-      setDragPaths(paths)
-      // Required: cancel web-only drag and hand paths to the OS (CF_HDROP).
-      e.preventDefault()
-      startOsFileDragFromDragStart(paths)
-    },
-    [selected, tab?.selected, setDragPaths]
-  )
-
-  // dragend fires on the source element even when the drag is cancelled
-  // (Esc / invalid drop) — clear all drag visuals so nothing lingers.
   const onItemDragEnd = useCallback((): void => {
-    setDragPaths([])
-    setDropTargetPath(null)
-    setBgDropActive(false)
-  }, [setDragPaths])
+    clearDragVisuals()
+  }, [clearDragVisuals])
 
   const onItemDrop = useCallback(
     (entry: DirEntry, e: React.DragEvent): void => {
@@ -1282,14 +1348,7 @@ export function FileView(): JSX.Element {
                       height: spec.cellH - 8
                     }}
                     {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
-                    draggable={
-                      !recycleMode &&
-                      !(
-                        renameSource === 'files' &&
-                        renamingPath !== null &&
-                        samePath(renamingPath, entry.path)
-                      )
-                    }
+                    draggable={false}
                     onPointerDown={(e) => onItemPointerDown(entry, e)}
                     onMouseDown={(e) => onItemMouseDown(entry, e)}
                     onClick={(e) => onItemClick(entry, e)}
@@ -1298,7 +1357,6 @@ export function FileView(): JSX.Element {
                       else void openEntry(entry)
                     }}
                     onContextMenu={(e) => onItemContextMenu(entry, e)}
-                    onDragStart={(e) => onItemDragStart(entry, e)}
                     onDragEnd={onItemDragEnd}
                     onDragOver={(e) => {
                       if (entry.kind === 'dir' && dragPaths.length > 0) {
@@ -1356,14 +1414,7 @@ export function FileView(): JSX.Element {
                 className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
                 style={{ top: vRow.start, height: rowHeight }}
                 {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
-                draggable={
-                  !recycleMode &&
-                  !(
-                    renameSource === 'files' &&
-                    renamingPath !== null &&
-                    samePath(renamingPath, entry.path)
-                  )
-                }
+                draggable={false}
                 onPointerDown={(e) => onItemPointerDown(entry, e)}
                 onMouseDown={(e) => onItemMouseDown(entry, e)}
                 onClick={(e) => onItemClick(entry, e)}
@@ -1372,7 +1423,6 @@ export function FileView(): JSX.Element {
                   else void openEntry(entry)
                 }}
                 onContextMenu={(e) => onItemContextMenu(entry, e)}
-                onDragStart={(e) => onItemDragStart(entry, e)}
                 onDragEnd={onItemDragEnd}
                 onDragOver={(e) => {
                   if (entry.kind === 'dir' && dragPaths.length > 0) {

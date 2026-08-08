@@ -19,7 +19,8 @@
     "icons": "node scripts/make-icons.mjs",
     "postinstall": "node scripts/patch-filerobot-crop.mjs",
     "build:win": "electron-vite build && electron-builder --win --config electron-builder.yml",
-    "dist": "npm run build:win"
+    "dist": "node scripts/dist.mjs",
+    "dist:nobump": "node scripts/dist.mjs --no-bump"
   },
   "dependencies": {
     "ag-psd": "^31.0.2",

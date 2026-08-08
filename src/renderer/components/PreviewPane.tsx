@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type JSX } from 'react'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
 import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
-import { formatBytes } from '../lib/format'
 import { basename, samePath } from '../lib/paths'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
@@ -41,6 +40,7 @@ let previewSeq = 0
 
 export function PreviewPane(): JSX.Element {
   const selected = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.selected ?? [])
+  const focusedPath = useAppStore((s) => s.focusedPath)
   const listingEntries = useAppStore((s) => s.listing.entries)
   const search = useAppStore((s) => s.search)
   const recycleBin = useAppStore((s) => s.recycleBin)
@@ -62,16 +62,22 @@ export function PreviewPane(): JSX.Element {
   const [model, setModel] = useState<PreviewModel | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const single = selected.length === 1 ? selected[0]! : null
+  /** Most recently interacted selected path (not “last in range order”). */
+  const previewPath = useMemo(() => {
+    if (selected.length === 0) return null
+    if (focusedPath && selected.some((p) => samePath(p, focusedPath))) return focusedPath
+    return selected[selected.length - 1]!
+  }, [selected, focusedPath])
+
   // After in-place edits, path is unchanged but mtime/size update via refresh().
   const selectedStamp = useMemo(() => {
-    if (!single) return null
-    const e = entries.find((en) => samePath(en.path, single))
+    if (!previewPath) return null
+    const e = entries.find((en) => samePath(en.path, previewPath))
     return e ? `${e.mtimeMs}:${e.size}` : null
-  }, [single, entries])
+  }, [previewPath, entries])
 
   useEffect(() => {
-    if (!single) {
+    if (!previewPath) {
       setModel(null)
       setLoading(false)
       return
@@ -80,45 +86,17 @@ export function PreviewPane(): JSX.Element {
     setLoading(true)
     // Same path after an in-place edit: drop the old model so we don't keep
     // painting stale pixels while the new preview (cache-busted URL) loads.
-    setModel((prev) => (prev && samePath(prev.path, single) ? null : prev))
-    void api.preview.get({ path: single }).then((res) => {
+    setModel((prev) => (prev && samePath(prev.path, previewPath) ? null : prev))
+    void api.preview.get({ path: previewPath }).then((res) => {
       if (seq !== previewSeq) return // superseded — cancel stale preview
       setLoading(false)
       setModel(res.ok ? res.value : null)
     })
-  }, [single, selectedStamp])
+  }, [previewPath, selectedStamp])
 
-  const multiSummary = useMemo(() => {
-    if (selected.length <= 1) return null
-    const sel = new Set(selected.map((p) => p.toLowerCase()))
-    let total = 0
-    let dirs = 0
-    for (const e of entries) {
-      if (sel.has(e.path.toLowerCase())) {
-        total += e.size
-        if (e.kind === 'dir') dirs++
-      }
-    }
-    return { count: selected.length, dirs, total }
-  }, [selected, entries])
+  const multiCount = selected.length > 1 ? selected.length : 0
 
-  if (multiSummary) {
-    return (
-      <div className="preview">
-        <div className="preview-header">
-          <div className="preview-title">{multiSummary.count} items selected</div>
-          <div className="preview-sub">
-            {multiSummary.dirs > 0
-              ? `${multiSummary.dirs} folder${multiSummary.dirs > 1 ? 's' : ''} · `
-              : ''}
-            {formatBytes(multiSummary.total)} (files only)
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!single) {
+  if (!previewPath) {
     return (
       <div className="preview">
         <div className="preview-empty">Select a file to preview</div>
@@ -154,12 +132,21 @@ export function PreviewPane(): JSX.Element {
   const hasRichFields = contentFields.length > 0
 
   const headerSub = model.subtitle ?? kindLabel(model.kind)
+  const multiHint = multiCount > 0 ? `${multiCount} selected` : null
 
   return (
     <div className={`preview${model.kind === 'image' ? ' preview-kind-image' : ''}`}>
-      {headerSub || (model.kind === 'image' && model.mediaUrl) ? (
+      {headerSub || multiHint || (model.kind === 'image' && model.mediaUrl) ? (
         <div className="preview-header preview-header-compact">
-          <div className="preview-sub">{headerSub}</div>
+          <div className="preview-sub">
+            {multiHint ? (
+              <>
+                <span className="preview-multi-badge">{multiHint}</span>
+                {headerSub ? <span className="preview-multi-sep">·</span> : null}
+              </>
+            ) : null}
+            {headerSub}
+          </div>
           {model.kind === 'image' &&
             model.mediaUrl &&
             isEditableImagePath(model.path) && (
@@ -289,9 +276,11 @@ export function PreviewPane(): JSX.Element {
               return (
                 <div key={key}>
                   <div className="preview-group-title">{groupLabel}</div>
-                  {fields.map((f) => (
-                    <Field key={f.id} field={f} onCopy={copyValue} />
-                  ))}
+                  {key === 'generation' ? (
+                    <GenerationFields fields={fields} onCopy={copyValue} />
+                  ) : (
+                    fields.map((f) => <Field key={f.id} field={f} onCopy={copyValue} />)
+                  )}
                 </div>
               )
             })}
@@ -383,21 +372,70 @@ function DetailRow({
   )
 }
 
+function isCompactGenField(f: PreviewField): boolean {
+  if (
+    f.id === 'gen.prompt' ||
+    f.id === 'gen.negative' ||
+    f.id.startsWith('gen.raw') ||
+    f.id.toLowerCase().includes('json')
+  ) {
+    return false
+  }
+  if (f.value.includes('\n')) return false
+  // Long model names / hashes still chip-wrap; very long blobs stay block.
+  if (f.value.length > 120) return false
+  return true
+}
+
+function GenerationFields({
+  fields,
+  onCopy
+}: {
+  fields: PreviewField[]
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  const compact: PreviewField[] = []
+  const blocks: PreviewField[] = []
+  for (const f of fields) {
+    if (isCompactGenField(f)) compact.push(f)
+    else blocks.push(f)
+  }
+  return (
+    <>
+      {compact.length > 0 ? (
+        <div className="preview-gen-flow">
+          {compact.map((f) => (
+            <Field key={f.id} field={f} onCopy={onCopy} compact />
+          ))}
+        </div>
+      ) : null}
+      {blocks.map((f) => (
+        <Field key={f.id} field={f} onCopy={onCopy} />
+      ))}
+    </>
+  )
+}
+
 function Field({
   field,
-  onCopy
+  onCopy,
+  compact = false
 }: {
   field: PreviewField
   onCopy(v: string): Promise<void>
+  compact?: boolean
 }): JSX.Element {
   const highlighted = useMemo(() => {
     if (field.syntax !== 'json') return null
     return highlightLanguage(field.value, 'json').html
   }, [field.syntax, field.value])
-  const multiline = highlighted !== null || !!field.mono || field.value.includes('\n')
+  const multiline =
+    !compact && (highlighted !== null || !!field.mono || field.value.includes('\n'))
 
   return (
-    <div className={`preview-field${multiline ? ' is-multiline' : ''}`}>
+    <div
+      className={`preview-field${multiline ? ' is-multiline' : ''}${compact ? ' is-compact' : ''}`}
+    >
       <div className="field-label">
         <span className="field-label-text">{field.label}</span>
         {field.copyable && (

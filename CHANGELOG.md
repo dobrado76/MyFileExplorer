@@ -11,11 +11,24 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
-- **Recycle Bin Details columns** — Original location (restore destination) and Date deleted, plus Size and Type; sortable headers.
+- **`npm run dist`** — auto-bumps the patch version, removes previous `MyFileExplorer Setup *.exe` from `dist/` (and prunes Settings → Updates folder to the new installer), then builds.
+
+### Fixed
+
+- **Preview while multi-selecting** — pane shows the most recently selected file (so you can Shift-select a range and still see where you stopped), with an “N selected” badge.
+- **In-app left-drag** — dragging files onto folders works again (pointer gesture). OS export still works when the drag leaves the window (`startDrag` / CF_HDROP).
 
 ### Added
 
+- **Disable hardware acceleration** — Settings → Advanced. Turns off Chromium GPU compositing (restart required) to free VRAM when sharing a GPU with training.
+- **ComfyUI / JPEG Comments in preview** — reads Explorer “Comments” (EXIF UserComment / XPComment / JPEG COM) and decomposes A1111-style params (prompt, negative, Steps, Sampler, Schedule type, VAE, Denoising strength, Model, …), not just the raw string.
+- **Drop files on tabs** — drag items onto a tab to move/copy into that tab’s folder (Ctrl=copy), so tabs work as sort categories.
+- **Filter by generation base model** — Settings → View filter: keep Krea and/or SDXL-family (Pony/Illustrious/SDXL) images; hide SD 1.5 (and other families you uncheck). Uses A1111/Forge `Model` metadata in the file view and search results.
 - **In-app Recycle Bin** — tab-bar Recycle Bin opens bin contents in the file view (like search). Restore (Enter / banner / context), Empty Recycle Bin, Del permanently removes from the bin. No longer launches Windows Explorer.
+
+### Changed
+
+- **Recycle Bin Details columns** — Original location (restore destination) and Date deleted, plus Size and Type; sortable headers.
 
 ## [0.2.0] - 2026-08-06
 

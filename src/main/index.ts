@@ -22,6 +22,19 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 } else {
+  // Must run before ready. Reads settings.json synchronously.
+  try {
+    if (settingsStore().get().disableHardwareAcceleration) {
+      app.disableHardwareAcceleration()
+      logMain('info', 'Hardware acceleration disabled (settings)')
+    }
+  } catch (e) {
+    logMain(
+      'warn',
+      `Could not apply hardware-acceleration setting: ${e instanceof Error ? e.message : String(e)}`
+    )
+  }
+
   registerMediaSchemeAsPrivileged()
 
   function createMainWindow(): void {

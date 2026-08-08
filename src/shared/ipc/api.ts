@@ -96,8 +96,9 @@ export type MyFileExplorerApi = {
     clipboardReadFiles(): Promise<Result<{ paths: string[] }>>
     /**
      * Hand file paths to the OS drag (Explorer / Photoshop / mail / etc.).
-     * Synchronous — blocks until the drag ends. Call from dragstart after
-     * preventDefault(). Returns whether startDrag ran.
+     * Synchronous — blocks until the drag ends. Call when a left-drag leaves
+     * the window (not from HTML5 dragstart on Windows). Returns whether
+     * startDrag ran.
      */
     startDrag(req: PathsRequest): boolean
   }

@@ -10,7 +10,10 @@ import {
   isVolumeRootPath,
   shouldSuppressContextMenu
 } from '../lib/rightDrag'
-import { startOsFileDragFromDragStart } from '../lib/osFileDrag'
+import {
+  beginLeftFileDragGesture,
+  shouldSuppressClickAfterLeftDrag
+} from '../lib/leftFileDrag'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
@@ -420,8 +423,9 @@ export function FolderTree(): JSX.Element {
           className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${dropTarget === path ? ' drop-target' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
           data-drop-dir={path}
-          draggable={canDrag}
+          draggable={false}
           onClick={() => {
+            if (shouldSuppressClickAfterLeftDrag()) return
             setTreeFocusPath(path)
             treeRef.current?.focus()
             void navigate(path)
@@ -430,35 +434,60 @@ export function FolderTree(): JSX.Element {
             if (showTwisty) toggle(path)
           }}
           onPointerDown={(e) => {
-            if (e.button !== 2 || !canDrag) return
-            e.preventDefault()
-            e.stopPropagation()
+            if (!canDrag) return
+            if (e.button === 2) {
+              e.preventDefault()
+              e.stopPropagation()
+              setTreeFocusPath(path)
+              beginRightDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
+                ghostLabel: label,
+                onActivated: (paths) => setDragPaths(paths),
+                onHighlight: (dest) => setDropTarget(dest),
+                onFinish: ({ active, paths, clientX, clientY, dest }) => {
+                  setDragPaths([])
+                  setDropTarget(null)
+                  if (!active) {
+                    openContextMenu({
+                      x: clientX,
+                      y: clientY,
+                      paths,
+                      inTree: true
+                    })
+                    return
+                  }
+                  if (dest) {
+                    openContextMenu({
+                      x: clientX,
+                      y: clientY,
+                      paths,
+                      dropTransfer: { destDir: dest }
+                    })
+                  }
+                },
+                onCancel: () => {
+                  setDragPaths([])
+                  setDropTarget(null)
+                }
+              })
+              return
+            }
+            if (e.button !== 0) return
             setTreeFocusPath(path)
-            beginRightDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
+            beginLeftFileDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
               ghostLabel: label,
               onActivated: (paths) => setDragPaths(paths),
               onHighlight: (dest) => setDropTarget(dest),
-              onFinish: ({ active, paths, clientX, clientY, dest }) => {
+              onDrop: ({ paths, dest, ctrlKey, shiftKey }) => {
                 setDragPaths([])
-                if (!active) {
-                  openContextMenu({
-                    x: clientX,
-                    y: clientY,
-                    paths,
-                    inTree: true
-                  })
-                  return
-                }
-                if (dest) {
-                  openContextMenu({
-                    x: clientX,
-                    y: clientY,
-                    paths,
-                    dropTransfer: { destDir: dest }
-                  })
-                }
+                setDropTarget(null)
+                const src = paths[0]
+                if (!dest || !src) return
+                void performTransfer(dropOperation(src, dest, ctrlKey, shiftKey), paths, dest)
               },
-              onCancel: () => setDragPaths([])
+              onCancel: () => {
+                setDragPaths([])
+                setDropTarget(null)
+              }
             })
           }}
           onContextMenu={(e) => {
@@ -467,16 +496,6 @@ export function FolderTree(): JSX.Element {
             if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
             setTreeFocusPath(path)
             openContextMenu({ x: e.clientX, y: e.clientY, paths: [path], inTree: true })
-          }}
-          onDragStart={(e) => {
-            if (!canDrag) {
-              e.preventDefault()
-              return
-            }
-            setTreeFocusPath(path)
-            setDragPaths([path])
-            e.preventDefault()
-            startOsFileDragFromDragStart([path])
           }}
           onDragEnd={() => {
             setDragPaths([])

@@ -50,8 +50,8 @@ const api: MyFileExplorerApi = {
     clipboardReadFiles: invokeVoid(IPC.shellClipboardReadFiles),
     /**
      * Sync: main runs webContents.startDrag during this call (blocks until the
-     * OS drag ends). Must be invoked from dragstart after preventDefault —
-     * async send is too late and drops land with no file payload.
+     * OS drag ends). Used when a left-drag leaves the BrowserWindow — not from
+     * HTML5 dragstart (that breaks in-app drops on Windows).
      */
     startDrag: (req) => ipcRenderer.sendSync(IPC.shellStartDrag, req) as boolean
   },

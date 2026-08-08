@@ -243,7 +243,8 @@ export function registerIpcHandlers(): void {
   handle(IPC.shellOpenRecycleBin, emptySchema, () => openRecycleBin())
   handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
-  // Sync + blocking: startDrag must run inside the renderer's dragstart stack.
+  // Sync + blocking: startDrag runs DoDragDrop until the OS gesture ends.
+  // Called when a left-drag leaves the window (not from HTML5 dragstart).
   ipcMain.on(IPC.shellStartDrag, (event, raw) => {
     const parsed = pathsRequestSchema.safeParse(raw)
     if (!parsed.success) {

@@ -2,7 +2,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { DetailsColumnId, EntryColumnValues } from '@shared/schemas/columns'
 import { parseA1111Parameters } from '../preview/a1111'
-import { extractPngTextChunks } from '../preview/pngText'
+import { resolveGenerationParametersText } from '../preview/genFields'
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -167,15 +167,22 @@ async function extractImage(
     }
   }
 
-  if (needGen && ext === 'png') {
+  if (needGen && (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'webp')) {
     try {
       const buf = await fsp.readFile(file)
-      const chunks = extractPngTextChunks(buf)
-      const paramsChunk =
-        chunks.find((c) => c.keyword.toLowerCase() === 'parameters') ??
-        chunks.find((c) => c.keyword.toLowerCase() === 'comment')
-      if (paramsChunk) {
-        const parsed = parseA1111Parameters(paramsChunk.text)
+      let exifBuf: Buffer | null = null
+      if (ext !== 'png') {
+        try {
+          const { default: sharp } = await import('sharp')
+          const meta = await sharp(buf).metadata()
+          if (meta.exif) exifBuf = Buffer.from(meta.exif)
+        } catch {
+          /* ignore */
+        }
+      }
+      const paramsText = resolveGenerationParametersText(buf, ext, exifBuf)
+      if (paramsText) {
+        const parsed = parseA1111Parameters(paramsText)
         if (parsed) {
           pick(wanted, 'genPrompt', truncate(parsed.prompt, 400), out)
           if (parsed.negative) pick(wanted, 'genNegative', truncate(parsed.negative, 300), out)
