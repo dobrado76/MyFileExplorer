@@ -4,6 +4,7 @@ import { AppError } from '@shared/result'
 import type { DirEntry, ListResponse, StatResult } from '@shared/schemas/fs'
 import { normalizeAbsolute, protocolAllowlist } from '../security/paths'
 import { pathIsHidden } from './winAttrs'
+import { listDirectoryWin32 } from './listWin32'
 
 function extOf(name: string): string {
   const e = path.extname(name)
@@ -16,8 +17,7 @@ export function requireAbsolute(p: string): string {
   return n
 }
 
-export async function listDirectory(dirPath: string, includeHidden = true): Promise<ListResponse> {
-  const dir = requireAbsolute(dirPath)
+async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<DirEntry[]> {
   const dirents = await fsp.readdir(dir, { withFileTypes: true })
   const entries: DirEntry[] = []
   const CONCURRENCY = 64
@@ -62,6 +62,20 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
       if (s.status === 'fulfilled' && s.value) entries.push(s.value)
     }
   }
+  return entries
+}
+
+export async function listDirectory(dirPath: string, includeHidden = true): Promise<ListResponse> {
+  const dir = requireAbsolute(dirPath)
+  let entries: DirEntry[] | null = null
+  if (process.platform === 'win32') {
+    try {
+      entries = listDirectoryWin32(dir, includeHidden)
+    } catch {
+      entries = null
+    }
+  }
+  if (!entries) entries = await listDirectoryNode(dir, includeHidden)
   // Successful listing approves this dir for the media protocol (icons/thumbs).
   protocolAllowlist.allowDir(dir)
   return { path: dir, entries }

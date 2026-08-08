@@ -160,7 +160,7 @@ See [SEARCH.md](SEARCH.md).
 | Quick access | Manage tree shortcuts                                                              |
 | Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
-| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count. **Generation base model** (same Settings page): optionally keep only checkpoint families you choose (default Krea + SDXL/Pony/Illustrious); hides SD 1.5 etc. when enabled; uses PNG `Model` metadata |
+| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | List indexed roots; reindex button; exclude patterns (e.g. `node_modules`, `.git`) |
 | Advanced     | Updates folder + check/run installer; clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training) |

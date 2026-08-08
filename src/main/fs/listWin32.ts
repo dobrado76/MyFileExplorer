@@ -1,0 +1,103 @@
+/**
+ * Fast directory listing via FindFirstFileW / FindNextFileW.
+ * One pass yields name, attributes, size, and mtimes — no per-file stat /
+ * GetFileAttributes (those were ~2 syscalls × N and made 20k folders multi-second).
+ */
+import path from 'node:path'
+import koffi from 'koffi'
+import type { DirEntry } from '@shared/schemas/fs'
+
+const FILE_ATTRIBUTE_HIDDEN = 0x2
+const FILE_ATTRIBUTE_DIRECTORY = 0x10
+const FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+/** sizeof(WIN32_FIND_DATAW) */
+const FIND_DATA_SIZE = 592
+const INVALID_HANDLE = 0xffffffffffffffffn
+
+const kernel32 = koffi.load('kernel32.dll')
+const FindFirstFileW = kernel32.func(
+  'void * __stdcall FindFirstFileW(str16 lpFileName, void *lpFindFileData)'
+)
+const FindNextFileW = kernel32.func(
+  'int32 __stdcall FindNextFileW(void *hFindFile, void *lpFindFileData)'
+)
+const FindClose = kernel32.func('int32 __stdcall FindClose(void *hFindFile)')
+
+function isInvalidHandle(h: unknown): boolean {
+  if (h == null) return true
+  if (typeof h === 'bigint') return h === INVALID_HANDLE || h === -1n
+  if (typeof h === 'number') return h === -1 || h === 0xffffffff
+  return false
+}
+
+function readU32(buf: Buffer, off: number): number {
+  return buf.readUInt32LE(off)
+}
+
+function fileTimeToMs(buf: Buffer, off: number): number {
+  const low = BigInt(buf.readUInt32LE(off))
+  const high = BigInt(buf.readUInt32LE(off + 4))
+  const ticks = (high << 32n) + low
+  if (ticks === 0n) return 0
+  return Number(ticks / 10000n - 11644473600000n)
+}
+
+function readName(buf: Buffer): string {
+  // WIN32_FIND_DATAW.cFileName @ offset 44
+  const chars: number[] = []
+  for (let i = 0; i < 260; i++) {
+    const c = buf.readUInt16LE(44 + i * 2)
+    if (c === 0) break
+    chars.push(c)
+  }
+  return String.fromCharCode(...chars)
+}
+
+function extOf(name: string): string {
+  const e = path.extname(name)
+  return e.startsWith('.') ? e.slice(1).toLowerCase() : e.toLowerCase()
+}
+
+/**
+ * List a directory with FindFirstFileW. Returns null if the API fails so the
+ * caller can fall back to readdir+stat.
+ */
+export function listDirectoryWin32(dirPath: string, includeHidden: boolean): DirEntry[] | null {
+  const pattern = dirPath.endsWith('\\') || dirPath.endsWith('/') ? `${dirPath}*` : `${dirPath}\\*`
+  const buf = Buffer.alloc(FIND_DATA_SIZE)
+  const handle = FindFirstFileW(pattern, buf)
+  if (isInvalidHandle(handle)) return null
+
+  const entries: DirEntry[] = []
+  try {
+    for (;;) {
+      const name = readName(buf)
+      if (name !== '.' && name !== '..') {
+        const attrs = readU32(buf, 0)
+        const isHidden = (attrs & FILE_ATTRIBUTE_HIDDEN) !== 0
+        if (!isHidden || includeHidden) {
+          const isDir = (attrs & FILE_ATTRIBUTE_DIRECTORY) !== 0
+          const isReparse = (attrs & FILE_ATTRIBUTE_REPARSE_POINT) !== 0
+          const kind: DirEntry['kind'] = isDir ? 'dir' : isReparse ? 'symlink' : 'file'
+          const sizeHigh = readU32(buf, 28)
+          const sizeLow = readU32(buf, 32)
+          const size = isDir ? 0 : sizeHigh * 0x1_0000_0000 + sizeLow
+          entries.push({
+            name,
+            path: path.join(dirPath, name),
+            kind,
+            size,
+            mtimeMs: fileTimeToMs(buf, 20), // ftLastWriteTime
+            birthtimeMs: fileTimeToMs(buf, 4), // ftCreationTime
+            ext: kind === 'dir' ? '' : extOf(name),
+            isHidden
+          })
+        }
+      }
+      if (!FindNextFileW(handle, buf)) break
+    }
+  } finally {
+    FindClose(handle)
+  }
+  return entries
+}

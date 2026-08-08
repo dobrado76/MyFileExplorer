@@ -26,8 +26,7 @@ import {
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
-import { isExcludedByViewFilter } from '../lib/viewFilter'
-import { genModelFamilyAllowed } from '@shared/genModelFamily'
+import { compileViewFilter } from '../lib/viewFilter'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
@@ -337,22 +336,22 @@ export function FileView(): JSX.Element {
 
   const viewFilterOn = settings.viewFilterEnabled
   const viewPatterns = settings.viewFilterPatterns
-  const genFamilyOn = settings.genFamilyFilterEnabled
-  const genFamilies = settings.genFamilyFilter
-  const isExcluded = useMemo(
-    () => (e: { path: string; isHidden: boolean }) =>
-      isExcludedByViewFilter(e, viewPatterns, viewFilterOn),
+  const compiledFilter = useMemo(
+    () => compileViewFilter(viewPatterns, viewFilterOn),
     [viewPatterns, viewFilterOn]
   )
-  const asyncColumns = useMemo(() => {
-    const cols = detailsColumns.map((c) => c.id).filter(isAsyncColumn)
-    // Generation filter needs Model (+ Size hint) even when those columns are hidden.
-    if (genFamilyOn) {
-      if (!cols.includes('genModel')) cols.push('genModel')
-      if (!cols.includes('genSize')) cols.push('genSize')
-    }
-    return cols
-  }, [detailsColumns, genFamilyOn])
+  const isExcluded = useMemo(
+    () => (e: { path: string; isHidden: boolean }) => {
+      if (!viewFilterOn) return false
+      if (e.isHidden) return true
+      return compiledFilter(e.path)
+    },
+    [viewFilterOn, compiledFilter]
+  )
+  const asyncColumns = useMemo(
+    () => detailsColumns.map((c) => c.id).filter(isAsyncColumn),
+    [detailsColumns]
+  )
 
   const recycleByPath = useMemo(() => {
     const m = new Map<string, RecycleBinItem>()
@@ -435,17 +434,16 @@ export function FileView(): JSX.Element {
   }, [folderPath, sourceEntries, asyncColumns, isExcluded, searchMode, recycleMode])
 
   const entries = useMemo(() => {
-    const filtered = sourceEntries.filter((e) => {
-      if (isExcluded(e)) return false
-      if (!genFamilyOn || recycleMode) return true
-      if (e.kind === 'dir') return true
-      if (!isImageExt(e.ext)) return true
-      // Until metadata arrives, keep the row (avoid empty flash); hide once we
-      // know the checkpoint family is outside the allowlist.
-      const meta = metaByPath[e.path]
-      if (!meta) return true
-      return genModelFamilyAllowed(meta.genModel, genFamilies, { size: meta.genSize })
-    })
+    // Avoid copying 20k entries when the filter cannot hide anything.
+    let filtered = sourceEntries
+    if (viewFilterOn) {
+      if (viewPatterns.length === 0) {
+        const hasHidden = sourceEntries.some((e) => e.isHidden)
+        if (hasHidden) filtered = sourceEntries.filter((e) => !e.isHidden)
+      } else {
+        filtered = sourceEntries.filter((e) => !isExcluded(e))
+      }
+    }
     if (recycleMode) {
       const dirMul = recycleSort.dir === 'asc' ? 1 : -1
       return [...filtered].sort((a, b) => {
@@ -480,6 +478,8 @@ export function FileView(): JSX.Element {
     }
     const sort = effectiveSort
     if (SYNC_SORT_KEYS.has(sort.key)) {
+      // Normal folder browsing: store keeps listing sorted (loadListing / setSort).
+      if (!searchMode) return filtered
       return sortEntries(filtered, sort, settings.foldersFirst)
     }
     const colId = sort.key as DetailsColumnId
@@ -503,12 +503,12 @@ export function FileView(): JSX.Element {
     effectiveSort,
     settings.foldersFirst,
     isExcluded,
+    viewFilterOn,
+    viewPatterns.length,
     metaByPath,
     recycleMode,
     recycleSort,
-    recycleByPath,
-    genFamilyOn,
-    genFamilies
+    recycleByPath
   ])
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
@@ -838,40 +838,67 @@ export function FileView(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listingPath, tab?.id])
 
+  const pendingScrollRef = useRef(0)
+  const scrollSaveTimerRef = useRef(0)
   const onScroll = useCallback((): void => {
     const el = scrollRef.current
-    if (el) setScrollOffset(el.scrollTop)
+    if (!el) return
+    // Do not write scrollOffset into Zustand every frame — that re-renders the
+    // whole explorer (tabs subscription) and feels like a 20k-file hitch.
+    pendingScrollRef.current = el.scrollTop
+    if (scrollSaveTimerRef.current) return
+    scrollSaveTimerRef.current = window.setTimeout(() => {
+      scrollSaveTimerRef.current = 0
+      setScrollOffset(pendingScrollRef.current)
+    }, 150)
   }, [setScrollOffset])
 
-  const selectWithModifiers = useCallback(
-    (entry: DirEntry, e: React.MouseEvent): void => {
+  useEffect(() => {
+    return () => {
+      if (scrollSaveTimerRef.current) {
+        window.clearTimeout(scrollSaveTimerRef.current)
+        scrollSaveTimerRef.current = 0
+        setScrollOffset(pendingScrollRef.current)
+      }
+    }
+  }, [setScrollOffset])
+
+  /** Compute the selection that modifiers would produce (sync — needed before drag starts). */
+  const selectionForModifiers = useCallback(
+    (
+      entry: DirEntry,
+      mods: { ctrlKey: boolean; shiftKey: boolean }
+    ): { paths: string[]; anchor: string; focused: string } => {
       const path = entry.path
       const current = tab?.selected ?? []
-      if (e.ctrlKey) {
+      if (mods.ctrlKey) {
         const has = current.some((p) => samePath(p, path))
-        setSelection(
-          has ? current.filter((p) => !samePath(p, path)) : [...current, path],
-          path,
-          path
-        )
-      } else if (e.shiftKey && selectionAnchor) {
+        const paths = has ? current.filter((p) => !samePath(p, path)) : [...current, path]
+        return { paths, anchor: path, focused: path }
+      }
+      if (mods.shiftKey && selectionAnchor) {
         const anchorIdx = entries.findIndex((en) => samePath(en.path, selectionAnchor))
         const idx = entries.findIndex((en) => samePath(en.path, path))
         if (anchorIdx >= 0 && idx >= 0) {
           const [from, to] = anchorIdx < idx ? [anchorIdx, idx] : [idx, anchorIdx]
-          setSelection(
-            entries.slice(from, to + 1).map((en) => en.path),
-            selectionAnchor,
-            path
-          )
-        } else {
-          setSelection([path], path, path)
+          return {
+            paths: entries.slice(from, to + 1).map((en) => en.path),
+            anchor: selectionAnchor,
+            focused: path
+          }
         }
-      } else {
-        setSelection([path], path, path)
       }
+      return { paths: [path], anchor: path, focused: path }
     },
-    [tab?.selected, selectionAnchor, entries, setSelection]
+    [tab?.selected, selectionAnchor, entries]
+  )
+
+  const selectWithModifiers = useCallback(
+    (entry: DirEntry, e: React.MouseEvent): void => {
+      const next = selectionForModifiers(entry, e)
+      setSelection(next.paths, next.anchor, next.focused)
+    },
+    [selectionForModifiers, setSelection]
   )
 
   const highlightDropDest = useCallback(
@@ -901,19 +928,17 @@ export function FileView(): JSX.Element {
         return
       }
 
-      const dragPathsNow = selected.has(entry.path.toLowerCase())
-        ? (tab?.selected ?? [entry.path])
-        : [entry.path]
-
-      const ghostLabel =
-        dragPathsNow.length === 1 ? basename(dragPathsNow[0]!) : `${dragPathsNow.length} items`
+      const alreadySelected = selected.has(entry.path.toLowerCase())
 
       if (e.button === 2) {
         e.preventDefault()
         e.stopPropagation()
-        if (!selected.has(entry.path.toLowerCase())) {
+        const dragPathsNow = alreadySelected ? (tab?.selected ?? [entry.path]) : [entry.path]
+        if (!alreadySelected) {
           setSelection([entry.path], entry.path, entry.path)
         }
+        const ghostLabel =
+          dragPathsNow.length === 1 ? basename(dragPathsNow[0]!) : `${dragPathsNow.length} items`
         beginRightDragGesture(
           dragPathsNow,
           e.clientX,
@@ -945,14 +970,25 @@ export function FileView(): JSX.Element {
         return
       }
 
-      // Ctrl/Shift clicks are for selection only (mousedown/click handlers).
-      if (e.ctrlKey || e.shiftKey) return
-
-      if (!selected.has(entry.path.toLowerCase())) {
-        setSelection([entry.path], entry.path, entry.path)
+      // Left button — Explorer: Shift/Ctrl update selection on press, then the
+      // same gesture can drag that set (no release + second click).
+      let dragPathsNow: string[]
+      if (!e.ctrlKey && !e.shiftKey && alreadySelected) {
+        dragPathsNow = tab?.selected ?? [entry.path]
+      } else {
+        const next = selectionForModifiers(entry, e)
+        setSelection(next.paths, next.anchor, next.focused)
+        suppressClickRef.current = true
+        // Ctrl+click toggled this item off — selection-only.
+        if (e.ctrlKey && !next.paths.some((p) => samePath(p, entry.path))) return
+        dragPathsNow = next.paths
       }
 
-      // Left-button: pointer drag for in-app drops; OS startDrag when leaving the window.
+      if (dragPathsNow.length === 0) return
+
+      const ghostLabel =
+        dragPathsNow.length === 1 ? basename(dragPathsNow[0]!) : `${dragPathsNow.length} items`
+
       beginLeftFileDragGesture(
         dragPathsNow,
         e.clientX,
@@ -982,6 +1018,7 @@ export function FileView(): JSX.Element {
       renamingPath,
       selected,
       setSelection,
+      selectionForModifiers,
       tab?.selected,
       setDragPaths,
       highlightDropDest,
@@ -994,15 +1031,20 @@ export function FileView(): JSX.Element {
   const onItemMouseDown = useCallback(
     (entry: DirEntry, e: React.MouseEvent): void => {
       if (e.button === 2) return // handled by onItemPointerDown
-      if (!e.ctrlKey && !e.shiftKey && selected.has(entry.path.toLowerCase())) {
+      // Shift/Ctrl selection is applied in pointerdown so the same press can drag.
+      if (e.ctrlKey || e.shiftKey) {
+        suppressClickRef.current = true
+        return
+      }
+      if (selected.has(entry.path.toLowerCase())) {
         // defer to click so dragging a multi-selection works
         suppressClickRef.current = false
         return
       }
+      // Plain click on unselected: selection already set in pointerdown.
       suppressClickRef.current = true
-      selectWithModifiers(entry, e)
     },
-    [selected, selectWithModifiers]
+    [selected]
   )
 
   const onItemClick = useCallback(
@@ -1277,6 +1319,7 @@ export function FileView(): JSX.Element {
       <div
         ref={setScrollEl}
         className={`fileview${isGrid ? ' fileview-icons' : ''}${overlayMode ? ' fileview-search' : ''}${bgDropActive ? ' drop-target' : ''}`}
+        data-drag-scroll
         onScroll={onScroll}
         tabIndex={0}
         role={isGrid ? 'grid' : 'listbox'}

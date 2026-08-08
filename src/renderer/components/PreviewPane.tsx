@@ -86,6 +86,8 @@ export function PreviewPane(): JSX.Element {
     setLoading(true)
     // Same path after an in-place edit: drop the old model so we don't keep
     // painting stale pixels while the new preview (cache-busted URL) loads.
+    // Different path: keep prior model painted until the next preview arrives
+    // (avoids black flash on delete / arrow navigation).
     setModel((prev) => (prev && samePath(prev.path, previewPath) ? null : prev))
     void api.preview.get({ path: previewPath }).then((res) => {
       if (seq !== previewSeq) return // superseded — cancel stale preview
@@ -164,7 +166,8 @@ export function PreviewPane(): JSX.Element {
       ) : null}
 
       <div className="preview-content">
-        {model.kind === 'image' && model.mediaUrl && !mediaHold && (
+        {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
+        {model.kind === 'image' && model.mediaUrl && (
           <div className="preview-media preview-media-fill">
             <img src={model.mediaUrl} alt={basename(model.path)} draggable={false} />
           </div>

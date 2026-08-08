@@ -1,5 +1,10 @@
 import { api } from './ipc'
 import {
+  startDragAutoScroll,
+  stopDragAutoScroll,
+  updateDragAutoScrollPointer
+} from './dragAutoScroll'
+import {
   clearRightDragBodyClass,
   createRightDragSession,
   findDropDirAt,
@@ -76,6 +81,7 @@ export function beginLeftFileDragGesture(
   let handedOff = false
 
   const cleanup = (): void => {
+    stopDragAutoScroll()
     window.removeEventListener('pointermove', onMove, true)
     window.removeEventListener('mousemove', onMove, true)
     window.removeEventListener('pointerup', onUp, true)
@@ -129,6 +135,7 @@ export function beginLeftFileDragGesture(
       handlers.onActivated(session.paths)
       document.body.classList.add('right-dragging')
       armLeftDragClickSuppress()
+      startDragAutoScroll(ev.clientX, ev.clientY)
     }
 
     if (isPointerOutsideWindow(ev.clientX, ev.clientY)) {
@@ -136,6 +143,7 @@ export function beginLeftFileDragGesture(
       return
     }
 
+    updateDragAutoScrollPointer(ev.clientX, ev.clientY)
     showRightDragGhost(handlers.ghostLabel, ev.clientX, ev.clientY)
     const dest = findDropDirAt(ev.clientX, ev.clientY)
     handlers.onHighlight(dest && isValidDropDest(session.paths, dest) ? dest : null)

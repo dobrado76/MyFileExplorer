@@ -12,6 +12,26 @@ const execFileAsync = promisify(execFile)
 
 const LIST_CAP = 5000
 
+/**
+ * FolderItem.InvokeVerb('restore'|'delete') is a no-op in several Windows /
+ * PowerShell COM hosts — the verb runs only via Verbs() → DoIt().
+ * Match the accelerator-stripped display name (English + common locales).
+ */
+const PS_INVOKE_VERB = `
+function Invoke-MfeBinVerb($item, [string[]]$names) {
+  $verbs = @($item.Verbs())
+  foreach ($v in $verbs) {
+    try {
+      $n = (($v.Name -replace '&','').Trim().ToLowerInvariant())
+      foreach ($want in $names) {
+        if ($n -eq $want -or $n.StartsWith($want + ' ')) { $v.DoIt(); return $true }
+      }
+    } catch {}
+  }
+  return $false
+}
+`
+
 async function runPowerShell(script: string, timeoutMs: number): Promise<string> {
   const { stdout, stderr } = await execFileAsync(
     'powershell.exe',
@@ -106,6 +126,14 @@ foreach ($item in @($rb.Items())) {
   }
 }
 
+async function waitPathExists(filePath: string, attempts = 25): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    if (await pathExists(filePath)) return true
+    await new Promise((r) => setTimeout(r, 40 + i * 20))
+  }
+  return false
+}
+
 /**
  * Restore items from the Windows Recycle Bin by original full path.
  * Matches Shell.Application namespace 0xA (Recycle Bin) via PowerShell COM.
@@ -123,6 +151,7 @@ export async function restoreFromRecycleBin(
   const listLiteral = listFile.replace(/'/g, "''")
   const ps = `
 $ErrorActionPreference = 'Continue'
+${PS_INVOKE_VERB}
 $wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $shell = New-Object -ComObject Shell.Application
 $rb = $shell.NameSpace(0xA)
@@ -133,10 +162,17 @@ foreach ($item in @($rb.Items())) {
     $loc = $item.ExtendedProperty('System.Recycle.DeletedFrom')
     if (-not $loc) { $loc = $rb.GetDetailsOf($item, 1) }
     if (-not $loc) { continue }
-    $full = [System.IO.Path]::Combine([string]$loc, [string]$item.Name)
-    $key = $full.ToLowerInvariant()
-    if ($wanted -contains $key) {
-      $item.InvokeVerb('restore')
+    $name = [string]$item.Name
+    $locStr = [string]$loc
+    # DeletedFrom is usually the parent folder; sometimes already the full path.
+    $candidates = New-Object System.Collections.Generic.List[string]
+    [void]$candidates.Add([System.IO.Path]::Combine($locStr, $name).ToLowerInvariant())
+    [void]$candidates.Add($locStr.TrimEnd('\\').ToLowerInvariant())
+    $hit = $false
+    foreach ($c in $candidates) { if ($wanted -contains $c) { $hit = $true; break } }
+    if (-not $hit) { continue }
+    $full = if ($wanted -contains $locStr.TrimEnd('\\').ToLowerInvariant()) { $locStr.TrimEnd('\\') } else { [System.IO.Path]::Combine($locStr, $name) }
+    if (Invoke-MfeBinVerb $item @('restore','wiederherstellen','restaurer','restablecer','ripristina')) {
       [void]$restored.Add($full)
     }
   } catch {}
@@ -154,11 +190,10 @@ $restored | ForEach-Object { $_ }
     const restored: string[] = []
     const missing: string[] = []
     for (const original of wanted) {
-      const hit = reported.find((r) => r.toLowerCase() === original.toLowerCase())
-      if (hit && (await pathExists(original))) {
-        restored.push(original)
-      } else if (await pathExists(original)) {
-        restored.push(original)
+      const claimed = reported.some((r) => r.toLowerCase() === original.toLowerCase())
+      if (claimed || (await pathExists(original))) {
+        if (await waitPathExists(original)) restored.push(original)
+        else missing.push(original)
       } else {
         missing.push(original)
       }
@@ -187,6 +222,7 @@ export async function deleteFromRecycleBin(
   const listLiteral = listFile.replace(/'/g, "''")
   const ps = `
 $ErrorActionPreference = 'Continue'
+${PS_INVOKE_VERB}
 $wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $shell = New-Object -ComObject Shell.Application
 $rb = $shell.NameSpace(0xA)
@@ -197,10 +233,17 @@ foreach ($item in @($rb.Items())) {
     $loc = $item.ExtendedProperty('System.Recycle.DeletedFrom')
     if (-not $loc) { $loc = $rb.GetDetailsOf($item, 1) }
     if (-not $loc) { continue }
-    $full = [System.IO.Path]::Combine([string]$loc, [string]$item.Name)
-    $key = $full.ToLowerInvariant()
-    if ($wanted -contains $key) {
-      $item.InvokeVerb('delete')
+    $name = [string]$item.Name
+    $locStr = [string]$loc
+    $candidates = @(
+      [System.IO.Path]::Combine($locStr, $name).ToLowerInvariant(),
+      $locStr.TrimEnd('\\').ToLowerInvariant()
+    )
+    $hit = $false
+    foreach ($c in $candidates) { if ($wanted -contains $c) { $hit = $true; break } }
+    if (-not $hit) { continue }
+    $full = if ($wanted -contains $locStr.TrimEnd('\\').ToLowerInvariant()) { $locStr.TrimEnd('\\') } else { [System.IO.Path]::Combine($locStr, $name) }
+    if (Invoke-MfeBinVerb $item @('delete','löschen','supprimer','eliminar','elimina')) {
       [void]$deleted.Add($full)
     }
   } catch {}

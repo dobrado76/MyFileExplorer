@@ -208,7 +208,11 @@ export function ExplorerShell(): JSX.Element {
       <div className="shell-body">
         {!splitters.treeCollapsed && (
           <>
-            <div className="pane-tree" style={{ width: splitters.treeWidthPx }}>
+            <div
+              className="pane-tree"
+              data-drag-scroll
+              style={{ width: splitters.treeWidthPx }}
+            >
               <FolderTree />
             </div>
             <Splitter

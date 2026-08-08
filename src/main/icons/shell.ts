@@ -115,6 +115,15 @@ export async function getShellIconUrl(
   const file = requireAbsolute(rawPath)
   const kind = mapSize(sizePx)
   const px = pixelSize(kind)
+  const ext = path.extname(file).slice(1).toLowerCase()
+
+  // Extension icons are shared (all .png → one glyph). Hit memory cache before
+  // any disk IO — critical when a virtualized details view mounts dozens of rows.
+  if (!PER_FILE_EXTS.has(ext)) {
+    const extKey = `${ext || '_none'}|${px}`
+    const hit = extUrlCache.get(extKey)
+    if (hit) return { url: hit }
+  }
 
   let st
   try {
@@ -124,7 +133,6 @@ export async function getShellIconUrl(
   }
 
   const isDir = st.isDirectory()
-  const ext = path.extname(file).slice(1).toLowerCase()
   const perFile = isDir || PER_FILE_EXTS.has(ext)
   if (!perFile) {
     const extKey = `${ext || '_none'}|${px}`

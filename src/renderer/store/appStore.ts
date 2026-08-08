@@ -161,6 +161,26 @@ function newTabId(): string {
 }
 
 let listRequestSeq = 0
+/** Skip watch-driven soft re-lists after optimistic local mutations (large folders). */
+let suppressSoftReloadUntil = 0
+let softReloadTimer: ReturnType<typeof setTimeout> | null = null
+let softReloadInFlight = false
+let lastSoftReloadAt = 0
+/** Above this, skip directory watches — soft re-lists dominate UI time. */
+const LARGE_FOLDER_NO_WATCH = 2_000
+/**
+ * Cached view order for delete-next selection. Rebuilding via localeCompare on
+ * 20k rows every Del is a multi-hundred-ms hitch; prune updates this in place.
+ */
+let viewOrderCache: {
+  listingRef: DirEntry[]
+  sortKey: string
+  sortDir: string
+  foldersFirst: boolean
+  filterKey: string
+  paths: string[]
+} | null = null
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -193,8 +213,9 @@ type AppState = {
   /** In-app Filerobot image editor (preview Edit button / context menu). */
   imageEditor: { path: string; mediaUrl: string } | null
   /**
-   * When true, preview/viewer detach media elements so Windows can delete/rename
-   * files that Chromium had open via mfe-media.
+   * When true, preview/viewer detach AV/PDF media so Windows can delete/rename
+   * files Chromium may still hold. Image previews use buffered/scratch mfe-media
+   * (D7) and stay painted to avoid a black flash on delete.
    */
   mediaHold: boolean
   contextMenu: ContextMenuState
@@ -639,8 +660,14 @@ export const useAppStore = create<AppState>()((set, get) => {
       const res = await call(api.fs.list({ path, includeHidden: true }))
       if (seq !== listRequestSeq) return // superseded
       stopOfflinePoll()
+      if (opts?.soft) lastSoftReloadAt = Date.now()
+      // Sort once in the store so the first paint and delete-next cache share order.
+      const tab = get().activeTab()
+      const owning = resolveFolderView(tab.path, get().settings.folderViews)
+      const sort = owning?.sort ?? tab.sort
+      const sortedEntries = sortEntries(res.entries, sort, get().settings.foldersFirst)
       set((s) => {
-        const valid = new Set(res.entries.map((e) => e.path.toLowerCase()))
+        const valid = new Set(sortedEntries.map((e) => e.path.toLowerCase()))
         const tabs = s.tabs.map((t) =>
           t.id === s.activeTabId
             ? {
@@ -654,7 +681,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return {
           listing: {
             path: res.path,
-            entries: res.entries,
+            entries: sortedEntries,
             loading: false,
             error: null,
             offline: false
@@ -662,9 +689,27 @@ export const useAppStore = create<AppState>()((set, get) => {
           tabs
         }
       })
-      void api.fs.watch({ path })
-      const parent = parentOf(path)
-      if (parent) void api.fs.watch({ path: parent })
+      // Large libraries: watching forces periodic full re-lists (even coalesced)
+      // and is the main source of multi-second freezes. Rely on optimistic
+      // mutations + F5 / navigation instead.
+      if (res.entries.length < LARGE_FOLDER_NO_WATCH) {
+        void api.fs.watch({ path })
+        const parent = parentOf(path)
+        if (parent) void api.fs.watch({ path: parent })
+      } else {
+        void api.fs.unwatch({ path }).catch(() => {})
+        const parent = parentOf(path)
+        if (parent) void api.fs.unwatch({ path: parent }).catch(() => {})
+      }
+      viewOrderCache = null
+      // Build delete-next order off the UI thread's critical path (after paint).
+      queueMicrotask(() => {
+        try {
+          pathsInViewOrder()
+        } catch {
+          /* ignore */
+        }
+      })
     } catch (e) {
       if (seq !== listRequestSeq) return
       const offline = isOfflineFailure(e)
@@ -722,6 +767,28 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   /**
+   * Coalesce watch-driven soft reloads. Large folders must not re-list on every
+   * ReadDirectoryChanges blip (indexer / AV / our own enumeration noise).
+   */
+  function scheduleSoftReload(dirPath: string): void {
+    if (Date.now() < suppressSoftReloadUntil) return
+    const n = get().listing.entries.length
+    const minGap = n >= 10_000 ? 10_000 : n >= 2_000 ? 5_000 : 750
+    const wait = Math.max(250, lastSoftReloadAt + minGap - Date.now())
+    if (softReloadTimer) clearTimeout(softReloadTimer)
+    softReloadTimer = setTimeout(() => {
+      softReloadTimer = null
+      if (Date.now() < suppressSoftReloadUntil) return
+      if (softReloadInFlight) return
+      if (!samePath(get().activeTab().path, dirPath)) return
+      softReloadInFlight = true
+      void loadListing(dirPath, { preserveSelection: true, soft: true }).finally(() => {
+        softReloadInFlight = false
+      })
+    }, wait)
+  }
+
+  /**
    * After trash/delete: prune the tree, and if the active folder was removed
    * (or lived inside a removed folder), navigate to the next sibling folder
    * under the parent — or the parent itself when there is no next sibling.
@@ -747,10 +814,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     set({ imageViewer: { path: siblings[nextIdx]!, siblings } })
   }
 
-  /** Drop preview/viewer media so Chromium releases any remaining holds. */
+  /** Drop AV/PDF media elements so Chromium releases any remaining holds. */
   async function releaseMediaLocks(): Promise<void> {
     set({ mediaHold: true })
-    // Two animation frames is enough for React to unmount <img>/<video>.
+    // Two animation frames is enough for React to unmount <video>/<audio>/PDF.
     await new Promise<void>((resolve) => {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => resolve())
@@ -758,8 +825,103 @@ export const useAppStore = create<AppState>()((set, get) => {
     })
   }
 
-  async function afterPathsRemoved(removed: string[]): Promise<void> {
+  function clearMediaHold(): void {
     if (get().mediaHold) set({ mediaHold: false })
+  }
+
+  function viewOrderFilterKey(s: {
+    settings: { viewFilterEnabled: boolean; viewFilterPatterns: string[] }
+  }): string {
+    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}`
+  }
+
+  /** Sorted/filtered paths matching the file view (cached; pruned in place on delete). */
+  function pathsInViewOrder(): string[] {
+    const s = get()
+    const tab = s.activeTab()
+    const owning = resolveFolderView(tab.path, s.settings.folderViews)
+    const sort = owning?.sort ?? tab.sort
+    const filterKey = viewOrderFilterKey(s)
+    if (
+      viewOrderCache &&
+      viewOrderCache.listingRef === s.listing.entries &&
+      viewOrderCache.sortKey === sort.key &&
+      viewOrderCache.sortDir === sort.dir &&
+      viewOrderCache.foldersFirst === s.settings.foldersFirst &&
+      viewOrderCache.filterKey === filterKey
+    ) {
+      return viewOrderCache.paths
+    }
+    const before = sortEntries(
+      s.listing.entries.filter(
+        (e) => !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
+      ),
+      sort,
+      s.settings.foldersFirst
+    )
+    const paths = before.map((e) => e.path)
+    viewOrderCache = {
+      listingRef: s.listing.entries,
+      sortKey: sort.key,
+      sortDir: sort.dir,
+      foldersFirst: s.settings.foldersFirst,
+      filterKey,
+      paths
+    }
+    return paths
+  }
+
+  /** Next path to select after delete, from the current sorted/filtered listing. */
+  function nextPathAfterDelete(removed: string[]): string | null {
+    return nextSelectionAfterDelete(pathsInViewOrder(), removed)
+  }
+
+  /** Drop removed paths from the in-memory listing (no full-folder re-stat). */
+  function pruneListingRemoved(removed: string[]): void {
+    if (removed.length === 0) return
+    const gone = new Set(removed.map((p) => p.toLowerCase()))
+    set((s) => {
+      const entries = s.listing.entries.filter((e) => !gone.has(e.path.toLowerCase()))
+      if (viewOrderCache && viewOrderCache.listingRef === s.listing.entries) {
+        viewOrderCache = {
+          ...viewOrderCache,
+          listingRef: entries,
+          paths: viewOrderCache.paths.filter((p) => !gone.has(p.toLowerCase()))
+        }
+      } else {
+        viewOrderCache = null
+      }
+      return {
+        listing: {
+          ...s.listing,
+          entries
+        }
+      }
+    })
+    // Avoid the delete's own directory-watch event re-listing tens of thousands of files.
+    suppressSoftReloadUntil = Math.max(suppressSoftReloadUntil, Date.now() + 8000)
+  }
+
+  /** Move selection to the survivor and drop cards before trash/refresh so UI stays snappy. */
+  function selectAfterDelete(removed: string[]): string | null {
+    const tab = get().activeTab()
+    // Deleting the folder we're in (or an ancestor): navigation handles next view.
+    if (removed.some((p) => samePath(p, tab.path) || isUnderPath(tab.path, p))) {
+      return null
+    }
+    const nextPath = nextPathAfterDelete(removed)
+    pruneListingRemoved(removed)
+    if (nextPath) {
+      updateActiveTab({ selected: [nextPath] })
+      set({ selectionAnchor: nextPath, focusedPath: nextPath })
+    } else {
+      updateActiveTab({ selected: [] })
+      set({ selectionAnchor: null, focusedPath: null })
+    }
+    return nextPath
+  }
+
+  async function afterPathsRemoved(removed: string[]): Promise<void> {
     syncImageViewerAfterDelete(removed)
     notifyTreeRemoved(removed)
     const tab = get().activeTab()
@@ -768,29 +930,22 @@ export const useAppStore = create<AppState>()((set, get) => {
       removed.find((p) => samePath(p, current) || isUnderPath(current, p)) ?? null
 
     if (!primary) {
-      // Stay in the folder: pick the next visible item (Explorer-style), else previous.
-      const s = get()
-      const owning = resolveFolderView(tab.path, s.settings.folderViews)
-      const sort = owning?.sort ?? tab.sort
-      const before = sortEntries(
-        s.listing.entries.filter(
-          (e) => !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
-        ),
-        sort,
-        s.settings.foldersFirst
-      )
-      const nextPath = nextSelectionAfterDelete(before.map((e) => e.path), removed)
-      await get().refresh()
+      // Stay in-folder: listing was already pruned + selection updated before trash.
+      // Do NOT full-refresh — readdir+stat of large folders is multi-second.
+      pruneListingRemoved(removed)
+      const focused = get().focusedPath
+      const nextPath =
+        focused && get().listing.entries.some((e) => samePath(e.path, focused))
+          ? focused
+          : null
       if (nextPath) {
-        const stillThere = get().listing.entries.some((e) => samePath(e.path, nextPath))
-        if (stillThere) {
-          updateActiveTab({ selected: [nextPath] })
-          set({ selectionAnchor: nextPath, focusedPath: nextPath })
-          return
-        }
+        updateActiveTab({ selected: [nextPath] })
+        set({ selectionAnchor: nextPath, focusedPath: nextPath })
+      } else {
+        updateActiveTab({ selected: [] })
+        set({ selectionAnchor: null, focusedPath: null })
       }
-      updateActiveTab({ selected: [] })
-      set({ selectionAnchor: null, focusedPath: null })
+      clearMediaHold()
       return
     }
 
@@ -840,6 +995,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       forward: t.forward.filter((p) => !gone(p)),
       selected: []
     })
+    clearMediaHold()
   }
 
   let historyBusy = false
@@ -910,6 +1066,15 @@ export const useAppStore = create<AppState>()((set, get) => {
           entry.label,
           () => call(api.fs.restoreFromTrash({ paths: entry.paths }))
         )
+        if (res.restored.length === 0) {
+          throw new IpcError({
+            code: 'io',
+            message:
+              res.missing.length > 0
+                ? 'Could not restore from Recycle Bin (item not found or restore failed).'
+                : 'Could not restore from Recycle Bin.'
+          })
+        }
         notifyTreeReload(parentsOfPaths(res.restored))
         if (res.missing.length > 0) {
           get().notify(
@@ -1181,7 +1346,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           const tab = s.activeTab()
           const parent = parentOf(tab.path)
           if (samePath(changed, tab.path)) {
-            void loadListing(tab.path, { preserveSelection: true, soft: true })
+            // Soft-reload the file view (coalesced). Do NOT also re-list this
+            // folder for the tree — that doubles the cost on large libraries.
+            scheduleSoftReload(tab.path)
           } else if (parent && samePath(changed, parent)) {
             void (async () => {
               try {
@@ -1195,8 +1362,10 @@ export const useAppStore = create<AppState>()((set, get) => {
               }
               // Sibling create/rename/delete — listing unchanged, tree parent must reload.
             })()
+            notifyTreeReload([changed])
+          } else {
+            notifyTreeReload([changed])
           }
-          notifyTreeReload([changed])
         } else if (event.type === 'search-progress') {
           if (s.search.running) {
             set({
@@ -1514,9 +1683,20 @@ export const useAppStore = create<AppState>()((set, get) => {
         void get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, { sort })
         })
-        return
+      } else {
+        updateActiveTab({ sort })
       }
-      updateActiveTab({ sort })
+      // Keep listing in view order so FileView can skip a 20k re-sort on paint.
+      viewOrderCache = null
+      const listing = get().listing
+      if (listing.entries.length > 0 && !get().search.active && !get().recycleBin.active) {
+        set({
+          listing: {
+            ...listing,
+            entries: sortEntries(listing.entries, sort, get().settings.foldersFirst)
+          }
+        })
+      }
     },
 
     async customizeFolderView(path, recursive) {
@@ -1688,7 +1868,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     setScrollOffset(offset) {
-      // no session save churn for every scroll — update silently, save on other triggers
+      // Scroll fires every frame — skip no-op writes so FileView/TabBar don't re-render.
+      const tab = get().activeTab()
+      if (Math.abs(tab.scrollOffset - offset) < 1) return
       set((s) => ({
         tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, scrollOffset: offset } : t))
       }))
@@ -2004,6 +2186,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (target.length === 0) return
       if (!permanent) {
         try {
+          // Select the survivor first so the preview keeps painting while we trash.
+          selectAfterDelete(target)
           await releaseMediaLocks()
           await withBusyFeedback(
             'trash',
@@ -2019,7 +2203,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           get().notify(`Moved ${target.length} item${target.length > 1 ? 's' : ''} to Recycle Bin`)
           await afterPathsRemoved(target)
         } catch (e) {
-          set({ mediaHold: false })
+          clearMediaHold()
           reportOperationError('Delete failed', e)
         }
         return
@@ -2038,6 +2222,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
       async function doPermanentDelete(toDelete: string[]): Promise<void> {
         try {
+          selectAfterDelete(toDelete)
           await releaseMediaLocks()
           await withBusyFeedback(
             'delete',
@@ -2048,7 +2233,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           get().notify(`Permanently deleted ${toDelete.length} item${toDelete.length > 1 ? 's' : ''}`)
           await afterPathsRemoved(toDelete)
         } catch (e) {
-          set({ mediaHold: false })
+          clearMediaHold()
           reportOperationError('Delete failed', e)
         }
       }
@@ -2059,6 +2244,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ dialog: null })
       if (!dialog || dialog.kind !== 'confirm-permanent-delete' || !confirmed) return
       try {
+        selectAfterDelete(dialog.paths)
         await releaseMediaLocks()
         await withBusyFeedback(
           'delete',
@@ -2071,7 +2257,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         )
         await afterPathsRemoved(dialog.paths)
       } catch (e) {
-        set({ mediaHold: false })
+        clearMediaHold()
         reportOperationError('Delete failed', e)
       }
     },
@@ -2681,6 +2867,7 @@ export function sortEntries(
   foldersFirst: boolean
 ): DirEntry[] {
   const dir = sort.dir === 'asc' ? 1 : -1
+  // Shared collator — localeCompare options-object per call is much slower on 10k+ rows.
   const sorted = [...entries].sort((a, b) => {
     if (foldersFirst) {
       const ad = a.kind === 'dir' ? 0 : 1
@@ -2690,7 +2877,7 @@ export function sortEntries(
     let cmp = 0
     switch (sort.key) {
       case 'name':
-        cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        cmp = nameCollator.compare(a.name, b.name)
         break
       case 'mtime':
         cmp = a.mtimeMs - b.mtimeMs
@@ -2703,12 +2890,11 @@ export function sortEntries(
         break
       case 'type':
       case 'ext':
-        cmp =
-          a.ext.localeCompare(b.ext) || a.name.localeCompare(b.name, undefined, { numeric: true })
+        cmp = nameCollator.compare(a.ext, b.ext) || nameCollator.compare(a.name, b.name)
         break
     }
     if (cmp === 0 && sort.key !== 'name') {
-      cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      cmp = nameCollator.compare(a.name, b.name)
     }
     return cmp * dir
   })

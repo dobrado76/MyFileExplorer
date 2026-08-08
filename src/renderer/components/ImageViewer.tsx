@@ -10,7 +10,6 @@ import { CloseIcon, ArrowLeft, ArrowRight, SpinnerIcon } from '../lib/icons'
  */
 export function ImageViewer(): JSX.Element | null {
   const viewer = useAppStore((s) => s.imageViewer)
-  const mediaHold = useAppStore((s) => s.mediaHold)
   const closeImageViewer = useAppStore((s) => s.closeImageViewer)
   const imageViewerNavigate = useAppStore((s) => s.imageViewerNavigate)
   const imageViewerDelete = useAppStore((s) => s.imageViewerDelete)
@@ -29,13 +28,14 @@ export function ImageViewer(): JSX.Element | null {
     let alive = true
     setLoading(true)
     setError(null)
-    setUrl(null)
     setFit(true)
+    // Keep the previous bitmap mounted until the next URL is ready (no black flash).
     void api.preview.get({ path: viewerPath }).then((res) => {
       if (!alive) return
       setLoading(false)
       if (!res.ok || !res.value.mediaUrl) {
         setError(res.ok ? 'No image preview available' : res.error.message)
+        setUrl(null)
         return
       }
       setUrl(res.value.mediaUrl)
@@ -172,13 +172,13 @@ export function ImageViewer(): JSX.Element | null {
           className={`image-viewer-frame${fit ? ' fit' : ' actual'}`}
           onMouseDown={dismissIfAway}
         >
-          {loading && (
+          {loading && !url && (
             <div className="image-viewer-status">
               <SpinnerIcon size={28} className="spin" />
             </div>
           )}
           {!loading && error && <div className="image-viewer-status">{error}</div>}
-          {!loading && url && !mediaHold && (
+          {url && !error && (
             <img
               src={url}
               alt={name}
@@ -186,9 +186,6 @@ export function ImageViewer(): JSX.Element | null {
               onClick={() => setFit((f) => !f)}
               title={fit ? 'Click for actual size' : 'Click to fit'}
             />
-          )}
-          {!loading && url && mediaHold && (
-            <div className="image-viewer-status">Releasing file…</div>
           )}
         </div>
 

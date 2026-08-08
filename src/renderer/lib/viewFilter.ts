@@ -77,6 +77,18 @@ export function compileViewFilter(patterns: string[], enabled: boolean): ViewFil
   }
 }
 
+/** Cached compiled predicate — never recompile regexes per file (20k× was catastrophic). */
+let cachedPatternsKey = '\0'
+let cachedPredicate: ViewFilterPredicate = () => false
+
+function predicateFor(patterns: string[]): ViewFilterPredicate {
+  const key = patterns.join('\n')
+  if (key === cachedPatternsKey) return cachedPredicate
+  cachedPatternsKey = key
+  cachedPredicate = compileViewFilter(patterns, true)
+  return cachedPredicate
+}
+
 /** True when the entry should be omitted from the view (patterns + Windows Hidden). */
 export function isExcludedByViewFilter(
   entry: { path: string; isHidden: boolean },
@@ -85,5 +97,6 @@ export function isExcludedByViewFilter(
 ): boolean {
   if (!enabled) return false
   if (entry.isHidden) return true
-  return compileViewFilter(patterns, true)(entry.path)
+  if (patterns.length === 0) return false
+  return predicateFor(patterns)(entry.path)
 }

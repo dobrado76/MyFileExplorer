@@ -547,7 +547,9 @@ export async function trashEntries(paths: string[]): Promise<{ trashed: string[]
 
   // Suspend watching so loadListing cannot re-open ReadDirectoryChanges mid-recycle.
   suspendWatching()
-  muteWatchers(1500)
+  // Long mute: large folders take seconds to re-list; UI prunes optimistically and
+  // must not get a full soft-refresh hitch from the delete's own watch event.
+  muteWatchers(8000)
 
   const progress = beginOp('trash', absolute.length, 'Moving to Recycle Bin…')
   try {
@@ -593,6 +595,7 @@ export async function trashEntries(paths: string[]): Promise<{ trashed: string[]
     // appErrorFromFsFailure only claims “locked” when Restart Manager finds lockers.
     throw await appErrorFromFsFailure(e, { action: 'delete', path: stuck, isDir })
   } finally {
+    muteWatchers(8000)
     resumeWatching()
   }
   return { trashed: absolute }
@@ -616,7 +619,7 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
         /* ignore */
       }
       releaseWatchersAffecting([p])
-      muteWatchers(600)
+      muteWatchers(8000)
       try {
         await deleteTree(p, progress)
         deleted.push(p)
@@ -629,6 +632,8 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
   } catch (e) {
     progress.fail()
     throw e
+  } finally {
+    muteWatchers(8000)
   }
   return { deleted }
 }

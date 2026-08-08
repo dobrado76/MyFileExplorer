@@ -1544,65 +1544,6 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 onChange={(e) => setFilterText(e.target.value)}
                 onBlur={commitFilterPatterns}
               />
-
-              <h3 className="settings-subheading">Generation base model</h3>
-              <p className="settings-help">
-                Hide A1111/Forge PNGs whose checkpoint is outside the families you keep (reads the
-                embedded <code>Model</code> field). Default keep list is Krea and SDXL family (Pony /
-                Illustrious / SDXL) — not SD 1.5. Folders and images without generation metadata stay
-                visible. Applies to the file view and search results (not the tree).
-              </p>
-              <SettingsToggle
-                id="set-gen-family-enabled"
-                label="Filter by base model family"
-                checked={settings.genFamilyFilterEnabled}
-                onChange={(v) => void applySettingsPatch({ genFamilyFilterEnabled: v })}
-              />
-              <div className="settings-check-grid" role="group" aria-label="Allowed model families">
-                {(
-                  [
-                    'krea',
-                    'sdxl',
-                    'sd15',
-                    'flux',
-                    'sd3',
-                    'other'
-                  ] as const
-                ).map((id) => {
-                  const checked = settings.genFamilyFilter.includes(id)
-                  return (
-                    <label key={id} className="settings-check">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={!settings.genFamilyFilterEnabled}
-                        onChange={() => {
-                          const next = checked
-                            ? settings.genFamilyFilter.filter((f) => f !== id)
-                            : [...settings.genFamilyFilter, id]
-                          void applySettingsPatch({
-                            genFamilyFilter:
-                              next.length > 0 ? next : ([id] as typeof settings.genFamilyFilter)
-                          })
-                        }}
-                      />
-                      <span>
-                        {id === 'krea'
-                          ? 'Krea (incl. Krea 2)'
-                          : id === 'sdxl'
-                            ? 'SDXL family (Pony / Illustrious / SDXL)'
-                            : id === 'sd15'
-                              ? 'SD 1.5'
-                              : id === 'flux'
-                                ? 'Flux'
-                                : id === 'sd3'
-                                  ? 'SD 3'
-                                  : 'Other / unknown checkpoint'}
-                      </span>
-                    </label>
-                  )
-                })}
-              </div>
             </div>
           )}
 

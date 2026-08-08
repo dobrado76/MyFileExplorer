@@ -1,3 +1,8 @@
+import {
+  startDragAutoScroll,
+  stopDragAutoScroll,
+  updateDragAutoScrollPointer
+} from './dragAutoScroll'
 import { samePath, isUnderPath } from './paths'
 
 const THRESHOLD_PX = 5
@@ -131,6 +136,7 @@ export function beginRightDragGesture(
 ): void {
   const session = createRightDragSession(paths, clientX, clientY)
   liveRightDrag = session
+  let notifiedActivate = false
 
   try {
     ;(target as HTMLElement).setPointerCapture(pointerId)
@@ -142,14 +148,20 @@ export function beginRightDragGesture(
     if (!liveRightDrag || liveRightDrag !== session) return
     if (!updateRightDragActive(session, ev.clientX, ev.clientY)) return
     if (!session.active) return
-    handlers.onActivated(session.paths)
-    document.body.classList.add('right-dragging')
+    if (!notifiedActivate) {
+      notifiedActivate = true
+      handlers.onActivated(session.paths)
+      document.body.classList.add('right-dragging')
+      startDragAutoScroll(ev.clientX, ev.clientY)
+    }
+    updateDragAutoScrollPointer(ev.clientX, ev.clientY)
     showRightDragGhost(handlers.ghostLabel, ev.clientX, ev.clientY)
     const dest = findDropDirAt(ev.clientX, ev.clientY)
     handlers.onHighlight(dest && isValidDropDest(session.paths, dest) ? dest : null)
   }
 
   const cleanup = (): void => {
+    stopDragAutoScroll()
     window.removeEventListener('pointermove', onMove, true)
     window.removeEventListener('mousemove', onMove, true)
     window.removeEventListener('pointerup', onUp, true)
