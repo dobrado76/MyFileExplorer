@@ -110,7 +110,7 @@ export type RightDragGestureHandlers = {
   /**
    * Pointer released.
    * - `active: false` → treat as a plain right-click (open normal context menu).
-   * - `active: true` + valid dest → open Copy/Move drop menu.
+   * - `active: true` + valid dest → open Copy/Move/Create shortcuts drop menu.
    */
   onFinish: (info: {
     active: boolean

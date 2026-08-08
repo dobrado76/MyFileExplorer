@@ -41,9 +41,11 @@ function extOf(filePath: string): string {
  */
 export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element {
   const px = size <= 20 ? 16 : 32
-  const key = `${path.toLowerCase()}|${px}`
+  // Include kind in the key so a poisoned file glyph can't stick on a folder path.
+  const key = `${path.toLowerCase()}|${px}|${isDir ? 'd' : 'f'}`
   const ext = isDir ? '' : extOf(path)
-  const extKey = !isDir && ext && !PER_FILE_EXTS.has(ext) ? `${ext}|${px}` : null
+  const extKey =
+    isDir !== true && ext && !PER_FILE_EXTS.has(ext) ? `${ext}|${px}` : null
   const [url, setUrl] = useState<string | null>(
     () => memoryCache.get(key) ?? (extKey ? extMemoryCache.get(extKey) ?? null : null)
   )
@@ -68,12 +70,13 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
     }
     setUrl(null)
     setFailed(false)
-    void api.icons.get({ path, size }).then((res) => {
+    void api.icons.get({ path, size, isDir: isDir === true }).then((res) => {
       if (!alive) return
       if (res.ok && res.value.url) {
         if (memoryCache.size > MAX_CACHE) memoryCache.clear()
         memoryCache.set(key, res.value.url)
-        if (extKey) extMemoryCache.set(extKey, res.value.url)
+        // Never put folder icons into the shared extension cache.
+        if (extKey && isDir !== true) extMemoryCache.set(extKey, res.value.url)
         setUrl(res.value.url)
       } else {
         setFailed(true)
@@ -82,7 +85,7 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
     return () => {
       alive = false
     }
-  }, [key, path, size, extKey])
+  }, [key, path, size, extKey, isDir])
 
   if (url && !failed) {
     return (

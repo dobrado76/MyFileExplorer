@@ -9,6 +9,8 @@ export const IPC = {
   fsMove: 'fs:move',
   fsRelocate: 'fs:relocate',
   fsCheckConflicts: 'fs:checkConflicts',
+  /** Right-drag “Create shortcuts here” — write .lnk files in destination. */
+  fsCreateShortcuts: 'fs:createShortcuts',
   fsTrash: 'fs:trash',
   fsDeletePermanent: 'fs:deletePermanent',
   fsRestoreFromTrash: 'fs:restoreFromTrash',

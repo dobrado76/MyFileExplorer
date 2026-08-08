@@ -47,6 +47,10 @@ export type MyFileExplorerApi = {
     /** Move each path to an exact destination (undo/redo). */
     relocate(req: RelocateRequest): Promise<Result<{ moved: string[] }>>
     checkConflicts(req: CheckConflictsRequest): Promise<Result<CheckConflictsResponse>>
+    /** Create Windows .lnk shortcuts in destinationDir for each source path. */
+    createShortcuts(
+      req: CheckConflictsRequest
+    ): Promise<Result<{ created: string[] }>>
     trash(req: PathsRequest): Promise<Result<{ trashed: string[] }>>
     deletePermanent(req: PathsRequest): Promise<Result<{ deleted: string[] }>>
     /** Restore trashed items by their original full paths (Windows Recycle Bin). */
@@ -140,8 +144,13 @@ export type MyFileExplorerApi = {
     >
   }
   icons: {
-    /** Windows shell icon (folder / file-type / exe) via app.getFileIcon. */
-    get(req: { path: string; size: number }): Promise<Result<{ url: string | null }>>
+    /** Windows shell icon (folder / file-type / exe) via SHGetFileInfo. */
+    get(req: {
+      path: string
+      size: number
+      /** Pass true for directories so they never reuse a file-extension glyph. */
+      isDir?: boolean
+    }): Promise<Result<{ url: string | null }>>
   }
   meta: {
     /** Batch column metadata (image / A/V / generation fields). */

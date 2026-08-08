@@ -112,7 +112,7 @@ export type ContextMenuState = {
   paths: string[]
   inTree?: boolean
   /**
-   * Right-button drag drop menu (Explorer: Copy here / Move here).
+   * Right-button drag drop menu (Explorer: Copy / Move / Create shortcuts).
    * `paths` are the dragged items; `destDir` is the folder under the pointer.
    */
   dropTransfer?: { destDir: string }
@@ -330,6 +330,8 @@ type AppState = {
     destinationDir: string,
     clearCutAfter?: boolean
   ): Promise<void>
+  /** Right-drag “Create shortcuts here” — write .lnk files pointing at sources. */
+  createShortcutsHere(sources: string[], destinationDir: string): Promise<void>
   /**
    * Conflict dialog result: cancel, one batch policy for all, or per-name decisions.
    * Non-conflicting sources always transfer.
@@ -2076,6 +2078,38 @@ export const useAppStore = create<AppState>()((set, get) => {
         await executeTransfer(op, effective, destinationDir, 'fail', clearCutAfter)
       } catch (e) {
         reportOperationError(op === 'move' ? 'Move failed' : 'Copy failed', e)
+      }
+    },
+
+    async createShortcutsHere(sources, destinationDir) {
+      if (sources.length === 0) return
+      const label =
+        sources.length === 1 ? basename(sources[0]!) : `${sources.length} items`
+      try {
+        const res = await withBusyFeedback(
+          'relocate',
+          'Creating shortcuts…',
+          label,
+          () => call(api.fs.createShortcuts({ sources, destinationDir }))
+        )
+        recordUndo({
+          kind: 'create',
+          paths: res.created,
+          label:
+            res.created.length === 1
+              ? basename(res.created[0]!)
+              : `${res.created.length} shortcuts`
+        })
+        if (samePath(destinationDir, get().activeTab().path)) {
+          await get().refresh()
+        }
+        get().notify(
+          res.created.length === 1
+            ? 'Created shortcut'
+            : `Created ${res.created.length} shortcuts`
+        )
+      } catch (e) {
+        reportOperationError('Create shortcut failed', e)
       }
     },
 

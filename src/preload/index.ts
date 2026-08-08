@@ -21,6 +21,7 @@ const api: MyFileExplorerApi = {
     move: invoke(IPC.fsMove),
     relocate: invoke(IPC.fsRelocate),
     checkConflicts: invoke(IPC.fsCheckConflicts),
+    createShortcuts: invoke(IPC.fsCreateShortcuts),
     trash: invoke(IPC.fsTrash),
     deletePermanent: invoke(IPC.fsDeletePermanent),
     restoreFromTrash: invoke(IPC.fsRestoreFromTrash),

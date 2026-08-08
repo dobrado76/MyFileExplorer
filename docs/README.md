@@ -41,7 +41,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
-| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag for Copy/Move menu |
+| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/Create shortcuts menu |
 | Search results | D29 — normal `FileView` (banner + path under names) |
 | Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate via context menu + ffmpeg |
 | File-op progress | D28 — status bar for copy/move/rename/trash/delete/video-preview; Cancel; indeterminate after 1 s or until units/bytes advance |

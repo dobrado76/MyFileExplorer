@@ -25,6 +25,20 @@ const inFlight = new Map<string, Promise<string | null>>()
 /** Reuse one extracted icon URL for all files of the same extension. */
 const extUrlCache = new Map<string, string>()
 
+/**
+ * Whether the shared-by-extension icon cache may be used.
+ * Folders must never share with files — especially extensionless names (`_none`),
+ * which previously painted a document glyph on tree folders.
+ */
+export function shouldUseExtIconCache(ext: string, isDirHint?: boolean): boolean {
+  if (isDirHint === true) return false
+  if (PER_FILE_EXTS.has(ext)) return false
+  // Empty ext is shared by folders and extensionless files — only when caller
+  // asserts this path is a file.
+  if (!ext) return isDirHint === false
+  return true
+}
+
 export function shellIconCacheDir(): string {
   if (!iconsDir) {
     iconsDir = path.join(app.getPath('userData'), 'shell-icons')
@@ -107,10 +121,14 @@ async function extractPng(file: string, px: 16 | 32): Promise<Buffer | null> {
  * Shell icon for a path — on Windows this uses SHGetFileInfo (Explorer-accurate:
  * Downloads / Documents special icons, Dropbox desktop.ini, exe/lnk overlays).
  * Cached under userData and served via mfe-media://.
+ *
+ * @param isDirHint — from the renderer (tree/list already know kind). Required to
+ *   keep folder icons out of the shared extension cache.
  */
 export async function getShellIconUrl(
   rawPath: string,
-  sizePx: number
+  sizePx: number,
+  isDirHint?: boolean
 ): Promise<{ url: string | null }> {
   const file = requireAbsolute(rawPath)
   const kind = mapSize(sizePx)
@@ -119,7 +137,8 @@ export async function getShellIconUrl(
 
   // Extension icons are shared (all .png → one glyph). Hit memory cache before
   // any disk IO — critical when a virtualized details view mounts dozens of rows.
-  if (!PER_FILE_EXTS.has(ext)) {
+  // Never for folders / unknown extensionless paths (see shouldUseExtIconCache).
+  if (shouldUseExtIconCache(ext, isDirHint)) {
     const extKey = `${ext || '_none'}|${px}`
     const hit = extUrlCache.get(extKey)
     if (hit) return { url: hit }
@@ -134,7 +153,7 @@ export async function getShellIconUrl(
 
   const isDir = st.isDirectory()
   const perFile = isDir || PER_FILE_EXTS.has(ext)
-  if (!perFile) {
+  if (!perFile && shouldUseExtIconCache(ext, false)) {
     const extKey = `${ext || '_none'}|${px}`
     const hit = extUrlCache.get(extKey)
     if (hit) return { url: hit }

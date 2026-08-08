@@ -111,7 +111,7 @@ export function ContextMenu(): JSX.Element | null {
     const { paths } = menu
     const close = closeContextMenu
 
-    // Explorer-style right-drag drop menu — only Copy / Move / Cancel.
+    // Explorer-style right-drag drop menu — Copy / Move / Create shortcuts / Cancel.
     if (menu.dropTransfer) {
       const dest = menu.dropTransfer.destDir
       const src = paths[0]
@@ -135,6 +135,14 @@ export function ContextMenu(): JSX.Element | null {
           action: () => {
             close()
             void s.performTransfer('move', paths, dest)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Create shortcuts here',
+          action: () => {
+            close()
+            void s.createShortcutsHere(paths, dest)
           }
         },
         { type: 'sep' },

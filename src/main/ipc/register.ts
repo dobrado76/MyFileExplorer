@@ -34,6 +34,7 @@ import {
   trashEntries,
   deletePermanently
 } from '../fs/ops'
+import { createShortcuts } from '../fs/shortcuts'
 import {
   saveEditedImage,
   hasImageOriginal,
@@ -114,6 +115,12 @@ const thumbRequestSchema = z.object({
   path: z.string().min(1),
   size: z.number().int().min(16).max(1024)
 })
+const iconRequestSchema = z.object({
+  path: z.string().min(1),
+  size: z.number().int().min(16).max(1024),
+  /** When true, never share the file-extension icon cache (tree folders). */
+  isDir: z.boolean().optional()
+})
 const generateVidThumbsSchema = z.object({
   paths: z.array(z.string().min(1)).min(1),
   mode: z.enum(['missing', 'all']),
@@ -160,6 +167,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsCheckConflicts, checkConflictsRequestSchema, (req) =>
     checkConflicts(req.sources, req.destinationDir)
   )
+  handle(IPC.fsCreateShortcuts, checkConflictsRequestSchema, async (req) => {
+    muteWatchers()
+    return createShortcuts(req.sources, req.destinationDir)
+  })
   handle(IPC.fsTrash, pathsRequestSchema, async (req) => {
     muteWatchers()
     return trashEntries(req.paths)
@@ -297,7 +308,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.thumbsGenerateVidCache, generateVidThumbsSchema, (req) =>
     generateVidThumbStrips(req.paths, req.mode, req.recursive ?? false)
   )
-  handle(IPC.iconsGet, thumbRequestSchema, (req) => getShellIconUrl(req.path, req.size))
+  handle(IPC.iconsGet, iconRequestSchema, (req) =>
+    getShellIconUrl(req.path, req.size, req.isDir)
+  )
   handle(IPC.metaGetMany, metaGetManyRequestSchema, async (req) => ({
     values: await getColumnMetaMany(req.paths, req.columns)
   }))
