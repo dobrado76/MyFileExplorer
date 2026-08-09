@@ -250,6 +250,7 @@ export function ExplorerShell(): JSX.Element {
       const v = pending
       pending = null
       void useAppStore.getState().applySettingsPatch({ fontSizePx: v })
+      void useAppStore.getState().applySettingsPatch({ iconSizePx: v })
     }
 
     const onWheel = (e: WheelEvent): void => {

@@ -1232,6 +1232,23 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <span className="dim">px</span>
                 </div>
               </label>
+              <label className="settings-field settings-field-narrow" htmlFor="set-iconsize">
+                <span>Icon size</span>
+                <div className="settings-inline">
+                  <input
+                    id="set-iconsize"
+                    type="number"
+                    min={12}
+                    max={40}
+                    value={settings.iconSizePx}
+                    onChange={(e) => {
+                      const v = Number(e.target.value)
+                      if (v >= 9 && v <= 40) void applySettingsPatch({ iconSizePx: v })
+                    }}
+                  />
+                  <span className="dim">px</span>
+                </div>
+              </label>
               {settings.theme === 'custom' && (
                 <div className="settings-theme-tokens">
                   {THEME_TOKENS.map(({ key, label }) => (

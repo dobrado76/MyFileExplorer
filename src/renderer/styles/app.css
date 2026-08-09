@@ -691,8 +691,8 @@ textarea:focus {
 }
 .view-layout-icon {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: var(--icon-size);
+  height: var(--icon-size);
   border: 1.5px solid currentColor;
   border-radius: 2px;
   box-sizing: border-box;
@@ -3195,7 +3195,7 @@ body > .SfxModal-Wrapper,
 }
 .settings-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px 18px;
   align-items: start;
 }
