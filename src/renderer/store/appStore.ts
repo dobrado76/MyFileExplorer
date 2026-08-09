@@ -142,7 +142,7 @@ export type Notice = { text: string; isError: boolean } | null
 /** Live progress for copy / move / trash / permanent delete (main → op-progress). */
 export type FileOpProgress = {
   opId: string
-  kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs'
+  kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs' | 'zip'
   done: number
   total: number
   current?: string
@@ -332,6 +332,8 @@ type AppState = {
   ): Promise<void>
   /** Right-drag “Create shortcuts here” — write .lnk files pointing at sources. */
   createShortcutsHere(sources: string[], destinationDir: string): Promise<void>
+  /** Compress selection (or explicit paths) to a sibling `.zip` like Explorer. */
+  compressToZip(paths?: string[]): Promise<void>
   /**
    * Conflict dialog result: cancel, one batch policy for all, or per-name decisions.
    * Non-conflicting sources always transfer.
@@ -2110,6 +2112,32 @@ export const useAppStore = create<AppState>()((set, get) => {
         )
       } catch (e) {
         reportOperationError('Create shortcut failed', e)
+      }
+    },
+
+    async compressToZip(paths) {
+      const selected =
+        paths && paths.length > 0 ? paths : get().activeTab().selected
+      if (selected.length === 0) return
+      const label =
+        selected.length === 1 ? basename(selected[0]!) : `${selected.length} items`
+      try {
+        const res = await withBusyFeedback('zip', 'Compressing…', label, () =>
+          call(api.fs.compressToZip({ paths: selected }))
+        )
+        recordUndo({
+          kind: 'create',
+          paths: [res.zipPath],
+          label: basename(res.zipPath)
+        })
+        const parent = parentOf(res.zipPath)
+        if (parent && samePath(parent, get().activeTab().path)) {
+          await get().refresh()
+          get().setSelection([res.zipPath], res.zipPath, res.zipPath)
+        }
+        get().notify(`Created ${basename(res.zipPath)}`)
+      } catch (e) {
+        reportOperationError('Compress failed', e)
       }
     },
 

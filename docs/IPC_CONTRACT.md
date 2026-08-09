@@ -24,6 +24,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:relocate`        | `{ pairs: { from, to }[] }`                      | `{ moved: string[] }` (exact destinations)    |
 | `fs:checkConflicts`  | `{ sources[], destinationDir }`                  | `{ conflicts[], items[] }` (name + both sides’ stats/dims) |
 | `fs:createShortcuts` | `{ sources[], destinationDir }`                  | `{ created: string[] }` — Windows `.lnk` (right-drag) |
+| `fs:compressToZip`   | `{ paths[] }`                                    | `{ zipPath }` — sibling `.zip` (Compress to ZIP file) |
 | `fs:trash`           | `{ paths[] }`                                    | `{ trashed: string[] }`                       |
 | `fs:restoreFromTrash`| `{ paths[] }` (original full paths)              | `{ restored[], missing[] }` (Recycle Bin)     |
 | `fs:listRecycleBin`  | —                                                | `{ items[], truncated? }`                     |
@@ -121,7 +122,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `fs-changed`              | `{ path, reason }`                            |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
-| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs; byte fields for large streaming copies |
+| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip; byte fields for large streaming copies |
 | `session-external-change` | rare: multi-window later                      |
 
 ---

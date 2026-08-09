@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.3.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D29).
+**Status:** v0.3.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D30).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -25,10 +25,11 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | ------------------------------------------------ | ------------------------------------- |
 | [PRODUCT_SPEC.md](PRODUCT_SPEC.md)               | Features & UX requirements            |
 | [ADVANTAGES.md](ADVANTAGES.md)                   | Advantages vs classic Windows Explorer |
+| [BUILD.md](BUILD.md)                             | Local build + CI installer artifacts   |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D29               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D30               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [SEARCH.md](SEARCH.md)                           | Indexing & search                     |

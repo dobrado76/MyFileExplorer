@@ -5,3 +5,8 @@ dist/
 .tmp/
 *.log
 .DS_Store
+
+# Installers are CI / local build outputs (often >100MB — GitHub rejects git push).
+**/MyFileExplorer Setup*.exe
+**/*.exe.blockmap
+latest.yml

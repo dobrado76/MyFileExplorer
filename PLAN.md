@@ -37,6 +37,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/README.md](docs/README.md)                           | Reading order                 |
 | [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)               | What the product must do      |
 | [docs/ADVANTAGES.md](docs/ADVANTAGES.md)                   | Advantages vs classic Explorer |
+| [docs/BUILD.md](docs/BUILD.md)                             | Local build + CI installer artifacts |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
 | [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |

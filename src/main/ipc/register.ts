@@ -35,6 +35,7 @@ import {
   deletePermanently
 } from '../fs/ops'
 import { createShortcuts } from '../fs/shortcuts'
+import { compressToZip } from '../fs/zip'
 import {
   saveEditedImage,
   hasImageOriginal,
@@ -170,6 +171,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsCreateShortcuts, checkConflictsRequestSchema, async (req) => {
     muteWatchers()
     return createShortcuts(req.sources, req.destinationDir)
+  })
+  handle(IPC.fsCompressToZip, pathsRequestSchema, async (req) => {
+    muteWatchers()
+    return compressToZip(req.paths)
   })
   handle(IPC.fsTrash, pathsRequestSchema, async (req) => {
     muteWatchers()

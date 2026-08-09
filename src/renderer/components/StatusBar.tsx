@@ -20,6 +20,8 @@ function fileOpTitle(kind: string, label?: string): string {
       return 'Deleting'
     case 'vid-thumbs':
       return 'Video previews'
+    case 'zip':
+      return 'Compressing'
     default:
       return 'Working'
   }

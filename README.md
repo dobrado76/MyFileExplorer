@@ -69,13 +69,17 @@ Settings live in `%APPDATA%\MyFileExplorer` for both `npm run dev` and installed
 
 ## For friends trying the app
 
-1. Install via `MyFileExplorer Setup 0.3.0.exe` (or build with `npm run dist:nobump`).
-2. Open a few folders as tabs. Rename a tab. Save a layout.
-3. Select an AI-generated PNG — check the preview for prompt / model fields.
-4. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
-5. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
+The installer is too large to keep in git (>100 MB). Get it from CI:
 
-More depth: [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
+1. GitHub → **Actions** → **Build Windows** → latest green run → download the **MyFileExplorer-Setup-…** artifact  
+   — or open a **Release** if a `v*` tag was pushed (installer attached there).
+2. Run `MyFileExplorer Setup x.y.z.exe`.
+3. Open a few folders as tabs. Rename a tab. Save a layout.
+4. Select an AI-generated PNG — check the preview for prompt / model fields.
+5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
+6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
+
+Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ---
 
@@ -86,8 +90,9 @@ More depth: [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md]
 | **[PLAN.md](PLAN.md)** | Canonical project plan |
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
+| **[docs/BUILD.md](docs/BUILD.md)** | Local build + GitHub Actions installer artifacts |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D29 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D30 |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
 | **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.3.0 summary |
 

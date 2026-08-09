@@ -11,6 +11,8 @@ export const IPC = {
   fsCheckConflicts: 'fs:checkConflicts',
   /** Right-drag “Create shortcuts here” — write .lnk files in destination. */
   fsCreateShortcuts: 'fs:createShortcuts',
+  /** Compress selection to a sibling `.zip` (Explorer “Compress to ZIP file”). */
+  fsCompressToZip: 'fs:compressToZip',
   fsTrash: 'fs:trash',
   fsDeletePermanent: 'fs:deletePermanent',
   fsRestoreFromTrash: 'fs:restoreFromTrash',
@@ -90,7 +92,7 @@ export type MfeEvent =
       type: 'op-progress'
       payload: {
         opId: string
-        kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs'
+        kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs' | 'zip'
         done: number
         total: number
         /** Basename (or short path) of the item currently being processed. */

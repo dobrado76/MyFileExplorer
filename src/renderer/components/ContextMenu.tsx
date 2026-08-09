@@ -696,6 +696,20 @@ export function ContextMenu(): JSX.Element | null {
           )
         }
       },
+      ...(paths.length > 0
+        ? [
+            {
+              type: 'item' as const,
+              label: 'Compress to ZIP file',
+              action: () => {
+                close()
+                void s.compressToZip(
+                  menu.inTree && single ? [single] : paths
+                )
+              }
+            }
+          ]
+        : []),
       { type: 'sep' },
       {
         type: 'item',
