@@ -1261,6 +1261,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 </span>
               </label>
               <SettingsToggle
+                id="set-preview-autoplay"
+                label="Autoplay media in preview"
+                hint="Start video/audio when a file is selected (off by default)"
+                checked={settings.previewVideoAutoplay}
+                onChange={(v) => void applySettingsPatch({ previewVideoAutoplay: v })}
+              />
+              <SettingsToggle
                 id="set-confirmdel"
                 label="Always confirm permanent delete"
                 hint="Ask even for a single file (Shift+Del)"

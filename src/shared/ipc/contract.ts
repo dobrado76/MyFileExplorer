@@ -53,6 +53,8 @@ export const IPC = {
   settingsClearThumbCache: 'settings:clearThumbCache',
 
   previewGet: 'preview:get',
+  /** Remux MKV/etc. to playable MP4 under userData for in-pane `<video>`. */
+  previewEnsurePlayable: 'preview:ensurePlayable',
 
   searchQuery: 'search:query',
   searchAddRoot: 'search:addRoot',

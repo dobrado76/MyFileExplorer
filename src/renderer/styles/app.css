@@ -1268,6 +1268,8 @@ body.right-dragging * {
 .preview-header-compact .preview-sub {
   flex: 1;
   min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .preview-edit-btn {
   flex-shrink: 0;
@@ -1280,6 +1282,9 @@ body.right-dragging * {
 .preview-header .preview-sub {
   color: var(--text-dim);
   font-size: 0.9em;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  user-select: text;
 }
 .preview-media {
   display: flex;
@@ -1350,11 +1355,35 @@ body.right-dragging * {
   line-height: 1.4;
   font-size: 0.92em;
 }
+.preview-av-poster {
+  padding-top: 8px;
+}
+.preview-video-poster {
+  width: 100%;
+  max-height: min(50vh, 440px);
+  object-fit: contain;
+  background: #000;
+  border-radius: 4px;
+}
 .preview-icon {
   padding: 24px;
   display: flex;
   justify-content: center;
   color: var(--text-dim);
+}
+.preview-exe {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0 0;
+}
+.preview-exe-icon {
+  padding: 16px 24px 8px;
+}
+.preview-exe-icon img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 .preview-shortcut {
   display: flex;

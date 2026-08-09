@@ -24,7 +24,11 @@ import type {
 } from '../schemas/properties'
 import type { SessionState } from '../schemas/session'
 import type { Settings, SettingsPatch } from '../schemas/settings'
-import type { PreviewModel, PreviewRequest } from '../schemas/preview'
+import type {
+  PreviewEnsurePlayableRequest,
+  PreviewModel,
+  PreviewRequest
+} from '../schemas/preview'
 import type { MetaGetManyRequest, MetaGetManyResponse } from '../schemas/meta'
 import type {
   IndexRootInfo,
@@ -121,6 +125,7 @@ export type MyFileExplorerApi = {
   }
   preview: {
     get(req: PreviewRequest): Promise<Result<PreviewModel>>
+    ensurePlayable(req: PreviewEnsurePlayableRequest): Promise<Result<{ mediaUrl: string | null }>>
   }
   search: {
     query(req: SearchQueryRequest): Promise<Result<SearchQueryResponse>>

@@ -13,7 +13,7 @@ type PreviewModel = {
   path: string
   kind:
     | 'image' | 'text' | 'markdown' | 'spreadsheet' | 'document' | 'rtf'
-    | 'audio' | 'video' | 'pdf' | 'binary' | 'directory' | 'shortcut' | 'archive' | 'missing'
+    | 'audio' | 'video' | 'pdf' | 'binary' | 'executable' | 'directory' | 'shortcut' | 'archive' | 'missing'
   mediaUrl?: string // protocol URL for display (images, PDF)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
@@ -35,7 +35,7 @@ type PreviewField = {
   id: string // stable key e.g. "gen.prompt"
   label: string // UI label
   value: string // display string (may be long)
-  group?: 'file' | 'image' | 'generation' | 'shortcut' | 'other'
+  group?: 'file' | 'image' | 'generation' | 'shortcut' | 'executable' | 'other'
   mono?: boolean // use monospace / multiline block
   copyable?: boolean
 }
@@ -177,11 +177,13 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ## Audio / video
 
-- Inline Chromium `<video>` / `<audio>` via `mfe-media://` (`mediaUrl`)
+- Inline Chromium `<video>` / `<audio>` via `mfe-media://` (`mediaUrl`) — protocol must answer **byte-range** requests (`206` + `Content-Range`); a plain full-body `200` is not enough for Chromium media
 - Video: `.mp4`, `.m4v`, `.webm`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.mpg`, `.mpeg`
 - Audio: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac`, `.wma`, `.opus`
-- Playback depends on Chromium’s codecs (H.264/AAC MP4 and WebM usually work; AVI/MPEG/WMV/many MKV often need “Open with default app”)
-- On decode error: short message + open-with-default-app button
+- Playback depends on Chromium’s codecs (H.264/AAC MP4 and WebM usually work)
+- Containers Chromium can’t demux (`.mkv`, `.wmv`, …): still (`posterUrl`) then remux/transcode to MP4 under `userData/video-remux/` (`preview:ensurePlayable`) when practical. Settings → Behavior: **Autoplay media in preview** (`previewVideoAutoplay`, default off)
+- **`.avi`**: no in-pane player — animate `!VIDTHUMB_CACHE` strip frames when present, plus **Open with default app** (D33)
+- On decode error for otherwise playable types: short message + open-with-default-app button (and poster if available)
 
 ### Icon-view video strips (`!VIDTHUMB_CACHE`, D26)
 
@@ -221,6 +223,17 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Listing uses the ZIP central directory only (no full-file load); trees truncate around 4000 nodes
 - Zip-slip style entry names (`../…`) are omitted from the tree
 - File fields include Files / Folders counts; subtitle summarizes counts
+- Folders in the tree start **collapsed** (expand on click)
+
+---
+
+## Executables (`.exe` / `.dll` / …)
+
+- `kind: 'executable'` — Windows VERSIONINFO via `version.dll` (Explorer Properties → Details parity)
+- Fields (`group: executable`): File description, File version, Product name, Product version, Copyright, Company, Language, Original filename, Internal name, Comments, Legal trademarks, Private/Special build (omit empty)
+- Preview shows the **shell application icon** (same glyph Explorer uses for that PE)
+- Subtitle prefers File description, else Product name
+- Also covers `.dll`, `.scr`, `.ocx`, `.cpl`, `.sys`, `.msi` when a version resource exists
 
 ---
 

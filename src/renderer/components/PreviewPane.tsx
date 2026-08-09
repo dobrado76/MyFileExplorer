@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
 import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
@@ -23,7 +23,8 @@ import {
   MarkdownPreview,
   PdfPreview,
   SpreadsheetPreview,
-  VideoPreview
+  VideoPreview,
+  VideoStripPreview
 } from './preview/RichPreviews'
 import { CodePreview } from './preview/CodePreview'
 import { ZipArchivePreview } from './preview/ZipArchivePreview'
@@ -31,6 +32,7 @@ import { ZipArchivePreview } from './preview/ZipArchivePreview'
 /* The "file" group is rendered separately as the compact details strip
    pinned to the bottom of the pane. Weights/summary ("other") before training. */
 const CONTENT_GROUPS: { key: string; label: string }[] = [
+  { key: 'executable', label: 'Details' },
   { key: 'shortcut', label: 'Shortcut' },
   { key: 'other', label: 'Other' },
   { key: 'generation', label: 'Generation' },
@@ -50,6 +52,7 @@ export function PreviewPane(): JSX.Element {
   const openImageEditor = useAppStore((s) => s.openImageEditor)
   const extractZip = useAppStore((s) => s.extractZip)
   const mediaHold = useAppStore((s) => s.mediaHold)
+  const previewVideoAutoplay = useAppStore((s) => s.settings.previewVideoAutoplay)
 
   const entries = useMemo(
     () =>
@@ -63,6 +66,8 @@ export function PreviewPane(): JSX.Element {
 
   const [model, setModel] = useState<PreviewModel | null>(null)
   const [loading, setLoading] = useState(false)
+  /** One force-transcode attempt per path (avoid audio-only retry loops). */
+  const forcePlayableTried = useRef<string | null>(null)
 
   /** Most recently interacted selected path (not “last in range order”). */
   const previewPath = useMemo(() => {
@@ -82,8 +87,10 @@ export function PreviewPane(): JSX.Element {
     if (!previewPath) {
       setModel(null)
       setLoading(false)
+      forcePlayableTried.current = null
       return
     }
+    forcePlayableTried.current = null
     const seq = ++previewSeq
     setLoading(true)
     // Same path after an in-place edit: drop the old model so we don't keep
@@ -94,9 +101,63 @@ export function PreviewPane(): JSX.Element {
     void api.preview.get({ path: previewPath }).then((res) => {
       if (seq !== previewSeq) return // superseded — cancel stale preview
       setLoading(false)
-      setModel(res.ok ? res.value : null)
+      const next = res.ok ? res.value : null
+      setModel(next)
+      // MKV/AVI/etc.: remux/transcode to MP4 in main so Chromium can play inline.
+      if (next?.kind === 'video' && next.needsPlayable && !next.mediaUrl) {
+        void api.preview.ensurePlayable({ path: previewPath }).then((play) => {
+          if (seq !== previewSeq) return
+          const mediaUrl = play.ok ? play.value.mediaUrl : null
+          setModel((prev) =>
+            prev && samePath(prev.path, previewPath)
+              ? {
+                  ...prev,
+                  mediaUrl: mediaUrl ?? undefined,
+                  needsPlayable: false,
+                  warnings:
+                    mediaUrl || !prev.posterUrl
+                      ? prev.warnings
+                      : [
+                          ...(prev.warnings ?? []),
+                          'In-app convert timed out or failed — open with the default app to watch'
+                        ]
+                }
+              : prev
+          )
+        })
+      }
     })
   }, [previewPath, selectedStamp])
+
+  const retryPlayableForce = (): void => {
+    if (!previewPath) return
+    const path = previewPath
+    if (forcePlayableTried.current && samePath(forcePlayableTried.current, path)) return
+    forcePlayableTried.current = path
+    setModel((prev) =>
+      prev && samePath(prev.path, path)
+        ? { ...prev, mediaUrl: undefined, needsPlayable: true }
+        : prev
+    )
+    void api.preview.ensurePlayable({ path, force: true }).then((play) => {
+      const mediaUrl = play.ok ? play.value.mediaUrl : null
+      setModel((prev) => {
+        if (!prev || !samePath(prev.path, path)) return prev
+        return {
+          ...prev,
+          mediaUrl: mediaUrl ?? undefined,
+          needsPlayable: false,
+          warnings:
+            mediaUrl || !prev.posterUrl
+              ? prev.warnings
+              : [
+                  ...(prev.warnings ?? []),
+                  'In-app convert timed out or failed — open with the default app to watch'
+                ]
+        }
+      })
+    })
+  }
 
   const multiCount = selected.length > 1 ? selected.length : 0
 
@@ -187,15 +248,32 @@ export function PreviewPane(): JSX.Element {
         {model.kind === 'pdf' && model.mediaUrl && !mediaHold && (
           <PdfPreview url={model.mediaUrl} />
         )}
-        {model.kind === 'video' && model.mediaUrl && !mediaHold && (
+        {model.kind === 'video' &&
+          model.stripFrames &&
+          model.stripFrames.length > 0 &&
+          !mediaHold && (
+            <VideoStripPreview
+              frames={model.stripFrames}
+              onOpenExternal={() => void openPath(model.path)}
+            />
+          )}
+        {model.kind === 'video' &&
+          !model.stripFrames?.length &&
+          (model.mediaUrl || model.posterUrl || model.needsPlayable) &&
+          !mediaHold && (
           <VideoPreview
             url={model.mediaUrl}
+            posterUrl={model.posterUrl}
+            preparing={Boolean(model.needsPlayable && !model.mediaUrl)}
+            autoplay={previewVideoAutoplay}
             onOpenExternal={() => void openPath(model.path)}
+            onAudioOnly={retryPlayableForce}
           />
         )}
         {model.kind === 'audio' && model.mediaUrl && !mediaHold && (
           <AudioPreview
             url={model.mediaUrl}
+            autoplay={previewVideoAutoplay}
             onOpenExternal={() => void openPath(model.path)}
           />
         )}
@@ -204,7 +282,23 @@ export function PreviewPane(): JSX.Element {
             <FileIcon size={56} />
           </div>
         )}
-        {(model.kind === 'video' || model.kind === 'audio') && !model.mediaUrl && (
+        {model.kind === 'executable' && (
+          <div className="preview-exe">
+            <div className="preview-icon preview-exe-icon">
+              {model.mediaUrl ? (
+                <img src={model.mediaUrl} alt="" width={64} height={64} draggable={false} />
+              ) : (
+                <FileIcon size={56} />
+              )}
+            </div>
+          </div>
+        )}
+        {((model.kind === 'video' &&
+          !model.mediaUrl &&
+          !model.posterUrl &&
+          !model.needsPlayable &&
+          !model.stripFrames?.length) ||
+          (model.kind === 'audio' && !model.mediaUrl)) && (
           <>
             <div className="preview-icon">
               {model.kind === 'audio' ? <AudioFileIcon size={56} /> : <VideoFileIcon size={56} />}
@@ -496,6 +590,8 @@ function kindLabel(kind: PreviewModel['kind']): string {
       return 'Shortcut'
     case 'archive':
       return 'ZIP archive'
+    case 'executable':
+      return 'Application'
     case 'missing':
       return 'Missing'
     default:

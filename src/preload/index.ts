@@ -68,7 +68,8 @@ const api: MyFileExplorerApi = {
     clearThumbCache: invokeVoid(IPC.settingsClearThumbCache)
   },
   preview: {
-    get: invoke(IPC.previewGet)
+    get: invoke(IPC.previewGet),
+    ensurePlayable: invoke(IPC.previewEnsurePlayable)
   },
   search: {
     query: invoke(IPC.searchQuery),

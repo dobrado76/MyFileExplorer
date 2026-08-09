@@ -141,7 +141,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Toggle show/hide; remember width.
 - Selection: preview the **most recently selected** item (keyboard/mouse focus); when multi-select, still show that file’s rich preview and a “N selected” badge (not a blank summary).
 - Type-specific fields; for images, parse embedded generation metadata when present.
-- Inline video/audio playback in-pane for common containers (see PREVIEW.md); unsupported codecs → open with default app.
+- Inline video/audio playback in-pane for common containers (see PREVIEW.md); MKV remuxed via ffmpeg when practical; **`.avi`** uses thumb-strip + open with default app (no in-pane player).
 - Office docs: Word, PowerPoint (`.pptx` slide text; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 - Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 - ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
@@ -164,7 +164,7 @@ See [SEARCH.md](SEARCH.md).
 | Area         | Fields                                                                             |
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size                                |
-| Behavior     | Default new-tab path; folders-first; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
+| Behavior     | Default new-tab path; folders-first; video thumb frame delay (`vidThumbFrameMs`); **autoplay media in preview** (`previewVideoAutoplay`, default off); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
 | Quick access | Manage tree shortcuts                                                              |
 | Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |

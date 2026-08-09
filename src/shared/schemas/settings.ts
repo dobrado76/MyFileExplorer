@@ -99,6 +99,8 @@ export const settingsSchema = z.object({
     .min(VID_THUMB_FRAME_MS_MIN)
     .max(VID_THUMB_FRAME_MS_MAX)
     .catch(DEFAULT_VID_THUMB_FRAME_MS),
+  /** Auto-start preview `<video>` / `<audio>` when a media file is selected. */
+  previewVideoAutoplay: z.boolean().catch(false),
   searchExcludeDirNames: z
     .array(z.string())
     .catch(['node_modules', '.git', '.hg', '.svn', 'Thumbs.db']),
@@ -190,6 +192,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   previewVisibleDefault: true,
   textPreviewMaxBytes: 1048576,
   vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
+  previewVideoAutoplay: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   searchIndexedOnly: false,
   viewFilterEnabled: true,

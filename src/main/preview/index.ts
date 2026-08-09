@@ -21,6 +21,17 @@ import { rasterizePsd } from './psd'
 import { buildSafetensorsPreviewFields } from './safetensors'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
+import { readPeVersionInfo } from './peVersion'
+import { getShellIconUrl } from '../icons/shell'
+import {
+  CHROMIUM_WEAK_VIDEO_EXTS,
+  resolveVideoPosterUrl,
+  STRIP_ONLY_VIDEO_EXTS
+} from './videoPoster'
+import { cachedPlayableVideoUrl, ensurePlayableVideoUrl } from './videoRemux'
+import { resolveVidThumbFrames } from '../thumbs/vidCache'
+
+const EXE_PREVIEW_EXTS = new Set(['exe', 'dll', 'scr', 'ocx', 'cpl', 'sys', 'msi'])
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -100,6 +111,8 @@ const DISPLAY_CAP = 64 * 1024 // cap long prompt/JSON display text
 type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
+/** Bump when preview builders change shape/parsing so stale models are dropped. */
+const PREVIEW_CACHE_REV = 2
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -133,7 +146,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
     return { path: file, kind: 'missing', fields: [] }
   }
 
-  const cached = cache.get(file.toLowerCase())
+  const cacheKey = `${PREVIEW_CACHE_REV}|${file.toLowerCase()}`
+  const cached = cache.get(cacheKey)
   if (cached && cached.mtimeMs === st.mtimeMs && cached.size === st.size) {
     return cached.model
   }
@@ -222,14 +236,7 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
         warnings
       }
     } else if (VIDEO_EXTS.has(ext)) {
-      protocolAllowlist.allowDir(path.dirname(file))
-      model = {
-        path: file,
-        kind: 'video',
-        mediaUrl: mediaUrlFor(file, mediaCacheKey),
-        fields,
-        warnings
-      }
+      model = await buildVideoPreview(file, ext, st.mtimeMs, st.size, mediaCacheKey, fields, warnings)
     } else if (ext === 'pdf') {
       protocolAllowlist.allowDir(path.dirname(file))
       model = {
@@ -261,6 +268,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildShortcutPreview(file, fields, warnings)
     } else if (ext === 'zip') {
       model = await buildZipArchivePreview(file, st.size, fields, warnings)
+    } else if (EXE_PREVIEW_EXTS.has(ext)) {
+      model = await buildExecutablePreview(file, ext, fields, warnings)
     } else {
       // CSV stays as spreadsheet when small-enough to parse as workbook, else text.
       if (ext === 'csv') {
@@ -577,6 +586,142 @@ async function buildRtfPreview(
   } catch (e) {
     warnings.push(e instanceof Error ? e.message : 'Could not parse RTF')
     return { path: file, kind: 'binary', fields, warnings }
+  }
+}
+
+async function buildVideoPreview(
+  file: string,
+  ext: string,
+  mtimeMs: number,
+  size: number,
+  mediaCacheKey: string,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  protocolAllowlist.allowDir(path.dirname(file))
+
+  // AVI: no in-pane player — animated !VIDTHUMB_CACHE strip + Open (D33).
+  if (STRIP_ONLY_VIDEO_EXTS.has(ext)) {
+    const stripFrames = await resolveVidThumbFrames(file)
+    return {
+      path: file,
+      kind: 'video',
+      stripFrames: stripFrames.length > 0 ? stripFrames : undefined,
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  }
+
+  let mediaUrl: string | undefined
+  let posterUrl: string | undefined
+  let needsPlayable = false
+
+  if (CHROMIUM_WEAK_VIDEO_EXTS.has(ext)) {
+    // Fast path: poster + cached remux if any. Full remux is async via ensurePlayable.
+    posterUrl = (await resolveVideoPosterUrl(file, mtimeMs, size)) ?? undefined
+    mediaUrl = (await cachedPlayableVideoUrl(file, mtimeMs, size)) ?? undefined
+    needsPlayable = !mediaUrl
+    if (!posterUrl && !mediaUrl) {
+      warnings.push('Could not prepare an in-app preview — open with the default app to watch')
+    }
+  } else {
+    mediaUrl = mediaUrlFor(file, mediaCacheKey)
+  }
+
+  return {
+    path: file,
+    kind: 'video',
+    mediaUrl,
+    posterUrl,
+    needsPlayable: needsPlayable || undefined,
+    fields,
+    warnings: warnings.length ? warnings : undefined
+  }
+}
+
+/** Remux/transcode weak-container video to MP4 for `<video>` playback (userData cache). */
+export async function ensurePlayablePreview(
+  rawPath: string,
+  opts?: { force?: boolean }
+): Promise<{ mediaUrl: string | null }> {
+  const file = requireAbsolute(rawPath)
+  const st = await statPath(file)
+  if (!st.exists || st.kind === 'dir') return { mediaUrl: null }
+  const ext = path.extname(file).replace(/^\./, '').toLowerCase()
+  if (STRIP_ONLY_VIDEO_EXTS.has(ext)) return { mediaUrl: null }
+  if (!CHROMIUM_WEAK_VIDEO_EXTS.has(ext)) {
+    protocolAllowlist.allowDir(path.dirname(file))
+    return { mediaUrl: mediaUrlFor(file, `${st.mtimeMs}-${st.size}`) }
+  }
+  const url = await ensurePlayableVideoUrl(file, st.mtimeMs, st.size, opts)
+  return { mediaUrl: url }
+}
+
+async function buildExecutablePreview(
+  file: string,
+  ext: string,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    const typeLabel =
+      ext === 'dll'
+        ? 'Application extension (DLL)'
+        : ext === 'msi'
+          ? 'Windows Installer package'
+          : 'Application'
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: typeLabel,
+      group: 'file'
+    }
+  }
+
+  const ver = readPeVersionInfo(file)
+  if (ver) {
+    const push = (id: string, label: string, value: string | null): void => {
+      if (!value) return
+      fields.push({ id, label, value, group: 'executable', copyable: true })
+    }
+    push('exe.fileDescription', 'File description', ver.fileDescription)
+    push('exe.fileVersion', 'File version', ver.fileVersion)
+    push('exe.productName', 'Product name', ver.productName)
+    push('exe.productVersion', 'Product version', ver.productVersion)
+    push('exe.copyright', 'Copyright', ver.copyright)
+    push('exe.company', 'Company', ver.companyName)
+    push('exe.language', 'Language', ver.language)
+    push('exe.originalFilename', 'Original filename', ver.originalFilename)
+    push('exe.internalName', 'Internal name', ver.internalName)
+    push('exe.comments', 'Comments', ver.comments)
+    push('exe.legalTrademarks', 'Legal trademarks', ver.legalTrademarks)
+    push('exe.privateBuild', 'Private build', ver.privateBuild)
+    push('exe.specialBuild', 'Special build', ver.specialBuild)
+  } else if (process.platform === 'win32') {
+    warnings.push('No version resource in this file')
+  }
+
+  let mediaUrl: string | undefined
+  try {
+    const icon = await getShellIconUrl(file, 32, false)
+    if (icon.url) mediaUrl = icon.url
+  } catch {
+    // keep preview without icon
+  }
+
+  const subtitle =
+    ver?.fileDescription?.trim() ||
+    ver?.productName?.trim() ||
+    (ext === 'dll' ? 'Dynamic-link library' : 'Application')
+
+  return {
+    path: file,
+    kind: 'executable',
+    subtitle,
+    mediaUrl,
+    fields,
+    warnings: warnings.length ? warnings : undefined
   }
 }
 

@@ -19,6 +19,14 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Changed
 
 - **ZIP preview** — contents tree no longer skips archives over ~80 MiB; listing reads the central directory only (size irrelevant).
+- **MKV preview** — remux/transcode via ffmpeg for in-pane play when codecs allow.
+- **AVI preview** — no in-pane player; shows animated `!VIDTHUMB_CACHE` strip when present + Open with default app.
+- **Preview autoplay setting** — Settings → Behavior → Autoplay media in preview (`previewVideoAutoplay`, default off).
+- **Video/audio preview playback** — `mfe-media` now serves proper HTTP byte ranges (`Accept-Ranges` / `206`). Without this, Chromium’s `<video>` failed for ordinary MP4 and most other media.
+
+### Added
+
+- **Executable preview** — `.exe` / `.dll` (and related PE) show Explorer-style version details (description, versions, copyright, company, language, …) plus the real shell app icon.
 
 ## [0.3.0] - 2026-08-09
 

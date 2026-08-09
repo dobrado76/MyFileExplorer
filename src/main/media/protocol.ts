@@ -1,19 +1,22 @@
 /**
- * Serve allowlisted browsed files over mfe-media without leaving the *source*
- * file open in Chromium. Windows Recycle Bin fails when any process holds a
- * handle on the item (or often its parent) — net.fetch(file://) is the usual
- * culprit for video/PDF preview.
+ * Serve allowlisted browsed files over mfe-media without handing Chromium a
+ * file:// URL to user paths (D7 — Recycle Bin / open handles).
  *
- * Strategy:
- * 1. Small/medium files → read fully into memory, respond, close handle.
- * 2. Large files → copy once to userData scratch, serve the scratch (Chromium
- *    may hold the scratch; the user's original is free to recycle).
+ * Images / small blobs: full buffer, then source fd closed.
+ * Audio / video / PDF: HTTP byte-range responses (206). Chromium’s media
+ * pipeline requires Accept-Ranges + Content-Range; without them `<video>`
+ * fails even for ordinary H.264 MP4 (Electron protocol.handle).
+ *
+ * ≤128 MiB seekable: ranges served from an in-memory copy (source closed).
+ * Larger seekable: byte-range streams from the allowlisted path (no full
+ * scratch copy — multi‑GB movies must start without a second disk write).
  */
-import { app, protocol, net } from 'electron'
+import { app, protocol } from 'electron'
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { Readable } from 'node:stream'
 import { protocolAllowlist } from '../security/paths'
 import { MODEL_SCHEME } from './modelProtocol'
 import { ORT_SCHEME } from './ortProtocol'
@@ -42,10 +45,20 @@ const MIME_BY_EXT: Record<string, string> = {
   m4a: 'audio/mp4',
   ogg: 'audio/ogg',
   aac: 'audio/aac',
+  wma: 'audio/x-ms-wma',
+  opus: 'audio/opus',
   mp4: 'video/mp4',
+  m4v: 'video/mp4',
   webm: 'video/webm',
   mkv: 'video/x-matroska',
   mov: 'video/quicktime',
+  avi: 'video/x-msvideo',
+  wmv: 'video/x-ms-wmv',
+  mpg: 'video/mpeg',
+  mpeg: 'video/mpeg',
+  ts: 'video/mp2t',
+  m2ts: 'video/mp2t',
+  flv: 'video/x-flv',
   txt: 'text/plain',
   html: 'text/html',
   htm: 'text/html',
@@ -53,6 +66,31 @@ const MIME_BY_EXT: Record<string, string> = {
   js: 'text/javascript',
   json: 'application/json'
 }
+
+/** Types Chromium fetches with Range requests. */
+const SEEKABLE_EXTS = new Set([
+  'mp4',
+  'm4v',
+  'webm',
+  'mkv',
+  'mov',
+  'avi',
+  'wmv',
+  'mpg',
+  'mpeg',
+  'ts',
+  'm2ts',
+  'flv',
+  'mp3',
+  'wav',
+  'flac',
+  'm4a',
+  'ogg',
+  'aac',
+  'wma',
+  'opus',
+  'pdf'
+])
 
 /** Must run before app ready. Media + LaMa model/ORT WASM schemes. */
 export function registerMediaSchemeAsPrivileged(): void {
@@ -94,9 +132,16 @@ export function mediaUrlFor(absPath: string, cacheKey?: number | string): string
   return `${base}&v=${encodeURIComponent(String(cacheKey))}`
 }
 
+function extOf(filePath: string): string {
+  return path.extname(filePath).slice(1).toLowerCase()
+}
+
 function mimeFor(filePath: string): string {
-  const ext = path.extname(filePath).slice(1).toLowerCase()
-  return MIME_BY_EXT[ext] ?? 'application/octet-stream'
+  return MIME_BY_EXT[extOf(filePath)] ?? 'application/octet-stream'
+}
+
+function isSeekable(filePath: string): boolean {
+  return SEEKABLE_EXTS.has(extOf(filePath))
 }
 
 let scratchDir: string | null = null
@@ -155,6 +200,113 @@ async function ensureScratchCopy(
   return job
 }
 
+function parseRangeHeader(
+  rangeHeader: string,
+  size: number
+): { start: number; end: number } | null {
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(rangeHeader.trim())
+  if (!match) return null
+
+  const startRaw = match[1]!
+  const endRaw = match[2]!
+  let start = startRaw ? Number.parseInt(startRaw, 10) : Number.NaN
+  let end = endRaw ? Number.parseInt(endRaw, 10) : Number.NaN
+
+  if (Number.isNaN(start) && Number.isNaN(end)) return null
+
+  if (Number.isNaN(start)) {
+    const suffixLength = end
+    if (!Number.isFinite(suffixLength) || suffixLength <= 0) return null
+    start = Math.max(0, size - suffixLength)
+    end = size - 1
+  } else if (Number.isNaN(end)) {
+    end = size - 1
+  }
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start || start >= size) {
+    return null
+  }
+
+  return { start, end: Math.min(end, size - 1) }
+}
+
+function baseMediaHeaders(mime: string): Record<string, string> {
+  return {
+    'Content-Type': mime,
+    'Accept-Ranges': 'bytes',
+    // no-store: Chromium media cache + custom protocols has broken seeking in
+    // several Electron versions when responses are cached aggressively.
+    'Cache-Control': 'private, no-store'
+  }
+}
+
+function serveBufferWithRanges(buf: Buffer, request: Request, mime: string): Response {
+  const size = buf.byteLength
+  const headers = baseMediaHeaders(mime)
+  const rangeHeader = request.headers.get('range')
+
+  if (!rangeHeader) {
+    const body = new Uint8Array(buf.byteLength)
+    body.set(buf)
+    return new Response(body, {
+      status: 200,
+      headers: { ...headers, 'Content-Length': String(size) }
+    })
+  }
+
+  const range = parseRangeHeader(rangeHeader, size)
+  if (!range) {
+    return new Response(null, {
+      status: 416,
+      headers: { ...headers, 'Content-Range': `bytes */${size}` }
+    })
+  }
+
+  const slice = buf.subarray(range.start, range.end + 1)
+  const body = new Uint8Array(slice.byteLength)
+  body.set(slice)
+  return new Response(body, {
+    status: 206,
+    headers: {
+      ...headers,
+      'Content-Length': String(body.byteLength),
+      'Content-Range': `bytes ${range.start}-${range.end}/${size}`
+    }
+  })
+}
+
+function serveFileWithRanges(filePath: string, size: number, request: Request, mime: string): Response {
+  const headers = baseMediaHeaders(mime)
+  const rangeHeader = request.headers.get('range')
+
+  if (!rangeHeader) {
+    const stream = fs.createReadStream(filePath)
+    return new Response(Readable.toWeb(stream) as unknown as BodyInit, {
+      status: 200,
+      headers: { ...headers, 'Content-Length': String(size) }
+    })
+  }
+
+  const range = parseRangeHeader(rangeHeader, size)
+  if (!range) {
+    return new Response(null, {
+      status: 416,
+      headers: { ...headers, 'Content-Range': `bytes */${size}` }
+    })
+  }
+
+  const contentLength = range.end - range.start + 1
+  const stream = fs.createReadStream(filePath, { start: range.start, end: range.end })
+  return new Response(Readable.toWeb(stream) as unknown as BodyInit, {
+    status: 206,
+    headers: {
+      ...headers,
+      'Content-Length': String(contentLength),
+      'Content-Range': `bytes ${range.start}-${range.end}/${size}`
+    }
+  })
+}
+
 function bufferedResponse(buf: Buffer, filePath: string): Response {
   const body = new Uint8Array(buf.byteLength)
   body.set(buf)
@@ -163,7 +315,6 @@ function bufferedResponse(buf: Buffer, filePath: string): Response {
     headers: {
       'Content-Type': mimeFor(filePath),
       'Content-Length': String(body.byteLength),
-      // Body is already detached from the source file.
       'Cache-Control': 'private, max-age=300'
     }
   })
@@ -184,16 +335,26 @@ export function registerMediaProtocolHandler(): void {
         return new Response('Not found', { status: 404 })
       }
 
+      const mime = mimeFor(requested)
+
+      if (isSeekable(requested)) {
+        // Typical sizes: buffer then close source (D7). Huge AV: range from path
+        // so playback starts immediately (full scratch copy of movies is unusable).
+        if (st.size <= MAX_BUFFER_BYTES) {
+          const buf = await fsp.readFile(requested)
+          return serveBufferWithRanges(buf, request, mime)
+        }
+        return serveFileWithRanges(requested, st.size, request, mime)
+      }
+
       if (st.size <= MAX_BUFFER_BYTES) {
         const buf = await fsp.readFile(requested)
         return bufferedResponse(buf, requested)
       }
 
-      // Too large to keep in RAM — Chromium streams the scratch copy only.
       const scratch = await ensureScratchCopy(requested, st.mtimeMs, st.size)
-      return await net.fetch(pathToFileURL(scratch).toString(), {
-        bypassCustomProtocolHandlers: true
-      })
+      const scratchStat = await fsp.stat(scratch)
+      return serveFileWithRanges(scratch, scratchStat.size, request, mime)
     } catch {
       return new Response('Not found', { status: 404 })
     }

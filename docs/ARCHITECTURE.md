@@ -67,6 +67,7 @@ Custom protocol (e.g. `mfe-media://`) serves:
 
 - File bytes for preview (images, text sniffs)
 - Thumbnail images from cache
+- Audio/video/PDF with **HTTP byte-range** responses (`Accept-Ranges` / `206`) so Chromium media can play and seek
 
 **Allowlist:** only paths that main has approved (currently visible tab roots, explicit preview target, thumb cache dir, and `!VIDTHUMB_CACHE` when video strip frames resolve or are generated). Never arbitrary disk read from renderer-supplied URLs without validation.
 
