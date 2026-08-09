@@ -79,6 +79,8 @@ export function ImageViewer(): JSX.Element | null {
     let wheelLock = false
     const onWheel = (e: WheelEvent): void => {
       if (dialogOpen) return
+      // Ctrl/⌘+wheel adjusts app font size (ExplorerShell) — don't change images.
+      if (e.ctrlKey || e.metaKey) return
       // In actual-size mode, let the frame scroll instead of changing images.
       if (!fit) return
       if (Math.abs(e.deltaY) < 2 && Math.abs(e.deltaX) < 2) return

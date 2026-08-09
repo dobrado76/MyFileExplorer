@@ -144,4 +144,4 @@ window.myFileExplorer = {
 }
 ```
 
-`onEvent` receives `fs-changed`, `search-progress`, `index-progress`, `op-progress`, `external-open`.
+`onEvent` receives `fs-changed`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history).

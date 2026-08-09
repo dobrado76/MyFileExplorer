@@ -80,6 +80,7 @@ export type DetailsColumnMeta = {
 }
 
 export const DETAILS_COLUMN_META: Record<DetailsColumnId, DetailsColumnMeta> = {
+  /** Search results only — never shown in normal folder Details / column picker. */
   folder: {
     id: 'folder',
     label: 'Folder',

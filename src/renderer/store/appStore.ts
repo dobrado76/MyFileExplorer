@@ -1757,14 +1757,22 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async patchDetailsLayout(patch) {
       const s = get()
+      // Never persist search-only Folder column into global / per-folder layouts.
+      const clean =
+        patch.detailsColumns != null
+          ? {
+              ...patch,
+              detailsColumns: patch.detailsColumns.filter((c) => c.id !== 'folder')
+            }
+          : patch
       const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
       if (owning) {
         await get().applySettingsPatch({
-          folderViews: patchFolderView(s.settings.folderViews, owning.path, patch)
+          folderViews: patchFolderView(s.settings.folderViews, owning.path, clean)
         })
         return
       }
-      await get().applySettingsPatch(patch)
+      await get().applySettingsPatch(clean)
     },
 
     async saveLayout(name) {
@@ -2788,17 +2796,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       void api.search.cancel()
       // Use live toggle state (settings patch may still be in flight).
       const indexedOnly = get().search.indexedOnly
-      // Details + Folder column so hits can be sorted by containing folder.
+      // Details view — Folder column is injected by FileView for search only (not saved).
       get().setViewMode('details')
-      const cols = get().settings.detailsColumns
-      if (!cols.some((c) => c.id === 'folder')) {
-        void get().patchDetailsLayout({
-          detailsColumns: [
-            { id: 'folder', width: 280 },
-            ...cols
-          ]
-        })
-      }
       set({
         search: {
           ...get().search,
@@ -2862,6 +2861,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           query: ''
         }
       }))
+      // Folder sort only exists during search — drop it when leaving.
+      const sort = get().activeTab().sort
+      if (sort.key === 'folder') get().setSort({ key: 'name', dir: sort.dir })
     },
 
     async openRecycleBinView() {

@@ -90,7 +90,7 @@ Behavior:
 
 - Search box submits on Enter; Escape clears search (or clears focus when inactive)
 - Toolbar **indexed** checkbox is persisted in settings (`searchIndexedOnly`) across sessions. **Checked** → search every ready indexed root; **unchecked** → current folder recursively (index only accelerates when that folder is covered). Toggling re-runs an active search with the new scope
-- Results appear in the **normal file view** (Details by default) — same multi-select, preview, drag-drop, context menu as a folder (D29). **Folder** is a Details column (containing path) so you can sort by location; the path is **not** stacked under the file name
+- Results appear in the **normal file view** (Details by default) — same multi-select, preview, drag-drop, context menu as a folder (D29). While searching, Details injects a temporary **Folder** column (containing path, sortable; not in the column picker / not saved to settings). The path is **not** stacked under the file name
 - Banner above the file view: result count, Clear/Cancel, and “Not indexed — slow search” when results came from a live walk
 - Double-click / Open a folder navigates there (clears search); opening an image uses search hits as viewer siblings
 - Search context menu extras: **Open File Path** (navigate here to the item’s location / parent + select file), **Open File in new tab** (same in a new tab) — in-app, not system Explorer. **Open with default app** still uses the OS association

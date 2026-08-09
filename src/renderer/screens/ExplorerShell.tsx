@@ -201,6 +201,89 @@ export function ExplorerShell(): JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onKeyDown])
 
+  useEffect(() => {
+    /** Dedupe Windows app-command + mouse X1/X2 when both fire for one click. */
+    let lastNavAt = 0
+    let lastNavDir: 'back' | 'forward' | null = null
+
+    const tryHistoryNav = (dir: 'back' | 'forward', target?: EventTarget | null): void => {
+      const s = useAppStore.getState()
+      if (s.dialog || s.contextMenu) return
+      if (s.renamingPath !== null || s.addressEditing) return
+      if (target != null && isEditingTarget(target)) return
+      const now = Date.now()
+      if (dir === lastNavDir && now - lastNavAt < 250) return
+      lastNavAt = now
+      lastNavDir = dir
+      if (dir === 'back') void s.goBack()
+      else void s.goForward()
+    }
+
+    const onMouseHistoryNav = (e: MouseEvent): void => {
+      if (e.button !== 3 && e.button !== 4) return
+      e.preventDefault()
+      tryHistoryNav(e.button === 3 ? 'back' : 'forward', e.target)
+    }
+
+    window.addEventListener('mouseup', onMouseHistoryNav)
+    window.addEventListener('auxclick', onMouseHistoryNav)
+    const unsub = window.myFileExplorer.onEvent((event) => {
+      if (event.type !== 'history-nav') return
+      tryHistoryNav(event.payload.dir)
+    })
+    return () => {
+      window.removeEventListener('mouseup', onMouseHistoryNav)
+      window.removeEventListener('auxclick', onMouseHistoryNav)
+      unsub()
+    }
+  }, [])
+
+  /** Ctrl/⌘ + mouse wheel → font size (same setting as Appearance). */
+  useEffect(() => {
+    const MIN = 9
+    const MAX = 28
+    let accum = 0
+    let pending: number | null = null
+    let persistTimer: ReturnType<typeof setTimeout> | null = null
+
+    const persist = (): void => {
+      if (pending == null) return
+      const v = pending
+      pending = null
+      void useAppStore.getState().applySettingsPatch({ fontSizePx: v })
+    }
+
+    const onWheel = (e: WheelEvent): void => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+      const s = useAppStore.getState()
+      if (!s.booted) return
+      const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX
+      if (delta === 0) return
+      // Trackpads send many small pixel deltas; notch wheels are larger / line mode.
+      accum += delta
+      const threshold = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? 1 : 40
+      if (Math.abs(accum) < threshold) return
+      const step = accum > 0 ? -1 : 1
+      accum = 0
+      const current = pending ?? s.settings.fontSizePx
+      const next = Math.min(MAX, Math.max(MIN, current + step))
+      if (next === current) return
+      pending = next
+      useAppStore.setState({ settings: { ...s.settings, fontSizePx: next } })
+      document.documentElement.style.setProperty('--font-size', `${next}px`)
+      if (persistTimer) clearTimeout(persistTimer)
+      persistTimer = setTimeout(persist, 180)
+    }
+
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      if (persistTimer) clearTimeout(persistTimer)
+      persist()
+    }
+  }, [])
+
   return (
     <div className="shell">
       <TabBar />

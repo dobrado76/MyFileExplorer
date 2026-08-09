@@ -152,7 +152,7 @@ See [SEARCH.md](SEARCH.md).
 - Search box in chrome; scope = current folder (recursive) or “indexed roots only” toggle.
 - Folders can be **marked for indexing**; indexed search is fast (FTS).
 - Unindexed scope: best-effort walk with progress + cancel; never pretend to be instant.
-- Results use Details with a **Folder** column (sortable); context **Open File Path** / **Open File in new tab** open locations in-app.
+- Results use Details with a temporary **Folder** column (sortable; search-only, not saved); context **Open File Path** / **Open File in new tab** open locations in-app.
 
 ---
 
@@ -178,6 +178,8 @@ See [SEARCH.md](SEARCH.md).
 | --------------- | --------------------- |
 | Backspace       | Up (when not editing) |
 | Alt+← / →       | Back / Forward        |
+| Mouse Back / Forward | Back / Forward (side buttons) |
+| Ctrl + mouse wheel | Font size (9–28 px) |
 | Ctrl+T / W      | New tab / Close tab   |
 | Ctrl+Tab        | Next tab              |
 | F2              | Rename                |

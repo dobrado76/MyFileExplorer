@@ -112,3 +112,8 @@ export type MfeEvent =
       /** Open/reveal a path from CLI, protocol URL, or a second-instance launch. */
       payload: { path: string; reveal: boolean }
     }
+  | {
+      type: 'history-nav'
+      /** Mouse side buttons (Windows app-command) → tab Back / Forward. */
+      payload: { dir: 'back' | 'forward' }
+    }

@@ -57,6 +57,8 @@ function sanitizeDetailsColumns(raw: unknown): { id: string; width: number }[] {
     if (!item || typeof item !== 'object') continue
     const id = (item as { id?: unknown }).id
     const width = (item as { width?: unknown }).width
+    // `folder` is search-results-only — never persist in folder/global column layout.
+    if (id === 'folder') continue
     if (typeof id !== 'string' || !allowedColumnIds.has(id) || seen.has(id)) continue
     seen.add(id)
     out.push({

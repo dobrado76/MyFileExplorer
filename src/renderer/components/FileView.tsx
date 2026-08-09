@@ -227,15 +227,19 @@ export function FileView(): JSX.Element {
     [folderPath, folderViews]
   )
   const detailsColumnsBase = owningView?.detailsColumns ?? settings.detailsColumns
-  /** Search: Folder is a sortable column — not a secondary line under the name. */
+  /** Session-only width for the search Folder column (never written to settings). */
+  const [searchFolderWidth, setSearchFolderWidth] = useState(
+    DETAILS_COLUMN_META.folder.defaultWidth
+  )
+  /**
+   * Folder column is search-only. Strip any legacy persisted `folder` entry from
+   * normal browsing; inject Folder only while search is active.
+   */
   const detailsColumns = useMemo(() => {
-    if (!searchMode) return detailsColumnsBase
-    if (detailsColumnsBase.some((c) => c.id === 'folder')) return detailsColumnsBase
-    return [
-      { id: 'folder' as const, width: DETAILS_COLUMN_META.folder.defaultWidth },
-      ...detailsColumnsBase
-    ]
-  }, [searchMode, detailsColumnsBase])
+    const base = detailsColumnsBase.filter((c) => c.id !== 'folder')
+    if (!searchMode) return base
+    return [{ id: 'folder' as const, width: searchFolderWidth }, ...base]
+  }, [searchMode, detailsColumnsBase, searchFolderWidth])
   const detailsNameWidth = owningView?.detailsNameWidth ?? settings.detailsNameWidth
   const effectiveSort = useMemo(
     () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
@@ -270,7 +274,9 @@ export function FileView(): JSX.Element {
       const startW =
         id === 'name'
           ? nameW
-          : (cols.find((c) => c.id === id)?.width ?? DETAILS_COLUMN_META[id].defaultWidth)
+          : id === 'folder'
+            ? searchFolderWidth
+            : (cols.find((c) => c.id === id)?.width ?? DETAILS_COLUMN_META[id].defaultWidth)
       const min = id === 'name' ? 120 : 50
       let w = startW
       const onMove = (ev: PointerEvent): void => {
@@ -282,29 +288,33 @@ export function FileView(): JSX.Element {
         window.removeEventListener('pointerup', onUp)
         setLiveWidths(null)
         if (id === 'name') void patchDetailsLayout({ detailsNameWidth: w })
+        else if (id === 'folder') setSearchFolderWidth(w)
         else {
-          const next = cols.some((c) => c.id === id)
-            ? cols.map((c) => (c.id === id ? { ...c, width: w } : c))
-            : [{ id, width: w }, ...cols]
+          const next = cols
+            .filter((c) => c.id !== 'folder')
+            .map((c) => (c.id === id ? { ...c, width: w } : c))
+          if (!cols.some((c) => c.id === id)) {
+            next.push({ id, width: w })
+          }
           void patchDetailsLayout({ detailsColumns: next })
         }
       }
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     },
-    [patchDetailsLayout]
+    [patchDetailsLayout, searchFolderWidth]
   )
 
   const moveColumn = useCallback(
     (dragId: DetailsColumnId, target: DetailsColumnId | 'end'): void => {
+      // Search Folder column stays pinned first — not part of saved layout.
+      if (dragId === 'folder' || target === 'folder') return
       const s = useAppStore.getState()
       const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
-      const cur = owning?.detailsColumns ?? s.settings.detailsColumns
-      const dragged =
-        cur.find((c) => c.id === dragId) ??
-        (dragId === 'folder'
-          ? { id: 'folder' as const, width: DETAILS_COLUMN_META.folder.defaultWidth }
-          : null)
+      const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter(
+        (c) => c.id !== 'folder'
+      )
+      const dragged = cur.find((c) => c.id === dragId)
       if (!dragged) return
       const without = cur.filter((c) => c.id !== dragId)
       const idx = target === 'end' ? -1 : without.findIndex((c) => c.id === target)
@@ -317,9 +327,12 @@ export function FileView(): JSX.Element {
 
   const toggleColumn = useCallback(
     (id: DetailsColumnId): void => {
+      if (id === 'folder') return
       const s = useAppStore.getState()
       const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
-      const cur = owning?.detailsColumns ?? s.settings.detailsColumns
+      const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter(
+        (c) => c.id !== 'folder'
+      )
       const next = cur.some((c) => c.id === id)
         ? cur.filter((c) => c.id !== id)
         : [...cur, { id, width: DETAILS_COLUMN_META[id].defaultWidth }]
@@ -1262,13 +1275,15 @@ export function FileView(): JSX.Element {
           </div>
           {detailsColumns.map((c) => {
             const meta = DETAILS_COLUMN_META[c.id]
+            const pinnedSearchFolder = c.id === 'folder'
             return (
               <div
                 key={c.id}
                 className={`hcell${colDrop === c.id ? ' drop-before' : ''}`}
                 style={{ width: colWidth(c.id) }}
-                draggable
+                draggable={!pinnedSearchFolder}
                 onDragStart={(e) => {
+                  if (pinnedSearchFolder) return
                   setColDrag(c.id)
                   e.dataTransfer.effectAllowed = 'move'
                   e.dataTransfer.setData('text/x-mfe-column', c.id)
@@ -1278,6 +1293,7 @@ export function FileView(): JSX.Element {
                   setColDrop(null)
                 }}
                 onDragOver={(e) => {
+                  if (pinnedSearchFolder) return
                   if (colDrag && colDrag !== c.id) {
                     e.preventDefault()
                     e.stopPropagation()
@@ -1285,6 +1301,7 @@ export function FileView(): JSX.Element {
                   }
                 }}
                 onDrop={(e) => {
+                  if (pinnedSearchFolder) return
                   if (colDrag) {
                     e.preventDefault()
                     e.stopPropagation()
@@ -1320,7 +1337,9 @@ export function FileView(): JSX.Element {
             <span className="menu-check">✓</span>Name
           </button>
           {COLUMN_GROUP_ORDER.map((group) => {
-            const ids = DETAILS_COLUMN_IDS.filter((id) => DETAILS_COLUMN_META[id].group === group)
+            const ids = DETAILS_COLUMN_IDS.filter(
+              (id) => id !== 'folder' && DETAILS_COLUMN_META[id].group === group
+            )
             return (
               <div key={group}>
                 <div className="menu-hint">{COLUMN_GROUP_LABELS[group]}</div>

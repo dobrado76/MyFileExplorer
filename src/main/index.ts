@@ -5,6 +5,7 @@ import { registerMediaSchemeAsPrivileged, registerMediaProtocolHandler } from '.
 import { registerOrtProtocolHandler } from './media/ortProtocol'
 import { registerModelProtocolHandler } from './media/modelProtocol'
 import { registerIpcHandlers } from './ipc/register'
+import { broadcast } from './ipc/events'
 import { loadWindowState, trackWindowState } from './windowState'
 import { sessionStore } from './session/store'
 import { settingsStore } from './settings/store'
@@ -60,6 +61,9 @@ if (!gotLock) {
 
     trackWindowState(win)
 
+    // Font size is app-controlled (Ctrl+wheel / Settings); block Chromium page zoom.
+    void win.webContents.setVisualZoomLevelLimits(1, 1)
+
     win.once('ready-to-show', () => {
       if (state.isMaximized) win.maximize()
       win.show()
@@ -78,6 +82,14 @@ if (!gotLock) {
         return
       }
       e.preventDefault()
+    })
+    // Mouse Back / Forward buttons (Windows) → in-app tab history, not webContents.
+    win.webContents.on('app-command', (_e, cmd) => {
+      if (cmd === 'browser-backward') {
+        broadcast({ type: 'history-nav', payload: { dir: 'back' } })
+      } else if (cmd === 'browser-forward') {
+        broadcast({ type: 'history-nav', payload: { dir: 'forward' } })
+      }
     })
 
     if (process.env['ELECTRON_RENDERER_URL']) {
