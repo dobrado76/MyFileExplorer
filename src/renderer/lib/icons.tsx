@@ -1,13 +1,16 @@
+import { useAppStore } from '@renderer/store/appStore';
 import type { JSX } from 'react'
 
 type IconProps = { size?: number; className?: string }
 
 function svg(path: JSX.Element, viewBox = '0 0 24 24') {
   return function Icon({ size = 16, className }: IconProps): JSX.Element {
+    const s = useAppStore.getState()
+    const iconSize = s.settings.iconSizePx ?? size;
     return (
       <svg
-        width={size}
-        height={size}
+        width={iconSize}
+        height={iconSize}
         viewBox={viewBox}
         fill="none"
         stroke="currentColor"

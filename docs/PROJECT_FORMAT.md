@@ -42,6 +42,7 @@ Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and 
   },
   "fontFamily": "Segoe UI",
   "fontSizePx": 13,
+  "iconSizePx": 20,
   "foldersFirst": true,
   "defaultNewTabPath": "",
   "confirmPermanentDeleteAlways": false,

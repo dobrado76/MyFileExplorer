@@ -35,6 +35,7 @@ export function App(): JSX.Element {
     }
     rootEl.style.setProperty('--font-family', `'${settings.fontFamily}', system-ui, sans-serif`)
     rootEl.style.setProperty('--font-size', `${settings.fontSizePx}px`)
+    rootEl.style.setProperty('--icon-size', `${settings.iconSizePx}px`)
   }, [settings])
 
   if (!booted) {

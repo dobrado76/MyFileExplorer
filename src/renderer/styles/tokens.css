@@ -1,6 +1,7 @@
 :root {
   --font-family: 'Segoe UI', system-ui, sans-serif;
   --font-size: 13px;
+  --icon-size: 20px;
 }
 
 :root,
