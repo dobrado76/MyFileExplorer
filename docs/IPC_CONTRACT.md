@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 
@@ -23,6 +23,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:move`            | `{ sources[], destinationDir, conflictPolicy? }` | `{ moved, moves: {from,to}[], skipped }`      |
 | `fs:relocate`        | `{ pairs: { from, to }[] }`                      | `{ moved: string[] }` (exact destinations)    |
 | `fs:checkConflicts`  | `{ sources[], destinationDir }`                  | `{ conflicts[], items[] }` (name + both sides’ stats/dims) |
+| `fs:createShortcuts` | `{ sources[], destinationDir }`                  | `{ created: string[] }` — Windows `.lnk` (right-drag) |
 | `fs:trash`           | `{ paths[] }`                                    | `{ trashed: string[] }`                       |
 | `fs:restoreFromTrash`| `{ paths[] }` (original full paths)              | `{ restored[], missing[] }` (Recycle Bin)     |
 | `fs:listRecycleBin`  | —                                                | `{ items[], truncated? }`                     |
@@ -94,6 +95,12 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | ------------ | ------------------------------------------------- |
 | `thumbs:get` | `{ path, size }` → `{ url, frames? }` — image/PSD thumb URL, or video strip frame URLs from `!VIDTHUMB_CACHE` (D26); `url` null when unavailable |
 | `thumbs:generateVidCache` | `{ paths[], mode: 'missing' \| 'all', recursive? }` → `{ generated, skipped, failed[] }` — write 20 evenly sampled JPEG frames into sibling `!VIDTHUMB_CACHE` (folders = videos in that folder; `recursive` walks subfolders) |
+
+### `icons.*`
+
+| Channel      | Purpose                                           |
+| ------------ | ------------------------------------------------- |
+| `icons:get`  | `{ path, size, isDir? }` → `{ url }` — Windows shell icon (`SHGetFileInfo`); pass `isDir: true` for folders so they never share the file-extension icon cache |
 
 ### `app.*`
 

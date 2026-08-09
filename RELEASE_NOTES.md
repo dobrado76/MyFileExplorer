@@ -1,45 +1,51 @@
-# MyFileExplorer v0.2.0 — release notes
+# MyFileExplorer v0.3.0 — release notes
 
-**Date:** 2026-08-06  
-**Previous:** [v0.1.0](CHANGELOG.md#010---2026-08-01)
+**Date:** 2026-08-09  
+**Previous:** [v0.2.0](CHANGELOG.md#020---2026-08-06) (plus 0.2.x patches through 0.2.11)
 
-Second product release after the initial Phases 0–9 ship. Focus: Explorer-replacement reliability (Recycle Bin, locks, speed), search that uses the normal file view, drag-out to other apps, and clearer progress/cancel for long file ops.
+Third product release. Focus: Explorer-parity polish on drag/drop, a real in-app Recycle Bin, large-folder performance, and the little “of course it should do that” fixes you notice after living in the app every day.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Drag files into other apps
-Left-drag now hands real paths to Windows (`webContents.startDrag` / CF_HDROP). Drop into Photoshop, mail attach, AI chat, Explorer, etc. On Windows, that OS drag takes over the gesture — use **right-drag** (Copy/Move menu) or cut/paste for rearranging inside the app.
+### Create shortcuts here (right-drag)
+Right-button drag now matches Explorer’s drop menu: **Copy here / Move here / Create shortcuts here / Cancel**. Shortcuts are real `.lnk` files (great for `.exe`, `.bat`, folders, anything).
 
-### Search results = normal file view (D29)
-Hits appear in the same list/details/thumbnails UI as a folder (multi-select, preview, DnD, context menu), with a banner and path under each name. Ctrl+A selects search hits. Globs and unindexed live-walk matching are fixed.
+### Drag edge auto-scroll
+While dragging, hold near the top or bottom of the file list or folder tree — the pane scrolls, like Explorer.
 
-### Recycle Bin & delete reliability (D7)
-Del prefers a fast sync recycle path; preview/media no longer keep browsed files open (`mfe-media` buffers or copies to userData scratch). Directory watches suspend during trash. Clear errors when a volume cannot recycle.
+### In-app Recycle Bin
+Tab-bar Recycle Bin opens bin contents in the normal file view. Restore, Empty, or permanently delete — no hop into system Explorer. Details shows Original location + Date deleted. Undo after Del restores for real.
 
-### Faster move & delete
-Same-volume moves skip the pre-walk that only existed to count progress units. Trash avoids mandatory sleeps on the happy path.
+### Tabs as sort bins
+Drag files onto a tab to move/copy into that tab’s folder (Ctrl = copy).
 
-### File-op progress & Cancel (D28)
-Status bar: fixed progress bar → title → counts → name → **Cancel**. Cancel stops between items (and mid large-file copy). Indeterminate busy after ~1 s when an op is still running.
+### Large folders stay usable
+Faster directory listing on Windows, smarter watch/reload behavior, and scroll that doesn’t re-render the whole shell every frame — folders with tens of thousands of files stay responsive.
 
-### Tree & right-drag
-Folders drag from the tree (LMB/RMB); volume roots stay non-draggable. Right-drag uses pointer capture + ghost and opens Copy/Move/Cancel on drop.
+### Preview & AI metadata
+ComfyUI / JPEG Comments (and related EXIF) decompose into proper preview fields, not just a raw blob. Multi-select still previews the file you last focused, with an “N selected” badge.
+
+### Shell icons that stay correct
+Folder icons no longer get poisoned by a shared “no extension” file glyph. Tree folders look like folders again (Dropbox / special folders still resolve via the shell).
 
 ### Also in this release
-In-app image editor (Filerobot), video preview-strip generation, named layouts, richer Details columns / shell icons, undo/redo, offline tabs, hide-extensions setting, shortcut preview, and many Explorer-parity fixes (rename, refresh, properties attributes, keyboard selection, etc.) — see the changelog.
+- Disable hardware acceleration (Settings → Advanced) to free GPU VRAM
+- Shift/Ctrl selection + drag without needing a second click
+- Left-drag onto in-app folders reliable again; leave the window → OS drag-out
+- `npm run dist` auto patch-bump + prune old Setup*.exe
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer Setup 0.2.0.exe` (or your updates-folder installer).
-2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.1; reinstall does not wipe them).
+1. Run `MyFileExplorer Setup 0.3.0.exe` (or your updates-folder installer).
+2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.2.x — reinstall does not wipe them).
 
 ## Upgrade notes
 
-- No settings migration beyond what 0.1 already did (shared AppData profile).
-- If drag-out seems missing after upgrade, fully quit and relaunch (preload/main change).
+- Fully quit and relaunch after upgrade (main/preload changes: shortcuts IPC, icon hint, listing).
+- If folder icons still look wrong once, Settings → Advanced → clear shell-icon cache, then restart.

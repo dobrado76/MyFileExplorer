@@ -1,0 +1,97 @@
+# Advantages over classic Windows File Explorer
+
+**App:** MyFileExplorer · **Version:** 0.3.0
+
+MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
+
+---
+
+## Workspace & navigation
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. |
+| **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
+| **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
+| **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Explorer often fails the location or drops the place you were in. |
+| **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
+| **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
+| **Configurable Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings — not a fixed Home-centric strip. |
+
+---
+
+## Preview & media
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted). Explorer’s preview is weaker and often disabled or pane-starved. |
+| **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
+| **In-app image editor** | Crop / rotate / finetune / filters / annotate (Filerobot). First save keeps a pristine backup under app `userData` (not a sidecar in your folder); **Revert to original** restores it. |
+| **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
+| **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
+| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types; Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
+| **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
+
+---
+
+## Search & large libraries
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Opt-in indexed roots (SQLite FTS5)** | Mark hot folders for fast search without a mandatory whole-disk index. |
+| **Honest unindexed search** | Live walk with progress + cancel; never pretends to be instant when it isn’t. |
+| **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. |
+| **Large folders stay usable** | Virtualized lists, fast Win32 directory listing, and careful watch/scroll behavior — tens of thousands of files without the freezes Explorer often hits. |
+| **View filter** | Hide Hidden items and pattern matches (`*\name`, globs, absolute paths) from list, tree, and search — view-only declutter without deleting anything. |
+
+---
+
+## File operations & reliability
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Status-bar progress + Cancel** | Copy / move / trash / delete / rename / video-preview generation show clear progress; Cancel stops between items (and mid large-file copy). |
+| **Side-by-side conflict dialog** | Incoming vs existing compared with size/dates (and image thumbs). Per-file or apply-to-all Skip / Keep both / Replace — not a thin name-only prompt. |
+| **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
+| **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
+| **Safer media handling** | Preview never keeps browsed files open via `file://`; media is buffered or copied to a userData scratch so delete/move isn’t blocked by the viewer. |
+| **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
+
+---
+
+## UI clarity & comfort
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git / twenty third-party overlays. |
+| **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
+| **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
+| **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
+| **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
+| **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |
+| **No junk written into browsed folders** | App state, icon/thumb caches, image originals, and search DB live under `%APPDATA%\MyFileExplorer` only (video strips use an existing `!VIDTHUMB_CACHE` convention when you generate them). |
+
+---
+
+## Integration
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **`mfe://` + CLI `--reveal` / `--open`** | Other apps can “Reveal in MyFileExplorer” into the running single-instance process (file → parent folder + selection). |
+| **Same profile for dev and installed** | `%APPDATA%\MyFileExplorer` for both — reinstall / day-to-day use doesn’t feel like a settings reset. |
+
+---
+
+## What we deliberately do *not* chase
+
+Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PLAN.md](../PLAN.md) and [PRODUCT_SPEC.md](PRODUCT_SPEC.md).
+
+---
+
+## Related docs
+
+- [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
+- [DECISIONS.md](DECISIONS.md) — locked choices (D1–D29)  
+- [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
+- [SEARCH.md](SEARCH.md) — indexing behavior  
+- [../README.md](../README.md) — product overview  

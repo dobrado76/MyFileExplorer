@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.2.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D29).
+**Status:** v0.3.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D29).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -11,7 +11,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 **New agent / implementer**
 
 1. [../PLAN.md](../PLAN.md)
-2. [PRODUCT_SPEC.md](PRODUCT_SPEC.md)
+2. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (shareable vs Explorer)
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
@@ -24,6 +24,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Doc                                              | Topic                                 |
 | ------------------------------------------------ | ------------------------------------- |
 | [PRODUCT_SPEC.md](PRODUCT_SPEC.md)               | Features & UX requirements            |
+| [ADVANTAGES.md](ADVANTAGES.md)                   | Advantages vs classic Windows Explorer |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
@@ -37,14 +38,17 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 ---
 
-## Recent behavior (v0.2.x)
+## Recent behavior (v0.3.x)
 
 | Area | Spec |
 | ---- | ---- |
-| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/Create shortcuts menu |
+| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts** menu; edge auto-scroll |
 | Search results | D29 — normal `FileView` (banner + path under names) |
 | Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate via context menu + ffmpeg |
 | File-op progress | D28 — status bar for copy/move/rename/trash/delete/video-preview; Cancel; indeterminate after 1 s or until units/bytes advance |
 | Image editor | D27 — Filerobot; originals under `userData` |
 | Recycle Bin | D7 — in-app bin view (list/restore/empty); Details shows Original location + Date deleted |
+| Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder |
+| Large folders | Win32 listing + watch coalesce + debounced scroll — tens of thousands of files stay usable |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |
+| vs Explorer | [ADVANTAGES.md](ADVANTAGES.md) |

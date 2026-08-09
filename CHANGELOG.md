@@ -9,26 +9,38 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
-### Changed
+## [0.3.0] - 2026-08-09
 
-- **`npm run dist`** — auto-bumps the patch version, removes previous `MyFileExplorer Setup *.exe` from `dist/` (and prunes Settings → Updates folder to the new installer), then builds.
-
-### Fixed
-
-- **Preview while multi-selecting** — pane shows the most recently selected file (so you can Shift-select a range and still see where you stopped), with an “N selected” badge.
-- **In-app left-drag** — dragging files onto folders works again (pointer gesture). OS export still works when the drag leaves the window (`startDrag` / CF_HDROP).
+Third product release: Explorer drag/drop parity, in-app Recycle Bin, large-folder performance, preview polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ### Added
 
-- **Disable hardware acceleration** — Settings → Advanced. Turns off Chromium GPU compositing (restart required) to free VRAM when sharing a GPU with training.
-- **ComfyUI / JPEG Comments in preview** — reads Explorer “Comments” (EXIF UserComment / XPComment / JPEG COM) and decomposes A1111-style params (prompt, negative, Steps, Sampler, Schedule type, VAE, Denoising strength, Model, …), not just the raw string.
-- **Drop files on tabs** — drag items onto a tab to move/copy into that tab’s folder (Ctrl=copy), so tabs work as sort categories.
-- **Filter by generation base model** — Settings → View filter: keep Krea and/or SDXL-family (Pony/Illustrious/SDXL) images; hide SD 1.5 (and other families you uncheck). Uses A1111/Forge `Model` metadata in the file view and search results.
-- **In-app Recycle Bin** — tab-bar Recycle Bin opens bin contents in the file view (like search). Restore (Enter / banner / context), Empty Recycle Bin, Del permanently removes from the bin. No longer launches Windows Explorer.
+- **Create shortcuts here** — right-drag drop menu matches Explorer (Copy / Move / Create shortcuts / Cancel); writes `.lnk` via WScript (D11).
+- **Drag edge auto-scroll** — while dragging, hovering near the top/bottom of the file list or folder tree scrolls that pane (D11).
+- **In-app Recycle Bin** — tab-bar button lists bin contents in the file view (Restore / Empty / permanent delete). Details columns: Original location, Date deleted, Size, Type. No longer launches Windows Explorer (D7).
+- **Drop files on tabs** — drag items onto a tab to move/copy into that tab’s folder (Ctrl=copy).
+- **Disable hardware acceleration** — Settings → Advanced (restart required) to free GPU VRAM for training.
+- **ComfyUI / JPEG Comments in preview** — reads Explorer “Comments” (EXIF UserComment / XPComment / JPEG COM) and decomposes A1111-style params into preview fields.
+- **`npm run dist`** — auto-bumps the patch version, removes previous `MyFileExplorer Setup *.exe` from `dist/` (and prunes Settings → Updates folder), then builds.
 
 ### Changed
 
-- **Recycle Bin Details columns** — Original location (restore destination) and Date deleted, plus Size and Type; sortable headers.
+- **Large-folder performance** — Win32 `FindFirstFile` listing, watch mute/coalesce during list, skip tree re-list of the active folder, debounced scroll persistence, shared view-filter regex cache, pre-sorted listing, shell-icon extension cache (files only).
+- **Optimistic delete** — prune listing after in-folder trash without a full re-stat of huge directories.
+- **Docs** — README rewrite, ADVANTAGES.md, PLAN / docs / RELEASE_NOTES aligned to v0.3.0.
+
+### Fixed
+
+- **Folder icons** — directories no longer reuse the extensionless-file (`_none`) shell-icon cache slot; tree passes `isDir` on icon requests.
+- **Recycle Bin undo** — restore uses shell `Verbs`/`DoIt` so Ctrl+Z after Del actually restores.
+- **Preview after delete** — less flash / stuck spinner; sticky previous model until the next loads; optimistic next selection.
+- **Shift/Ctrl + drag** — selection updates on press, then drag starts without requiring a second click.
+- **Preview while multi-selecting** — shows the most recently selected file with an “N selected” badge.
+- **In-app left-drag** — dropping onto folders works again; leave the window → OS `startDrag` / CF_HDROP.
+
+### Removed
+
+- **Generation base-model family filter** — briefly present in 0.2.x nightlies; never belonged in this product (removed before 0.3.0).
 
 ## [0.2.0] - 2026-08-06
 

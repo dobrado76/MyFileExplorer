@@ -1,8 +1,8 @@
 {
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
-  "version": "0.2.11",
-  "description": "Windows-first Electron + React file manager: tabs, rich previews (incl. A1111/ComfyUI metadata), curated context menu, opt-in indexed search, OS drag-out.",
+  "version": "0.3.0",
+  "description": "Windows-first Electron + React file manager: tabs, rich previews (incl. A1111/ComfyUI metadata), curated context menu, opt-in indexed search, OS drag-out, in-app Recycle Bin.",
   "main": "./out/main/index.js",
   "author": "MyFileExplorer",
   "license": "MIT",

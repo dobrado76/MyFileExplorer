@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.2.0** — Phases 0–9 shipped; post-0.1 reliability and Explorer-replacement polish (search-as-file-view, OS drag-out, Recycle Bin, progress/cancel). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.3.0** — Phases 0–9 shipped; Explorer-parity polish (right-drag shortcuts, drag auto-scroll, in-app Recycle Bin, large-folder performance). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -36,6 +36,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [README.md](README.md)                                     | Overview                      |
 | [docs/README.md](docs/README.md)                           | Reading order                 |
 | [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)               | What the product must do      |
+| [docs/ADVANTAGES.md](docs/ADVANTAGES.md)                   | Advantages vs classic Explorer |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
 | [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
@@ -52,8 +53,8 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 ## Immediate next work
 
 1. Manual acceptance pass against the PRODUCT_SPEC checklist
-2. Phase 10 candidates: marquee selection, Ctrl+click tree → new tab, Comfy node summary
-3. Optional: cancel button for in-flight file ops / video-preview generation
+2. Phase 10 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
+3. Share / soak-test v0.3.0; gather friend feedback
 
 ## Agent rules
 

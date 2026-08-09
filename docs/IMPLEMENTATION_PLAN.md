@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.2.0 (implemented)
+**Version:** 0.3.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -123,6 +123,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] `npm run build:win` smoke (NSIS installer builds)
 - [x] First CHANGELOG release notes (0.1.0)
 - [x] v0.2.0 release notes ([RELEASE_NOTES.md](../RELEASE_NOTES.md), CHANGELOG)
+- [x] v0.3.0 release notes + README / ADVANTAGES / docs alignment
 
 ---
 
@@ -159,3 +160,7 @@ All Phase 0–8 exits green; Phase 9 packaging works; PRODUCT_SPEC acceptance ch
 ## Definition of done (v0.2.0 product)
 
 v0.1.0 plus: search-as-file-view (D29), OS drag-out (D11), reliable Recycle Bin / media handles (D7), file-op Cancel (D28), tree DnD, faster move/trash; README / CHANGELOG / RELEASE_NOTES / docs aligned to 0.2.0. ✅
+
+## Definition of done (v0.3.0 product)
+
+v0.2.0 plus: right-drag **Create shortcuts here**, drag edge auto-scroll, in-app Recycle Bin view, tab drop-bins, large-folder performance, shell-icon folder cache fix, recycle undo restore; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / docs aligned to 0.3.0. ✅
