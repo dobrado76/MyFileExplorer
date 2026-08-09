@@ -1,9 +1,9 @@
 # Product specification
 
-**Version:** 0.3.0  
+**Version:** 0.4.0  
 **App:** MyFileExplorer
 
-Windows desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, optional indexed search.
+Windows desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34).
 
 ---
 

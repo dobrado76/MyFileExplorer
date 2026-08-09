@@ -1,6 +1,6 @@
 # Building & CI artifacts
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 
 The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored and ship installers via CI.
 
@@ -34,7 +34,7 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | ------- | --------- |
 | Pull request | `npm run check` only (no giant artifact) |
 | Push to `main` / `master` | Check + Windows installer → **Actions artifact** |
-| Tag `v*` (e.g. `v0.3.0`) | Check + installer artifact + attach files to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.4.0`) | Check + installer artifact + attach files to a **GitHub Release** |
 | **Actions → Run workflow** | Same as a main push (manual rebuild) |
 
 ### Download for a friend (no Release tag)
@@ -47,8 +47,8 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 Artifacts expire after **30 days** (workflow setting). For a lasting link, push a version tag:
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+git tag v0.4.0
+git push origin v0.4.0
 ```
 
 That creates/updates a Release with the installer attached (no 100 MB git push).

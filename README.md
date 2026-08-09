@@ -1,6 +1,6 @@
 # MyFileExplorer
 
-**v0.3.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
+**v0.4.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
@@ -23,13 +23,13 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 ## Highlights
 
 **Workspace that sticks**
-- Multi-tab browsing with session restore — paths, views, selection, scroll, tree expand
-- Named layouts (“AI training”, “client project”) you can switch in one click
+- Multi-tab browsing with session restore — paths, views, selection, scroll, tree expand, tab icons
+- Multi-pane layouts (1 / 2 / 4) and named layouts you can switch in one click
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
 
 **See what you’re looking at**
-- Rich preview pane: images, video/audio, PDF, Office-ish text, `.lnk` targets, SafeTensors
+- Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.lnk`, SafeTensors, Unity packages, executables
 - **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
 - In-app image editor with Revert-to-original (backup stays in AppData, not next to your files)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
@@ -42,7 +42,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
 
 **Find things on purpose**
-- Opt-in indexed roots (fast FTS) + honest live-walk with progress when you didn’t index
+- **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), content scan, filters/bookmarks
 - Search hits use the **same** file view as a normal folder
 - Built to stay smooth in folders with tens of thousands of files
 
@@ -78,6 +78,7 @@ The installer is too large to keep in git (>100 MB). Get it from CI:
 4. Select an AI-generated PNG — check the preview for prompt / model fields.
 5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
 6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
+7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
@@ -92,9 +93,10 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + GitHub Actions installer artifacts |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D30 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D34 |
+| **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.3.0 summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.4.0 summary |
 
 ---
 
@@ -104,7 +106,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 - Fast, clear previews with type-specific (and AI) metadata
 - Multi-tab browsing with real session restore
 - Customizable theme and UI font
-- Dramatic search speed for folders you choose to index
+- Dramatic search speed for folders (and drives) you choose to index — Everything-style queries
 
 ## Non-goals (still)
 

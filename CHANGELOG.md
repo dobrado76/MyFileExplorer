@@ -9,19 +9,26 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-09
+
+Fourth product release: Everything-parity search, richer previews, multi-pane/tab polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
 - **Everything-parity search (D34)** — hybrid folder + optional NTFS volume index; Everything-inspired query language; as-you-type; match toggles; content search; filters/bookmarks; optional localhost HTTP API. See [docs/SEARCH.md](docs/SEARCH.md).
 - **Windows Properties…** — Properties dialog bottom-left opens Explorer’s system property sheet (Security, Sharing, …) without reimplementing NTFS UI.
-- **Batch / VBScript / `.ps` highlighting** — `.bat`/`.cmd` (DOS batch), `.vbs`, and `.ps` (PowerShell; `.ps1` already worked).
-- **`.wlt` / `.ffs_gui` text preview** — treated as YAML and XML (syntax-highlighted).
+- **Multi-pane layouts (D31)** — 1 / 2 / 4 file panes with layout persistence.
+- **Tab icons & tab context menu (D32)** — Lucide icon + color; Duplicate / Rename / Set icon / Close.
+- **In-pane video preview (D33)** — byte-range `mfe-media`; MKV remux when practical; AVI strip-only.
+- **Executable preview** — `.exe` / `.dll` (and related PE) show Explorer-style version details plus the real shell app icon.
 - **HTML preview** — `.html` / `.htm` render sanitized markup by default, with a **Preview / Raw** toggle.
 - **Markdown Preview / Raw toggle** — rendered GFM by default; switch to syntax-highlighted source.
 - **Unity `.unitypackage` preview** — contents tree of Unity asset paths (`Assets/…`); list-only (no Extract All).
-- **Tab context menu** — right-click a tab for Duplicate, Rename, Set/Change icon, Close (D32).
-- **Tab icons** — pick any Lucide React icon + color; persisted in session and named layouts.
+- **Batch / VBScript / `.ps` highlighting** — `.bat`/`.cmd` (DOS batch), `.vbs`, and `.ps` (PowerShell; `.ps1` already worked).
+- **`.wlt` / `.ffs_gui` text preview** — treated as YAML and XML (syntax-highlighted).
 - **+ New toolbar dropdown** — Explorer-style New menu (folder, common file types, Other…) before Undo / Cut / Copy.
 - **Address bar `%VAR%` expansion** — breadcrumb path entry expands Windows env vars (`%LOCALAPPDATA%`, `%USERPROFILE%`, …).
+- **Preview autoplay setting** — Settings → Behavior → Autoplay media in preview (`previewVideoAutoplay`, default off).
 
 ### Changed
 
@@ -29,14 +36,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Drag cancel** — pressing the opposite mouse button cancels an in-progress drag (left↔right), matching Explorer; Escape still works.
 - **Single-pane drag highlight** — no full-view drop outline when `viewLayout` is 1 (still highlights in 2/4-pane and on folder targets).
 - **ZIP preview** — contents tree no longer skips archives over ~80 MiB; listing reads the central directory only (size irrelevant).
-- **MKV preview** — remux/transcode via ffmpeg for in-pane play when codecs allow.
-- **AVI preview** — no in-pane player; shows animated `!VIDTHUMB_CACHE` strip when present + Open with default app.
-- **Preview autoplay setting** — Settings → Behavior → Autoplay media in preview (`previewVideoAutoplay`, default off).
-- **Video/audio preview playback** — `mfe-media` now serves proper HTTP byte ranges (`Accept-Ranges` / `206`). Without this, Chromium’s `<video>` failed for ordinary MP4 and most other media.
-
-### Added
-
-- **Executable preview** — `.exe` / `.dll` (and related PE) show Explorer-style version details (description, versions, copyright, company, language, …) plus the real shell app icon.
+- **Search UX** — match options + type chips in a toolbar dropdown; Settings Search uses whitelist / exclude blacklist lists; larger Settings window.
+- **Docs** — SEARCH rewritten for D34; README / PLAN / ADVANTAGES / RELEASE_NOTES aligned to v0.4.0.
 
 ## [0.3.0] - 2026-08-09
 

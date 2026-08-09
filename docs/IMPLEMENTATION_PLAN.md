@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.3.0 (implemented)
+**Version:** 0.4.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -124,6 +124,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] First CHANGELOG release notes (0.1.0)
 - [x] v0.2.0 release notes ([RELEASE_NOTES.md](../RELEASE_NOTES.md), CHANGELOG)
 - [x] v0.3.0 release notes + README / ADVANTAGES / docs alignment
+- [x] v0.4.0 release notes + README / ADVANTAGES / SEARCH / docs alignment
 
 ---
 
@@ -179,6 +180,10 @@ v0.1.0 plus: search-as-file-view (D29), OS drag-out (D11), reliable Recycle Bin 
 ## Definition of done (v0.3.0 product)
 
 v0.2.0 plus: right-drag **Create shortcuts here**, drag edge auto-scroll, in-app Recycle Bin view, tab drop-bins, large-folder performance, shell-icon folder cache fix, recycle undo restore; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / docs aligned to 0.3.0. ✅
+
+## Definition of done (v0.4.0 product)
+
+v0.3.0 plus: Everything-parity search (D34), multi-pane (D31), tab icons (D32), in-pane video (D33), HTML/Markdown/Unity/PE previews, Windows Properties…, drag/recent polish; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / SEARCH / docs aligned to 0.4.0. ✅
 
 ---
 

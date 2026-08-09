@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.3.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D30).
+**Status:** v0.4.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D34).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -29,27 +29,33 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D30               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D34               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
-| [SEARCH.md](SEARCH.md)                           | Indexing & search                     |
+| [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
 
 ---
 
-## Recent behavior (v0.3.x)
+## Recent behavior (v0.4.x)
 
 | Area | Spec |
 | ---- | ---- |
-| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts** menu; edge auto-scroll |
+| Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
+| Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence |
+| Tab icons | D32 — Lucide icon + color; tab context menu |
+| In-pane video | D33 — byte-range media; MKV remux; AVI strip-only |
+| Richer previews | HTML/Markdown Preview·Raw; Unity `.unitypackage`; PE VERSIONINFO; ZIP CD listing |
+| Windows Properties | Shell property sheet from in-app Properties dialog |
+| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll |
 | Search results | D29 — normal `FileView` (banner + path under names) |
-| Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate via context menu + ffmpeg |
-| File-op progress | D28 — status bar for copy/move/rename/trash/delete/video-preview; Cancel; indeterminate after 1 s or until units/bytes advance |
+| Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate |
+| File-op progress | D28 — status bar; Cancel |
 | Image editor | D27 — Filerobot; originals under `userData` |
-| Recycle Bin | D7 — in-app bin view (list/restore/empty); Details shows Original location + Date deleted |
+| Recycle Bin | D7 — in-app bin view |
 | Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder |
-| Large folders | Win32 listing + watch coalesce + debounced scroll — tens of thousands of files stay usable |
+| Large folders | Win32 listing + watch coalesce + debounced scroll |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |
 | vs Explorer | [ADVANTAGES.md](ADVANTAGES.md) |

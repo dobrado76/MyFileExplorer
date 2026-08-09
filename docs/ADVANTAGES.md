@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.3.0
+**App:** MyFileExplorer · **Version:** 0.4.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -31,7 +31,9 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **In-app image editor** | Crop / rotate / finetune / filters / annotate (Filerobot). First save keeps a pristine backup under app `userData` (not a sidecar in your folder); **Revert to original** restores it. |
 | **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
-| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types; Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
+| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
+| **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
+| **Executable / Unity / ZIP trees** | PE VERSIONINFO + shell icon; `.unitypackage` Assets tree; ZIP central-directory listing without extracting. |
 | **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
 
 ---
@@ -40,8 +42,8 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Opt-in indexed roots (SQLite FTS5)** | Mark hot folders for fast search without a mandatory whole-disk index. |
-| **Honest unindexed search** | Live walk with progress + cancel; never pretends to be instant when it isn’t. |
+| **Everything-inspired search (D34)** | Opt-in folder roots + optional **Index this drive** (NTFS USN when available). As-you-type, match toggles, operators (`size:`, `ext:`, `pic:`, `path:`, …), saved filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
+| **Honest unindexed / content search** | Live walk with progress + cancel; `content:` scans with an honesty banner — never pretends to be instant when it isn’t. |
 | **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. |
 | **Large folders stay usable** | Virtualized lists, fast Win32 directory listing, and careful watch/scroll behavior — tens of thousands of files without the freezes Explorer often hits. |
 | **View filter** | Hide Hidden items and pattern matches (`*\name`, globs, absolute paths) from list, tree, and search — view-only declutter without deleting anything. |
@@ -55,6 +57,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **Status-bar progress + Cancel** | Copy / move / trash / delete / rename / video-preview generation show clear progress; Cancel stops between items (and mid large-file copy). |
 | **Side-by-side conflict dialog** | Incoming vs existing compared with size/dates (and image thumbs). Per-file or apply-to-all Skip / Keep both / Replace — not a thin name-only prompt. |
 | **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
+| **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. |
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
 | **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses userData scratch, AV uses byte-range streaming so `<video>` actually plays. |
 | **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |

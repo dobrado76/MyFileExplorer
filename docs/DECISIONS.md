@@ -1,6 +1,6 @@
 # Locked decisions
 
-**Version:** 0.3.0
+**Version:** 0.4.0
 
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 

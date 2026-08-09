@@ -1,51 +1,44 @@
-# MyFileExplorer v0.3.0 — release notes
+# MyFileExplorer v0.4.0 — release notes
 
 **Date:** 2026-08-09  
-**Previous:** [v0.2.0](CHANGELOG.md#020---2026-08-06) (plus 0.2.x patches through 0.2.11)
+**Previous:** [v0.3.0](CHANGELOG.md#030---2026-08-09) (plus 0.3.x patches)
 
-Third product release. Focus: Explorer-parity polish on drag/drop, a real in-app Recycle Bin, large-folder performance, and the little “of course it should do that” fixes you notice after living in the app every day.
+Fourth product release. Focus: **Everything-inspired search** (hybrid folder + drive index, rich query language, as-you-type), preview depth (HTML/Markdown/Unity/executables/video), and Explorer-parity polish (multi-pane layouts, tab icons, drag cancel, Windows Properties).
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md). Search reference: [docs/SEARCH.md](docs/SEARCH.md).
 
 ---
 
 ## Highlights
 
-### Create shortcuts here (right-drag)
-Right-button drag now matches Explorer’s drop menu: **Copy here / Move here / Create shortcuts here / Cancel**. Shortcuts are real `.lnk` files (great for `.exe`, `.bat`, folders, anything).
+### Everything-parity search (D34)
+Opt-in **folder roots** and optional **Index this drive** (NTFS USN when available, walk fallback). As-you-type search, Match path / case / whole word / regex in a clean options menu, operators and macros (`size:`, `ext:`, `pic:`, `path:`, …), unindexed `content:` with an honesty banner, saved filters & bookmarks, optional localhost HTTP API. Results still use the normal file view (D29).
 
-### Drag edge auto-scroll
-While dragging, hold near the top or bottom of the file list or folder tree — the pane scrolls, like Explorer.
+### Richer previews
+- **HTML / Markdown** — rendered Preview by default with a **Preview / Raw** toggle  
+- **Unity `.unitypackage`** — Assets tree (list-only)  
+- **Executables** — VERSIONINFO details + real shell icon  
+- **Video** — byte-range media; MKV remux when practical; AVI strip-only + Open  
+- **`.wlt` / `.ffs_gui`**, batch / VBScript / `.ps` syntax highlighting  
 
-### In-app Recycle Bin
-Tab-bar Recycle Bin opens bin contents in the normal file view. Restore, Empty, or permanently delete — no hop into system Explorer. Details shows Original location + Date deleted. Undo after Del restores for real.
+### Workspace & Explorer parity
+- Multi-pane **1 / 2 / 4** views with layout persistence (D31)  
+- Tab icons + tab context menu (D32)  
+- Recent locations in Back order; opposite-button drag cancel  
+- **Windows Properties…** from the in-app Properties dialog  
 
-### Tabs as sort bins
-Drag files onto a tab to move/copy into that tab’s folder (Ctrl = copy).
-
-### Large folders stay usable
-Faster directory listing on Windows, smarter watch/reload behavior, and scroll that doesn’t re-render the whole shell every frame — folders with tens of thousands of files stay responsive.
-
-### Preview & AI metadata
-ComfyUI / JPEG Comments (and related EXIF) decompose into proper preview fields, not just a raw blob. Multi-select still previews the file you last focused, with an “N selected” badge.
-
-### Shell icons that stay correct
-Folder icons no longer get poisoned by a shared “no extension” file glyph. Tree folders look like folders again (Dropbox / special folders still resolve via the shell).
-
-### Also in this release
-- Disable hardware acceleration (Settings → Advanced) to free GPU VRAM
-- Shift/Ctrl selection + drag without needing a second click
-- Left-drag onto in-app folders reliable again; leave the window → OS drag-out
-- `npm run dist` auto patch-bump + prune old Setup*.exe
+### Settings
+Larger Settings window; search index whitelist + exclude blacklist as compact lists.
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer Setup 0.3.0.exe` (or your updates-folder installer).
-2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.2.x — reinstall does not wipe them).
+1. Run `MyFileExplorer Setup 0.4.0.exe` (or your updates-folder installer).
+2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.3.x — reinstall does not wipe them).
 
 ## Upgrade notes
 
-- Fully quit and relaunch after upgrade (main/preload changes: shortcuts IPC, icon hint, listing).
-- If folder icons still look wrong once, Settings → Advanced → clear shell-icon cache, then restart.
+- Fully quit and relaunch after upgrade (search index schema migrates on first launch; new settings keys get defaults).
+- Reindex large roots after upgrade if you want USN/watch monitors attached to existing folder roots.
+- Search bookmarks/filters are empty until you add them under Settings → Search.
