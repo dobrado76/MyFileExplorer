@@ -25,8 +25,8 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
   const path = tab?.path ?? ''
   const rootPath = tab?.rootPath ?? null
-  const back = tab?.back ?? []
-  const forward = tab?.forward ?? []
+  const back = tab?.back
+  const forward = tab?.forward
   const addressEditing = useAppStore((s) => s.addressEditing)
   const setAddressEditing = useAppStore((s) => s.setAddressEditing)
   const navigate = useAppStore((s) => s.navigate)
@@ -50,7 +50,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   const historyBtnRef = useRef<HTMLButtonElement>(null)
 
   const history = useMemo(
-    () => historyEntries(back, path, forward),
+    () => historyEntries(back ?? [], path, forward ?? []),
     [back, path, forward]
   )
 
@@ -148,7 +148,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   }
 
   const clearHistory = useAppStore((s) => s.clearHistory)
-  const canClearHistory = back.length > 0 || forward.length > 0
+  const canClearHistory = (back?.length ?? 0) > 0 || (forward?.length ?? 0) > 0
 
   const historyMenu =
     historyOpen && menuPos
@@ -231,7 +231,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
       <div className="breadcrumb-trail">
         {head.map((seg) => (
           <span key={seg.path} style={{ display: 'contents' }}>
-            <button className="crumb" onClick={() => go(seg.path)}>
+            <button type="button" className="crumb" onClick={() => go(seg.path)}>
               {seg.label}
             </button>
             <span className="crumb-sep">
@@ -242,6 +242,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
         {hidden.length > 0 && (
           <span style={{ position: 'relative', display: 'flex', flexShrink: 0 }}>
             <button
+              type="button"
               className="crumb-overflow"
               onClick={() => setOverflowOpen((v) => !v)}
               aria-label="Show hidden path segments"
@@ -257,6 +258,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
                 {hidden.map((seg) => (
                   <button
                     key={seg.path}
+                    type="button"
                     className="menu-item"
                     onClick={() => {
                       setOverflowOpen(false)
@@ -275,7 +277,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
         )}
         {visible.map((seg, i) => (
           <span key={seg.path} style={{ display: 'contents' }}>
-            <button className="crumb" onClick={() => go(seg.path)}>
+            <button type="button" className="crumb" onClick={() => go(seg.path)}>
               {seg.label}
             </button>
             {i < visible.length - 1 && (

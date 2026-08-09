@@ -26,6 +26,7 @@ export const IPC = {
   fsWatch: 'fs:watch',
   fsUnwatch: 'fs:unwatch',
   fsListDrives: 'fs:listDrives',
+  fsSetVolumeLabel: 'fs:setVolumeLabel',
   fsProperties: 'fs:properties',
   fsMeasureFolder: 'fs:measureFolder',
   fsSetAttributes: 'fs:setAttributes',

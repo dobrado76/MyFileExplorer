@@ -12,6 +12,11 @@ import {
   beginLeftFileDragGesture,
   shouldSuppressClickAfterLeftDrag
 } from '../lib/leftFileDrag'
+import {
+  beginDoubleSingleClick,
+  cancelDoubleSingleClick,
+  isNameLabelTarget
+} from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
@@ -84,6 +89,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const pinQuickAccess = useAppStore((s) => s.pinQuickAccess)
   const renamingPath = useAppStore((s) => s.renamingPath)
   const renameSource = useAppStore((s) => s.renameSource)
+  const startRename = useAppStore((s) => s.startRename)
   const submitRename = useAppStore((s) => s.submitRename)
   const cancelRename = useAppStore((s) => s.cancelRename)
   const setTreeFocusPath = useAppStore((s) => s.setTreeFocusPath)
@@ -105,7 +111,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
 
   // Expansion / children cache is per tab — switching tabs must not share tree UI state.
   const [nodesByTab, setNodesByTab] = useState<Record<string, NodesMap>>({})
-  const nodes = nodesByTab[activeTabId] ?? {}
+  const nodes = useMemo(() => nodesByTab[activeTabId] ?? {}, [nodesByTab, activeTabId])
   const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
   const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   /** Tab id whose session `treeExpanded` has been applied (avoids wiping on tab switch). */
@@ -415,15 +421,24 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           style={{ paddingLeft: 6 + depth * 14 }}
           data-drop-dir={path}
           draggable={false}
-          onClick={() => {
+          onClick={(e) => {
             if (shouldSuppressClickAfterLeftDrag()) return
+            if ((e.target as HTMLElement).closest('.twisty')) return
             setTreeFocusPath(path)
             treeRef.current?.focus()
             const paneIdx = paneTabIds.indexOf(tabId)
             if (paneIdx >= 0) focusPane(paneIdx)
+            // Double single-click on the label of the current folder → rename.
+            if (selected && isNameLabelTarget(e.target)) {
+              beginDoubleSingleClick(e.clientX, e.clientY, () => startRename(path, 'tree'))
+              return
+            }
+            cancelDoubleSingleClick()
             void navigate(path, { tabId })
           }}
-          onDoubleClick={() => {
+          onDoubleClick={(e) => {
+            cancelDoubleSingleClick()
+            if ((e.target as HTMLElement).closest('.twisty')) return
             if (showTwisty) toggle(path)
           }}
           onPointerDown={(e) => {
@@ -434,7 +449,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
               setTreeFocusPath(path)
               beginRightDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
                 ghostLabel: label,
-                onActivated: (paths) => setDragPaths(paths),
+                onActivated: (paths) => {
+                  cancelDoubleSingleClick()
+                  setDragPaths(paths)
+                },
                 onHighlight: (dest) => setDropHighlight(dest),
                 onFinish: ({ active, paths, clientX, clientY, dest }) => {
                   setDragPaths([])
@@ -468,7 +486,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             setTreeFocusPath(path)
             beginLeftFileDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
               ghostLabel: label,
-              onActivated: (paths) => setDragPaths(paths),
+              onActivated: (paths) => {
+                cancelDoubleSingleClick()
+                setDragPaths(paths)
+              },
               onHighlight: (dest) => setDropHighlight(dest),
               onDrop: ({ paths, dest, ctrlKey, shiftKey }) => {
                 setDragPaths([])
@@ -485,6 +506,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           }}
           onContextMenu={(e) => {
             e.preventDefault()
+            cancelDoubleSingleClick()
             // Right-drag owns the menu (opened from pointerup).
             if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
             setTreeFocusPath(path)
@@ -536,7 +558,11 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           <ShellIcon path={path} size={16} isDir />
           {renaming ? (
             <RenameInput
-              name={label}
+              name={
+                isVolumeRootPath(path)
+                  ? (drives.find((d) => samePath(d.path, path))?.volumeName ?? '')
+                  : label
+              }
               isDir
               className="rename-input tree-rename-input"
               onSubmit={(v) => void submitRename(v)}

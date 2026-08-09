@@ -37,6 +37,7 @@
     "src/renderer/lib/undoHistory.ts",
     "src/renderer/lib/pdfPreview.ts",
     "src/renderer/lib/highlight.ts",
-    "src/renderer/lib/historyEntries.ts"
+    "src/renderer/lib/historyEntries.ts",
+    "src/renderer/lib/doubleSingleClick.ts"
   ]
 }

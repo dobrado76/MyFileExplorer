@@ -92,7 +92,8 @@ export async function readLnkDetails(lnkPath: string): Promise<LnkDetails> {
     throw new Error(
       detail.includes('CreateShortcut') || detail.includes('WScript')
         ? 'Could not open this shortcut'
-        : 'Could not read shortcut properties'
+        : 'Could not read shortcut properties',
+      { cause: e }
     )
   }
   const raw = stdout.trim()

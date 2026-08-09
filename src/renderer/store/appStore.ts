@@ -38,6 +38,7 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { isVolumeRootPath } from '../lib/rightDrag'
 import {
   buildQuickAccess,
   materializeQuickAccessTokens,
@@ -2409,6 +2410,30 @@ export const useAppStore = create<AppState>()((set, get) => {
       const path = get().renamingPath
       if (!path) return
       set({ renamingPath: null, renameSource: null })
+
+      // Drive roots: edit the volume label only (path stays `C:\`).
+      if (isVolumeRootPath(path)) {
+        const name = newName.trim()
+        const prev =
+          get().drives.find((d) => samePath(d.path, path))?.volumeName ?? ''
+        if (name === prev) return
+        try {
+          await withBusyFeedback('relocate', 'Renaming…', name || 'volume', () =>
+            call(api.fs.setVolumeLabel({ path, name }))
+          )
+          const d = await call(api.fs.listDrives())
+          set({ drives: d.drives })
+          get().notify(
+            name && !/^new volume$/i.test(name)
+              ? `Renamed volume to “${name}”`
+              : 'Cleared volume name'
+          )
+        } catch (e) {
+          get().notify(e instanceof Error ? e.message : 'Could not rename volume', true)
+        }
+        return
+      }
+
       if (!newName.trim()) return
       const oldName = basename(path)
       if (newName === oldName) return

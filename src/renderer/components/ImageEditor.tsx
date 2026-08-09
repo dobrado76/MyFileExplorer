@@ -23,8 +23,6 @@ export function ImageEditor(): JSX.Element | null {
   const [removeMode, setRemoveMode] = useState(false)
   const [removeBusy, setRemoveBusy] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
-  const openRemoveRef = useRef<() => void>(() => undefined)
-  openRemoveRef.current = () => setRemoveMode(true)
 
   useEffect(() => {
     if (!editor) {
@@ -110,7 +108,7 @@ export function ImageEditor(): JSX.Element | null {
       removeTab.onclick = (e) => {
         e.preventDefault()
         e.stopPropagation()
-        openRemoveRef.current()
+        setRemoveMode(true)
       }
     }
 

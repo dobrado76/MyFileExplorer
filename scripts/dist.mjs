@@ -10,11 +10,14 @@
  *   --no-bump   skip version bump (rebuild same version)
  *   --no-clean  keep prior installers in dist/ (and skip updates-folder prune)
  */
+import { Buffer } from 'node:buffer'
 import { execSync } from 'node:child_process'
+import console from 'node:console'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import process from 'node:process'
 import { setTimeout as sleep } from 'node:timers/promises'
+import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const distDir = path.join(root, 'dist')
@@ -145,7 +148,8 @@ async function removeUnpackedDir() {
           `Could not remove dist/win-unpacked (file locked).\n` +
             `Close any MyFileExplorer started from dist\\win-unpacked, then retry.\n` +
             `(Installed app under %LOCALAPPDATA%\\Programs\\MyFileExplorer is fine to leave open.)\n` +
-            `Last error: ${e instanceof Error ? e.message : e}`
+            `Last error: ${e instanceof Error ? e.message : e}`,
+          { cause: e }
         )
       }
       console.warn(`dist/win-unpacked busy (attempt ${i}/${attempts}) — retrying…`)

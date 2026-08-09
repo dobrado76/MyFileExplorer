@@ -33,6 +33,7 @@ Custom theme = user-editable map of these tokens in settings.
 - Layout modes: single, side-by-side, 2×2 grid
 - Focused pane gets a clear focus ring; empty panes show “Drop a tab here”
 - Per-pane mini toolbar: Back / Forward / Up / Refresh / breadcrumb / view mode
+- Breadcrumb: click segment to jump; **double-click** (or Ctrl+L) to edit the path
 
 ### Splitters
 
@@ -48,6 +49,7 @@ Custom theme = user-editable map of these tokens in settings.
 - **Icons modes:** CSS grid of cells; virtualized (`@tanstack/react-virtual` or equivalent)
 - **List / Details:** virtualized rows; details header clickable for sort
 - Selection: click, Ctrl, Shift range; marquee optional Phase 10
+- Rename: F2 / context, or **double single-click** the name (slow second click on selected label in file view / tree); fast double-click opens / expands
 - Focus ring for keyboard nav
 - Drag ghost: selection count badge
 

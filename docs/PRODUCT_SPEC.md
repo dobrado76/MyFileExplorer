@@ -61,7 +61,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 
 ## Navigation
 
-- Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths)
+- Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths). **Double-click** (or Ctrl+L) to type a path
 - Address bar **Recent locations** dropdown from the tab’s history: **current on top**, then prior folders in Back order (newest previous first — same sequence as Back, Back, …); Forward entries follow when present
 - **Back / Forward / Up**
 - Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
@@ -94,7 +94,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | New folder         | Inline rename or dialog                                                                                                                          |
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
-| Rename             | F2 / context; inline. Enter commits; Escape cancels; click-away / blur **commits** (Explorer-style)                                              |
+| Rename             | F2 / context; or **double single-click** the name (second slow click on an already-selected file-view / tree label). Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits** |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |

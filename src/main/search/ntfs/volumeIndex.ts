@@ -19,7 +19,6 @@ import { deletePathTree, fileRowFromPath, upsertFileRows, type FileUpsert } from
 
 const USN_REASON_FILE_DELETE = 0x00000200
 const USN_REASON_RENAME_OLD_NAME = 0x00001000
-const USN_REASON_CLOSE = 0x80000000
 
 export type VolumeBootstrapResult = {
   ok: boolean

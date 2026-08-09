@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import {
+  createElement,
+  useEffect,
+  useMemo,
+  useState,
+  type JSX,
+  type ReactNode
+} from 'react'
 import type { ConflictDecision, ConflictItem, ConflictSide } from '@shared/schemas/fs'
 import type { CustomTheme } from '@shared/schemas/settings'
 import type { FolderMeasureResult, PropertiesModel } from '@shared/schemas/properties'
@@ -301,11 +308,11 @@ function ConflictSideCard({
 }): JSX.Element {
   const isDir = side.kind === 'dir'
   const showImage = !isDir && isImageExt(side.ext)
-  const Icon = iconForEntry(side.ext, isDir)
   const newer = side.mtimeMs > 0 && side.mtimeMs > peer.mtimeMs
   const larger = !isDir && side.size > 0 && side.size > peer.size
   const dims =
     side.width && side.height ? `${side.width} × ${side.height}` : null
+  const fallbackIcon = createElement(iconForEntry(side.ext, isDir), { size: 48 })
 
   return (
     <div className="conflict-side">
@@ -316,7 +323,7 @@ function ConflictSideCard({
             path={side.path}
             mtimeMs={side.mtimeMs}
             size={280}
-            fallback={<Icon size={48} />}
+            fallback={fallbackIcon}
           />
         ) : (
           <ShellIcon path={side.path} size={48} isDir={isDir} />
@@ -376,11 +383,13 @@ function ConflictDialog(): JSX.Element | null {
   const [decisions, setDecisions] = useState<Record<string, ConflictDecision>>({})
   const [applyToRest, setApplyToRest] = useState(false)
 
+  const conflictDest =
+    dialog?.kind === 'conflict' ? dialog.destinationDir : null
   useEffect(() => {
     setIndex(0)
     setDecisions({})
     setApplyToRest(false)
-  }, [dialog?.kind === 'conflict' ? dialog.destinationDir : null])
+  }, [conflictDest])
 
   if (!dialog || dialog.kind !== 'conflict') return null
 

@@ -36,7 +36,8 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:exists`          | `{ path }`                                       | `{ exists: boolean }`                         |
 | `fs:watch`           | `{ path }`                                       | `{ watching: true }` (main tracks per window) |
 | `fs:unwatch`         | `{ path }`                                       | `{ ok: true }`                                |
-| `fs:listDrives`      | —                                                | `{ drives: { path, label }[] }`               |
+| `fs:listDrives`      | —                                                | `{ drives: { path, label, volumeName }[] }`   |
+| `fs:setVolumeLabel`  | `{ path, name }` (drive root; `name` '' clears)  | `{ path, volumeName }`                         |
 | `fs:saveEditedImage` | `{ path, dataBase64 }`                           | `{ path, preservedOriginal }` (D27)           |
 | `fs:hasImageOriginal`| `{ path }`                                       | `{ hasOriginal }`                             |
 | `fs:revertImageOriginal` | `{ path }`                                   | `{ path, reverted }`                          |

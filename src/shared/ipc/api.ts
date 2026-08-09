@@ -12,6 +12,7 @@ import type {
   PathsRequest,
   RelocateRequest,
   RenameRequest,
+  SetVolumeLabelRequest,
   StatResult,
   TransferRequest
 } from '../schemas/fs'
@@ -77,6 +78,10 @@ export type MyFileExplorerApi = {
     watch(req: PathRequest): Promise<Result<{ watching: true }>>
     unwatch(req: PathRequest): Promise<Result<{ ok: true }>>
     listDrives(): Promise<Result<{ drives: DriveInfo[] }>>
+    /** Set or clear the Windows volume label for a drive root (`C:\`). */
+    setVolumeLabel(
+      req: SetVolumeLabelRequest
+    ): Promise<Result<{ path: string; volumeName: string }>>
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
     setAttributes(req: SetAttributesRequest): Promise<Result<SetAttributesResponse>>

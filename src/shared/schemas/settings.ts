@@ -230,7 +230,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   customTheme: defaultCustomTheme,
   fontFamily: 'Segoe UI',
   fontSizePx: 13,
-  iconSizePx: 16,
+  iconSizePx: 20,
   foldersFirst: true,
   defaultNewTabPath: '',
   confirmPermanentDeleteAlways: false,

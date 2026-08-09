@@ -23,6 +23,11 @@ import {
   beginLeftFileDragGesture,
   shouldSuppressClickAfterLeftDrag
 } from '../lib/leftFileDrag'
+import {
+  beginDoubleSingleClick,
+  cancelDoubleSingleClick,
+  isNameLabelTarget
+} from '../lib/doubleSingleClick'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
@@ -185,10 +190,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       ? s.focusedPath
       : (s.tabs.find((t) => t.id === tabId)?.selected.slice(-1)[0] ?? null)
   )
-  const selectedPaths = useAppStore(
-    (s) => s.tabs.find((t) => t.id === tabId)?.selected ?? []
-  )
   const openEntry = useAppStore((s) => s.openEntry)
+  const startRename = useAppStore((s) => s.startRename)
   const renamingPath = useAppStore((s) => s.renamingPath)
   const renameSource = useAppStore((s) => s.renameSource)
   const submitRename = useAppStore((s) => s.submitRename)
@@ -1079,6 +1082,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         {
           ghostLabel,
           onActivated: (paths) => {
+            cancelDoubleSingleClick()
             setDragPaths(paths)
             suppressClickRef.current = true
           },
@@ -1134,15 +1138,40 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         suppressClickRef.current = false
         return
       }
+      if (recycleMode || e.ctrlKey || e.shiftKey) {
+        cancelDoubleSingleClick()
+        selectWithModifiers(entry, e)
+        return
+      }
+      const sel = tab?.selected ?? []
+      const alreadySelected = selected.has(entry.path.toLowerCase())
+      const onlyThis =
+        alreadySelected && sel.length === 1 && samePath(sel[0]!, entry.path)
+      // Double single-click: second click on the name of a single selected item → rename.
+      if (onlyThis && isNameLabelTarget(e.target)) {
+        beginDoubleSingleClick(e.clientX, e.clientY, () => startRename(entry.path, 'files'))
+        return
+      }
+      cancelDoubleSingleClick()
       selectWithModifiers(entry, e)
     },
-    [selectWithModifiers]
+    [recycleMode, selected, tab, selectWithModifiers, startRename]
+  )
+
+  const onItemDoubleClick = useCallback(
+    (entry: DirEntry): void => {
+      cancelDoubleSingleClick()
+      if (recycleMode) void restoreFromRecycleBinView([entry.path])
+      else void openEntry(entry)
+    },
+    [recycleMode, restoreFromRecycleBinView, openEntry]
   )
 
   const onItemContextMenu = useCallback(
     (entry: DirEntry, e: React.MouseEvent): void => {
       e.preventDefault()
       e.stopPropagation()
+      cancelDoubleSingleClick()
       if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
       const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
       if (!selected.has(entry.path.toLowerCase()))
@@ -1488,10 +1517,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     onPointerDown={(e) => onItemPointerDown(entry, e)}
                     onMouseDown={(e) => onItemMouseDown(entry, e)}
                     onClick={(e) => onItemClick(entry, e)}
-                    onDoubleClick={() => {
-                      if (recycleMode) void restoreFromRecycleBinView([entry.path])
-                      else void openEntry(entry)
-                    }}
+                    onDoubleClick={() => onItemDoubleClick(entry)}
                     onContextMenu={(e) => onItemContextMenu(entry, e)}
                     onDragEnd={onItemDragEnd}
                     onDragOver={(e) => {
@@ -1559,10 +1585,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 onPointerDown={(e) => onItemPointerDown(entry, e)}
                 onMouseDown={(e) => onItemMouseDown(entry, e)}
                 onClick={(e) => onItemClick(entry, e)}
-                onDoubleClick={() => {
-                  if (recycleMode) void restoreFromRecycleBinView([entry.path])
-                  else void openEntry(entry)
-                }}
+                onDoubleClick={() => onItemDoubleClick(entry)}
                 onContextMenu={(e) => onItemContextMenu(entry, e)}
                 onDragEnd={onItemDragEnd}
                 onDragOver={(e) => {

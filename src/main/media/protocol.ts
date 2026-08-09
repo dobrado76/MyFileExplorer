@@ -7,9 +7,9 @@
  * pipeline requires Accept-Ranges + Content-Range; without them `<video>`
  * fails even for ordinary H.264 MP4 (Electron protocol.handle).
  *
- * ≤128 MiB seekable: ranges served from an in-memory copy (source closed).
+ * <=128 MiB seekable: ranges served from an in-memory copy (source closed).
  * Larger seekable: byte-range streams from the allowlisted path (no full
- * scratch copy — multi‑GB movies must start without a second disk write).
+ * scratch copy — multi-GB movies must start without a second disk write).
  */
 import { app, protocol } from 'electron'
 import crypto from 'node:crypto'

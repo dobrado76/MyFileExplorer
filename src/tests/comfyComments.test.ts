@@ -60,10 +60,8 @@ describe('exifText helpers', () => {
 
   it('reads EXIF UserComment ASCII', () => {
     // Build a tiny little-endian TIFF with UserComment in Exif IFD
-    const payload = Buffer.from('ASCII\0\0\0hello Steps: 1, Seed: 2', 'binary')
     // Simpler: just ImageDescription in IFD0
     const desc = Buffer.from('a prompt\nSteps: 3, Sampler: a, Seed: 9\0', 'ascii')
-    const parts: Buffer[] = []
     // We'll construct properly:
     // II * 42, IFD0 offset=8
     // IFD0: 1 entry (ImageDescription 0x010E type=2 count=len offset=...)

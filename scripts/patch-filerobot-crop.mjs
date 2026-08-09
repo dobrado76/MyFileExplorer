@@ -2,8 +2,10 @@
  * Force Filerobot crop to free-form (independent width/height on corner handles).
  * Re-apply after npm install. Clears Vite’s Filerobot prebundle so the patch is used.
  */
+import console from 'node:console'
 import fs from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')

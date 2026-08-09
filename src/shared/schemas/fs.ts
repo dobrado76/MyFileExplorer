@@ -119,4 +119,17 @@ export type ConflictDecision = 'replace' | 'skip' | 'rename'
 export const pathsRequestSchema = z.object({ paths: z.array(z.string().min(1)).min(1) })
 export type PathsRequest = z.infer<typeof pathsRequestSchema>
 
-export type DriveInfo = { path: string; label: string }
+export type DriveInfo = {
+  path: string
+  /** Tree display, e.g. `C:` or `C: — Games`. */
+  label: string
+  /** Editable volume label only (empty when unnamed). */
+  volumeName: string
+}
+
+export const setVolumeLabelRequestSchema = z.object({
+  path: z.string().min(1),
+  /** Empty string clears the volume label. */
+  name: z.string().max(32)
+})
+export type SetVolumeLabelRequest = z.infer<typeof setVolumeLabelRequestSchema>

@@ -11,14 +11,15 @@ import {
   renameRequestSchema,
   transferRequestSchema,
   relocateRequestSchema,
-  checkConflictsRequestSchema
+  checkConflictsRequestSchema,
+  setVolumeLabelRequestSchema
 } from '@shared/schemas/fs'
 import { sessionSchema } from '@shared/schemas/session'
 import { settingsPatchSchema } from '@shared/schemas/settings'
 import { previewEnsurePlayableSchema, previewRequestSchema } from '@shared/schemas/preview'
 import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/search'
 import { listDirectory, statPath, pathExists } from '../fs/list'
-import { listDrives } from '../fs/drives'
+import { listDrives, setVolumeLabel } from '../fs/drives'
 import { getProperties, measureFolder, setPathAttributes } from '../fs/properties'
 import {
   propertiesRequestSchema,
@@ -212,6 +213,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsWatch, pathRequestSchema, (req, event) => watchDirectory(event.sender, req.path))
   handle(IPC.fsUnwatch, pathRequestSchema, (req, event) => unwatchDirectory(event.sender, req.path))
   handle(IPC.fsListDrives, emptySchema, async () => ({ drives: await listDrives() }))
+  handle(IPC.fsSetVolumeLabel, setVolumeLabelRequestSchema, (req) =>
+    setVolumeLabel(req.path, req.name)
+  )
   handle(IPC.fsProperties, propertiesRequestSchema, (req) => getProperties(req.path))
   handle(IPC.fsMeasureFolder, propertiesRequestSchema, (req) => measureFolder(req.path))
   handle(IPC.fsSetAttributes, setAttributesRequestSchema, (req) =>

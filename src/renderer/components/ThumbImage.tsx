@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { api } from '../lib/ipc'
 import { useAppStore } from '../store/appStore'
 
@@ -64,7 +64,9 @@ export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Prop
   const frameIdxRef = useRef(0)
   const reqIdRef = useRef(0)
   const onHasContentRef = useRef(onHasContent)
-  onHasContentRef.current = onHasContent
+  useLayoutEffect(() => {
+    onHasContentRef.current = onHasContent
+  })
 
   const showingContent = Boolean(displaySrc && !failed)
 

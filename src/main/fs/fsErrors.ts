@@ -83,6 +83,6 @@ export async function appErrorFromFsFailure(
   // Preserve intentional Recycle Bin / IO messages — do not invent a lock story.
   if (e instanceof AppError) return e
 
-  let errCode: ErrCode = 'io'
+  const errCode: ErrCode = 'io'
   return new AppError(errCode, raw || `Could not ${opts.action} the ${item}.`)
 }

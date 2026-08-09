@@ -1,4 +1,4 @@
-import { useEffect, useRef, type JSX } from 'react'
+import { useEffect, useLayoutEffect, useRef, type JSX } from 'react'
 
 /** Shared inline rename field for file view and folder tree. */
 export function RenameInput({
@@ -18,8 +18,10 @@ export function RenameInput({
   const submitted = useRef(false)
   const onSubmitRef = useRef(onSubmit)
   const onCancelRef = useRef(onCancel)
-  onSubmitRef.current = onSubmit
-  onCancelRef.current = onCancel
+  useLayoutEffect(() => {
+    onSubmitRef.current = onSubmit
+    onCancelRef.current = onCancel
+  })
 
   const finish = (value: string, mode: 'submit' | 'cancel'): void => {
     if (submitted.current) return

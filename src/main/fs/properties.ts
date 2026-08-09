@@ -130,8 +130,9 @@ async function readVolumeMeta(root: string): Promise<{
       FreeSpace?: number | null
       DriveType?: number | null
     }
+    const vol = data.VolumeName?.trim() ?? ''
     return {
-      volumeLabel: data.VolumeName?.trim() ? data.VolumeName.trim() : null,
+      volumeLabel: vol && !/^no name$/i.test(vol) && !/^new volume$/i.test(vol) ? vol : null,
       fileSystem: data.FileSystem ?? null,
       driveType:
         data.DriveType != null ? (DRIVE_TYPES[data.DriveType] ?? `Type ${data.DriveType}`) : null,

@@ -35,6 +35,7 @@ const api: MyFileExplorerApi = {
     watch: invoke(IPC.fsWatch),
     unwatch: invoke(IPC.fsUnwatch),
     listDrives: invokeVoid(IPC.fsListDrives),
+    setVolumeLabel: invoke(IPC.fsSetVolumeLabel),
     properties: invoke(IPC.fsProperties),
     measureFolder: invoke(IPC.fsMeasureFolder),
     setAttributes: invoke(IPC.fsSetAttributes),
