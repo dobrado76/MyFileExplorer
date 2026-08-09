@@ -16,6 +16,7 @@ import {
   SelectAllIcon
 } from '../lib/icons'
 import { LayoutsMenu } from './LayoutsMenu'
+import { NewItemMenu } from './NewItemMenu'
 import { ViewLayoutSelector } from './ViewLayoutSelector'
 
 export function Toolbar(): JSX.Element {
@@ -52,6 +53,8 @@ export function Toolbar(): JSX.Element {
   return (
     <div className="toolbar toolbar-global">
       <div className="toolbar-edit" role="group" aria-label="Edit">
+        <NewItemMenu />
+        <span className="toolbar-sep" aria-hidden />
         <button
           className="icon-btn"
           aria-label="Undo"

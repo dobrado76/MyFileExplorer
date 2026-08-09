@@ -6,6 +6,7 @@ import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { api, call } from '../lib/ipc'
+import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 
 /** File extension including leading dot (e.g. `.ffs_gui`), or null. */
 function fileExtension(filePath: string): string | null {
@@ -28,21 +29,6 @@ type MenuItem =
       action(): void
     }
   | { type: 'submenu'; label: string; disabled?: boolean; items: SubEntry[] }
-
-/** Common “New” targets — Explorer-style quick create + rename. */
-const NEW_FILE_TYPES: { stem: string; ext: string; label: string }[] = [
-  { stem: 'New Text Document', ext: '.txt', label: 'Text Document' },
-  { stem: 'New Markdown', ext: '.md', label: 'Markdown' },
-  { stem: 'New Document', ext: '.json', label: 'JSON' },
-  { stem: 'New Spreadsheet', ext: '.csv', label: 'CSV' },
-  { stem: 'New Script', ext: '.js', label: 'JavaScript' },
-  { stem: 'New Script', ext: '.ts', label: 'TypeScript' },
-  { stem: 'New Script', ext: '.py', label: 'Python' },
-  { stem: 'New Page', ext: '.html', label: 'HTML' },
-  { stem: 'New Stylesheet', ext: '.css', label: 'CSS' },
-  { stem: 'New Script', ext: '.ps1', label: 'PowerShell' },
-  { stem: 'New Script', ext: '.bat', label: 'Windows Batch' }
-]
 
 function newSubmenu(
   parent: string,

@@ -499,6 +499,56 @@ textarea:focus {
   margin: 0 4px;
   flex-shrink: 0;
 }
+.new-item-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+.new-item-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+}
+.new-item-btn:hover:not(:disabled),
+.new-item-btn.open:not(:disabled) {
+  background: var(--bg-elevated);
+}
+.new-item-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.new-item-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  flex-shrink: 0;
+}
+.new-item-label {
+  font-weight: 500;
+}
+.new-item-menu-panel {
+  /* Portaled to body — position set inline (fixed). Escape shell-body stacking. */
+  z-index: 2000;
+  min-width: 200px;
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+}
+.new-item-menu-panel .menu-item .shell-icon,
+.new-item-menu-panel .menu-item .new-item-menu-glyph {
+  flex-shrink: 0;
+}
+.new-item-menu-panel .menu-item .new-item-menu-glyph {
+  color: var(--text-dim);
+}
 .toolbar-trailing {
   display: flex;
   align-items: center;
@@ -520,11 +570,15 @@ textarea:focus {
 .view-layout-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 4px 7px;
+  /* Equal slots so 1→2 and 2→4 gaps match (digit “1” is narrower than “2”/“4”). */
+  min-width: 40px;
+  padding: 4px 6px;
   border-radius: 5px;
   color: var(--text-dim);
   border: 1px solid transparent;
+  box-sizing: border-box;
 }
 .view-layout-btn:hover {
   background: var(--bg-elevated);
@@ -564,6 +618,9 @@ textarea:focus {
 .view-layout-label {
   font-size: 0.8em;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 0.75em;
+  text-align: center;
 }
 
 .view-grid-host {
@@ -2039,10 +2096,8 @@ body.right-dragging * {
   display: flex;
 }
 .layouts-menu-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 40;
+  /* Portaled to body — position set inline (fixed). Escape shell-body stacking. */
+  z-index: 2000;
   min-width: 220px;
   max-width: 320px;
   max-height: min(60vh, 420px);

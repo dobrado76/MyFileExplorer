@@ -23,7 +23,7 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 
 ```
 ┌─ Tab bar (reorder, rename, icon, close, new) ───────────────────┐
-├─ Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
+├─ New · Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
 ├─ Pane grid (1 / side-by-side / 2×2) ──────────── Preview (opt) ─┤
 │  each pane: Nav + Breadcrumb + View | Tree | Files              │
 └─────────────────────────────────────────────────────────────────┘

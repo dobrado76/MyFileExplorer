@@ -93,13 +93,17 @@ async function encodePng(rgba: Buffer, px: number): Promise<Buffer> {
   return sharp(rgba, { raw: { width: px, height: px, channels: 4 } }).png().toBuffer()
 }
 
-async function extractPng(file: string, px: 16 | 32): Promise<Buffer | null> {
+async function extractPng(
+  file: string,
+  px: 16 | 32,
+  kindHint?: 'file' | 'dir'
+): Promise<Buffer | null> {
   // Prefer SHGetFileInfo — Electron's app.getFileIcon often returns the same
   // system-drive glyph for every path on current Windows/Electron builds.
   if (process.platform === 'win32') {
     try {
       const { extractShellIconRgba } = await import('./shellWin32')
-      const rgba = extractShellIconRgba(file, px)
+      const rgba = extractShellIconRgba(file, px, kindHint)
       if (rgba) {
         const side = Math.round(Math.sqrt(rgba.length / 4))
         return encodePng(rgba, side > 0 ? side : px)
@@ -108,6 +112,8 @@ async function extractPng(file: string, px: 16 | 32): Promise<Buffer | null> {
       // fall through
     }
   }
+  // app.getFileIcon needs a real path; skip for attribute-only probes.
+  if (kindHint) return null
   try {
     const image = await app.getFileIcon(file, { size: px <= 16 ? 'small' : 'normal' })
     if (image.isEmpty()) return null
@@ -115,6 +121,60 @@ async function extractPng(file: string, px: 16 | 32): Promise<Buffer | null> {
   } catch {
     return null
   }
+}
+
+/** Cache + extract a type icon for a path that may not exist (SHGFI_USEFILEATTRIBUTES). */
+async function getAttributeIconUrl(
+  file: string,
+  px: 16 | 32,
+  kindHint: 'file' | 'dir',
+  ext: string
+): Promise<{ url: string | null }> {
+  const perFile = kindHint === 'dir' || PER_FILE_EXTS.has(ext)
+  // After excluding dirs, remaining hits are file-type icons (isDirHint false).
+  if (!perFile && shouldUseExtIconCache(ext, false)) {
+    const extKey = `${ext || '_none'}|${px}`
+    const hit = extUrlCache.get(extKey)
+    if (hit) return { url: hit }
+  }
+  // Stable cache key — not path-mtime based (file may not exist).
+  const key = crypto
+    .createHash('sha1')
+    .update(
+      kindHint === 'dir' ? `attr|dir|${px}|v3` : `attr|e|${ext || '_none'}|${px}|v3`
+    )
+    .digest('hex')
+  const cacheFile = path.join(shellIconCacheDir(), `${key}.png`)
+  try {
+    await fsp.access(cacheFile)
+    const url = mediaUrlFor(cacheFile)
+    if (!perFile) extUrlCache.set(`${ext || '_none'}|${px}`, url)
+    return { url }
+  } catch {
+    // generate
+  }
+  const pending = inFlight.get(key)
+  if (pending) return { url: await pending }
+
+  const job = (async (): Promise<string | null> => {
+    try {
+      await fsp.mkdir(shellIconCacheDir(), { recursive: true })
+      const png = await extractPng(file, px, kindHint)
+      if (!png) return null
+      const tmp = cacheFile + '.tmp'
+      await fsp.writeFile(tmp, png)
+      await fsp.rename(tmp, cacheFile)
+      const url = mediaUrlFor(cacheFile)
+      if (!perFile) extUrlCache.set(`${ext || '_none'}|${px}`, url)
+      return url
+    } catch {
+      return null
+    } finally {
+      inFlight.delete(key)
+    }
+  })()
+  inFlight.set(key, job)
+  return { url: await job }
 }
 
 /**
@@ -148,6 +208,9 @@ export async function getShellIconUrl(
   try {
     st = await fsp.stat(file)
   } catch {
+    // Missing path: still resolve Explorer type icons (New menu probes, etc.).
+    if (isDirHint === true) return getAttributeIconUrl(file, px, 'dir', ext)
+    if (ext) return getAttributeIconUrl(file, px, 'file', ext)
     return { url: null }
   }
 

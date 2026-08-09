@@ -13,6 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Tab context menu** — right-click a tab for Duplicate, Rename, Set/Change icon, Close (D32).
 - **Tab icons** — pick any Lucide React icon + color; persisted in session and named layouts.
+- **+ New toolbar dropdown** — Explorer-style New menu (folder, common file types, Other…) before Undo / Cut / Copy.
 
 ## [0.3.0] - 2026-08-09
 
