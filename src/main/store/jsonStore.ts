@@ -55,6 +55,19 @@ export class JsonStore<T> {
     return this.value
   }
 
+  /**
+   * Assign an already-validated value and schedule a write.
+   * Use when the caller parsed with a live schema (avoids a stale schema
+   * capture inside a long-lived store after main-process HMR).
+   */
+  replace(next: T): T {
+    this.value = next
+    this.dirty = true
+    if (this.timer) clearTimeout(this.timer)
+    this.timer = setTimeout(() => this.flush(), this.debounceMs)
+    return this.value
+  }
+
   flush(): void {
     if (this.timer) {
       clearTimeout(this.timer)

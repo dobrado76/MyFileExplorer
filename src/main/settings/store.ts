@@ -21,8 +21,18 @@ export function settingsStore(): JsonStore<Settings> {
   return store
 }
 
+/** Always re-parse through the live schema so new keys survive HMR / evolution. */
+export function getSettings(): Settings {
+  return settingsSchema.parse(settingsStore().get())
+}
+
 export function patchSettings(patch: unknown): Settings {
   const parsed = settingsPatchSchema.parse(patch)
-  const next = { ...settingsStore().get(), ...parsed }
-  return settingsStore().set(next)
+  // Parse with the module’s current schema (not a schema frozen into JsonStore
+  // at first construction — that drops newly added keys like previewVideoAutoplay).
+  const next = settingsSchema.parse({ ...settingsStore().get(), ...parsed })
+  settingsStore().replace(next)
+  // Settings toggles should hit disk immediately (don’t wait for debounce / quit).
+  settingsStore().flush()
+  return next
 }

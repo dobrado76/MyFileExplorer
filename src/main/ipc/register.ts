@@ -58,7 +58,7 @@ import {
   startOsFileDrag
 } from '../shell'
 import { sessionStore } from '../session/store'
-import { settingsStore, patchSettings } from '../settings/store'
+import { getSettings, patchSettings } from '../settings/store'
 import { ensurePlayablePreview, getPreview } from '../preview'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
@@ -298,7 +298,7 @@ export function registerIpcHandlers(): void {
   handle(IPC.sessionSet, sessionSchema, (session) => sessionStore().set(session))
 
   // settings
-  handle(IPC.settingsGet, emptySchema, () => settingsStore().get())
+  handle(IPC.settingsGet, emptySchema, () => getSettings())
   handle(IPC.settingsSet, settingsPatchSchema, (patch) => patchSettings(patch))
   handle(IPC.settingsClearThumbCache, emptySchema, async () => {
     await clearThumbCache()

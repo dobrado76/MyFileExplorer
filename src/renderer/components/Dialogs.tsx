@@ -1264,7 +1264,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 id="set-preview-autoplay"
                 label="Autoplay media in preview"
                 hint="Start video/audio when a file is selected (off by default)"
-                checked={settings.previewVideoAutoplay}
+                checked={settings.previewVideoAutoplay === true}
                 onChange={(v) => void applySettingsPatch({ previewVideoAutoplay: v })}
               />
               <SettingsToggle

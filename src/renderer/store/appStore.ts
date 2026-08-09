@@ -3046,6 +3046,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async applySettingsPatch(patch) {
+      const prev = get().settings
+      // Optimistic update so toggles don’t snap back while IPC runs.
+      set((s) => ({
+        settings: { ...s.settings, ...patch },
+        ...(typeof patch.searchIndexedOnly === 'boolean'
+          ? { search: { ...s.search, indexedOnly: patch.searchIndexedOnly } }
+          : {})
+      }))
       try {
         const settings = await call(api.settings.set(patch))
         set((s) => ({
@@ -3055,6 +3063,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             : {})
         }))
       } catch (e) {
+        set({ settings: prev })
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
     },
