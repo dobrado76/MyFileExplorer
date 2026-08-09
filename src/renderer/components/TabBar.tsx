@@ -109,6 +109,8 @@ export function TabBar(): JSX.Element {
                 }
                 dragIndex.current = index
                 e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('text/x-mfe-tab', tab.id)
+                e.dataTransfer.setData('text/plain', tab.id)
               }}
               onDragOver={(e) => {
                 if (fileDragActive && isValidDropDest(dragPaths, tab.path)) {
@@ -129,6 +131,7 @@ export function TabBar(): JSX.Element {
                   dragIndex.current = null
                   return
                 }
+                // Dropping a tab onto another tab reorders (pane assign uses pane drop zones).
                 if (dragIndex.current !== null && dragIndex.current !== index) {
                   reorderTab(dragIndex.current, index)
                 }

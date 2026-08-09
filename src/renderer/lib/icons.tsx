@@ -128,6 +128,41 @@ export const CopyIcon = svg(
     <path d="M5 15V5a1 1 0 0 1 1-1h10" />
   </>
 )
+export const CutIcon = svg(
+  <>
+    <circle cx="6" cy="6" r="2.5" />
+    <circle cx="6" cy="18" r="2.5" />
+    <path d="M20 4L8.5 13.5M20 20L8.5 10.5" />
+  </>
+)
+export const PasteIcon = svg(
+  <>
+    <path d="M8 4h2a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2h2a1 1 0 0 1 1 1v3H7V5a1 1 0 0 1 1-1z" />
+    <rect x="5" y="8" width="14" height="13" rx="2" />
+  </>
+)
+export const UndoIcon = svg(<path d="M9 14L4 9l5-5M4 9h10a5 5 0 1 1 0 10h-3" />)
+export const RedoIcon = svg(<path d="M15 14l5-5-5-5M20 9H10a5 5 0 1 0 0 10h3" />)
+export const TrashIcon = svg(
+  <>
+    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+    <path d="M10 11v6M14 11v6" />
+  </>
+)
+/** Marquee / “select everything” — distinct from LayoutsIcon’s 2×2 tiles. */
+export const SelectAllIcon = svg(
+  <>
+    <rect
+      x="4"
+      y="4"
+      width="16"
+      height="16"
+      rx="2"
+      strokeDasharray="3 2"
+    />
+    <path d="M8 12l2.5 2.5L16 9" />
+  </>
+)
 export const SettingsIcon = svg(
   <>
     <circle cx="12" cy="12" r="3" />

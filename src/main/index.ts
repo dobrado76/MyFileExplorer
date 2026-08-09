@@ -84,7 +84,13 @@ if (!gotLock) {
       e.preventDefault()
     })
     // Mouse Back / Forward buttons (Windows) → in-app tab history, not webContents.
-    win.webContents.on('app-command', (_e, cmd) => {
+    // Electron typings omit `app-command` on some versions; cast the emitter.
+    ;(win.webContents as Electron.WebContents & {
+      on(
+        event: 'app-command',
+        listener: (event: Electron.Event, cmd: string) => void
+      ): Electron.WebContents
+    }).on('app-command', (_e, cmd) => {
       if (cmd === 'browser-backward') {
         broadcast({ type: 'history-nav', payload: { dir: 'back' } })
       } else if (cmd === 'browser-forward') {

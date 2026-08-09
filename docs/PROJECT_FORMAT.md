@@ -63,7 +63,7 @@ Notes:
 - `vidThumbFrameMs`: delay between `!VIDTHUMB_CACHE` strip frames in icon views (50–2000, default 300). Strips themselves live next to videos as a sibling hidden `!VIDTHUMB_CACHE` folder (not under `userData` — D26 external convention / optional in-app generate).
 - `hideNameExtensions`: extensions (no leading dot) whose “.ext” is omitted from file-view/search **labels** only (default `["lnk"]`). Does not hide files from the listing; rename/tooltips still use the real name.
 - `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
-- `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, tabs: [{ path, title, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs.
+- `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, tabs: [{ path, title, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. `paneTabIndexes` are indices into `tabs` (or null).
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
@@ -96,13 +96,20 @@ Notes:
     "previewWidthPx": 320,
     "treeCollapsed": false,
     "previewCollapsed": false
-  }
+  },
+  "viewLayout": 1,
+  "paneTabIds": ["tab_…"],
+  "focusedPaneIndex": 0,
+  "paneSplitCols": 0.5,
+  "paneSplitRows": 0.5
 }
 ```
 
 - `title: null` → UI shows basename of `path`
 - `treeExpanded` — absolute folder paths (and drive roots) that were expanded in that tab’s tree; restored on launch (capped; see schema). Missing field → `[]`.
 - `rootPath` — when set, tab is scoped to that folder as tree root
+- `viewLayout` — `1` | `2` | `4` multi-pane mode (D31); `paneTabIds` length matches (null = empty drop target)
+- `paneSplitCols` / `paneSplitRows` — fraction for column/row splitters in multi-pane (0–1)
 - Write debounced on change; flush on `before-quit`
 
 ---

@@ -40,7 +40,9 @@ export const tabStateSchema = z.object({
   treeExpanded: z
     .array(z.string())
     .catch([])
-    .transform((arr) => arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED))
+    .transform((arr) =>
+      arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED)
+    )
 })
 export type TabState = z.infer<typeof tabStateSchema>
 
@@ -52,7 +54,59 @@ export const splittersSchema = z.object({
 })
 export type Splitters = z.infer<typeof splittersSchema>
 
-export const sessionSchema = z.object({
+/** Multi-pane file view layout (D31). */
+export const viewLayoutSchema = z.union([z.literal(1), z.literal(2), z.literal(4)])
+export type ViewLayout = z.infer<typeof viewLayoutSchema>
+
+function clampRatio(n: number): number {
+  if (!Number.isFinite(n)) return 0.5
+  return Math.min(0.85, Math.max(0.15, n))
+}
+
+function sanitizePaneTabIds(raw: unknown, layout: ViewLayout, activeTabId: string | null): (string | null)[] {
+  const arr = Array.isArray(raw) ? raw : []
+  const out: (string | null)[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i < layout; i++) {
+    const v = arr[i]
+    if (typeof v === 'string' && v.length > 0 && !seen.has(v)) {
+      seen.add(v)
+      out.push(v)
+    } else {
+      out.push(null)
+    }
+  }
+  // Ensure at least the active tab is visible in single-pane / first slot when empty.
+  if (out.length > 0 && out.every((id) => id == null) && activeTabId) {
+    return [activeTabId, ...out.slice(1)]
+  }
+  return out
+}
+
+export const sessionSchema = z.preprocess((raw) => {
+  if (!raw || typeof raw !== 'object') return raw
+  const o = raw as Record<string, unknown>
+  const layoutRaw = o.viewLayout
+  const layout: ViewLayout =
+    layoutRaw === 2 || layoutRaw === 4 || layoutRaw === 1 ? layoutRaw : 1
+  const activeTabId =
+    typeof o.activeTabId === 'string' && o.activeTabId.length > 0 ? o.activeTabId : null
+  return {
+    ...o,
+    viewLayout: layout,
+    paneTabIds: sanitizePaneTabIds(o.paneTabIds, layout, activeTabId),
+    focusedPaneIndex:
+      typeof o.focusedPaneIndex === 'number' && Number.isFinite(o.focusedPaneIndex)
+        ? Math.min(layout - 1, Math.max(0, Math.floor(o.focusedPaneIndex)))
+        : 0,
+    paneSplitCols: clampRatio(
+      typeof o.paneSplitCols === 'number' ? o.paneSplitCols : 0.5
+    ),
+    paneSplitRows: clampRatio(
+      typeof o.paneSplitRows === 'number' ? o.paneSplitRows : 0.5
+    )
+  }
+}, z.object({
   version: z.literal(1).catch(1),
   activeTabId: z.string().nullable().catch(null),
   tabs: z.array(tabStateSchema).catch([]),
@@ -61,8 +115,13 @@ export const sessionSchema = z.object({
     previewWidthPx: 320,
     treeCollapsed: false,
     previewCollapsed: false
-  })
-})
+  }),
+  viewLayout: viewLayoutSchema.catch(1),
+  paneTabIds: z.array(z.string().nullable()).catch([]),
+  focusedPaneIndex: z.number().int().min(0).catch(0),
+  paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
+  paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5)
+}))
 export type SessionState = z.infer<typeof sessionSchema>
 
 export const defaultSession: SessionState = {
@@ -74,5 +133,10 @@ export const defaultSession: SessionState = {
     previewWidthPx: 320,
     treeCollapsed: false,
     previewCollapsed: false
-  }
+  },
+  viewLayout: 1,
+  paneTabIds: [null],
+  focusedPaneIndex: 0,
+  paneSplitCols: 0.5,
+  paneSplitRows: 0.5
 }

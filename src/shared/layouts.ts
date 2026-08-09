@@ -3,9 +3,11 @@ import {
   MAX_TREE_EXPANDED,
   sortSchema,
   splittersSchema,
+  viewLayoutSchema,
   viewModeSchema,
   type SortSpec,
   type Splitters,
+  type ViewLayout,
   type ViewMode
 } from './schemas/session'
 
@@ -21,9 +23,16 @@ export const layoutTabSchema = z.object({
   treeExpanded: z
     .array(z.string())
     .catch([])
-    .transform((arr) => arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED))
+    .transform((arr) =>
+      arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED)
+    )
 })
 export type LayoutTab = z.infer<typeof layoutTabSchema>
+
+function clampRatio(n: number): number {
+  if (!Number.isFinite(n)) return 0.5
+  return Math.min(0.85, Math.max(0.15, n))
+}
 
 export const workspaceLayoutSchema = z.object({
   id: z.string().min(1),
@@ -36,6 +45,11 @@ export const workspaceLayoutSchema = z.object({
     treeCollapsed: false,
     previewCollapsed: false
   }),
+  viewLayout: viewLayoutSchema.catch(1),
+  /** Index into `tabs`, or null for empty pane. Length matches viewLayout. */
+  paneTabIndexes: z.array(z.number().int().min(0).nullable()).catch([]),
+  paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
+  paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5),
   tabs: z.array(layoutTabSchema).min(1)
 })
 export type WorkspaceLayout = z.infer<typeof workspaceLayoutSchema>
@@ -52,6 +66,13 @@ export type LayoutSnapshotSource = {
   }>
   activeTabIndex: number
   splitters: Splitters
+  viewLayout: ViewLayout
+  /** Parallel to panes; tab id or null — converted to indexes on capture. */
+  paneTabIds: (string | null)[]
+  paneSplitCols: number
+  paneSplitRows: number
+  /** Live tab ids in the same order as `tabs` for index mapping. */
+  tabIds: string[]
 }
 
 export function newLayoutId(): string {
@@ -76,6 +97,24 @@ export function captureLayoutTabs(source: LayoutSnapshotSource['tabs']): LayoutT
   )
 }
 
+function paneTabIdsToIndexes(
+  paneTabIds: (string | null)[],
+  tabIds: string[],
+  layout: ViewLayout
+): (number | null)[] {
+  const out: (number | null)[] = []
+  for (let i = 0; i < layout; i++) {
+    const id = paneTabIds[i]
+    if (!id) {
+      out.push(null)
+      continue
+    }
+    const idx = tabIds.indexOf(id)
+    out.push(idx >= 0 ? idx : null)
+  }
+  return out
+}
+
 export function buildLayoutFromSnapshot(
   name: string,
   source: LayoutSnapshotSource,
@@ -86,12 +125,17 @@ export function buildLayoutFromSnapshot(
   if (source.tabs.length === 0) throw new Error('Layout needs at least one tab')
   const tabs = captureLayoutTabs(source.tabs)
   const activeTabIndex = Math.min(Math.max(0, source.activeTabIndex), tabs.length - 1)
+  const viewLayout = source.viewLayout === 2 || source.viewLayout === 4 ? source.viewLayout : 1
   return workspaceLayoutSchema.parse({
     id: existingId ?? newLayoutId(),
     name: cleanName,
     updatedAt: new Date().toISOString(),
     activeTabIndex,
     splitters: source.splitters,
+    viewLayout,
+    paneTabIndexes: paneTabIdsToIndexes(source.paneTabIds, source.tabIds, viewLayout),
+    paneSplitCols: clampRatio(source.paneSplitCols),
+    paneSplitRows: clampRatio(source.paneSplitRows),
     tabs
   })
 }
@@ -141,7 +185,8 @@ export function layoutSummary(layout: WorkspaceLayout): string {
       return base || t.path
     })
   const more = n > 3 ? ` +${n - 3}` : ''
-  return `${n} tab${n === 1 ? '' : 's'}: ${titles.join(', ')}${more}`
+  const panes = layout.viewLayout > 1 ? ` · ${layout.viewLayout}-pane` : ''
+  return `${n} tab${n === 1 ? '' : 's'}${panes}: ${titles.join(', ')}${more}`
 }
 
 export function formatLayoutUpdatedAt(iso: string): string {

@@ -158,13 +158,36 @@ function compareColumnValues(id: DetailsColumnId, a: string, b: string): number 
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 }
 
-export function FileView(): JSX.Element {
-  const listing = useAppStore((s) => s.listing)
+type FileViewProps = {
+  /** When set, bound to that tab’s listing (multi-pane). Default: active tab. */
+  tabId?: string
+}
+
+export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewProps): JSX.Element {
+  const activeTabIdStore = useAppStore((s) => s.activeTabId)
+  const tabId = tabIdProp ?? activeTabIdStore
+  const isFocusedSurface = tabId === activeTabIdStore
+  const listing = useAppStore((s) => s.listingsByTabId[tabId] ?? s.listing)
   const settings = useAppStore((s) => s.settings)
-  const tab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
-  const setSelection = useAppStore((s) => s.setSelection)
-  const selectionAnchor = useAppStore((s) => s.selectionAnchor)
-  const focusedPath = useAppStore((s) => s.focusedPath)
+  const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
+  const setSelectionRaw = useAppStore((s) => s.setSelection)
+  const setSelection = useCallback(
+    (paths: string[], anchor?: string | null, focused?: string | null) => {
+      setSelectionRaw(paths, anchor, focused, tabId)
+    },
+    [setSelectionRaw, tabId]
+  )
+  const selectionAnchor = useAppStore((s) =>
+    s.activeTabId === tabId ? s.selectionAnchor : null
+  )
+  const focusedPath = useAppStore((s) =>
+    s.activeTabId === tabId
+      ? s.focusedPath
+      : (s.tabs.find((t) => t.id === tabId)?.selected.slice(-1)[0] ?? null)
+  )
+  const selectedPaths = useAppStore(
+    (s) => s.tabs.find((t) => t.id === tabId)?.selected ?? []
+  )
   const openEntry = useAppStore((s) => s.openEntry)
   const renamingPath = useAppStore((s) => s.renamingPath)
   const renameSource = useAppStore((s) => s.renameSource)
@@ -173,17 +196,34 @@ export function FileView(): JSX.Element {
   const clipboard = useAppStore((s) => s.clipboard)
   const dragPaths = useAppStore((s) => s.dragPaths)
   const setDragPaths = useAppStore((s) => s.setDragPaths)
+  const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
+  const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   const performTransfer = useAppStore((s) => s.performTransfer)
   const openContextMenu = useAppStore((s) => s.openContextMenu)
-  const setSort = useAppStore((s) => s.setSort)
-  const setScrollOffset = useAppStore((s) => s.setScrollOffset)
+  const setSortRaw = useAppStore((s) => s.setSort)
+  const setSort = useCallback(
+    (sort: Parameters<typeof setSortRaw>[0]) => setSortRaw(sort, tabId),
+    [setSortRaw, tabId]
+  )
+  const setScrollOffsetRaw = useAppStore((s) => s.setScrollOffset)
+  const setScrollOffset = useCallback(
+    (offset: number) => setScrollOffsetRaw(offset, tabId),
+    [setScrollOffsetRaw, tabId]
+  )
   const patchDetailsLayout = useAppStore((s) => s.patchDetailsLayout)
   const search = useAppStore((s) => s.search)
   const recycleBin = useAppStore((s) => s.recycleBin)
   const restoreFromRecycleBinView = useAppStore((s) => s.restoreFromRecycleBinView)
-  const searchMode = search.active
-  const recycleMode = recycleBin.active
+  const focusPane = useAppStore((s) => s.focusPane)
+  const paneTabIds = useAppStore((s) => s.paneTabIds)
+  /** Search / recycle overlays only on the focused pane. */
+  const searchMode = search.active && isFocusedSurface
+  const recycleMode = recycleBin.active && isFocusedSurface
   const overlayMode = searchMode || recycleMode
+  const ensurePaneFocus = useCallback((): void => {
+    const idx = paneTabIds.indexOf(tabId)
+    if (idx >= 0) focusPane(idx)
+  }, [paneTabIds, tabId, focusPane])
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const hideNameExtensions = settings.hideNameExtensions
   const labelFor = (entry: DirEntry): string =>
@@ -193,8 +233,11 @@ export function FileView(): JSX.Element {
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const typeaheadRef = useRef<{ buffer: string; timer: number }>({ buffer: '', timer: 0 })
   const [width, setWidth] = useState(800)
-  const [dropTargetPath, setDropTargetPath] = useState<string | null>(null)
-  const [bgDropActive, setBgDropActive] = useState(false)
+  const bgDropActive = !!(
+    dropHighlightPath &&
+    listing.path &&
+    samePath(dropHighlightPath, listing.path)
+  )
   const [marquee, setMarquee] = useState<{ l: number; t: number; w: number; h: number } | null>(
     null
   )
@@ -592,6 +635,8 @@ export function FileView(): JSX.Element {
   // and letter typeahead (next name starting with typed prefix).
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      // Only the focused pane handles window-level file-view keys.
+      if (!isFocusedSurface) return
       const s = useAppStore.getState()
       if (
         s.dialog ||
@@ -748,6 +793,7 @@ export function FileView(): JSX.Element {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [
+    isFocusedSurface,
     entries,
     focusedPath,
     tab?.selected,
@@ -942,22 +988,15 @@ export function FileView(): JSX.Element {
 
   const highlightDropDest = useCallback(
     (dest: string | null): void => {
-      if (dest && listing.path && samePath(dest, listing.path)) {
-        setBgDropActive(true)
-        setDropTargetPath(null)
-      } else {
-        setBgDropActive(false)
-        setDropTargetPath(dest)
-      }
+      setDropHighlight(dest)
     },
-    [listing.path]
+    [setDropHighlight]
   )
 
   const clearDragVisuals = useCallback((): void => {
     setDragPaths([])
-    setDropTargetPath(null)
-    setBgDropActive(false)
-  }, [setDragPaths])
+    setDropHighlight(null)
+  }, [setDragPaths, setDropHighlight])
 
   const onItemPointerDown = useCallback(
     (entry: DirEntry, e: React.PointerEvent): void => {
@@ -1118,8 +1157,7 @@ export function FileView(): JSX.Element {
     (entry: DirEntry, e: React.DragEvent): void => {
       e.preventDefault()
       e.stopPropagation()
-      setDropTargetPath(null)
-      setBgDropActive(false)
+      setDropHighlight(null)
       const src = dragPaths[0]
       if (entry.kind !== 'dir' || dragPaths.length === 0 || !src) return
       if (dragPaths.some((p) => samePath(p, entry.path) || isUnderPath(entry.path, p))) return
@@ -1130,14 +1168,13 @@ export function FileView(): JSX.Element {
       )
       setDragPaths([])
     },
-    [dragPaths, performTransfer, setDragPaths]
+    [dragPaths, performTransfer, setDragPaths, setDropHighlight]
   )
 
   const onBackgroundDrop = useCallback(
     (e: React.DragEvent): void => {
       e.preventDefault()
-      setBgDropActive(false)
-      setDropTargetPath(null)
+      setDropHighlight(null)
       const dest = listing.path
       const src = dragPaths[0]
       if (dragPaths.length === 0 || !src || !dest) return
@@ -1146,7 +1183,7 @@ export function FileView(): JSX.Element {
       void performTransfer(dropOperation(src, dest, e.ctrlKey, e.shiftKey), dragPaths, dest)
       setDragPaths([])
     },
-    [dragPaths, listing.path, performTransfer, setDragPaths]
+    [dragPaths, listing.path, performTransfer, setDragPaths, setDropHighlight]
   )
 
   if (!tab) return <div className="fileview" />
@@ -1370,6 +1407,7 @@ export function FileView(): JSX.Element {
         role={isGrid ? 'grid' : 'listbox'}
         aria-label="Files"
         onMouseDown={(e) => {
+          ensurePaneFocus()
           if (e.target === e.currentTarget || (e.target as HTMLElement).dataset['bg'] === '1') {
             if (e.button === 0) startMarquee(e)
             else setSelection([], null, null)
@@ -1383,13 +1421,20 @@ export function FileView(): JSX.Element {
           }
         }}
         onDragOver={(e) => {
-          if (dragPaths.length > 0) {
+          if (dragPaths.length > 0 && listing.path) {
             e.preventDefault()
-            setBgDropActive(true)
+            setDropHighlight(listing.path)
           }
         }}
         onDragLeave={(e) => {
-          if (e.target === e.currentTarget) setBgDropActive(false)
+          if (
+            e.target === e.currentTarget &&
+            dropHighlightPath &&
+            listing.path &&
+            samePath(dropHighlightPath, listing.path)
+          ) {
+            setDropHighlight(null)
+          }
         }}
         onDrop={onBackgroundDrop}
         data-drop-dir={listing.path}
@@ -1428,7 +1473,7 @@ export function FileView(): JSX.Element {
                 return (
                   <div
                     key={entry.path}
-                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}${hideName ? ' no-filename' : ''}${hasContentPreview ? ' has-preview' : ' icon-only'}`}
+                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}${hideName ? ' no-filename' : ''}${hasContentPreview ? ' has-preview' : ' icon-only'}`}
                     style={{
                       top: vRow.start,
                       left: i * spec.cellW,
@@ -1450,11 +1495,14 @@ export function FileView(): JSX.Element {
                       if (entry.kind === 'dir' && dragPaths.length > 0) {
                         e.preventDefault()
                         e.stopPropagation()
-                        setDropTargetPath(entry.path)
-                        setBgDropActive(false)
+                        setDropHighlight(entry.path)
                       }
                     }}
-                    onDragLeave={() => setDropTargetPath((t) => (t === entry.path ? null : t))}
+                    onDragLeave={() => {
+                      if (dropHighlightPath && samePath(dropHighlightPath, entry.path)) {
+                        setDropHighlight(null)
+                      }
+                    }}
                     onDrop={(e) => onItemDrop(entry, e)}
                     title={entry.name}
                   >
@@ -1501,7 +1549,7 @@ export function FileView(): JSX.Element {
             return (
               <div
                 key={entry.path}
-                className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropTargetPath === entry.path ? ' drop-target' : ''}`}
+                className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}`}
                 style={{ top: vRow.start, height: rowHeight }}
                 {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
                 draggable={false}
@@ -1518,11 +1566,14 @@ export function FileView(): JSX.Element {
                   if (entry.kind === 'dir' && dragPaths.length > 0) {
                     e.preventDefault()
                     e.stopPropagation()
-                    setDropTargetPath(entry.path)
-                    setBgDropActive(false)
+                    setDropHighlight(entry.path)
                   }
                 }}
-                onDragLeave={() => setDropTargetPath((t) => (t === entry.path ? null : t))}
+                onDragLeave={() => {
+                  if (dropHighlightPath && samePath(dropHighlightPath, entry.path)) {
+                    setDropHighlight(null)
+                  }
+                }}
                 onDrop={(e) => onItemDrop(entry, e)}
               >
                 <div

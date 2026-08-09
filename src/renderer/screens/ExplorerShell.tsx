@@ -2,10 +2,7 @@ import { useCallback, useEffect, lazy, Suspense, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { TabBar } from '../components/TabBar'
 import { Toolbar } from '../components/Toolbar'
-import { FolderTree } from '../components/FolderTree'
-import { FileView } from '../components/FileView'
-import { SearchBanner } from '../components/SearchBanner'
-import { RecycleBinBanner } from '../components/RecycleBinBanner'
+import { ViewGrid } from '../components/ViewGrid'
 import { PreviewPane } from '../components/PreviewPane'
 import { StatusBar } from '../components/StatusBar'
 import { ContextMenu } from '../components/ContextMenu'
@@ -20,19 +17,12 @@ const ImageEditor = lazy(async () => {
   return { default: m.ImageEditor }
 })
 
-const TREE_MIN = 140
 const PREVIEW_MIN = 200
-/** Keep a usable center file pane; side panes otherwise have no fixed max. */
-const FILES_MIN = 240
+/** Keep a usable center grid; preview otherwise has no fixed max. */
+const GRID_MIN = 280
 
-function maxTreeWidthPx(previewCollapsed: boolean, previewWidthPx: number): number {
-  const other = previewCollapsed ? 0 : previewWidthPx
-  return Math.max(TREE_MIN, window.innerWidth - other - FILES_MIN)
-}
-
-function maxPreviewWidthPx(treeCollapsed: boolean, treeWidthPx: number): number {
-  const other = treeCollapsed ? 0 : treeWidthPx
-  return Math.max(PREVIEW_MIN, window.innerWidth - other - FILES_MIN)
+function maxPreviewWidthPx(): number {
+  return Math.max(PREVIEW_MIN, window.innerWidth - GRID_MIN)
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
@@ -289,39 +279,15 @@ export function ExplorerShell(): JSX.Element {
       <TabBar />
       <Toolbar />
       <div className="shell-body">
-        {!splitters.treeCollapsed && (
-          <>
-            <div
-              className="pane-tree"
-              data-drag-scroll
-              style={{ width: splitters.treeWidthPx }}
-            >
-              <FolderTree />
-            </div>
-            <Splitter
-              onDrag={(delta) => {
-                // Read fresh widths from the store: this callback is captured once
-                // at pointerdown, so render-time values would be stale.
-                const sp = useAppStore.getState().splitters
-                const max = maxTreeWidthPx(sp.previewCollapsed, sp.previewWidthPx)
-                setSplitters({
-                  treeWidthPx: Math.min(max, Math.max(TREE_MIN, sp.treeWidthPx + delta))
-                })
-              }}
-            />
-          </>
-        )}
-        <div className="pane-files">
-          <RecycleBinBanner />
-          <SearchBanner />
-          <FileView />
+        <div className="view-grid-host">
+          <ViewGrid />
         </div>
         {!splitters.previewCollapsed && (
           <>
             <Splitter
               onDrag={(delta) => {
                 const sp = useAppStore.getState().splitters
-                const max = maxPreviewWidthPx(sp.treeCollapsed, sp.treeWidthPx)
+                const max = maxPreviewWidthPx()
                 setSplitters({
                   previewWidthPx: Math.min(max, Math.max(PREVIEW_MIN, sp.previewWidthPx - delta))
                 })

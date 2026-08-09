@@ -23,15 +23,22 @@ Custom theme = user-editable map of these tokens in settings.
 
 ## Chrome
 
-1. **Tab bar** — strip with overflow; drag reorder; double-click title to rename; `×` close; `+` new tab
-2. **Toolbar** — Back, Forward, Up, breadcrumb (flex), Search
-3. **Body** — Tree | Files | Preview (splitters)
+1. **Tab bar** — strip with overflow; drag reorder; double-click title to rename; `×` close; `+` new tab; drag tab onto a view pane to assign it
+2. **Global bar** — Edit actions (Undo/Redo, Cut/Copy/Paste/Delete, Select all) on the left; trailing (right-aligned): layout 1/2/4, Search, view filter, preview, Layouts / Settings
+3. **Body** — pane grid (each pane: nav + tree | files) + shared Preview (splitter); focused-pane ring only when layout is 2 or 4
 4. **Status bar** — item count, selected count; during copy/move/rename/delete/trash/video-preview (and any FS wait >1 s) a progress bar (`op-progress`) — determinate when advancing, indeterminate otherwise — with current file name
+
+### Multi-view panes (D31)
+
+- Layout modes: single, side-by-side, 2×2 grid
+- Focused pane gets a clear focus ring; empty panes show “Drop a tab here”
+- Per-pane mini toolbar: Back / Forward / Up / Refresh / breadcrumb / view mode
 
 ### Splitters
 
-- Vertical between tree and files; between files and preview
-- Persist px widths + collapsed flags in `session.json`
+- Vertical between tree and files (per pane); between pane grid and preview
+- Horizontal between pane rows when layout is 2×2; vertical between pane columns when layout is 2 or 4
+- Persist px widths, pane split ratios, + collapsed flags in `session.json`
 - Minimum widths so panes don’t crush
 
 ---

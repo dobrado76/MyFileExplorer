@@ -4,9 +4,7 @@ import { api, call } from '../lib/ipc'
 import { samePath, isUnderPath, basename, segmentsOf } from '../lib/paths'
 import {
   beginRightDragGesture,
-  findDropDirAt,
   getLiveRightDragSession,
-  isValidDropDest,
   isVolumeRootPath,
   shouldSuppressContextMenu
 } from '../lib/rightDrag'
@@ -61,13 +59,22 @@ function collapseUnder(map: NodesMap, root: string): NodesMap {
   return next
 }
 
-export function FolderTree(): JSX.Element {
+type FolderTreeProps = {
+  /** When set, this tree is bound to that tab (multi-pane). Default: active tab. */
+  tabId?: string
+}
+
+export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderTreeProps): JSX.Element {
+  const activeTabIdStore = useAppStore((s) => s.activeTabId)
+  const tabId = tabIdProp ?? activeTabIdStore
   const drives = useAppStore((s) => s.drives)
-  const activeTabId = useAppStore((s) => s.activeTabId)
   const tabs = useAppStore((s) => s.tabs)
-  const activePath = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.path ?? '')
-  const rootPath = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.rootPath ?? null)
+  const activePath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.path ?? '')
+  const rootPath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.rootPath ?? null)
   const navigate = useAppStore((s) => s.navigate)
+  const focusPane = useAppStore((s) => s.focusPane)
+  const paneTabIds = useAppStore((s) => s.paneTabIds)
+  const activeTabId = tabId
   const performTransfer = useAppStore((s) => s.performTransfer)
   const dragPaths = useAppStore((s) => s.dragPaths)
   const setDragPaths = useAppStore((s) => s.setDragPaths)
@@ -99,7 +106,8 @@ export function FolderTree(): JSX.Element {
   // Expansion / children cache is per tab — switching tabs must not share tree UI state.
   const [nodesByTab, setNodesByTab] = useState<Record<string, NodesMap>>({})
   const nodes = nodesByTab[activeTabId] ?? {}
-  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
+  const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   /** Tab id whose session `treeExpanded` has been applied (avoids wiping on tab switch). */
   const [expandReadyTabId, setExpandReadyTabId] = useState<string | null>(null)
   const settings = useAppStore((s) => s.settings)
@@ -218,25 +226,8 @@ export function FolderTree(): JSX.Element {
 
   // Clear the drop highlight when the drag ends anywhere (incl. cancelled).
   useEffect(() => {
-    if (dragPaths.length === 0) setDropTarget(null)
-  }, [dragPaths])
-
-  // Right-button drag (custom) does not fire HTML5 dragover — highlight tree targets manually.
-  useEffect(() => {
-    if (dragPaths.length === 0) return
-    const onMove = (e: PointerEvent | MouseEvent): void => {
-      if (!document.body.classList.contains('right-dragging')) return
-      const dest = findDropDirAt(e.clientX, e.clientY)
-      if (dest && isValidDropDest(dragPaths, dest)) setDropTarget(dest)
-      else setDropTarget(null)
-    }
-    window.addEventListener('pointermove', onMove, true)
-    window.addEventListener('mousemove', onMove, true)
-    return () => {
-      window.removeEventListener('pointermove', onMove, true)
-      window.removeEventListener('mousemove', onMove, true)
-    }
-  }, [dragPaths])
+    if (dragPaths.length === 0) setDropHighlight(null)
+  }, [dragPaths, setDropHighlight])
 
   // Latest node map for the active tab (async walks).
   const nodesRef = useRef(nodes)
@@ -282,7 +273,7 @@ export function FolderTree(): JSX.Element {
   // Persist expand set into session.json (debounced via store).
   useEffect(() => {
     if (expandReadyTabId !== activeTabId) return
-    setTreeExpanded(collectExpandedPaths(nodes))
+    setTreeExpanded(collectExpandedPaths(nodes), activeTabId)
   }, [nodes, expandReadyTabId, activeTabId, setTreeExpanded])
 
   // After FS mutations: prune removed folders in every tab; reload parents for the active tab.
@@ -420,7 +411,7 @@ export function FolderTree(): JSX.Element {
     return (
       <div key={`${section}:${path}`}>
         <div
-          className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${dropTarget === path ? ' drop-target' : ''}`}
+          className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${dropHighlightPath && samePath(dropHighlightPath, path) ? ' drop-target' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
           data-drop-dir={path}
           draggable={false}
@@ -428,7 +419,9 @@ export function FolderTree(): JSX.Element {
             if (shouldSuppressClickAfterLeftDrag()) return
             setTreeFocusPath(path)
             treeRef.current?.focus()
-            void navigate(path)
+            const paneIdx = paneTabIds.indexOf(tabId)
+            if (paneIdx >= 0) focusPane(paneIdx)
+            void navigate(path, { tabId })
           }}
           onDoubleClick={() => {
             if (showTwisty) toggle(path)
@@ -442,10 +435,10 @@ export function FolderTree(): JSX.Element {
               beginRightDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
                 ghostLabel: label,
                 onActivated: (paths) => setDragPaths(paths),
-                onHighlight: (dest) => setDropTarget(dest),
+                onHighlight: (dest) => setDropHighlight(dest),
                 onFinish: ({ active, paths, clientX, clientY, dest }) => {
                   setDragPaths([])
-                  setDropTarget(null)
+                  setDropHighlight(null)
                   if (!active) {
                     openContextMenu({
                       x: clientX,
@@ -466,7 +459,7 @@ export function FolderTree(): JSX.Element {
                 },
                 onCancel: () => {
                   setDragPaths([])
-                  setDropTarget(null)
+                  setDropHighlight(null)
                 }
               })
               return
@@ -476,17 +469,17 @@ export function FolderTree(): JSX.Element {
             beginLeftFileDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
               ghostLabel: label,
               onActivated: (paths) => setDragPaths(paths),
-              onHighlight: (dest) => setDropTarget(dest),
+              onHighlight: (dest) => setDropHighlight(dest),
               onDrop: ({ paths, dest, ctrlKey, shiftKey }) => {
                 setDragPaths([])
-                setDropTarget(null)
+                setDropHighlight(null)
                 const src = paths[0]
                 if (!dest || !src) return
                 void performTransfer(dropOperation(src, dest, ctrlKey, shiftKey), paths, dest)
               },
               onCancel: () => {
                 setDragPaths([])
-                setDropTarget(null)
+                setDropHighlight(null)
               }
             })
           }}
@@ -499,7 +492,7 @@ export function FolderTree(): JSX.Element {
           }}
           onDragEnd={() => {
             setDragPaths([])
-            setDropTarget(null)
+            setDropHighlight(null)
           }}
           onDragOver={(e) => {
             if (
@@ -507,13 +500,15 @@ export function FolderTree(): JSX.Element {
               !dragPaths.some((p) => samePath(p, path) || isUnderPath(path, p))
             ) {
               e.preventDefault()
-              setDropTarget(path)
+              setDropHighlight(path)
             }
           }}
-          onDragLeave={() => setDropTarget((t) => (t === path ? null : t))}
+          onDragLeave={() => {
+            if (dropHighlightPath && samePath(dropHighlightPath, path)) setDropHighlight(null)
+          }}
           onDrop={(e) => {
             e.preventDefault()
-            setDropTarget(null)
+            setDropHighlight(null)
             const src = dragPaths[0]
             if (dragPaths.length > 0 && src) {
               void performTransfer(dropOperation(src, path, e.ctrlKey, e.shiftKey), dragPaths, path)

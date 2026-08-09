@@ -75,6 +75,38 @@ describe('session schema migration', () => {
   it('default session is stable', () => {
     expect(sessionSchema.parse(defaultSession)).toEqual(defaultSession)
   })
+
+  it('defaults multi-view fields and seeds paneTabIds from activeTabId', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 'tab_a',
+      tabs: [{ id: 'tab_a', path: 'C:\\' }],
+      splitters: {}
+    })
+    expect(parsed.viewLayout).toBe(1)
+    expect(parsed.paneTabIds).toEqual(['tab_a'])
+    expect(parsed.focusedPaneIndex).toBe(0)
+    expect(parsed.paneSplitCols).toBe(0.5)
+  })
+
+  it('keeps 2-pane layout assignments', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 'tab_b',
+      tabs: [
+        { id: 'tab_a', path: 'C:\\' },
+        { id: 'tab_b', path: 'D:\\' }
+      ],
+      viewLayout: 2,
+      paneTabIds: ['tab_a', 'tab_b'],
+      focusedPaneIndex: 1,
+      paneSplitCols: 0.4
+    })
+    expect(parsed.viewLayout).toBe(2)
+    expect(parsed.paneTabIds).toEqual(['tab_a', 'tab_b'])
+    expect(parsed.focusedPaneIndex).toBe(1)
+    expect(parsed.paneSplitCols).toBe(0.4)
+  })
 })
 
 describe('settings schema migration', () => {

@@ -164,3 +164,14 @@ v0.1.0 plus: search-as-file-view (D29), OS drag-out (D11), reliable Recycle Bin 
 ## Definition of done (v0.3.0 product)
 
 v0.2.0 plus: right-drag **Create shortcuts here**, drag edge auto-scroll, in-app Recycle Bin view, tab drop-bins, large-folder performance, shell-icon folder cache fix, recycle undo restore; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / docs aligned to 0.3.0. ✅
+
+---
+
+## Phase — Multi-view panes (D31)
+
+- [x] Session `viewLayout` 1 | 2 | 4 + `paneTabIds` + focus + pane split ratios
+- [x] Per-pane mini-explorer (tree + files + nav); shared preview
+- [x] Layout selector; tab drag-assign; auto-fill from open tabs
+- [x] Named layouts snapshot multi-view fields
+
+**Exit:** side-by-side / 2×2 with independent folders; restart restores pane layout.

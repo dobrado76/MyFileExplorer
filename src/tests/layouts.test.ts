@@ -35,7 +35,12 @@ const sampleSource = {
     previewWidthPx: 360,
     treeCollapsed: false,
     previewCollapsed: true
-  }
+  },
+  viewLayout: 1 as const,
+  paneTabIds: ['tab_a', 'tab_b'],
+  tabIds: ['tab_a', 'tab_b'],
+  paneSplitCols: 0.5,
+  paneSplitRows: 0.5
 }
 
 describe('layouts', () => {

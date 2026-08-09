@@ -26,14 +26,27 @@ export function isVolumeRootPath(p: string): boolean {
   return /^[a-zA-Z]:$/i.test(n)
 }
 
-/** Resolve `data-drop-dir` under the pointer (file view / tree drop targets). */
+/**
+ * Resolve `data-drop-dir` under the pointer (file view / tree / pane chrome).
+ * Walks `elementsFromPoint` so the drag ghost and stacked panes don’t hide targets.
+ */
 export function findDropDirAt(clientX: number, clientY: number): string | null {
-  const el = document.elementFromPoint(clientX, clientY)
-  if (!el || !(el instanceof Element)) return null
-  const hit = el.closest('[data-drop-dir]')
-  if (!hit || !(hit instanceof HTMLElement)) return null
-  const dest = hit.dataset.dropDir
-  return dest && dest.length > 0 ? dest : null
+  const stack =
+    typeof document.elementsFromPoint === 'function'
+      ? document.elementsFromPoint(clientX, clientY)
+      : (() => {
+          const el = document.elementFromPoint(clientX, clientY)
+          return el ? [el] : []
+        })()
+  for (const el of stack) {
+    if (!(el instanceof Element)) continue
+    if (el.id === 'mfe-right-drag-ghost') continue
+    const hit = el.closest('[data-drop-dir]')
+    if (!hit || !(hit instanceof HTMLElement)) continue
+    const dest = hit.dataset['dropDir'] ?? hit.getAttribute('data-drop-dir')
+    if (dest && dest.length > 0) return dest
+  }
+  return null
 }
 
 export function createRightDragSession(

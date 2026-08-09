@@ -6,8 +6,16 @@ import type {
   ConflictItem,
   DriveInfo
 } from '@shared/schemas/fs'
-import type { SessionState, SortSpec, TabState, ViewMode, Splitters } from '@shared/schemas/session'
+import type {
+  SessionState,
+  SortSpec,
+  TabState,
+  ViewMode,
+  ViewLayout,
+  Splitters
+} from '@shared/schemas/session'
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
+import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
 import type { IndexRootInfo, SearchResultItem } from '@shared/schemas/search'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
@@ -160,12 +168,21 @@ function newTabId(): string {
   return `tab_${Date.now().toString(36)}_${(tabCounter++).toString(36)}`
 }
 
-let listRequestSeq = 0
+const listRequestSeqByTab = new Map<string, number>()
+function nextListSeq(tabId: string): number {
+  const n = (listRequestSeqByTab.get(tabId) ?? 0) + 1
+  listRequestSeqByTab.set(tabId, n)
+  return n
+}
 /** Skip watch-driven soft re-lists after optimistic local mutations (large folders). */
 let suppressSoftReloadUntil = 0
-let softReloadTimer: ReturnType<typeof setTimeout> | null = null
-let softReloadInFlight = false
-let lastSoftReloadAt = 0
+const softReloadTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const softReloadInFlight = new Set<string>()
+const lastSoftReloadAtByPath = new Map<string, number>()
+
+function emptyListing(path = ''): Listing {
+  return { path, entries: [], loading: false, error: null, offline: false }
+}
 /** Above this, skip directory watches — soft re-lists dominate UI time. */
 const LARGE_FOLDER_NO_WATCH = 2_000
 /**
@@ -194,6 +211,16 @@ type AppState = {
   tabs: Tab[]
   activeTabId: string
   splitters: Splitters
+  /** Multi-pane layout (D31): 1 | 2 side-by-side | 4 (2×2). */
+  viewLayout: ViewLayout
+  /** Tab id per pane slot; null = empty drop target. Length === viewLayout. */
+  paneTabIds: (string | null)[]
+  focusedPaneIndex: number
+  paneSplitCols: number
+  paneSplitRows: number
+  /** Per-tab directory listings for visible panes. */
+  listingsByTabId: Record<string, Listing>
+  /** Listing for the active (focused) tab — mirrors listingsByTabId[activeTabId]. */
   listing: Listing
   selectionAnchor: string | null
   focusedPath: string | null
@@ -207,6 +234,8 @@ type AppState = {
   treeFocusPath: string | null
   clipboard: ClipboardState
   dragPaths: string[]
+  /** Global drop-target folder while dragging (multi-pane highlight). */
+  dropHighlightPath: string | null
   dialog: DialogState
   /** In-app full-size image viewer (double-click / Enter on images). */
   imageViewer: { path: string; siblings: string[] } | null
@@ -262,7 +291,7 @@ type AppState = {
   redoLabel(): string | null
 
   // navigation
-  navigate(path: string, opts?: { push?: boolean }): Promise<void>
+  navigate(path: string, opts?: { push?: boolean; tabId?: string }): Promise<void>
   goBack(): Promise<void>
   goForward(): Promise<void>
   goUp(): Promise<void>
@@ -279,12 +308,21 @@ type AppState = {
   renameTab(id: string, title: string | null): void
   reorderTab(fromIndex: number, toIndex: number): void
 
+  // multi-pane (D31)
+  setViewLayout(mode: ViewLayout): Promise<void>
+  focusPane(index: number): void
+  assignTabToPane(paneIndex: number, tabId: string | null): Promise<void>
+  setPaneSplitCols(ratio: number): void
+  setPaneSplitRows(ratio: number): void
+  /** Listing for a tab (pane); falls back to empty. */
+  listingForTab(tabId: string): Listing
+
   // view state
-  setViewMode(mode: ViewMode): void
-  setSort(sort: SortSpec): void
-  setScrollOffset(offset: number): void
-  /** Persist folder-tree expansion for the active tab (session). */
-  setTreeExpanded(paths: string[]): void
+  setViewMode(mode: ViewMode, tabId?: string): void
+  setSort(sort: SortSpec, tabId?: string): void
+  setScrollOffset(offset: number, tabId?: string): void
+  /** Persist folder-tree expansion for a tab (default: active). */
+  setTreeExpanded(paths: string[], tabId?: string): void
   setSplitters(patch: Partial<Splitters>): void
   /** Owning folder-view override for a path (exact or recursive ancestor). */
   owningFolderView(path?: string): FolderView | null
@@ -307,8 +345,13 @@ type AppState = {
   applyLayout(id: string): Promise<void>
 
   // selection
-  setSelection(paths: string[], anchor?: string | null, focused?: string | null): void
-  selectAll(): void
+  setSelection(
+    paths: string[],
+    anchor?: string | null,
+    focused?: string | null,
+    tabId?: string
+  ): void
+  selectAll(tabId?: string): void
 
   // fs ops
   startRename(path: string, source?: 'tree' | 'files'): void
@@ -372,6 +415,7 @@ type AppState = {
 
   // drag & drop
   setDragPaths(paths: string[]): void
+  setDropHighlight(path: string | null): void
 
   // dialogs / menus
   openDialog(dialog: DialogState): void
@@ -492,10 +536,36 @@ export const useAppStore = create<AppState>()((set, get) => {
         version: 1,
         activeTabId: s.activeTabId,
         tabs: s.tabs.map(tabToSessionTab),
-        splitters: s.splitters
+        splitters: s.splitters,
+        viewLayout: s.viewLayout,
+        paneTabIds: s.paneTabIds,
+        focusedPaneIndex: s.focusedPaneIndex,
+        paneSplitCols: s.paneSplitCols,
+        paneSplitRows: s.paneSplitRows
       }
       void api.session.set(session)
     }, 500)
+  }
+
+  function syncActiveListing(listingsByTabId: Record<string, Listing>, activeTabId: string): Listing {
+    return listingsByTabId[activeTabId] ?? emptyListing()
+  }
+
+  /** Reload listings for every tab currently shown in a pane. */
+  async function loadVisiblePaneListings(opts?: {
+    preserveSelection?: boolean
+    soft?: boolean
+  }): Promise<void> {
+    const s = get()
+    const ids = [...new Set(s.paneTabIds.filter((id): id is string => id != null))]
+    await Promise.all(
+      ids.map((tabId) => {
+        const tab = s.tabs.find((t) => t.id === tabId)
+        return tab
+          ? loadListing(tab.path, { ...opts, tabId })
+          : Promise.resolve()
+      })
+    )
   }
 
   const OFFLINE_POLL_MS = 8_000
@@ -521,13 +591,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     )
   }
 
-  function startOfflinePoll(path: string): void {
+  function startOfflinePoll(path: string, tabId: string): void {
     if (offlinePollTimer && offlinePollPath && samePath(offlinePollPath, path)) return
     stopOfflinePoll()
     offlinePollPath = path
     offlinePollTimer = setInterval(() => {
       const s = get()
-      if (!s.booted || !s.listing.offline || !samePath(s.activeTab().path, path)) {
+      const listing = s.listingsByTabId[tabId]
+      if (!s.booted || !listing?.offline || !samePath(listing.path, path)) {
         stopOfflinePoll()
         return
       }
@@ -538,7 +609,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         } catch {
           // ignore drive-list failures during poll
         }
-        await loadListing(path, { preserveSelection: true, soft: true })
+        await loadListing(path, { preserveSelection: true, soft: true, tabId })
       })()
     }, OFFLINE_POLL_MS)
   }
@@ -661,28 +732,47 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   async function loadListing(
     path: string,
-    opts?: { preserveSelection?: boolean; soft?: boolean }
+    opts?: { preserveSelection?: boolean; soft?: boolean; tabId?: string }
   ): Promise<void> {
-    const seq = ++listRequestSeq
+    const tabId = opts?.tabId ?? get().activeTabId
+    if (!tabId) return
+    const seq = nextListSeq(tabId)
     if (!opts?.soft) {
-      set((s) => ({
-        listing: { ...s.listing, path, loading: true, error: null, offline: false }
-      }))
+      set((s) => {
+        const prev = s.listingsByTabId[tabId] ?? emptyListing(path)
+        const nextListing: Listing = {
+          ...prev,
+          path,
+          loading: true,
+          error: null,
+          offline: false
+        }
+        const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
+        return {
+          listingsByTabId,
+          listing: tabId === s.activeTabId ? nextListing : s.listing
+        }
+      })
     }
     try {
       const res = await call(api.fs.list({ path, includeHidden: true }))
-      if (seq !== listRequestSeq) return // superseded
-      stopOfflinePoll()
-      if (opts?.soft) lastSoftReloadAt = Date.now()
-      // Sort once in the store so the first paint and delete-next cache share order.
-      const tab = get().activeTab()
+      if (seq !== listRequestSeqByTab.get(tabId)) return // superseded
+      if (opts?.soft) lastSoftReloadAtByPath.set(path.toLowerCase(), Date.now())
+      const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
       const owning = resolveFolderView(tab.path, get().settings.folderViews)
       const sort = owning?.sort ?? tab.sort
       const sortedEntries = sortEntries(res.entries, sort, get().settings.foldersFirst)
+      const nextListing: Listing = {
+        path: res.path,
+        entries: sortedEntries,
+        loading: false,
+        error: null,
+        offline: false
+      }
       set((s) => {
         const valid = new Set(sortedEntries.map((e) => e.path.toLowerCase()))
         const tabs = s.tabs.map((t) =>
-          t.id === s.activeTabId
+          t.id === tabId
             ? {
                 ...t,
                 selected: opts?.preserveSelection
@@ -691,17 +781,14 @@ export const useAppStore = create<AppState>()((set, get) => {
               }
             : t
         )
+        const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
         return {
-          listing: {
-            path: res.path,
-            entries: sortedEntries,
-            loading: false,
-            error: null,
-            offline: false
-          },
+          listingsByTabId,
+          listing: tabId === s.activeTabId ? nextListing : syncActiveListing(listingsByTabId, s.activeTabId),
           tabs
         }
       })
+      if (get().activeTabId === tabId) stopOfflinePoll()
       // Large libraries: watching forces periodic full re-lists (even coalesced)
       // and is the main source of multi-second freezes. Rely on optimistic
       // mutations + F5 / navigation instead.
@@ -714,38 +801,48 @@ export const useAppStore = create<AppState>()((set, get) => {
         const parent = parentOf(path)
         if (parent) void api.fs.unwatch({ path: parent }).catch(() => {})
       }
-      viewOrderCache = null
-      // Build delete-next order off the UI thread's critical path (after paint).
-      queueMicrotask(() => {
-        try {
-          pathsInViewOrder()
-        } catch {
-          /* ignore */
-        }
-      })
+      if (tabId === get().activeTabId) {
+        viewOrderCache = null
+        queueMicrotask(() => {
+          try {
+            pathsInViewOrder()
+          } catch {
+            /* ignore */
+          }
+        })
+      }
     } catch (e) {
-      if (seq !== listRequestSeq) return
+      if (seq !== listRequestSeqByTab.get(tabId)) return
       const offline = isOfflineFailure(e)
       const message = e instanceof IpcError ? e.message : String(e)
-      set({
-        listing: {
-          path,
-          entries: [],
-          loading: false,
-          error: offline ? null : message,
-          offline
+      const nextListing: Listing = {
+        path,
+        entries: [],
+        loading: false,
+        error: offline ? null : message,
+        offline
+      }
+      set((s) => {
+        const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
+        return {
+          listingsByTabId,
+          listing: tabId === s.activeTabId ? nextListing : s.listing
         }
       })
-      if (offline) startOfflinePoll(path)
-      else stopOfflinePoll()
+      if (offline && tabId === get().activeTabId) startOfflinePoll(path, tabId)
+      else if (tabId === get().activeTabId) stopOfflinePoll()
     }
   }
 
-  function updateActiveTab(patch: Partial<Tab>): void {
+  function updateTab(tabId: string, patch: Partial<Tab>): void {
     set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, ...patch } : t))
+      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t))
     }))
     scheduleSessionSave()
+  }
+
+  function updateActiveTab(patch: Partial<Tab>): void {
+    updateTab(get().activeTabId, patch)
   }
 
   /** Always surface FS failures in a modal — never status-bar-only. */
@@ -785,20 +882,44 @@ export const useAppStore = create<AppState>()((set, get) => {
    */
   function scheduleSoftReload(dirPath: string): void {
     if (Date.now() < suppressSoftReloadUntil) return
-    const n = get().listing.entries.length
-    const minGap = n >= 10_000 ? 10_000 : n >= 2_000 ? 5_000 : 750
-    const wait = Math.max(250, lastSoftReloadAt + minGap - Date.now())
-    if (softReloadTimer) clearTimeout(softReloadTimer)
-    softReloadTimer = setTimeout(() => {
-      softReloadTimer = null
-      if (Date.now() < suppressSoftReloadUntil) return
-      if (softReloadInFlight) return
-      if (!samePath(get().activeTab().path, dirPath)) return
-      softReloadInFlight = true
-      void loadListing(dirPath, { preserveSelection: true, soft: true }).finally(() => {
-        softReloadInFlight = false
-      })
-    }, wait)
+    const s = get()
+    let targets = s.tabs.filter(
+      (t) =>
+        s.paneTabIds.includes(t.id) &&
+        (samePath(t.path, dirPath) ||
+          samePath(s.listingsByTabId[t.id]?.path ?? '', dirPath))
+    )
+    if (targets.length === 0) {
+      // Fallback: active tab only (e.g. layout 1).
+      if (!samePath(s.activeTab().path, dirPath)) return
+      targets = [s.activeTab()]
+    }
+    for (const tab of targets) {
+      const key = tab.id
+      const listing = s.listingsByTabId[tab.id]
+      const n = listing?.entries.length ?? 0
+      const minGap = n >= 10_000 ? 10_000 : n >= 2_000 ? 5_000 : 750
+      const last = lastSoftReloadAtByPath.get(dirPath.toLowerCase()) ?? 0
+      const wait = Math.max(250, last + minGap - Date.now())
+      const prev = softReloadTimers.get(key)
+      if (prev) clearTimeout(prev)
+      softReloadTimers.set(
+        key,
+        setTimeout(() => {
+          softReloadTimers.delete(key)
+          if (Date.now() < suppressSoftReloadUntil) return
+          if (softReloadInFlight.has(key)) return
+          const cur = get().tabs.find((t) => t.id === tab.id)
+          if (!cur || !samePath(cur.path, dirPath)) return
+          softReloadInFlight.add(key)
+          void loadListing(dirPath, { preserveSelection: true, soft: true, tabId: tab.id }).finally(
+            () => {
+              softReloadInFlight.delete(key)
+            }
+          )
+        }, wait)
+      )
+    }
   }
 
   /**
@@ -889,27 +1010,32 @@ export const useAppStore = create<AppState>()((set, get) => {
     return nextSelectionAfterDelete(pathsInViewOrder(), removed)
   }
 
-  /** Drop removed paths from the in-memory listing (no full-folder re-stat). */
+  /** Drop removed paths from in-memory listings (no full-folder re-stat). */
   function pruneListingRemoved(removed: string[]): void {
     if (removed.length === 0) return
     const gone = new Set(removed.map((p) => p.toLowerCase()))
     set((s) => {
-      const entries = s.listing.entries.filter((e) => !gone.has(e.path.toLowerCase()))
+      const listingsByTabId: Record<string, Listing> = {}
+      for (const [tid, L] of Object.entries(s.listingsByTabId)) {
+        listingsByTabId[tid] = {
+          ...L,
+          entries: L.entries.filter((e) => !gone.has(e.path.toLowerCase()))
+        }
+      }
+      const activeListing = listingsByTabId[s.activeTabId] ?? {
+        ...s.listing,
+        entries: s.listing.entries.filter((e) => !gone.has(e.path.toLowerCase()))
+      }
       if (viewOrderCache && viewOrderCache.listingRef === s.listing.entries) {
         viewOrderCache = {
           ...viewOrderCache,
-          listingRef: entries,
+          listingRef: activeListing.entries,
           paths: viewOrderCache.paths.filter((p) => !gone.has(p.toLowerCase()))
         }
       } else {
         viewOrderCache = null
       }
-      return {
-        listing: {
-          ...s.listing,
-          entries
-        }
-      }
+      return { listingsByTabId, listing: activeListing }
     })
     // Avoid the delete's own directory-watch event re-listing tens of thousands of files.
     suppressSoftReloadUntil = Math.max(suppressSoftReloadUntil, Date.now() + 8000)
@@ -1173,6 +1299,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       treeCollapsed: false,
       previewCollapsed: false
     },
+    viewLayout: 1,
+    paneTabIds: [],
+    focusedPaneIndex: 0,
+    paneSplitCols: 0.5,
+    paneSplitRows: 0.5,
+    listingsByTabId: {},
     listing: { path: '', entries: [], loading: false, error: null, offline: false },
     selectionAnchor: null,
     focusedPath: null,
@@ -1181,6 +1313,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     treeFocusPath: null,
     clipboard: null,
     dragPaths: [],
+    dropHighlightPath: null,
     dialog: null,
     imageViewer: null,
     imageEditor: null,
@@ -1339,6 +1472,33 @@ export const useAppStore = create<AppState>()((set, get) => {
           ? { ...session.splitters, previewCollapsed: !settings.previewVisibleDefault }
           : session.splitters
 
+      const viewLayout: ViewLayout =
+        session.viewLayout === 2 || session.viewLayout === 4 ? session.viewLayout : 1
+      const tabIds = tabs.map((t) => t.id)
+      let paneTabIds = fillPaneSlots(
+        viewLayout,
+        session.paneTabIds?.length ? session.paneTabIds : [activeTabId],
+        tabIds,
+        activeTabId
+      )
+      let focusedPaneIndex = Math.min(
+        viewLayout - 1,
+        Math.max(0, session.focusedPaneIndex ?? 0)
+      )
+      if (paneTabIds[focusedPaneIndex] !== activeTabId) {
+        const idx = paneTabIds.indexOf(activeTabId)
+        if (idx >= 0) focusedPaneIndex = idx
+        else {
+          paneTabIds = [...paneTabIds]
+          paneTabIds[focusedPaneIndex] = activeTabId
+          // dedupe
+          for (let i = 0; i < paneTabIds.length; i++) {
+            if (i !== focusedPaneIndex && paneTabIds[i] === activeTabId) paneTabIds[i] = null
+          }
+          paneTabIds = fillPaneSlots(viewLayout, paneTabIds, tabIds, activeTabId)
+        }
+      }
+
       set((state) => ({
         booted: true,
         settings,
@@ -1348,6 +1508,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         tabs,
         activeTabId,
         splitters,
+        viewLayout,
+        paneTabIds,
+        focusedPaneIndex,
+        paneSplitCols: clampPaneRatio(session.paneSplitCols ?? 0.5),
+        paneSplitRows: clampPaneRatio(session.paneSplitRows ?? 0.5),
+        listingsByTabId: {},
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         search: {
@@ -1360,16 +1526,23 @@ export const useAppStore = create<AppState>()((set, get) => {
         const s = get()
         if (event.type === 'fs-changed') {
           const changed = event.payload.path
-          const tab = s.activeTab()
-          const parent = parentOf(tab.path)
-          if (samePath(changed, tab.path)) {
-            // Soft-reload the file view (coalesced). Do NOT also re-list this
-            // folder for the tree — that doubles the cost on large libraries.
-            scheduleSoftReload(tab.path)
+          // Soft-reload any visible pane whose folder matches.
+          const paneTabs = s.tabs.filter((t) => s.paneTabIds.includes(t.id))
+          let matchedListing = false
+          for (const tab of paneTabs) {
+            if (samePath(changed, tab.path)) {
+              scheduleSoftReload(tab.path)
+              matchedListing = true
+            }
+          }
+          const active = s.activeTab()
+          const parent = parentOf(active.path)
+          if (!matchedListing && samePath(changed, active.path)) {
+            scheduleSoftReload(active.path)
           } else if (parent && samePath(changed, parent)) {
             void (async () => {
               try {
-                const ex = await call(api.fs.exists({ path: tab.path }))
+                const ex = await call(api.fs.exists({ path: active.path }))
                 if (!ex.exists) {
                   await get().navigate(parent, { push: false })
                   return
@@ -1377,8 +1550,9 @@ export const useAppStore = create<AppState>()((set, get) => {
               } catch {
                 /* ignore */
               }
-              // Sibling create/rename/delete — listing unchanged, tree parent must reload.
             })()
+            notifyTreeReload([changed])
+          } else if (!matchedListing) {
             notifyTreeReload([changed])
           } else {
             notifyTreeReload([changed])
@@ -1427,7 +1601,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
 
       void get().refreshIndexRoots()
-      await loadListing(get().activeTab().path)
+      await loadVisiblePaneListings()
       // Flush any CLI/protocol opens that arrived before boot finished.
       void call(api.app.ready())
     },
@@ -1472,17 +1646,20 @@ export const useAppStore = create<AppState>()((set, get) => {
     async navigate(path, opts) {
       const push = opts?.push ?? true
       const s = get()
-      const tab = s.activeTab()
+      const tabId = opts?.tabId ?? s.activeTabId
+      const tab = s.tabs.find((t) => t.id === tabId) ?? s.activeTab()
       const old = tab.path
       if (tab.rootPath && !isUnderPath(path, tab.rootPath)) {
         get().notify(`This tab is limited to ${basename(tab.rootPath)} — open a new tab to leave`)
         return
       }
-      if (get().search.active) get().clearSearch()
-      if (get().recycleBin.active) get().closeRecycleBinView()
+      if (tabId === s.activeTabId) {
+        if (get().search.active) get().clearSearch()
+        if (get().recycleBin.active) get().closeRecycleBinView()
+      }
       flushPendingRename()
       if (push && !samePath(old, path)) {
-        updateActiveTab({
+        updateTab(tabId, {
           path,
           back: [...tab.back, old],
           forward: [],
@@ -1490,9 +1667,17 @@ export const useAppStore = create<AppState>()((set, get) => {
           scrollOffset: 0
         })
       } else {
-        updateActiveTab({ path, selected: [] })
+        updateTab(tabId, { path, selected: [] })
       }
-      set({ selectionAnchor: null, focusedPath: null, renamingPath: null, renameSource: null, addressEditing: false })
+      if (tabId === get().activeTabId) {
+        set({
+          selectionAnchor: null,
+          focusedPath: null,
+          renamingPath: null,
+          renameSource: null,
+          addressEditing: false
+        })
+      }
       if (!samePath(old, path)) {
         void api.fs.unwatch({ path: old })
         const oldParent = parentOf(old)
@@ -1505,7 +1690,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           void api.fs.unwatch({ path: oldParent })
         }
       }
-      await loadListing(path)
+      await loadListing(path, { tabId })
     },
 
     async goBack() {
@@ -1518,7 +1703,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         forward: [tab.path, ...tab.forward],
         selected: []
       })
-      await loadListing(prev)
+      await loadListing(prev, { tabId: tab.id })
     },
 
     async goForward() {
@@ -1531,7 +1716,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         forward: tab.forward.slice(1),
         selected: []
       })
-      await loadListing(next)
+      await loadListing(next, { tabId: tab.id })
     },
 
     async goUp() {
@@ -1569,7 +1754,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch {
         /* ignore */
       }
-      await loadListing(path, { preserveSelection: true })
+      await loadVisiblePaneListings({ preserveSelection: true })
       // File list and tree keep separate caches — always refresh both.
       set((s) => ({ treeRefreshRev: s.treeRefreshRev + 1 }))
     },
@@ -1594,14 +1779,25 @@ export const useAppStore = create<AppState>()((set, get) => {
         rootPath: rootPath ?? null,
         treeExpanded: []
       }
+      const focusIdx = s.focusedPaneIndex
+      const paneTabIds = s.paneTabIds.map((id, i) => (i === focusIdx ? tab.id : id === tab.id ? null : id))
+      // Ensure new tab is in focused pane
+      const nextPanes = [...paneTabIds]
+      while (nextPanes.length < s.viewLayout) nextPanes.push(null)
+      nextPanes[focusIdx] = tab.id
+      for (let i = 0; i < nextPanes.length; i++) {
+        if (i !== focusIdx && nextPanes[i] === tab.id) nextPanes[i] = null
+      }
       set({
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
+        paneTabIds: nextPanes.slice(0, s.viewLayout),
+        focusedPaneIndex: focusIdx,
         selectionAnchor: null,
         focusedPath: null
       })
       scheduleSessionSave()
-      await loadListing(target)
+      await loadListing(target, { tabId: tab.id })
     },
 
     async closeTab(id) {
@@ -1609,47 +1805,179 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (s.tabs.length <= 1) return
       const idx = s.tabs.findIndex((t) => t.id === id)
       const tabs = s.tabs.filter((t) => t.id !== id)
+      const tabIds = tabs.map((t) => t.id)
+      let paneTabIds = s.paneTabIds.map((pid) => (pid === id ? null : pid))
       let activeTabId = s.activeTabId
+      let focusedPaneIndex = s.focusedPaneIndex
       if (id === s.activeTabId) {
         const nextIdx = Math.min(idx, tabs.length - 1)
         activeTabId = tabs[nextIdx]!.id
+        const paneIdx = paneTabIds.indexOf(activeTabId)
+        if (paneIdx >= 0) focusedPaneIndex = paneIdx
+        else {
+          paneTabIds = [...paneTabIds]
+          paneTabIds[focusedPaneIndex] = activeTabId
+        }
       }
+      paneTabIds = fillPaneSlots(s.viewLayout, paneTabIds, tabIds, activeTabId)
       const focus = focusFromSelection(tabs.find((t) => t.id === activeTabId)?.selected ?? [])
+      const listingsByTabId = { ...s.listingsByTabId }
+      delete listingsByTabId[id]
       set({
         tabs,
         activeTabId,
+        paneTabIds,
+        focusedPaneIndex,
+        listingsByTabId,
+        listing: syncActiveListing(listingsByTabId, activeTabId),
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath
       })
       scheduleSessionSave()
-      if (id === s.activeTabId) await loadListing(get().activeTab().path)
+      await loadVisiblePaneListings({ preserveSelection: true })
     },
 
     async activateTab(id) {
-      if (get().activeTabId === id) return
       if (get().search.active) get().clearSearch()
       if (get().recycleBin.active) get().closeRecycleBinView()
       flushPendingRename()
-      const tab = get().tabs.find((t) => t.id === id)
+      const s = get()
+      const tab = s.tabs.find((t) => t.id === id)
+      if (!tab) return
+      const existingPane = s.paneTabIds.indexOf(id)
+      if (existingPane >= 0) {
+        if (s.activeTabId === id && s.focusedPaneIndex === existingPane) return
+        const focus = focusFromSelection(tab.selected)
+        const listing = s.listingsByTabId[id]
+        set({
+          activeTabId: id,
+          focusedPaneIndex: existingPane,
+          selectionAnchor: focus.selectionAnchor,
+          focusedPath: focus.focusedPath,
+          renamingPath: null,
+          renameSource: null,
+          listing: listing && samePath(listing.path, tab.path) ? listing : s.listing
+        })
+        scheduleSessionSave()
+        if (!listing || !samePath(listing.path, tab.path)) {
+          await loadListing(tab.path, { tabId: id })
+        }
+        return
+      }
+      // Not in a pane — assign into focused slot (replace).
+      await get().assignTabToPane(s.focusedPaneIndex, id)
+    },
+
+    listingForTab(tabId) {
+      return get().listingsByTabId[tabId] ?? emptyListing()
+    },
+
+    async setViewLayout(mode) {
+      const s = get()
+      if (mode === s.viewLayout) return
+      const tabIds = s.tabs.map((t) => t.id)
+      const { paneTabIds, focusedPaneIndex } = remapPanesOnLayoutChange(
+        mode,
+        s.paneTabIds,
+        s.focusedPaneIndex,
+        tabIds
+      )
+      const activeTabId = paneTabIds[focusedPaneIndex] ?? s.activeTabId
+      const tab = s.tabs.find((t) => t.id === activeTabId)
+      const focus = focusFromSelection(tab?.selected ?? [])
+      set({
+        viewLayout: mode,
+        paneTabIds,
+        focusedPaneIndex,
+        activeTabId: activeTabId || s.activeTabId,
+        selectionAnchor: focus.selectionAnchor,
+        focusedPath: focus.focusedPath,
+        listing: syncActiveListing(s.listingsByTabId, activeTabId || s.activeTabId)
+      })
+      scheduleSessionSave()
+      await loadVisiblePaneListings({ preserveSelection: true })
+    },
+
+    focusPane(index) {
+      const s = get()
+      if (index < 0 || index >= s.viewLayout) return
+      const tabId = s.paneTabIds[index]
+      if (!tabId) {
+        set({ focusedPaneIndex: index })
+        scheduleSessionSave()
+        return
+      }
+      if (s.focusedPaneIndex === index && s.activeTabId === tabId) return
+      if (s.search.active && s.activeTabId !== tabId) get().clearSearch()
+      if (s.recycleBin.active && s.activeTabId !== tabId) get().closeRecycleBinView()
+      const tab = s.tabs.find((t) => t.id === tabId)
       if (!tab) return
       const focus = focusFromSelection(tab.selected)
+      const listing = s.listingsByTabId[tabId]
       set({
-        activeTabId: id,
+        focusedPaneIndex: index,
+        activeTabId: tabId,
+        selectionAnchor: focus.selectionAnchor,
+        focusedPath: focus.focusedPath,
+        listing: listing ?? s.listing
+      })
+      scheduleSessionSave()
+      if (!listing || !samePath(listing.path, tab.path)) {
+        void loadListing(tab.path, { tabId })
+      }
+    },
+
+    async assignTabToPane(paneIndex, tabId) {
+      const s = get()
+      if (paneIndex < 0 || paneIndex >= s.viewLayout) return
+      let paneTabIds = s.paneTabIds.map((id, i) => {
+        if (i === paneIndex) return tabId
+        if (tabId && id === tabId) return null
+        return id
+      })
+      while (paneTabIds.length < s.viewLayout) paneTabIds.push(null)
+      paneTabIds = paneTabIds.slice(0, s.viewLayout)
+      if (!tabId) {
+        set({ paneTabIds, focusedPaneIndex: paneIndex })
+        scheduleSessionSave()
+        return
+      }
+      const tab = s.tabs.find((t) => t.id === tabId)
+      if (!tab) return
+      if (s.search.active) get().clearSearch()
+      if (s.recycleBin.active) get().closeRecycleBinView()
+      const focus = focusFromSelection(tab.selected)
+      set({
+        paneTabIds,
+        focusedPaneIndex: paneIndex,
+        activeTabId: tabId,
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         renamingPath: null,
         renameSource: null
       })
       scheduleSessionSave()
-      await loadListing(tab.path)
+      await loadListing(tab.path, { tabId })
     },
 
-    setTreeExpanded(paths) {
+    setPaneSplitCols(ratio) {
+      set({ paneSplitCols: clampPaneRatio(ratio) })
+      scheduleSessionSave()
+    },
+
+    setPaneSplitRows(ratio) {
+      set({ paneSplitRows: clampPaneRatio(ratio) })
+      scheduleSessionSave()
+    },
+
+    setTreeExpanded(paths, tabId) {
+      const id = tabId ?? get().activeTabId
       const capped =
         paths.length > MAX_TREE_EXPANDED ? paths.slice(paths.length - MAX_TREE_EXPANDED) : paths
-      const cur = get().activeTab().treeExpanded
-      if (sameExpandedSet(cur, capped)) return
-      updateActiveTab({ treeExpanded: capped })
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab) return
+      if (sameExpandedSet(tab.treeExpanded, capped)) return
+      updateTab(id, { treeExpanded: capped })
     },
 
     async nextTab() {
@@ -1681,36 +2009,47 @@ export const useAppStore = create<AppState>()((set, get) => {
       return resolveFolderView(p, s.settings.folderViews)
     },
 
-    setViewMode(mode) {
+    setViewMode(mode, tabId) {
       const s = get()
-      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const id = tabId ?? s.activeTabId
+      const tab = s.tabs.find((t) => t.id === id) ?? s.activeTab()
+      const owning = resolveFolderView(tab.path, s.settings.folderViews)
       if (owning) {
         void get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, { viewMode: mode })
         })
         return
       }
-      updateActiveTab({ viewMode: mode })
+      updateTab(id, { viewMode: mode })
     },
 
-    setSort(sort) {
+    setSort(sort, tabId) {
       const s = get()
-      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const id = tabId ?? s.activeTabId
+      const tab = s.tabs.find((t) => t.id === id) ?? s.activeTab()
+      const owning = resolveFolderView(tab.path, s.settings.folderViews)
       if (owning) {
         void get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, { sort })
         })
       } else {
-        updateActiveTab({ sort })
+        updateTab(id, { sort })
       }
       // Keep listing in view order so FileView can skip a 20k re-sort on paint.
-      viewOrderCache = null
-      const listing = get().listing
-      if (listing.entries.length > 0 && !get().search.active && !get().recycleBin.active) {
-        set({
-          listing: {
-            ...listing,
-            entries: sortEntries(listing.entries, sort, get().settings.foldersFirst)
+      if (id === s.activeTabId) viewOrderCache = null
+      const listing = s.listingsByTabId[id] ?? (id === s.activeTabId ? s.listing : null)
+      if (
+        listing &&
+        listing.entries.length > 0 &&
+        !(id === s.activeTabId && (s.search.active || s.recycleBin.active))
+      ) {
+        const sorted = sortEntries(listing.entries, sort, s.settings.foldersFirst)
+        set((st) => {
+          const nextListing = { ...listing, entries: sorted }
+          const listingsByTabId = { ...st.listingsByTabId, [id]: nextListing }
+          return {
+            listingsByTabId,
+            listing: id === st.activeTabId ? nextListing : st.listing
           }
         })
       }
@@ -1785,7 +2124,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         const layout = buildLayoutFromSnapshot(name, {
           tabs: s.tabs,
           activeTabIndex: activeIdx,
-          splitters: s.splitters
+          splitters: s.splitters,
+          viewLayout: s.viewLayout,
+          paneTabIds: s.paneTabIds,
+          tabIds: s.tabs.map((t) => t.id),
+          paneSplitCols: s.paneSplitCols,
+          paneSplitRows: s.paneSplitRows
         })
         await get().applySettingsPatch({
           layouts: upsertLayout(s.settings.layouts, layout)
@@ -1815,7 +2159,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           {
             tabs: s.tabs,
             activeTabIndex: activeIdx,
-            splitters: s.splitters
+            splitters: s.splitters,
+            viewLayout: s.viewLayout,
+            paneTabIds: s.paneTabIds,
+            tabIds: s.tabs.map((t) => t.id),
+            paneSplitCols: s.paneSplitCols,
+            paneSplitRows: s.paneSplitRows
           },
           existing.id
         )
@@ -1872,6 +2221,21 @@ export const useAppStore = create<AppState>()((set, get) => {
       }))
       const idx = Math.min(Math.max(0, layout.activeTabIndex), tabs.length - 1)
       const active = tabs[idx]!
+      const viewLayout: ViewLayout =
+        layout.viewLayout === 2 || layout.viewLayout === 4 ? layout.viewLayout : 1
+      const indexes = layout.paneTabIndexes ?? []
+      let paneTabIds: (string | null)[] = Array.from({ length: viewLayout }, (_, i) => {
+        const ti = indexes[i]
+        return typeof ti === 'number' && ti >= 0 && ti < tabs.length ? tabs[ti]!.id : null
+      })
+      paneTabIds = fillPaneSlots(
+        viewLayout,
+        paneTabIds,
+        tabs.map((t) => t.id),
+        active.id
+      )
+      let focusedPaneIndex = paneTabIds.indexOf(active.id)
+      if (focusedPaneIndex < 0) focusedPaneIndex = 0
       get().clearSearch()
       get().closeRecycleBinView()
       flushPendingRename()
@@ -1879,6 +2243,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         tabs,
         activeTabId: active.id,
         splitters: { ...layout.splitters },
+        viewLayout,
+        paneTabIds,
+        focusedPaneIndex,
+        paneSplitCols: clampPaneRatio(layout.paneSplitCols ?? 0.5),
+        paneSplitRows: clampPaneRatio(layout.paneSplitRows ?? 0.5),
+        listingsByTabId: {},
+        listing: emptyListing(),
         selectionAnchor: null,
         focusedPath: null,
         renamingPath: null,
@@ -1888,16 +2259,18 @@ export const useAppStore = create<AppState>()((set, get) => {
         contextMenu: null
       })
       scheduleSessionSave()
-      await loadListing(active.path)
+      await loadVisiblePaneListings()
       get().notify(`Applied layout “${layout.name}”`)
     },
 
-    setScrollOffset(offset) {
+    setScrollOffset(offset, tabId) {
+      const id = tabId ?? get().activeTabId
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab) return
       // Scroll fires every frame — skip no-op writes so FileView/TabBar don't re-render.
-      const tab = get().activeTab()
       if (Math.abs(tab.scrollOffset - offset) < 1) return
       set((s) => ({
-        tabs: s.tabs.map((t) => (t.id === s.activeTabId ? { ...t, scrollOffset: offset } : t))
+        tabs: s.tabs.map((t) => (t.id === id ? { ...t, scrollOffset: offset } : t))
       }))
     },
 
@@ -1906,32 +2279,39 @@ export const useAppStore = create<AppState>()((set, get) => {
       scheduleSessionSave()
     },
 
-    setSelection(paths, anchor, focused) {
-      updateActiveTab({ selected: paths })
-      set({
-        selectionAnchor: anchor === undefined ? get().selectionAnchor : anchor,
-        focusedPath: focused === undefined ? get().focusedPath : focused
-      })
+    setSelection(paths, anchor, focused, tabId) {
+      const id = tabId ?? get().activeTabId
+      updateTab(id, { selected: paths })
+      if (id === get().activeTabId) {
+        set({
+          selectionAnchor: anchor === undefined ? get().selectionAnchor : anchor,
+          focusedPath: focused === undefined ? get().focusedPath : focused
+        })
+      }
     },
 
-    selectAll() {
+    selectAll(tabId) {
       const s = get()
-      const pool = s.recycleBin.active
-        ? recycleBinItemsToEntries(s.recycleBin.items)
-        : s.search.active
-          ? searchResultsToEntries(s.search.results)
-          : s.listing.entries
+      const id = tabId ?? s.activeTabId
+      const pool =
+        s.recycleBin.active && id === s.activeTabId
+          ? recycleBinItemsToEntries(s.recycleBin.items)
+          : s.search.active && id === s.activeTabId
+            ? searchResultsToEntries(s.search.results)
+            : (s.listingsByTabId[id]?.entries ?? [])
       const selected = pool
         .filter(
           (e) =>
             !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
         )
         .map((e) => e.path)
-      updateActiveTab({ selected })
-      set({
-        selectionAnchor: selected[0] ?? null,
-        focusedPath: selected[selected.length - 1] ?? null
-      })
+      updateTab(id, { selected })
+      if (id === s.activeTabId) {
+        set({
+          selectionAnchor: selected[0] ?? null,
+          focusedPath: selected[selected.length - 1] ?? null
+        })
+      }
     },
 
     startRename(path, source = 'files') {
@@ -2123,9 +2503,8 @@ export const useAppStore = create<AppState>()((set, get) => {
               ? basename(res.created[0]!)
               : `${res.created.length} shortcuts`
         })
-        if (samePath(destinationDir, get().activeTab().path)) {
-          await get().refresh()
-        }
+        // Refresh every visible pane — dest may be a non-focused view.
+        await get().refresh()
         get().notify(
           res.created.length === 1
             ? 'Created shortcut'
@@ -2573,7 +2952,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     setDragPaths(paths) {
-      set({ dragPaths: paths })
+      set({
+        dragPaths: paths,
+        ...(paths.length === 0 ? { dropHighlightPath: null } : {})
+      })
+    },
+
+    setDropHighlight(path) {
+      set((s) => (s.dropHighlightPath === path ? {} : { dropHighlightPath: path }))
     },
 
     openDialog(dialog) {

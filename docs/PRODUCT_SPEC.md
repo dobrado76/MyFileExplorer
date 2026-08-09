@@ -23,17 +23,16 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 
 ```
 ┌─ Tab bar (reorder, rename, close, new) ─────────────────────────┐
-├─ Nav: Back Forward Up | Breadcrumb ──────────── Search ─────────┤
-├─ Folder tree │ File view (icons/list/details) │ Preview (opt) ─┤
-│              │                                │                 │
-│              │                                │                 │
-└──────────────┴────────────────────────────────┴─────────────────┘
+├─ Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
+├─ Pane grid (1 / side-by-side / 2×2) ──────────── Preview (opt) ─┤
+│  each pane: Nav + Breadcrumb + View | Tree | Files              │
+└─────────────────────────────────────────────────────────────────┘
 └─ Status: selection count, free space optional ──────────────────┘
 ```
 
-- **Tree | files | preview** — two splitters; positions persisted.
-- Preview pane **collapsible**; collapsed state persisted.
-- Tree collapsible (optional convenience); if implemented, persist width + collapsed.
+- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Search, keyboard nav, and **one shared preview** follow the **focused** pane.
+- Preview pane **collapsible**; collapsed state + widths persisted.
+- Pane split ratios persisted in session.
 - **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.
 
 ---
@@ -50,16 +49,18 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 | Close            | Middle-click / close button; confirm if that tab has an in-progress destructive op (rare)  |
 | New tab          | Clone current path or open profile default (This PC / home — Settings)                     |
 | Named layouts    | Save/load the whole tab set + chrome as a named workspace (see Settings → Layouts)         |
+| Drop onto pane   | Drag a tab onto a multi-view pane to assign it (moves if already in another pane)          |
 
 Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `treeExpanded` (folder-tree expand/collapse paths).
 
-**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/view/sort/rootPath/treeExpanded + splitter chrome) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
+**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/view/sort/rootPath/treeExpanded + splitter chrome + multi-view layout/pane assignments) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 
 ## Navigation
 
 - Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths)
+- Address bar **Recent locations** dropdown (Explorer-style) from the tab’s Back/Forward history
 - **Back / Forward / Up**
 - Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` and Enter
 - Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred)
@@ -177,8 +178,8 @@ See [SEARCH.md](SEARCH.md).
 | Key             | Action                |
 | --------------- | --------------------- |
 | Backspace       | Up (when not editing) |
-| Alt+← / →       | Back / Forward        |
-| Mouse Back / Forward | Back / Forward (side buttons) |
+| Alt+← / →       | Back / Forward (focused pane) |
+| Mouse Back / Forward | Back / Forward (focused pane) |
 | Ctrl + mouse wheel | Font size (9–28 px) |
 | Ctrl+T / W      | New tab / Close tab   |
 | Ctrl+Tab        | Next tab              |
