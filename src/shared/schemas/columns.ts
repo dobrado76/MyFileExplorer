@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /** Built-in file columns filled from DirEntry (sync). */
-export const FILE_COLUMN_IDS = ['mtime', 'ctime', 'type', 'size', 'ext'] as const
+export const FILE_COLUMN_IDS = ['folder', 'mtime', 'ctime', 'type', 'size', 'ext'] as const
 
 /** Image technical columns (Sharp / headers). */
 export const IMAGE_COLUMN_IDS = [
@@ -80,6 +80,12 @@ export type DetailsColumnMeta = {
 }
 
 export const DETAILS_COLUMN_META: Record<DetailsColumnId, DetailsColumnMeta> = {
+  folder: {
+    id: 'folder',
+    label: 'Folder',
+    group: 'file',
+    defaultWidth: 280
+  },
   mtime: { id: 'mtime', label: 'Date modified', group: 'file', defaultWidth: 150 },
   ctime: { id: 'ctime', label: 'Date created', group: 'file', defaultWidth: 150 },
   type: { id: 'type', label: 'Type', group: 'file', defaultWidth: 110 },

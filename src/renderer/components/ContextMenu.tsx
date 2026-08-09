@@ -413,6 +413,28 @@ export function ContextMenu(): JSX.Element | null {
           void s.openPath(single)
         }
       })
+    }
+    if (s.search.active && single) {
+      result.push(
+        {
+          type: 'item',
+          label: 'Open File Path',
+          action: () => {
+            close()
+            void s.openFileLocation(single)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Open File in new tab',
+          action: () => {
+            close()
+            void s.openFileInNewTab(single)
+          }
+        }
+      )
+    }
+    if (!isDir && single) {
       if (isEditableImagePath(single)) {
         result.push({
           type: 'item',

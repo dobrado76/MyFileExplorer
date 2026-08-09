@@ -152,6 +152,7 @@ See [SEARCH.md](SEARCH.md).
 - Search box in chrome; scope = current folder (recursive) or “indexed roots only” toggle.
 - Folders can be **marked for indexing**; indexed search is fast (FTS).
 - Unindexed scope: best-effort walk with progress + cancel; never pretend to be instant.
+- Results use Details with a **Folder** column (sortable); context **Open File Path** / **Open File in new tab** open locations in-app.
 
 ---
 
@@ -166,7 +167,7 @@ See [SEARCH.md](SEARCH.md).
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
 | View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
 | Preview      | Show preview by default; max preview bytes for text                                |
-| Search       | List indexed roots; reindex button; exclude patterns (e.g. `node_modules`, `.git`) |
+| Search       | List indexed roots; reindex button; exclude patterns; persist toolbar **indexed** toggle |
 | Advanced     | Updates folder + check/run installer; clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training) |
 
 ---

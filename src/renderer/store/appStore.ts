@@ -348,6 +348,13 @@ type AppState = {
   confirmPermanentDelete(confirmed: boolean): Promise<void>
   openEntry(entry: DirEntry): Promise<void>
   openPath(path: string): Promise<void>
+  /**
+   * Search: open the item’s location in this app (folder → navigate there;
+   * file → parent folder + select the file).
+   */
+  openFileLocation(path: string): Promise<void>
+  /** Search: open location in a new tab (file → parent tab + selection). */
+  openFileInNewTab(path: string): Promise<void>
   openImageViewer(path: string, siblings?: string[]): void
   closeImageViewer(): void
   openImageEditor(path: string, mediaUrl: string): void
@@ -1332,7 +1339,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           ? { ...session.splitters, previewCollapsed: !settings.previewVisibleDefault }
           : session.splitters
 
-      set({
+      set((state) => ({
         booted: true,
         settings,
         homePath: home.path,
@@ -1342,8 +1349,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         activeTabId,
         splitters,
         selectionAnchor: focus.selectionAnchor,
-        focusedPath: focus.focusedPath
-      })
+        focusedPath: focus.focusedPath,
+        search: {
+          ...state.search,
+          indexedOnly: settings.searchIndexedOnly
+        }
+      }))
 
       api.onEvent((event: MfeEvent) => {
         const s = get()
@@ -2394,6 +2405,52 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async openFileLocation(filePath) {
+      let isDir = false
+      try {
+        const st = await call(api.fs.stat({ path: filePath }))
+        isDir = st.kind === 'dir'
+      } catch {
+        // fall through — treat as file if under a parent
+      }
+      if (get().search.active) get().clearSearch()
+      if (get().recycleBin.active) get().closeRecycleBinView()
+      if (isDir) {
+        await get().navigate(filePath)
+        return
+      }
+      const parent = parentOf(filePath)
+      if (!parent) {
+        get().notify('No parent folder', true)
+        return
+      }
+      await get().navigate(parent)
+      get().setSelection([filePath], filePath, filePath)
+    },
+
+    async openFileInNewTab(filePath) {
+      let isDir = false
+      try {
+        const st = await call(api.fs.stat({ path: filePath }))
+        isDir = st.kind === 'dir'
+      } catch {
+        /* treat as file */
+      }
+      if (get().search.active) get().clearSearch()
+      if (get().recycleBin.active) get().closeRecycleBinView()
+      if (isDir) {
+        await get().newTab(filePath)
+        return
+      }
+      const parent = parentOf(filePath)
+      if (!parent) {
+        get().notify('No parent folder', true)
+        return
+      }
+      await get().newTab(parent)
+      get().setSelection([filePath], filePath, filePath)
+    },
+
     openImageViewer(path, siblings) {
       const listingSiblings = get()
         .listing.entries.filter((e) => e.kind === 'file' && isImageExt(e.ext))
@@ -2530,7 +2587,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     async applySettingsPatch(patch) {
       try {
         const settings = await call(api.settings.set(patch))
-        set({ settings })
+        set((s) => ({
+          settings,
+          ...(typeof patch.searchIndexedOnly === 'boolean'
+            ? { search: { ...s.search, indexedOnly: settings.searchIndexedOnly } }
+            : {})
+        }))
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
@@ -2708,6 +2770,13 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setSearchIndexedOnly(v) {
       set((s) => ({ search: { ...s.search, indexedOnly: v } }))
+      void get().applySettingsPatch({ searchIndexedOnly: v })
+      // Re-run with the new scope when a search session is already open
+      // (indexed = all ready roots; unchecked = current folder).
+      const s = get()
+      if (s.search.active && s.search.query.trim()) {
+        void get().runSearch()
+      }
     },
 
     async runSearch() {
@@ -2715,9 +2784,25 @@ export const useAppStore = create<AppState>()((set, get) => {
       const query = s.search.query.trim()
       if (!query) return
       if (s.recycleBin.active) get().closeRecycleBinView()
+      // Drop any in-flight walk/query before starting a new scope.
+      void api.search.cancel()
+      // Use live toggle state (settings patch may still be in flight).
+      const indexedOnly = get().search.indexedOnly
+      // Details + Folder column so hits can be sorted by containing folder.
+      get().setViewMode('details')
+      const cols = get().settings.detailsColumns
+      if (!cols.some((c) => c.id === 'folder')) {
+        void get().patchDetailsLayout({
+          detailsColumns: [
+            { id: 'folder', width: 280 },
+            ...cols
+          ]
+        })
+      }
       set({
         search: {
-          ...s.search,
+          ...get().search,
+          indexedOnly,
           active: true,
           running: true,
           results: [],
@@ -2732,11 +2817,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         const res = await call(
           api.search.query({
             query,
-            scope: s.search.indexedOnly
+            // indexed → every ready indexed root; otherwise current folder (+ index as accelerator).
+            scope: indexedOnly
               ? { type: 'indexed' }
               : {
                   type: 'folder',
-                  path: s.activeTab().path,
+                  path: get().activeTab().path,
                   recursive: true,
                   useIndexIfCovered: true
                 },
@@ -2991,6 +3077,12 @@ export function sortEntries(
       case 'ext':
         cmp = nameCollator.compare(a.ext, b.ext) || nameCollator.compare(a.name, b.name)
         break
+      case 'folder': {
+        const ap = parentOf(a.path) ?? ''
+        const bp = parentOf(b.path) ?? ''
+        cmp = nameCollator.compare(ap, bp)
+        break
+      }
     }
     if (cmp === 0 && sort.key !== 'name') {
       cmp = nameCollator.compare(a.name, b.name)

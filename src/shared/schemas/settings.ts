@@ -100,6 +100,8 @@ export const settingsSchema = z.object({
   searchExcludeDirNames: z
     .array(z.string())
     .catch(['node_modules', '.git', '.hg', '.svn', 'Thumbs.db']),
+  /** Toolbar “indexed” search scope — persist across sessions. */
+  searchIndexedOnly: z.boolean().catch(false),
   viewFilterEnabled: z.boolean().catch(true),
   viewFilterPatterns: z.array(z.string()).catch([]),
   /**
@@ -187,6 +189,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   textPreviewMaxBytes: 1048576,
   vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
+  searchIndexedOnly: false,
   viewFilterEnabled: true,
   viewFilterPatterns: [],
   hideNameExtensions: ['lnk'],

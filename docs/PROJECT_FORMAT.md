@@ -50,6 +50,7 @@ Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and 
   "vidThumbFrameMs": 300,
   "hideNameExtensions": ["lnk"],
   "searchExcludeDirNames": ["node_modules", ".git", ".hg", ".svn", "Thumbs.db"],
+  "searchIndexedOnly": false,
   "layouts": [],
   "folderViews": [],
   "indexedRoots": []
@@ -61,6 +62,7 @@ Notes:
 - `theme`: `"dark" | "light" | "custom"`
 - `vidThumbFrameMs`: delay between `!VIDTHUMB_CACHE` strip frames in icon views (50–2000, default 300). Strips themselves live next to videos as a sibling hidden `!VIDTHUMB_CACHE` folder (not under `userData` — D26 external convention / optional in-app generate).
 - `hideNameExtensions`: extensions (no leading dot) whose “.ext” is omitted from file-view/search **labels** only (default `["lnk"]`). Does not hide files from the listing; rename/tooltips still use the real name.
+- `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
 - `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, tabs: [{ path, title, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs.
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)

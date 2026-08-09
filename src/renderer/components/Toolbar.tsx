@@ -125,7 +125,7 @@ export function Toolbar(): JSX.Element {
           }}
           aria-label="Search"
         />
-        <label title="Search only indexed roots (optional). Leave unchecked to search the current folder and all subfolders — index not required.">
+        <label title="When checked: search all folders marked for indexing (Settings → Search). When unchecked: search the current folder and its subfolders (index used only as a speed-up if that folder is covered).">
           <input
             type="checkbox"
             checked={search.indexedOnly}

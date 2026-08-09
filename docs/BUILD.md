@@ -18,6 +18,12 @@ npm run dist:nobump    # same idea; also syncs Settings → Updates folder if se
 
 Output: `dist/MyFileExplorer Setup <version>.exe` (plus `.blockmap` / `latest.yml`).
 
+### `EBUSY` / `app.asar` locked
+
+If the build dies with `EBUSY: resource busy or locked … app.asar`, something still has `dist/win-unpacked` open — usually a **MyFileExplorer.exe you launched from that folder** (not the installed app under `%LOCALAPPDATA%\Programs\MyFileExplorer`).
+
+`npm run dist` / `dist:nobump` now stop processes under `dist/win-unpacked` and retry deleting that folder before packaging. If it still fails: close that window (or reboot), delete `dist/win-unpacked` manually, retry.
+
 ---
 
 ## GitHub Actions

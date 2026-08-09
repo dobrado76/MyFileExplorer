@@ -2,7 +2,7 @@
  * `npm run dist` helper:
  * 1. Bump package.json patch (Major.Minor.Patch) so Check Update sees a newer build
  * 2. Remove previous Setup .exe / .blockmap / latest.yml from dist/
- * 3. Run electron-builder Windows build
+ * 3. Clear dist/win-unpacked (stop any process locking app.asar) then electron-builder
  * 4. If Settings → Updates folder is set (and not dist/), copy the new installer
  *    there and delete older MyFileExplorer Setup*.exe files in that folder
  *
@@ -14,9 +14,11 @@ import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const distDir = path.join(root, 'dist')
+const unpackedDir = path.join(distDir, 'win-unpacked')
 const args = new Set(process.argv.slice(2))
 const noBump = args.has('--no-bump')
 const noClean = args.has('--no-clean')
@@ -97,6 +99,62 @@ function publishToUpdatesFolder(updatesFolder, setup) {
   cleanInstallersInDir(updatesFolder, { keepName: setup.name })
 }
 
+/**
+ * electron-builder fails with EBUSY on app.asar when a previous win-unpacked
+ * MyFileExplorer.exe (or a handle from Explorer/AV) is still open.
+ */
+function stopProcessesLockingUnpacked() {
+  if (process.platform !== 'win32') return
+  const script = [
+    `$root = ${JSON.stringify(unpackedDir)}`,
+    'Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |',
+    '  Where-Object {',
+    '    $_.ExecutablePath -and',
+    '    $_.ExecutablePath.StartsWith($root, [StringComparison]::OrdinalIgnoreCase)',
+    '  } |',
+    '  ForEach-Object {',
+    '    Write-Host ("stopping PID {0} ({1})" -f $_.ProcessId, $_.ExecutablePath)',
+    '    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue',
+    '  }'
+  ].join('\n')
+  const encoded = Buffer.from(script, 'utf16le').toString('base64')
+  try {
+    execSync(`powershell.exe -NoProfile -NonInteractive -EncodedCommand ${encoded}`, {
+      stdio: 'inherit',
+      windowsHide: true
+    })
+  } catch {
+    // best-effort
+  }
+}
+
+async function removeUnpackedDir() {
+  if (!fs.existsSync(unpackedDir)) return
+  stopProcessesLockingUnpacked()
+  const attempts = 8
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      fs.rmSync(unpackedDir, { recursive: true, force: true })
+      console.log('removed dist/win-unpacked')
+      return
+    } catch (e) {
+      const code = e && typeof e === 'object' && 'code' in e ? String(e.code) : ''
+      if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') throw e
+      if (i === attempts) {
+        throw new Error(
+          `Could not remove dist/win-unpacked (file locked).\n` +
+            `Close any MyFileExplorer started from dist\\win-unpacked, then retry.\n` +
+            `(Installed app under %LOCALAPPDATA%\\Programs\\MyFileExplorer is fine to leave open.)\n` +
+            `Last error: ${e instanceof Error ? e.message : e}`
+        )
+      }
+      console.warn(`dist/win-unpacked busy (attempt ${i}/${attempts}) — retrying…`)
+      stopProcessesLockingUnpacked()
+      await sleep(400 * i)
+    }
+  }
+}
+
 process.chdir(root)
 
 if (!noBump) {
@@ -112,6 +170,8 @@ if (!noClean) {
   const n = cleanInstallersInDir(distDir)
   if (n === 0) console.log('dist/: no previous installers to remove')
 }
+
+await removeUnpackedDir()
 
 execSync('npm run build:win', { stdio: 'inherit' })
 

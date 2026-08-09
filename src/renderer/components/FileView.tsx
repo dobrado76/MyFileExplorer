@@ -60,7 +60,15 @@ const GRID_SPECS = {
 
 type GridMode = keyof typeof GRID_SPECS
 
-const SYNC_SORT_KEYS = new Set<SortKey>(['name', 'mtime', 'ctime', 'size', 'type', 'ext'])
+const SYNC_SORT_KEYS = new Set<SortKey>([
+  'name',
+  'folder',
+  'mtime',
+  'ctime',
+  'size',
+  'type',
+  'ext'
+])
 
 function isEditingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
@@ -109,6 +117,8 @@ function detailCellValue(
   meta: EntryColumnValues | undefined
 ): string {
   switch (id) {
+    case 'folder':
+      return parentOf(e.path) ?? ''
     case 'mtime':
       return formatDate(e.mtimeMs)
     case 'ctime':
@@ -216,7 +226,16 @@ export function FileView(): JSX.Element {
     () => (folderPath ? resolveFolderView(folderPath, folderViews) : null),
     [folderPath, folderViews]
   )
-  const detailsColumns = owningView?.detailsColumns ?? settings.detailsColumns
+  const detailsColumnsBase = owningView?.detailsColumns ?? settings.detailsColumns
+  /** Search: Folder is a sortable column — not a secondary line under the name. */
+  const detailsColumns = useMemo(() => {
+    if (!searchMode) return detailsColumnsBase
+    if (detailsColumnsBase.some((c) => c.id === 'folder')) return detailsColumnsBase
+    return [
+      { id: 'folder' as const, width: DETAILS_COLUMN_META.folder.defaultWidth },
+      ...detailsColumnsBase
+    ]
+  }, [searchMode, detailsColumnsBase])
   const detailsNameWidth = owningView?.detailsNameWidth ?? settings.detailsNameWidth
   const effectiveSort = useMemo(
     () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
@@ -263,10 +282,12 @@ export function FileView(): JSX.Element {
         window.removeEventListener('pointerup', onUp)
         setLiveWidths(null)
         if (id === 'name') void patchDetailsLayout({ detailsNameWidth: w })
-        else
-          void patchDetailsLayout({
-            detailsColumns: cols.map((c) => (c.id === id ? { ...c, width: w } : c))
-          })
+        else {
+          const next = cols.some((c) => c.id === id)
+            ? cols.map((c) => (c.id === id ? { ...c, width: w } : c))
+            : [{ id, width: w }, ...cols]
+          void patchDetailsLayout({ detailsColumns: next })
+        }
       }
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
@@ -279,7 +300,11 @@ export function FileView(): JSX.Element {
       const s = useAppStore.getState()
       const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
       const cur = owning?.detailsColumns ?? s.settings.detailsColumns
-      const dragged = cur.find((c) => c.id === dragId)
+      const dragged =
+        cur.find((c) => c.id === dragId) ??
+        (dragId === 'folder'
+          ? { id: 'folder' as const, width: DETAILS_COLUMN_META.folder.defaultWidth }
+          : null)
       if (!dragged) return
       const without = cur.filter((c) => c.id !== dragId)
       const idx = target === 'end' ? -1 : without.findIndex((c) => c.id === target)
@@ -508,7 +533,8 @@ export function FileView(): JSX.Element {
     metaByPath,
     recycleMode,
     recycleSort,
-    recycleByPath
+    recycleByPath,
+    searchMode
   ])
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
@@ -1434,8 +1460,10 @@ export function FileView(): JSX.Element {
                       renameEditor(entry)
                     ) : hideName ? null : (
                       <div className="cell-name">
-                        <span className="cell-name-primary">{labelFor(entry)}</span>
-                        {searchMode || (recycleMode && viewMode !== 'details') ? (
+                        <span className="cell-name-primary" title={entry.path}>
+                          {labelFor(entry)}
+                        </span>
+                        {recycleMode && viewMode !== 'details' ? (
                           <span className="cell-name-path" title={entry.path}>
                             {entry.path}
                           </span>
@@ -1490,9 +1518,9 @@ export function FileView(): JSX.Element {
                   samePath(renamingPath, entry.path)
                     ? renameEditor(entry)
                     : (
-                        <span className="row-name-text" title={entry.name}>
+                        <span className="row-name-text" title={entry.path}>
                           <span className="cell-name-primary">{labelFor(entry)}</span>
-                          {searchMode || (recycleMode && viewMode !== 'details') ? (
+                          {recycleMode && viewMode !== 'details' ? (
                             <span className="cell-name-path" title={entry.path}>
                               {entry.path}
                             </span>
