@@ -1,5 +1,8 @@
 appId: com.myfileexplorer.app
 productName: MyFileExplorer
+# No publish providers — GitHub Actions attaches installers to Releases.
+# (A git tag would otherwise make electron-builder publish and fail without GH_TOKEN.)
+publish: []
 directories:
   output: dist
   buildResources: build

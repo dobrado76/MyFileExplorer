@@ -15,7 +15,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
 | **Multi-pane views (1 / 2 / 4)** | Q-Dir-style side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |
 | **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
-| **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Explorer often fails the location or drops the place you were in. |
+| **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. The Drives tree drops ejected volumes immediately (no ghost letters). |
 | **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Configurable Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings — not a fixed Home-centric strip. |

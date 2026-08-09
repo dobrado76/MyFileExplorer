@@ -588,8 +588,11 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   const OFFLINE_POLL_MS = 8_000
+  /** Tree Drives list — live mounts only (not Offline-tab retry). */
+  const DRIVE_POLL_MS = 3_000
   let offlinePollTimer: ReturnType<typeof setInterval> | null = null
   let offlinePollPath: string | null = null
+  let drivePollTimer: ReturnType<typeof setInterval> | null = null
 
   function stopOfflinePoll(): void {
     if (offlinePollTimer) {
@@ -597,6 +600,27 @@ export const useAppStore = create<AppState>()((set, get) => {
       offlinePollTimer = null
     }
     offlinePollPath = null
+  }
+
+  function drivesKey(list: DriveInfo[]): string {
+    return list.map((d) => `${d.path.toLowerCase()}|${d.label}`).join('\n')
+  }
+
+  function startDrivePoll(): void {
+    if (drivePollTimer) return
+    drivePollTimer = setInterval(() => {
+      if (!get().booted) return
+      void (async () => {
+        try {
+          const d = await call(api.fs.listDrives())
+          if (drivesKey(get().drives) !== drivesKey(d.drives)) {
+            set({ drives: d.drives })
+          }
+        } catch {
+          // ignore transient list failures
+        }
+      })()
+    }, DRIVE_POLL_MS)
   }
 
   function isOfflineFailure(e: unknown): boolean {
@@ -621,15 +645,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         stopOfflinePoll()
         return
       }
-      void (async () => {
-        try {
-          const d = await call(api.fs.listDrives())
-          set({ drives: d.drives })
-        } catch {
-          // ignore drive-list failures during poll
-        }
-        await loadListing(path, { preserveSelection: true, soft: true, tabId })
-      })()
+      // Tab Offline retry only — tree drives refresh via startDrivePoll.
+      void loadListing(path, { preserveSelection: true, soft: true, tabId })
     }, OFFLINE_POLL_MS)
   }
 
@@ -1622,6 +1639,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
 
       void get().refreshIndexRoots()
+      startDrivePoll()
       await loadVisiblePaneListings()
       // Flush any CLI/protocol opens that arrived before boot finished.
       void call(api.app.ready())

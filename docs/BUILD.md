@@ -34,7 +34,7 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | ------- | --------- |
 | Pull request | `npm run check` only (no giant artifact) |
 | Push to `main` / `master` | Check + Windows installer → **Actions artifact** |
-| Tag `v*` (e.g. `v0.4.0`) | Check + installer artifact + attach files to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.4.1`) | Check + installer artifact + attach files to a **GitHub Release** (electron-builder does **not** publish; Actions does) |
 | **Actions → Run workflow** | Same as a main push (manual rebuild) |
 
 ### Download for a friend (no Release tag)
@@ -47,8 +47,8 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 Artifacts expire after **30 days** (workflow setting). For a lasting link, push a version tag:
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.4.1
+git push origin v0.4.1
 ```
 
 That creates/updates a Release with the installer attached (no 100 MB git push).

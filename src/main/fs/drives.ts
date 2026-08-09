@@ -1,13 +1,15 @@
-import fsp from 'node:fs/promises'
 import koffi from 'koffi'
 import type { DriveInfo } from '@shared/schemas/fs'
 import { AppError } from '@shared/result'
 
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 /** NTFS / FAT volume label max length. */
 export const VOLUME_NAME_MAX = 32
 
+const DRIVE_NO_ROOT_DIR = 1
+
 type VolumeApi = {
+  GetLogicalDriveStringsW: (nBufferLength: number, lpBuffer: Buffer) => number
+  GetDriveTypeW: (lpRootPathName: string) => number
   GetVolumeInformationW: (
     root: string,
     nameBuf: Buffer,
@@ -32,6 +34,10 @@ function ensureVolumeApi(): VolumeApi | null {
   }
   const kernel32 = koffi.load('kernel32.dll')
   volumeApi = {
+    GetLogicalDriveStringsW: kernel32.func(
+      'uint32 __stdcall GetLogicalDriveStringsW(uint32 nBufferLength, void *lpBuffer)'
+    ),
+    GetDriveTypeW: kernel32.func('uint32 __stdcall GetDriveTypeW(str16 lpRootPathName)'),
     GetVolumeInformationW: kernel32.func(
       'int32 __stdcall GetVolumeInformationW(str16 lpRootPathName, void *lpVolumeNameBuffer, uint32 nVolumeNameSize, void *lpVolumeSerialNumber, void *lpMaximumComponentLength, void *lpFileSystemFlags, void *lpFileSystemNameBuffer, uint32 nFileSystemNameSize)'
     ),
@@ -73,21 +79,50 @@ function driveLabel(letter: string, volumeName: string): string {
   return volumeName ? `${letter}: \u2014 ${volumeName}` : `${letter}:`
 }
 
+/** Currently mounted roots from GetLogicalDriveStringsW (e.g. `C:\`). */
+function logicalDriveRoots(api: VolumeApi): string[] {
+  let chars = 128
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const buf = Buffer.alloc(chars * 2)
+    const needed = api.GetLogicalDriveStringsW(chars, buf)
+    if (needed === 0) return []
+    if (needed > chars) {
+      chars = needed
+      continue
+    }
+    const text = buf.toString('utf16le', 0, needed * 2)
+    return text
+      .split('\0')
+      .map((s) => s.trim())
+      .filter((s) => /^[a-zA-Z]:\\?$/.test(s))
+      .map((s) => (s.endsWith('\\') ? s.toUpperCase() : `${s.toUpperCase()}\\`))
+  }
+  return []
+}
+
+/**
+ * Live mounted volumes for the tree. Unmounted removable drives disappear here —
+ * Offline retry belongs to tabs (session), not the Drives list.
+ */
 export async function listDrives(): Promise<DriveInfo[]> {
   if (process.platform !== 'win32') {
     return [{ path: '/', label: '/', volumeName: '' }]
   }
-  const results = await Promise.allSettled(
-    LETTERS.map(async (letter) => {
-      const root = `${letter}:\\`
-      await fsp.access(root)
-      const volumeName = readVolumeName(root)
-      return { path: root, label: driveLabel(letter, volumeName), volumeName }
-    })
-  )
-  return results
-    .filter((r): r is PromiseFulfilledResult<DriveInfo> => r.status === 'fulfilled')
-    .map((r) => r.value)
+  const api = ensureVolumeApi()
+  if (!api) return []
+
+  const roots = logicalDriveRoots(api)
+  const out: DriveInfo[] = []
+  for (const root of roots) {
+    const type = api.GetDriveTypeW(root)
+    // Skip unknown / no-root (stale letters after eject).
+    if (type <= DRIVE_NO_ROOT_DIR) continue
+    const letter = root[0]!.toUpperCase()
+    const volumeName = readVolumeName(root)
+    out.push({ path: root, label: driveLabel(letter, volumeName), volumeName })
+  }
+  out.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: 'base' }))
+  return out
 }
 
 /** Set or clear (empty string) the Windows volume label for a drive root. */
