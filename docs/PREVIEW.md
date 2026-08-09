@@ -13,12 +13,13 @@ type PreviewModel = {
   path: string
   kind:
     | 'image' | 'text' | 'markdown' | 'html' | 'spreadsheet' | 'document' | 'rtf'
-    | 'audio' | 'video' | 'pdf' | 'binary' | 'executable' | 'directory' | 'shortcut' | 'archive' | 'missing'
-  mediaUrl?: string // protocol URL for display (images, PDF)
+    | 'audio' | 'video' | 'pdf' | 'binary' | 'executable' | 'directory' | 'shortcut'
+    | 'archive' | 'chm' | 'missing'
+  mediaUrl?: string // protocol URL for display (images, PDF, CHM topic)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
   sheets?: { name: string; rows: string[][] }[] // spreadsheet preview
-  archiveTree?: ArchiveTreeNode[] // ZIP / Unity package contents when kind === 'archive'
+  archiveTree?: ArchiveTreeNode[] // ZIP / Unity / CHM TOC when kind is archive or chm
   archiveFormat?: 'zip' | 'unitypackage'
   fields: PreviewField[] // ordered for display
   warnings?: string[] // e.g. "truncated", "parse incomplete"
@@ -245,6 +246,18 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Streams the archive (reads `pathname` text + `asset` sizes only; does not extract payloads)
 - **No Extract All** in the preview toolbar (import via Unity / open externally)
 - Trees truncate around 4000 nodes; `../` pathnames omitted
+
+---
+
+## Compiled HTML Help (`.chm`) — D35
+
+- `kind: 'chm'` — full in-pane help viewer: **Contents TOC** + topic HTML
+- Main decompiles via Windows `hh.exe -decompile` into `userData/chm-preview/` (path+mtime+size key); never writes beside the browsed file (D2). Resolves `hh.exe` from `%SystemRoot%\hh.exe` (typical) then SysWOW64 / System32 fallbacks
+- Topics / CSS / images served as `mfe-media://chm/<hash>/…` so relative links resolve (D7 — no `file://`)
+- Renderer uses a **sandboxed iframe** (no scripts); TOC click → `preview:chmTopic`
+- TOC from `.hhc` sitemap (cap ~4000 nodes); folders start **collapsed**; `../` Locals omitted; default topic from `.hhp` or first HTML topic
+- Large files (&gt;256 MiB) skipped with a warning — use **Open** for the system help viewer
+- Best-effort: odd encodings, broken links, or ActiveX-era pages may degrade; scripts do not run
 
 ---
 

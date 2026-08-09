@@ -29,6 +29,7 @@ import {
 } from './preview/RichPreviews'
 import { CodePreview } from './preview/CodePreview'
 import { ZipArchivePreview } from './preview/ZipArchivePreview'
+import { ChmPreview } from './preview/ChmPreview'
 
 /* The "file" group is rendered separately as the compact details strip
    pinned to the bottom of the pane. Weights/summary ("other") before training. */
@@ -207,7 +208,9 @@ export function PreviewPane(): JSX.Element {
           ? ' preview-kind-image'
           : model.kind === 'archive'
             ? ' preview-kind-archive'
-            : ''
+            : model.kind === 'chm'
+              ? ' preview-kind-chm'
+              : ''
       }`}
     >
       {headerSub || multiHint || (model.kind === 'image' && model.mediaUrl) ? (
@@ -338,6 +341,13 @@ export function PreviewPane(): JSX.Element {
                 ? undefined
                 : () => void extractZip([model.path])
             }
+          />
+        )}
+        {model.kind === 'chm' && (
+          <ChmPreview
+            chmPath={model.path}
+            tree={model.archiveTree ?? []}
+            initialMediaUrl={model.mediaUrl}
           />
         )}
         {model.kind === 'shortcut' && (
@@ -611,6 +621,8 @@ function kindLabel(kind: PreviewModel['kind']): string {
       return 'Shortcut'
     case 'archive':
       return 'Archive'
+    case 'chm':
+      return 'HTML Help'
     case 'executable':
       return 'Application'
     case 'missing':

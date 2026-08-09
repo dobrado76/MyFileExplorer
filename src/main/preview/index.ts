@@ -22,6 +22,12 @@ import { buildSafetensorsPreviewFields } from './safetensors'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
 import { loadUnityPackageTree } from './unityPackage'
+import {
+  chmTopicMediaUrl,
+  ensureChmExtracted,
+  isChmTopicPath,
+  loadChmToc
+} from './chm'
 import { readPeVersionInfo } from './peVersion'
 import { getShellIconUrl } from '../icons/shell'
 import {
@@ -119,7 +125,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 3
+const PREVIEW_CACHE_REV = 5
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -279,6 +285,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildZipArchivePreview(file, st.size, fields, warnings)
     } else if (ext === 'unitypackage') {
       model = await buildUnityPackagePreview(file, fields, warnings)
+    } else if (ext === 'chm') {
+      model = await buildChmPreview(file, st.mtimeMs, st.size, fields, warnings)
     } else if (EXE_PREVIEW_EXTS.has(ext)) {
       model = await buildExecutablePreview(file, ext, fields, warnings)
     } else {
@@ -810,6 +818,89 @@ async function buildZipArchivePreview(
       warnings
     }
   }
+}
+
+async function buildChmPreview(
+  file: string,
+  mtimeMs: number,
+  size: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: 'Compiled HTML Help',
+      group: 'file'
+    }
+  }
+
+  try {
+    const extract = await ensureChmExtracted(file, mtimeMs, size)
+    const toc = await loadChmToc(extract.rootDir)
+    if (toc.truncated) warnings.push('Contents list truncated for preview')
+    fields.push({
+      id: 'chm.topics',
+      label: 'Topics',
+      value: String(toc.topicCount) + (toc.truncated ? '+' : ''),
+      group: 'file'
+    })
+
+    let mediaUrl: string | undefined
+    if (toc.defaultTopic) {
+      try {
+        mediaUrl = await chmTopicMediaUrl(file, mtimeMs, size, toc.defaultTopic)
+      } catch (e) {
+        warnings.push(e instanceof Error ? e.message : 'Could not open default topic')
+      }
+    } else {
+      warnings.push('No HTML topics found after decompile')
+    }
+
+    const subtitle =
+      toc.topicCount === 0
+        ? 'Compiled HTML Help'
+        : `${toc.topicCount} topic${toc.topicCount === 1 ? '' : 's'}${toc.truncated ? '…' : ''}`
+
+    return {
+      path: file,
+      kind: 'chm',
+      subtitle,
+      mediaUrl,
+      archiveTree: toc.tree,
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not open CHM')
+    return {
+      path: file,
+      kind: 'chm',
+      subtitle: 'Compiled HTML Help',
+      archiveTree: [],
+      fields,
+      warnings
+    }
+  }
+}
+
+/** Resolve a CHM TOC topic to an allowlisted mfe-media://chm/ URL. */
+export async function getChmTopicPreview(
+  rawPath: string,
+  topic: string
+): Promise<{ mediaUrl: string }> {
+  const file = requireAbsolute(rawPath)
+  const st = await statPath(file)
+  if (!st.exists || st.kind === 'dir') {
+    throw new Error('CHM file not found')
+  }
+  if (!isChmTopicPath(topic)) {
+    throw new Error('Invalid CHM topic')
+  }
+  const mediaUrl = await chmTopicMediaUrl(file, st.mtimeMs, st.size, topic)
+  return { mediaUrl }
 }
 
 async function buildUnityPackagePreview(

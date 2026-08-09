@@ -40,6 +40,9 @@ type NodeState = {
 }
 type NodesMap = Record<string, NodeState>
 
+/** Explorer parity: hover a collapsed tree folder during drag to open it. */
+const DRAG_HOVER_EXPAND_MS = 2000
+
 function pruneRemoved(map: NodesMap, removed: string[]): NodesMap {
   const isGone = (p: string): boolean =>
     removed.some((r) => samePath(p, r) || isUnderPath(p, r))
@@ -248,6 +251,76 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   useEffect(() => {
     nodesRef.current = nodes
   }, [nodes])
+
+  // Drag-hover expand: stay on a collapsed folder ~2s → expand so the drop can continue into a child.
+  const dragExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dragExpandPathRef = useRef<string | null>(null)
+  const loadChildrenRef = useRef(loadChildren)
+  const setNodesRef = useRef(setNodes)
+  const dragPathsRef = useRef(dragPaths)
+  useEffect(() => {
+    loadChildrenRef.current = loadChildren
+    setNodesRef.current = setNodes
+    dragPathsRef.current = dragPaths
+  }, [loadChildren, setNodes, dragPaths])
+  useEffect(() => {
+    const clearTimer = (): void => {
+      if (dragExpandTimerRef.current !== null) {
+        clearTimeout(dragExpandTimerRef.current)
+        dragExpandTimerRef.current = null
+      }
+      dragExpandPathRef.current = null
+    }
+
+    const paths = dragPathsRef.current
+    if (paths.length === 0 || !dropHighlightPath) {
+      clearTimer()
+      return
+    }
+
+    const target = dropHighlightPath
+    if (paths.some((p) => samePath(p, target) || isUnderPath(target, p))) {
+      clearTimer()
+      return
+    }
+
+    const node = nodesRef.current[target]
+    if (node?.expanded || (node?.children && node.children.length === 0)) {
+      clearTimer()
+      return
+    }
+
+    // Same target still hovered — keep the existing countdown.
+    if (
+      dragExpandPathRef.current &&
+      samePath(dragExpandPathRef.current, target) &&
+      dragExpandTimerRef.current !== null
+    ) {
+      return
+    }
+
+    clearTimer()
+    dragExpandPathRef.current = target
+    dragExpandTimerRef.current = setTimeout(() => {
+      dragExpandTimerRef.current = null
+      const live = nodesRef.current[target]
+      if (live?.expanded) return
+      if (live?.children && live.children.length === 0) return
+      if (live?.children) {
+        setNodesRef.current((n) =>
+          n[target] ? { ...n, [target]: { ...n[target]!, expanded: true } } : n
+        )
+      } else {
+        void loadChildrenRef.current(target)
+      }
+    }, DRAG_HOVER_EXPAND_MS)
+
+    return () => {
+      if (dragExpandPathRef.current && samePath(dragExpandPathRef.current, target)) {
+        clearTimer()
+      }
+    }
+  }, [dropHighlightPath, dragPaths.length])
 
   const activeTabIdRef = useRef(activeTabId)
   useEffect(() => {
@@ -570,7 +643,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             if (paneIdx >= 0) focusPane(paneIdx)
             // Double single-click on the label of the current folder → rename.
             if (selected && isNameLabelTarget(e.target)) {
-              beginDoubleSingleClick(e.clientX, e.clientY, () => startRename(path, 'tree'))
+              beginDoubleSingleClick(e.clientX, e.clientY, path, () => startRename(path, 'tree'))
               return
             }
             cancelDoubleSingleClick()

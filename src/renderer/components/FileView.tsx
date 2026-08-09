@@ -1147,9 +1147,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const alreadySelected = selected.has(entry.path.toLowerCase())
       const onlyThis =
         alreadySelected && sel.length === 1 && samePath(sel[0]!, entry.path)
-      // Double single-click: second click on the name of a single selected item → rename.
+      // Double single-click: two slow clicks on the name of a single selected item → rename.
       if (onlyThis && isNameLabelTarget(e.target)) {
-        beginDoubleSingleClick(e.clientX, e.clientY, () => startRename(entry.path, 'files'))
+        beginDoubleSingleClick(e.clientX, e.clientY, entry.path, () =>
+          startRename(entry.path, 'files')
+        )
         return
       }
       cancelDoubleSingleClick()

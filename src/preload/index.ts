@@ -71,7 +71,8 @@ const api: MyFileExplorerApi = {
   },
   preview: {
     get: invoke(IPC.previewGet),
-    ensurePlayable: invoke(IPC.previewEnsurePlayable)
+    ensurePlayable: invoke(IPC.previewEnsurePlayable),
+    chmTopic: invoke(IPC.previewChmTopic)
   },
   search: {
     query: invoke(IPC.searchQuery),

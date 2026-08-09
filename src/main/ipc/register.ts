@@ -16,7 +16,11 @@ import {
 } from '@shared/schemas/fs'
 import { sessionSchema } from '@shared/schemas/session'
 import { settingsPatchSchema } from '@shared/schemas/settings'
-import { previewEnsurePlayableSchema, previewRequestSchema } from '@shared/schemas/preview'
+import {
+  previewChmTopicSchema,
+  previewEnsurePlayableSchema,
+  previewRequestSchema
+} from '@shared/schemas/preview'
 import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/search'
 import { listDirectory, statPath, pathExists } from '../fs/list'
 import { listDrives, setVolumeLabel } from '../fs/drives'
@@ -61,7 +65,7 @@ import {
 } from '../shell'
 import { sessionStore } from '../session/store'
 import { getSettings, patchSettings } from '../settings/store'
-import { ensurePlayablePreview, getPreview } from '../preview'
+import { ensurePlayablePreview, getChmTopicPreview, getPreview } from '../preview'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
@@ -316,6 +320,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewGet, previewRequestSchema, (req) => getPreview(req.path))
   handle(IPC.previewEnsurePlayable, previewEnsurePlayableSchema, (req) =>
     ensurePlayablePreview(req.path, { force: req.force })
+  )
+  handle(IPC.previewChmTopic, previewChmTopicSchema, (req) =>
+    getChmTopicPreview(req.path, req.topic)
   )
 
   // search

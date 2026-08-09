@@ -9,6 +9,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **CHM preview (D35)** — `.chm` files open in the preview pane with a Contents TOC and sandboxed topic HTML (Windows `hh.exe` decompile under userData; `mfe-media://chm/…` for relative assets).
+- **Tree drag-hover expand** — while dragging, hover a collapsed folder in the tree ~2s to expand it (Explorer parity; D11).
+
+### Fixed
+
+- **File-list / tree rename gesture** — double single-click is two slow clicks on the selected name; a single click no longer starts rename after hover/wait.
+- **CHM preview** — locate `hh.exe` at `%SystemRoot%\hh.exe` (and SysWOW64 fallback); `System32\hh.exe` is often missing, which left the viewer empty.
+- **CHM TOC encoding** — decode `.hhc` as Windows-1252 when not valid UTF-8 so titles like “What’s New” keep their apostrophe.
+
 ## [0.4.0] - 2026-08-09
 
 Fourth product release: Everything-parity search, richer previews, multi-pane/tab polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

@@ -49,9 +49,10 @@ Custom theme = user-editable map of these tokens in settings.
 - **Icons modes:** CSS grid of cells; virtualized (`@tanstack/react-virtual` or equivalent)
 - **List / Details:** virtualized rows; details header clickable for sort
 - Selection: click, Ctrl, Shift range; marquee optional Phase 10
-- Rename: F2 / context, or **double single-click** the name (slow second click on selected label in file view / tree); fast double-click opens / expands
+- Rename: F2 / context, or **double single-click** the name (two slow clicks on selected label in file view / tree — no dwell/hover wait); fast double-click opens / expands
 - Focus ring for keyboard nav
 - Folder tree: ↑↓ move selection; ← collapse (or select parent); → expand (or select first child)
+- Folder tree drag: hover a **collapsed** folder ~2s to expand it (continue the drop into a subfolder)
 - Drag ghost: selection count badge
 
 ---

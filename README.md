@@ -1,6 +1,6 @@
 # MyFileExplorer
 
-[![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables&style=for-the-badge)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
+[![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **v0.4.1** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
@@ -12,6 +12,8 @@ Built for people who live in folders all day: media libraries, project trees, AI
 | **Platform** | Windows 10 / 11 |
 | **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
 | **License** | MIT |
+
+![MyFileExplorer screenshot](/docs/image/screenshot.png)
 
 ---
 
@@ -32,7 +34,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Offline tabs wait for encrypted / network drives instead of vanishing
 
 **See what you’re looking at**
-- Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.lnk`, SafeTensors, Unity packages, executables
+- Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.chm` help viewer, `.lnk`, SafeTensors, Unity packages, executables
 - **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
 - In-app image editor with Revert-to-original (backup stays in AppData, not next to your files)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app

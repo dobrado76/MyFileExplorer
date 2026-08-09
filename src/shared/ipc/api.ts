@@ -26,6 +26,7 @@ import type {
 import type { SessionState } from '../schemas/session'
 import type { Settings, SettingsPatch } from '../schemas/settings'
 import type {
+  PreviewChmTopicRequest,
   PreviewEnsurePlayableRequest,
   PreviewModel,
   PreviewRequest
@@ -133,6 +134,8 @@ export type MyFileExplorerApi = {
   preview: {
     get(req: PreviewRequest): Promise<Result<PreviewModel>>
     ensurePlayable(req: PreviewEnsurePlayableRequest): Promise<Result<{ mediaUrl: string | null }>>
+    /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
+    chmTopic(req: PreviewChmTopicRequest): Promise<Result<{ mediaUrl: string }>>
   }
   search: {
     query(req: SearchQueryRequest): Promise<Result<SearchQueryResponse>>

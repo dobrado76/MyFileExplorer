@@ -8,7 +8,12 @@ vi.mock('electron', () => ({
 }))
 
 import { normalizeAbsolute, ProtocolAllowlist, isSameOrUnder } from '../main/security/paths'
-import { mediaPathFromUrl, mediaUrlFor } from '../main/media/protocol'
+import {
+  chmMediaUrlFor,
+  mediaPathFromUrl,
+  mediaUrlFor,
+  registerChmExtractRoot
+} from '../main/media/protocol'
 
 const TMP = path.join(process.cwd(), '.tmp', 'path-guards')
 
@@ -97,5 +102,21 @@ describe('media protocol URL parsing', () => {
   })
   it('rejects missing p parameter', () => {
     expect(mediaPathFromUrl('mfe-media://local/')).toBeNull()
+  })
+
+  it('resolves mfe-media://chm/ hash paths under a registered extract root', () => {
+    const hash = 'a'.repeat(40)
+    const root = path.join(TMP, 'allowed')
+    registerChmExtractRoot(hash, root)
+    const topic = path.join(root, 'ok.txt')
+    const url = chmMediaUrlFor(hash, 'ok.txt', '1')
+    expect(mediaPathFromUrl(url)).toBe(topic)
+  })
+
+  it('rejects chm URLs that escape the extract root', () => {
+    const hash = 'b'.repeat(40)
+    registerChmExtractRoot(hash, path.join(TMP, 'allowed'))
+    const url = `mfe-media://chm/${hash}/${encodeURIComponent('..')}/${encodeURIComponent('secret')}/no.txt`
+    expect(mediaPathFromUrl(url)).toBeNull()
   })
 })

@@ -58,6 +58,8 @@ export const IPC = {
   previewGet: 'preview:get',
   /** Remux MKV/etc. to playable MP4 under userData for in-pane `<video>`. */
   previewEnsurePlayable: 'preview:ensurePlayable',
+  /** Resolve a `.chm` TOC topic to an mfe-media://chm/ URL for the preview iframe. */
+  previewChmTopic: 'preview:chmTopic',
 
   searchQuery: 'search:query',
   searchAddRoot: 'search:addRoot',

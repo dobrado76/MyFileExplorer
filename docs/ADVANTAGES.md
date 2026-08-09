@@ -33,7 +33,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
 | **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
 | **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
-| **Executable / Unity / ZIP trees** | PE VERSIONINFO + shell icon; `.unitypackage` Assets tree; ZIP central-directory listing without extracting. |
+| **Executable / Unity / ZIP / CHM** | PE VERSIONINFO + shell icon; `.unitypackage` Assets tree; ZIP central-directory listing; `.chm` TOC + sandboxed topic viewer. |
 | **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
 
 ---
@@ -64,6 +64,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |
 | **ZIP contents preview** | Select a `.zip` and see an expand/collapse file tree in the preview pane (inspect before extract) — Explorer’s preview rarely shows a useful archive tree. |
 | **Unity package preview** | Select a `.unitypackage` and see the packaged `Assets/…` tree (GUID folders mapped via `pathname`) without extracting. |
+| **CHM help preview** | Select a `.chm` for Contents + topic HTML in the preview pane (decompile under userData; no scripts in the iframe). |
 
 ---
 

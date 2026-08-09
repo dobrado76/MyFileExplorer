@@ -1618,6 +1618,133 @@ body.right-dragging * {
   font-variant-numeric: tabular-nums;
 }
 
+/* Compiled HTML Help (.chm) — TOC + sandboxed topic iframe */
+.preview.preview-kind-chm .preview-content {
+  overflow: hidden;
+}
+.preview.preview-kind-chm .preview-fields {
+  flex: 0 1 auto;
+  max-height: 28%;
+  overflow-y: auto;
+  min-height: 0;
+}
+.preview-chm {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0 0 4px;
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+.preview-chm-toc {
+  display: flex;
+  flex-direction: column;
+  width: min(42%, 220px);
+  flex-shrink: 0;
+  min-width: 120px;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+.preview-chm-toc-caption {
+  padding: 6px 10px 4px;
+  font-size: 0.8em;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.preview-chm-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 2px 0 8px;
+}
+.preview-chm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px 3px 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86em;
+  text-align: left;
+  cursor: default;
+  border-radius: 3px;
+}
+.preview-chm-row.is-dir,
+.preview-chm-row.is-topic {
+  cursor: pointer;
+}
+.preview-chm-row:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 12%, transparent);
+}
+.preview-chm-row.is-active {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 22%, transparent);
+}
+.preview-chm-twist {
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 0.75em;
+  text-align: center;
+}
+.preview-chm-twist.empty {
+  visibility: hidden;
+}
+.preview-chm-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-dim);
+}
+.preview-chm-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preview-chm-page {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #fff;
+}
+.preview-chm-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: none;
+  background: #fff;
+}
+.preview-chm-empty {
+  padding: 20px 12px;
+  color: var(--text-dim);
+  font-size: 0.9em;
+  text-align: center;
+}
+.preview-chm-status {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  padding: 4px 8px;
+  font-size: 0.8em;
+  background: color-mix(in srgb, var(--bg-elevated, #222) 88%, transparent);
+  color: var(--text);
+}
+.preview-chm-error {
+  color: var(--danger, #c44);
+}
+
 .preview-text {
   flex: 1;
   min-height: 120px;

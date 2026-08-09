@@ -16,6 +16,7 @@ export const previewKindSchema = z.enum([
   'directory',
   'shortcut',
   'archive',
+  'chm',
   'missing'
 ])
 export type PreviewKind = z.infer<typeof previewKindSchema>
@@ -79,7 +80,7 @@ export type PreviewModel = {
   /** HTML fragment for Word / RTF (renderer sanitizes before inject). */
   htmlBody?: string
   sheets?: SpreadsheetSheet[]
-  /** ZIP / Unity package contents tree when `kind === 'archive'`. */
+  /** ZIP / Unity package contents tree when `kind === 'archive'`; CHM TOC when `kind === 'chm'`. */
   archiveTree?: ArchiveTreeNode[]
   /** Archive flavor — drives Extract All visibility (ZIP only). */
   archiveFormat?: 'zip' | 'unitypackage'
@@ -96,3 +97,11 @@ export const previewEnsurePlayableSchema = z.object({
   force: z.boolean().optional()
 })
 export type PreviewEnsurePlayableRequest = z.infer<typeof previewEnsurePlayableSchema>
+
+/** Load a topic HTML URL from a `.chm` after `preview:get`. */
+export const previewChmTopicSchema = z.object({
+  path: z.string().min(1),
+  /** Topic path inside the CHM (`/` separators), from the TOC node. */
+  topic: z.string().min(1)
+})
+export type PreviewChmTopicRequest = z.infer<typeof previewChmTopicSchema>

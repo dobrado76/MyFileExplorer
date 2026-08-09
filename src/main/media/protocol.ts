@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
-import { protocolAllowlist } from '../security/paths'
+import { isSameOrUnder, protocolAllowlist } from '../security/paths'
 import { MODEL_SCHEME } from './modelProtocol'
 import { ORT_SCHEME } from './ortProtocol'
 
@@ -108,11 +108,64 @@ export function registerMediaSchemeAsPrivileged(): void {
   ])
 }
 
+/** hash → absolute extract root for `mfe-media://chm/<hash>/…` topic URLs. */
+const chmExtractRoots = new Map<string, string>()
+
+/** Register a decompiled CHM directory for path-based media URLs (relative assets). */
+export function registerChmExtractRoot(hash: string, rootDir: string): void {
+  const key = hash.toLowerCase()
+  if (!/^[a-f0-9]{40}$/i.test(key)) return
+  const n = path.normalize(rootDir)
+  chmExtractRoots.set(key, n)
+  protocolAllowlist.allowDirPermanently(n)
+}
+
+/**
+ * Build a CHM topic/asset URL. Relative links inside the HTML resolve under the
+ * same `mfe-media://chm/<hash>/` prefix (CSS `url()`, images, sibling topics).
+ */
+export function chmMediaUrlFor(hash: string, relPath: string, cacheKey?: number | string): string {
+  const clean = relPath.replace(/\\/g, '/').replace(/^\/+/, '')
+  const segments = clean
+    .split('/')
+    .filter(Boolean)
+    .map((s) => encodeURIComponent(s))
+  const base = `${MEDIA_SCHEME}://chm/${hash.toLowerCase()}/${segments.join('/')}`
+  if (cacheKey === undefined || cacheKey === '') return base
+  return `${base}?v=${encodeURIComponent(String(cacheKey))}`
+}
+
+function chmFileFromUrl(url: URL): string | null {
+  if (url.hostname.toLowerCase() !== 'chm') return null
+  const parts = url.pathname.split('/').filter(Boolean)
+  if (parts.length < 2) return null
+  const hash = parts[0]!.toLowerCase()
+  if (!/^[a-f0-9]{40}$/.test(hash)) return null
+  const root = chmExtractRoots.get(hash)
+  if (!root) return null
+  const rel = parts
+    .slice(1)
+    .map((s) => {
+      try {
+        return decodeURIComponent(s)
+      } catch {
+        return s
+      }
+    })
+    .join('/')
+  if (!rel || rel.includes('..')) return null
+  const abs = path.resolve(root, rel)
+  if (!isSameOrUnder(abs, root)) return null
+  return abs
+}
+
 /** Extract the requested absolute path from a mfe-media URL, or null. */
 export function mediaPathFromUrl(rawUrl: string): string | null {
   try {
     const url = new URL(rawUrl)
     if (url.protocol !== `${MEDIA_SCHEME}:`) return null
+    const chmPath = chmFileFromUrl(url)
+    if (chmPath) return chmPath
     const p = url.searchParams.get('p')
     if (!p) return null
     return p
