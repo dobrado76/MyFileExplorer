@@ -72,10 +72,9 @@ Settings live in `%APPDATA%\MyFileExplorer` for both `npm run dev` and installed
 
 ## For friends trying the app
 
-The installer is too large to keep in git (>100 MB). Get it from CI:
+The installer is too large to keep in git (>100 MB). Get it from a **GitHub Release** (CI attaches the Setup.exe when a `v*` tag is pushed — no Actions artifacts):
 
-1. GitHub → **Actions** → **Build Windows** → latest green run → download the **MyFileExplorer-Setup-…** artifact  
-   — or open a **Release** if a `v*` tag was pushed (installer attached there).
+1. Open [Releases](https://github.com/dobrado76/MyFileExplorer/releases/latest) (or the download badge above).
 2. Run `MyFileExplorer Setup x.y.z.exe`.
 3. Open a few folders as tabs. Rename a tab. Save a layout.
 4. Select an AI-generated PNG — check the preview for prompt / model fields.
@@ -94,7 +93,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[PLAN.md](PLAN.md)** | Canonical project plan |
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
-| **[docs/BUILD.md](docs/BUILD.md)** | Local build + GitHub Actions installer artifacts |
+| **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
 | **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D34 |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |

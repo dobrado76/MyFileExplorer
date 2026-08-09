@@ -1,5 +1,5 @@
-# Build the Windows NSIS installer and upload it as a workflow artifact.
-# Setup.exe is typically >100MB — do not commit it; download from Actions (or Releases on tags).
+# Check on every PR/push. Build the NSIS installer only for version tags and
+# attach it to a GitHub Release — no Actions artifact storage (quota-free).
 name: Build Windows
 
 on:
@@ -37,12 +37,14 @@ jobs:
       - name: Check
         run: npm run check
 
-  build:
-    name: Windows installer
+  release:
+    name: Windows installer → GitHub Release
     needs: check
-    # Full packaging on push (main/tags) and manual dispatch — PRs get check only.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    # Only tagged releases ship an installer (no Actions artifacts).
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -54,50 +56,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Read version
-        id: ver
-        shell: pwsh
-        run: |
-          $v = node -p "require('./package.json').version"
-          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Host "version=$v"
-
       - name: Build NSIS installer
         env:
           # No code-signing cert in CI — skip discovery so the build does not hang.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run build:win
 
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+      - name: Attach installer to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: MyFileExplorer-Setup-${{ steps.ver.outputs.version }}
-          path: |
+          files: |
             dist/MyFileExplorer Setup *.exe
             dist/*.exe.blockmap
             dist/latest.yml
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 0
-
-  release:
-    name: Attach installer to GitHub Release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download installer artifact
-        uses: actions/download-artifact@v4
-        with:
-          pattern: MyFileExplorer-Setup-*
-          merge-multiple: true
-          path: release-assets
-
-      - name: Publish release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release-assets/*
           generate_release_notes: true
           fail_on_unmatched_files: true

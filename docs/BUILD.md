@@ -1,8 +1,8 @@
-# Building & CI artifacts
+# Building & releases
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 
-The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored and ship installers via CI.
+The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
 ---
 
@@ -32,30 +32,29 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 
 | Trigger | What runs |
 | ------- | --------- |
-| Pull request | `npm run check` only (no giant artifact) |
-| Push to `main` / `master` | Check + Windows installer → **Actions artifact** |
-| Tag `v*` (e.g. `v0.4.1`) | Check + installer artifact + attach files to a **GitHub Release** (electron-builder does **not** publish; Actions does) |
-| **Actions → Run workflow** | Same as a main push (manual rebuild) |
+| Pull request / push to `main` | `npm run check` only |
+| Tag `v*` (e.g. `v0.4.1`) | Check + build installer → attach to a **GitHub Release** |
+| **Actions → Run workflow** | Check only (same as a main push) |
 
-### Download for a friend (no Release tag)
-
-1. Open the repo on GitHub → **Actions** → **Build Windows**.
-2. Open the successful run for the commit you want.
-3. Download **`MyFileExplorer-Setup-<version>`** under Artifacts.
-4. Unzip — run `MyFileExplorer Setup <version>.exe`.
-
-Artifacts expire after **30 days** (workflow setting). For a lasting link, push a version tag:
+### Ship a build for friends
 
 ```bash
+# package.json version should match the tag (e.g. 0.4.1)
 git tag v0.4.1
 git push origin v0.4.1
 ```
 
-That creates/updates a Release with the installer attached (no 100 MB git push).
+When the workflow finishes, download from:
+
+`https://github.com/dobrado76/MyFileExplorer/releases/latest`
+
+(or the README “Download Latest Executables” badge).
 
 ---
 
 ## Notes
 
 - CI sets `CSC_IDENTITY_AUTO_DISCOVERY=false` (unsigned builds; no cert hang).
+- `electron-builder --publish never` — Releases are attached by Actions, not electron-builder.
 - Never commit `dist/*.exe` — `dist/` is in `.gitignore` on purpose.
+- No `actions/upload-artifact` — avoids Actions artifact storage quota.

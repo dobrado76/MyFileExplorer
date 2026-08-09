@@ -25,7 +25,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | ------------------------------------------------ | ------------------------------------- |
 | [PRODUCT_SPEC.md](PRODUCT_SPEC.md)               | Features & UX requirements            |
 | [ADVANTAGES.md](ADVANTAGES.md)                   | Advantages vs classic Windows Explorer |
-| [BUILD.md](BUILD.md)                             | Local build + CI installer artifacts   |
+| [BUILD.md](BUILD.md)                             | Local build + tagged GitHub Releases   |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
