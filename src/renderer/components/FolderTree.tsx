@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type KeyboardEvent as ReactKeyboardEvent
+} from 'react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { api, call } from '../lib/ipc'
-import { samePath, isUnderPath, basename, segmentsOf } from '../lib/paths'
+import { samePath, isUnderPath, basename, segmentsOf, parentOf } from '../lib/paths'
 import {
   beginRightDragGesture,
   getLiveRightDragSession,
@@ -385,6 +393,137 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     return !!parent?.childHidden?.[childPath.toLowerCase()]
   }
 
+  function visibleChildPaths(path: string): string[] | null {
+    const node = nodes[path]
+    if (!node?.children) return node?.children ?? null
+    return node.children.filter((child) => {
+      const winHidden = !!node.childHidden?.[child.toLowerCase()]
+      return !isExcludedByViewFilter(
+        { path: child, isHidden: winHidden },
+        viewPatterns,
+        viewFilterOn
+      )
+    })
+  }
+
+  function scrollTreePathIntoView(path: string): void {
+    const root = treeRef.current
+    if (!root) return
+    for (const el of root.querySelectorAll<HTMLElement>('[data-tree-path]')) {
+      if (samePath(el.dataset.treePath ?? '', path)) {
+        el.scrollIntoView({ block: 'nearest' })
+        break
+      }
+    }
+  }
+
+  /** Visible tree rows in paint order (Quick access, then Drives, with expands). */
+  function visibleTreeRowEls(): HTMLElement[] {
+    const root = treeRef.current
+    if (!root) return []
+    return [...root.querySelectorAll<HTMLElement>('[data-tree-path]')]
+  }
+
+  function selectTreePath(path: string): void {
+    setTreeFocusPath(path)
+    const paneIdx = paneTabIds.indexOf(tabId)
+    if (paneIdx >= 0) focusPane(paneIdx)
+    void navigate(path, { tabId })
+    requestAnimationFrame(() => scrollTreePathIntoView(path))
+  }
+
+  /** Explorer nav-pane arrows: ↑↓ move selection; ←/→ collapse·parent / expand·child. */
+  const onTreeKeyDown = (e: ReactKeyboardEvent): void => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return
+    if (
+      e.key !== 'ArrowLeft' &&
+      e.key !== 'ArrowRight' &&
+      e.key !== 'ArrowUp' &&
+      e.key !== 'ArrowDown'
+    ) {
+      return
+    }
+    if (renamingPath !== null) return
+
+    // Stop the tree scroller from eating ↑↓.
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const rows = visibleTreeRowEls()
+      if (rows.length === 0) return
+      const cursor = treeFocusPath ?? activePath
+      let idx = -1
+      if (cursor) {
+        const focused =
+          treeRef.current?.querySelector<HTMLElement>(
+            '.tree-node.tree-focused[data-tree-path]'
+          ) ??
+          treeRef.current?.querySelector<HTMLElement>('.tree-node.selected[data-tree-path]')
+        if (focused) idx = rows.indexOf(focused)
+        if (idx < 0) {
+          idx = rows.findIndex((el) => samePath(el.dataset.treePath ?? '', cursor))
+        }
+      }
+      const next =
+        e.key === 'ArrowDown'
+          ? idx < 0
+            ? 0
+            : Math.min(rows.length - 1, idx + 1)
+          : idx < 0
+            ? rows.length - 1
+            : Math.max(0, idx - 1)
+      const path = rows[next]?.dataset.treePath
+      if (path) selectTreePath(path)
+      return
+    }
+
+    const cursor = treeFocusPath ?? activePath
+    if (!cursor) return
+
+    const node = nodes[cursor]
+    const expanded = node?.expanded ?? false
+    const kids = visibleChildPaths(cursor)
+
+    if (e.key === 'ArrowRight') {
+      if (!expanded) {
+        // Collapsed (or never listed): expand / load children.
+        if (kids && kids.length === 0) return
+        if (kids) {
+          setNodes((n) =>
+            n[cursor] ? { ...n, [cursor]: { ...n[cursor]!, expanded: true } } : n
+          )
+        } else {
+          void loadChildren(cursor)
+        }
+        return
+      }
+      // Expanded → select first visible child (Explorer).
+      const first = kids?.[0]
+      if (first) selectTreePath(first)
+      return
+    }
+
+    // ArrowLeft
+    if (expanded) {
+      setNodes((n) => collapseUnder(n, cursor))
+      return
+    }
+    // Collapsed → select parent (not above scoped root / drive root).
+    if (rootPath && samePath(cursor, rootPath)) return
+    if (isVolumeRootPath(cursor)) return
+    let parent = parentOf(cursor)
+    if (!parent) return
+    if (rootPath) {
+      if (samePath(parent, rootPath) || isUnderPath(parent, rootPath)) {
+        /* ok */
+      } else {
+        parent = rootPath
+      }
+    }
+    selectTreePath(parent)
+  }
+
   function renderNode(
     path: string,
     label: string,
@@ -420,6 +559,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${dropHighlightPath && samePath(dropHighlightPath, path) ? ' drop-target' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
           data-drop-dir={path}
+          data-tree-path={path}
           draggable={false}
           onClick={(e) => {
             if (shouldSuppressClickAfterLeftDrag()) return
@@ -583,7 +723,14 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   // Scoped tab: the tab's root folder is the only top-level tree node.
   if (rootPath) {
     return (
-      <div ref={treeRef} className="tree" role="tree" aria-label="Folders" tabIndex={0}>
+      <div
+        ref={treeRef}
+        className="tree"
+        role="tree"
+        aria-label="Folders"
+        tabIndex={0}
+        onKeyDown={onTreeKeyDown}
+      >
         <div className="tree-section">{basename(rootPath)}</div>
         {renderNode(rootPath, basename(rootPath), 0, 'scoped')}
       </div>
@@ -591,7 +738,14 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   }
 
   return (
-    <div ref={treeRef} className="tree" role="tree" aria-label="Folders" tabIndex={0}>
+    <div
+      ref={treeRef}
+      className="tree"
+      role="tree"
+      aria-label="Folders"
+      tabIndex={0}
+      onKeyDown={onTreeKeyDown}
+    >
       <div
         className="tree-section"
         onDragOver={(e) => {

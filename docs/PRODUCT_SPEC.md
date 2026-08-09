@@ -193,6 +193,7 @@ See [SEARCH.md](SEARCH.md).
 | Ctrl+C/X/V      | Copy / Cut / Paste    |
 | Del / Shift+Del | Trash / Permanent     |
 | ↑↓ / ←→         | Move focus in file view (grid uses all four) |
+| ←↑↓→ (folder tree focused) | Explorer nav pane: ↑↓ move selection; ← collapse / parent; → expand / first child |
 | Home / End      | First / last item     |
 | Shift+Home/End  | Select from cursor to first / last |
 | Shift+arrows    | Extend selection      |

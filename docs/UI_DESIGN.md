@@ -51,6 +51,7 @@ Custom theme = user-editable map of these tokens in settings.
 - Selection: click, Ctrl, Shift range; marquee optional Phase 10
 - Rename: F2 / context, or **double single-click** the name (slow second click on selected label in file view / tree); fast double-click opens / expands
 - Focus ring for keyboard nav
+- Folder tree: ↑↓ move selection; ← collapse (or select parent); → expand (or select first child)
 - Drag ghost: selection count badge
 
 ---

@@ -107,6 +107,7 @@ export function languageFromPath(filePath: string): string | null {
     markdown: 'markdown',
     py: 'python',
     pyw: 'python',
+    pyi: 'python',
     sh: 'bash',
     bash: 'bash',
     zsh: 'bash',
@@ -153,7 +154,7 @@ export type HighlightResult = {
 export function highlightLanguage(source: string, language: string): HighlightResult {
   ensureRegistered()
   if (!language || language === 'plaintext') {
-    return { language, html: escapeHtml(source) }
+    return { language: language || null, html: highlightHashComments(source) }
   }
   try {
     if (hljs.getLanguage(language)) {
@@ -163,16 +164,31 @@ export function highlightLanguage(source: string, language: string): HighlightRe
   } catch {
     /* fall through */
   }
-  return { language, html: escapeHtml(source) }
+  return { language, html: highlightHashComments(source) }
 }
 
 /** Highlight source; falls back to escaped plaintext on failure / unknown lang. */
 export function highlightCode(source: string, filePath: string): HighlightResult {
   const lang = languageFromPath(filePath)
   if (!lang || lang === 'plaintext') {
-    return { language: lang, html: escapeHtml(source) }
+    return { language: lang, html: highlightHashComments(source) }
   }
   return highlightLanguage(source, lang)
+}
+
+/**
+ * For unknown / plaintext: treat lines that are only optional whitespace + `#…`
+ * as comments (same `hljs-comment` styling as Python).
+ */
+function highlightHashComments(source: string): string {
+  const parts = source.split('\n')
+  return parts
+    .map((line) => {
+      const m = /^(\s*)(#.*)$/.exec(line)
+      if (!m) return escapeHtml(line)
+      return `${escapeHtml(m[1]!)}<span class="hljs-comment">${escapeHtml(m[2]!)}</span>`
+    })
+    .join('\n')
 }
 
 function escapeHtml(s: string): string {

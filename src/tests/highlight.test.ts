@@ -17,10 +17,13 @@ describe('languageFromPath', () => {
     expect(languageFromPath('D:\\script.vbs')).toBe('vbscript')
     expect(languageFromPath('D:\\tool.ps1')).toBe('powershell')
     expect(languageFromPath('D:\\tool.ps')).toBe('powershell')
+    expect(languageFromPath('D:\\types.pyi')).toBe('python')
+    expect(languageFromPath('D:\\mod.py')).toBe('python')
   })
 
   it('returns null for unknown extensions', () => {
     expect(languageFromPath('C:\\a\\readme.xyz')).toBeNull()
+    expect(languageFromPath('C:\\a\\Makefile')).toBeNull()
   })
 })
 
@@ -35,5 +38,15 @@ describe('highlightCode', () => {
   it('escapes plaintext for unknown types', () => {
     const { html } = highlightCode('<script>', 'C:\\t.unknownext')
     expect(html).toBe('&lt;script&gt;')
+  })
+
+  it('marks # lines as comments for unknown / extensionless files', () => {
+    const src = 'hello\n# a note\n  # indented\ncode'
+    const { html } = highlightCode(src, 'C:\\notes.txt')
+    expect(html).toContain('<span class="hljs-comment"># a note</span>')
+    expect(html).toContain('<span class="hljs-comment"># indented</span>')
+    expect(html).toContain('hello')
+    expect(html).toContain('code')
+    expect(html).not.toContain('<span class="hljs-comment">hello')
   })
 })
