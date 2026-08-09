@@ -20,7 +20,7 @@ import { rtfToHtml } from './rtf'
 import { rasterizePsd } from './psd'
 import { buildSafetensorsPreviewFields } from './safetensors'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
-import { loadZipArchiveTree, MAX_ZIP_PREVIEW_BYTES } from './zipArchive'
+import { loadZipArchiveTree } from './zipArchive'
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -582,7 +582,7 @@ async function buildRtfPreview(
 
 async function buildZipArchivePreview(
   file: string,
-  size: number,
+  _size: number,
   fields: PreviewField[],
   warnings: string[]
 ): Promise<PreviewModel> {
@@ -597,20 +597,7 @@ async function buildZipArchivePreview(
   }
 
   try {
-    const listed = await loadZipArchiveTree(file, size)
-    if (listed.skippedLarge) {
-      warnings.push(
-        `Archive larger than ${bytesHuman(MAX_ZIP_PREVIEW_BYTES)} — contents not listed; use Extract All…`
-      )
-      return {
-        path: file,
-        kind: 'archive',
-        subtitle: 'ZIP archive',
-        archiveTree: [],
-        fields,
-        warnings
-      }
-    }
+    const listed = await loadZipArchiveTree(file)
     if (listed.truncated) {
       warnings.push('Contents list truncated for preview')
     }

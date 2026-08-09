@@ -14,6 +14,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Tab context menu** — right-click a tab for Duplicate, Rename, Set/Change icon, Close (D32).
 - **Tab icons** — pick any Lucide React icon + color; persisted in session and named layouts.
 - **+ New toolbar dropdown** — Explorer-style New menu (folder, common file types, Other…) before Undo / Cut / Copy.
+- **Address bar `%VAR%` expansion** — breadcrumb path entry expands Windows env vars (`%LOCALAPPDATA%`, `%USERPROFILE%`, …).
+
+### Changed
+
+- **ZIP preview** — contents tree no longer skips archives over ~80 MiB; listing reads the central directory only (size irrelevant).
 
 ## [0.3.0] - 2026-08-09
 

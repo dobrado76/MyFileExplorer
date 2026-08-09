@@ -67,6 +67,8 @@ export const IPC = {
   metaGetMany: 'meta:getMany',
 
   appGetPath: 'app:getPath',
+  /** Expand `%VAR%` using process env (Explorer address-bar parity). */
+  appExpandPath: 'app:expandPath',
   appPickFolder: 'app:pickFolder',
   /** Renderer finished boot — main may flush queued external-open requests. */
   appReady: 'app:ready',

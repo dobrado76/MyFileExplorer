@@ -141,13 +141,19 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   }
 
   const submit = async (): Promise<void> => {
-    const target = stripTrailingSep(normalizeSlashes(text.trim()))
     setEditing(false)
-    if (!target || !looksAbsolute(target)) {
-      if (target) notify('Enter an absolute path like C:\\folder or \\\\server\\share', true)
-      return
-    }
+    const raw = text.trim()
+    if (!raw) return
     try {
+      const expanded = (await call(api.app.expandPath({ path: raw }))).path
+      const target = stripTrailingSep(normalizeSlashes(expanded))
+      if (!target || !looksAbsolute(target)) {
+        notify(
+          'Enter an absolute path like C:\\folder, \\\\server\\share, or %LOCALAPPDATA%\\…',
+          true
+        )
+        return
+      }
       const { exists } = await call(api.fs.exists({ path: target }))
       if (!exists) {
         notify(`Path not found: ${target}`, true)
@@ -155,7 +161,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
       }
       await navigate(target, { tabId })
     } catch {
-      notify(`Cannot open: ${target}`, true)
+      notify(`Cannot open: ${raw}`, true)
     }
   }
 

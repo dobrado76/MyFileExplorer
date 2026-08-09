@@ -64,7 +64,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 - Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths)
 - Address bar **Recent locations** dropdown (Explorer-style) from the tab’s Back/Forward history
 - **Back / Forward / Up**
-- Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` and Enter
+- Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
 - Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred)
 
 ---

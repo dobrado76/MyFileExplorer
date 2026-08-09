@@ -90,6 +90,7 @@ const api: MyFileExplorerApi = {
   },
   app: {
     getPath: invoke(IPC.appGetPath),
+    expandPath: invoke(IPC.appExpandPath),
     pickFolder: invokeVoid(IPC.appPickFolder),
     ready: invokeVoid(IPC.appReady),
     getVersion: invokeVoid(IPC.appGetVersion),

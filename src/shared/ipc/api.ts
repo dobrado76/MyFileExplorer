@@ -172,6 +172,8 @@ export type MyFileExplorerApi = {
         | 'music'
         | 'videos'
     }): Promise<Result<{ path: string }>>
+    /** Expand Windows `%VARIABLE%` segments in a typed/pasted path. */
+    expandPath(req: { path: string }): Promise<Result<{ path: string }>>
     pickFolder(): Promise<Result<{ path: string | null }>>
     /** Tell main the UI is ready for queued external-open requests. */
     ready(): Promise<Result<{ ok: true }>>

@@ -14,17 +14,10 @@ function formatSize(n: number): string {
   return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[u]}`
 }
 
-function TreeRow({
-  node,
-  depth,
-  defaultOpen
-}: {
-  node: ArchiveTreeNode
-  depth: number
-  defaultOpen: boolean
-}): JSX.Element {
+function TreeRow({ node, depth }: { node: ArchiveTreeNode; depth: number }): JSX.Element {
   const isDir = node.kind === 'dir'
-  const [open, setOpen] = useState(defaultOpen)
+  /** Collapsed on first paint — expand on click like a normal folder tree. */
+  const [open, setOpen] = useState(false)
   const kids = node.children ?? []
   const hasKids = isDir && kids.length > 0
 
@@ -51,9 +44,7 @@ function TreeRow({
         ) : null}
       </button>
       {hasKids && open
-        ? kids.map((child) => (
-            <TreeRow key={child.path} node={child} depth={depth + 1} defaultOpen={false} />
-          ))
+        ? kids.map((child) => <TreeRow key={child.path} node={child} depth={depth + 1} />)
         : null}
     </div>
   )
@@ -79,7 +70,7 @@ export function ZipArchivePreview({ tree, onExtract }: Props): JSX.Element {
       ) : (
         <div className="preview-zip-tree" role="tree" aria-label="ZIP contents">
           {tree.map((node) => (
-            <TreeRow key={node.path} node={node} depth={0} defaultOpen />
+            <TreeRow key={node.path} node={node} depth={0} />
           ))}
         </div>
       )}

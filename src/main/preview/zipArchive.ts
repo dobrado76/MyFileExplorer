@@ -1,9 +1,7 @@
-import fsp from 'node:fs/promises'
 import JSZip from 'jszip'
+import yauzl from 'yauzl'
 import type { ArchiveTreeNode } from '@shared/schemas/preview'
 
-/** Skip loading huge archives into memory just for a listing preview. */
-export const MAX_ZIP_PREVIEW_BYTES = 80 * 1024 * 1024
 /** Cap tree nodes so the preview pane stays responsive. */
 export const MAX_ZIP_TREE_NODES = 4000
 
@@ -13,6 +11,12 @@ type MutableNode = {
   kind: 'file' | 'dir'
   size?: number
   children?: Map<string, MutableNode>
+}
+
+export type ZipListEntry = {
+  name: string
+  isDir: boolean
+  uncompressedSize?: number
 }
 
 function ensureChild(parent: MutableNode, name: string, kind: 'file' | 'dir'): MutableNode {
@@ -47,10 +51,9 @@ function freezeNode(node: MutableNode): ArchiveTreeNode {
 }
 
 /**
- * Build a nested file tree from zip central-directory entries (no extract).
- * Returns `{ tree, truncated, fileCount, folderCount }`.
+ * Build a nested file tree from central-directory-style entries (no extract).
  */
-export function buildArchiveTreeFromZip(zip: JSZip): {
+export function buildArchiveTreeFromEntries(entries: ZipListEntry[]): {
   tree: ArchiveTreeNode[]
   truncated: boolean
   fileCount: number
@@ -62,15 +65,15 @@ export function buildArchiveTreeFromZip(zip: JSZip): {
   let fileCount = 0
   let folderCount = 0
 
-  const names = Object.keys(zip.files).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  const sorted = [...entries].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  )
 
-  for (const rawName of names) {
-    const entry = zip.files[rawName]
-    if (!entry) continue
-    const normalized = rawName.replace(/\\/g, '/').replace(/^\/+/, '')
+  for (const entry of sorted) {
+    const normalized = entry.name.replace(/\\/g, '/').replace(/^\/+/, '')
     if (!normalized || normalized.includes('..')) continue
 
-    const isDir = entry.dir || normalized.endsWith('/')
+    const isDir = entry.isDir || normalized.endsWith('/')
     const parts = normalized.replace(/\/+$/, '').split('/').filter(Boolean)
     if (parts.length === 0) continue
 
@@ -96,7 +99,7 @@ export function buildArchiveTreeFromZip(zip: JSZip): {
         else fileCount++
       }
       if (last && kind === 'file') {
-        const n = entryUncompressedSize(entry)
+        const n = entry.uncompressedSize
         if (typeof n === 'number' && n >= 0) cur.size = n
       }
     }
@@ -113,28 +116,87 @@ export function buildArchiveTreeFromZip(zip: JSZip): {
   return { tree, truncated, fileCount, folderCount }
 }
 
-function entryUncompressedSize(entry: JSZip.JSZipObject): number | undefined {
-  const any = entry as unknown as {
-    _data?: { uncompressedSize?: number }
-    uncompressedSize?: number
-  }
-  if (typeof any.uncompressedSize === 'number') return any.uncompressedSize
-  if (typeof any._data?.uncompressedSize === 'number') return any._data.uncompressedSize
-  return undefined
-}
-
-export async function loadZipArchiveTree(filePath: string, fileSize: number): Promise<{
+/** Test helper: build tree from an in-memory JSZip. */
+export function buildArchiveTreeFromZip(zip: JSZip): {
   tree: ArchiveTreeNode[]
   truncated: boolean
   fileCount: number
   folderCount: number
-  skippedLarge: boolean
+} {
+  const entries: ZipListEntry[] = Object.keys(zip.files).map((rawName) => {
+    const entry = zip.files[rawName]!
+    const any = entry as unknown as {
+      _data?: { uncompressedSize?: number }
+      uncompressedSize?: number
+    }
+    const uncompressedSize =
+      typeof any.uncompressedSize === 'number'
+        ? any.uncompressedSize
+        : typeof any._data?.uncompressedSize === 'number'
+          ? any._data.uncompressedSize
+          : undefined
+    return {
+      name: rawName,
+      isDir: entry.dir || rawName.endsWith('/'),
+      uncompressedSize
+    }
+  })
+  return buildArchiveTreeFromEntries(entries)
+}
+
+/** Read only the ZIP central directory (via yauzl) — archive byte size does not matter. */
+function listZipCentralDirectory(filePath: string): Promise<ZipListEntry[]> {
+  return new Promise((resolve, reject) => {
+    yauzl.open(filePath, { lazyEntries: true, autoClose: true }, (err, zipfile) => {
+      if (err || !zipfile) {
+        reject(err ?? new Error('Could not open zip'))
+        return
+      }
+      const entries: ZipListEntry[] = []
+      let settled = false
+      const finish = (): void => {
+        if (settled) return
+        settled = true
+        resolve(entries)
+      }
+      zipfile.readEntry()
+      zipfile.on('entry', (entry) => {
+        if (settled) return
+        const name = entry.fileName
+        const isDir = /\/$/.test(name)
+        entries.push({
+          name,
+          isDir,
+          uncompressedSize: isDir ? undefined : entry.uncompressedSize
+        })
+        // Enough CD names for the node cap (+ path-segment headroom).
+        if (entries.length >= MAX_ZIP_TREE_NODES + 64) {
+          try {
+            zipfile.close()
+          } catch {
+            // already closing
+          }
+          finish()
+          return
+        }
+        zipfile.readEntry()
+      })
+      zipfile.on('end', () => finish())
+      zipfile.on('error', (e) => {
+        if (settled) return
+        settled = true
+        reject(e)
+      })
+    })
+  })
+}
+
+export async function loadZipArchiveTree(filePath: string): Promise<{
+  tree: ArchiveTreeNode[]
+  truncated: boolean
+  fileCount: number
+  folderCount: number
 }> {
-  if (fileSize > MAX_ZIP_PREVIEW_BYTES) {
-    return { tree: [], truncated: false, fileCount: 0, folderCount: 0, skippedLarge: true }
-  }
-  const buf = await fsp.readFile(filePath)
-  const zip = await JSZip.loadAsync(buf)
-  const built = buildArchiveTreeFromZip(zip)
-  return { ...built, skippedLarge: false }
+  const entries = await listZipCentralDirectory(filePath)
+  return buildArchiveTreeFromEntries(entries)
 }

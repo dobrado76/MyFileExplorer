@@ -2,6 +2,7 @@ import { app, dialog, ipcMain, BrowserWindow, type IpcMainInvokeEvent } from 'el
 import { z, type ZodType } from 'zod'
 import { ok, err, errFromUnknown, type Result } from '@shared/result'
 import { IPC } from '@shared/ipc/contract'
+import { expandWindowsEnvPath } from '../paths/expandEnv'
 import {
   listRequestSchema,
   pathRequestSchema,
@@ -111,6 +112,9 @@ const getPathRequestSchema = z.object({
     'music',
     'videos'
   ])
+})
+const expandPathRequestSchema = z.object({
+  path: z.string().min(1).max(32_768)
 })
 const thumbRequestSchema = z.object({
   path: z.string().min(1),
@@ -326,6 +330,9 @@ export function registerIpcHandlers(): void {
 
   // app
   handle(IPC.appGetPath, getPathRequestSchema, (req) => ({ path: app.getPath(req.name) }))
+  handle(IPC.appExpandPath, expandPathRequestSchema, (req) => ({
+    path: expandWindowsEnvPath(req.path)
+  }))
   handle(IPC.appPickFolder, emptySchema, async (_req, event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     const result = win
