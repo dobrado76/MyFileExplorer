@@ -159,6 +159,9 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
     }
   }
 
+  const clearHistory = useAppStore((s) => s.clearHistory)
+  const canClearHistory = back.length > 0 || forward.length > 0
+
   const historyMenu =
     historyOpen && menuPos
       ? createPortal(
@@ -167,10 +170,15 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
             left={menuPos.left}
             width={menuPos.width}
             items={history}
+            canClear={canClearHistory}
             onPick={(p) => {
               setHistoryOpen(false)
               setEditing(false)
               if (!samePath(p, path)) go(p)
+            }}
+            onClear={() => {
+              setHistoryOpen(false)
+              clearHistory(tabId)
             }}
           />,
           document.body
@@ -313,13 +321,17 @@ function HistoryMenu({
   left,
   width,
   items,
-  onPick
+  canClear,
+  onPick,
+  onClear
 }: {
   top: number
   left: number
   width: number
   items: { path: string; current: boolean }[]
+  canClear: boolean
   onPick: (path: string) => void
+  onClear: () => void
 }): JSX.Element {
   return (
     <div
@@ -350,6 +362,15 @@ function HistoryMenu({
           </button>
         ))
       )}
+      <div className="menu-sep" />
+      <button
+        type="button"
+        className="menu-item"
+        disabled={!canClear}
+        onClick={onClear}
+      >
+        Clear history…
+      </button>
     </div>
   )
 }

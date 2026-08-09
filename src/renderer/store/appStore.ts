@@ -297,6 +297,8 @@ type AppState = {
   goUp(): Promise<void>
   refresh(): Promise<void>
   setAddressEditing(v: boolean): void
+  /** Clear Back/Forward stacks for a tab (address-bar Recent locations). */
+  clearHistory(tabId?: string): void
 
   // tabs
   newTab(path?: string, rootPath?: string): Promise<void>
@@ -1761,6 +1763,14 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setAddressEditing(v) {
       set({ addressEditing: v })
+    },
+
+    clearHistory(tabId) {
+      const id = tabId ?? get().activeTabId
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab) return
+      if (tab.back.length === 0 && tab.forward.length === 0) return
+      updateTab(id, { back: [], forward: [] })
     },
 
     async newTab(path, rootPath) {
