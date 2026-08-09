@@ -13,6 +13,7 @@ import { basename } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
+import { TabIconPickerDialog } from './TabIconPickerDialog'
 
 function Modal({
   title,
@@ -81,6 +82,8 @@ export function Dialogs(): JSX.Element | null {
           returnSection={dialog.returnSection}
         />
       )
+    case 'tab-icon':
+      return <TabIconPickerDialog tabId={dialog.tabId} />
     case 'alert':
       return (
         <AlertDialog title={dialog.title} message={dialog.message} detail={dialog.detail} />

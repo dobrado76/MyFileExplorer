@@ -45,7 +45,24 @@ describe('session schema migration', () => {
     expect(tab.scrollOffset).toBe(0)
     expect(tab.treeExpanded).toEqual([])
     expect(tab.rootPath).toBeNull()
+    expect(tab.icon).toBeNull()
     expect(parsed.splitters.treeWidthPx).toBe(240)
+  })
+
+  it('keeps tab icon name and color', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\',
+          icon: { name: 'FolderOpen', color: '#34d399' }
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.icon).toEqual({ name: 'FolderOpen', color: '#34d399' })
   })
 
   it('keeps treeExpanded paths and caps the list', () => {

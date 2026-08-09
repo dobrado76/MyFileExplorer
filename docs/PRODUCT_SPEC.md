@@ -22,7 +22,7 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 ## Shell layout
 
 ```
-┌─ Tab bar (reorder, rename, close, new) ─────────────────────────┐
+┌─ Tab bar (reorder, rename, icon, close, new) ───────────────────┐
 ├─ Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
 ├─ Pane grid (1 / side-by-side / 2×2) ──────────── Preview (opt) ─┤
 │  each pane: Nav + Breadcrumb + View | Tree | Files              │
@@ -44,16 +44,18 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 | Multiple folders | One path + view state per tab                                                              |
 | Persist          | Tabs + active index restored on launch                                                     |
 | Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
+| Icon             | Optional **Lucide** icon + color on the tab (right-click → Set icon); session/layouts (D32) |
+| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Close**                 |
 | Reorder          | Drag tabs to reorder; order persisted                                                      |
 | Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
-| Close            | Middle-click / close button; confirm if that tab has an in-progress destructive op (rare)  |
-| New tab          | Clone current path or open profile default (This PC / home — Settings)                     |
+| Close            | Middle-click / close button / context menu; confirm if that tab has an in-progress destructive op (rare) |
+| New tab          | Clone current path or open profile default (This PC / home — Settings); **Duplicate** copies path/view/title/icon |
 | Named layouts    | Save/load the whole tab set + chrome as a named workspace (see Settings → Layouts)         |
 | Drop onto pane   | Drag a tab onto a multi-view pane to assign it (moves if already in another pane)          |
 
-Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `treeExpanded` (folder-tree expand/collapse paths).
+Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable Lucide name + color), `treeExpanded` (folder-tree expand/collapse paths).
 
-**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/view/sort/rootPath/treeExpanded + splitter chrome + multi-view layout/pane assignments) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
+**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + splitter chrome + multi-view layout/pane assignments) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 

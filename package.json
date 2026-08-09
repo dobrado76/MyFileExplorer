@@ -1,7 +1,7 @@
 {
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
-  "version": "0.3.8",
+  "version": "0.3.11",
   "description": "Windows-first Electron + React file manager: tabs, rich previews (incl. A1111/ComfyUI metadata), curated context menu, opt-in indexed search, OS drag-out, in-app Recycle Bin.",
   "main": "./out/main/index.js",
   "author": "MyFileExplorer",
@@ -30,6 +30,7 @@
     "jszip": "^3.10.1",
     "koffi": "^3.1.4",
     "konva": "^9.3.18",
+    "lucide-react": "^1.30.0",
     "mammoth": "^1.12.0",
     "marked": "^18.0.7",
     "music-metadata": "^11.14.0",

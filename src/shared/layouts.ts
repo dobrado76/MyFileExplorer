@@ -3,10 +3,12 @@ import {
   MAX_TREE_EXPANDED,
   sortSchema,
   splittersSchema,
+  tabIconSchema,
   viewLayoutSchema,
   viewModeSchema,
   type SortSpec,
   type Splitters,
+  type TabIcon,
   type ViewLayout,
   type ViewMode
 } from './schemas/session'
@@ -17,6 +19,7 @@ export const MAX_LAYOUT_NAME_LEN = 80
 export const layoutTabSchema = z.object({
   path: z.string().min(1),
   title: z.string().nullable().catch(null),
+  icon: tabIconSchema,
   viewMode: viewModeSchema.catch('largeIcons'),
   sort: sortSchema.catch({ key: 'name', dir: 'asc' }),
   rootPath: z.string().nullable().catch(null),
@@ -59,6 +62,7 @@ export type LayoutSnapshotSource = {
   tabs: Array<{
     path: string
     title: string | null
+    icon: TabIcon
     viewMode: ViewMode
     sort: SortSpec
     rootPath: string | null
@@ -89,6 +93,7 @@ export function captureLayoutTabs(source: LayoutSnapshotSource['tabs']): LayoutT
     layoutTabSchema.parse({
       path: t.path,
       title: t.title,
+      icon: t.icon,
       viewMode: t.viewMode,
       sort: t.sort,
       rootPath: t.rootPath,

@@ -9,6 +9,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Tab context menu** — right-click a tab for Duplicate, Rename, Set/Change icon, Close (D32).
+- **Tab icons** — pick any Lucide React icon + color; persisted in session and named layouts.
+
 ## [0.3.0] - 2026-08-09
 
 Third product release: Explorer drag/drop parity, in-app Recycle Bin, large-folder performance, preview polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

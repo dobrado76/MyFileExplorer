@@ -9,6 +9,7 @@ import type {
 import type {
   SessionState,
   SortSpec,
+  TabIcon,
   TabState,
   ViewMode,
   ViewLayout,
@@ -63,6 +64,8 @@ export type Tab = {
   id: string
   path: string
   title: string | null
+  /** Optional Lucide icon (name + color) shown on the tab. */
+  icon: TabIcon
   viewMode: ViewMode
   sort: SortSpec
   back: string[]
@@ -110,6 +113,7 @@ export type DialogState =
       /** Re-open Settings on this section after success. */
       returnSection?: string
     }
+  | { kind: 'tab-icon'; tabId: string }
   | { kind: 'alert'; title: string; message: string; detail?: string }
   | null
 
@@ -302,12 +306,15 @@ type AppState = {
 
   // tabs
   newTab(path?: string, rootPath?: string): Promise<void>
+  /** Duplicate a tab (same path/view/title/icon; fresh history/selection). */
+  duplicateTab(id: string): Promise<void>
   /** Open/reveal a path from CLI or another app (new or existing tab). */
   openExternalTarget(path: string, reveal: boolean): Promise<void>
   closeTab(id: string): Promise<void>
   activateTab(id: string): Promise<void>
   nextTab(): Promise<void>
   renameTab(id: string, title: string | null): void
+  setTabIcon(id: string, icon: TabIcon): void
   reorderTab(fromIndex: number, toIndex: number): void
 
   // multi-pane (D31)
@@ -484,6 +491,7 @@ function tabToSessionTab(t: Tab): TabState {
     id: t.id,
     path: t.path,
     title: t.title,
+    icon: t.icon,
     viewMode: t.viewMode,
     sort: t.sort,
     rootPath: t.rootPath,
@@ -500,6 +508,7 @@ function sessionTabToTab(t: TabState): Tab {
     id: t.id,
     path: t.path,
     title: t.title,
+    icon: t.icon,
     viewMode: t.viewMode,
     sort: t.sort,
     back: t.historyBack,
@@ -1454,6 +1463,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             id: newTabId(),
             path: defaultPath,
             title: null,
+            icon: null,
             viewMode: 'largeIcons',
             sort: { key: 'name', dir: 'asc' },
             back: [],
@@ -1780,6 +1790,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         id: newTabId(),
         path: target,
         title: null,
+        icon: null,
         viewMode: s.activeTab().viewMode,
         sort: { key: 'name', dir: 'asc' },
         back: [],
@@ -1808,6 +1819,46 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       scheduleSessionSave()
       await loadListing(target, { tabId: tab.id })
+    },
+
+    async duplicateTab(id) {
+      const s = get()
+      const src = s.tabs.find((t) => t.id === id)
+      if (!src) return
+      const tab: Tab = {
+        id: newTabId(),
+        path: src.path,
+        title: src.title,
+        icon: src.icon,
+        viewMode: src.viewMode,
+        sort: { ...src.sort },
+        back: [],
+        forward: [],
+        selected: [],
+        scrollOffset: 0,
+        rootPath: src.rootPath,
+        treeExpanded: [...src.treeExpanded]
+      }
+      const idx = s.tabs.findIndex((t) => t.id === id)
+      const tabs = [...s.tabs]
+      tabs.splice(idx + 1, 0, tab)
+      const focusIdx = s.focusedPaneIndex
+      const nextPanes = [...s.paneTabIds]
+      while (nextPanes.length < s.viewLayout) nextPanes.push(null)
+      nextPanes[focusIdx] = tab.id
+      for (let i = 0; i < nextPanes.length; i++) {
+        if (i !== focusIdx && nextPanes[i] === tab.id) nextPanes[i] = null
+      }
+      set({
+        tabs,
+        activeTabId: tab.id,
+        paneTabIds: nextPanes.slice(0, s.viewLayout),
+        focusedPaneIndex: focusIdx,
+        selectionAnchor: null,
+        focusedPath: null
+      })
+      scheduleSessionSave()
+      await loadListing(tab.path, { tabId: tab.id })
     },
 
     async closeTab(id) {
@@ -1999,6 +2050,11 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     renameTab(id, title) {
       set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, title } : t)) }))
+      scheduleSessionSave()
+    },
+
+    setTabIcon(id, icon) {
+      set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, icon } : t)) }))
       scheduleSessionSave()
     },
 
@@ -2220,6 +2276,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         id: newTabId(),
         path: t.path,
         title: t.title,
+        icon: t.icon ?? null,
         viewMode: t.viewMode,
         sort: t.sort,
         rootPath: t.rootPath,

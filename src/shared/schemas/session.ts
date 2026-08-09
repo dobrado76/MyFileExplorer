@@ -24,10 +24,24 @@ export type SortSpec = z.infer<typeof sortSchema>
 /** Cap persisted tree expand paths per tab (session.json size / restore cost). */
 export const MAX_TREE_EXPANDED = 400
 
+/** Optional Lucide React icon on a tab (PascalCase name from `lucide-react` `icons`). */
+export const tabIconSchema = z
+  .object({
+    name: z.string().min(1).max(80),
+    color: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/)
+      .catch('#60a5fa')
+  })
+  .nullable()
+  .catch(null)
+export type TabIcon = z.infer<typeof tabIconSchema>
+
 export const tabStateSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
   title: z.string().nullable().catch(null),
+  icon: tabIconSchema,
   viewMode: viewModeSchema.catch('largeIcons'),
   sort: sortSchema.catch({ key: 'name', dir: 'asc' }),
   historyBack: z.array(z.string()).catch([]),

@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
+import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
 import { findDropDirAt, isValidDropDest } from '../lib/rightDrag'
 import { CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
+import { TabLucideIcon } from './TabLucideIcon'
+
+type TabMenuState = { tabId: string; x: number; y: number }
 
 export function TabBar(): JSX.Element {
   const tabs = useAppStore((s) => s.tabs)
@@ -14,16 +18,19 @@ export function TabBar(): JSX.Element {
   const activateTab = useAppStore((s) => s.activateTab)
   const closeTab = useAppStore((s) => s.closeTab)
   const newTab = useAppStore((s) => s.newTab)
+  const duplicateTab = useAppStore((s) => s.duplicateTab)
   const renameTab = useAppStore((s) => s.renameTab)
   const reorderTab = useAppStore((s) => s.reorderTab)
   const performTransfer = useAppStore((s) => s.performTransfer)
   const setDragPaths = useAppStore((s) => s.setDragPaths)
   const openRecycleBinView = useAppStore((s) => s.openRecycleBinView)
   const closeRecycleBinView = useAppStore((s) => s.closeRecycleBinView)
+  const openDialog = useAppStore((s) => s.openDialog)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [dropTabId, setDropTabId] = useState<string | null>(null)
+  const [menu, setMenu] = useState<TabMenuState | null>(null)
   const dragIndex = useRef<number | null>(null)
   const fileDragActive = dragPaths.length > 0
 
@@ -33,10 +40,31 @@ export function TabBar(): JSX.Element {
     setEditingId(null)
   }
 
+  const startRename = (id: string): void => {
+    const tab = tabs.find((t) => t.id === id)
+    if (!tab) return
+    setEditingId(id)
+    setEditText(tab.title ?? '')
+  }
+
   const onRecycleClick = (): void => {
     if (recycleBinActive) closeRecycleBinView()
     else void openRecycleBinView()
   }
+
+  useEffect(() => {
+    if (!menu) return
+    const onDoc = (): void => setMenu(null)
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setMenu(null)
+    }
+    document.addEventListener('mousedown', onDoc)
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      window.removeEventListener('keydown', onKey, true)
+    }
+  }, [menu])
 
   // Highlight the tab under a left/right file drag (tabs are data-drop-dir targets).
   useEffect(() => {
@@ -78,6 +106,14 @@ export function TabBar(): JSX.Element {
     setDragPaths([])
     setDropTabId(null)
   }
+
+  const menuTab = menu ? tabs.find((t) => t.id === menu.tabId) : null
+  const menuPos = menu
+    ? {
+        left: Math.min(menu.x, window.innerWidth - 200),
+        top: Math.min(menu.y, window.innerHeight - 180)
+      }
+    : null
 
   return (
     <div className="tabbar" role="tablist" aria-label="Folder tabs">
@@ -147,9 +183,11 @@ export function TabBar(): JSX.Element {
                 if (recycleBinActive) closeRecycleBinView()
                 void activateTab(tab.id)
               }}
-              onDoubleClick={() => {
-                setEditingId(tab.id)
-                setEditText(tab.title ?? '')
+              onDoubleClick={() => startRename(tab.id)}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
               }}
             >
               {editingId === tab.id ? (
@@ -169,6 +207,7 @@ export function TabBar(): JSX.Element {
                 />
               ) : (
                 <>
+                  {tab.icon ? <TabLucideIcon icon={tab.icon} size={14} /> : null}
                   <span className="tab-title">{title}</span>
                   {offline ? <span className="tab-offline-badge">Offline</span> : null}
                 </>
@@ -206,6 +245,65 @@ export function TabBar(): JSX.Element {
         <RecycleBinIcon size={16} />
         <span className="tabbar-recycle-label">Recycle Bin</span>
       </button>
+
+      {menu && menuTab && menuPos
+        ? createPortal(
+            <div
+              className="context-menu tab-context-menu"
+              role="menu"
+              style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null)
+                  void duplicateTab(menuTab.id)
+                }}
+              >
+                Duplicate tab
+              </button>
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null)
+                  startRename(menuTab.id)
+                }}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null)
+                  openDialog({ kind: 'tab-icon', tabId: menuTab.id })
+                }}
+              >
+                {menuTab.icon ? 'Change icon…' : 'Set icon…'}
+              </button>
+              <div className="menu-sep" />
+              <button
+                type="button"
+                className="menu-item danger"
+                role="menuitem"
+                disabled={tabs.length <= 1}
+                onClick={() => {
+                  setMenu(null)
+                  void closeTab(menuTab.id)
+                }}
+              >
+                Close
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   )
 }

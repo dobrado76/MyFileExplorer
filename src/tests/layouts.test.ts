@@ -15,6 +15,7 @@ const sampleSource = {
     {
       path: 'D:\\AI\\Training',
       title: 'Training',
+      icon: { name: 'Sparkles', color: '#a78bfa' } as const,
       viewMode: 'details' as const,
       sort: { key: 'mtime' as const, dir: 'desc' as const },
       rootPath: 'D:\\AI',
@@ -23,6 +24,7 @@ const sampleSource = {
     {
       path: 'D:\\AI\\Outputs',
       title: null,
+      icon: null,
       viewMode: 'largeIcons' as const,
       sort: { key: 'name' as const, dir: 'asc' as const },
       rootPath: null,
@@ -54,7 +56,9 @@ describe('layouts', () => {
     expect(layout.name).toBe('AI training')
     expect(layout.tabs).toHaveLength(2)
     expect(layout.tabs[0]?.title).toBe('Training')
+    expect(layout.tabs[0]?.icon).toEqual({ name: 'Sparkles', color: '#a78bfa' })
     expect(layout.tabs[0]?.rootPath).toBe('D:\\AI')
+    expect(layout.tabs[1]?.icon).toBeNull()
     expect(layout.activeTabIndex).toBe(1)
     expect(layout.splitters.previewCollapsed).toBe(true)
     expect(layoutSummary(layout)).toContain('2 tabs')
