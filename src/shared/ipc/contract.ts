@@ -13,6 +13,8 @@ export const IPC = {
   fsCreateShortcuts: 'fs:createShortcuts',
   /** Compress selection to a sibling `.zip` (Explorer “Compress to ZIP file”). */
   fsCompressToZip: 'fs:compressToZip',
+  /** Extract `.zip` archives into sibling folders (Explorer “Extract All…”). */
+  fsExtractZip: 'fs:extractZip',
   fsTrash: 'fs:trash',
   fsDeletePermanent: 'fs:deletePermanent',
   fsRestoreFromTrash: 'fs:restoreFromTrash',

@@ -13,13 +13,22 @@ type PreviewModel = {
   path: string
   kind:
     | 'image' | 'text' | 'markdown' | 'spreadsheet' | 'document' | 'rtf'
-    | 'audio' | 'video' | 'pdf' | 'binary' | 'directory' | 'shortcut' | 'missing'
+    | 'audio' | 'video' | 'pdf' | 'binary' | 'directory' | 'shortcut' | 'archive' | 'missing'
   mediaUrl?: string // protocol URL for display (images, PDF)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
   sheets?: { name: string; rows: string[][] }[] // spreadsheet preview
+  archiveTree?: ArchiveTreeNode[] // ZIP contents when kind === 'archive'
   fields: PreviewField[] // ordered for display
   warnings?: string[] // e.g. "truncated", "parse incomplete"
+}
+
+type ArchiveTreeNode = {
+  name: string
+  path: string // inside-archive path with `/`
+  kind: 'file' | 'dir'
+  size?: number // uncompressed bytes when known
+  children?: ArchiveTreeNode[]
 }
 
 type PreviewField = {
@@ -202,6 +211,16 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - Child count (non-recursive) + sum size optional (expensive — skip or cache)
 - “Indexed for search: yes/no”
+
+---
+
+## ZIP archives (`.zip`)
+
+- `kind: 'archive'` — nested **contents tree** in the preview pane (expand/collapse folders; file sizes when known)
+- **Not** a navigable virtual folder (still deferred) — browsing stays outside the archive; use **Extract All…** from the preview toolbar or context menu
+- Caps: archives larger than ~80 MiB skip the tree (warning + extract still available); trees truncate around 4000 nodes
+- Zip-slip style entry names (`../…`) are omitted from the tree
+- File fields include Files / Folders counts; subtitle summarizes counts
 
 ---
 

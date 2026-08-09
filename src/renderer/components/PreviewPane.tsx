@@ -26,6 +26,7 @@ import {
   VideoPreview
 } from './preview/RichPreviews'
 import { CodePreview } from './preview/CodePreview'
+import { ZipArchivePreview } from './preview/ZipArchivePreview'
 
 /* The "file" group is rendered separately as the compact details strip
    pinned to the bottom of the pane. Weights/summary ("other") before training. */
@@ -47,6 +48,7 @@ export function PreviewPane(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const openPath = useAppStore((s) => s.openPath)
   const openImageEditor = useAppStore((s) => s.openImageEditor)
+  const extractZip = useAppStore((s) => s.extractZip)
   const mediaHold = useAppStore((s) => s.mediaHold)
 
   const entries = useMemo(
@@ -218,6 +220,12 @@ export function PreviewPane(): JSX.Element {
           <div className="preview-icon">
             <FolderIcon size={56} />
           </div>
+        )}
+        {model.kind === 'archive' && (
+          <ZipArchivePreview
+            tree={model.archiveTree ?? []}
+            onExtract={() => void extractZip([model.path])}
+          />
         )}
         {model.kind === 'shortcut' && (
           <div className="preview-shortcut">
@@ -486,6 +494,8 @@ function kindLabel(kind: PreviewModel['kind']): string {
       return 'Folder'
     case 'shortcut':
       return 'Shortcut'
+    case 'archive':
+      return 'ZIP archive'
     case 'missing':
       return 'Missing'
     default:

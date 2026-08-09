@@ -334,6 +334,8 @@ type AppState = {
   createShortcutsHere(sources: string[], destinationDir: string): Promise<void>
   /** Compress selection (or explicit paths) to a sibling `.zip` like Explorer. */
   compressToZip(paths?: string[]): Promise<void>
+  /** Extract selected `.zip` archives into sibling folders (Extract All…). */
+  extractZip(paths?: string[]): Promise<void>
   /**
    * Conflict dialog result: cancel, one batch policy for all, or per-name decisions.
    * Non-conflicting sources always transfer.
@@ -2138,6 +2140,41 @@ export const useAppStore = create<AppState>()((set, get) => {
         get().notify(`Created ${basename(res.zipPath)}`)
       } catch (e) {
         reportOperationError('Compress failed', e)
+      }
+    },
+
+    async extractZip(paths) {
+      const selected =
+        paths && paths.length > 0 ? paths : get().activeTab().selected
+      if (selected.length === 0) return
+      const label =
+        selected.length === 1 ? basename(selected[0]!) : `${selected.length} archives`
+      try {
+        const res = await withBusyFeedback('zip', 'Extracting…', label, () =>
+          call(api.fs.extractZip({ paths: selected }))
+        )
+        if (res.extractedDirs.length === 0) return
+        recordUndo({
+          kind: 'create',
+          paths: res.extractedDirs,
+          label:
+            res.extractedDirs.length === 1
+              ? basename(res.extractedDirs[0]!)
+              : `${res.extractedDirs.length} folders`
+        })
+        const parent = parentOf(res.extractedDirs[0]!)
+        if (parent && samePath(parent, get().activeTab().path)) {
+          await get().refresh()
+          const focus = res.extractedDirs[0]!
+          get().setSelection(res.extractedDirs, focus, focus)
+        }
+        get().notify(
+          res.extractedDirs.length === 1
+            ? `Extracted to ${basename(res.extractedDirs[0]!)}`
+            : `Extracted ${res.extractedDirs.length} archives`
+        )
+      } catch (e) {
+        reportOperationError('Extract failed', e)
       }
     },
 

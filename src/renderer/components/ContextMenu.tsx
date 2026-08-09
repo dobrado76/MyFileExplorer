@@ -710,6 +710,19 @@ export function ContextMenu(): JSX.Element | null {
             }
           ]
         : []),
+      ...(paths.length > 0 &&
+      paths.every((p) => (fileExtension(p) ?? '').toLowerCase() === '.zip')
+        ? [
+            {
+              type: 'item' as const,
+              label: 'Extract All…',
+              action: () => {
+                close()
+                void s.extractZip(menu.inTree && single ? [single] : paths)
+              }
+            }
+          ]
+        : []),
       { type: 'sep' },
       {
         type: 'item',

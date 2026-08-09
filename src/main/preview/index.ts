@@ -20,6 +20,7 @@ import { rtfToHtml } from './rtf'
 import { rasterizePsd } from './psd'
 import { buildSafetensorsPreviewFields } from './safetensors'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
+import { loadZipArchiveTree, MAX_ZIP_PREVIEW_BYTES } from './zipArchive'
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -258,6 +259,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildSafetensorsPreview(file, fields, warnings)
     } else if (ext === 'lnk') {
       model = await buildShortcutPreview(file, fields, warnings)
+    } else if (ext === 'zip') {
+      model = await buildZipArchivePreview(file, st.size, fields, warnings)
     } else {
       // CSV stays as spreadsheet when small-enough to parse as workbook, else text.
       if (ext === 'csv') {
@@ -574,6 +577,77 @@ async function buildRtfPreview(
   } catch (e) {
     warnings.push(e instanceof Error ? e.message : 'Could not parse RTF')
     return { path: file, kind: 'binary', fields, warnings }
+  }
+}
+
+async function buildZipArchivePreview(
+  file: string,
+  size: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: 'Compressed (zipped) folder',
+      group: 'file'
+    }
+  }
+
+  try {
+    const listed = await loadZipArchiveTree(file, size)
+    if (listed.skippedLarge) {
+      warnings.push(
+        `Archive larger than ${bytesHuman(MAX_ZIP_PREVIEW_BYTES)} — contents not listed; use Extract All…`
+      )
+      return {
+        path: file,
+        kind: 'archive',
+        subtitle: 'ZIP archive',
+        archiveTree: [],
+        fields,
+        warnings
+      }
+    }
+    if (listed.truncated) {
+      warnings.push('Contents list truncated for preview')
+    }
+    fields.push({
+      id: 'archive.files',
+      label: 'Files',
+      value: String(listed.fileCount) + (listed.truncated ? '+' : ''),
+      group: 'file'
+    })
+    fields.push({
+      id: 'archive.folders',
+      label: 'Folders',
+      value: String(listed.folderCount) + (listed.truncated ? '+' : ''),
+      group: 'file'
+    })
+    const subtitle =
+      listed.fileCount + listed.folderCount === 0
+        ? 'Empty ZIP'
+        : `${listed.fileCount} file${listed.fileCount === 1 ? '' : 's'} · ${listed.folderCount} folder${listed.folderCount === 1 ? '' : 's'}${listed.truncated ? '…' : ''}`
+    return {
+      path: file,
+      kind: 'archive',
+      subtitle,
+      archiveTree: listed.tree,
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not read ZIP contents')
+    return {
+      path: file,
+      kind: 'archive',
+      subtitle: 'ZIP archive',
+      archiveTree: [],
+      fields,
+      warnings
+    }
   }
 }
 

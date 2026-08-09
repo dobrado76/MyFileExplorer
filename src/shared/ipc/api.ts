@@ -53,6 +53,8 @@ export type MyFileExplorerApi = {
     ): Promise<Result<{ created: string[] }>>
     /** Compress paths into a new `.zip` beside the selection. */
     compressToZip(req: PathsRequest): Promise<Result<{ zipPath: string }>>
+    /** Extract `.zip` paths into sibling folders named after each archive. */
+    extractZip(req: PathsRequest): Promise<Result<{ extractedDirs: string[] }>>
     trash(req: PathsRequest): Promise<Result<{ trashed: string[] }>>
     deletePermanent(req: PathsRequest): Promise<Result<{ deleted: string[] }>>
     /** Restore trashed items by their original full paths (Windows Recycle Bin). */

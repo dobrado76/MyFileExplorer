@@ -56,7 +56,8 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
 | **Safer media handling** | Preview never keeps browsed files open via `file://`; media is buffered or copied to a userData scratch so delete/move isn’t blocked by the viewer. |
 | **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
-| **Compress to ZIP file** | Context menu packs a file, folder, or multi-selection into a sibling `.zip` (Explorer naming), with status-bar progress + Cancel. |
+| **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |
+| **ZIP contents preview** | Select a `.zip` and see an expand/collapse file tree in the preview pane (inspect before extract) — Explorer’s preview rarely shows a useful archive tree. |
 
 ---
 

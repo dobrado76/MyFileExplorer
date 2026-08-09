@@ -13,6 +13,7 @@ export const previewKindSchema = z.enum([
   'binary',
   'directory',
   'shortcut',
+  'archive',
   'missing'
 ])
 export type PreviewKind = z.infer<typeof previewKindSchema>
@@ -35,6 +36,17 @@ export type SpreadsheetSheet = {
   rows: string[][]
 }
 
+/** Nested listing of entries inside a `.zip` (preview only — not a navigable folder). */
+export type ArchiveTreeNode = {
+  name: string
+  /** Path inside the archive using `/` separators. */
+  path: string
+  kind: 'file' | 'dir'
+  /** Uncompressed size in bytes when known. */
+  size?: number
+  children?: ArchiveTreeNode[]
+}
+
 export type PreviewModel = {
   path: string
   kind: PreviewKind
@@ -45,6 +57,8 @@ export type PreviewModel = {
   /** HTML fragment for Word / RTF (renderer sanitizes before inject). */
   htmlBody?: string
   sheets?: SpreadsheetSheet[]
+  /** ZIP contents tree when `kind === 'archive'`. */
+  archiveTree?: ArchiveTreeNode[]
   fields: PreviewField[]
   warnings?: string[]
 }

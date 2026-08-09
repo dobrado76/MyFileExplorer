@@ -25,6 +25,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:checkConflicts`  | `{ sources[], destinationDir }`                  | `{ conflicts[], items[] }` (name + both sides’ stats/dims) |
 | `fs:createShortcuts` | `{ sources[], destinationDir }`                  | `{ created: string[] }` — Windows `.lnk` (right-drag) |
 | `fs:compressToZip`   | `{ paths[] }`                                    | `{ zipPath }` — sibling `.zip` (Compress to ZIP file) |
+| `fs:extractZip`      | `{ paths[] }` (`.zip` files)                     | `{ extractedDirs[] }` — sibling folders (Extract All…) |
 | `fs:trash`           | `{ paths[] }`                                    | `{ trashed: string[] }`                       |
 | `fs:restoreFromTrash`| `{ paths[] }` (original full paths)              | `{ restored[], missing[] }` (Recycle Bin)     |
 | `fs:listRecycleBin`  | —                                                | `{ items[], truncated? }`                     |
