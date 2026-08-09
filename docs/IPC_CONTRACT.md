@@ -86,11 +86,12 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 | Channel             | Purpose                           |
 | ------------------- | --------------------------------- |
-| `search:query`      | `{ query, scope }` → results page |
+| `search:query`      | `{ query, scope, match* }` → results (Everything-style query, D34) |
 | `search:addRoot`    | Mark folder for indexing          |
+| `search:addVolume`  | Index drive (NTFS USN when possible) |
 | `search:removeRoot` | Unmark + drop rows                |
 | `search:reindex`    | `{ rootPath? }`                   |
-| `search:listRoots`  | Indexed roots + status            |
+| `search:listRoots`  | Indexed roots + kind/monitor/status |
 | `search:cancel`     | Cancel active query/index job     |
 
 ### `thumbs.*`

@@ -34,5 +34,13 @@ export function patchSettings(patch: unknown): Settings {
   settingsStore().replace(next)
   // Settings toggles should hit disk immediately (don’t wait for debounce / quit).
   settingsStore().flush()
+  // D34: optional search HTTP API follows settings.
+  if (
+    'searchHttpEnabled' in parsed ||
+    'searchHttpPort' in parsed ||
+    'searchHttpToken' in parsed
+  ) {
+    void import('../search/httpServer').then((m) => m.syncSearchHttpServer())
+  }
   return next
 }

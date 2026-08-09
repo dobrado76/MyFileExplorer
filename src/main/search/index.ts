@@ -9,19 +9,29 @@ import type {
 import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { settingsStore } from '../settings/store'
 import { searchDb } from './db'
-import { buildNameLikeParams, buildPathPrefixLike, nameMatches, queryTokens } from './queryBuilder'
+import { queryTokens } from './queryBuilder'
 import { liveWalkSearch, type CancelToken } from './liveWalk'
+import { queryIndexStructured } from './executeQuery'
 import {
   listIndexRoots,
   addIndexRoot,
+  addVolumeRoot,
   removeIndexRoot,
   scheduleIndex,
-  cancelIndexing
+  cancelIndexing,
+  initSearchIndexRuntime,
+  shutdownSearchIndexRuntime
 } from './indexer'
 
-export { listIndexRoots, addIndexRoot, removeIndexRoot, scheduleIndex }
-
-type FileRow = { path: string; name: string; size: number; mtime_ms: number; is_dir: number }
+export {
+  listIndexRoots,
+  addIndexRoot,
+  addVolumeRoot,
+  removeIndexRoot,
+  scheduleIndex,
+  initSearchIndexRuntime,
+  shutdownSearchIndexRuntime
+}
 
 let activeWalk: CancelToken | null = null
 
@@ -35,48 +45,32 @@ export function cancelSearch(): { cancelled: boolean } {
   return { cancelled }
 }
 
-function rowsToItems(rows: FileRow[]): SearchResultItem[] {
-  return rows.map((r) => ({
-    path: r.path,
-    name: r.name,
-    size: Number(r.size),
-    mtimeMs: Number(r.mtime_ms),
-    isDir: Number(r.is_dir) === 1
-  }))
-}
-
-/**
- * Substring name search against the SQLite index (same semantics as live walk).
- * Uses LIKE per token — not FTS prefix — so “photo” finds MyPhoto.jpg.
- */
-function queryIndex(
-  query: string,
-  pathPrefix: string | null,
-  limit: number,
-  offset: number
-): SearchResultItem[] {
-  const nameParams = buildNameLikeParams(query)
-  if (nameParams.length === 0) return []
-
-  const db = searchDb()
-  const nameClauses = nameParams.map(() => `name LIKE ? ESCAPE '\\'`).join(' AND ')
-  const sql = `
-    SELECT path, name, size, mtime_ms, is_dir
-    FROM files
-    WHERE ${nameClauses}
-    ${pathPrefix ? "AND path LIKE ? ESCAPE '\\'" : ''}
-    ORDER BY name
-    LIMIT ? OFFSET ?`
-  const params: (string | number)[] = [...nameParams]
-  if (pathPrefix) params.push(buildPathPrefixLike(pathPrefix))
-  params.push(limit, offset)
-  return rowsToItems(db.prepare(sql).all(...params) as unknown as FileRow[])
+function parseOptsFromReq(req: SearchQueryRequest) {
+  const s = settingsStore().get()
+  const customMacros: Record<string, string[]> = {}
+  for (const f of s.searchFilters ?? []) {
+    if (f.macro && f.query.startsWith('ext:')) {
+      const exts = f.query
+        .slice(4)
+        .split(/[;,]/)
+        .map((x) => x.replace(/^\./, '').trim().toLowerCase())
+        .filter(Boolean)
+      if (exts.length) customMacros[f.macro.toLowerCase()] = exts
+    }
+  }
+  return {
+    matchPath: req.matchPath ?? s.searchMatchPath,
+    matchCase: req.matchCase ?? s.searchMatchCase,
+    wholeWord: req.wholeWord ?? s.searchWholeWord,
+    regex: req.regex ?? s.searchRegex,
+    customMacros
+  }
 }
 
 function readyRootCovering(dirPath: string): { path: string; fileCount: number } | null {
   for (const root of listIndexRoots()) {
-    if (root.status === 'ready' && isSameOrUnder(dirPath, root.path)) {
-      return { path: root.path, fileCount: root.fileCount }
+    if ((root.status === 'ready' || root.status === 'offline') && isSameOrUnder(dirPath, root.path)) {
+      if (root.status === 'ready') return { path: root.path, fileCount: root.fileCount }
     }
   }
   return null
@@ -85,15 +79,23 @@ function readyRootCovering(dirPath: string): { path: string; fileCount: number }
 async function runLiveWalk(
   dir: string,
   query: string,
-  limit: number
+  limit: number,
+  req: SearchQueryRequest
 ): Promise<SearchQueryResponse> {
   if (activeWalk) activeWalk.cancelled = true
   const token: CancelToken = { cancelled: false }
   activeWalk = token
   try {
     const excludes = settingsStore().get().searchExcludeDirNames
-    const { items, partial } = await liveWalkSearch(dir, query, excludes, limit, token)
-    return { items, partial, source: 'walk' }
+    const { items, partial, contentSlow } = await liveWalkSearch(
+      dir,
+      query,
+      excludes,
+      limit,
+      token,
+      parseOptsFromReq(req)
+    )
+    return { items, partial, source: 'walk', contentSlow }
   } finally {
     if (activeWalk === token) activeWalk = null
   }
@@ -101,9 +103,13 @@ async function runLiveWalk(
 
 export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQueryResponse> {
   const { query, scope, limit, offset } = req
-  if (queryTokens(query).length === 0) {
+  // Allow operator-only queries like `size:>1mb` / `pic:` with no bare tokens
+  const hasTokens = queryTokens(query).length > 0 || /[a-z]+:/i.test(query)
+  if (!hasTokens) {
     return { items: [], partial: false, source: 'walk' }
   }
+
+  const opts = parseOptsFromReq(req)
 
   if (scope.type === 'indexed') {
     const ready = listIndexRoots().filter((r) => r.status === 'ready')
@@ -111,22 +117,32 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
       throw new AppError(
         'validation',
         'No indexed folders are ready.',
-        'Uncheck “indexed” to search the current folder (works without an index), or add a folder under Settings → Search index.'
+        'Uncheck “indexed” to search the current folder (works without an index), or add a folder/drive under Settings → Search.'
       )
     }
-    // Global indexed search — still substring LIKE, not FTS-only.
-    return { items: queryIndex(query, null, limit, offset), partial: false, source: 'index' }
+    const { items, partial, contentSlow } = await queryIndexStructured(
+      query,
+      null,
+      limit,
+      opts
+    )
+    return {
+      items: items.slice(offset, offset + limit),
+      partial,
+      source: 'index',
+      contentSlow
+    }
   }
 
   const dir = normalizeAbsolute(scope.path)
   if (!dir) throw new AppError('validation', `Not an absolute path: ${scope.path}`)
 
   if (!scope.recursive) {
-    // Shallow: a single readdir is always fast enough.
     const items: SearchResultItem[] = []
     const dirents = await fsp.readdir(dir, { withFileTypes: true })
+    const { parseEverythingQuery, rowMatchesStructured } = await import('./everythingQuery')
+    const q = parseEverythingQuery(query, opts)
     for (const d of dirents) {
-      if (!nameMatches(d.name, query)) continue
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
       let size = 0
@@ -136,25 +152,44 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
         size = isDir ? 0 : st.size
         mtimeMs = st.mtimeMs
       } catch {
-        // include with zeros
+        /* zeros */
       }
-      items.push({ path: full, name: d.name, size, mtimeMs, isDir })
+      if (
+        rowMatchesStructured(
+          { path: full, name: d.name, size, mtimeMs, isDir },
+          q,
+          { rootPrefix: dir, childCount: isDir ? undefined : undefined }
+        )
+      ) {
+        items.push({ path: full, name: d.name, size, mtimeMs, isDir })
+      }
       if (items.length >= limit) break
     }
     return { items, partial: items.length >= limit, source: 'walk' }
   }
 
-  // Index is an accelerator only — empty/missing coverage must still live-walk (D15).
   if (scope.useIndexIfCovered) {
     const covered = readyRootCovering(dir)
     if (covered && covered.fileCount > 0) {
+      const { items, partial, contentSlow } = await queryIndexStructured(
+        query,
+        dir,
+        limit,
+        opts
+      )
       return {
-        items: queryIndex(query, dir, limit, offset),
-        partial: false,
-        source: 'index'
+        items: items.slice(offset, offset + limit),
+        partial,
+        source: 'index',
+        contentSlow
       }
     }
   }
 
-  return runLiveWalk(dir, query, limit)
+  return runLiveWalk(dir, query, limit, req)
+}
+
+/** Touch DB so migrations run. */
+export function ensureSearchDb(): void {
+  searchDb()
 }

@@ -138,6 +138,8 @@ export type SearchState = {
   results: SearchResultItem[]
   partial: boolean
   source: 'index' | 'walk' | null
+  /** Unindexed content: scan (D34 / D15). */
+  contentSlow: boolean
   progress: string | null
 }
 
@@ -166,6 +168,10 @@ export type FileOpProgress = {
 /** Show status-bar busy if an awaited FS op is still running after this delay. */
 const BUSY_FEEDBACK_MS = 1000
 let busyFeedbackSeq = 0
+/** As-you-type search debounce (D34). */
+const SEARCH_DEBOUNCE_MS = 280
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let searchSeq = 0
 
 let tabCounter = 0
 function newTabId(): string {
@@ -461,6 +467,7 @@ type AppState = {
   runSearch(): Promise<void>
   clearSearch(): void
   addIndexRootAction(path: string): Promise<void>
+  addVolumeRootAction(path: string): Promise<void>
   removeIndexRootAction(path: string): Promise<void>
   reindexAction(path?: string): Promise<void>
   refreshIndexRoots(): Promise<void>
@@ -1338,6 +1345,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       results: [],
       partial: false,
       source: null,
+      contentSlow: false,
       progress: null
     },
     recycleBin: {
@@ -3236,6 +3244,16 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setSearchQuery(q) {
       set((s) => ({ search: { ...s.search, query: q } }))
+      if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
+      const trimmed = q.trim()
+      if (!trimmed) {
+        if (get().search.active) get().clearSearch()
+        return
+      }
+      searchDebounceTimer = setTimeout(() => {
+        searchDebounceTimer = null
+        void get().runSearch()
+      }, SEARCH_DEBOUNCE_MS)
     },
 
     setSearchIndexedOnly(v) {
@@ -3250,14 +3268,20 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async runSearch() {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer)
+        searchDebounceTimer = null
+      }
       const s = get()
       const query = s.search.query.trim()
       if (!query) return
       if (s.recycleBin.active) get().closeRecycleBinView()
       // Drop any in-flight walk/query before starting a new scope.
       void api.search.cancel()
+      const seq = ++searchSeq
       // Use live toggle state (settings patch may still be in flight).
       const indexedOnly = get().search.indexedOnly
+      const settings = get().settings
       // Details view — Folder column is injected by FileView for search only (not saved).
       get().setViewMode('details')
       set({
@@ -3269,6 +3293,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           results: [],
           partial: false,
           source: null,
+          contentSlow: false,
           progress: null
         }
       })
@@ -3287,10 +3312,15 @@ export const useAppStore = create<AppState>()((set, get) => {
                   recursive: true,
                   useIndexIfCovered: true
                 },
-            limit: 1000,
-            offset: 0
+            limit: 2000,
+            offset: 0,
+            matchPath: settings.searchMatchPath,
+            matchCase: settings.searchMatchCase,
+            wholeWord: settings.searchWholeWord,
+            regex: settings.searchRegex
           })
         )
+        if (seq !== searchSeq) return
         set((state) => ({
           search: {
             ...state.search,
@@ -3298,10 +3328,12 @@ export const useAppStore = create<AppState>()((set, get) => {
             results: res.items,
             partial: res.partial,
             source: res.source,
+            contentSlow: Boolean(res.contentSlow),
             progress: null
           }
         }))
       } catch (e) {
+        if (seq !== searchSeq) return
         set((state) => ({ search: { ...state.search, running: false, progress: null } }))
         if (!(e instanceof IpcError && e.code === 'cancelled')) {
           get().notify(e instanceof IpcError ? e.message : String(e), true)
@@ -3310,6 +3342,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     clearSearch() {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer)
+        searchDebounceTimer = null
+      }
+      searchSeq++
       void api.search.cancel()
       set((s) => ({
         search: {
@@ -3319,6 +3356,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           results: [],
           partial: false,
           source: null,
+          contentSlow: false,
           progress: null,
           query: ''
         }
@@ -3473,6 +3511,16 @@ export const useAppStore = create<AppState>()((set, get) => {
         const res = await call(api.search.addRoot({ path }))
         set({ indexRoots: res.roots })
         get().notify(`Indexing ${path}…`)
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async addVolumeRootAction(path) {
+      try {
+        const res = await call(api.search.addVolume({ path }))
+        set({ indexRoots: res.roots })
+        get().notify(`Indexing drive ${path}…`)
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }

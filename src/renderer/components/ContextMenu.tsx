@@ -838,6 +838,7 @@ export function ContextMenu(): JSX.Element | null {
     )
     if (isDir && single) {
       result.push({ type: 'sep' })
+      const isDriveRoot = /^[a-zA-Z]:\\?$/i.test(single.replace(/[\\/]+$/, ''))
       if (isIndexedRoot) {
         result.push({
           type: 'item',
@@ -845,6 +846,15 @@ export function ContextMenu(): JSX.Element | null {
           action: () => {
             close()
             void s.removeIndexRootAction(single)
+          }
+        })
+      } else if (isDriveRoot) {
+        result.push({
+          type: 'item',
+          label: 'Index this drive',
+          action: () => {
+            close()
+            void s.addVolumeRootAction(single)
           }
         })
       } else {

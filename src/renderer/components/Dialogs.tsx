@@ -1058,8 +1058,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const indexRoots = useAppStore((s) => s.indexRoots)
   const indexProgress = useAppStore((s) => s.indexProgress)
   const addIndexRootAction = useAppStore((s) => s.addIndexRootAction)
+  const addVolumeRootAction = useAppStore((s) => s.addVolumeRootAction)
   const removeIndexRootAction = useAppStore((s) => s.removeIndexRootAction)
   const reindexAction = useAppStore((s) => s.reindexAction)
+  const runSearch = useAppStore((s) => s.runSearch)
+  const setSearchQuery = useAppStore((s) => s.setSearchQuery)
+  const setSearchIndexedOnly = useAppStore((s) => s.setSearchIndexedOnly)
   const knownFolders = useAppStore((s) => s.knownFolders)
   const quickAccessSetting = useAppStore((s) => s.settings.quickAccess)
   const quickAccessPins = useAppStore((s) => s.settings.quickAccessPins)
@@ -1081,8 +1085,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     ? (initialSection as SettingsSection)
     : 'appearance'
   const [section, setSection] = useState<SettingsSection>(startSection)
-  const [excludeText, setExcludeText] = useState(settings.searchExcludeDirNames.join(', '))
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
+  const [excludeDraft, setExcludeDraft] = useState('')
   const [hideExtText, setHideExtText] = useState(settings.hideNameExtensions.join('\n'))
   const [appVersion, setAppVersion] = useState('')
   const [userDataPath, setUserDataPath] = useState('')
@@ -1138,6 +1142,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const addRoot = async (): Promise<void> => {
     const res = await call(api.app.pickFolder())
     if (res.path) await addIndexRootAction(res.path)
+  }
+
+  const addDrive = async (): Promise<void> => {
+    const res = await call(api.app.pickFolder())
+    if (!res.path) return
+    // Prefer drive root of the picked folder
+    const m = /^([a-zA-Z]:)/i.exec(res.path)
+    await addVolumeRootAction(m ? `${m[1]}\\` : res.path)
   }
 
   const addQuickAccessFolder = async (): Promise<void> => {
@@ -1619,24 +1631,31 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <div className="settings-index-head">
                 <p className="settings-help">
                   {indexRoots.length === 0
-                    ? 'No folders indexed yet. Add folders for fast search.'
-                    : `${indexRoots.length} indexed folder${indexRoots.length === 1 ? '' : 's'}.`}
+                    ? 'No roots indexed yet. Add folders or a drive for fast Everything-style search.'
+                    : `${indexRoots.length} indexed root${indexRoots.length === 1 ? '' : 's'} (folder + volume).`}
                 </p>
-                <button type="button" className="btn" onClick={() => void addRoot()}>
-                  Add folder…
-                </button>
+                <div className="settings-inline">
+                  <button type="button" className="btn" onClick={() => void addRoot()}>
+                    Add folder…
+                  </button>
+                  <button type="button" className="btn" onClick={() => void addDrive()}>
+                    Index drive…
+                  </button>
+                </div>
               </div>
-              {indexRoots.length > 0 && (
-                <div className="settings-index-list">
-                  {indexRoots.map((root) => (
+              <div className="settings-index-list roots">
+                {indexRoots.length === 0 ? (
+                  <div className="settings-help">No indexed roots yet.</div>
+                ) : (
+                  indexRoots.map((root) => (
                     <div className="index-root-row" key={root.path}>
                       <span className="root-path" title={root.path}>
-                        {root.path}
+                        [{root.kind}] {root.path}
                       </span>
                       <span className="root-status">
                         {root.status === 'indexing'
                           ? `indexing… ${indexProgress[root.path] ?? 0}`
-                          : `${root.status} · ${root.fileCount.toLocaleString()} entries`}
+                          : `${root.status} · ${root.monitor} · ${root.fileCount.toLocaleString()}`}
                       </span>
                       <button
                         type="button"
@@ -1653,27 +1672,203 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                         Remove
                       </button>
                     </div>
-                  ))}
+                  ))
+                )}
+              </div>
+              <div className="form-section">Exclude folder names</div>
+              <div className="settings-index-head">
+                <p className="settings-help">
+                  Blacklist: folder names skipped while indexing (e.g. <code>node_modules</code>,{' '}
+                  <code>.git</code>). Case-insensitive match on the directory name only.
+                </p>
+                <div className="settings-inline">
+                  <input
+                    id="set-exclude-add"
+                    type="text"
+                    className="settings-exclude-input"
+                    placeholder="Folder name"
+                    value={excludeDraft}
+                    spellCheck={false}
+                    onChange={(e) => setExcludeDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return
+                      e.preventDefault()
+                      const name = excludeDraft.trim()
+                      if (!name) return
+                      const key = name.toLowerCase()
+                      if (settings.searchExcludeDirNames.some((n) => n.toLowerCase() === key)) {
+                        setExcludeDraft('')
+                        return
+                      }
+                      void applySettingsPatch({
+                        searchExcludeDirNames: [...settings.searchExcludeDirNames, name]
+                      })
+                      setExcludeDraft('')
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      const name = excludeDraft.trim()
+                      if (!name) return
+                      const key = name.toLowerCase()
+                      if (settings.searchExcludeDirNames.some((n) => n.toLowerCase() === key)) {
+                        setExcludeDraft('')
+                        return
+                      }
+                      void applySettingsPatch({
+                        searchExcludeDirNames: [...settings.searchExcludeDirNames, name]
+                      })
+                      setExcludeDraft('')
+                    }}
+                  >
+                    Add
+                  </button>
                 </div>
-              )}
-              <label className="settings-field" htmlFor="set-excludes">
-                <span>Exclude folder names</span>
-                <input
-                  id="set-excludes"
-                  type="text"
-                  value={excludeText}
-                  onChange={(e) => setExcludeText(e.target.value)}
-                  onBlur={() =>
-                    void applySettingsPatch({
-                      searchExcludeDirNames: excludeText
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                    })
-                  }
-                />
-                <span className="settings-field-hint">Comma-separated names skipped while indexing</span>
-              </label>
+              </div>
+              <div className="settings-index-list exclude">
+                {settings.searchExcludeDirNames.length === 0 ? (
+                  <div className="settings-help">No excluded names — all folders are crawled.</div>
+                ) : (
+                  settings.searchExcludeDirNames.map((name) => (
+                    <div className="index-root-row" key={name.toLowerCase()}>
+                      <span className="root-path" title={name}>
+                        {name}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() =>
+                          void applySettingsPatch({
+                            searchExcludeDirNames: settings.searchExcludeDirNames.filter(
+                              (n) => n.toLowerCase() !== name.toLowerCase()
+                            )
+                          })
+                        }
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="form-section">Saved filters</div>
+              <p className="settings-help">
+                Name + query (e.g. <code>ext:jpg;png</code>). Optional macro alias becomes{' '}
+                <code>alias:</code> in the search box.
+              </p>
+              {(settings.searchFilters ?? []).map((f) => (
+                <div className="index-root-row" key={f.id}>
+                  <span className="root-path">
+                    {f.name}
+                    {f.macro ? ` (${f.macro}:)` : ''} — {f.query}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setSearchIndexedOnly(true)
+                      setSearchQuery(f.macro ? `${f.macro}:` : f.query)
+                      void runSearch()
+                      closeDialog()
+                    }}
+                  >
+                    Run
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() =>
+                      void applySettingsPatch({
+                        searchFilters: settings.searchFilters.filter((x) => x.id !== f.id)
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const name = window.prompt('Filter name')
+                  if (!name?.trim()) return
+                  const query = window.prompt('Query (e.g. ext:jpg;png or pic:)')
+                  if (query == null) return
+                  const macro = window.prompt('Macro alias (optional, without colon)') ?? ''
+                  void applySettingsPatch({
+                    searchFilters: [
+                      ...settings.searchFilters,
+                      {
+                        id: `flt_${Date.now().toString(36)}`,
+                        name: name.trim(),
+                        query: query.trim(),
+                        ...(macro.trim() ? { macro: macro.trim() } : {})
+                      }
+                    ]
+                  })
+                }}
+              >
+                Add filter…
+              </button>
+
+              <div className="form-section">Bookmarks</div>
+              {(settings.searchBookmarks ?? []).map((b) => (
+                <div className="index-root-row" key={b.id}>
+                  <span className="root-path">
+                    {b.name} — {b.query}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setSearchIndexedOnly(b.scope === 'indexed')
+                      setSearchQuery(b.query)
+                      void runSearch()
+                      closeDialog()
+                    }}
+                  >
+                    Run
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() =>
+                      void applySettingsPatch({
+                        searchBookmarks: settings.searchBookmarks.filter((x) => x.id !== b.id)
+                      })
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const name = window.prompt('Bookmark name')
+                  if (!name?.trim()) return
+                  const query = window.prompt('Query')
+                  if (query == null || !query.trim()) return
+                  void applySettingsPatch({
+                    searchBookmarks: [
+                      ...settings.searchBookmarks,
+                      {
+                        id: `bm_${Date.now().toString(36)}`,
+                        name: name.trim(),
+                        query: query.trim(),
+                        scope: 'indexed'
+                      }
+                    ]
+                  })
+                }}
+              >
+                Add bookmark…
+              </button>
             </div>
           )}
 
@@ -1802,6 +1997,40 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   )
                 }}
               />
+
+              <div className="form-section">Search HTTP API</div>
+              <SettingsToggle
+                id="set-search-http"
+                label="Enable localhost search API"
+                hint="GET http://127.0.0.1:<port>/search?q=…&token=… — indexed roots only. Bind loopback only."
+                checked={settings.searchHttpEnabled}
+                onChange={(v) => void applySettingsPatch({ searchHttpEnabled: v })}
+              />
+              <label className="settings-field settings-field-narrow" htmlFor="set-search-http-port">
+                <span>Port</span>
+                <input
+                  id="set-search-http-port"
+                  type="number"
+                  min={1024}
+                  max={65535}
+                  value={settings.searchHttpPort}
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
+                    if (Number.isFinite(n)) void applySettingsPatch({ searchHttpPort: n })
+                  }}
+                />
+              </label>
+              <label className="settings-field" htmlFor="set-search-http-token">
+                <span>Auth token</span>
+                <input
+                  id="set-search-http-token"
+                  type="text"
+                  spellCheck={false}
+                  value={settings.searchHttpToken}
+                  placeholder="Required when set"
+                  onChange={(e) => void applySettingsPatch({ searchHttpToken: e.target.value })}
+                />
+              </label>
 
               <div className="settings-action-card">
                 <div>

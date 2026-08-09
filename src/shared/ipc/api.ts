@@ -132,6 +132,7 @@ export type MyFileExplorerApi = {
   search: {
     query(req: SearchQueryRequest): Promise<Result<SearchQueryResponse>>
     addRoot(req: PathRequest): Promise<Result<{ roots: IndexRootInfo[] }>>
+    addVolume(req: PathRequest): Promise<Result<{ roots: IndexRootInfo[] }>>
     removeRoot(req: PathRequest): Promise<Result<{ roots: IndexRootInfo[] }>>
     reindex(req: ReindexRequest): Promise<Result<{ started: boolean }>>
     listRoots(): Promise<Result<{ roots: IndexRootInfo[] }>>

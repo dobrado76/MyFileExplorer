@@ -17,12 +17,12 @@ import {
 } from '../lib/icons'
 import { LayoutsMenu } from './LayoutsMenu'
 import { NewItemMenu } from './NewItemMenu'
+import { SearchOptionsMenu } from './SearchOptionsMenu'
 import { ViewLayoutSelector } from './ViewLayoutSelector'
 
 export function Toolbar(): JSX.Element {
   const search = useAppStore((s) => s.search)
   const setSearchQuery = useAppStore((s) => s.setSearchQuery)
-  const setSearchIndexedOnly = useAppStore((s) => s.setSearchIndexedOnly)
   const runSearch = useAppStore((s) => s.runSearch)
   const clearSearch = useAppStore((s) => s.clearSearch)
   const splitters = useAppStore((s) => s.splitters)
@@ -130,37 +130,37 @@ export function Toolbar(): JSX.Element {
 
       <div className="toolbar-trailing">
         <ViewLayoutSelector />
-        <div className="searchbox">
-          <SearchIcon size={14} />
-          <input
-            ref={searchInputRef}
-            data-search-input
-            placeholder="Search focused pane…"
-            value={search.query}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') void runSearch()
-              if (e.key === 'Escape') {
-                if (search.active) clearSearch()
-                searchInputRef.current?.blur()
-              }
-              e.stopPropagation()
-            }}
-            aria-label="Search"
-          />
-          <label title="When checked: search all folders marked for indexing (Settings → Search). When unchecked: search the current folder and its subfolders (index used only as a speed-up if that folder is covered).">
+        <div className="search-cluster">
+          <div className="searchbox">
+            <SearchIcon size={14} />
             <input
-              type="checkbox"
-              checked={search.indexedOnly}
-              onChange={(e) => setSearchIndexedOnly(e.target.checked)}
+              ref={searchInputRef}
+              data-search-input
+              placeholder="Search…"
+              value={search.query}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void runSearch()
+                if (e.key === 'Escape') {
+                  if (search.active) clearSearch()
+                  searchInputRef.current?.blur()
+                }
+                e.stopPropagation()
+              }}
+              aria-label="Search"
             />
-            indexed
-          </label>
-          {search.active && (
-            <button className="icon-btn" aria-label="Clear search" onClick={clearSearch}>
-              <CloseIcon size={12} />
-            </button>
-          )}
+            {search.active && (
+              <button
+                type="button"
+                className="icon-btn searchbox-clear"
+                aria-label="Clear search"
+                onClick={clearSearch}
+              >
+                <CloseIcon size={12} />
+              </button>
+            )}
+          </div>
+          <SearchOptionsMenu />
         </div>
         <button
           className={`icon-btn${settings.viewFilterEnabled ? ' active' : ''}`}

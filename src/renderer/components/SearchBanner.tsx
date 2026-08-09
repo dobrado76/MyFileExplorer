@@ -39,7 +39,12 @@ export function SearchBanner(): JSX.Element | null {
           {search.source === 'walk' && (
             <span className="banner-warn">Not indexed — slow search</span>
           )}
-          {search.source === 'index' && <span className="banner-ok">Indexed</span>}
+          {search.contentSlow && (
+            <span className="banner-warn">Content search — slow</span>
+          )}
+          {search.source === 'index' && !search.contentSlow && (
+            <span className="banner-ok">Indexed</span>
+          )}
           <button type="button" onClick={clearSearch}>
             Clear
           </button>

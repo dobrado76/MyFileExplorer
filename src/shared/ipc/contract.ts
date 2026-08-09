@@ -60,6 +60,8 @@ export const IPC = {
 
   searchQuery: 'search:query',
   searchAddRoot: 'search:addRoot',
+  /** Index a drive root (NTFS USN when available). */
+  searchAddVolume: 'search:addVolume',
   searchRemoveRoot: 'search:removeRoot',
   searchReindex: 'search:reindex',
   searchListRoots: 'search:listRoots',
@@ -94,7 +96,13 @@ export type MfeEvent =
     }
   | {
       type: 'index-progress'
-      payload: { rootPath: string; processed: number; total?: number; done?: boolean }
+      payload: {
+        rootPath: string
+        processed: number
+        total?: number
+        done?: boolean
+        message?: string
+      }
     }
   | {
       type: 'op-progress'

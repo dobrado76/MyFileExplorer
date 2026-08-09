@@ -75,6 +75,7 @@ const api: MyFileExplorerApi = {
   search: {
     query: invoke(IPC.searchQuery),
     addRoot: invoke(IPC.searchAddRoot),
+    addVolume: invoke(IPC.searchAddVolume),
     removeRoot: invoke(IPC.searchRemoveRoot),
     reindex: invoke(IPC.searchReindex),
     listRoots: invokeVoid(IPC.searchListRoots),

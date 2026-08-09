@@ -9,6 +9,14 @@ import {
   VID_THUMB_FRAME_MS_MIN
 } from '../vidThumbCache'
 import { normalizeHideNameExtensions } from '../hideNameExtensions'
+import {
+  MAX_SEARCH_BOOKMARKS,
+  MAX_SEARCH_FILTERS,
+  searchBookmarkSchema,
+  searchFilterSchema,
+  type SearchBookmark,
+  type SearchFilter
+} from './search'
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
@@ -106,6 +114,41 @@ export const settingsSchema = z.object({
     .catch(['node_modules', '.git', '.hg', '.svn', 'Thumbs.db']),
   /** Toolbar “indexed” search scope — persist across sessions. */
   searchIndexedOnly: z.boolean().catch(false),
+  /** Everything-style match toggles (D34). */
+  searchMatchPath: z.boolean().catch(false),
+  searchMatchCase: z.boolean().catch(false),
+  searchWholeWord: z.boolean().catch(false),
+  searchRegex: z.boolean().catch(false),
+  searchFilters: z.preprocess((raw) => {
+    if (!Array.isArray(raw)) return []
+    const out: SearchFilter[] = []
+    const seen = new Set<string>()
+    for (const item of raw) {
+      const p = searchFilterSchema.safeParse(item)
+      if (!p.success || seen.has(p.data.id)) continue
+      seen.add(p.data.id)
+      out.push(p.data)
+      if (out.length >= MAX_SEARCH_FILTERS) break
+    }
+    return out
+  }, z.array(searchFilterSchema).catch([])),
+  searchBookmarks: z.preprocess((raw) => {
+    if (!Array.isArray(raw)) return []
+    const out: SearchBookmark[] = []
+    const seen = new Set<string>()
+    for (const item of raw) {
+      const p = searchBookmarkSchema.safeParse(item)
+      if (!p.success || seen.has(p.data.id)) continue
+      seen.add(p.data.id)
+      out.push(p.data)
+      if (out.length >= MAX_SEARCH_BOOKMARKS) break
+    }
+    return out
+  }, z.array(searchBookmarkSchema).catch([])),
+  /** Optional localhost HTTP search API (D34 phase 6). */
+  searchHttpEnabled: z.boolean().catch(false),
+  searchHttpPort: z.number().int().min(1024).max(65535).catch(8081),
+  searchHttpToken: z.string().catch(''),
   viewFilterEnabled: z.boolean().catch(true),
   viewFilterPatterns: z.array(z.string()).catch([]),
   /**
@@ -195,6 +238,15 @@ export const defaultSettings: Settings = settingsSchema.parse({
   previewVideoAutoplay: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   searchIndexedOnly: false,
+  searchMatchPath: false,
+  searchMatchCase: false,
+  searchWholeWord: false,
+  searchRegex: false,
+  searchFilters: [],
+  searchBookmarks: [],
+  searchHttpEnabled: false,
+  searchHttpPort: 8081,
+  searchHttpToken: '',
   viewFilterEnabled: true,
   viewFilterPatterns: [],
   hideNameExtensions: ['lnk'],

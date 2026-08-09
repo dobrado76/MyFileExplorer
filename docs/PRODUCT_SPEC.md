@@ -14,7 +14,7 @@ Windows desktop file manager: Explorer-familiar core, curated UX, rich previews,
 | Browse many folders     | Open several tabs; restore them next launch (offline volumes wait) |
 | Inspect AI images       | See prompt / parameters / workflow fields in preview when embedded |
 | Routine file ops        | Create, rename, cut/copy/paste, DnD, delete; Ctrl+Z / Ctrl+Y undo  |
-| Find files in hot trees | Mark folders for index; search returns fast                        |
+| Find files fast | Opt-in folder/drive index; Everything-inspired query (D34)          |
 | Comfortable UI          | Dark/light/custom theme; font family & size                        |
 
 ---
@@ -127,7 +127,7 @@ Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dat
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
-- Add folder to search index / Remove from index (folders)
+- Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
 
 **Do not** dump every Explorer verb (Send to, Share, Git overlays, 20+ third-party entries).
@@ -154,10 +154,12 @@ See [PREVIEW.md](PREVIEW.md).
 
 See [SEARCH.md](SEARCH.md).
 
-- Search box in chrome; scope = current folder (recursive) or “indexed roots only” toggle.
-- Folders can be **marked for indexing**; indexed search is fast (FTS).
-- Unindexed scope: best-effort walk with progress + cancel; never pretend to be instant.
+- Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
+- **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
+- Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
+- Unindexed scope: best-effort walk with progress + cancel; never pretend to be instant (D15).
 - Results use Details with a temporary **Folder** column (sortable; search-only, not saved); context **Open File Path** / **Open File in new tab** open locations in-app.
+- Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
 
 ---
 
@@ -172,7 +174,7 @@ See [SEARCH.md](SEARCH.md).
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
 | View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
 | Preview      | Show preview by default; max preview bytes for text                                |
-| Search       | List indexed roots; reindex button; exclude patterns; persist toolbar **indexed** toggle |
+| Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Advanced     | Updates folder + check/run installer; clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training) |
 
 ---

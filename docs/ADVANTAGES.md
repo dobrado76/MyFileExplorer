@@ -10,6 +10,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
+| **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
 | **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. |
 | **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
 | **Multi-pane views (1 / 2 / 4)** | Q-Dir-style side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |

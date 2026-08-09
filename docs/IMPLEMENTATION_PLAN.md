@@ -133,7 +133,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 | --------------------- | ----------------------------------------------------------------- |
 | Path guards           | `src/tests/pathGuards.test.ts` — protocol allowlist, `..` escapes |
 | A1111 parser          | `src/tests/a1111.test.ts`, `src/tests/pngText.test.ts`            |
-| FTS query builder     | `src/tests/queryBuilder.test.ts`                                  |
+| Query builder / Everything parser | `src/tests/queryBuilder.test.ts`, `src/tests/everythingQuery.test.ts` |
 | Session migrate       | `src/tests/sessionSchema.test.ts`                                 |
 | Result envelope       | `src/tests/result.test.ts`                                        |
 | Renderer path helpers | `src/tests/rendererPaths.test.ts`                                 |
@@ -141,15 +141,30 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 
 ---
 
-## Phase 10 candidates (not started)
+## Phase 10 — Everything-parity search (D34)
+
+- [x] Spec rewrite ([SEARCH.md](SEARCH.md), D34)
+- [x] Hybrid roots schema (`folder` \| `volume`) + folder FS-watch incremental
+- [x] NTFS volume index (USN enum bootstrap + journal monitor; walk fallback)
+- [x] Everything-like query parser + as-you-type + match toggles
+- [x] Advanced functions (`attrib:`, `dupe*`, `child*`, `depth:`)
+- [x] Unindexed `content:` search + honesty banner
+- [x] Saved filters / bookmarks
+- [x] Optional localhost HTTP query API
+
+**Exit:** opt-in drive index + rich query language without mandatory whole-disk indexing.
+
+---
+
+## Phase 11 candidates (not started)
 
 - Marquee selection
 - Ctrl+click / middle-click tree or folder → new tab
 - Comfy workflow node summary
-- ~~Type-ahead select in file view~~ (done)
-- ~~Inline audio/video playback~~ (done), PDF first-page raster (still optional; PDF uses Chromium iframe)
-- FS-watch-triggered reindex of indexed roots
+- PDF first-page raster (optional; PDF uses Chromium iframe)
 - [x] Cancel in-flight multi-file ops / video-preview generation
+- [x] Type-ahead select in file view
+- [x] Inline audio/video playback
 
 ---
 

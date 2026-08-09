@@ -136,6 +136,10 @@ if (!gotLock) {
     registerIpcHandlers()
     thumbCacheDir()
     shellIconCacheDir()
+    void import('./search').then((m) => {
+      m.initSearchIndexRuntime()
+      void import('./search/httpServer').then((h) => h.syncSearchHttpServer())
+    })
     createMainWindow()
 
     // Cold start with a path / protocol URL on the command line.
@@ -151,6 +155,8 @@ if (!gotLock) {
   app.on('before-quit', () => {
     sessionStore().flush()
     settingsStore().flush()
+    void import('./search').then((m) => m.shutdownSearchIndexRuntime())
+    void import('./search/httpServer').then((h) => h.stopSearchHttpServer())
   })
 
   app.on('window-all-closed', () => {

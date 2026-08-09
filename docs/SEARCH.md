@@ -1,43 +1,48 @@
 # Search & indexing
 
-**Version:** 0.3.0
+**Version:** 0.4.0 · Decision **D34** (Everything-parity hybrid index)
 
-Two speeds:
+Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 
-1. **Indexed** — folders the user marks; SQLite under userData (faster when a ready root covers the folder)
-2. **Live walk** — default for anywhere else, and when no index covers the folder; slower; progress + cancel required (D15)
+1. **Folder roots** — mark a directory; recursive walk + **debounced FS watch** for incremental upserts
+2. **Volume roots** — **Index this drive** on a fixed NTFS volume: MFT/USN bootstrap (`FSCTL_ENUM_USN_DATA`) + **USN journal** monitor when available; otherwise fall back to a full walk (`monitor: walk`)
 
-**Index is optional.** Unchecking “indexed” in the toolbar searches the **current folder recursively** via live walk (or via the index only as a speed-up when that folder is under a ready root). Name matching is always case-insensitive **substring** (multi-word = AND), whether indexed or walking — not FTS token-prefix-only.
+**Live walk** remains the default when no ready root covers the folder (D15: progress + cancel; never claim indexed speed).
+
+Unchecking **indexed** in the toolbar searches the **current folder recursively** (index accelerates only when covered).
 
 ---
 
-## Marking folders
+## Marking roots
 
-- Context menu on a directory: **Add to search index** / **Remove from search index**
-- Settings lists indexed roots with status: `idle | indexing | ready | error`
-- Nested roots: if user indexes `D:\A` and `D:\A\B`, indexer should dedupe (prefer deepest-only or parent-covers-child — **choose parent-covers-child**: skip adding child if parent already indexed; warn in UI)
+| Action | Where |
+|--------|--------|
+| **Add folder to search index** | Context menu on a folder; Settings → Search |
+| **Index this drive** | Context menu on a drive root (`C:\`); Settings → Search → Add drive |
+| Remove / Reindex | Settings → Search; context menu when already indexed |
+
+Nested roots: **parent-covers-child** (same as before). Volume root `D:\` absorbs folder roots under `D:\`.
 
 Exclude directory **names** from crawl (settings): default `node_modules`, `.git`, `.hg`, `.svn`.
 
+Offline volumes: keep rows; mark root `offline` until the volume returns (aligns with D3 tab offline).
+
 ---
 
-## Indexer
-
-- Background job in main
-- Walk root recursively; upsert file rows; remove missing paths on reindex
-- Triggers: manual Reindex; optional FS watch debounce on indexed roots (Phase 9+)
-- Progress events: `index-progress`
-- Persistence: `search-index.sqlite` ([PROJECT_FORMAT.md](PROJECT_FORMAT.md))
-
-### Tables (sketch)
+## Schema
 
 ```sql
 CREATE TABLE roots (
   id INTEGER PRIMARY KEY,
   path TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL DEFAULT 'folder',   -- 'folder' | 'volume'
+  volume TEXT,                           -- e.g. 'D:' when kind=volume
+  monitor TEXT NOT NULL DEFAULT 'none',  -- 'none' | 'watch' | 'usn' | 'walk'
+  usn_journal_id TEXT,
+  usn_next USN INTEGER,                  -- last consumed USN (0 if unused)
   added_at TEXT NOT NULL,
   last_indexed_at TEXT,
-  status TEXT NOT NULL
+  status TEXT NOT NULL                   -- idle | indexing | ready | error | offline
 );
 
 CREATE TABLE files (
@@ -46,19 +51,34 @@ CREATE TABLE files (
   path TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   ext TEXT,
-  size INTEGER,
-  mtime_ms INTEGER
+  size INTEGER NOT NULL DEFAULT 0,
+  mtime_ms INTEGER NOT NULL DEFAULT 0,
+  is_dir INTEGER NOT NULL DEFAULT 0,
+  attrs INTEGER                          -- Win32 attributes when known
 );
-
-CREATE VIRTUAL TABLE files_fts USING fts5(
-  name,
-  path,
-  content='files',
-  content_rowid='id'
-);
+-- files_fts FTS5 optional (LIKE remains primary for substring / Everything predicates)
 ```
 
-(Exact FTS content-sync triggers left to implementation.)
+---
+
+## Query language (Everything-inspired)
+
+Versioned subset; grows over releases. Parser: `everythingQuery.ts`.
+
+| Feature | Examples |
+|---------|----------|
+| AND / OR / NOT | `foo bar`, `foo\|bar`, `!tmp` |
+| Phrases / groups | `"my file"`, `<a\|b> c` |
+| Modifiers | `case:`, `path:` / `nopath:`, `file:` / `folder:`, `regex:`, `ww:` |
+| Functions | `size:>1mb`, `size:large`, `dm:today`, `dc:thisweek`, `ext:jpg;png`, `parent:`, `infolder:`, `startwith:`, `endwith:`, `len:`, `empty:`, `count:` |
+| Macros | `pic:`, `video:`, `audio:`, `doc:`, `exe:`, `zip:` |
+| Path tokens | `d:`, `d:\folder\` |
+| Advanced | `attrib:h`, `dupe:`, `sizedupe:`, `child:`, `childcount:`, `depth:` |
+| Content (slow) | `content:`, `utf8content:` — unindexed scan of name/path hits only; hard size/time caps; banner (D15) |
+
+Toolbar toggles (persisted): **Match path**, **Match case**, **Whole word**, **Regex**. Type chips map to macros.
+
+Legacy plain substring + `*`/`?` globs still work when no operators are used.
 
 ---
 
@@ -74,32 +94,31 @@ CREATE VIRTUAL TABLE files_fts USING fts5(
     | { type: 'folder'; path: string; recursive: boolean; useIndexIfCovered: boolean }
   limit?: number
   offset?: number
+  /** Optional overrides; else settings defaults */
+  matchPath?: boolean
+  matchCase?: boolean
+  wholeWord?: boolean
+  regex?: boolean
 }
 ```
 
-Behavior:
-
-- `indexed`: search all ready roots (substring on `name`); errors clearly if no ready roots — user can uncheck “indexed” to search the current folder without an index
-- `folder` + recursive: if `useIndexIfCovered` and a **ready non-empty** root covers the path, query the index with path prefix; otherwise **live walk** all subfolders (D15)
-- Name match: case-insensitive **substring** per whitespace token (AND), or shell **globs** (`*.jpg`, `img_??.png`, bare `.jpg` → `*.jpg`) — same for index and walk
-- Results: `{ path, name, score?, mtimeMs, size }[]` plus `partial: boolean` if cancelled/truncated
+Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `source: 'index' | 'walk'`, optional `contentSlow?: boolean`.
 
 ---
 
 ## UI
 
-- Search box submits on Enter; Escape clears search (or clears focus when inactive)
-- Toolbar **indexed** checkbox is persisted in settings (`searchIndexedOnly`) across sessions. **Checked** → search every ready indexed root; **unchecked** → current folder recursively (index only accelerates when that folder is covered). Toggling re-runs an active search with the new scope
-- Results appear in the **normal file view** (Details by default) — same multi-select, preview, drag-drop, context menu as a folder (D29). While searching, Details injects a temporary **Folder** column (containing path, sortable; not in the column picker / not saved to settings). The path is **not** stacked under the file name
-- Banner above the file view: result count, Clear/Cancel, and “Not indexed — slow search” when results came from a live walk
-- Double-click / Open a folder navigates there (clears search); opening an image uses search hits as viewer siblings
-- Search context menu extras: **Open File Path** (navigate here to the item’s location / parent + select file), **Open File in new tab** (same in a new tab) — in-app, not system Explorer. **Open with default app** still uses the OS association
-- Toolbar view-mode and sort controls apply to search results the same as a folder listing
+- **As-you-type** debounced search (cancel in-flight); Enter still searches immediately
+- Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
+- Results in normal **FileView** (D29); Folder column; banner with count / Clear / “Not indexed — slow” / “Content search — slow”
+- Settings → Search: roots (kind, monitor, status, file count), Add folder / Add drive, Reindex, excludes, saved **filters** & **bookmarks**
+- Optional **localhost HTTP** query API (Settings → Advanced; token; bind 127.0.0.1)
 
 ---
 
-## Non-goals (v1)
+## Non-goals (even at kitchen-sink depth)
 
-- Content-inside-file full text (only names/paths)
-- Everything-on-all-drives automatic indexing
-- Regex engine (simple substring + `*` / `?` globs sufficient)
+- Cloning Everything’s standalone tray / multi-window product shell
+- Guaranteeing USN on every volume (ReFS / network / removable → folder index or walk)
+- Indexing file **contents** into SQLite by default
+- Bit-identical Everything.ini / all CLI commands (`about:`, `/quit`, …)

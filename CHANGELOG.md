@@ -11,6 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Everything-parity search (D34)** — hybrid folder + optional NTFS volume index; Everything-inspired query language; as-you-type; match toggles; content search; filters/bookmarks; optional localhost HTTP API. See [docs/SEARCH.md](docs/SEARCH.md).
 - **Windows Properties…** — Properties dialog bottom-left opens Explorer’s system property sheet (Security, Sharing, …) without reimplementing NTFS UI.
 - **Batch / VBScript / `.ps` highlighting** — `.bat`/`.cmd` (DOS batch), `.vbs`, and `.ps` (PowerShell; `.ps1` already worked).
 - **`.wlt` / `.ffs_gui` text preview** — treated as YAML and XML (syntax-highlighted).

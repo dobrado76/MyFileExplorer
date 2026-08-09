@@ -3,6 +3,12 @@ import path from 'node:path'
 import type { SearchResultItem } from '@shared/schemas/search'
 import { broadcast } from '../ipc/events'
 import { nameMatches } from './queryBuilder'
+import {
+  parseEverythingQuery,
+  rowMatchesStructured,
+  type ParseOptions,
+  type StructuredQuery
+} from './everythingQuery'
 
 export type CancelToken = { cancelled: boolean }
 
@@ -15,16 +21,22 @@ export async function liveWalkSearch(
   query: string,
   excludeDirNames: string[],
   limit: number,
-  token: CancelToken
-): Promise<{ items: SearchResultItem[]; partial: boolean }> {
+  token: CancelToken,
+  parseOpts: ParseOptions = {}
+): Promise<{ items: SearchResultItem[]; partial: boolean; contentSlow?: boolean }> {
+  const q = parseEverythingQuery(query, parseOpts)
   const excludes = new Set(excludeDirNames.map((n) => n.toLowerCase()))
   const items: SearchResultItem[] = []
   const stack: string[] = [rootDir]
   let scanned = 0
   let partial = false
+  const effectiveLimit = q.countLimit != null ? Math.min(limit, q.countLimit) : limit
+
+  // Legacy fast path: plain substring tokens, no advanced operators
+  const legacy = !q.advanced && q.textGroups.length > 0 && !q.regex
 
   while (stack.length > 0) {
-    if (token.cancelled || items.length >= limit) {
+    if (token.cancelled || items.length >= effectiveLimit) {
       partial = true
       break
     }
@@ -36,23 +48,33 @@ export async function liveWalkSearch(
       continue
     }
     for (const d of dirents) {
-      if (token.cancelled || items.length >= limit) {
+      if (token.cancelled || items.length >= effectiveLimit) {
         partial = true
         break
       }
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
       if (isDir && excludes.has(d.name.toLowerCase())) continue
-      if (nameMatches(d.name, query)) {
-        let size = 0
-        let mtimeMs = 0
-        try {
-          const st = await fsp.stat(full)
-          size = isDir ? 0 : st.size
-          mtimeMs = st.mtimeMs
-        } catch {
-          // include with zeros
-        }
+
+      let size = 0
+      let mtimeMs = 0
+      try {
+        const st = await fsp.stat(full)
+        size = isDir ? 0 : st.size
+        mtimeMs = st.mtimeMs
+      } catch {
+        /* zeros */
+      }
+
+      const hit = legacy
+        ? nameMatches(d.name, query)
+        : rowMatchesStructured(
+            { path: full, name: d.name, size, mtimeMs, isDir, attrs: null },
+            q,
+            { rootPrefix: rootDir, childCount: isDir ? dirents.length : undefined }
+          )
+
+      if (hit) {
         items.push({ path: full, name: d.name, size, mtimeMs, isDir })
       }
       if (isDir) stack.push(full)
@@ -67,5 +89,31 @@ export async function liveWalkSearch(
     }
   }
   broadcast({ type: 'search-progress', payload: { phase: 'done', current: scanned } })
-  return { items, partial }
+
+  let contentSlow = false
+  if (q.content && items.length) {
+    contentSlow = true
+    // Light content filter in walk path
+    const { queryIndexStructured } = await import('./executeQuery')
+    void queryIndexStructured
+    const needle = q.content.toLowerCase()
+    const kept: SearchResultItem[] = []
+    for (const it of items) {
+      if (it.isDir) continue
+      try {
+        const buf = await fsp.readFile(it.path)
+        if (buf.length > 512 * 1024) continue
+        const text = buf.toString('utf8')
+        if (text.toLowerCase().includes(needle)) kept.push(it)
+      } catch {
+        /* skip */
+      }
+      if (kept.length >= effectiveLimit) break
+    }
+    return { items: kept, partial, contentSlow }
+  }
+
+  return { items, partial, contentSlow }
 }
+
+export type { StructuredQuery }

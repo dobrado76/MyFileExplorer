@@ -69,6 +69,7 @@ import { metaGetManyRequestSchema } from '@shared/schemas/meta'
 import {
   runSearchQuery,
   addIndexRoot,
+  addVolumeRoot,
   removeIndexRoot,
   scheduleIndex,
   listIndexRoots,
@@ -316,6 +317,7 @@ export function registerIpcHandlers(): void {
   // search
   handle(IPC.searchQuery, searchQueryRequestSchema, (req) => runSearchQuery(req))
   handle(IPC.searchAddRoot, pathRequestSchema, (req) => ({ roots: addIndexRoot(req.path) }))
+  handle(IPC.searchAddVolume, pathRequestSchema, (req) => ({ roots: addVolumeRoot(req.path) }))
   handle(IPC.searchRemoveRoot, pathRequestSchema, (req) => ({ roots: removeIndexRoot(req.path) }))
   handle(IPC.searchReindex, reindexRequestSchema, (req) => scheduleIndex(req.rootPath))
   handle(IPC.searchListRoots, emptySchema, () => ({ roots: listIndexRoots() }))

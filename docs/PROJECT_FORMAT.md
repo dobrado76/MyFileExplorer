@@ -142,11 +142,13 @@ Notes:
 
 ## Search database
 
-SQLite file `search-index.sqlite`:
+SQLite file `search-index.sqlite` (D34):
 
-- `roots(id, path, added_at, last_indexed_at, status)`
-- `files(id, root_id, path, name, ext, size, mtime_ms, …)`
-- `files_fts` — FTS5 on name (and optionally relative path)
+- `roots(id, path, kind, volume, monitor, usn_*, added_at, last_indexed_at, status)`
+- `files(id, root_id, path, name, ext, size, mtime_ms, is_dir, attrs, …)`
+- `files_fts` — optional FTS5; queries primarily use LIKE + Everything predicates
+
+Settings extras: `searchMatchPath` / `searchMatchCase` / `searchWholeWord` / `searchRegex`, `searchFilters[]`, `searchBookmarks[]`, `searchHttpEnabled` / `searchHttpPort` / `searchHttpToken`.
 
 Schema details: [SEARCH.md](SEARCH.md).
 
