@@ -179,6 +179,8 @@ export function beginRightDragGesture(
     window.removeEventListener('mousemove', onMove, true)
     window.removeEventListener('pointerup', onUp, true)
     window.removeEventListener('mouseup', onUp, true)
+    window.removeEventListener('pointerdown', onOppDown, true)
+    window.removeEventListener('mousedown', onOppDown, true)
     window.removeEventListener('pointercancel', onCancel, true)
     window.removeEventListener('keydown', onKey, true)
     window.removeEventListener('contextmenu', onCtx, true)
@@ -215,6 +217,15 @@ export function beginRightDragGesture(
     handlers.onCancel()
   }
 
+  /** Explorer: opposite mouse button cancels the drag (right-drag → left cancels). */
+  const onOppDown = (ev: PointerEvent | MouseEvent): void => {
+    if (!('button' in ev) || ev.button !== 0) return
+    if (liveRightDrag !== session) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    onCancel()
+  }
+
   const onKey = (ev: KeyboardEvent): void => {
     if (ev.key !== 'Escape') return
     onCancel()
@@ -231,6 +242,8 @@ export function beginRightDragGesture(
   window.addEventListener('mousemove', onMove, true)
   window.addEventListener('pointerup', onUp, true)
   window.addEventListener('mouseup', onUp, true)
+  window.addEventListener('pointerdown', onOppDown, true)
+  window.addEventListener('mousedown', onOppDown, true)
   window.addEventListener('pointercancel', onCancel, true)
   window.addEventListener('keydown', onKey, true)
   window.addEventListener('contextmenu', onCtx, true)

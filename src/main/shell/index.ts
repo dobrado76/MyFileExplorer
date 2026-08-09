@@ -88,3 +88,4 @@ export function clipboardReadFiles(): { paths: string[] } {
 }
 
 export { startOsFileDrag } from './startDrag'
+export { showSystemProperties } from './showProperties'

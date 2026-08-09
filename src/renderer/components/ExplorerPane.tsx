@@ -49,7 +49,9 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
   const performTransfer = useAppStore((s) => s.performTransfer)
 
+  // Full-pane outline only matters when choosing among 2+ panes (D31).
   const paneDropActive = !!(
+    viewLayout > 1 &&
     tab &&
     dropHighlightPath &&
     samePath(dropHighlightPath, tab.path)

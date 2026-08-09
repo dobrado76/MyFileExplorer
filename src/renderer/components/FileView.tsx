@@ -216,6 +216,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const restoreFromRecycleBinView = useAppStore((s) => s.restoreFromRecycleBinView)
   const focusPane = useAppStore((s) => s.focusPane)
   const paneTabIds = useAppStore((s) => s.paneTabIds)
+  const viewLayout = useAppStore((s) => s.viewLayout)
   /** Search / recycle overlays only on the focused pane. */
   const searchMode = search.active && isFocusedSurface
   const recycleMode = recycleBin.active && isFocusedSurface
@@ -233,7 +234,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const typeaheadRef = useRef<{ buffer: string; timer: number }>({ buffer: '', timer: 0 })
   const [width, setWidth] = useState(800)
+  // Whole-view outline is for multi-pane drop targeting only (single-pane: noise).
   const bgDropActive = !!(
+    viewLayout > 1 &&
     dropHighlightPath &&
     listing.path &&
     samePath(dropHighlightPath, listing.path)

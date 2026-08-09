@@ -39,6 +39,8 @@ export const IPC = {
 
   shellOpenPath: 'shell:openPath',
   shellShowItemInFolder: 'shell:showItemInFolder',
+  /** Open the Windows Explorer property sheet (Security / Sharing / …). */
+  shellShowProperties: 'shell:showProperties',
   shellOpenRecycleBin: 'shell:openRecycleBin',
   shellClipboardWriteFiles: 'shell:clipboardWriteFiles',
   shellClipboardReadFiles: 'shell:clipboardReadFiles',

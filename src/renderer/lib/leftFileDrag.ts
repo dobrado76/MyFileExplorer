@@ -5,6 +5,7 @@ import {
   updateDragAutoScrollPointer
 } from './dragAutoScroll'
 import {
+  armContextMenuSuppress,
   clearRightDragBodyClass,
   createRightDragSession,
   findDropDirAt,
@@ -86,8 +87,11 @@ export function beginLeftFileDragGesture(
     window.removeEventListener('mousemove', onMove, true)
     window.removeEventListener('pointerup', onUp, true)
     window.removeEventListener('mouseup', onUp, true)
+    window.removeEventListener('pointerdown', onOppDown, true)
+    window.removeEventListener('mousedown', onOppDown, true)
     window.removeEventListener('pointercancel', onCancel, true)
     window.removeEventListener('keydown', onKey, true)
+    window.removeEventListener('contextmenu', onCtx, true)
   }
 
   const endVisuals = (): void => {
@@ -179,14 +183,35 @@ export function beginLeftFileDragGesture(
     handlers.onCancel()
   }
 
+  /** Explorer: opposite mouse button cancels the drag (left-drag → right cancels). */
+  const onOppDown = (ev: PointerEvent | MouseEvent): void => {
+    if (!('button' in ev) || ev.button !== 2) return
+    if (liveLeftDrag !== session || handedOff) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    armContextMenuSuppress()
+    armLeftDragClickSuppress()
+    onCancel()
+  }
+
   const onKey = (ev: KeyboardEvent): void => {
     if (ev.key === 'Escape') onCancel()
+  }
+
+  const onCtx = (ev: Event): void => {
+    if (liveLeftDrag !== session || handedOff) return
+    ev.preventDefault()
+    ev.stopPropagation()
+    armContextMenuSuppress()
   }
 
   window.addEventListener('pointermove', onMove, true)
   window.addEventListener('mousemove', onMove, true)
   window.addEventListener('pointerup', onUp, true)
   window.addEventListener('mouseup', onUp, true)
+  window.addEventListener('pointerdown', onOppDown, true)
+  window.addEventListener('mousedown', onOppDown, true)
   window.addEventListener('pointercancel', onCancel, true)
   window.addEventListener('keydown', onKey, true)
+  window.addEventListener('contextmenu', onCtx, true)
 }

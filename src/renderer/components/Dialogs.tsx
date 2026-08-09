@@ -636,6 +636,8 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
   const [measuring, setMeasuring] = useState(false)
   const [attrBusy, setAttrBusy] = useState(false)
   const [attrError, setAttrError] = useState<string | null>(null)
+  const [sysPropsBusy, setSysPropsBusy] = useState(false)
+  const [sysPropsError, setSysPropsError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -734,15 +736,44 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
       ? `${model.contains.files.toLocaleString()} files, ${model.contains.folders.toLocaleString()} folders (top level)`
       : null
 
+  const openWindowsProperties = async (): Promise<void> => {
+    if (!model || model.kind === 'missing' || sysPropsBusy) return
+    setSysPropsBusy(true)
+    setSysPropsError(null)
+    try {
+      await call(api.shell.showProperties({ path: model.path }))
+    } catch (e: unknown) {
+      setSysPropsError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setSysPropsBusy(false)
+    }
+  }
+
   return (
     <Modal
       title={title}
       className="modal-properties"
       onClose={closeDialog}
       actions={
-        <button className="btn primary" onClick={closeDialog}>
-          Close
-        </button>
+        <>
+          {model && model.kind !== 'missing' && (
+            <div className="modal-action-start props-sys-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={sysPropsBusy}
+                title="Open the Windows Explorer Properties window (Security, Sharing, …)"
+                onClick={() => void openWindowsProperties()}
+              >
+                Windows Properties…
+              </button>
+              {sysPropsError && <div className="props-attr-error">{sysPropsError}</div>}
+            </div>
+          )}
+          <button type="button" className="btn primary" onClick={closeDialog}>
+            Close
+          </button>
+        </>
       }
     >
       {!model && !error && <p className="dim">Loading…</p>}

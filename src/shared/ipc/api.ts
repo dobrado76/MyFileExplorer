@@ -102,6 +102,8 @@ export type MyFileExplorerApi = {
   shell: {
     openPath(req: PathRequest): Promise<Result<{ opened: boolean; message?: string }>>
     showItemInFolder(req: PathRequest): Promise<Result<{ shown: true }>>
+    /** Open Explorer’s property sheet (NTFS Security, Sharing, etc.). */
+    showProperties(req: PathRequest): Promise<Result<{ shown: true }>>
     /** Open the Windows Recycle Bin in system Explorer (legacy fallback). */
     openRecycleBin(): Promise<Result<{ opened: boolean; message?: string }>>
     clipboardWriteFiles(req: PathsRequest): Promise<Result<{ written: boolean }>>

@@ -2890,6 +2890,16 @@ body > .SfxModal-Wrapper,
   gap: 8px;
   padding: 10px 18px 14px;
 }
+.modal-actions .modal-action-start {
+  margin-right: auto;
+}
+.props-sys-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: min(360px, 55%);
+}
 .btn {
   padding: 6px 14px;
   border-radius: 6px;

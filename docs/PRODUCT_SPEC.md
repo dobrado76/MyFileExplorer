@@ -62,7 +62,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 ## Navigation
 
 - Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths)
-- Address bar **Recent locations** dropdown (Explorer-style) from the tab’s Back/Forward history
+- Address bar **Recent locations** dropdown from the tab’s history: **current on top**, then prior folders in Back order (newest previous first — same sequence as Back, Back, …); Forward entries follow when present
 - **Back / Forward / Up**
 - Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
 - Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred)
@@ -103,7 +103,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
 | Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
 | Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
-| Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar (not a full shell property sheet) |
+| Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar. **Windows Properties…** (bottom-left) opens Explorer’s own property sheet for Security / Sharing / etc. (not reimplemented in-app) |
 
 Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dates/type for all) then Replace / Skip / Keep both (rename), per file or apply to all.
 

@@ -11,6 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Windows Properties…** — Properties dialog bottom-left opens Explorer’s system property sheet (Security, Sharing, …) without reimplementing NTFS UI.
 - **Batch / VBScript / `.ps` highlighting** — `.bat`/`.cmd` (DOS batch), `.vbs`, and `.ps` (PowerShell; `.ps1` already worked).
 - **`.wlt` / `.ffs_gui` text preview** — treated as YAML and XML (syntax-highlighted).
 - **HTML preview** — `.html` / `.htm` render sanitized markup by default, with a **Preview / Raw** toggle.
@@ -23,6 +24,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
+- **Recent locations order** — dropdown lists current folder first, then Back history (newest previous → oldest), matching repeated Back.
+- **Drag cancel** — pressing the opposite mouse button cancels an in-progress drag (left↔right), matching Explorer; Escape still works.
+- **Single-pane drag highlight** — no full-view drop outline when `viewLayout` is 1 (still highlights in 2/4-pane and on folder targets).
 - **ZIP preview** — contents tree no longer skips archives over ~80 MiB; listing reads the central directory only (size irrelevant).
 - **MKV preview** — remux/transcode via ffmpeg for in-pane play when codecs allow.
 - **AVI preview** — no in-pane player; shows animated `!VIDTHUMB_CACHE` strip when present + Open with default app.

@@ -12,29 +12,11 @@ import {
 } from '../lib/paths'
 import { api, call } from '../lib/ipc'
 import { ChevronDown, ChevronRight } from '../lib/icons'
+import { historyEntries } from '../lib/historyEntries'
 
 type Props = {
   /** Bind to a specific tab (pane toolbar). Default: active tab + global address editing. */
   tabId?: string
-}
-
-/** Build Recent Locations list: newest first, current included, deduped. */
-function historyEntries(
-  back: string[],
-  current: string,
-  forward: string[]
-): { path: string; current: boolean }[] {
-  const ordered = [...back].reverse().concat(current ? [current] : [], forward)
-  const seen = new Set<string>()
-  const out: { path: string; current: boolean }[] = []
-  for (const p of ordered) {
-    if (!p) continue
-    const key = p.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push({ path: p, current: current ? samePath(p, current) : false })
-  }
-  return out
 }
 
 export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {

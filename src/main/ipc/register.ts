@@ -52,6 +52,7 @@ import { findUpdateInstaller, runUpdateInstaller } from '../update/installers'
 import {
   openPath,
   showItemInFolder,
+  showSystemProperties,
   openRecycleBin,
   clipboardWriteFiles,
   clipboardReadFiles,
@@ -273,6 +274,7 @@ export function registerIpcHandlers(): void {
   // shell
   handle(IPC.shellOpenPath, pathRequestSchema, (req) => openPath(req.path))
   handle(IPC.shellShowItemInFolder, pathRequestSchema, (req) => showItemInFolder(req.path))
+  handle(IPC.shellShowProperties, pathRequestSchema, (req) => showSystemProperties(req.path))
   handle(IPC.shellOpenRecycleBin, emptySchema, () => openRecycleBin())
   handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
