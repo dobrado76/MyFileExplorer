@@ -1,4 +1,4 @@
-import { useCallback, useEffect, lazy, Suspense, type JSX } from 'react'
+import { useCallback, useEffect, useState, lazy, Suspense, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { TabBar } from '../components/TabBar'
 import { Toolbar } from '../components/Toolbar'
@@ -11,6 +11,7 @@ import { ImageViewer } from '../components/ImageViewer'
 import { Splitter } from '../components/Splitter'
 import { basename } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
+import { api, call } from '../lib/ipc'
 
 const ImageEditor = lazy(async () => {
   const m = await import('../components/ImageEditor')
@@ -55,13 +56,21 @@ export function ExplorerShell(): JSX.Element {
   const setSplitters = useAppStore((s) => s.setSplitters)
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
   const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
+  const [appVersion, setAppVersion] = useState<string | null>(null)
 
-  // Window title follows the active tab.
   useEffect(() => {
-    if (activeTab) {
-      document.title = `${activeTab.title ?? basename(activeTab.path)} — MyFileExplorer`
-    }
-  }, [activeTab])
+    void call(api.app.getVersion())
+      .then((r) => setAppVersion(r.version))
+      .catch(() => setAppVersion(null))
+  }, [])
+
+  // Window title follows the active tab; include app version after the name.
+  useEffect(() => {
+    if (!activeTab) return
+    const folder = activeTab.title ?? basename(activeTab.path)
+    const ver = appVersion ? ` — v${appVersion}` : ''
+    document.title = `${folder} — MyFileExplorer${ver}`
+  }, [activeTab, appVersion])
 
   const onKeyDown = useCallback((e: KeyboardEvent): void => {
     const s = useAppStore.getState()
