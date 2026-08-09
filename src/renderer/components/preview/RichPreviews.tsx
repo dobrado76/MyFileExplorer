@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import type { SpreadsheetSheet } from '@shared/schemas/preview'
 import { pdfPreviewSrc } from '../../lib/pdfPreview'
 import { useAppStore } from '../../store/appStore'
+import { CodePreview } from './CodePreview'
 
 marked.setOptions({ gfm: true, breaks: false })
 
@@ -15,7 +16,59 @@ function sanitizeHtml(html: string): string {
   })
 }
 
-export function MarkdownPreview({ source }: { source: string }): JSX.Element {
+type SourceMode = 'preview' | 'raw'
+
+/** Preview / Raw toggle for markdown & HTML source files. Defaults to rendered. */
+function SourceModeShell({
+  path,
+  source,
+  children
+}: {
+  path: string
+  source: string
+  children: ReactNode
+}): JSX.Element {
+  const [mode, setMode] = useState<SourceMode>('preview')
+  useEffect(() => {
+    setMode('preview')
+  }, [path, source])
+
+  return (
+    <div className="preview-source">
+      <div className="preview-source-toggle" role="tablist" aria-label="Preview mode">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'preview'}
+          className={`preview-source-tab${mode === 'preview' ? ' active' : ''}`}
+          onClick={() => setMode('preview')}
+        >
+          Preview
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'raw'}
+          className={`preview-source-tab${mode === 'raw' ? ' active' : ''}`}
+          onClick={() => setMode('raw')}
+        >
+          Raw
+        </button>
+      </div>
+      <div className="preview-source-body">
+        {mode === 'preview' ? children : <CodePreview source={source} path={path} />}
+      </div>
+    </div>
+  )
+}
+
+export function MarkdownPreview({
+  source,
+  path
+}: {
+  source: string
+  path: string
+}): JSX.Element {
   const html = useMemo(() => {
     try {
       const raw = marked.parse(source, { async: false }) as string
@@ -24,7 +77,27 @@ export function MarkdownPreview({ source }: { source: string }): JSX.Element {
       return sanitizeHtml(`<pre>${escapeHtml(source)}</pre>`)
     }
   }, [source])
-  return <div className="preview-rich md" dangerouslySetInnerHTML={{ __html: html }} />
+  return (
+    <SourceModeShell path={path} source={source}>
+      <div className="preview-rich md" dangerouslySetInnerHTML={{ __html: html }} />
+    </SourceModeShell>
+  )
+}
+
+/** Standalone `.html` / `.htm` — sanitized render + raw source toggle. */
+export function HtmlSourcePreview({
+  source,
+  path
+}: {
+  source: string
+  path: string
+}): JSX.Element {
+  const safe = useMemo(() => sanitizeHtml(source), [source])
+  return (
+    <SourceModeShell path={path} source={source}>
+      <div className="preview-rich html" dangerouslySetInnerHTML={{ __html: safe }} />
+    </SourceModeShell>
+  )
 }
 
 export function HtmlDocumentPreview({ html }: { html: string }): JSX.Element {

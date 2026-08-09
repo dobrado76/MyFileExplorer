@@ -218,8 +218,13 @@ const CODE_EXTS = new Set([
   'php',
   'sh',
   'ps1',
+  'psm1',
+  'psd1',
+  'ps',
   'bat',
   'cmd',
+  'vbs',
+  'vbe',
   'sql',
   'html',
   'htm',
@@ -228,7 +233,8 @@ const CODE_EXTS = new Set([
   'vue',
   'svelte',
   'lua',
-  'xml'
+  'xml',
+  'ffs_gui'
 ])
 const IMAGE_EXTS = new Set([
   'png',
@@ -253,6 +259,7 @@ const TEXT_EXTS = new Set([
   'json',
   'yaml',
   'yml',
+  'wlt',
   'csv',
   'tsv',
   'log',

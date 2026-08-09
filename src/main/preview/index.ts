@@ -21,6 +21,7 @@ import { rasterizePsd } from './psd'
 import { buildSafetensorsPreviewFields } from './safetensors'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
+import { loadUnityPackageTree } from './unityPackage'
 import { readPeVersionInfo } from './peVersion'
 import { getShellIconUrl } from '../icons/shell'
 import {
@@ -53,6 +54,7 @@ const TEXT_EXTS = new Set([
   'json',
   'yaml',
   'yml',
+  'wlt',
   'csv',
   'tsv',
   'log',
@@ -61,8 +63,7 @@ const TEXT_EXTS = new Set([
   'conf',
   'toml',
   'xml',
-  'html',
-  'htm',
+  'ffs_gui',
   'css',
   'scss',
   'less',
@@ -85,8 +86,13 @@ const TEXT_EXTS = new Set([
   'php',
   'sh',
   'ps1',
+  'psm1',
+  'psd1',
+  'ps',
   'bat',
   'cmd',
+  'vbs',
+  'vbe',
   'sql',
   'gitignore',
   'env',
@@ -97,6 +103,7 @@ const TEXT_EXTS = new Set([
   'svelte'
 ])
 const MARKDOWN_EXTS = new Set(['md', 'markdown'])
+const HTML_EXTS = new Set(['html', 'htm'])
 const SPREADSHEET_EXTS = new Set(['xls', 'xlsx', 'xlsm', 'xlsb', 'ods', 'csv'])
 const WORD_DOCX_EXTS = new Set(['docx'])
 const WORD_DOC_EXTS = new Set(['doc'])
@@ -112,7 +119,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 2
+const PREVIEW_CACHE_REV = 3
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -248,6 +255,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       }
     } else if (MARKDOWN_EXTS.has(ext)) {
       model = await buildMarkdownPreview(file, st.size, fields, warnings)
+    } else if (HTML_EXTS.has(ext)) {
+      model = await buildHtmlPreview(file, st.size, fields, warnings)
     } else if (SPREADSHEET_EXTS.has(ext) && ext !== 'csv') {
       model = await buildOfficeSpreadsheetPreview(file, fields, warnings)
     } else if (WORD_DOCX_EXTS.has(ext)) {
@@ -268,6 +277,8 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildShortcutPreview(file, fields, warnings)
     } else if (ext === 'zip') {
       model = await buildZipArchivePreview(file, st.size, fields, warnings)
+    } else if (ext === 'unitypackage') {
+      model = await buildUnityPackagePreview(file, fields, warnings)
     } else if (EXE_PREVIEW_EXTS.has(ext)) {
       model = await buildExecutablePreview(file, ext, fields, warnings)
     } else {
@@ -470,12 +481,12 @@ async function buildSafetensorsPreview(
   return { path: file, kind: 'binary', subtitle, fields, warnings }
 }
 
-async function buildMarkdownPreview(
+async function readTextSample(
   file: string,
   size: number,
-  fields: PreviewField[],
-  warnings: string[]
-): Promise<PreviewModel> {
+  warnings: string[],
+  label: string
+): Promise<string | null> {
   const maxBytes = settingsStore().get().textPreviewMaxBytes
   const readBytes = Math.min(size, maxBytes)
   try {
@@ -493,16 +504,32 @@ async function buildMarkdownPreview(
         : buf.toString('utf8')
     if (sample.charCodeAt(0) === 0xfeff) sample = sample.slice(1)
     if (size > readBytes) warnings.push('Preview truncated')
-    return {
-      path: file,
-      kind: 'markdown',
-      textSample: capText(sample, warnings, 'Markdown'),
-      fields,
-      warnings
-    }
+    return capText(sample, warnings, label)
   } catch {
-    return { path: file, kind: 'binary', fields, warnings }
+    return null
   }
+}
+
+async function buildMarkdownPreview(
+  file: string,
+  size: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const textSample = await readTextSample(file, size, warnings, 'Markdown')
+  if (textSample === null) return { path: file, kind: 'binary', fields, warnings }
+  return { path: file, kind: 'markdown', textSample, fields, warnings }
+}
+
+async function buildHtmlPreview(
+  file: string,
+  size: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const textSample = await readTextSample(file, size, warnings, 'HTML')
+  if (textSample === null) return { path: file, kind: 'binary', fields, warnings }
+  return { path: file, kind: 'html', textSample, fields, warnings }
 }
 
 async function buildOfficeSpreadsheetPreview(
@@ -767,6 +794,7 @@ async function buildZipArchivePreview(
       kind: 'archive',
       subtitle,
       archiveTree: listed.tree,
+      archiveFormat: 'zip',
       fields,
       warnings: warnings.length ? warnings : undefined
     }
@@ -777,6 +805,66 @@ async function buildZipArchivePreview(
       kind: 'archive',
       subtitle: 'ZIP archive',
       archiveTree: [],
+      archiveFormat: 'zip',
+      fields,
+      warnings
+    }
+  }
+}
+
+async function buildUnityPackagePreview(
+  file: string,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: 'Unity package',
+      group: 'file'
+    }
+  }
+
+  try {
+    const listed = await loadUnityPackageTree(file)
+    if (listed.truncated) {
+      warnings.push('Contents list truncated for preview')
+    }
+    fields.push({
+      id: 'archive.files',
+      label: 'Assets',
+      value: String(listed.fileCount) + (listed.truncated ? '+' : ''),
+      group: 'file'
+    })
+    fields.push({
+      id: 'archive.folders',
+      label: 'Folders',
+      value: String(listed.folderCount) + (listed.truncated ? '+' : ''),
+      group: 'file'
+    })
+    const subtitle =
+      listed.fileCount + listed.folderCount === 0
+        ? 'Empty Unity package'
+        : `${listed.fileCount} asset${listed.fileCount === 1 ? '' : 's'} · ${listed.folderCount} folder${listed.folderCount === 1 ? '' : 's'}${listed.truncated ? '…' : ''}`
+    return {
+      path: file,
+      kind: 'archive',
+      subtitle,
+      archiveTree: listed.tree,
+      archiveFormat: 'unitypackage',
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not read Unity package')
+    return {
+      path: file,
+      kind: 'archive',
+      subtitle: 'Unity package',
+      archiveTree: [],
+      archiveFormat: 'unitypackage',
       fields,
       warnings
     }

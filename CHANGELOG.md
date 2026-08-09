@@ -11,6 +11,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Batch / VBScript / `.ps` highlighting** — `.bat`/`.cmd` (DOS batch), `.vbs`, and `.ps` (PowerShell; `.ps1` already worked).
+- **`.wlt` / `.ffs_gui` text preview** — treated as YAML and XML (syntax-highlighted).
+- **HTML preview** — `.html` / `.htm` render sanitized markup by default, with a **Preview / Raw** toggle.
+- **Markdown Preview / Raw toggle** — rendered GFM by default; switch to syntax-highlighted source.
+- **Unity `.unitypackage` preview** — contents tree of Unity asset paths (`Assets/…`); list-only (no Extract All).
 - **Tab context menu** — right-click a tab for Duplicate, Rename, Set/Change icon, Close (D32).
 - **Tab icons** — pick any Lucide React icon + color; persisted in session and named layouts.
 - **+ New toolbar dropdown** — Explorer-style New menu (folder, common file types, Other…) before Undo / Cut / Copy.

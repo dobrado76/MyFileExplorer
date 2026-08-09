@@ -20,6 +20,7 @@ import { isEditableImagePath } from '@shared/imageEdit'
 import {
   AudioPreview,
   HtmlDocumentPreview,
+  HtmlSourcePreview,
   MarkdownPreview,
   PdfPreview,
   SpreadsheetPreview,
@@ -200,7 +201,15 @@ export function PreviewPane(): JSX.Element {
   const multiHint = multiCount > 0 ? `${multiCount} selected` : null
 
   return (
-    <div className={`preview${model.kind === 'image' ? ' preview-kind-image' : ''}`}>
+    <div
+      className={`preview${
+        model.kind === 'image'
+          ? ' preview-kind-image'
+          : model.kind === 'archive'
+            ? ' preview-kind-archive'
+            : ''
+      }`}
+    >
       {headerSub || multiHint || (model.kind === 'image' && model.mediaUrl) ? (
         <div className="preview-header preview-header-compact">
           <div className="preview-sub">
@@ -239,7 +248,10 @@ export function PreviewPane(): JSX.Element {
           <CodePreview source={model.textSample} path={model.path} />
         )}
         {model.kind === 'markdown' && model.textSample !== undefined && (
-          <MarkdownPreview source={model.textSample} />
+          <MarkdownPreview source={model.textSample} path={model.path} />
+        )}
+        {model.kind === 'html' && model.textSample !== undefined && (
+          <HtmlSourcePreview source={model.textSample} path={model.path} />
         )}
         {(model.kind === 'document' || model.kind === 'rtf') && model.htmlBody !== undefined && (
           <HtmlDocumentPreview html={model.htmlBody} />
@@ -318,7 +330,14 @@ export function PreviewPane(): JSX.Element {
         {model.kind === 'archive' && (
           <ZipArchivePreview
             tree={model.archiveTree ?? []}
-            onExtract={() => void extractZip([model.path])}
+            treeLabel={
+              model.archiveFormat === 'unitypackage' ? 'Unity package contents' : 'ZIP contents'
+            }
+            onExtract={
+              model.archiveFormat === 'unitypackage'
+                ? undefined
+                : () => void extractZip([model.path])
+            }
           />
         )}
         {model.kind === 'shortcut' && (
@@ -572,6 +591,8 @@ function kindLabel(kind: PreviewModel['kind']): string {
       return 'Text'
     case 'markdown':
       return 'Markdown'
+    case 'html':
+      return 'HTML'
     case 'spreadsheet':
       return 'Spreadsheet'
     case 'document':
@@ -589,7 +610,7 @@ function kindLabel(kind: PreviewModel['kind']): string {
     case 'shortcut':
       return 'Shortcut'
     case 'archive':
-      return 'ZIP archive'
+      return 'Archive'
     case 'executable':
       return 'Application'
     case 'missing':

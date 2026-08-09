@@ -39,6 +39,7 @@
     "react-konva": "^19.2.5",
     "sharp": "^0.34.0",
     "styled-components": "^6.4.4",
+    "tar-stream": "^3.2.0",
     "word-extractor": "^1.0.4",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yauzl": "^3.4.0"
@@ -50,6 +51,7 @@
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@types/tar-stream": "^3.1.4",
     "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^41.7.1",

@@ -4,6 +4,7 @@ export const previewKindSchema = z.enum([
   'image',
   'text',
   'markdown',
+  'html',
   'spreadsheet',
   'document',
   'rtf',
@@ -78,8 +79,10 @@ export type PreviewModel = {
   /** HTML fragment for Word / RTF (renderer sanitizes before inject). */
   htmlBody?: string
   sheets?: SpreadsheetSheet[]
-  /** ZIP contents tree when `kind === 'archive'`. */
+  /** ZIP / Unity package contents tree when `kind === 'archive'`. */
   archiveTree?: ArchiveTreeNode[]
+  /** Archive flavor — drives Extract All visibility (ZIP only). */
+  archiveFormat?: 'zip' | 'unitypackage'
   fields: PreviewField[]
   warnings?: string[]
 }

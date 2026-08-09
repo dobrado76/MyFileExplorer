@@ -13,6 +13,8 @@ import markdown from 'highlight.js/lib/languages/markdown'
 import python from 'highlight.js/lib/languages/python'
 import bash from 'highlight.js/lib/languages/bash'
 import powershell from 'highlight.js/lib/languages/powershell'
+import dos from 'highlight.js/lib/languages/dos'
+import vbscript from 'highlight.js/lib/languages/vbscript'
 import ini from 'highlight.js/lib/languages/ini'
 import sql from 'highlight.js/lib/languages/sql'
 import csharp from 'highlight.js/lib/languages/csharp'
@@ -41,6 +43,8 @@ function ensureRegistered(): void {
   hljs.registerLanguage('python', python)
   hljs.registerLanguage('bash', bash)
   hljs.registerLanguage('powershell', powershell)
+  hljs.registerLanguage('dos', dos)
+  hljs.registerLanguage('vbscript', vbscript)
   hljs.registerLanguage('ini', ini)
   hljs.registerLanguage('sql', sql)
   hljs.registerLanguage('csharp', csharp)
@@ -81,6 +85,7 @@ export function languageFromPath(filePath: string): string | null {
     xsl: 'xml',
     xslt: 'xml',
     plist: 'xml',
+    ffs_gui: 'xml',
     json: 'json',
     jsonc: 'json',
     json5: 'json',
@@ -94,6 +99,7 @@ export function languageFromPath(filePath: string): string | null {
     cjs: 'javascript',
     yml: 'yaml',
     yaml: 'yaml',
+    wlt: 'yaml',
     css: 'css',
     scss: 'scss',
     less: 'css',
@@ -106,8 +112,12 @@ export function languageFromPath(filePath: string): string | null {
     zsh: 'bash',
     ps1: 'powershell',
     psm1: 'powershell',
-    bat: 'plaintext',
-    cmd: 'plaintext',
+    psd1: 'powershell',
+    ps: 'powershell',
+    bat: 'dos',
+    cmd: 'dos',
+    vbs: 'vbscript',
+    vbe: 'vbscript',
     ini: 'ini',
     cfg: 'ini',
     conf: 'ini',

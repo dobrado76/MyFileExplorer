@@ -52,23 +52,27 @@ function TreeRow({ node, depth }: { node: ArchiveTreeNode; depth: number }): JSX
 
 type Props = {
   tree: ArchiveTreeNode[]
-  onExtract: () => void
+  onExtract?: () => void
+  /** Defaults to ZIP contents labeling. */
+  treeLabel?: string
 }
 
-/** Nested contents listing for a selected `.zip` (preview only). */
-export function ZipArchivePreview({ tree, onExtract }: Props): JSX.Element {
+/** Nested contents listing for a selected archive (ZIP / Unity package). */
+export function ZipArchivePreview({ tree, onExtract, treeLabel }: Props): JSX.Element {
   return (
     <div className="preview-zip">
       <div className="preview-zip-toolbar">
         <span className="preview-zip-caption">Contents</span>
-        <button type="button" className="btn" onClick={onExtract}>
-          Extract All…
-        </button>
+        {onExtract ? (
+          <button type="button" className="btn" onClick={onExtract}>
+            Extract All…
+          </button>
+        ) : null}
       </div>
       {tree.length === 0 ? (
         <div className="preview-zip-empty">No contents to list</div>
       ) : (
-        <div className="preview-zip-tree" role="tree" aria-label="ZIP contents">
+        <div className="preview-zip-tree" role="tree" aria-label={treeLabel ?? 'Archive contents'}>
           {tree.map((node) => (
             <TreeRow key={node.path} node={node} depth={0} />
           ))}

@@ -141,10 +141,12 @@ See [PREVIEW.md](PREVIEW.md).
 - Toggle show/hide; remember width.
 - Selection: preview the **most recently selected** item (keyboard/mouse focus); when multi-select, still show that file’s rich preview and a “N selected” badge (not a blank summary).
 - Type-specific fields; for images, parse embedded generation metadata when present.
+- Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
 - Inline video/audio playback in-pane for common containers (see PREVIEW.md); MKV remuxed via ffmpeg when practical; **`.avi`** uses thumb-strip + open with default app (no in-pane player).
 - Office docs: Word, PowerPoint (`.pptx` slide text; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 - Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 - ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
+- Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
 
 ---
 

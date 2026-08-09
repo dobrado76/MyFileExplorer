@@ -1420,10 +1420,19 @@ body.right-dragging * {
 }
 
 /* ZIP archive contents tree (preview only — not a navigable folder) */
+.preview.preview-kind-archive .preview-content {
+  overflow: hidden;
+}
+.preview.preview-kind-archive .preview-fields {
+  flex: 0 1 auto;
+  max-height: 38%;
+  overflow-y: auto;
+  min-height: 0;
+}
 .preview-zip {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   margin: 0 0 4px;
 }
@@ -1449,9 +1458,8 @@ body.right-dragging * {
   text-align: center;
 }
 .preview-zip-tree {
-  flex: 1;
-  min-height: 120px;
-  max-height: min(52vh, 420px);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
   margin: 0 10px 8px;
   padding: 4px 0;
@@ -1594,6 +1602,57 @@ body.right-dragging * {
   background: color-mix(in srgb, var(--code-number) 28%, transparent);
 }
 
+.preview-source {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 8px 12px;
+  gap: 6px;
+}
+.preview-source-toggle {
+  display: flex;
+  flex-shrink: 0;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.preview-source-tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.8em;
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.preview-source-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.preview-source-tab.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.preview-source-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preview-source-body .preview-rich,
+.preview-source-body .preview-code {
+  flex: 1;
+  margin: 0;
+  min-height: 120px;
+}
+
 .preview-rich {
   flex: 1;
   min-height: 120px;
@@ -1611,6 +1670,9 @@ body.right-dragging * {
 .preview-rich.md h1,
 .preview-rich.md h2,
 .preview-rich.md h3,
+.preview-rich.html h1,
+.preview-rich.html h2,
+.preview-rich.html h3,
 .preview-rich.doc h1,
 .preview-rich.doc h2,
 .preview-rich.doc h3 {

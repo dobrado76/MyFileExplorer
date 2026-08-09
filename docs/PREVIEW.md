@@ -12,13 +12,14 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 type PreviewModel = {
   path: string
   kind:
-    | 'image' | 'text' | 'markdown' | 'spreadsheet' | 'document' | 'rtf'
+    | 'image' | 'text' | 'markdown' | 'html' | 'spreadsheet' | 'document' | 'rtf'
     | 'audio' | 'video' | 'pdf' | 'binary' | 'executable' | 'directory' | 'shortcut' | 'archive' | 'missing'
   mediaUrl?: string // protocol URL for display (images, PDF)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
   sheets?: { name: string; rows: string[][] }[] // spreadsheet preview
-  archiveTree?: ArchiveTreeNode[] // ZIP contents when kind === 'archive'
+  archiveTree?: ArchiveTreeNode[] // ZIP / Unity package contents when kind === 'archive'
+  archiveFormat?: 'zip' | 'unitypackage'
   fields: PreviewField[] // ordered for display
   warnings?: string[] // e.g. "truncated", "parse incomplete"
 }
@@ -134,8 +135,8 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - UTF-8 / UTF-16 LE sniff; if binary → `kind: 'binary'`
 - Show first `textPreviewMaxBytes` chars
-- **Syntax highlighting** in the renderer (`highlight.js`, selective grammars) for common types: HTML/XML, JSON, TS/JS, YAML, CSS/SCSS, Python, shell/PowerShell, INI/TOML-ish, SQL, C-family, Rust, Go, PHP, Ruby, Lua, etc. Unknown extensions stay monospace plaintext.
-- Extensions: `.txt`, `.json`, `.yaml`, `.yml`, `.log`, `.css`, `.js`, `.ts`, … (`.md` / office formats use dedicated kinds below)
+- **Syntax highlighting** in the renderer (`highlight.js`, selective grammars) for common types: HTML/XML, JSON, TS/JS, YAML, CSS/SCSS, Python, shell/PowerShell (`.ps1` / `.ps`), batch (`.bat` / `.cmd`), VBScript (`.vbs`), INI/TOML-ish, SQL, C-family, Rust, Go, PHP, Ruby, Lua, etc. Unknown extensions stay monospace plaintext.
+- Extensions: `.txt`, `.json`, `.yaml`, `.yml`, `.wlt` (YAML), `.ffs_gui` (XML), `.log`, `.css`, `.js`, `.ts`, … (`.md` / office formats use dedicated kinds below)
 
 ---
 
@@ -143,6 +144,16 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - `kind: 'markdown'` with raw `textSample`
 - Renderer: GFM via `marked`, sanitized with DOMPurify before inject
+- **Preview / Raw** toggle (default Preview); Raw shows syntax-highlighted source
+
+---
+
+## HTML (`.html`, `.htm`)
+
+- `kind: 'html'` with raw `textSample` (same text-preview byte cap as other text)
+- Renderer: sanitized HTML inject (DOMPurify; scripts/iframes/forms forbidden)
+- **Preview / Raw** toggle (default Preview); Raw shows syntax-highlighted source
+- Relative assets / external scripts are not loaded specially — best-effort document preview
 
 ---
 
@@ -218,12 +229,22 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ## ZIP archives (`.zip`)
 
-- `kind: 'archive'` — nested **contents tree** in the preview pane (expand/collapse folders; file sizes when known)
+- `kind: 'archive'` with `archiveFormat: 'zip'` — nested **contents tree** in the preview pane (expand/collapse folders; file sizes when known)
 - **Not** a navigable virtual folder (still deferred) — browsing stays outside the archive; use **Extract All…** from the preview toolbar or context menu
 - Listing uses the ZIP central directory only (no full-file load); trees truncate around 4000 nodes
 - Zip-slip style entry names (`../…`) are omitted from the tree
 - File fields include Files / Folders counts; subtitle summarizes counts
 - Folders in the tree start **collapsed** (expand on click)
+
+---
+
+## Unity packages (`.unitypackage`)
+
+- `kind: 'archive'` with `archiveFormat: 'unitypackage'` — same contents tree UI as ZIP
+- Format is gzip-compressed tar; each GUID folder’s `pathname` is mapped to Unity paths (typically `Assets/…`)
+- Streams the archive (reads `pathname` text + `asset` sizes only; does not extract payloads)
+- **No Extract All** in the preview toolbar (import via Unity / open externally)
+- Trees truncate around 4000 nodes; `../` pathnames omitted
 
 ---
 
