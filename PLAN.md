@@ -28,7 +28,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 - Full Windows Explorer parity (ribbon clone, Libraries UX, shell-extension hosting, zip-as-folder deep UX)
 - Replacing OS file dialogs system-wide
 - macOS / Linux as primary targets
-
+- Remote FTP/SFTP as a must-have (optional bonus only — [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md); not scheduled)
 ## Doc map
 
 | Doc                                                        | Read when                     |
@@ -48,6 +48,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/SECURITY.md](docs/SECURITY.md)                       | Path guards & deletes         |
 | [docs/INTEGRATION.md](docs/INTEGRATION.md)                 | CLI / `mfe://` from other apps |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
+| [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 

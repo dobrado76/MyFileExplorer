@@ -115,7 +115,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 
 ## Non-goals (still)
 
-Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux-first support.
+Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux-first support. Optional FTP/SFTP remotes are a documented bonus only — see [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) (not scheduled).
 
 ---
 

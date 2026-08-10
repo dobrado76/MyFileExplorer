@@ -16,6 +16,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 6. Domain docs as needed: PREVIEW, SEARCH, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION
+7. Deferred / bonus only when relevant: [REMOTE_FTP.md](REMOTE_FTP.md) (not scheduled)
 
 ---
 
@@ -37,6 +38,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
+| [REMOTE_FTP.md](REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
 
 ---
 

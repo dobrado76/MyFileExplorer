@@ -50,3 +50,4 @@ Change only with an explicit decision update. Prefer amending this table over si
 - Archive browsing as virtual folders (open `.zip` as a navigable folder)
 - Plugin system for third-party context verbs
 - Cloud provider namespace integration
+- **Remote FTP/SFTP repositories** — browse/transfer bonus only; **not** local-drive parity. Spec: [REMOTE_FTP.md](REMOTE_FTP.md). Not scheduled; may never ship.
