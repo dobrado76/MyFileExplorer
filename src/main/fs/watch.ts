@@ -66,6 +66,12 @@ export function watchDirectory(wc: WebContents, rawPath: string): { watching: tr
   entry.watcher.on('error', () => {
     entry.watcher.close()
     byPath.delete(key)
+    if (!wc.isDestroyed()) {
+      wc.send(EVENT_CHANNEL, {
+        type: 'fs-watch-lost',
+        payload: { path: dir }
+      })
+    }
   })
   byPath.set(key, entry)
   return { watching: true }

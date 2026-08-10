@@ -142,13 +142,18 @@ const generateVidThumbsSchema = z.object({
 export function registerIpcHandlers(): void {
   // fs
   handle(IPC.fsList, listRequestSchema, async (req) => {
-    // Enumerating large folders can kick ReadDirectoryChanges; mute so soft
-    // re-lists don't loop (stat/FindFirstFile → watch → list → …).
+    // Enumerating can kick ReadDirectoryChanges; mute so soft re-lists don't
+    // loop (stat/FindFirstFile → watch → list → …). Post-list mute is
+    // size-aware so small folders stay responsive to external changes.
     muteWatchers(120_000)
     try {
-      return await listDirectory(req.path, req.includeHidden ?? true)
-    } finally {
-      muteWatchers(2500)
+      const res = await listDirectory(req.path, req.includeHidden ?? true)
+      const n = res.entries.length
+      muteWatchers(n >= 8_000 ? 2500 : n >= 1_000 ? 800 : 400)
+      return res
+    } catch (e) {
+      muteWatchers(800)
+      throw e
     }
   })
   handle(IPC.fsStat, pathRequestSchema, (req) => statPath(req.path))

@@ -125,6 +125,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | Event                     | Payload                                       |
 | ------------------------- | --------------------------------------------- |
 | `fs-changed`              | `{ path, reason }`                            |
+| `fs-watch-lost`           | `{ path }` — watcher closed; renderer may re-arm |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
 | `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip; byte fields for large streaming copies |
@@ -148,4 +149,4 @@ window.myFileExplorer = {
 }
 ```
 
-`onEvent` receives `fs-changed`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history).
+`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history).

@@ -59,6 +59,6 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Image editor | D27 — Filerobot; originals under `userData` |
 | Recycle Bin | D7 — in-app bin view |
 | Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder |
-| Large folders | Win32 listing + watch coalesce + debounced scroll |
+| Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |
 | vs Explorer | [ADVANTAGES.md](ADVANTAGES.md) |

@@ -75,7 +75,17 @@ Custom protocol (e.g. `mfe-media://`) serves:
 
 ## Folder watching
 
-Main watches the **active tab’s directory** and its **parent** via `fs.watch` (debounced). Broadcast `fs-changed` so the renderer soft-refreshes the listing and reloads that folder’s children in the tree. Mute briefly after in-app mutations to avoid selection jumps. **Refresh (F5)** always reloads the listing and every tree folder already loaded for the tab.
+Main watches **visible pane directories** (and usually their **parents**) via `fs.watch` (250 ms debounce). Broadcast `fs-changed` so the renderer soft-refreshes matching listings and reloads that folder’s children in the tree. Mute briefly after in-app mutations / during `fs:list` (post-list mute is shorter for small folders) to avoid selection jumps and list→watch→list loops.
+
+**Size tiers** (re-list cost, not `fs.watch` itself):
+
+| Entries | Watch | Soft-reload min gap |
+| ------- | ----- | ------------------- |
+| &lt; 1 000 | Active dir + parent | ~400 ms |
+| 1 000–7 999 | Active dir + parent | ~4 s |
+| ≥ 8 000 | Parent only (detect folder gone/renamed); no watch-driven soft re-list | F5 / navigate |
+
+Trash/move **suspend** closes all `ReadDirectoryChanges` handles; the renderer **re-arms** visible panes afterward (including in-folder deletes that prune without a full re-list). Watcher `error` emits `fs-watch-lost` so the renderer can re-arm. **Refresh (F5)** always reloads the listing and every tree folder already loaded for the tab.
 
 ---
 

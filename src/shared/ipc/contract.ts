@@ -93,6 +93,8 @@ export const EVENT_CHANNEL = 'mfe-event'
 
 export type MfeEvent =
   | { type: 'fs-changed'; payload: { path: string; reason: string } }
+  /** Watcher closed unexpectedly — renderer should re-arm if the path is still visible. */
+  | { type: 'fs-watch-lost'; payload: { path: string } }
   | {
       type: 'search-progress'
       payload: { phase: 'walking' | 'done'; current?: number; total?: number; message?: string }

@@ -194,9 +194,25 @@ const lastSoftReloadAtByPath = new Map<string, number>()
 function emptyListing(path = ''): Listing {
   return { path, entries: [], loading: false, error: null, offline: false }
 }
-/** Above this, skip directory watches — soft re-lists dominate UI time. */
-const LARGE_FOLDER_NO_WATCH = 2_000
-/**
+
+/** Soft-reload / watch tiers — full re-lists are expensive; fs.watch itself is cheap. */
+const WATCH_FAST_MAX = 1_000
+const WATCH_THROTTLED_MAX = 8_000
+const SOFT_RELOAD_GAP_FAST_MS = 400
+const SOFT_RELOAD_GAP_THROTTLED_MS = 4_000
+
+type WatchArmMode = 'full' | 'parent-only' | 'none'
+
+function watchArmModeForCount(n: number): WatchArmMode {
+  if (n >= WATCH_THROTTLED_MAX) return 'parent-only'
+  return 'full'
+}
+
+function softReloadMinGapMs(n: number): number {
+  if (n >= WATCH_THROTTLED_MAX) return Number.POSITIVE_INFINITY
+  if (n >= WATCH_FAST_MAX) return SOFT_RELOAD_GAP_THROTTLED_MS
+  return SOFT_RELOAD_GAP_FAST_MS
+}/**
  * Cached view order for delete-next selection. Rebuilding via localeCompare on
  * 20k rows every Del is a multi-hundred-ms hitch; prune updates this in place.
  */
@@ -766,6 +782,39 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
+  /**
+   * Arm directory watches for a folder under the size-tier policy.
+   * Large folders (≥8k): parent only (detect gone/renamed); no active-dir soft-reload watch.
+   */
+  function armWatchesForPath(dirPath: string, entryCount: number): void {
+    const mode = watchArmModeForCount(entryCount)
+    const parent = parentOf(dirPath)
+    if (mode === 'full') {
+      void api.fs.watch({ path: dirPath })
+      if (parent) void api.fs.watch({ path: parent })
+      return
+    }
+    // parent-only (or none): drop active-dir watch so we never soft-relist huge dirs
+    void api.fs.unwatch({ path: dirPath }).catch(() => {})
+    if (mode === 'parent-only' && parent) {
+      void api.fs.watch({ path: parent })
+    } else if (parent) {
+      void api.fs.unwatch({ path: parent }).catch(() => {})
+    }
+  }
+
+  /** Re-arm watches after suspend/release or watcher errors — uses current listing sizes. */
+  function armWatchesForVisiblePanes(): void {
+    const s = get()
+    const paneTabs = s.tabs.filter((t) => s.paneTabIds.includes(t.id))
+    const targets = paneTabs.length > 0 ? paneTabs : [s.activeTab()]
+    for (const tab of targets) {
+      if (!tab.path) continue
+      const n = s.listingsByTabId[tab.id]?.entries.length ?? 0
+      armWatchesForPath(tab.path, n)
+    }
+  }
+
   async function loadListing(
     path: string,
     opts?: { preserveSelection?: boolean; soft?: boolean; tabId?: string }
@@ -825,18 +874,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       })
       if (get().activeTabId === tabId) stopOfflinePoll()
-      // Large libraries: watching forces periodic full re-lists (even coalesced)
-      // and is the main source of multi-second freezes. Rely on optimistic
-      // mutations + F5 / navigation instead.
-      if (res.entries.length < LARGE_FOLDER_NO_WATCH) {
-        void api.fs.watch({ path })
-        const parent = parentOf(path)
-        if (parent) void api.fs.watch({ path: parent })
-      } else {
-        void api.fs.unwatch({ path }).catch(() => {})
-        const parent = parentOf(path)
-        if (parent) void api.fs.unwatch({ path: parent }).catch(() => {})
-      }
+      armWatchesForPath(path, sortedEntries.length)
       if (tabId === get().activeTabId) {
         viewOrderCache = null
         queueMicrotask(() => {
@@ -934,9 +972,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       const key = tab.id
       const listing = s.listingsByTabId[tab.id]
       const n = listing?.entries.length ?? 0
-      const minGap = n >= 10_000 ? 10_000 : n >= 2_000 ? 5_000 : 750
+      const minGap = softReloadMinGapMs(n)
+      if (!Number.isFinite(minGap)) {
+        // ≥8k: no watch-driven soft re-list
+        continue
+      }
       const last = lastSoftReloadAtByPath.get(dirPath.toLowerCase()) ?? 0
-      const wait = Math.max(250, last + minGap - Date.now())
+      const wait = Math.max(SOFT_RELOAD_GAP_FAST_MS, last + minGap - Date.now())
       const prev = softReloadTimers.get(key)
       if (prev) clearTimeout(prev)
       softReloadTimers.set(
@@ -1121,6 +1163,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         set({ selectionAnchor: null, focusedPath: null })
       }
       clearMediaHold()
+      // Trash/move suspend closes ReadDirectoryChanges handles — re-arm without re-list.
+      armWatchesForVisiblePanes()
       return
     }
 
@@ -1594,6 +1638,19 @@ export const useAppStore = create<AppState>()((set, get) => {
             notifyTreeReload([changed])
           } else {
             notifyTreeReload([changed])
+          }
+        } else if (event.type === 'fs-watch-lost') {
+          // Watcher closed (error / handle drop) — re-arm if still showing that folder.
+          const lost = event.payload.path
+          const s2 = get()
+          const visible = s2.tabs.filter((t) => s2.paneTabIds.includes(t.id))
+          const tabs = visible.length > 0 ? visible : [s2.activeTab()]
+          for (const tab of tabs) {
+            const parent = parentOf(tab.path)
+            if (samePath(tab.path, lost) || (parent && samePath(parent, lost))) {
+              const n = s2.listingsByTabId[tab.id]?.entries.length ?? 0
+              armWatchesForPath(tab.path, n)
+            }
           }
         } else if (event.type === 'search-progress') {
           if (s.search.running) {
