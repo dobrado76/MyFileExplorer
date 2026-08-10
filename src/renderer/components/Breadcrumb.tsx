@@ -222,11 +222,15 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
     <div
       ref={rootRef}
       className="breadcrumb"
-      onDoubleClick={(e) => {
-        if ((e.target as HTMLElement).closest('.crumb-history-btn, .crumb-history-menu')) return
+      onClick={(e) => {
+        const t = e.target as HTMLElement
+        // Explorer: click empty address area → edit; crumb / overflow / history keep their own actions.
+        if (t.closest('.crumb, .crumb-overflow, .crumb-history-btn, .crumb-history-menu, .context-menu')) {
+          return
+        }
         setEditing(true)
       }}
-      title="Double-click or Ctrl+L to type a path"
+      title="Click empty area or Ctrl+L to type a path"
     >
       <div className="breadcrumb-trail">
         {head.map((seg) => (

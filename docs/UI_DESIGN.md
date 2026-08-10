@@ -33,7 +33,7 @@ Custom theme = user-editable map of these tokens in settings.
 - Layout modes: single, side-by-side, 2×2 grid
 - Focused pane gets a clear focus ring; empty panes show “Drop a tab here”
 - Per-pane mini toolbar: Back / Forward / Up / Refresh / breadcrumb / view mode
-- Breadcrumb: click segment to jump; **double-click** (or Ctrl+L) to edit the path
+- Breadcrumb: click segment to jump; **click empty address area** (or Ctrl+L) to edit the path
 
 ### Splitters
 

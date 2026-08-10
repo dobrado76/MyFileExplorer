@@ -61,7 +61,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 
 ## Navigation
 
-- Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths). **Double-click** (or Ctrl+L) to type a path
+- Interactive **breadcrumb** (click segment to jump; optional overflow menu for deep paths). **Click empty address area** (or Ctrl+L) to type a path
 - Address bar **Recent locations** dropdown from the tab’s history: **current on top**, then prior folders in Back order (newest previous first — same sequence as Back, Back, …); Forward entries follow when present
 - **Back / Forward / Up**
 - Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
