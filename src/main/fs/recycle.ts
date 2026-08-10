@@ -32,6 +32,28 @@ function Invoke-MfeBinVerb($item, [string[]]$names) {
 }
 `
 
+/**
+ * Resolve a bin item to a wanted original path.
+ * Must stay in sync with matchRecycleOriginal() — do NOT match DeletedFrom alone
+ * (that wrongly restores every file previously deleted from a folder when undoing
+ * only the folder trash).
+ */
+const PS_RESOLVE_WANTED = `
+function Resolve-MfeWantedOriginal([string]$locStr, [string]$name, [string[]]$wanted) {
+  $locNorm = $locStr.TrimEnd('\\')
+  $combined = [System.IO.Path]::Combine($locNorm, $name)
+  $combinedKey = $combined.ToLowerInvariant()
+  foreach ($w in $wanted) { if ($w -eq $combinedKey) { return $combined } }
+  # Shell quirk: DeletedFrom is sometimes already the full original path.
+  $locKey = $locNorm.ToLowerInvariant()
+  $base = [System.IO.Path]::GetFileName($locNorm).ToLowerInvariant()
+  if ($base -eq $name.ToLowerInvariant()) {
+    foreach ($w in $wanted) { if ($w -eq $locKey) { return $locNorm } }
+  }
+  return $null
+}
+`
+
 async function runPowerShell(script: string, timeoutMs: number): Promise<string> {
   const { stdout, stderr } = await execFileAsync(
     'powershell.exe',
@@ -152,6 +174,7 @@ export async function restoreFromRecycleBin(
   const ps = `
 $ErrorActionPreference = 'Continue'
 ${PS_INVOKE_VERB}
+${PS_RESOLVE_WANTED}
 $wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $shell = New-Object -ComObject Shell.Application
 $rb = $shell.NameSpace(0xA)
@@ -163,15 +186,8 @@ foreach ($item in @($rb.Items())) {
     if (-not $loc) { $loc = $rb.GetDetailsOf($item, 1) }
     if (-not $loc) { continue }
     $name = [string]$item.Name
-    $locStr = [string]$loc
-    # DeletedFrom is usually the parent folder; sometimes already the full path.
-    $candidates = New-Object System.Collections.Generic.List[string]
-    [void]$candidates.Add([System.IO.Path]::Combine($locStr, $name).ToLowerInvariant())
-    [void]$candidates.Add($locStr.TrimEnd('\\').ToLowerInvariant())
-    $hit = $false
-    foreach ($c in $candidates) { if ($wanted -contains $c) { $hit = $true; break } }
-    if (-not $hit) { continue }
-    $full = if ($wanted -contains $locStr.TrimEnd('\\').ToLowerInvariant()) { $locStr.TrimEnd('\\') } else { [System.IO.Path]::Combine($locStr, $name) }
+    $full = Resolve-MfeWantedOriginal ([string]$loc) $name $wanted
+    if (-not $full) { continue }
     if (Invoke-MfeBinVerb $item @('restore','wiederherstellen','restaurer','restablecer','ripristina')) {
       [void]$restored.Add($full)
     }
@@ -223,6 +239,7 @@ export async function deleteFromRecycleBin(
   const ps = `
 $ErrorActionPreference = 'Continue'
 ${PS_INVOKE_VERB}
+${PS_RESOLVE_WANTED}
 $wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $shell = New-Object -ComObject Shell.Application
 $rb = $shell.NameSpace(0xA)
@@ -234,15 +251,8 @@ foreach ($item in @($rb.Items())) {
     if (-not $loc) { $loc = $rb.GetDetailsOf($item, 1) }
     if (-not $loc) { continue }
     $name = [string]$item.Name
-    $locStr = [string]$loc
-    $candidates = @(
-      [System.IO.Path]::Combine($locStr, $name).ToLowerInvariant(),
-      $locStr.TrimEnd('\\').ToLowerInvariant()
-    )
-    $hit = $false
-    foreach ($c in $candidates) { if ($wanted -contains $c) { $hit = $true; break } }
-    if (-not $hit) { continue }
-    $full = if ($wanted -contains $locStr.TrimEnd('\\').ToLowerInvariant()) { $locStr.TrimEnd('\\') } else { [System.IO.Path]::Combine($locStr, $name) }
+    $full = Resolve-MfeWantedOriginal ([string]$loc) $name $wanted
+    if (-not $full) { continue }
     if (Invoke-MfeBinVerb $item @('delete','löschen','supprimer','eliminar','elimina')) {
       [void]$deleted.Add($full)
     }
