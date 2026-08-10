@@ -33,6 +33,7 @@ import {
 } from './archiveFormat'
 import { readApkManifestInfo } from './apkManifest'
 import { readTtfNames } from './ttfNames'
+import { loadAudioPreviewMeta, loadMediaPreviewMeta } from './audioMeta'
 import {
   chmTopicMediaUrl,
   ensureChmExtracted,
@@ -137,7 +138,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 12
+const PREVIEW_CACHE_REV = 14
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -253,14 +254,7 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
     if (IMAGE_EXTS.has(ext)) {
       model = await buildImagePreview(file, ext, fields, warnings, mediaCacheKey)
     } else if (AUDIO_EXTS.has(ext)) {
-      protocolAllowlist.allowDir(path.dirname(file))
-      model = {
-        path: file,
-        kind: 'audio',
-        mediaUrl: mediaUrlFor(file, mediaCacheKey),
-        fields,
-        warnings
-      }
+      model = await buildAudioPreview(file, st.mtimeMs, st.size, mediaCacheKey, fields, warnings)
     } else if (VIDEO_EXTS.has(ext)) {
       model = await buildVideoPreview(file, ext, st.mtimeMs, st.size, mediaCacheKey, fields, warnings)
     } else if (ext === 'pdf') {
@@ -637,6 +631,24 @@ async function buildRtfPreview(
   }
 }
 
+async function attachVideoTagFields(
+  file: string,
+  mtimeMs: number,
+  size: number,
+  fields: PreviewField[]
+): Promise<string | undefined> {
+  try {
+    const meta = await loadMediaPreviewMeta(file, mtimeMs, size, {
+      group: 'video',
+      includeCover: false
+    })
+    fields.push(...meta.fields)
+    return meta.subtitle
+  } catch {
+    return undefined
+  }
+}
+
 async function buildVideoPreview(
   file: string,
   ext: string,
@@ -648,12 +660,25 @@ async function buildVideoPreview(
 ): Promise<PreviewModel> {
   protocolAllowlist.allowDir(path.dirname(file))
 
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: ext ? `${ext.toUpperCase()} video` : 'Video',
+      group: 'file'
+    }
+  }
+
+  const subtitle = await attachVideoTagFields(file, mtimeMs, size, fields)
+
   // AVI: no in-pane player — animated !VIDTHUMB_CACHE strip + Open (D33).
   if (STRIP_ONLY_VIDEO_EXTS.has(ext)) {
     const stripFrames = await resolveVidThumbFrames(file)
     return {
       path: file,
       kind: 'video',
+      subtitle,
       stripFrames: stripFrames.length > 0 ? stripFrames : undefined,
       fields,
       warnings: warnings.length ? warnings : undefined
@@ -679,6 +704,7 @@ async function buildVideoPreview(
   return {
     path: file,
     kind: 'video',
+    subtitle,
     mediaUrl,
     posterUrl,
     needsPlayable: needsPlayable || undefined,
@@ -703,6 +729,48 @@ export async function ensurePlayablePreview(
   }
   const url = await ensurePlayableVideoUrl(file, st.mtimeMs, st.size, opts)
   return { mediaUrl: url }
+}
+
+async function buildAudioPreview(
+  file: string,
+  mtimeMs: number,
+  size: number,
+  mediaCacheKey: string,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  protocolAllowlist.allowDir(path.dirname(file))
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    const ext = path.extname(file).slice(1).toLowerCase()
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: ext ? `${ext.toUpperCase()} audio` : 'Audio',
+      group: 'file'
+    }
+  }
+
+  let subtitle: string | undefined
+  let posterUrl: string | undefined
+  try {
+    const meta = await loadAudioPreviewMeta(file, mtimeMs, size)
+    fields.push(...meta.fields)
+    subtitle = meta.subtitle
+    posterUrl = meta.coverUrl
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not read audio metadata')
+  }
+
+  return {
+    path: file,
+    kind: 'audio',
+    subtitle,
+    mediaUrl: mediaUrlFor(file, mediaCacheKey),
+    posterUrl,
+    fields,
+    warnings: warnings.length ? warnings : undefined
+  }
 }
 
 async function buildFontPreview(

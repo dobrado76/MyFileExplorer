@@ -69,13 +69,15 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 
 Inline `<audio>` via byte-range `mfe-media://`. Optional autoplay: Settings → Behavior → **Autoplay media in preview**.
 
+Also shows **parsed metadata** (ID3 / Vorbis / etc. via `music-metadata`): duration, bitrate, sample rate, channels, codec/container, title/artist/album, track/disc, genre, year, composers & credits, BPM/key, copyright, ISRC, MusicBrainz IDs, comments/lyrics (truncated), and **embedded cover art** when present. Empty fields omitted.
+
 | Ext | Notes |
 | --- | ----- |
-| `mp3` | MPEG audio. |
-| `wav` | PCM / common WAV. |
-| `flac` | Lossless. |
+| `mp3` | MPEG audio + ID3 tags / cover. |
+| `wav` | PCM / common WAV (+ tags when present). |
+| `flac` | Lossless + Vorbis comments / picture blocks. |
 | `ogg` | Ogg container (Vorbis/Opus depending on Chromium). |
-| `m4a` | AAC in MP4 audio. |
+| `m4a` | AAC in MP4 audio (+ iTunes/MP4 atoms). |
 | `aac` | Raw / ADTS AAC when Chromium accepts it. |
 | `wma` | Best-effort; may need Open with default app. |
 | `opus` | Opus audio. |
@@ -86,13 +88,15 @@ Inline `<audio>` via byte-range `mfe-media://`. Optional autoplay: Settings → 
 
 Inline `<video>` via byte-range `mfe-media://` when Chromium can play the container/codecs. Optional autoplay (same setting as audio).
 
+Also shows **parsed metadata** underneath when present (same `music-metadata` path as audio): duration, bitrate, dimensions/fps when known, codecs/container, title/artist/album and other tags. Empty fields omitted.
+
 | Ext | Behavior |
 | --- | -------- |
 | `mp4` / `m4v` | Direct play when H.264/AAC (typical). |
 | `webm` | Direct play when VP8/VP9/Opus (typical). |
 | `mov` | Direct play when codecs allow. |
 | `mkv` / `wmv` / `mpg` / `mpeg` | Still poster, then remux/transcode to MP4 under `userData/video-remux/` when practical (`preview:ensurePlayable`). |
-| `avi` | **Strip-only** — no in-pane player. Animates `!VIDTHUMB_CACHE` frames when present + **Open with default app** (D33). |
+| `avi` | **Strip-only** — no in-pane player. Animates `!VIDTHUMB_CACHE` frames when present + **Open with default app** (D33). Metadata still listed when parseable. |
 
 Icon-view video strips (`!VIDTHUMB_CACHE`) are separate from the preview pane; see [PREVIEW.md](PREVIEW.md).
 

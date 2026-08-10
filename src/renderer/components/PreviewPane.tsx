@@ -61,6 +61,8 @@ function archiveContentsLabel(format: PreviewModel['archiveFormat']): string {
 /* The "file" group is rendered separately as the compact details strip
    pinned to the bottom of the pane. Weights/summary ("other") before training. */
 const CONTENT_GROUPS: { key: string; label: string }[] = [
+  { key: 'audio', label: 'Audio' },
+  { key: 'video', label: 'Video' },
   { key: 'executable', label: 'Details' },
   { key: 'shortcut', label: 'Shortcut' },
   { key: 'other', label: 'Other' },
@@ -315,6 +317,7 @@ export function PreviewPane(): JSX.Element {
         {model.kind === 'audio' && model.mediaUrl && !mediaHold && (
           <AudioPreview
             url={model.mediaUrl}
+            coverUrl={model.posterUrl}
             autoplay={previewVideoAutoplay}
             onOpenExternal={() => void openPath(model.path)}
           />

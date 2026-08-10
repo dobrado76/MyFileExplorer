@@ -28,6 +28,8 @@ export type PreviewFieldGroup =
   | 'generation'
   | 'shortcut'
   | 'executable'
+  | 'audio'
+  | 'video'
   | 'other'
 
 export type PreviewField = {

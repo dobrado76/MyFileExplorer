@@ -289,10 +289,12 @@ export function VideoPreview({
 
 export function AudioPreview({
   url,
+  coverUrl,
   autoplay,
   onOpenExternal
 }: {
   url: string
+  coverUrl?: string
   autoplay?: boolean
   onOpenExternal(): void
 }): JSX.Element {
@@ -312,6 +314,11 @@ export function AudioPreview({
   }
   return (
     <div className="preview-media preview-av preview-av-audio">
+      {coverUrl ? (
+        <div className="preview-audio-cover">
+          <img src={coverUrl} alt="" draggable={false} />
+        </div>
+      ) : null}
       <audio
         key={url}
         className="preview-audio"
