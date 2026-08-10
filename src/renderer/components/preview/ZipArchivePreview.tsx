@@ -14,10 +14,19 @@ function formatSize(n: number): string {
   return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[u]}`
 }
 
-function TreeRow({ node, depth }: { node: ArchiveTreeNode; depth: number }): JSX.Element {
+function TreeRow({
+  node,
+  depth,
+  defaultOpen = false
+}: {
+  node: ArchiveTreeNode
+  depth: number
+  /** When true, start expanded (sole top-level folder in the archive). */
+  defaultOpen?: boolean
+}): JSX.Element {
   const isDir = node.kind === 'dir'
-  /** Collapsed on first paint — expand on click like a normal folder tree. */
-  const [open, setOpen] = useState(false)
+  /** Collapsed on first paint unless auto-expanded for a sole root folder. */
+  const [open, setOpen] = useState(defaultOpen)
   const kids = node.children ?? []
   const hasKids = isDir && kids.length > 0
 
@@ -44,7 +53,9 @@ function TreeRow({ node, depth }: { node: ArchiveTreeNode; depth: number }): JSX
         ) : null}
       </button>
       {hasKids && open
-        ? kids.map((child) => <TreeRow key={child.path} node={child} depth={depth + 1} />)
+        ? kids.map((child) => (
+            <TreeRow key={child.path} node={child} depth={depth + 1} />
+          ))
         : null}
     </div>
   )
@@ -57,8 +68,11 @@ type Props = {
   treeLabel?: string
 }
 
-/** Nested contents listing for a selected archive (ZIP / Unity package). */
+/** Nested contents listing for a selected archive (ZIP / 7z / RAR / TAR / Unity). */
 export function ZipArchivePreview({ tree, onExtract, treeLabel }: Props): JSX.Element {
+  /** Common “everything under one folder” layout — open that folder once. */
+  const soleRootFolder = tree.length === 1 && tree[0]?.kind === 'dir' ? tree[0] : null
+
   return (
     <div className="preview-zip">
       <div className="preview-zip-toolbar">
@@ -74,7 +88,12 @@ export function ZipArchivePreview({ tree, onExtract, treeLabel }: Props): JSX.El
       ) : (
         <div className="preview-zip-tree" role="tree" aria-label={treeLabel ?? 'Archive contents'}>
           {tree.map((node) => (
-            <TreeRow key={node.path} node={node} depth={0} />
+            <TreeRow
+              key={node.path}
+              node={node}
+              depth={0}
+              defaultOpen={soleRootFolder !== null && node.path === soleRootFolder.path}
+            />
           ))}
         </div>
       )}

@@ -30,6 +30,33 @@ import {
 import { CodePreview } from './preview/CodePreview'
 import { ZipArchivePreview } from './preview/ZipArchivePreview'
 import { ChmPreview } from './preview/ChmPreview'
+import { FontPreview } from './preview/FontPreview'
+
+function archiveContentsLabel(format: PreviewModel['archiveFormat']): string {
+  switch (format) {
+    case 'unitypackage':
+      return 'Unity package contents'
+    case '7z':
+      return '7z contents'
+    case 'rar':
+      return 'RAR contents'
+    case 'tar':
+      return 'TAR contents'
+    case 'targz':
+      return 'TAR.GZ contents'
+    case 'apk':
+      return 'APK contents'
+    case 'msi':
+      return 'MSI contents'
+    case 'iso':
+      return 'ISO contents'
+    case 'img':
+      return 'IMG contents'
+    case 'zip':
+    default:
+      return 'ZIP contents'
+  }
+}
 
 /* The "file" group is rendered separately as the compact details strip
    pinned to the bottom of the pane. Weights/summary ("other") before training. */
@@ -308,6 +335,12 @@ export function PreviewPane(): JSX.Element {
             </div>
           </div>
         )}
+        {model.kind === 'font' && model.mediaUrl && !mediaHold && (
+          <FontPreview url={model.mediaUrl} />
+        )}
+        {model.kind === 'font' && !model.mediaUrl && (
+          <div className="preview-font preview-font-error">Font preview unavailable</div>
+        )}
         {((model.kind === 'video' &&
           !model.mediaUrl &&
           !model.posterUrl &&
@@ -331,17 +364,22 @@ export function PreviewPane(): JSX.Element {
           </div>
         )}
         {model.kind === 'archive' && (
-          <ZipArchivePreview
-            tree={model.archiveTree ?? []}
-            treeLabel={
-              model.archiveFormat === 'unitypackage' ? 'Unity package contents' : 'ZIP contents'
-            }
-            onExtract={
-              model.archiveFormat === 'unitypackage'
-                ? undefined
-                : () => void extractZip([model.path])
-            }
-          />
+          <>
+            {model.mediaUrl && (
+              <div className="preview-exe">
+                <div className="preview-icon preview-exe-icon">
+                  <img src={model.mediaUrl} alt="" width={64} height={64} draggable={false} />
+                </div>
+              </div>
+            )}
+            <ZipArchivePreview
+              tree={model.archiveTree ?? []}
+              treeLabel={archiveContentsLabel(model.archiveFormat)}
+              onExtract={
+                model.archiveFormat === 'zip' ? () => void extractZip([model.path]) : undefined
+              }
+            />
+          </>
         )}
         {model.kind === 'chm' && (
           <ChmPreview

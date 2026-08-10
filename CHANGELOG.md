@@ -13,6 +13,12 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **CHM preview (D35)** — `.chm` files open in the preview pane with a Contents TOC and sandboxed topic HTML (Windows `hh.exe` decompile under userData; `mfe-media://chm/…` for relative assets).
 - **Tree drag-hover expand** — while dragging, hover a collapsed folder in the tree ~2s to expand it (Explorer parity; D11).
+- **Archive preview for 7z / RAR / TAR** — contents tree (list-only) for `.7z`, `.rar`, `.tar`, `.tar.gz`, `.tgz` alongside ZIP / Unity (D30).
+
+### Changed
+
+- **View layout control** — 1 / 2 / 4 pane switcher is a compact toolbar dropdown instead of three always-visible buttons.
+- **Shell icon extract** — `.exe` / per-file shell icons extract in the background (queued + throttled) so large app folders no longer freeze the UI (D21).
 
 ### Fixed
 

@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { api } from '../lib/ipc'
 import { FileIcon, FolderIcon } from '../lib/icons'
+import { withIconRequestSlot } from '../lib/iconRequestQueue'
 
 const memoryCache = new Map<string, string>()
 /** Same glyph for every file of an extension (matches main's extUrlCache). */
@@ -70,7 +71,10 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
     }
     setUrl(null)
     setFailed(false)
-    void api.icons.get({ path, size, isDir: isDir === true }).then((res) => {
+    const perFile = isDir === true || PER_FILE_EXTS.has(ext)
+    const request = async (): Promise<void> => {
+      if (!alive) return
+      const res = await api.icons.get({ path, size, isDir: isDir === true })
       if (!alive) return
       if (res.ok && res.value.url) {
         if (memoryCache.size > MAX_CACHE) memoryCache.clear()
@@ -81,11 +85,13 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
       } else {
         setFailed(true)
       }
-    })
+    }
+    // Per-file shell icons (esp. .exe) are expensive — throttle IPC flood.
+    void (perFile ? withIconRequestSlot(request) : request())
     return () => {
       alive = false
     }
-  }, [key, path, size, extKey, isDir])
+  }, [key, path, size, extKey, isDir, ext])
 
   if (url && !failed) {
     return (

@@ -17,6 +17,7 @@ export const previewKindSchema = z.enum([
   'shortcut',
   'archive',
   'chm',
+  'font',
   'missing'
 ])
 export type PreviewKind = z.infer<typeof previewKindSchema>
@@ -82,8 +83,18 @@ export type PreviewModel = {
   sheets?: SpreadsheetSheet[]
   /** ZIP / Unity package contents tree when `kind === 'archive'`; CHM TOC when `kind === 'chm'`. */
   archiveTree?: ArchiveTreeNode[]
-  /** Archive flavor — drives Extract All visibility (ZIP only). */
-  archiveFormat?: 'zip' | 'unitypackage'
+  /** Archive flavor — Extract All only for ZIP. */
+  archiveFormat?:
+    | 'zip'
+    | 'unitypackage'
+    | '7z'
+    | 'rar'
+    | 'tar'
+    | 'targz'
+    | 'apk'
+    | 'msi'
+    | 'iso'
+    | 'img'
   fields: PreviewField[]
   warnings?: string[]
 }

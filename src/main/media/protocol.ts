@@ -64,7 +64,8 @@ const MIME_BY_EXT: Record<string, string> = {
   htm: 'text/html',
   css: 'text/css',
   js: 'text/javascript',
-  json: 'application/json'
+  json: 'application/json',
+  ttf: 'font/ttf'
 }
 
 /** Types Chromium fetches with Range requests. */

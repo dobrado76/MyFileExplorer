@@ -22,6 +22,17 @@ import { buildSafetensorsPreviewFields } from './safetensors'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
 import { loadUnityPackageTree } from './unityPackage'
+import { loadTarArchiveTree } from './tarArchive'
+import { loadSevenZipArchiveTree } from './sevenZipList'
+import { loadRarArchiveTree } from './rarArchive'
+import { loadIsoArchiveTree } from './iso9660'
+import {
+  archiveTypeLabel,
+  detectArchiveFormat,
+  type PreviewArchiveFormat
+} from './archiveFormat'
+import { readApkManifestInfo } from './apkManifest'
+import { readTtfNames } from './ttfNames'
 import {
   chmTopicMediaUrl,
   ensureChmExtracted,
@@ -38,7 +49,8 @@ import {
 import { cachedPlayableVideoUrl, ensurePlayableVideoUrl } from './videoRemux'
 import { resolveVidThumbFrames } from '../thumbs/vidCache'
 
-const EXE_PREVIEW_EXTS = new Set(['exe', 'dll', 'scr', 'ocx', 'cpl', 'sys', 'msi'])
+const EXE_PREVIEW_EXTS = new Set(['exe', 'dll', 'scr', 'ocx', 'cpl', 'sys', 'com'])
+const FONT_EXTS = new Set(['ttf'])
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -125,7 +137,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 5
+const PREVIEW_CACHE_REV = 12
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -169,6 +181,7 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
   const fields: PreviewField[] = []
   const name = path.basename(file)
   const ext = path.extname(file).slice(1).toLowerCase()
+  const archiveFmt = detectArchiveFormat(file)
 
   fields.push({ id: 'file.name', label: 'Name', value: name, group: 'file', copyable: true })
 
@@ -281,10 +294,10 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
       model = await buildSafetensorsPreview(file, fields, warnings)
     } else if (ext === 'lnk') {
       model = await buildShortcutPreview(file, fields, warnings)
-    } else if (ext === 'zip') {
-      model = await buildZipArchivePreview(file, st.size, fields, warnings)
-    } else if (ext === 'unitypackage') {
-      model = await buildUnityPackagePreview(file, fields, warnings)
+    } else if (FONT_EXTS.has(ext)) {
+      model = await buildFontPreview(file, fields, warnings, mediaCacheKey)
+    } else if (archiveFmt) {
+      model = await buildArchivePreview(file, archiveFmt, fields, warnings)
     } else if (ext === 'chm') {
       model = await buildChmPreview(file, st.mtimeMs, st.size, fields, warnings)
     } else if (EXE_PREVIEW_EXTS.has(ext)) {
@@ -692,6 +705,55 @@ export async function ensurePlayablePreview(
   return { mediaUrl: url }
 }
 
+async function buildFontPreview(
+  file: string,
+  fields: PreviewField[],
+  warnings: string[],
+  mediaCacheKey: string
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: 'TrueType font',
+      group: 'file'
+    }
+  }
+
+  try {
+    const names = readTtfNames(file)
+    const push = (id: string, label: string, value: string | null): void => {
+      if (!value) return
+      fields.push({ id, label, value, group: 'other', copyable: true })
+    }
+    push('font.family', 'Family', names.family)
+    push('font.fullName', 'Full name', names.fullName)
+    push('font.version', 'Version', names.version)
+    push('font.copyright', 'Copyright', names.copyright)
+    protocolAllowlist.allowDir(path.dirname(file))
+    return {
+      path: file,
+      kind: 'font',
+      subtitle: names.fullName || names.family || 'TrueType font',
+      mediaUrl: mediaUrlFor(file, mediaCacheKey),
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : 'Could not read font')
+    protocolAllowlist.allowDir(path.dirname(file))
+    return {
+      path: file,
+      kind: 'font',
+      subtitle: 'TrueType font',
+      mediaUrl: mediaUrlFor(file, mediaCacheKey),
+      fields,
+      warnings
+    }
+  }
+}
+
 async function buildExecutablePreview(
   file: string,
   ext: string,
@@ -703,8 +765,8 @@ async function buildExecutablePreview(
     const typeLabel =
       ext === 'dll'
         ? 'Application extension (DLL)'
-        : ext === 'msi'
-          ? 'Windows Installer package'
+        : ext === 'com'
+          ? 'MS-DOS application'
           : 'Application'
     fields[typeIdx] = {
       id: 'file.type',
@@ -714,26 +776,9 @@ async function buildExecutablePreview(
     }
   }
 
-  const ver = readPeVersionInfo(file)
-  if (ver) {
-    const push = (id: string, label: string, value: string | null): void => {
-      if (!value) return
-      fields.push({ id, label, value, group: 'executable', copyable: true })
-    }
-    push('exe.fileDescription', 'File description', ver.fileDescription)
-    push('exe.fileVersion', 'File version', ver.fileVersion)
-    push('exe.productName', 'Product name', ver.productName)
-    push('exe.productVersion', 'Product version', ver.productVersion)
-    push('exe.copyright', 'Copyright', ver.copyright)
-    push('exe.company', 'Company', ver.companyName)
-    push('exe.language', 'Language', ver.language)
-    push('exe.originalFilename', 'Original filename', ver.originalFilename)
-    push('exe.internalName', 'Internal name', ver.internalName)
-    push('exe.comments', 'Comments', ver.comments)
-    push('exe.legalTrademarks', 'Legal trademarks', ver.legalTrademarks)
-    push('exe.privateBuild', 'Private build', ver.privateBuild)
-    push('exe.specialBuild', 'Special build', ver.specialBuild)
-  } else if (process.platform === 'win32') {
+  const hadVersion = pushPeVersionFields(file, fields)
+  // Classic .com binaries are not PE — missing VERSIONINFO is normal.
+  if (!hadVersion && process.platform === 'win32' && ext !== 'com') {
     warnings.push('No version resource in this file')
   }
 
@@ -746,9 +791,9 @@ async function buildExecutablePreview(
   }
 
   const subtitle =
-    ver?.fileDescription?.trim() ||
-    ver?.productName?.trim() ||
-    (ext === 'dll' ? 'Dynamic-link library' : 'Application')
+    fields.find((f) => f.id === 'exe.fileDescription')?.value?.trim() ||
+    fields.find((f) => f.id === 'exe.productName')?.value?.trim() ||
+    (ext === 'dll' ? 'Dynamic-link library' : ext === 'com' ? 'MS-DOS application' : 'Application')
 
   return {
     path: file,
@@ -760,9 +805,106 @@ async function buildExecutablePreview(
   }
 }
 
-async function buildZipArchivePreview(
+async function loadArchiveTree(format: PreviewArchiveFormat, file: string) {
+  switch (format) {
+    case 'zip':
+    case 'apk':
+      return loadZipArchiveTree(file)
+    case 'unitypackage':
+      return loadUnityPackageTree(file)
+    case '7z':
+    case 'msi':
+      return loadSevenZipArchiveTree(file)
+    case 'iso':
+    case 'img':
+      return loadIsoArchiveTree(file)
+    case 'rar':
+      return loadRarArchiveTree(file)
+    case 'tar':
+      return loadTarArchiveTree(file, false)
+    case 'targz':
+      return loadTarArchiveTree(file, true)
+  }
+}
+
+function archiveShortName(format: PreviewArchiveFormat): string {
+  switch (format) {
+    case 'targz':
+      return 'TAR.GZ'
+    case 'unitypackage':
+      return 'Unity package'
+    case 'apk':
+      return 'APK'
+    case 'msi':
+      return 'MSI'
+    case 'iso':
+      return 'ISO'
+    case 'img':
+      return 'IMG'
+    default:
+      return format.toUpperCase()
+  }
+}
+
+/** @returns true when any VERSIONINFO string was present. */
+function pushPeVersionFields(file: string, fields: PreviewField[]): boolean {
+  const ver = readPeVersionInfo(file)
+  if (!ver) return false
+  const push = (id: string, label: string, value: string | null): void => {
+    if (!value) return
+    fields.push({ id, label, value, group: 'executable', copyable: true })
+  }
+  push('exe.fileDescription', 'File description', ver.fileDescription)
+  push('exe.fileVersion', 'File version', ver.fileVersion)
+  push('exe.productName', 'Product name', ver.productName)
+  push('exe.productVersion', 'Product version', ver.productVersion)
+  push('exe.copyright', 'Copyright', ver.copyright)
+  push('exe.company', 'Company', ver.companyName)
+  push('exe.language', 'Language', ver.language)
+  push('exe.originalFilename', 'Original filename', ver.originalFilename)
+  push('exe.internalName', 'Internal name', ver.internalName)
+  push('exe.comments', 'Comments', ver.comments)
+  push('exe.legalTrademarks', 'Legal trademarks', ver.legalTrademarks)
+  push('exe.privateBuild', 'Private build', ver.privateBuild)
+  push('exe.specialBuild', 'Special build', ver.specialBuild)
+  return true
+}
+
+async function enrichMsiArchivePreview(
   file: string,
-  _size: number,
+  fields: PreviewField[]
+): Promise<string | undefined> {
+  pushPeVersionFields(file, fields)
+  try {
+    const icon = await getShellIconUrl(file, 32, false)
+    return icon.url || undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function enrichApkArchivePreview(file: string, fields: PreviewField[]): Promise<string | undefined> {
+  try {
+    const info = await readApkManifestInfo(file)
+    const push = (id: string, label: string, value: string | null): void => {
+      if (!value) return
+      fields.push({ id, label, value, group: 'other', copyable: true })
+    }
+    push('apk.package', 'Package', info.packageName)
+    push('apk.versionName', 'Version', info.versionName)
+    push('apk.versionCode', 'Version code', info.versionCode)
+    if (info.packageName && info.versionName) return `${info.packageName} · ${info.versionName}`
+    if (info.packageName) return info.packageName
+    if (info.versionName) return info.versionName
+  } catch {
+    // omit APK metadata on parse failure
+  }
+  return undefined
+}
+
+async function buildArchivePreview(
+  file: string,
+  format: PreviewArchiveFormat,
   fields: PreviewField[],
   warnings: string[]
 ): Promise<PreviewModel> {
@@ -771,19 +913,29 @@ async function buildZipArchivePreview(
     fields[typeIdx] = {
       id: 'file.type',
       label: 'Type',
-      value: 'Compressed (zipped) folder',
+      value: archiveTypeLabel(format),
       group: 'file'
     }
   }
 
+  const shortName = archiveShortName(format)
+  let mediaUrl: string | undefined
+  let metaSubtitle: string | undefined
+
+  if (format === 'msi') {
+    mediaUrl = await enrichMsiArchivePreview(file, fields)
+  } else if (format === 'apk') {
+    metaSubtitle = await enrichApkArchivePreview(file, fields)
+  }
+
   try {
-    const listed = await loadZipArchiveTree(file)
+    const listed = await loadArchiveTree(format, file)
     if (listed.truncated) {
       warnings.push('Contents list truncated for preview')
     }
     fields.push({
       id: 'archive.files',
-      label: 'Files',
+      label: format === 'unitypackage' ? 'Assets' : 'Files',
       value: String(listed.fileCount) + (listed.truncated ? '+' : ''),
       group: 'file'
     })
@@ -793,27 +945,30 @@ async function buildZipArchivePreview(
       value: String(listed.folderCount) + (listed.truncated ? '+' : ''),
       group: 'file'
     })
-    const subtitle =
+    const countSubtitle =
       listed.fileCount + listed.folderCount === 0
-        ? 'Empty ZIP'
-        : `${listed.fileCount} file${listed.fileCount === 1 ? '' : 's'} · ${listed.folderCount} folder${listed.folderCount === 1 ? '' : 's'}${listed.truncated ? '…' : ''}`
+        ? `Empty ${shortName}`
+        : `${listed.fileCount} ${format === 'unitypackage' ? 'asset' : 'file'}${listed.fileCount === 1 ? '' : 's'} · ${listed.folderCount} folder${listed.folderCount === 1 ? '' : 's'}${listed.truncated ? '…' : ''}`
+    const subtitle = metaSubtitle ? `${metaSubtitle} · ${countSubtitle}` : countSubtitle
     return {
       path: file,
       kind: 'archive',
       subtitle,
+      mediaUrl,
       archiveTree: listed.tree,
-      archiveFormat: 'zip',
+      archiveFormat: format,
       fields,
       warnings: warnings.length ? warnings : undefined
     }
   } catch (e) {
-    warnings.push(e instanceof Error ? e.message : 'Could not read ZIP contents')
+    warnings.push(e instanceof Error ? e.message : `Could not read ${shortName} contents`)
     return {
       path: file,
       kind: 'archive',
-      subtitle: 'ZIP archive',
+      subtitle: metaSubtitle || archiveTypeLabel(format),
+      mediaUrl,
       archiveTree: [],
-      archiveFormat: 'zip',
+      archiveFormat: format,
       fields,
       warnings
     }
@@ -901,65 +1056,6 @@ export async function getChmTopicPreview(
   }
   const mediaUrl = await chmTopicMediaUrl(file, st.mtimeMs, st.size, topic)
   return { mediaUrl }
-}
-
-async function buildUnityPackagePreview(
-  file: string,
-  fields: PreviewField[],
-  warnings: string[]
-): Promise<PreviewModel> {
-  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
-  if (typeIdx >= 0) {
-    fields[typeIdx] = {
-      id: 'file.type',
-      label: 'Type',
-      value: 'Unity package',
-      group: 'file'
-    }
-  }
-
-  try {
-    const listed = await loadUnityPackageTree(file)
-    if (listed.truncated) {
-      warnings.push('Contents list truncated for preview')
-    }
-    fields.push({
-      id: 'archive.files',
-      label: 'Assets',
-      value: String(listed.fileCount) + (listed.truncated ? '+' : ''),
-      group: 'file'
-    })
-    fields.push({
-      id: 'archive.folders',
-      label: 'Folders',
-      value: String(listed.folderCount) + (listed.truncated ? '+' : ''),
-      group: 'file'
-    })
-    const subtitle =
-      listed.fileCount + listed.folderCount === 0
-        ? 'Empty Unity package'
-        : `${listed.fileCount} asset${listed.fileCount === 1 ? '' : 's'} · ${listed.folderCount} folder${listed.folderCount === 1 ? '' : 's'}${listed.truncated ? '…' : ''}`
-    return {
-      path: file,
-      kind: 'archive',
-      subtitle,
-      archiveTree: listed.tree,
-      archiveFormat: 'unitypackage',
-      fields,
-      warnings: warnings.length ? warnings : undefined
-    }
-  } catch (e) {
-    warnings.push(e instanceof Error ? e.message : 'Could not read Unity package')
-    return {
-      path: file,
-      kind: 'archive',
-      subtitle: 'Unity package',
-      archiveTree: [],
-      archiveFormat: 'unitypackage',
-      fields,
-      warnings
-    }
-  }
 }
 
 async function buildShortcutPreview(

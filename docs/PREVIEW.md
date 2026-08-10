@@ -4,6 +4,8 @@
 
 The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params).
 
+**Extension catalog:** [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) — every extension routed by the preview pane, with notes per type.
+
 ---
 
 ## PreviewModel (IPC)
@@ -14,13 +16,13 @@ type PreviewModel = {
   kind:
     | 'image' | 'text' | 'markdown' | 'html' | 'spreadsheet' | 'document' | 'rtf'
     | 'audio' | 'video' | 'pdf' | 'binary' | 'executable' | 'directory' | 'shortcut'
-    | 'archive' | 'chm' | 'missing'
-  mediaUrl?: string // protocol URL for display (images, PDF, CHM topic)
+    | 'archive' | 'chm' | 'font' | 'missing'
+  mediaUrl?: string // protocol URL for display (images, PDF, fonts, CHM topic, MSI icon)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
   sheets?: { name: string; rows: string[][] }[] // spreadsheet preview
-  archiveTree?: ArchiveTreeNode[] // ZIP / Unity / CHM TOC when kind is archive or chm
-  archiveFormat?: 'zip' | 'unitypackage'
+  archiveTree?: ArchiveTreeNode[] // ZIP / 7z / RAR / TAR / Unity / APK / MSI / ISO / IMG / CHM TOC
+  archiveFormat?: 'zip' | 'unitypackage' | '7z' | 'rar' | 'tar' | 'targz' | 'apk' | 'msi' | 'iso' | 'img'
   fields: PreviewField[] // ordered for display
   warnings?: string[] // e.g. "truncated", "parse incomplete"
 }
@@ -235,7 +237,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Listing uses the ZIP central directory only (no full-file load); trees truncate around 4000 nodes
 - Zip-slip style entry names (`../…`) are omitted from the tree
 - File fields include Files / Folders counts; subtitle summarizes counts
-- Folders in the tree start **collapsed** (expand on click)
+- Folders in the tree start **collapsed** (expand on click), except when the archive has a **single top-level folder** — that folder opens automatically so its contents are visible
 
 ---
 
@@ -246,6 +248,51 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Streams the archive (reads `pathname` text + `asset` sizes only; does not extract payloads)
 - **No Extract All** in the preview toolbar (import via Unity / open externally)
 - Trees truncate around 4000 nodes; `../` pathnames omitted
+
+---
+
+## 7-Zip / RAR / TAR (`.7z`, `.rar`, `.tar`, `.tar.gz`, `.tgz`)
+
+- Same `kind: 'archive'` contents-tree preview as ZIP (list-only; **no Extract All** in the toolbar)
+- `.7z` — listed via bundled `7za` (`7zip-bin` / `7zip-min`, asar-unpacked)
+- `.rar` — listed via `node-unrar-js` (WASM UnRAR)
+- `.tar` / `.tar.gz` / `.tgz` — streamed with `tar-stream` (+ gunzip); compound suffixes detected before bare `.gz`
+- Trees truncate around 4000 nodes; `../` entry names omitted
+- Password / multi-volume / exotic RAR variants may fail with a warning — use Open externally
+
+---
+
+## Android packages (`.apk`)
+
+- `kind: 'archive'` with `archiveFormat: 'apk'` — ZIP contents tree (list-only; **no Extract All**)
+- Metadata from binary `AndroidManifest.xml` (ZIP entry only): Package, Version (`versionName`), Version code when parseable
+- Subtitle prefers `package · versionName` plus file/folder counts
+- No permission dump or launcher-icon extract
+
+---
+
+## Windows Installer (`.msi`)
+
+- `kind: 'archive'` with `archiveFormat: 'msi'` — contents tree via bundled `7za` (list-only; **no Extract All**)
+- Also shows shell icon (`mediaUrl`) and VERSIONINFO fields when present (same strings as executable preview)
+- Listing may fail on unusual MSIs — warning + empty tree; Open externally remains available
+
+---
+
+## Disc / disk images (`.iso`, `.img`)
+
+- `kind: 'archive'` — contents tree via random-access listing (list-only; **no Extract All**). Bundled `7za` does **not** support ISO/UDF.
+- Prefers **UDF** when an Anchor Volume Descriptor is present (Windows install ISOs — ISO9660 is often only a stub `README.TXT`)
+- Falls back to **ISO 9660 / Joliet** (2048-byte cooked sectors; `.img` also tries raw Mode-1 2352)
+- Companion `.cue` / `.ccd` stay text previews; `.sub` stays binary
+
+---
+
+## TrueType fonts (`.ttf`)
+
+- `kind: 'font'` — sample pangram / alphabet via `@font-face` over `mfe-media` (`font/ttf`)
+- Name-table fields when present: Family, Full name, Version, Copyright
+- Does not install the font into Windows; OTF / WOFF not in this pass (D36)
 
 ---
 
@@ -267,7 +314,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Fields (`group: executable`): File description, File version, Product name, Product version, Copyright, Company, Language, Original filename, Internal name, Comments, Legal trademarks, Private/Special build (omit empty)
 - Preview shows the **shell application icon** (same glyph Explorer uses for that PE)
 - Subtitle prefers File description, else Product name
-- Also covers `.dll`, `.scr`, `.ocx`, `.cpl`, `.sys`, `.msi` when a version resource exists
+- Also covers `.dll`, `.scr`, `.ocx`, `.cpl`, `.sys` when a version resource exists; **`.com`** shows the shell icon (VERSIONINFO uncommon — no warning when missing). `.msi` uses the archive + metadata preview above.
 
 ---
 

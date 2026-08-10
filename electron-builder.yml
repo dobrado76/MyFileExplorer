@@ -19,6 +19,8 @@ asarUnpack:
   - node_modules/@koromix/koffi-*/**
   - node_modules/onnxruntime-web/dist/**
   - node_modules/ffmpeg-static/**
+  - node_modules/7zip-bin/**
+  - node_modules/node-unrar-js/**
 win:
   icon: build/icon.ico
   target:

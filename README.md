@@ -34,7 +34,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Offline tabs wait for encrypted / network drives instead of vanishing
 
 **See what you’re looking at**
-- Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.chm` help viewer, `.lnk`, SafeTensors, Unity packages, executables
+- Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
 - **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
 - In-app image editor with Revert-to-original (backup stays in AppData, not next to your files)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
@@ -99,6 +99,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
 | **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D34 |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
+| **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
 | **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.4.0 summary |
 

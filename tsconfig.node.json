@@ -38,6 +38,7 @@
     "src/renderer/lib/pdfPreview.ts",
     "src/renderer/lib/highlight.ts",
     "src/renderer/lib/historyEntries.ts",
-    "src/renderer/lib/doubleSingleClick.ts"
+    "src/renderer/lib/doubleSingleClick.ts",
+    "src/renderer/lib/iconRequestQueue.ts"
   ]
 }

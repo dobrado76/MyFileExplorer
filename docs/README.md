@@ -32,6 +32,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D34               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
+| [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions    |
 | [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
@@ -47,7 +48,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence |
 | Tab icons | D32 — Lucide icon + color; tab context menu |
 | In-pane video | D33 — byte-range media; MKV remux; AVI strip-only |
-| Richer previews | HTML/Markdown Preview·Raw; Unity `.unitypackage`; PE VERSIONINFO; ZIP CD listing |
+| Richer previews | HTML/Markdown Preview·Raw; Unity `.unitypackage`; PE VERSIONINFO; ZIP CD listing; `.chm` (D35) — see [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
 | Windows Properties | Shell property sheet from in-app Properties dialog |
 | OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll |
 | Search results | D29 — normal `FileView` (banner + path under names) |

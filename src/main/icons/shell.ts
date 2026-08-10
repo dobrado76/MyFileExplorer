@@ -5,6 +5,7 @@ import { app } from 'electron'
 import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
+import { enqueueShellIconExtract } from './extractQueue'
 
 /** Extensions whose icon is embedded / per-file (not shared by type). */
 const PER_FILE_EXTS = new Set([
@@ -156,7 +157,7 @@ async function getAttributeIconUrl(
   const pending = inFlight.get(key)
   if (pending) return { url: await pending }
 
-  const job = (async (): Promise<string | null> => {
+  const job = enqueueShellIconExtract(async () => {
     try {
       await fsp.mkdir(shellIconCacheDir(), { recursive: true })
       const png = await extractPng(file, px, kindHint)
@@ -172,7 +173,7 @@ async function getAttributeIconUrl(
     } finally {
       inFlight.delete(key)
     }
-  })()
+  })
   inFlight.set(key, job)
   return { url: await job }
 }
@@ -238,7 +239,7 @@ export async function getShellIconUrl(
   const pending = inFlight.get(key)
   if (pending) return { url: await pending }
 
-  const job = (async (): Promise<string | null> => {
+  const job = enqueueShellIconExtract(async () => {
     try {
       await fsp.mkdir(shellIconCacheDir(), { recursive: true })
       const png = await extractPng(file, px)
@@ -254,7 +255,7 @@ export async function getShellIconUrl(
     } finally {
       inFlight.delete(key)
     }
-  })()
+  })
 
   inFlight.set(key, job)
   return { url: await job }

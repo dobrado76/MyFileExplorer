@@ -33,7 +33,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
 | **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
 | **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
-| **Executable / Unity / ZIP / CHM** | PE VERSIONINFO + shell icon; `.unitypackage` Assets tree; ZIP central-directory listing; `.chm` TOC + sandboxed topic viewer. |
+| **Executable / archives / CHM / fonts** | PE VERSIONINFO + shell icon; ZIP / 7z / RAR / TAR(.GZ) / Unity / APK / MSI / ISO / IMG contents trees (+ APK/MSI metadata); `.ttf` sample preview; `.chm` TOC + sandboxed topic viewer. |
 | **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
 
 ---
