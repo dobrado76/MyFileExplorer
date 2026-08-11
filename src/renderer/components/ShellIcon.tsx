@@ -43,7 +43,10 @@ function extOf(filePath: string): string {
 }
 
 function cachedUrl(key: string, extKey: string | null): string | null {
-  return memoryCache.get(key) ?? (extKey ? extMemoryCache.get(extKey) ?? null : null) ?? null
+  const hit = memoryCache.get(key)
+  if (hit !== undefined) return hit
+  if (!extKey) return null
+  return extMemoryCache.get(extKey) ?? null
 }
 
 /**

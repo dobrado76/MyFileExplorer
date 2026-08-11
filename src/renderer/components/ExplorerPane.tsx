@@ -79,9 +79,9 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
 
   /** Put a new tab in this empty pane (newTab assigns to focused pane). */
   const openInThisPane = useCallback(
-    async (path?: string): Promise<void> => {
+    async (path?: string, rootPath?: string): Promise<void> => {
       focusPane(paneIndex)
-      await newTab(path)
+      await newTab(path, rootPath)
     },
     [focusPane, newTab, paneIndex]
   )
@@ -97,7 +97,8 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
       try {
         const res = await call(api.app.pickFolder())
         if (!res.path) return
-        await openInThisPane(res.path)
+        // Same as context “Open as root in new tab” — scoped tree, not full Computer.
+        await openInThisPane(res.path, res.path)
       } catch {
         /* picker cancelled / failed */
       }
