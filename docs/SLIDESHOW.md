@@ -1,8 +1,8 @@
 # Slideshow / image categorizer
 
-**Status:** Gated feature. Master switch: Settings → Appearance → **Slideshow features** (`slideshowFeaturesEnabled`).
+**Status:** Gated chrome. Master switch: Settings → **Slideshow** → **Enable slideshow UI** (`slideshowFeaturesEnabled`). The Slideshow settings section is always listed; when the switch is **off**, toolbar buttons and folder **Start Slideshow** stay hidden (settings remain editable).
 
-When the gate is **off**, the app must not show slideshow toolbar buttons, folder context items, Slideshow settings, overlay, or related chrome.
+When the gate is **off**, the app must not show slideshow toolbar buttons, folder context items, overlay, or related chrome (settings section stays visible).
 
 When **on**:
 
@@ -32,7 +32,7 @@ Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; *
 
 **Second toolbar button:** if `last.txt` has no positive counts → Compiled Lists Config; else reload `last.txt`, expand list×count from Index, resume at `compiledPlaylistIndex`, open detached lists window.
 
-**Detached lists window** (second BrowserWindow): tabs = entry names; grid = `.dat` / `.txt` rows with # / ± / Nb. Files; Load/Save any `!!Lists/*.txt`; `#` changes rewrite `last.txt` and can rebuild the live playlist. Closing the lists window stops the slideshow, and stopping the slideshow closes the lists window. Overlay controls unchanged.
+**Detached lists window** (second BrowserWindow): tabs = entry names; grid = `.dat` / `.txt` rows with # / ± / Nb. Files; Load/Save any `!!Lists/*.txt`; `#` / ± / Clear rewrite `last.txt` and **immediately** rebuild the live slideshow playlist (Clear → empty playlist in place). Closing the lists window stops the slideshow, and stopping the slideshow closes the lists window. Overlay controls unchanged.
 
 Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle and reappears on move.
 

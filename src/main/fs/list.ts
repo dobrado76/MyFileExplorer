@@ -5,6 +5,7 @@ import type { DirEntry, ListResponse, StatResult } from '@shared/schemas/fs'
 import { normalizeAbsolute, protocolAllowlist } from '../security/paths'
 import { pathIsHidden } from './winAttrs'
 import { listDirectoryWin32 } from './listWin32'
+import { dedupeDirEntries } from '@shared/dirEntries'
 
 function extOf(name: string): string {
   const e = path.extname(name)
@@ -76,6 +77,7 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
     }
   }
   if (!entries) entries = await listDirectoryNode(dir, includeHidden)
+  entries = dedupeDirEntries(entries)
   // Successful listing approves this dir for the media protocol (icons/thumbs).
   protocolAllowlist.allowDir(dir)
   return { path: dir, entries }

@@ -59,6 +59,7 @@ import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
 import { nextSelectionAfterDelete } from '../lib/nextSelection'
+import { dedupeDirEntries } from '@shared/dirEntries'
 import {
   pushCapped,
   redoActionTitle,
@@ -876,7 +877,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
       const owning = resolveFolderView(tab.path, get().settings.folderViews)
       const sort = owning?.sort ?? tab.sort
-      const sortedEntries = sortEntries(res.entries, sort, get().settings.foldersFirst)
+      const sortedEntries = dedupeDirEntries(
+        sortEntries(res.entries, sort, get().settings.foldersFirst)
+      )
       const nextListing: Listing = {
         path: res.path,
         entries: sortedEntries,
@@ -3626,6 +3629,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         recycleBin: { active: false, loading: false, items: [], truncated: false }
       })
+      // Bin selection uses original paths — clear so the folder view isn't left
+      // with a selection that doesn't exist in the current listing.
+      updateActiveTab({ selected: [] })
+      set({ selectionAnchor: null, focusedPath: null })
     },
 
     async refreshRecycleBinView() {

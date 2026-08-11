@@ -79,7 +79,8 @@ export function CompiledListsWindowApp(): JSX.Element {
     async (lines: { datPath: string; count: number }[], preferPath?: string | null): Promise<void> => {
       const { paths } = await call(api.slideshow.expandComposite({ lines }))
       await call(api.slideshow.applyCompiledPlaylist({ paths, preferPath: preferPath ?? null }))
-      setPlaying(paths.length > 0)
+      // Stay live so Clear (empty) and later +/- keep pushing into the running session.
+      setPlaying(true)
     },
     []
   )
@@ -128,6 +129,15 @@ export function CompiledListsWindowApp(): JSX.Element {
     document.documentElement.dataset.theme = 'dark'
   }, [])
 
+  // Main window starts/resumes via broadcast — mark this window as live for instant +/- / Clear.
+  useEffect(() => {
+    return api.onEvent((event) => {
+      if (event.type === 'compiled-playlist-apply') {
+        setPlaying(true)
+      }
+    })
+  }, [])
+
   const setRowCount = async (tabIdx: number, rowIdx: number, count: number): Promise<void> => {
     const c = Math.max(0, Math.floor(count))
     setTabs((prev) => {
@@ -142,7 +152,7 @@ export function CompiledListsWindowApp(): JSX.Element {
     })
   }
 
-  // After count state settles, persist last.txt and optionally apply
+  // Persist last.txt; when live, push playlist to the slideshow immediately.
   useEffect(() => {
     if (!compiledRoot || tabs.length === 0) return
     const lines = collectLines()
@@ -150,16 +160,14 @@ export function CompiledListsWindowApp(): JSX.Element {
       void (async () => {
         try {
           await persistLast(lines)
-          if (playing || lines.some((l) => l.count > 0)) {
-            // Only auto-apply when already playing — Start is explicit otherwise
-          }
+          if (playing) await rebuildAndApply(lines)
         } catch {
           /* ignore */
         }
       })()
-    }, 200)
+    }, 150)
     return () => window.clearTimeout(t)
-  }, [tabs, compiledRoot, persistLast, collectLines, playing])
+  }, [tabs, compiledRoot, persistLast, collectLines, playing, rebuildAndApply])
 
   const bump = async (tabIdx: number, rowIdx: number, delta: number): Promise<void> => {
     const row = tabs[tabIdx]?.rows[rowIdx]
@@ -265,6 +273,8 @@ export function CompiledListsWindowApp(): JSX.Element {
       }))
       setTabs(nextTabs)
       await persistLast([])
+      // Always push empty playlist when live; if not live yet but slideshow was
+      // started from the main window, onEvent will have set playing.
       if (playing) await rebuildAndApply([])
       setStatus('')
     } catch (e) {

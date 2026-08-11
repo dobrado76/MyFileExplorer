@@ -5,8 +5,8 @@ type IconProps = { size?: number; className?: string }
 
 function svg(path: JSX.Element, viewBox = '0 0 24 24') {
   return function Icon({ size = 16, className }: IconProps): JSX.Element {
-    const s = useAppStore.getState()
-    const iconSize = s.settings.iconSizePx ?? size;
+    // Secondary windows (e.g. Compiled lists) never call boot(), so settings may be null.
+    const iconSize = useAppStore.getState().settings?.iconSizePx ?? size
     return (
       <svg
         width={iconSize}

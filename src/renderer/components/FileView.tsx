@@ -642,7 +642,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const spec = isGrid ? GRID_SPECS[viewMode as GridMode] : null
   const columns = spec ? Math.max(1, Math.floor(width / spec.cellW)) : 1
   const rowCount = spec ? Math.ceil(entries.length / columns) : entries.length
-  const rowHeight = spec ? spec.cellH : 24
+  // Recycle/search list rows show a path under the name — taller than a normal row.
+  const rowHeight = spec ? spec.cellH : overlayMode ? 40 : 24
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -654,10 +655,34 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   })
 
   // TanStack Virtual caches row sizes and does not re-measure when
-  // estimateSize changes (e.g. switching view modes) — force it.
+  // estimateSize changes (e.g. switching view modes / leaving Recycle Bin).
   useLayoutEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, columns, virtualizer])
+  }, [rowHeight, columns, rowCount, overlayMode, virtualizer])
+
+  // Search / Recycle overlays must not rewrite the tab's folder scrollOffset.
+  // Otherwise Close leaves you scrolled past the end of the real listing (gaps /
+  // empty viewport) — especially after a long bin list on a NAS.
+  const folderScrollRef = useRef(0)
+  const wasOverlayRef = useRef(overlayMode)
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    const was = wasOverlayRef.current
+    wasOverlayRef.current = overlayMode
+    if (!el) return
+    if (overlayMode && !was) {
+      folderScrollRef.current = el.scrollTop
+      el.scrollTop = 0
+      virtualizer.scrollToOffset(0)
+      return
+    }
+    if (!overlayMode && was) {
+      const y = folderScrollRef.current
+      el.scrollTop = y
+      virtualizer.measure()
+      virtualizer.scrollToOffset(y)
+    }
+  }, [overlayMode, virtualizer])
 
   // Keep the item being renamed in view (new folder/file, F2, etc.).
   useLayoutEffect(() => {
@@ -989,6 +1014,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const onScroll = useCallback((): void => {
     const el = scrollRef.current
     if (!el) return
+    // Overlay scroll is ephemeral — never persist onto the tab folder position.
+    if (overlayMode) return
     // Do not write scrollOffset into Zustand every frame — that re-renders the
     // whole explorer (tabs subscription) and feels like a 20k-file hitch.
     pendingScrollRef.current = el.scrollTop
@@ -997,14 +1024,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       scrollSaveTimerRef.current = 0
       setScrollOffset(pendingScrollRef.current)
     }, 150)
-  }, [setScrollOffset])
+  }, [setScrollOffset, overlayMode])
 
   useEffect(() => {
     return () => {
       if (scrollSaveTimerRef.current) {
         window.clearTimeout(scrollSaveTimerRef.current)
         scrollSaveTimerRef.current = 0
-        setScrollOffset(pendingScrollRef.current)
+        // Don't flush overlay scroll onto the tab.
+        if (!wasOverlayRef.current) setScrollOffset(pendingScrollRef.current)
       }
     }
   }, [setScrollOffset])

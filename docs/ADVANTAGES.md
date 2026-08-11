@@ -4,6 +4,19 @@
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
+## Inspiration
+
+Features are deliberately patterned after tools people already trust — then folded into one local file manager:
+
+| Inspiration | What we borrow |
+| ----------- | -------------- |
+| **[Everything](https://www.voidtools.com/)** (voidtools) | Instant, operator-rich search over an opt-in index (folder roots + optional NTFS USN volume index), as-you-type, match toggles, filters/bookmarks — without forcing whole-disk indexing. |
+| **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 4** panes in one window — side-by-side or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
+| **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, compiled file lists for large libraries, image-list cache. |
+| **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; pristine backup under app `userData`, not a sidecar in your folder. |
+
+Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27).
+
 ---
 
 ## Workspace & navigation
@@ -13,7 +26,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
 | **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. |
 | **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
-| **Multi-pane views (1 / 2 / 4)** | Q-Dir-style side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |
+| **Q-Dir-style multi-pane (1 / 2 / 4)** | Side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |
 | **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
 | **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. The Drives tree drops ejected volumes immediately (no ghost letters). |
 | **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
@@ -28,7 +41,8 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | --------- | --------------------- |
 | **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted). Explorer’s preview is weaker and often disabled or pane-starved. |
 | **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
-| **In-app image editor** | Crop / rotate / finetune / filters / annotate (Filerobot). First save keeps a pristine backup under app `userData` (not a sidecar in your folder); **Revert to original** restores it. |
+| **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. First save keeps a pristine backup under app `userData` (not a sidecar in your folder); **Revert to original** restores it. Entry: preview button, context menu, **Ctrl+E**. |
+| **ACDSee-inspired slideshow** | Gated fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop), image-list cache, and compiled file lists for huge libraries — Explorer has no equivalent. |
 | **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
 | **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
@@ -101,7 +115,9 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (D1–D29)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D39)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
-- [SEARCH.md](SEARCH.md) — indexing behavior  
+- [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
+- [SLIDESHOW.md](SLIDESHOW.md) — ACDSee-inspired slideshow / categorizer  
+- [ADS.md](ADS.md) — NTFS Alternate Data Streams  
 - [../README.md](../README.md) — product overview  

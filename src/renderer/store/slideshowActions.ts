@@ -369,48 +369,13 @@ export function createSlideshowActions(get: Get, set: Set) {
           const saved = get().settings.slideshow.compiledPlaylistIndex ?? 0
           index = Math.max(0, Math.min(saved, capped.length - 1))
         }
-        if (get().slideshow.active) {
-          // Replace in-place if already running
-          const a = get().slideshow.active
-          if (!a) return
-          const prefer = a.paths[a.index]
-          let nextIndex = index
-          if (prefer) {
-            const found = capped.findIndex((p) => samePath(p, prefer))
-            if (found >= 0) nextIndex = found
-          }
-          set({
-            slideshow: {
-              ...get().slideshow,
-              active: {
-                status: a.status,
-                paths: capped,
-                index: nextIndex,
-                builtFromCache: a.builtFromCache,
-                buildFound: capped.length,
-                buildCurrent: a.buildCurrent,
-                actions: a.actions,
-                compiledMode: true
-              }
-            }
+        // Broadcast so the lists window marks the session live and +/- / Clear apply instantly.
+        await call(
+          api.slideshow.applyCompiledPlaylist({
+            paths: capped,
+            preferPath: capped[index] ?? null
           })
-          return
-        }
-        set({
-          slideshow: {
-            ...get().slideshow,
-            active: {
-              status: 'playing',
-              paths: capped,
-              index,
-              builtFromCache: true,
-              buildFound: capped.length,
-              buildCurrent: '',
-              actions: [],
-              compiledMode: true
-            }
-          }
-        })
+        )
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
@@ -440,19 +405,38 @@ export function createSlideshowActions(get: Get, set: Set) {
     applyCompiledPlaylist(paths: string[], preferPath?: string | null) {
       if (!gateOn(get)) return
       const capped = clampImageList(paths)
+      const a = get().slideshow.active
       if (capped.length === 0) {
-        get().notify('Compiled playlist is empty', true)
+        // Clear counts → empty playlist in place (do not stopSlideshow — that closes the lists window).
+        if (a?.compiledMode) {
+          set({
+            slideshow: {
+              ...get().slideshow,
+              active: {
+                ...a,
+                paths: [],
+                index: 0,
+                buildFound: 0,
+                buildCurrent: ''
+              }
+            }
+          })
+        }
         return
       }
-      const a = get().slideshow.active
       if (!a) {
+        let index = 0
+        if (preferPath) {
+          const found = capped.findIndex((p) => samePath(p, preferPath))
+          if (found >= 0) index = found
+        }
         set({
           slideshow: {
             ...get().slideshow,
             active: {
               status: 'playing',
               paths: capped,
-              index: 0,
+              index,
               builtFromCache: true,
               buildFound: capped.length,
               buildCurrent: '',
