@@ -80,15 +80,10 @@ function clampRatio(n: number): number {
 function sanitizePaneTabIds(raw: unknown, layout: ViewLayout, activeTabId: string | null): (string | null)[] {
   const arr = Array.isArray(raw) ? raw : []
   const out: (string | null)[] = []
-  const seen = new Set<string>()
   for (let i = 0; i < layout; i++) {
     const v = arr[i]
-    if (typeof v === 'string' && v.length > 0 && !seen.has(v)) {
-      seen.add(v)
-      out.push(v)
-    } else {
-      out.push(null)
-    }
+    if (typeof v === 'string' && v.length > 0) out.push(v)
+    else out.push(null)
   }
   // Ensure at least the active tab is visible in single-pane / first slot when empty.
   if (out.length > 0 && out.every((id) => id == null) && activeTabId) {

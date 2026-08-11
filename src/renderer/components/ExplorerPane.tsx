@@ -34,7 +34,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   /** Focus ring only when comparing panes (2 / 4); useless in single view. */
   const showFocusRing = focused && viewLayout > 1
   const focusPane = useAppStore((s) => s.focusPane)
-  const assignTabToPane = useAppStore((s) => s.assignTabToPane)
+  const duplicateTabIntoPane = useAppStore((s) => s.duplicateTabIntoPane)
   const newTab = useAppStore((s) => s.newTab)
   const tab = useAppStore((s) => (tabId ? s.tabs.find((t) => t.id === tabId) : undefined))
   const splitters = useAppStore((s) => s.splitters)
@@ -62,7 +62,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const onTabDragOver = useCallback((e: React.DragEvent): void => {
     if (e.dataTransfer.types.includes('text/x-mfe-tab')) {
       e.preventDefault()
-      e.dataTransfer.dropEffect = 'move'
+      e.dataTransfer.dropEffect = 'copy'
     }
   }, [])
 
@@ -72,9 +72,10 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
       if (!id) return
       e.preventDefault()
       e.stopPropagation()
-      void assignTabToPane(paneIndex, id)
+      // Duplicate into this pane so the source tab stays put (same path, new tab).
+      void duplicateTabIntoPane(paneIndex, id)
     },
-    [assignTabToPane, paneIndex]
+    [duplicateTabIntoPane, paneIndex]
   )
 
   /** Put a new tab in this empty pane (newTab assigns to focused pane). */

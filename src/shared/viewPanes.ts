@@ -35,7 +35,7 @@ export function remapPanesOnLayoutChange(
   }
 }
 
-/** Fill null slots from tabs not already assigned (tab-bar order). No cloning. */
+/** Fill null slots from tabs not already shown (tab-bar order). Does not clear intentional duplicates. */
 export function fillPaneSlots(
   layout: ViewLayout,
   prev: (string | null)[],
@@ -46,18 +46,13 @@ export function fillPaneSlots(
     const id = prev[i]
     return id && tabIds.includes(id) ? id : null
   })
-  const seen = new Set<string>()
-  for (let i = 0; i < slots.length; i++) {
-    const id = slots[i]
-    if (!id) continue
-    if (seen.has(id)) slots[i] = null
-    else seen.add(id)
-  }
+  // Prefer showing preferTabId if it is missing from every pane.
   if (preferTabId && tabIds.includes(preferTabId) && !slots.includes(preferTabId)) {
     const empty = slots.findIndex((s) => s == null)
     if (empty >= 0) slots[empty] = preferTabId
     else if (layout === 1) slots[0] = preferTabId
   }
+  // Auto-fill remaining empties from tabs not yet visible in any pane (no auto-clone).
   const assigned = new Set(slots.filter((id): id is string => id != null))
   const unassigned = tabIds.filter((id) => !assigned.has(id))
   let u = 0

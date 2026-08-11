@@ -144,7 +144,7 @@ export function TabBar(): JSX.Element {
                   return
                 }
                 dragIndex.current = index
-                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.effectAllowed = 'copyMove'
                 e.dataTransfer.setData('text/x-mfe-tab', tab.id)
                 e.dataTransfer.setData('text/plain', tab.id)
               }}

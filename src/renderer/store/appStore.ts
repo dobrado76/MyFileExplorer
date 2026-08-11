@@ -396,6 +396,11 @@ type AppState = {
   setViewLayout(mode: ViewLayout): Promise<void>
   focusPane(index: number): void
   assignTabToPane(paneIndex: number, tabId: string | null): Promise<void>
+  /**
+   * Drag-tab onto a pane: duplicate the tab into that pane (same path/view),
+   * leaving the source tab where it was.
+   */
+  duplicateTabIntoPane(paneIndex: number, sourceTabId: string): Promise<void>
   setPaneSplitCols(ratio: number): void
   setPaneSplitRows(ratio: number): void
   /** Listing for a tab (pane); falls back to empty. */
@@ -1655,10 +1660,6 @@ export const useAppStore = create<AppState>()((set, get) => {
         else {
           paneTabIds = [...paneTabIds]
           paneTabIds[focusedPaneIndex] = activeTabId
-          // dedupe
-          for (let i = 0; i < paneTabIds.length; i++) {
-            if (i !== focusedPaneIndex && paneTabIds[i] === activeTabId) paneTabIds[i] = null
-          }
           paneTabIds = fillPaneSlots(viewLayout, paneTabIds, tabIds, activeTabId)
         }
       }
@@ -2025,14 +2026,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         treeExpanded: []
       }
       const focusIdx = s.focusedPaneIndex
-      const paneTabIds = s.paneTabIds.map((id, i) => (i === focusIdx ? tab.id : id === tab.id ? null : id))
-      // Ensure new tab is in focused pane
-      const nextPanes = [...paneTabIds]
+      const nextPanes = [...s.paneTabIds]
       while (nextPanes.length < s.viewLayout) nextPanes.push(null)
       nextPanes[focusIdx] = tab.id
-      for (let i = 0; i < nextPanes.length; i++) {
-        if (i !== focusIdx && nextPanes[i] === tab.id) nextPanes[i] = null
-      }
       set({
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
@@ -2070,9 +2066,6 @@ export const useAppStore = create<AppState>()((set, get) => {
       const nextPanes = [...s.paneTabIds]
       while (nextPanes.length < s.viewLayout) nextPanes.push(null)
       nextPanes[focusIdx] = tab.id
-      for (let i = 0; i < nextPanes.length; i++) {
-        if (i !== focusIdx && nextPanes[i] === tab.id) nextPanes[i] = null
-      }
       set({
         tabs,
         activeTabId: tab.id,
@@ -2129,7 +2122,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       const s = get()
       const tab = s.tabs.find((t) => t.id === id)
       if (!tab) return
-      const existingPane = s.paneTabIds.indexOf(id)
+      const existingPane =
+        s.paneTabIds[s.focusedPaneIndex] === id
+          ? s.focusedPaneIndex
+          : s.paneTabIds.indexOf(id)
       if (existingPane >= 0) {
         if (s.activeTabId === id && s.focusedPaneIndex === existingPane) return
         const focus = focusFromSelection(tab.selected)
@@ -2215,6 +2211,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     async assignTabToPane(paneIndex, tabId) {
       const s = get()
       if (paneIndex < 0 || paneIndex >= s.viewLayout) return
+      // One slot per tab — use duplicateTabIntoPane to show the same path in two panes.
       let paneTabIds = s.paneTabIds.map((id, i) => {
         if (i === paneIndex) return tabId
         if (tabId && id === tabId) return null
@@ -2243,6 +2240,54 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       scheduleSessionSave()
       await loadListing(tab.path, { tabId })
+    },
+
+    async duplicateTabIntoPane(paneIndex, sourceTabId) {
+      const s = get()
+      if (paneIndex < 0 || paneIndex >= s.viewLayout) return
+      const src = s.tabs.find((t) => t.id === sourceTabId)
+      if (!src) return
+      if (s.paneTabIds[paneIndex] === sourceTabId) {
+        get().focusPane(paneIndex)
+        return
+      }
+      if (s.search.active) get().clearSearch()
+      if (s.recycleBin.active) get().closeRecycleBinView()
+
+      const tab: Tab = {
+        id: newTabId(),
+        path: src.path,
+        title: src.title,
+        icon: src.icon,
+        viewMode: src.viewMode,
+        sort: { ...src.sort },
+        back: [],
+        forward: [],
+        selected: [],
+        scrollOffset: 0,
+        rootPath: src.rootPath,
+        treeExpanded: [...src.treeExpanded]
+      }
+      const srcIdx = s.tabs.findIndex((t) => t.id === sourceTabId)
+      const tabs = [...s.tabs]
+      tabs.splice(srcIdx + 1, 0, tab)
+
+      const nextPanes = [...s.paneTabIds]
+      while (nextPanes.length < s.viewLayout) nextPanes.push(null)
+      nextPanes[paneIndex] = tab.id
+
+      set({
+        tabs,
+        activeTabId: tab.id,
+        paneTabIds: nextPanes.slice(0, s.viewLayout),
+        focusedPaneIndex: paneIndex,
+        selectionAnchor: null,
+        focusedPath: null,
+        renamingPath: null,
+        renameSource: null
+      })
+      scheduleSessionSave()
+      await loadListing(tab.path, { tabId: tab.id })
     },
 
     setPaneSplitCols(ratio) {
