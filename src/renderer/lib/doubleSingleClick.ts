@@ -11,6 +11,8 @@
 
 /** Slightly above the common Windows default double-click time (500ms). */
 export const DOUBLE_SINGLE_CLICK_MS = 550
+/** Long enough to allow a user to pause before clicking to rename, but not keep the arm forever. */
+export const DOUBLE_SINGLE_CLICK_MAX_MS = 10_000
 export const DOUBLE_SINGLE_CLICK_MOVE_PX = 6
 
 type Session = {
@@ -19,6 +21,7 @@ type Session = {
   y: number
   armedAt: number
   cancel: () => void
+  timeoutId: ReturnType<typeof setTimeout>
 }
 
 let session: Session | null = null
@@ -39,10 +42,10 @@ function host(): Host {
     removeEventListener?: typeof window.removeEventListener
   }
   return {
-    setTimeout: g.setTimeout,
-    clearTimeout: g.clearTimeout,
-    addEventListener: g.addEventListener,
-    removeEventListener: g.removeEventListener,
+    setTimeout: g.setTimeout.bind(g),
+    clearTimeout: g.clearTimeout.bind(g),
+    addEventListener: g.addEventListener?.bind(g),
+    removeEventListener: g.removeEventListener?.bind(g),
     // Date.now so tests can advance with vi.setSystemTime / fake timers.
     now: () => Date.now()
   }
@@ -97,7 +100,10 @@ export function beginDoubleSingleClick(
     if (done) return
     done = true
     cleanup()
-    if (session?.cancel === cancel) session = null
+    if (session?.cancel === cancel) {
+      if (session.timeoutId) h.clearTimeout(session.timeoutId)
+      session = null
+    }
   }
 
   const onMove = (e: Event): void => {
@@ -126,13 +132,20 @@ export function beginDoubleSingleClick(
   h.addEventListener?.('scroll', onScroll, true)
   h.addEventListener?.('wheel', onScroll, true)
 
-  session = { key, x: clientX, y: clientY, armedAt: now, cancel }
+  const timeoutId = h.setTimeout(cancel, DOUBLE_SINGLE_CLICK_MAX_MS)
+  session = { key, x: clientX, y: clientY, armedAt: now, cancel, timeoutId }
 }
 
 /** True when the event target is a file/folder name label (not icon/twisty). */
 export function isNameLabelTarget(target: EventTarget | null): boolean {
   if (!target || typeof target !== 'object') return false
-  const el = target as { closest?: (sel: string) => unknown }
-  if (typeof el.closest !== 'function') return false
-  return Boolean(el.closest('.cell-name, .cell-name-primary, .row-name-text, .tree-label'))
+  let node = target as Node | null
+  while (node && node.nodeType !== Node.ELEMENT_NODE) {
+    node = node.parentNode
+  }
+  if (!node || !(node instanceof Element)) return false
+  if (node.closest('.tab-close, .tab-rename-input')) return false
+  return Boolean(
+    node.closest('.cell-name, .cell-name-primary, .row-name-text, .tree-label, .tab-title, .tab')
+  )
 }

@@ -2484,14 +2484,16 @@ export const useAppStore = create<AppState>()((set, get) => {
     async submitRename(newName) {
       const path = get().renamingPath
       if (!path) return
-      set({ renamingPath: null, renameSource: null })
 
       // Drive roots: edit the volume label only (path stays `C:\`).
       if (isVolumeRootPath(path)) {
         const name = newName.trim()
         const prev =
           get().drives.find((d) => samePath(d.path, path))?.volumeName ?? ''
-        if (name === prev) return
+        if (name === prev) {
+          set({ renamingPath: null, renameSource: null })
+          return
+        }
         try {
           await withBusyFeedback('relocate', 'Renaming…', name || 'volume', () =>
             call(api.fs.setVolumeLabel({ path, name }))
@@ -2505,13 +2507,21 @@ export const useAppStore = create<AppState>()((set, get) => {
           )
         } catch (e) {
           get().notify(e instanceof Error ? e.message : 'Could not rename volume', true)
+        } finally {
+          set({ renamingPath: null, renameSource: null })
         }
         return
       }
 
-      if (!newName.trim()) return
+      if (!newName.trim()) {
+        set({ renamingPath: null, renameSource: null })
+        return
+      }
       const oldName = basename(path)
-      if (newName === oldName) return
+      if (newName === oldName) {
+        set({ renamingPath: null, renameSource: null })
+        return
+      }
       try {
         await releaseMediaLocks()
         const res = await withBusyFeedback('relocate', 'Renaming…', newName.trim(), () =>
@@ -2551,6 +2561,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch (e) {
         set({ mediaHold: false })
         reportOperationError('Rename failed', e)
+      } finally {
+        set({ renamingPath: null, renameSource: null })
       }
     },
 

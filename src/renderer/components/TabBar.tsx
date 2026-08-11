@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
 import { findDropDirAt, isValidDropDest } from '../lib/rightDrag'
+import { beginDoubleSingleClick, cancelDoubleSingleClick, isNameLabelTarget } from '../lib/doubleSingleClick'
 import { CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
@@ -179,11 +180,25 @@ export function TabBar(): JSX.Element {
                   void closeTab(tab.id)
                 }
               }}
-              onClick={() => {
+              onClick={(e) => {
                 if (recycleBinActive) closeRecycleBinView()
+                if (editingId === tab.id) return
+                if (active && isNameLabelTarget(e.target)) {
+                  beginDoubleSingleClick(e.clientX, e.clientY, tab.id, () => startRename(tab.id))
+                  return
+                }
+                cancelDoubleSingleClick()
                 void activateTab(tab.id)
               }}
-              onDoubleClick={() => startRename(tab.id)}
+              onDoubleClick={(e) => {
+                cancelDoubleSingleClick()
+                if ((e.target as HTMLElement).closest('.tab-close, .tab-rename-input')) return
+                if (recycleBinActive) {
+                  closeRecycleBinView()
+                  return
+                }
+                void activateTab(tab.id)
+              }}
               onContextMenu={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
