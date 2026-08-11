@@ -397,10 +397,14 @@ type AppState = {
   focusPane(index: number): void
   assignTabToPane(paneIndex: number, tabId: string | null): Promise<void>
   /**
-   * Drag-tab onto a pane: duplicate the tab into that pane (same path/view),
-   * leaving the source tab where it was.
+   * Drag-tab onto a pane. Default: assign/move into that pane.
+   * With `duplicate` (Ctrl+drag): clone into the pane so the source pane keeps the original.
    */
-  duplicateTabIntoPane(paneIndex: number, sourceTabId: string): Promise<void>
+  duplicateTabIntoPane(
+    paneIndex: number,
+    sourceTabId: string,
+    opts?: { duplicate?: boolean }
+  ): Promise<void>
   setPaneSplitCols(ratio: number): void
   setPaneSplitRows(ratio: number): void
   /** Listing for a tab (pane); falls back to empty. */
@@ -2242,13 +2246,18 @@ export const useAppStore = create<AppState>()((set, get) => {
       await loadListing(tab.path, { tabId })
     },
 
-    async duplicateTabIntoPane(paneIndex, sourceTabId) {
+    async duplicateTabIntoPane(paneIndex, sourceTabId, opts) {
       const s = get()
       if (paneIndex < 0 || paneIndex >= s.viewLayout) return
       const src = s.tabs.find((t) => t.id === sourceTabId)
       if (!src) return
       if (s.paneTabIds[paneIndex] === sourceTabId) {
         get().focusPane(paneIndex)
+        return
+      }
+      // Normal drop = move/assign. Ctrl+drag = duplicate so both panes can show the path.
+      if (!opts?.duplicate) {
+        await get().assignTabToPane(paneIndex, sourceTabId)
         return
       }
       if (s.search.active) get().clearSearch()

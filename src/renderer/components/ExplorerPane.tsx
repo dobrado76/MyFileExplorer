@@ -62,7 +62,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const onTabDragOver = useCallback((e: React.DragEvent): void => {
     if (e.dataTransfer.types.includes('text/x-mfe-tab')) {
       e.preventDefault()
-      e.dataTransfer.dropEffect = 'copy'
+      e.dataTransfer.dropEffect = e.ctrlKey ? 'copy' : 'move'
     }
   }, [])
 
@@ -72,8 +72,8 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
       if (!id) return
       e.preventDefault()
       e.stopPropagation()
-      // Duplicate into this pane so the source tab stays put (same path, new tab).
-      void duplicateTabIntoPane(paneIndex, id)
+      // Move by default; Ctrl+drop duplicates so the other pane can keep the original.
+      void duplicateTabIntoPane(paneIndex, id, { duplicate: e.ctrlKey })
     },
     [duplicateTabIntoPane, paneIndex]
   )
