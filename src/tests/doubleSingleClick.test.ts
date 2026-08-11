@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  beginDoubleSingleClick,
   cancelDoubleSingleClick,
-  DOUBLE_SINGLE_CLICK_MS
+  DOUBLE_SINGLE_CLICK_MS,
+  noteItemClick,
+  tryLabelRenameClick
 } from '../renderer/lib/doubleSingleClick'
 
-describe('doubleSingleClick', () => {
+describe('label rename click (Explorer two-click)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
@@ -16,47 +17,36 @@ describe('doubleSingleClick', () => {
     vi.useRealTimers()
   })
 
-  it('does not fire from a single click + wait (no dwell rename)', () => {
-    const onFire = vi.fn()
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
-    vi.advanceTimersByTime(DOUBLE_SINGLE_CLICK_MS + 5_000)
-    expect(onFire).not.toHaveBeenCalled()
-  })
-
-  it('fires on a second slow click of the same item', () => {
-    const onFire = vi.fn()
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
+  it('renames on a slow second label click after select', () => {
+    noteItemClick('C:\\a.txt')
     vi.setSystemTime(Date.now() + DOUBLE_SINGLE_CLICK_MS + 1)
-    beginDoubleSingleClick(12, 22, 'C:\\a.txt', onFire)
-    expect(onFire).toHaveBeenCalledOnce()
+    expect(tryLabelRenameClick('C:\\a.txt')).toBe(true)
   })
 
-  it('does not fire when the second click is inside the double-click window', () => {
-    const onFire = vi.fn()
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
+  it('does not rename inside the double-click window', () => {
+    noteItemClick('C:\\a.txt')
     vi.setSystemTime(Date.now() + DOUBLE_SINGLE_CLICK_MS - 1)
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
-    expect(onFire).not.toHaveBeenCalled()
+    expect(tryLabelRenameClick('C:\\a.txt')).toBe(false)
   })
 
-  it('cancelDoubleSingleClick clears a pending arm', () => {
-    const onFire = vi.fn()
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
+  it('renames on first label click when nothing was noted (e.g. keyboard select)', () => {
+    expect(tryLabelRenameClick('C:\\a.txt')).toBe(true)
+  })
+
+  it('cancel clears timing so the next click is a fresh first click', () => {
+    noteItemClick('C:\\a.txt')
     cancelDoubleSingleClick()
     vi.setSystemTime(Date.now() + DOUBLE_SINGLE_CLICK_MS + 1)
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
-    // Fresh arm after cancel — still needs a second slow click.
-    expect(onFire).not.toHaveBeenCalled()
+    // After cancel, treated like keyboard-select: first label click renames.
+    expect(tryLabelRenameClick('C:\\a.txt')).toBe(true)
   })
 
-  it('switching items restarts the arm', () => {
-    const onFire = vi.fn()
-    beginDoubleSingleClick(10, 20, 'C:\\a.txt', onFire)
+  it('switching items requires a fresh slow second click', () => {
+    noteItemClick('C:\\a.txt')
     vi.setSystemTime(Date.now() + DOUBLE_SINGLE_CLICK_MS + 1)
-    beginDoubleSingleClick(10, 20, 'C:\\b.txt', onFire)
-    expect(onFire).not.toHaveBeenCalled()
+    noteItemClick('C:\\b.txt')
+    expect(tryLabelRenameClick('C:\\b.txt')).toBe(false)
     vi.setSystemTime(Date.now() + DOUBLE_SINGLE_CLICK_MS + 1)
-    beginDoubleSingleClick(10, 20, 'C:\\b.txt', onFire)
-    expect(onFire).toHaveBeenCalledOnce()
+    expect(tryLabelRenameClick('C:\\b.txt')).toBe(true)
   })
 })

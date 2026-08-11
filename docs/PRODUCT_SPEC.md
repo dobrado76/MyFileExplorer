@@ -94,7 +94,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | New folder         | Inline rename or dialog                                                                                                                          |
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
-| Rename             | F2 / context; or **double single-click** the name (two slow clicks on an already-selected file-view / tree label — not click-and-wait). Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits** |
+| Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits** |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
@@ -200,7 +200,8 @@ See [SEARCH.md](SEARCH.md).
 | Shift+Home/End  | Select from cursor to first / last |
 | Shift+arrows    | Extend selection      |
 | PageUp / PageDown | Page through file view |
-| Ctrl+F / Ctrl+E | Focus search          |
+| Ctrl+F          | Focus search          |
+| Ctrl+E          | Edit image (single editable image selected; otherwise ignored) |
 | Ctrl+Shift+P    | Toggle preview        |
 | F5              | Refresh               |
 

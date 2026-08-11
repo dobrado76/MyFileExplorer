@@ -24,9 +24,10 @@ import {
   shouldSuppressClickAfterLeftDrag
 } from '../lib/leftFileDrag'
 import {
-  beginDoubleSingleClick,
   cancelDoubleSingleClick,
-  isNameLabelTarget
+  isNameLabelTarget,
+  noteItemClick,
+  tryLabelRenameClick
 } from '../lib/doubleSingleClick'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
@@ -1117,6 +1118,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         const next = selectionForModifiers(entry, e)
         setSelection(next.paths, next.anchor, next.focused)
         suppressClickRef.current = true
+        // Select counts as the first click for Explorer rename timing.
+        if (!e.ctrlKey && !e.shiftKey) noteItemClick(entry.path)
         // Ctrl+click toggled this item off — selection-only.
         if (e.ctrlKey && !next.paths.some((p) => samePath(p, entry.path))) return
         dragPathsNow = next.paths
@@ -1201,14 +1204,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const alreadySelected = selected.has(entry.path.toLowerCase())
       const onlyThis =
         alreadySelected && sel.length === 1 && samePath(sel[0]!, entry.path)
-      // Double single-click: two slow clicks on the name of a single selected item → rename.
+      // Explorer: slow second click on the name of a sole-selected item → rename now.
       if (onlyThis && isNameLabelTarget(e.target)) {
-        beginDoubleSingleClick(e.clientX, e.clientY, entry.path, () =>
+        if (tryLabelRenameClick(entry.path)) {
           startRename(entry.path, 'files')
-        )
+        }
         return
       }
-      cancelDoubleSingleClick()
+      noteItemClick(entry.path)
       selectWithModifiers(entry, e)
     },
     [recycleMode, selected, tab, selectWithModifiers, startRename]

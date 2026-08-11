@@ -66,7 +66,7 @@ Details strip layout: Name (+ Dimensions when present), then a responsive pair �
 
 **Display:** image via protocol URL (respect EXIF orientation when feasible). Uses as much vertical space as possible above the details strip (`object-fit: contain`).
 
-**Edit:** pencil button in the preview header (and context menu **Edit image…**) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). **Save** backs up the pristine file under `userData/image-originals/` then overwrites the live path; **Revert to original** restores that backup (D27). **Save as…** writes a new file via the system save dialog with no backup/revert. Not for SVG/PSD.
+**Edit:** pencil button in the preview header, context menu **Edit image…**, or **Ctrl+E** (single editable image selected; otherwise ignored) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). **Save** backs up the pristine file under `userData/image-originals/` then overwrites the live path; **Revert to original** restores that backup (D27). **Save as…** writes a new file via the system save dialog with no backup/revert. Not for SVG/PSD.
 
 **Image fields:** dimensions in the file details strip. Generation metadata (when present) still appears in the scrollable content area.
 

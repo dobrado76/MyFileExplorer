@@ -1,138 +1,88 @@
 /**
- * “Double single-click” (two slow clicks) — Explorer-style rename arming.
+ * Explorer-style rename via a second click on the name label.
  *
- * Call on each name-label click of a sole-selected item:
- * - **First** click → arm only (never rename from dwell / hover).
- * - **Second** click after `DOUBLE_SINGLE_CLICK_MS` → fire `onFire` immediately.
- * - **Second** click inside that window → cancel (real double-click opens / expands).
+ * Flow (Windows Explorer parity users expect):
+ * 1. Click an item → select (recorded via `noteItemClick`).
+ * 2. Wait longer than the double-click interval.
+ * 3. Click the **name label** again → rename starts **immediately**.
  *
- * Fast double-click still wins via `cancelDoubleSingleClick` from `onDoubleClick`.
+ * A second click inside the double-click window does **not** rename (open/expand
+ * owns that gesture via `onDoubleClick` + `cancelDoubleSingleClick`).
+ *
+ * The click that first selects must call `noteItemClick` even when the React
+ * `click` is suppressed after pointerdown selection.
  */
 
-/** Slightly above the common Windows default double-click time (500ms). */
-export const DOUBLE_SINGLE_CLICK_MS = 550
-export const DOUBLE_SINGLE_CLICK_MOVE_PX = 6
+/** Typical Windows GetDoubleClickTime() default. */
+export const DOUBLE_SINGLE_CLICK_MS = 500
 
-type Session = {
-  key: string
-  x: number
-  y: number
-  armedAt: number
-  cancel: () => void
-}
+type LastClick = { key: string; at: number }
 
-let session: Session | null = null
+let lastClick: LastClick | null = null
 
-type Host = {
-  setTimeout: typeof setTimeout
-  clearTimeout: typeof clearTimeout
-  addEventListener?: typeof window.addEventListener
-  removeEventListener?: typeof window.removeEventListener
-  now: () => number
-}
-
-function host(): Host {
-  const g = globalThis as unknown as {
-    setTimeout: typeof setTimeout
-    clearTimeout: typeof clearTimeout
-    addEventListener?: typeof window.addEventListener
-    removeEventListener?: typeof window.removeEventListener
-  }
-  return {
-    setTimeout: g.setTimeout,
-    clearTimeout: g.clearTimeout,
-    addEventListener: g.addEventListener,
-    removeEventListener: g.removeEventListener,
-    // Date.now so tests can advance with vi.setSystemTime / fake timers.
-    now: () => Date.now()
-  }
-}
-
-export function cancelDoubleSingleClick(): void {
-  session?.cancel()
-  session = null
+function now(): number {
+  return Date.now()
 }
 
 function sameKey(a: string, b: string): boolean {
   return a === b || a.toLowerCase() === b.toLowerCase()
 }
 
+/** Clear rename timing (e.g. on double-click / context menu / drag). */
+export function cancelDoubleSingleClick(): void {
+  lastClick = null
+}
+
 /**
- * Note a name-label click for rename arming.
- * @param key Stable item id (usually absolute path) so arms don’t cross files.
+ * Record a click/selection on an item. Call from pointerdown when selecting,
+ * and from non-rename clicks, so the select gesture counts as the “first click”.
  */
+export function noteItemClick(key: string): void {
+  lastClick = { key, at: now() }
+}
+
+/**
+ * Label click on a sole-selected item. Returns true → start rename now.
+ * Returns false → inside double-click window (or consumed); do not rename.
+ */
+export function tryLabelRenameClick(key: string): boolean {
+  const t = now()
+  if (lastClick && sameKey(lastClick.key, key) && t - lastClick.at < DOUBLE_SINGLE_CLICK_MS) {
+    lastClick = { key, at: t }
+    return false
+  }
+  lastClick = { key, at: t }
+  return true
+}
+
+/**
+ * @deprecated Prefer `noteItemClick` + `tryLabelRenameClick`.
+ * Kept so older call sites still compile; arms nothing — use the new API.
+ */
+export function beginLabelRenameWatch(
+  key: string,
+  onFire: () => void,
+  _clientX?: number,
+  _clientY?: number
+): void {
+  if (tryLabelRenameClick(key)) onFire()
+}
+
+/** @deprecated Alias of beginLabelRenameWatch. */
 export function beginDoubleSingleClick(
-  clientX: number,
-  clientY: number,
+  _clientX: number,
+  _clientY: number,
   key: string,
   onFire: () => void
 ): void {
-  const h = host()
-  const now = h.now()
-
-  if (session && sameKey(session.key, key)) {
-    const dt = now - session.armedAt
-    cancelDoubleSingleClick()
-    if (dt < DOUBLE_SINGLE_CLICK_MS) {
-      // Within double-click window — open/expand owns this gesture.
-      return
-    }
-    onFire()
-    return
-  }
-
-  cancelDoubleSingleClick()
-
-  let done = false
-  const cleanup = (): void => {
-    h.removeEventListener?.('pointermove', onMove, true)
-    h.removeEventListener?.('pointerdown', onPtrDown, true)
-    h.removeEventListener?.('keydown', onKey, true)
-    h.removeEventListener?.('blur', onBlur)
-    h.removeEventListener?.('scroll', onScroll, true)
-    h.removeEventListener?.('wheel', onScroll, true)
-  }
-
-  const cancel = (): void => {
-    if (done) return
-    done = true
-    cleanup()
-    if (session?.cancel === cancel) session = null
-  }
-
-  const onMove = (e: Event): void => {
-    const pe = e as PointerEvent
-    if (typeof pe.clientX !== 'number') return
-    if (Math.hypot(pe.clientX - clientX, pe.clientY - clientY) > DOUBLE_SINGLE_CLICK_MOVE_PX) {
-      cancel()
-    }
-  }
-  /** Clicks on non-name chrome cancel the arm; name labels may be the second click. */
-  const onPtrDown = (e: Event): void => {
-    if (isNameLabelTarget(e.target)) return
-    cancel()
-  }
-  const onKey = (e: Event): void => {
-    const ke = e as KeyboardEvent
-    if (ke.key === 'Escape' || ke.key === 'Enter' || ke.key.length === 1) cancel()
-  }
-  const onBlur = (): void => cancel()
-  const onScroll = (): void => cancel()
-
-  h.addEventListener?.('pointermove', onMove, true)
-  h.addEventListener?.('pointerdown', onPtrDown, true)
-  h.addEventListener?.('keydown', onKey, true)
-  h.addEventListener?.('blur', onBlur)
-  h.addEventListener?.('scroll', onScroll, true)
-  h.addEventListener?.('wheel', onScroll, true)
-
-  session = { key, x: clientX, y: clientY, armedAt: now, cancel }
+  if (tryLabelRenameClick(key)) onFire()
 }
 
 /** True when the event target is a file/folder name label (not icon/twisty). */
 export function isNameLabelTarget(target: EventTarget | null): boolean {
   if (!target || typeof target !== 'object') return false
-  const el = target as { closest?: (sel: string) => unknown }
+  const el = target as { closest?: (sel: string) => Element | null }
   if (typeof el.closest !== 'function') return false
-  return Boolean(el.closest('.cell-name, .cell-name-primary, .row-name-text, .tree-label'))
+  if (el.closest('.twisty, .shell-icon')) return false
+  return Boolean(el.closest('.cell-name, .cell-name-primary, .row-name-text, .tree-label, .row-name'))
 }

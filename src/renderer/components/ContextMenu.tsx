@@ -546,6 +546,7 @@ export function ContextMenu(): JSX.Element | null {
         result.push({
           type: 'item',
           label: 'Edit image…',
+          hint: 'Ctrl+E',
           action: () => {
             close()
             void (async () => {

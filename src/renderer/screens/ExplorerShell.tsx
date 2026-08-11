@@ -12,6 +12,7 @@ import { SlideshowOverlay } from '../components/SlideshowOverlay'
 import { Splitter } from '../components/Splitter'
 import { basename } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
+import { isEditableImagePath } from '@shared/imageEdit'
 import { api, call } from '../lib/ipc'
 
 const ImageEditor = lazy(async () => {
@@ -154,7 +155,20 @@ export function ExplorerShell(): JSX.Element {
       // Tree focus → delete that folder; file view → delete selection (same as F2 / Ctrl+C).
       const paths = isTreeTarget(e.target) ? clipboardActionPaths(s, e.target) : undefined
       void s.deleteSelection(shift, paths)
-    } else if (ctrl && (key.toLowerCase() === 'f' || key.toLowerCase() === 'e')) {
+    } else if (ctrl && !shift && !alt && key.toLowerCase() === 'e') {
+      // Edit image — no selection / non-image: ignore (do not steal focus elsewhere).
+      if (s.slideshow.active || s.imageEditor || s.recycleBin.active) return
+      const sel = s.activeTab().selected
+      const path = sel.length === 1 ? sel[0] : null
+      if (!path || !isEditableImagePath(path)) return
+      e.preventDefault()
+      void (async () => {
+        const res = await api.preview.get({ path })
+        if (res.ok && res.value.mediaUrl) {
+          useAppStore.getState().openImageEditor(path, res.value.mediaUrl)
+        }
+      })()
+    } else if (ctrl && !shift && !alt && key.toLowerCase() === 'f') {
       e.preventDefault()
       document.querySelector<HTMLInputElement>('[data-search-input]')?.focus()
     } else if (ctrl && shift && key.toLowerCase() === 'p') {

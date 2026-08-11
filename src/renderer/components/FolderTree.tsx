@@ -21,9 +21,10 @@ import {
   shouldSuppressClickAfterLeftDrag
 } from '../lib/leftFileDrag'
 import {
-  beginDoubleSingleClick,
   cancelDoubleSingleClick,
-  isNameLabelTarget
+  isNameLabelTarget,
+  noteItemClick,
+  tryLabelRenameClick
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { ChevronDown, ChevronRight } from '../lib/icons'
@@ -641,12 +642,12 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             treeRef.current?.focus()
             const paneIdx = paneTabIds.indexOf(tabId)
             if (paneIdx >= 0) focusPane(paneIdx)
-            // Double single-click on the label of the current folder → rename.
+            // Explorer: slow second click on the label of the current folder → rename now.
             if (selected && isNameLabelTarget(e.target)) {
-              beginDoubleSingleClick(e.clientX, e.clientY, path, () => startRename(path, 'tree'))
+              if (tryLabelRenameClick(path)) startRename(path, 'tree')
               return
             }
-            cancelDoubleSingleClick()
+            noteItemClick(path)
             void navigate(path, { tabId })
           }}
           onDoubleClick={(e) => {

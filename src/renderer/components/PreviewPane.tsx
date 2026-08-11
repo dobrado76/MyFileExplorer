@@ -260,7 +260,7 @@ export function PreviewPane(): JSX.Element {
                 type="button"
                 className="icon-btn preview-edit-btn"
                 aria-label="Edit image"
-                title="Edit image"
+                title="Edit image (Ctrl+E)"
                 onClick={() => openImageEditor(model.path, model.mediaUrl!)}
               >
                 <EditImageIcon size={16} />
