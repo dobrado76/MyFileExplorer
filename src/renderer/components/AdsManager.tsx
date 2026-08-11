@@ -88,13 +88,16 @@ export function AdsManager({ path }: { path: string }): JSX.Element {
   const [busy, setBusy] = useState(false)
 
   const boundsRef = useRef(bounds)
-  boundsRef.current = bounds
+  useEffect(() => {
+    boundsRef.current = bounds
+  }, [bounds])
   const dragRef = useRef<{
     kind: 'move' | ResizeEdge
     startX: number
     startY: number
     orig: Bounds
   } | null>(null)
+  const endDragRef = useRef<() => void>(() => {})
 
   const persistBounds = useCallback(
     (next: Bounds) => {
@@ -320,14 +323,20 @@ export function AdsManager({ path }: { path: string }): JSX.Element {
     setBounds(clampBounds(next))
   }, [])
 
-  const endDrag = useCallback((): void => {
-    if (!dragRef.current) return
-    dragRef.current = null
-    window.removeEventListener('pointermove', onPointerMove)
-    window.removeEventListener('pointerup', endDrag)
-    window.removeEventListener('pointercancel', endDrag)
-    persistBounds(boundsRef.current)
-  }, [onPointerMove, persistBounds])
+  const onPointerUp = useCallback((): void => {
+    endDragRef.current()
+  }, [])
+
+  useEffect(() => {
+    endDragRef.current = (): void => {
+      if (!dragRef.current) return
+      dragRef.current = null
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+      persistBounds(boundsRef.current)
+    }
+  }, [onPointerMove, onPointerUp, persistBounds])
 
   const beginDrag = (kind: 'move' | ResizeEdge, e: ReactPointerEvent): void => {
     e.preventDefault()
@@ -339,8 +348,8 @@ export function AdsManager({ path }: { path: string }): JSX.Element {
       orig: boundsRef.current
     }
     window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', endDrag)
-    window.addEventListener('pointercancel', endDrag)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
   }
 
   const edges: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']

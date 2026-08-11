@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import type { CategorizerMapRow } from '@shared/slideshow/categorizerMap'
 import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { CATEGORIZER_KEY_TOKENS, codeToKeyToken, isKnownKeyToken, normalizeKeyToken } from '@shared/slideshow/keys'
@@ -45,10 +45,10 @@ export function CategorizerMapManager({ returnSection }: Props): JSX.Element {
   const [capturing, setCapturing] = useState(false)
   const [filter, setFilter] = useState('')
 
-  const finish = (): void => {
+  const finish = useCallback((): void => {
     if (returnSection) openDialog({ kind: 'settings', section: returnSection })
     else closeDialog()
-  }
+  }, [returnSection, openDialog, closeDialog])
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase()
@@ -74,7 +74,7 @@ export function CategorizerMapManager({ returnSection }: Props): JSX.Element {
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [capturing, mode])
+  }, [capturing, mode, finish])
 
   useEffect(() => {
     if (!capturing) return

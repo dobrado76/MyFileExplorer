@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import { compiledListsDir } from '@shared/slideshow/compiledLists'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
@@ -51,7 +51,6 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
   const [updateStartedAt, setUpdateStartedAt] = useState<number | null>(null)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [diskTabs, setDiskTabs] = useState<string[]>([])
   const [seededFromDisk, setSeededFromDisk] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null)
   const [validationSummary, setValidationSummary] = useState<string | null>(null)
@@ -71,11 +70,11 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
     return () => window.clearInterval(id)
   }, [updating, updateStartedAt])
 
-  const finish = (): void => {
+  const finish = useCallback((): void => {
     if (updating) return
     if (returnSection) openDialog({ kind: 'settings', section: returnSection })
     else closeDialog()
-  }
+  }, [updating, returnSection, openDialog, closeDialog])
 
   const persistEntries = async (next: Entry[]): Promise<void> => {
     setEntries(next)
@@ -92,20 +91,16 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [mode, updating])
+  }, [mode, updating, finish])
 
   // Discover category folders; when the table is empty, seed rows from disk (first pass).
   useEffect(() => {
-    if (!compiledRoot) {
-      setDiskTabs([])
-      return
-    }
+    if (!compiledRoot) return
     let cancelled = false
     void call(api.slideshow.listCompiledDats({ compiledRoot, entries: [] }))
       .then(async (res) => {
         if (cancelled) return
         const names = res.tabs.map((t) => t.name)
-        setDiskTabs(names)
         if (seededFromDisk) return
         if ((settings.compiledListEntries?.length ?? 0) > 0) {
           setSeededFromDisk(true)
@@ -122,7 +117,7 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
         await applySettingsPatch({ slideshow: { compiledListEntries: seeded } })
       })
       .catch(() => {
-        if (!cancelled) setDiskTabs([])
+        /* ignore discovery failures */
       })
     return () => {
       cancelled = true
@@ -217,10 +212,6 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
       const res = await call(
         api.slideshow.updateCompiledLists({ compiledRoot, entries })
       )
-      const listed = await call(
-        api.slideshow.listCompiledDats({ compiledRoot, entries: [] })
-      ).catch(() => null)
-      if (listed) setDiskTabs(listed.tabs.map((t) => t.name))
       if (res.updated === 0) {
         notify('No .dat lists found to compile (outside !!Lists)')
       } else {

@@ -45,6 +45,7 @@ export type TxtBodyLine = {
 
 /** Sanitize a display name into a Windows-safe folder / .dat basename. */
 export function sanitizeCompiledName(name: string): string {
+  // eslint-disable-next-line no-control-regex -- strip Windows-forbidden + C0 controls
   const t = name.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/\.+$/g, '')
   return t.slice(0, 120) || 'List'
 }

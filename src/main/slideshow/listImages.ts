@@ -34,7 +34,7 @@ async function walkImages(root: string, out: ImageEntry[]): Promise<void> {
       continue
     }
     if (!d.isFile() || !isSlideshowImagePath(full)) continue
-    let size = 0
+    let size: number
     try {
       size = (await fsp.stat(full)).size
     } catch {
@@ -95,7 +95,7 @@ function sortImageEntries(
   }
   const dir = ascending ? 1 : -1
   entries.sort((a, b) => {
-    let cmp = 0
+    let cmp: number
     if (order === 'name') {
       cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
     } else if (order === 'size') {

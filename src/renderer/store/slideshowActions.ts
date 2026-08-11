@@ -267,7 +267,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       const host = get() as SlideshowHost & { closeImageViewer?: () => void; imageViewer?: unknown }
       if (host.imageViewer && host.closeImageViewer) host.closeImageViewer()
       const session = get().slideshow
-      let paths: string[] = []
+      let paths: string[]
       let builtFromCache = false
 
       if (session.cacheActive && session.imageListCache.length > 0) {
@@ -666,7 +666,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!a) return
       const n = slideshowLength(a)
       if (n <= 0) return
-      let index = a.index
+      let index: number
       if (dir === 'first') index = 0
       else if (dir === 'last') index = n - 1
       else if (get().settings.slideshow.loop) {

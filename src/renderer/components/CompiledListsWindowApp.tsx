@@ -35,7 +35,6 @@ function formatNb(n: number): string {
  */
 export function CompiledListsWindowApp(): JSX.Element {
   const [compiledRoot, setCompiledRoot] = useState('')
-  const [entries, setEntries] = useState<{ name: string; folder: string }[]>([])
   const [tabs, setTabs] = useState<TabData[]>([])
   const [activeTab, setActiveTab] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -109,7 +108,6 @@ export function CompiledListsWindowApp(): JSX.Element {
       const root = settings.slideshow.compiledFileListsFolder.trim()
       const ents = settings.slideshow.compiledListEntries ?? []
       setCompiledRoot(root)
-      setEntries(ents)
       if (!root) {
         setTabs([])
         setStatus('Compiled file lists folder not set')

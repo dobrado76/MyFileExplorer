@@ -65,6 +65,7 @@ export function formatAdsValuePreview(text: string): string {
   if (!text) return ''
   if (/[\r\n]/.test(text)) return '[...]'
   // Non-text / binary payload (allow tab).
+  // eslint-disable-next-line no-control-regex -- intentional C0 control check (excl. tab/\n/\r)
   if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(text)) return '[...]'
   return text
 }

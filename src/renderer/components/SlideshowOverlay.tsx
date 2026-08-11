@@ -54,8 +54,10 @@ export function SlideshowOverlay(): JSX.Element | null {
   const frontBufRef = useRef<Buf | null>(null)
   const frontIdxRef = useRef<0 | 1>(0)
   const failStreakRef = useRef(0)
-  frontBufRef.current = bufs[front]
-  frontIdxRef.current = front
+  useEffect(() => {
+    frontBufRef.current = bufs[front]
+    frontIdxRef.current = front
+  }, [bufs, front])
 
   const path = active ? slideshowCurrentPath(active) : null
   const listLen = active ? slideshowLength(active) : 0

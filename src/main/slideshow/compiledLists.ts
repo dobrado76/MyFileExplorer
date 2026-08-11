@@ -430,7 +430,7 @@ async function listFilesInCategoryDir(
   opts?: { excludeLastTxt?: boolean }
 ): Promise<CompiledDatInfo[]> {
   const dats: CompiledDatInfo[] = []
-  let names: string[] = []
+  let names: string[]
   try {
     names = await fsp.readdir(dir)
   } catch {
@@ -475,7 +475,7 @@ export async function listCompiledDats(
   const root = requireAbsolute(compiledRoot)
   await ensureListsDir(root)
 
-  let childDirs: string[] = []
+  let childDirs: string[]
   try {
     const ents = await fsp.readdir(root, { withFileTypes: true })
     childDirs = ents.filter((e) => e.isDirectory()).map((e) => e.name)
@@ -582,7 +582,7 @@ async function expandTxtBodyToImages(
   for (const row of rows) {
     if (row.count <= 0) continue
     opts.walkProgress?.throwIfCancelled?.()
-    let batch: readonly string[] = []
+    let batch: readonly string[]
     if (row.kind === 'list') {
       try {
         batch = await expandListToImages(row.path, visiting, opts)
