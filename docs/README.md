@@ -15,7 +15,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-6. Domain docs as needed: PREVIEW, SEARCH, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION
+6. Domain docs as needed: PREVIEW, SEARCH, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 7. Deferred / bonus only when relevant: [REMOTE_FTP.md](REMOTE_FTP.md) (not scheduled)
 
 ---
@@ -39,7 +39,8 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
-| [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
+| [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) / compiled lists (D39) |
+| [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 
 ---
 
@@ -63,3 +64,4 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |
 | vs Explorer | [ADVANTAGES.md](ADVANTAGES.md) |
+| NTFS ADS | D38 — [ADS.md](ADS.md) |
