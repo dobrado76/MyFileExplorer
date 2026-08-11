@@ -1105,8 +1105,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     ? (initialSection as SettingsSection)
     : 'appearance'
   const [section, setSection] = useState<SettingsSection>(startSection)
-  const slideshowEnabled = settings.slideshowFeaturesEnabled
-  const navItems = SETTINGS_NAV.filter((item) => item.id !== 'slideshow' || slideshowEnabled)
+  const navItems = SETTINGS_NAV
   const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
   const loadCategorizerMapDialog = useAppStore((s) => s.loadCategorizerMapDialog)
   const saveCategorizerMapDialog = useAppStore((s) => s.saveCategorizerMapDialog)
@@ -1186,10 +1185,6 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const qaMissingBuiltins = knownFolders.filter(
     (k) => !qaEntries.some((e) => e.builtinId === k.id)
   )
-
-  useEffect(() => {
-    if (section === 'slideshow' && !slideshowEnabled) setSection('appearance')
-  }, [section, slideshowEnabled])
 
   return (
     <Modal
@@ -1298,18 +1293,18 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   ))}
                 </div>
               )}
-              <SettingsToggle
-                id="set-slideshow-features"
-                label="Slideshow features"
-                hint="Show slideshow toolbar, folder menu, and Slideshow settings. Off = nothing slideshow-related in the UI."
-                checked={settings.slideshowFeaturesEnabled}
-                onChange={(v) => void applySettingsPatch({ slideshowFeaturesEnabled: v })}
-              />
             </div>
           )}
 
-          {section === 'slideshow' && slideshowEnabled && (
+          {section === 'slideshow' && (
             <div className="settings-stack">
+              <SettingsToggle
+                id="set-slideshow-features"
+                label="Enable slideshow UI"
+                hint="Show slideshow buttons on the toolbar and Start Slideshow on folder menus. Settings below always stay available."
+                checked={settings.slideshowFeaturesEnabled}
+                onChange={(v) => void applySettingsPatch({ slideshowFeaturesEnabled: v })}
+              />
               <label className="settings-field" htmlFor="set-ss-delay">
                 <span>Delay between images (ms)</span>
                 <input

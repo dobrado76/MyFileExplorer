@@ -225,8 +225,9 @@ export const settingsSchema = z.object({
    */
   disableHardwareAcceleration: z.boolean().catch(false),
   /**
-   * Master gate for slideshow / image categorizer. When false: no slideshow
-   * settings nav, toolbar, context items, overlay, or related chrome.
+   * Master switch for slideshow **chrome** (toolbar + folder Start Slideshow).
+   * Settings → Slideshow stays in the nav either way; turning off also stops
+   * an active player.
    */
   slideshowFeaturesEnabled: z.boolean().catch(false),
   slideshow: z.preprocess((raw) => {
