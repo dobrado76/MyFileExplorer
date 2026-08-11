@@ -1,10 +1,13 @@
 import fsp from 'node:fs/promises'
+import { spawn } from 'node:child_process'
+import os from 'node:os'
 import path from 'node:path'
 import JSZip from 'jszip'
 import { AppError } from '@shared/result'
 import { requireAbsolute, pathExists } from './list'
 import { uniqueTargetName } from './ops'
-import { beginOp } from './opProgress'
+import { beginOp, cancelledError, type OpReporter } from './opProgress'
+import { resolve7zaPath } from './sevenZipBin'
 
 /** True when the path looks like a `.zip` archive (by extension). */
 export function isZipPath(filePath: string): boolean {
@@ -32,10 +35,6 @@ export function safeZipEntryPath(destRoot: string, entryName: string): string | 
   return target
 }
 
-type ZipSourceEntry =
-  | { kind: 'file'; diskPath: string; zipPath: string }
-  | { kind: 'dir'; zipPath: string }
-
 /** Explorer-style archive stem for the destination `.zip` name (no extension). */
 export function zipArchiveStem(sources: string[], singleIsDir: boolean): string {
   if (sources.length === 1) {
@@ -61,37 +60,154 @@ function commonParentDir(absolute: string[]): string | null {
   return first
 }
 
-async function collectEntries(src: string): Promise<ZipSourceEntry[]> {
-  const root = requireAbsolute(src)
-  const st = await fsp.stat(root)
-  const rootName = path.basename(root)
-  if (!st.isDirectory()) {
-    return [{ kind: 'file', diskPath: root, zipPath: rootName.replace(/\\/g, '/') }]
-  }
+/** Parse 7za `-bsp1` progress lines (`\r  45%` / `45% 12`). */
+export function parse7zaPercent(chunk: string): number | null {
+  const matches = [...chunk.matchAll(/(\d{1,3})\s*%/g)]
+  if (matches.length === 0) return null
+  const last = matches[matches.length - 1]![1]!
+  const n = Number.parseInt(last, 10)
+  if (!Number.isFinite(n)) return null
+  return Math.max(0, Math.min(100, n))
+}
 
-  const out: ZipSourceEntry[] = []
-  const walk = async (dir: string, zipPrefix: string): Promise<void> => {
-    let kids
-    try {
-      kids = await fsp.readdir(dir, { withFileTypes: true })
-    } catch {
-      throw new AppError('io', `Could not read folder: ${path.basename(dir)}`)
-    }
-    if (kids.length === 0) {
-      out.push({ kind: 'dir', zipPath: zipPrefix.replace(/\\/g, '/') + '/' })
-      return
-    }
-    for (const kid of kids) {
-      const full = path.join(dir, kid.name)
-      const zp = `${zipPrefix}/${kid.name}`.replace(/\\/g, '/')
-      if (kid.isDirectory()) await walk(full, zp)
-      else if (kid.isFile() || kid.isSymbolicLink()) {
-        out.push({ kind: 'file', diskPath: full, zipPath: zp })
+/**
+ * Run `7za a -tzip` streaming to disk. Progress is 0–100 from 7za; Cancel kills the process.
+ */
+function run7zaAddZip(opts: {
+  zipPath: string
+  cwd: string
+  /** Paths relative to `cwd` (basenames / relative names). */
+  items: string[]
+  progress: OpReporter
+  /** Map 7za 0–100 into this overall progress window. */
+  progressBase?: number
+  progressSpan?: number
+}): Promise<void> {
+  const { zipPath, cwd, items, progress } = opts
+  const base = opts.progressBase ?? 0
+  const span = opts.progressSpan ?? 100
+  if (items.length === 0) return Promise.resolve()
+
+  const bin = resolve7zaPath()
+  // List file avoids Windows command-line length limits + preserves Unicode names.
+  const listPath = path.join(
+    os.tmpdir(),
+    `mfe-zip-list-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.txt`
+  )
+
+  return (async () => {
+    await fsp.writeFile(listPath, items.map((i) => i.replace(/\r?\n/g, ' ')).join('\n'), 'utf8')
+    progress.throwIfCancelled()
+
+    await new Promise<void>((resolve, reject) => {
+      const args = [
+        'a',
+        '-tzip',
+        '-mx=5',
+        '-y',
+        '-bsp1',
+        '-bse1',
+        '-sccUTF-8',
+        zipPath,
+        `@${listPath}`
+      ]
+      const child = spawn(bin, args, {
+        cwd,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe']
+      })
+
+      let stderr = ''
+      let settled = false
+      const cancelPoll = setInterval(() => {
+        if (!progress.isCancelled()) return
+        try {
+          if (process.platform === 'win32' && child.pid) {
+            spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
+              windowsHide: true,
+              stdio: 'ignore'
+            })
+          } else {
+            child.kill('SIGKILL')
+          }
+        } catch {
+          /* ignore */
+        }
+      }, 200)
+
+      const finish = (err: Error | null): void => {
+        if (settled) return
+        settled = true
+        clearInterval(cancelPoll)
+        void fsp.unlink(listPath).catch(() => {})
+        if (err) reject(err)
+        else resolve()
       }
-    }
-  }
-  await walk(root, rootName)
-  return out
+
+      const onChunk = (buf: Buffer): void => {
+        const text = buf.toString('utf8')
+        stderr += text
+        if (stderr.length > 32_000) stderr = stderr.slice(-16_000)
+        const pct = parse7zaPercent(text)
+        if (pct != null) {
+          const mapped = Math.min(100, Math.round(base + (pct / 100) * span))
+          try {
+            progress.setDone(mapped, path.basename(zipPath))
+          } catch (e) {
+            try {
+              child.kill()
+            } catch {
+              /* ignore */
+            }
+            finish(e instanceof Error ? e : cancelledError())
+          }
+        } else {
+          try {
+            progress.pulse(path.basename(zipPath))
+          } catch (e) {
+            try {
+              child.kill()
+            } catch {
+              /* ignore */
+            }
+            finish(e instanceof Error ? e : cancelledError())
+          }
+        }
+      }
+
+      child.stdout?.on('data', onChunk)
+      child.stderr?.on('data', onChunk)
+      child.on('error', (e) => {
+        finish(
+          new AppError(
+            'io',
+            `Could not start 7za: ${e.message}`,
+            'ZIP compression requires the bundled 7-Zip helper.'
+          )
+        )
+      })
+      child.on('close', (code, signal) => {
+        if (progress.isCancelled() || signal === 'SIGTERM' || signal === 'SIGKILL') {
+          finish(cancelledError())
+          return
+        }
+        // 0 = OK, 1 = warning (non-fatal) — both acceptable for compress.
+        if (code === 0 || code === 1) {
+          try {
+            progress.setDone(Math.min(100, base + span), path.basename(zipPath))
+          } catch {
+            /* ignore */
+          }
+          finish(null)
+          return
+        }
+        const detail = stderr.trim().split(/\r?\n/).filter(Boolean).slice(-3).join(' ')
+        finish(
+          new AppError('io', `Compress failed${detail ? `: ${detail}` : ''}`.slice(0, 240))
+        )
+      })
+    })
+  })()
 }
 
 /**
@@ -99,6 +215,9 @@ async function collectEntries(src: string): Promise<ZipSourceEntry[]> {
  * - One file → `Name.zip` (last extension stripped)
  * - One folder → `FolderName.zip`
  * - Multiple → `{parentFolder}.zip`
+ *
+ * Uses bundled 7za to stream to disk (not JSZip in-memory generate) so large
+ * folders stay cancelable and progress reflects real compression work.
  */
 export async function compressToZip(sources: string[]): Promise<{ zipPath: string }> {
   if (sources.length === 0) {
@@ -139,44 +258,37 @@ export async function compressToZip(sources: string[]): Promise<{ zipPath: strin
     throw new AppError('validation', 'Nothing to compress')
   }
 
-  const entries: ZipSourceEntry[] = []
-  for (const src of sourcesToPack) {
-    entries.push(...(await collectEntries(src)))
-  }
-
-  const fileCount = entries.filter((e) => e.kind === 'file').length
-  const progress = beginOp('zip', Math.max(fileCount, 1), 'Compressing…')
-  const zip = new JSZip()
+  const progress = beginOp('zip', 100, 'Compressing…')
+  progress.pulse(path.basename(zipPath))
 
   try {
-    if (fileCount === 0) {
-      // Only empty folders — still produce a valid archive.
-      for (const e of entries) {
-        if (e.kind === 'dir') zip.folder(e.zipPath.replace(/\/$/, ''))
-      }
-      progress.tick(path.basename(zipPath))
+    const sameParent = commonParentDir(sourcesToPack) != null
+    if (sameParent) {
+      await run7zaAddZip({
+        zipPath,
+        cwd: path.dirname(sourcesToPack[0]!),
+        items: sourcesToPack.map((p) => path.basename(p)),
+        progress
+      })
     } else {
-      for (const e of entries) {
+      // Different parents: append each root (basename) from its own folder.
+      const n = sourcesToPack.length
+      for (let i = 0; i < n; i++) {
         progress.throwIfCancelled()
-        if (e.kind === 'dir') {
-          zip.folder(e.zipPath.replace(/\/$/, ''))
-          continue
-        }
-        progress.tick(path.basename(e.diskPath))
-        const data = await fsp.readFile(e.diskPath)
-        zip.file(e.zipPath, data)
+        const src = sourcesToPack[i]!
+        const span = Math.floor(100 / n)
+        const base = i * span
+        const lastSpan = i === n - 1 ? 100 - base : span
+        await run7zaAddZip({
+          zipPath,
+          cwd: path.dirname(src),
+          items: [path.basename(src)],
+          progress,
+          progressBase: base,
+          progressSpan: lastSpan
+        })
       }
     }
-
-    progress.throwIfCancelled()
-    progress.pulse(path.basename(zipPath))
-    const buf = await zip.generateAsync({
-      type: 'nodebuffer',
-      compression: 'DEFLATE',
-      compressionOptions: { level: 6 }
-    })
-    progress.throwIfCancelled()
-    await fsp.writeFile(zipPath, buf)
     progress.finish()
     return { zipPath }
   } catch (e) {

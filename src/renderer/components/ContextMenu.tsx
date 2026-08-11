@@ -75,6 +75,7 @@ export function ContextMenu(): JSX.Element | null {
 
   const ref = useRef<HTMLDivElement>(null)
   const subRef = useRef<HTMLDivElement>(null)
+  const closeSubTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
@@ -87,11 +88,40 @@ export function ContextMenu(): JSX.Element | null {
     ready: boolean
   }>({ flipX: false, top: -5, maxHeight: null, ready: false })
 
-  const showSub = useCallback((i: number | null): void => {
-    setOpenSub(i)
-    setSubFocusIdx(-1)
-    setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+  const clearCloseSubTimer = useCallback((): void => {
+    if (closeSubTimerRef.current == null) return
+    clearTimeout(closeSubTimerRef.current)
+    closeSubTimerRef.current = null
   }, [])
+
+  /**
+   * Open/close nested menu. Closing from mouse hover uses a short delay so the
+   * pointer can cross the parent→submenu gap (or a diagonally shifted panel)
+   * without the flyout vanishing.
+   */
+  const showSub = useCallback(
+    (i: number | null, opts?: { delayMs?: number }): void => {
+      clearCloseSubTimer()
+      if (i === null) {
+        const delay = opts?.delayMs ?? 0
+        if (delay > 0) {
+          closeSubTimerRef.current = setTimeout(() => {
+            closeSubTimerRef.current = null
+            setOpenSub(null)
+            setSubFocusIdx(-1)
+            setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+          }, delay)
+          return
+        }
+      }
+      setOpenSub(i)
+      setSubFocusIdx(-1)
+      setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+    },
+    [clearCloseSubTimer]
+  )
+
+  useEffect(() => () => clearCloseSubTimer(), [clearCloseSubTimer])
 
   const items = useMemo<MenuItem[]>(() => {
     if (!menu) return []
@@ -1060,9 +1090,10 @@ export function ContextMenu(): JSX.Element | null {
     const y = Math.min(menu.y, window.innerHeight - rect.height - 4)
     setPos({ x: Math.max(0, x), y: Math.max(0, y) })
     setFocusIdx(-1)
+    clearCloseSubTimer()
     setOpenSub(null)
     setSubFocusIdx(-1)
-  }, [menu])
+  }, [menu, clearCloseSubTimer])
 
   useEffect(() => {
     if (!menu) return
@@ -1175,6 +1206,12 @@ export function ContextMenu(): JSX.Element | null {
                   ref={subRef}
                   className={`context-menu context-submenu${subPlace.flipX ? ' flip' : ''}`}
                   role="menu"
+                  onMouseEnter={() => {
+                    // Crossing the parent→flyout gap may briefly hit a sibling;
+                    // arriving here cancels the delayed close.
+                    clearCloseSubTimer()
+                    setFocusIdx(i)
+                  }}
                   style={{
                     top: subPlace.top,
                     maxHeight: subPlace.maxHeight ?? undefined,
@@ -1206,7 +1243,7 @@ export function ContextMenu(): JSX.Element | null {
             className={`menu-item${item.danger ? ' danger' : ''}${focusIdx === i ? ' focused' : ''}`}
             disabled={item.disabled}
             onClick={item.action}
-            onMouseEnter={() => showSub(null)}
+            onMouseEnter={() => showSub(null, { delayMs: 300 })}
             role="menuitem"
           >
             {item.label}

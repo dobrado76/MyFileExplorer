@@ -99,7 +99,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
 | Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory                                                                       |
-| Compress / Extract | Context **Compress to ZIP file** / **Extract All…** — sibling `.zip` or folder (Explorer naming); progress + Cancel (D30)                         |
+| Compress / Extract | Context **Compress to ZIP file** (bundled 7za, streamed) / **Extract All…** — sibling `.zip` or folder (Explorer naming); progress + Cancel (D30) |
 | Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
 | Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
 | Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |

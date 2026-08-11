@@ -1,27 +1,11 @@
 /**
  * List `.7z` archive contents via bundled 7za (7zip-bin / 7zip-min).
- * Resolve 7za via require.resolve — importing path7za gets bundled and breaks in out/main.
  */
-import { createRequire } from 'node:module'
-import path from 'node:path'
 import { config as configure7z, list as list7z } from '7zip-min'
+import { resolve7zaPath } from '../fs/sevenZipBin'
 import { buildArchiveTreeFromEntries, MAX_ZIP_TREE_NODES, type ZipListEntry } from './zipArchive'
 
-const require = createRequire(__filename)
-
 let configured = false
-
-function resolve7zaPath(): string {
-  const pkg = require.resolve('7zip-bin/package.json')
-  const root = path.dirname(pkg)
-  const name = process.platform === 'win32' ? '7za.exe' : '7za'
-  let platformDir: string
-  if (process.platform === 'darwin') platformDir = 'mac'
-  else if (process.platform === 'win32') platformDir = 'win'
-  else platformDir = 'linux'
-  const bin = path.join(root, platformDir, process.arch, name)
-  return bin.replace(/app\.asar(?!\.unpacked)/g, 'app.asar.unpacked')
-}
 
 function ensure7zaPath(): void {
   if (configured) return

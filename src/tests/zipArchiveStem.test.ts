@@ -29,6 +29,15 @@ describe('isZipPath', () => {
   })
 })
 
+describe('parse7zaPercent', () => {
+  it('reads the last percent from 7za progress output', async () => {
+    const { parse7zaPercent } = await import('../main/fs/zip')
+    expect(parse7zaPercent('\r  12%')).toBe(12)
+    expect(parse7zaPercent('  0%\r 45%\r 99%')).toBe(99)
+    expect(parse7zaPercent('no progress here')).toBeNull()
+  })
+})
+
 describe('safeZipEntryPath', () => {
   const root = path.join('C:', 'extract', 'out')
 

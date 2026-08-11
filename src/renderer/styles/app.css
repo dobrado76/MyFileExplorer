@@ -2543,15 +2543,28 @@ body.right-dragging * {
 .context-submenu {
   position: absolute;
   top: -5px;
-  left: calc(100% + 2px);
+  /* Flush with parent (no gap); ::before bridge covers diagonal / clamp offset. */
+  left: 100%;
   min-width: 220px;
   max-width: 320px;
   overflow-x: hidden;
   overflow-y: auto;
 }
+.context-submenu::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -10px;
+  width: 10px;
+}
 .context-submenu.flip {
   left: auto;
-  right: calc(100% + 2px);
+  right: 100%;
+}
+.context-submenu.flip::before {
+  left: auto;
+  right: -10px;
 }
 .context-submenu .menu-item {
   white-space: nowrap;
