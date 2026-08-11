@@ -75,6 +75,7 @@ MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → 
 | **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git / twenty third-party overlays. |
 | **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
+| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column plus a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. |
 | **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
 | **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
 | **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |

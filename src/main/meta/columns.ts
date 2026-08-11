@@ -8,7 +8,8 @@ import { requireAbsolute } from '../fs/list'
 import { extractColumnValues } from './extract'
 
 let metaDir: string | null = null
-const memory = new Map<string, EntryColumnValues>()
+/** pathLower → { cacheFileKey, values } */
+const memory = new Map<string, { key: string; values: EntryColumnValues }>()
 const inFlight = new Map<string, Promise<EntryColumnValues>>()
 const MAX_MEMORY = 4000
 
@@ -17,12 +18,18 @@ function cacheDir(): string {
   return metaDir
 }
 
+/** Stable prefix so we can invalidate all cached extracts for a path. */
+function pathPrefix(file: string): string {
+  return crypto.createHash('sha1').update(file.toLowerCase()).digest('hex').slice(0, 16)
+}
+
 function cacheKey(file: string, mtimeMs: number, size: number, columns: DetailsColumnId[]): string {
   const cols = [...columns].filter(isAsyncColumn).sort().join(',')
-  return crypto
+  const body = crypto
     .createHash('sha1')
-    .update(`v1|${file.toLowerCase()}|${mtimeMs}|${size}|${cols}`)
+    .update(`v2|${file.toLowerCase()}|${mtimeMs}|${size}|${cols}`)
     .digest('hex')
+  return `${pathPrefix(file)}_${body}`
 }
 
 async function readDisk(key: string): Promise<EntryColumnValues | null> {
@@ -58,16 +65,23 @@ async function loadOne(rawPath: string, columns: DetailsColumnId[]): Promise<Ent
   } catch {
     return {}
   }
-  if (!st.isFile()) return {}
+
+  const wantsAds = asyncCols.includes('ads')
+  if (st.isDirectory()) {
+    if (!wantsAds) return {}
+  } else if (!st.isFile()) {
+    return {}
+  }
 
   const key = cacheKey(file, st.mtimeMs, st.size, asyncCols)
-  const mem = memory.get(key)
-  if (mem) return mem
+  const pathKey = file.toLowerCase()
+  const mem = memory.get(pathKey)
+  if (mem && mem.key === key) return mem.values
 
   const disk = await readDisk(key)
   if (disk) {
     if (memory.size > MAX_MEMORY) memory.clear()
-    memory.set(key, disk)
+    memory.set(pathKey, { key, values: disk })
     return disk
   }
 
@@ -78,7 +92,7 @@ async function loadOne(rawPath: string, columns: DetailsColumnId[]): Promise<Ent
     try {
       const values = await extractColumnValues(file, asyncCols)
       if (memory.size > MAX_MEMORY) memory.clear()
-      memory.set(key, values)
+      memory.set(pathKey, { key, values })
       void writeDisk(key, values)
       return values
     } finally {
@@ -120,4 +134,39 @@ export async function clearColumnMetaCache(): Promise<void> {
   inFlight.clear()
   await fsp.rm(cacheDir(), { recursive: true, force: true })
   await fsp.mkdir(cacheDir(), { recursive: true })
+}
+
+/** Drop cached extracts for paths (e.g. after ADS mutations). */
+export async function invalidateColumnMetaPaths(paths: string[]): Promise<void> {
+  if (paths.length === 0) return
+  const prefixes = new Set<string>()
+  for (const raw of paths) {
+    try {
+      const file = requireAbsolute(raw)
+      const pathKey = file.toLowerCase()
+      memory.delete(pathKey)
+      prefixes.add(pathPrefix(file))
+    } catch {
+      /* skip invalid */
+    }
+  }
+  // Drop in-flight jobs whose keys match invalidated prefixes
+  for (const k of [...inFlight.keys()]) {
+    const pref = k.slice(0, 16)
+    if (prefixes.has(pref)) inFlight.delete(k)
+  }
+  try {
+    const dir = cacheDir()
+    const files = await fsp.readdir(dir)
+    await Promise.all(
+      files
+        .filter((f) => {
+          const pref = f.slice(0, 16)
+          return prefixes.has(pref)
+        })
+        .map((f) => fsp.unlink(path.join(dir, f)).catch(() => undefined))
+    )
+  } catch {
+    /* best-effort */
+  }
 }

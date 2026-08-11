@@ -91,7 +91,8 @@ const api: MyFileExplorerApi = {
     get: invoke(IPC.iconsGet)
   },
   meta: {
-    getMany: invoke(IPC.metaGetMany)
+    getMany: invoke(IPC.metaGetMany),
+    invalidate: invoke(IPC.metaInvalidate)
   },
   app: {
     getPath: invoke(IPC.appGetPath),
@@ -101,6 +102,36 @@ const api: MyFileExplorerApi = {
     getVersion: invokeVoid(IPC.appGetVersion),
     checkUpdate: invoke(IPC.appCheckUpdate),
     runUpdate: invoke(IPC.appRunUpdate)
+  },
+  slideshow: {
+    listImages: invoke(IPC.slideshowListImages),
+    cancelList: invokeVoid(IPC.slideshowCancelList),
+    pickOpenFile: invoke(IPC.slideshowPickOpenFile),
+    pickSaveFile: invoke(IPC.slideshowPickSaveFile),
+    readTextFile: invoke(IPC.slideshowReadTextFile),
+    writeTextFile: invoke(IPC.slideshowWriteTextFile),
+    updateCompiledLists: invoke(IPC.slideshowUpdateCompiledLists),
+    listCompiledDats: invoke(IPC.slideshowListCompiledDats),
+    readDatIndex: invoke(IPC.slideshowReadDatIndex),
+    readLastList: invoke(IPC.slideshowReadLastList),
+    writeLastList: invoke(IPC.slideshowWriteLastList),
+    readCompositeList: invoke(IPC.slideshowReadCompositeList),
+    writeCompositeList: invoke(IPC.slideshowWriteCompositeList),
+    lastListUsable: invoke(IPC.slideshowLastListUsable),
+    expandComposite: invoke(IPC.slideshowExpandComposite),
+    openCompiledListsWindow: invokeVoid(IPC.slideshowOpenCompiledListsWindow),
+    closeCompiledListsWindow: invokeVoid(IPC.slideshowCloseCompiledListsWindow),
+    applyCompiledPlaylist: invoke(IPC.slideshowApplyCompiledPlaylist)
+  },
+  ads: {
+    list: invoke(IPC.adsList),
+    exists: invoke(IPC.adsExists),
+    readText: invoke(IPC.adsReadText),
+    writeText: invoke(IPC.adsWriteText),
+    delete: invoke(IPC.adsDelete),
+    readBytes: invoke(IPC.adsReadBytes),
+    writeBytes: invoke(IPC.adsWriteBytes),
+    copy: invoke(IPC.adsCopy)
   },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)

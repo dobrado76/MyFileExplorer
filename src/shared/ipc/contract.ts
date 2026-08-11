@@ -74,6 +74,7 @@ export const IPC = {
   thumbsGenerateVidCache: 'thumbs:generateVidCache',
   iconsGet: 'icons:get',
   metaGetMany: 'meta:getMany',
+  metaInvalidate: 'meta:invalidate',
 
   appGetPath: 'app:getPath',
   /** Expand `%VAR%` using process env (Explorer address-bar parity). */
@@ -83,7 +84,37 @@ export const IPC = {
   appReady: 'app:ready',
   appGetVersion: 'app:getVersion',
   appCheckUpdate: 'app:checkUpdate',
-  appRunUpdate: 'app:runUpdate'
+  appRunUpdate: 'app:runUpdate',
+
+  /** Slideshow (gated by settings.slideshowFeaturesEnabled in renderer). */
+  slideshowListImages: 'slideshow:listImages',
+  slideshowCancelList: 'slideshow:cancelList',
+  slideshowPickOpenFile: 'slideshow:pickOpenFile',
+  slideshowPickSaveFile: 'slideshow:pickSaveFile',
+  slideshowReadTextFile: 'slideshow:readTextFile',
+  slideshowWriteTextFile: 'slideshow:writeTextFile',
+  slideshowUpdateCompiledLists: 'slideshow:updateCompiledLists',
+  slideshowListCompiledDats: 'slideshow:listCompiledDats',
+  slideshowReadDatIndex: 'slideshow:readDatIndex',
+  slideshowReadLastList: 'slideshow:readLastList',
+  slideshowWriteLastList: 'slideshow:writeLastList',
+  slideshowReadCompositeList: 'slideshow:readCompositeList',
+  slideshowWriteCompositeList: 'slideshow:writeCompositeList',
+  slideshowLastListUsable: 'slideshow:lastListUsable',
+  slideshowExpandComposite: 'slideshow:expandComposite',
+  slideshowOpenCompiledListsWindow: 'slideshow:openCompiledListsWindow',
+  slideshowCloseCompiledListsWindow: 'slideshow:closeCompiledListsWindow',
+  slideshowApplyCompiledPlaylist: 'slideshow:applyCompiledPlaylist',
+
+  /** NTFS Alternate Data Streams (win32; soft-fail elsewhere). */
+  adsList: 'ads:list',
+  adsExists: 'ads:exists',
+  adsReadText: 'ads:readText',
+  adsWriteText: 'ads:writeText',
+  adsDelete: 'ads:delete',
+  adsReadBytes: 'ads:readBytes',
+  adsWriteBytes: 'ads:writeBytes',
+  adsCopy: 'ads:copy'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -135,4 +166,17 @@ export type MfeEvent =
       type: 'history-nav'
       /** Mouse side buttons (Windows app-command) → tab Back / Forward. */
       payload: { dir: 'back' | 'forward' }
+    }
+  | {
+      type: 'slideshow-list-progress'
+      payload: { found: number; current?: string }
+    }
+  | {
+      type: 'compiled-playlist-apply'
+      /** Child lists window → main: replace active compiled slideshow paths. */
+      payload: { paths: string[]; preferPath?: string | null }
+    }
+  | {
+      type: 'compiled-lists-window-closed'
+      payload: Record<string, never>
     }

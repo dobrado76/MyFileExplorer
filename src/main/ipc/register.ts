@@ -1,4 +1,5 @@
 import { app, dialog, ipcMain, BrowserWindow, type IpcMainInvokeEvent } from 'electron'
+import fsp from 'node:fs/promises'
 import { z, type ZodType } from 'zod'
 import { ok, err, errFromUnknown, type Result } from '@shared/result'
 import { IPC } from '@shared/ipc/contract'
@@ -22,7 +23,25 @@ import {
   previewRequestSchema
 } from '@shared/schemas/preview'
 import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/search'
-import { listDirectory, statPath, pathExists } from '../fs/list'
+import { slideshowListRequestSchema } from '@shared/schemas/slideshow'
+import {
+  updateCompiledListsRequestSchema,
+  listCompiledDatsRequestSchema,
+  compiledRootSchema,
+  writeLastListRequestSchema,
+  compositeFileSchema,
+  writeCompositeListRequestSchema,
+  expandCompositeRequestSchema
+} from '@shared/schemas/compiledLists'
+import {
+  adsPathSchema,
+  adsNamedSchema,
+  adsWriteTextSchema,
+  adsWriteBytesSchema,
+  adsCopySchema,
+  adsInvalidateMetaSchema
+} from '@shared/schemas/ads'
+import { listDirectory, statPath, pathExists, requireAbsolute } from '../fs/list'
 import { listDrives, setVolumeLabel } from '../fs/drives'
 import { getProperties, measureFolder, setPathAttributes } from '../fs/properties'
 import {
@@ -52,8 +71,25 @@ import {
 import { restoreFromRecycleBin, listRecycleBin, emptyRecycleBin, deleteFromRecycleBin } from '../fs/recycle'
 import { watchDirectory, unwatchDirectory, muteWatchers } from '../fs/watch'
 import { requestCancelActiveOps } from '../fs/opProgress'
+import { broadcast } from './events'
 import { markRendererReady } from '../externalOpen'
 import { findUpdateInstaller, runUpdateInstaller } from '../update/installers'
+import { cancelSlideshowList, listSlideshowImages } from '../slideshow/listImages'
+import {
+  updateCompiledLists,
+  listCompiledDats,
+  readDatIndex,
+  readLastList,
+  writeLastList,
+  readCompositeList,
+  writeCompositeList,
+  lastListIsUsable,
+  expandCompositePlaylist
+} from '../slideshow/compiledLists'
+import {
+  openCompiledListsWindow,
+  closeCompiledListsWindow
+} from '../slideshow/compiledListsWindow'
 import {
   openPath,
   showItemInFolder,
@@ -69,7 +105,7 @@ import { ensurePlayablePreview, getChmTopicPreview, getPreview } from '../previe
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
-import { getColumnMetaMany } from '../meta/columns'
+import { getColumnMetaMany, invalidateColumnMetaPaths } from '../meta/columns'
 import { metaGetManyRequestSchema } from '@shared/schemas/meta'
 import {
   runSearchQuery,
@@ -350,6 +386,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.metaGetMany, metaGetManyRequestSchema, async (req) => ({
     values: await getColumnMetaMany(req.paths, req.columns)
   }))
+  handle(IPC.metaInvalidate, adsInvalidateMetaSchema, async (req) => {
+    await invalidateColumnMetaPaths(req.paths)
+    return { ok: true as const }
+  })
 
   // app
   handle(IPC.appGetPath, getPathRequestSchema, (req) => ({ path: app.getPath(req.name) }))
@@ -378,4 +418,170 @@ export function registerIpcHandlers(): void {
     z.object({ path: z.string().min(1), folder: z.string().min(1) }),
     (req) => runUpdateInstaller(req.path, req.folder)
   )
+
+  // slideshow (renderer must gate on slideshowFeaturesEnabled)
+  handle(IPC.slideshowListImages, slideshowListRequestSchema, (req) => listSlideshowImages(req))
+  handle(IPC.slideshowCancelList, emptySchema, () => {
+    cancelSlideshowList()
+    return { cancelled: true as const }
+  })
+  handle(
+    IPC.slideshowPickOpenFile,
+    z.object({
+      title: z.string().optional(),
+      defaultPath: z.string().optional(),
+      filters: z
+        .array(z.object({ name: z.string(), extensions: z.array(z.string()) }))
+        .optional()
+    }),
+    async (req, event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      const opts = {
+        title: req.title,
+        defaultPath: req.defaultPath,
+        properties: ['openFile'] as ('openFile')[],
+        filters: req.filters
+      }
+      const result = win
+        ? await dialog.showOpenDialog(win, opts)
+        : await dialog.showOpenDialog(opts)
+      return { path: result.canceled ? null : (result.filePaths[0] ?? null) }
+    }
+  )
+  handle(
+    IPC.slideshowPickSaveFile,
+    z.object({
+      title: z.string().optional(),
+      defaultPath: z.string().optional(),
+      filters: z
+        .array(z.object({ name: z.string(), extensions: z.array(z.string()) }))
+        .optional()
+    }),
+    async (req, event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      const opts = {
+        title: req.title,
+        defaultPath: req.defaultPath,
+        filters: req.filters
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, opts)
+        : await dialog.showSaveDialog(opts)
+      return { path: result.canceled ? null : (result.filePath ?? null) }
+    }
+  )
+  handle(IPC.slideshowReadTextFile, z.object({ path: z.string().min(1) }), async (req) => {
+    const p = requireAbsolute(req.path)
+    const text = await fsp.readFile(p, 'utf8')
+    return { text }
+  })
+  handle(
+    IPC.slideshowWriteTextFile,
+    z.object({ path: z.string().min(1), text: z.string() }),
+    async (req) => {
+      const p = requireAbsolute(req.path)
+      await fsp.writeFile(p, req.text, 'utf8')
+      return { ok: true as const }
+    }
+  )
+
+  // Compiled file lists
+  handle(IPC.slideshowUpdateCompiledLists, updateCompiledListsRequestSchema, async (req) =>
+    updateCompiledLists(req.compiledRoot, req.entries)
+  )
+  handle(IPC.slideshowListCompiledDats, listCompiledDatsRequestSchema, async (req) => ({
+    tabs: await listCompiledDats(req.compiledRoot, req.entries)
+  }))
+  handle(IPC.slideshowReadDatIndex, z.object({ path: z.string().min(1) }), async (req) => ({
+    paths: await readDatIndex(req.path)
+  }))
+  handle(IPC.slideshowReadLastList, compiledRootSchema, async (req) => ({
+    lines: await readLastList(req.compiledRoot)
+  }))
+  handle(IPC.slideshowWriteLastList, writeLastListRequestSchema, async (req) => {
+    await writeLastList(req.compiledRoot, req.lines)
+    return { ok: true as const }
+  })
+  handle(IPC.slideshowReadCompositeList, compositeFileSchema, async (req) => ({
+    lines: await readCompositeList(req.path)
+  }))
+  handle(IPC.slideshowWriteCompositeList, writeCompositeListRequestSchema, async (req) => {
+    await writeCompositeList(req.path, req.lines)
+    return { ok: true as const }
+  })
+  handle(IPC.slideshowLastListUsable, compiledRootSchema, async (req) => ({
+    usable: await lastListIsUsable(req.compiledRoot)
+  }))
+  handle(IPC.slideshowExpandComposite, expandCompositeRequestSchema, async (req) => ({
+    paths: await expandCompositePlaylist(req.lines)
+  }))
+  handle(IPC.slideshowOpenCompiledListsWindow, emptySchema, () => openCompiledListsWindow())
+  handle(IPC.slideshowCloseCompiledListsWindow, emptySchema, () => closeCompiledListsWindow())
+  handle(
+    IPC.slideshowApplyCompiledPlaylist,
+    z.object({
+      paths: z.array(z.string()),
+      preferPath: z.string().nullable().optional()
+    }),
+    (req) => {
+      broadcast({
+        type: 'compiled-playlist-apply',
+        payload: { paths: req.paths, preferPath: req.preferPath ?? null }
+      })
+      return { ok: true as const }
+    }
+  )
+
+  // NTFS Alternate Data Streams
+  handle(IPC.adsList, adsPathSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { listStreams } = await import('../fs/adsWin32')
+    const streams = listStreams(p).map((s) => ({ name: s.name, size: s.size }))
+    return { streams }
+  })
+  handle(IPC.adsExists, adsNamedSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { streamExists } = await import('../fs/adsWin32')
+    return { exists: streamExists(p, req.name) }
+  })
+  handle(IPC.adsReadText, adsNamedSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { readStreamText } = await import('../fs/adsWin32')
+    return { text: await readStreamText(p, req.name) }
+  })
+  handle(IPC.adsWriteText, adsWriteTextSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { writeStreamText } = await import('../fs/adsWin32')
+    await writeStreamText(p, req.name, req.value, req.writeEmpty ?? false)
+    await invalidateColumnMetaPaths([p])
+    return { ok: true as const }
+  })
+  handle(IPC.adsDelete, adsNamedSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { deleteStream } = await import('../fs/adsWin32')
+    const deleted = deleteStream(p, req.name)
+    await invalidateColumnMetaPaths([p])
+    return { deleted }
+  })
+  handle(IPC.adsReadBytes, adsNamedSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { readStreamBytes } = await import('../fs/adsWin32')
+    const buf = await readStreamBytes(p, req.name)
+    return { dataBase64: buf ? buf.toString('base64') : null }
+  })
+  handle(IPC.adsWriteBytes, adsWriteBytesSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    const { writeStreamBytes } = await import('../fs/adsWin32')
+    await writeStreamBytes(p, req.name, Buffer.from(req.dataBase64, 'base64'))
+    await invalidateColumnMetaPaths([p])
+    return { ok: true as const }
+  })
+  handle(IPC.adsCopy, adsCopySchema, async (req) => {
+    const source = requireAbsolute(req.source)
+    const dest = requireAbsolute(req.dest)
+    const { copyStreams } = await import('../fs/adsWin32')
+    const copied = await copyStreams(source, dest, req.ignoreNames)
+    await invalidateColumnMetaPaths([dest])
+    return { copied }
+  })
 }

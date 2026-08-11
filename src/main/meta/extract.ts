@@ -1,6 +1,8 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { DetailsColumnId, EntryColumnValues } from '@shared/schemas/columns'
+import { formatAdsColumnValue } from '@shared/ads/paths'
+import { listStreamNames } from '../fs/adsWin32'
 import { parseA1111Parameters } from '../preview/a1111'
 import { resolveGenerationParametersText } from '../preview/genFields'
 
@@ -282,10 +284,29 @@ export async function extractColumnValues(
   } catch {
     return {}
   }
-  if (!st.isFile()) return {}
+
+  const out: EntryColumnValues = {}
+
+  if (wanted.has('ads') && (st.isFile() || st.isDirectory())) {
+    try {
+      const names = listStreamNames(file)
+      const display = formatAdsColumnValue(names)
+      if (display) out.ads = display
+    } catch {
+      /* soft-fail */
+    }
+  }
+
+  if (!st.isFile()) return out
 
   const ext = path.extname(file).slice(1).toLowerCase()
-  if (IMAGE_EXTS.has(ext)) return extractImage(file, ext, wanted)
-  if (AV_EXTS.has(ext)) return extractAv(file, wanted)
-  return {}
+  if (IMAGE_EXTS.has(ext)) {
+    Object.assign(out, await extractImage(file, ext, wanted))
+    return out
+  }
+  if (AV_EXTS.has(ext)) {
+    Object.assign(out, await extractAv(file, wanted))
+    return out
+  }
+  return out
 }

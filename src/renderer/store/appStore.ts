@@ -38,6 +38,13 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
+import {
+  createSlideshowActions,
+  loadCategorizerMapFromPath,
+  hydrateSlideshowCacheFromSettings,
+  type SlideshowActions
+} from './slideshowActions'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import {
   buildQuickAccess,
@@ -106,6 +113,9 @@ export type DialogState =
   | { kind: 'new-file'; parent: string }
   | { kind: 'properties'; path: string }
   | { kind: 'settings'; section?: string }
+  | { kind: 'categorizer-map'; returnSection?: string }
+  | { kind: 'compiled-lists-config'; returnSection?: string }
+  | { kind: 'ads-manager'; path: string }
   | {
       kind: 'layout-name'
       mode: 'save' | 'rename'
@@ -129,6 +139,8 @@ export type ContextMenuState = {
    * `paths` are the dragged items; `destDir` is the folder under the pointer.
    */
   dropTransfer?: { destDir: string }
+  /** Slideshow player menu (categorize / delete / undo / edit / reveal / exit). */
+  slideshow?: boolean
 } | null
 
 export type SearchState = {
@@ -251,6 +263,11 @@ type AppState = {
   listing: Listing
   selectionAnchor: string | null
   focusedPath: string | null
+  /**
+   * When set, the focused pane's FileView scrolls this path into view once it
+   * appears in the listing (reveal / open location). Cleared after scroll.
+   */
+  fileListScrollRequest: { path: string; gen: number } | null
   renamingPath: string | null
   /**
    * Where the inline rename UI should appear. Folders exist in both the tree and
@@ -285,6 +302,10 @@ type AppState = {
    * Bumped when `!VIDTHUMB_CACHE` strips are generated so icon thumbs refetch.
    */
   videoThumbRev: number
+  /**
+   * Bumped after ADS edits so Details column meta refetches for `path`.
+   */
+  columnMetaBump: { rev: number; path: string | null }
   notice: Notice
   addressEditing: boolean
   /**
@@ -300,6 +321,8 @@ type AppState = {
   /** In-memory Explorer-style undo stack (not persisted). */
   undoStack: UndoEntry[]
   redoStack: UndoEntry[]
+  /** Slideshow / categorizer session (gate: settings.slideshowFeaturesEnabled). */
+  slideshow: SlideshowSession
 
   // derived helpers
   activeTab(): Tab
@@ -309,6 +332,10 @@ type AppState = {
 
   // notices
   notify(text: string, isError?: boolean): void
+  /**
+   * After ADS (or similar) edits: bump so FileView re-fetches column meta for `path`.
+   */
+  bumpColumnMeta(path: string): void
 
   undo(): Promise<void>
   redo(): Promise<void>
@@ -384,6 +411,9 @@ type AppState = {
     tabId?: string
   ): void
   selectAll(tabId?: string): void
+  /** Ask the file list to scroll so `path` is visible (after listing is ready). */
+  requestFileListScrollTo(path: string): void
+  clearFileListScrollRequest(): void
 
   // fs ops
   startRename(path: string, source?: 'tree' | 'files'): void
@@ -498,7 +528,7 @@ type AppState = {
   confirmEmptyRecycleBin(confirmed: boolean): Promise<void>
   deleteFromRecycleBinView(paths?: string[]): void
   confirmDeleteFromRecycleBin(confirmed: boolean): Promise<void>
-}
+} & SlideshowActions
 
 /** Unique child name: `stem` / `stem (2)` + optional extension (e.g. `.txt`). */
 async function uniqueChildName(parent: string, stem: string, ext: string): Promise<string> {
@@ -1365,7 +1395,13 @@ export const useAppStore = create<AppState>()((set, get) => {
     await selectPathsPreferParent(direction === 'undo' ? pathsAfterUndo(entry) : pathsAfterRedo(entry))
   }
 
+  const slideshowActions = createSlideshowActions(
+    get as unknown as Parameters<typeof createSlideshowActions>[0],
+    set as unknown as Parameters<typeof createSlideshowActions>[1]
+  )
+
   return {
+    ...slideshowActions,
     booted: false,
     settings: null as unknown as Settings, // set during boot before UI renders
     homePath: '',
@@ -1388,6 +1424,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     listing: { path: '', entries: [], loading: false, error: null, offline: false },
     selectionAnchor: null,
     focusedPath: null,
+    fileListScrollRequest: null,
     renamingPath: null,
     renameSource: null,
     treeFocusPath: null,
@@ -1420,12 +1457,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     indexProgress: {},
     fileOp: null,
     videoThumbRev: 0,
+    columnMetaBump: { rev: 0, path: null },
     notice: null,
     addressEditing: false,
     treeMutation: { rev: 0, removed: [], reloadParents: [] },
     treeRefreshRev: 0,
     undoStack: [],
     redoStack: [],
+    slideshow: emptySlideshowSession(),
 
     activeTab() {
       const s = get()
@@ -1601,6 +1640,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         search: {
           ...state.search,
           indexedOnly: settings.searchIndexedOnly
+        },
+        slideshow: {
+          ...emptySlideshowSession(),
+          cacheActive: settings.slideshow.cacheActive === true,
+          imageListCache: [...(settings.slideshow.imageListCache ?? [])],
+          categorizerMap: [...(settings.slideshow.categorizerMap ?? [])]
         }
       }))
 
@@ -1692,6 +1737,24 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         } else if (event.type === 'external-open') {
           void get().openExternalTarget(event.payload.path, event.payload.reveal)
+        } else if (event.type === 'slideshow-list-progress') {
+          const a = get().slideshow.active
+          if (a?.status === 'building') {
+            set({
+              slideshow: {
+                ...get().slideshow,
+                active: {
+                  ...a,
+                  buildFound: event.payload.found,
+                  buildCurrent: event.payload.current ?? a.buildCurrent
+                }
+              }
+            })
+          }
+        } else if (event.type === 'compiled-playlist-apply') {
+          get().applyCompiledPlaylist(event.payload.paths, event.payload.preferPath)
+        } else if (event.type === 'compiled-lists-window-closed') {
+          void get().stopSlideshow()
         }
       })
 
@@ -1700,6 +1763,18 @@ export const useAppStore = create<AppState>()((set, get) => {
       await loadVisiblePaneListings()
       // Flush any CLI/protocol opens that arrived before boot finished.
       void call(api.app.ready())
+      // One-time migration: old builds only stored a file path — import if settings map empty.
+      if (
+        get().settings.slideshowFeaturesEnabled &&
+        (get().settings.slideshow.categorizerMap?.length ?? 0) === 0 &&
+        get().settings.slideshow.categorizerMapPath
+      ) {
+        void loadCategorizerMapFromPath(
+          get as unknown as Parameters<typeof loadCategorizerMapFromPath>[0],
+          set as unknown as Parameters<typeof loadCategorizerMapFromPath>[1],
+          get().settings.slideshow.categorizerMapPath
+        ).catch(() => {})
+      }
     },
 
     async openExternalTarget(targetPath, reveal) {
@@ -1722,6 +1797,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
         if (selectFile) {
           get().setSelection([selectFile], selectFile, selectFile)
+          get().requestFileListScrollTo(selectFile)
         }
         get().notify(
           selectFile
@@ -1737,6 +1813,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ notice: { text, isError } })
       if (noticeTimer) clearTimeout(noticeTimer)
       noticeTimer = setTimeout(() => set({ notice: null }), isError ? 6000 : 3000)
+    },
+
+    bumpColumnMeta(path) {
+      set((s) => ({
+        columnMetaBump: { rev: s.columnMetaBump.rev + 1, path }
+      }))
     },
 
     async navigate(path, opts) {
@@ -2441,6 +2523,19 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    requestFileListScrollTo(path) {
+      set((s) => ({
+        fileListScrollRequest: {
+          path,
+          gen: (s.fileListScrollRequest?.gen ?? 0) + 1
+        }
+      }))
+    },
+
+    clearFileListScrollRequest() {
+      set({ fileListScrollRequest: null })
+    },
+
     selectAll(tabId) {
       const s = get()
       const id = tabId ?? s.activeTabId
@@ -2988,6 +3083,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       await get().navigate(parent)
       get().setSelection([filePath], filePath, filePath)
+      get().requestFileListScrollTo(filePath)
     },
 
     async openFileInNewTab(filePath) {
@@ -3011,6 +3107,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       await get().newTab(parent)
       get().setSelection([filePath], filePath, filePath)
+      get().requestFileListScrollTo(filePath)
     },
 
     openImageViewer(path, siblings) {
@@ -3049,6 +3146,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         await call(api.fs.saveEditedImage({ path, dataBase64 }))
         get().notify('Image saved')
         set({ imageEditor: null })
+        get().slideshowInvalidateImage(path)
         await get().refresh()
         set({ mediaHold: false })
       } catch (e) {
@@ -3155,21 +3253,54 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async applySettingsPatch(patch) {
       const prev = get().settings
+      const mergedPatch: SettingsPatch = { ...patch }
+      if (patch.slideshow) {
+        mergedPatch.slideshow = {
+          ...prev.slideshow,
+          ...patch.slideshow
+        }
+      }
       // Optimistic update so toggles don’t snap back while IPC runs.
       set((s) => ({
-        settings: { ...s.settings, ...patch },
+        settings: {
+          ...s.settings,
+          ...mergedPatch,
+          slideshow: mergedPatch.slideshow
+            ? { ...s.settings.slideshow, ...mergedPatch.slideshow }
+            : s.settings.slideshow
+        },
         ...(typeof patch.searchIndexedOnly === 'boolean'
           ? { search: { ...s.search, indexedOnly: patch.searchIndexedOnly } }
           : {})
       }))
       try {
-        const settings = await call(api.settings.set(patch))
+        const settings = await call(api.settings.set(mergedPatch))
         set((s) => ({
           settings,
           ...(typeof patch.searchIndexedOnly === 'boolean'
             ? { search: { ...s.search, indexedOnly: settings.searchIndexedOnly } }
             : {})
         }))
+        if (patch.slideshowFeaturesEnabled === false) {
+          get().resetSlideshowForGateOff()
+        }
+        if (patch.slideshowFeaturesEnabled === true) {
+          hydrateSlideshowCacheFromSettings(
+            get as unknown as Parameters<typeof hydrateSlideshowCacheFromSettings>[0],
+            set as unknown as Parameters<typeof hydrateSlideshowCacheFromSettings>[1]
+          )
+          // Migrate legacy path-only installs when settings map is still empty.
+          if (
+            (settings.slideshow.categorizerMap?.length ?? 0) === 0 &&
+            settings.slideshow.categorizerMapPath
+          ) {
+            void loadCategorizerMapFromPath(
+              get as unknown as Parameters<typeof loadCategorizerMapFromPath>[0],
+              set as unknown as Parameters<typeof loadCategorizerMapFromPath>[1],
+              settings.slideshow.categorizerMapPath
+            ).catch(() => {})
+          }
+        }
       } catch (e) {
         set({ settings: prev })
         get().notify(e instanceof IpcError ? e.message : String(e), true)

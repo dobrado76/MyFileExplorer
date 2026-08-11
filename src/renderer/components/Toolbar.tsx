@@ -13,7 +13,13 @@ import {
   CopyIcon,
   PasteIcon,
   TrashIcon,
-  SelectAllIcon
+  SelectAllIcon,
+  PlayIcon,
+  CompiledListsPlayIcon,
+  ListPlusIcon,
+  SaveIcon,
+  FolderOpenIcon,
+  EraserIcon
 } from '../lib/icons'
 import { LayoutsMenu } from './LayoutsMenu'
 import { NewItemMenu } from './NewItemMenu'
@@ -45,6 +51,13 @@ export function Toolbar(): JSX.Element {
   const deleteSelection = useAppStore((s) => s.deleteSelection)
   const selectAll = useAppStore((s) => s.selectAll)
   const deleteFromRecycleBinView = useAppStore((s) => s.deleteFromRecycleBinView)
+  const startSlideshow = useAppStore((s) => s.startSlideshow)
+  const compiledSlideshowToolbarClick = useAppStore((s) => s.compiledSlideshowToolbarClick)
+  const slideshowCacheActive = useAppStore((s) => s.slideshow.cacheActive)
+  const setSlideshowCacheActive = useAppStore((s) => s.setSlideshowCacheActive)
+  const loadSlideshowImageListDialog = useAppStore((s) => s.loadSlideshowImageListDialog)
+  const saveSlideshowImageListDialog = useAppStore((s) => s.saveSlideshowImageListDialog)
+  const clearSlideshowImageCache = useAppStore((s) => s.clearSlideshowImageCache)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hasSelection = selected.length > 0
@@ -127,6 +140,78 @@ export function Toolbar(): JSX.Element {
           <SelectAllIcon />
         </button>
       </div>
+
+      {settings.slideshowFeaturesEnabled && (
+        <div className="toolbar-edit" role="group" aria-label="Slideshow">
+          <span className="toolbar-sep" aria-hidden />
+          <button
+            className="icon-btn"
+            aria-label="Start slideshow"
+            title="Start slideshow"
+            onClick={() => void startSlideshow()}
+          >
+            <PlayIcon />
+          </button>
+          {settings.slideshow.compiledFileListsFolder.trim() !== '' && (
+            <button
+              className="icon-btn"
+              aria-label="Compiled lists slideshow"
+              title="Compiled lists — resume last.txt or open list manager"
+              onClick={() => void compiledSlideshowToolbarClick()}
+            >
+              <CompiledListsPlayIcon />
+            </button>
+          )}
+          <button
+            className={`icon-btn${slideshowCacheActive ? ' active' : ''}`}
+            aria-label="Cache image list"
+            title={
+              slideshowCacheActive
+                ? 'Image list cache on — Start uses memory list'
+                : 'Image list cache off — Start always walks disk'
+            }
+            onClick={() => setSlideshowCacheActive(!slideshowCacheActive)}
+          >
+            <ListPlusIcon />
+          </button>
+          {slideshowCacheActive && (
+            <>
+              <button
+                className="icon-btn"
+                aria-label="Add to image list"
+                title="Add to image list (.dat)"
+                onClick={() => void loadSlideshowImageListDialog('add')}
+              >
+                <FolderOpenIcon />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Save image list"
+                title="Save image list (.dat)"
+                onClick={() => void saveSlideshowImageListDialog()}
+              >
+                <SaveIcon />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Load image list"
+                title="Load image list (.dat)"
+                onClick={() => void loadSlideshowImageListDialog('replace')}
+              >
+                <FolderOpenIcon />
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="Clear image list"
+                title="Clear image list cache"
+                onClick={() => clearSlideshowImageCache()}
+              >
+                <EraserIcon />
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="toolbar-trailing">
         <ViewLayoutSelector />

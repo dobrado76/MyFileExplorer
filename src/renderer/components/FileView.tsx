@@ -190,6 +190,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       ? s.focusedPath
       : (s.tabs.find((t) => t.id === tabId)?.selected.slice(-1)[0] ?? null)
   )
+  const fileListScrollRequest = useAppStore((s) => s.fileListScrollRequest)
+  const clearFileListScrollRequest = useAppStore((s) => s.clearFileListScrollRequest)
   const openEntry = useAppStore((s) => s.openEntry)
   const startRename = useAppStore((s) => s.startRename)
   const renamingPath = useAppStore((s) => s.renamingPath)
@@ -229,6 +231,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (idx >= 0) focusPane(idx)
   }, [paneTabIds, tabId, focusPane])
   const folderViews = useAppStore((s) => s.settings.folderViews)
+  const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const hideNameExtensions = settings.hideNameExtensions
   const labelFor = (entry: DirEntry): string =>
     entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
@@ -499,8 +502,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   useEffect(() => {
     setMetaByPath({})
     if (asyncColumns.length === 0) return
+    const includeDirs = asyncColumns.includes('ads')
     const files = sourceEntries
-      .filter((e) => e.kind === 'file' && !isExcluded(e))
+      .filter((e) => {
+        if (isExcluded(e)) return false
+        if (e.kind === 'file') return true
+        if (includeDirs && e.kind === 'dir') return true
+        return false
+      })
       .map((e) => e.path)
     if (files.length === 0) return
     let cancelled = false
@@ -519,6 +528,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       cancelled = true
     }
   }, [folderPath, sourceEntries, asyncColumns, isExcluded, searchMode, recycleMode])
+
+  // Re-fetch a single path after ADS manager mutations (main cache already invalidated).
+  useEffect(() => {
+    if (!columnMetaBump.path || asyncColumns.length === 0) return
+    const target = columnMetaBump.path
+    let cancelled = false
+    void (async () => {
+      const res = await api.meta.getMany({ paths: [target], columns: asyncColumns })
+      if (cancelled || !res.ok) return
+      setMetaByPath((prev) => {
+        const next = { ...prev }
+        const values = res.value.values[target]
+        if (values && Object.keys(values).length > 0) next[target] = values
+        else delete next[target]
+        return next
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [columnMetaBump.rev, columnMetaBump.path, asyncColumns])
 
   const entries = useMemo(() => {
     // Avoid copying 20k entries when the filter cannot hide anything.
@@ -636,6 +666,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     const rowIdx = spec ? Math.floor(idx / columns) : idx
     virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
   }, [renamingPath, entries, spec, columns, virtualizer])
+
+  // Reveal / open-location: scroll selection into view once the listing has it.
+  useLayoutEffect(() => {
+    if (!isFocusedSurface || !fileListScrollRequest) return
+    const idx = entries.findIndex((en) => samePath(en.path, fileListScrollRequest.path))
+    if (idx < 0) return
+    const rowIdx = spec ? Math.floor(idx / columns) : idx
+    virtualizer.scrollToIndex(rowIdx, { align: 'center' })
+    const el = scrollRef.current
+    if (el) setScrollOffset(el.scrollTop)
+    clearFileListScrollRequest()
+  }, [
+    isFocusedSurface,
+    fileListScrollRequest,
+    entries,
+    spec,
+    columns,
+    virtualizer,
+    clearFileListScrollRequest,
+    setScrollOffset
+  ])
 
   // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range),
   // and letter typeahead (next name starting with typed prefix).
@@ -925,9 +976,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const listingPath = listing.path
   useEffect(() => {
     const el = scrollRef.current
-    if (el && tab) el.scrollTop = tab.scrollOffset
+    if (!el || !tab) return
+    // Don't clobber a pending reveal scroll (would jump back to 0 on new tabs).
+    if (fileListScrollRequest) return
+    el.scrollTop = tab.scrollOffset
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listingPath, tab?.id])
+  }, [listingPath, tab?.id, fileListScrollRequest])
 
   const pendingScrollRef = useRef(0)
   const scrollSaveTimerRef = useRef(0)

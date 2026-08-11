@@ -8,6 +8,7 @@ import { StatusBar } from '../components/StatusBar'
 import { ContextMenu } from '../components/ContextMenu'
 import { Dialogs } from '../components/Dialogs'
 import { ImageViewer } from '../components/ImageViewer'
+import { SlideshowOverlay } from '../components/SlideshowOverlay'
 import { Splitter } from '../components/Splitter'
 import { basename } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
@@ -313,6 +314,7 @@ export function ExplorerShell(): JSX.Element {
       <ContextMenu />
       <Dialogs />
       <ImageViewer />
+      <SlideshowOverlay />
       {imageEditorOpen ? (
         <Suspense fallback={null}>
           <ImageEditor />

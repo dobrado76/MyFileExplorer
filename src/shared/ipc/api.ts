@@ -39,6 +39,7 @@ import type {
   SearchQueryResponse
 } from '../schemas/search'
 import type { RecycleBinListResponse } from '../schemas/recycle'
+import type { SlideshowListRequest } from '../schemas/slideshow'
 import type { MfeEvent } from './contract'
 
 export type MyFileExplorerApi = {
@@ -173,8 +174,10 @@ export type MyFileExplorerApi = {
     }): Promise<Result<{ url: string | null }>>
   }
   meta: {
-    /** Batch column metadata (image / A/V / generation fields). */
+    /** Batch column metadata (image / A/V / generation fields / ADS). */
     getMany(req: MetaGetManyRequest): Promise<Result<MetaGetManyResponse>>
+    /** Drop cached column meta for paths (e.g. after ADS edits). */
+    invalidate(req: { paths: string[] }): Promise<Result<{ ok: true }>>
   }
   app: {
     getPath(req: {
@@ -207,6 +210,91 @@ export type MyFileExplorerApi = {
     >
     /** Launch installer from the updates folder, then quit the app. */
     runUpdate(req: { path: string; folder: string }): Promise<Result<{ launched: true }>>
+  }
+  slideshow: {
+    listImages(req: SlideshowListRequest): Promise<Result<{ paths: string[]; truncated?: boolean }>>
+    cancelList(): Promise<Result<{ cancelled: true }>>
+    pickOpenFile(req: {
+      title?: string
+      defaultPath?: string
+      filters?: { name: string; extensions: string[] }[]
+    }): Promise<Result<{ path: string | null }>>
+    pickSaveFile(req: {
+      title?: string
+      defaultPath?: string
+      filters?: { name: string; extensions: string[] }[]
+    }): Promise<Result<{ path: string | null }>>
+    readTextFile(req: { path: string }): Promise<Result<{ text: string }>>
+    writeTextFile(req: { path: string; text: string }): Promise<Result<{ ok: true }>>
+    updateCompiledLists(req: {
+      compiledRoot: string
+      entries: { name: string; folder: string }[]
+    }): Promise<Result<{ updated: number; totalFiles: number }>>
+    listCompiledDats(req: {
+      compiledRoot: string
+      entries: { name: string; folder: string }[]
+    }): Promise<
+      Result<{
+        tabs: {
+          name: string
+          dats: {
+            path: string
+            name: string
+            kind: 'dat' | 'txt'
+            fileCount: number
+            indexPresent: boolean
+          }[]
+        }[]
+      }>
+    >
+    readDatIndex(req: { path: string }): Promise<Result<{ paths: string[] }>>
+    readLastList(req: { compiledRoot: string }): Promise<
+      Result<{ lines: { datPath: string; count: number }[] }>
+    >
+    writeLastList(req: {
+      compiledRoot: string
+      lines: { datPath: string; count: number }[]
+    }): Promise<Result<{ ok: true }>>
+    readCompositeList(req: { path: string }): Promise<
+      Result<{ lines: { datPath: string; count: number }[] }>
+    >
+    writeCompositeList(req: {
+      path: string
+      lines: { datPath: string; count: number }[]
+    }): Promise<Result<{ ok: true }>>
+    lastListUsable(req: { compiledRoot: string }): Promise<Result<{ usable: boolean }>>
+    expandComposite(req: {
+      lines: { datPath: string; count: number }[]
+    }): Promise<Result<{ paths: string[] }>>
+    openCompiledListsWindow(): Promise<Result<{ opened: true }>>
+    closeCompiledListsWindow(): Promise<Result<{ closed: boolean }>>
+    applyCompiledPlaylist(req: {
+      paths: string[]
+      preferPath?: string | null
+    }): Promise<Result<{ ok: true }>>
+  }
+  ads: {
+    list(req: { path: string }): Promise<Result<{ streams: { name: string; size: number }[] }>>
+    exists(req: { path: string; name: string }): Promise<Result<{ exists: boolean }>>
+    readText(req: { path: string; name: string }): Promise<Result<{ text: string }>>
+    writeText(req: {
+      path: string
+      name: string
+      value: string
+      writeEmpty?: boolean
+    }): Promise<Result<{ ok: true }>>
+    delete(req: { path: string; name: string }): Promise<Result<{ deleted: boolean }>>
+    readBytes(req: { path: string; name: string }): Promise<Result<{ dataBase64: string | null }>>
+    writeBytes(req: {
+      path: string
+      name: string
+      dataBase64: string
+    }): Promise<Result<{ ok: true }>>
+    copy(req: {
+      source: string
+      dest: string
+      ignoreNames?: string[]
+    }): Promise<Result<{ copied: number }>>
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

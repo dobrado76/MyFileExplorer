@@ -108,6 +108,42 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | ------------ | ------------------------------------------------- |
 | `icons:get`  | `{ path, size, isDir? }` → `{ url }` — Windows shell icon (`SHGetFileInfo`); pass `isDir: true` for folders so they never share the file-extension icon cache |
 
+### `meta.*`
+
+| Channel            | Purpose |
+| ------------------ | ------- |
+| `meta:getMany`     | `{ paths[], columns[] }` → `{ values: Record<path, EntryColumnValues> }` — async Details columns (image/A/V/tags/generation/**ads**) |
+| `meta:invalidate`  | `{ paths[] }` → `{ ok: true }` — drop column-meta cache for paths (e.g. after ADS edits) |
+
+### `ads.*` (NTFS Alternate Data Streams — D38)
+
+Win32/NTFS only; soft-fail empty/false off-platform or on access errors. Paths validated with `requireAbsolute`. Primary `::$DATA` omitted from lists.
+
+| Channel           | Request | Response |
+| ----------------- | ------- | -------- |
+| `ads:list`        | `{ path }` | `{ streams: { name, size }[] }` |
+| `ads:exists`      | `{ path, name }` | `{ exists }` |
+| `ads:readText`    | `{ path, name }` | `{ text }` (UTF-8; NUL/CRLF trim) |
+| `ads:writeText`   | `{ path, name, value, writeEmpty? }` | `{ ok: true }` — empty value deletes unless `writeEmpty` |
+| `ads:delete`      | `{ path, name }` | `{ deleted }` |
+| `ads:readBytes`   | `{ path, name }` | `{ dataBase64 }` (null if missing) |
+| `ads:writeBytes`  | `{ path, name, dataBase64 }` | `{ ok: true }` |
+| `ads:copy`        | `{ source, dest, ignoreNames? }` | `{ copied }` — copy named streams file↔file or dir↔dir |
+
+### `slideshow.*` (compiled lists — D39)
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `slideshow:updateCompiledLists` | `{ compiledRoot, entries[] }` | `{ updated, totalFiles }` — write `.dat` + Index/Count ADS |
+| `slideshow:listCompiledDats` | `{ compiledRoot, entries[] }` | `{ tabs: { name, dats[] }[] }` |
+| `slideshow:readDatIndex` | `{ path }` | `{ paths[] }` |
+| `slideshow:readLastList` / `writeLastList` | root + lines | resume file `!!Lists/last.txt` |
+| `slideshow:readCompositeList` / `writeCompositeList` | `{ path, lines? }` | any `!!Lists/*.txt` |
+| `slideshow:lastListUsable` | `{ compiledRoot }` | `{ usable }` |
+| `slideshow:expandComposite` | `{ lines }` | `{ paths[] }` — Index × count |
+| `slideshow:openCompiledListsWindow` / `close…` | — | detached BrowserWindow |
+| `slideshow:applyCompiledPlaylist` | `{ paths, preferPath? }` | broadcasts `compiled-playlist-apply` |
+
 ### `app.*`
 
 | Channel          | Purpose                                 |
@@ -129,6 +165,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
 | `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip; byte fields for large streaming copies |
+| `compiled-playlist-apply` | `{ paths, preferPath? }` — detached lists window → main slideshow |
 | `session-external-change` | rare: multi-window later                      |
 
 ---
@@ -144,6 +181,9 @@ window.myFileExplorer = {
   preview: { get },
   search: { query, addRoot, removeRoot, reindex, listRoots, cancel },
   thumbs: { get, generateVidCache },
+  meta: { getMany, invalidate },
+  ads: { list, exists, readText, writeText, delete, readBytes, writeBytes, copy },
+  slideshow: { listImages, updateCompiledLists, openCompiledListsWindow, … },
   app: { getPath, pickFolder, ready, … },
   onEvent: (handler) => unsubscribe
 }

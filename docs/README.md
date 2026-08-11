@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.4.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D34).
+**Status:** v0.4.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D39).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D34               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D39               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions    |
@@ -39,6 +39,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
+| [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 
 ---
 

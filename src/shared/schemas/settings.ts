@@ -17,10 +17,15 @@ import {
   type SearchBookmark,
   type SearchFilter
 } from './search'
+import {
+  defaultSlideshowSettings,
+  slideshowSettingsSchema
+} from './slideshow'
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
 export type { WorkspaceLayout } from '../layouts'
+export type { SlideshowSettings, SlideshowOrder } from './slideshow'
 
 export const themeModeSchema = z.enum(['dark', 'light', 'custom'])
 export type ThemeMode = z.infer<typeof themeModeSchema>
@@ -218,7 +223,36 @@ export const settingsSchema = z.object({
    * Applied at process start — restart required after change. Frees VRAM when
    * sharing a GPU with training / other CUDA apps.
    */
-  disableHardwareAcceleration: z.boolean().catch(false)
+  disableHardwareAcceleration: z.boolean().catch(false),
+  /**
+   * Master gate for slideshow / image categorizer. When false: no slideshow
+   * settings nav, toolbar, context items, overlay, or related chrome.
+   */
+  slideshowFeaturesEnabled: z.boolean().catch(false),
+  slideshow: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultSlideshowSettings
+    return { ...defaultSlideshowSettings, ...(raw as object) }
+  }, slideshowSettingsSchema),
+  /** Last ADS Manager dialog geometry (null = centered defaults). */
+  adsManagerBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(320).max(10000),
+      height: z.number().min(240).max(10000)
+    })
+    .nullable()
+    .catch(null),
+  /** Detached Compiled Lists window geometry. */
+  compiledListsWindowBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(320).max(10000),
+      height: z.number().min(240).max(10000)
+    })
+    .nullable()
+    .catch(null)
 })
 
 export type DetailsColumn = { id: DetailsColumnId; width: number }
@@ -260,8 +294,17 @@ export const defaultSettings: Settings = settingsSchema.parse({
   quickAccessPins: [],
   quickAccessHiddenDefaults: [],
   updatesFolder: '',
-  disableHardwareAcceleration: false
+  disableHardwareAcceleration: false,
+  slideshowFeaturesEnabled: false,
+  slideshow: defaultSlideshowSettings,
+  adsManagerBounds: null,
+  compiledListsWindowBounds: null
 })
 
-export const settingsPatchSchema = settingsSchema.partial().omit({ version: true })
+export const settingsPatchSchema = settingsSchema
+  .partial()
+  .omit({ version: true })
+  .extend({
+    slideshow: slideshowSettingsSchema.partial().optional()
+  })
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

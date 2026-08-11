@@ -28,9 +28,14 @@ export function getSettings(): Settings {
 
 export function patchSettings(patch: unknown): Settings {
   const parsed = settingsPatchSchema.parse(patch)
-  // Parse with the module’s current schema (not a schema frozen into JsonStore
-  // at first construction — that drops newly added keys like previewVideoAutoplay).
-  const next = settingsSchema.parse({ ...settingsStore().get(), ...parsed })
+  const cur = settingsStore().get()
+  const next = settingsSchema.parse({
+    ...cur,
+    ...parsed,
+    slideshow: parsed.slideshow
+      ? { ...defaultSettings.slideshow, ...cur.slideshow, ...parsed.slideshow }
+      : (cur.slideshow ?? defaultSettings.slideshow)
+  })
   settingsStore().replace(next)
   // Settings toggles should hit disk immediately (don’t wait for debounce / quit).
   settingsStore().flush()

@@ -34,6 +34,10 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          compiledLists: resolve(__dirname, 'src/renderer/compiledLists.html')
+        },
         output: {
           manualChunks(id) {
             if (id.includes('onnxruntime-web')) return 'ort'

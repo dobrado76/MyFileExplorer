@@ -273,6 +273,37 @@ const TEXT_EXTS = new Set([
 const ARCHIVE_EXTS = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'cab'])
 const EXE_EXTS = new Set(['exe', 'msi', 'dll', 'com', 'app'])
 
+export const PlayIcon = svg(<path d="M8 5v14l11-7z" fill="currentColor" stroke="none" />)
+/** Second slideshow control — compiled file lists. */
+export const CompiledListsPlayIcon = svg(
+  <>
+    <rect x="3" y="4" width="7" height="7" rx="1" />
+    <rect x="14" y="4" width="7" height="7" rx="1" />
+    <rect x="3" y="13" width="7" height="7" rx="1" />
+    <path d="M15 15l6 3.5L15 22v-7z" fill="currentColor" stroke="none" />
+  </>
+)
+export const ListPlusIcon = svg(
+  <>
+    <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+  </>
+)
+export const SaveIcon = svg(
+  <>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <path d="M17 21v-8H7v8M7 3v5h8" />
+  </>
+)
+export const FolderOpenIcon = svg(
+  <path d="M5 4h5l2 2h7a2 2 0 0 1 2 2v1H4V6a2 2 0 0 1 2-2zm-1 5h18l-1.5 10H5.5L4 9z" />
+)
+export const EraserIcon = svg(
+  <>
+    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+    <path d="M22 21H7" />
+  </>
+)
+
 export function iconForEntry(ext: string, isDir: boolean): (props: IconProps) => JSX.Element {
   if (isDir) return FolderIcon
   if (IMAGE_EXTS.has(ext)) return ImageFileIcon

@@ -24,6 +24,8 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
 
 Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and install stay aligned.
 
+Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow.cacheActive`, `slideshow.imageListCache`, capped at 100 000 paths). Categorizer mappings live in `settings.slideshow.categorizerMap` (Import copies a file in; path is not the source of truth). Optional `slideshow.invalidImagesDir` receives files that fail preview/decode during slideshow. Compiled lists: `slideshow.compiledFileListsFolder`, `compiledListEntries`, `compiledPlaylistIndex`; window geometry `settings.compiledListsWindowBounds`. On disk under the compiled root: `{Name}/{Name}.dat` (+ ADS Index/Count), `!!Lists/last.txt` (resume), and user-saved `!!Lists/*.txt` composites. ADS Manager geometry is `settings.adsManagerBounds` (`{ x, y, width, height }` or `null` for centered defaults).
+
 ---
 
 ## `settings.json` (shape)

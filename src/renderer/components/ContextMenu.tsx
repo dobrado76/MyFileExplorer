@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { findExactFolderView } from '@shared/folderViews'
 import { useAppStore, dropOperation } from '../store/appStore'
-import { samePath, basename } from '../lib/paths'
+import { samePath, basename, parentOf } from '../lib/paths'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
+import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { api, call } from '../lib/ipc'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
@@ -138,6 +139,118 @@ export function ContextMenu(): JSX.Element | null {
           action: () => close()
         }
       ]
+    }
+
+    // Slideshow player — categorize / delete / undo / edit / reveal / exit.
+    if (menu.slideshow) {
+      const cur = paths[0] ?? s.slideshow.active?.paths[s.slideshow.active.index] ?? null
+      const map = s.slideshow.categorizerMap
+      const folderRows = map.filter((r) => !isDeleteMapRow(r))
+      const deleteRow = map.find(isDeleteMapRow) ?? {
+        name: 'Delete',
+        keyToken: 'Delete',
+        path: ''
+      }
+      const actionCount = s.slideshow.active?.actions.length ?? 0
+      const out: MenuItem[] = []
+
+      if (folderRows.length > 0) {
+        out.push({
+          type: 'submenu',
+          label: 'Categorize',
+          disabled: !cur || s.slideshow.active?.status === 'building',
+          items: folderRows.map((row) => ({
+            label: row.name || basename(row.path) || row.keyToken,
+            action: () => {
+              close()
+              if (s.slideshow.active?.status === 'playing') s.slideshowInterrupt()
+              s.slideshowMapAction(row)
+            }
+          }))
+        })
+      } else {
+        out.push({
+          type: 'item',
+          label: 'Categorize',
+          disabled: true,
+          hint: 'no map',
+          action: () => close()
+        })
+      }
+
+      out.push(
+        {
+          type: 'item',
+          label: 'Delete',
+          danger: true,
+          disabled: !cur || s.slideshow.active?.status === 'building',
+          action: () => {
+            close()
+            if (s.slideshow.active?.status === 'playing') s.slideshowInterrupt()
+            s.slideshowMapAction(deleteRow)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Undo',
+          disabled: actionCount === 0,
+          hint: actionCount > 0 ? String(actionCount) : undefined,
+          action: () => {
+            close()
+            s.slideshowUndoAction()
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Edit image…',
+          disabled: !cur || !isEditableImagePath(cur),
+          action: () => {
+            close()
+            if (!cur) return
+            if (s.slideshow.active?.status === 'playing') s.slideshowInterrupt()
+            void (async () => {
+              const res = await api.preview.get({ path: cur })
+              if (res.ok && res.value.mediaUrl) {
+                s.openImageEditor(cur, res.value.mediaUrl)
+              } else {
+                s.notify(res.ok ? 'No image preview available' : res.error.message, true)
+              }
+            })()
+          }
+        },
+        {
+          type: 'item',
+          label: 'Reveal in Explorer',
+          disabled: !cur,
+          action: () => {
+            close()
+            if (!cur) return
+            void (async () => {
+              await s.stopSlideshow()
+              const folder = parentOf(cur)
+              if (!folder) {
+                s.notify('Could not resolve folder', true)
+                return
+              }
+              await s.newTab(folder)
+              s.setSelection([cur], cur, cur)
+              s.requestFileListScrollTo(cur)
+              s.notify(`Revealed ${basename(cur)}`)
+            })()
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Exit slideshow',
+          action: () => {
+            close()
+            void s.stopSlideshow()
+          }
+        }
+      )
+      return out
     }
 
     // In-app Recycle Bin — Restore / permanent delete only.
@@ -345,6 +458,14 @@ export function ContextMenu(): JSX.Element | null {
               }
             }
           ]
+        },
+        {
+          type: 'item',
+          label: 'Alternate streams…',
+          action: () => {
+            close()
+            s.openDialog({ kind: 'ads-manager', path: folderPath })
+          }
         },
         {
           type: 'item',
@@ -872,6 +993,15 @@ export function ContextMenu(): JSX.Element | null {
       { type: 'sep' },
       {
         type: 'item',
+        label: 'Alternate streams…',
+        disabled: paths.length !== 1,
+        action: () => {
+          close()
+          if (single) s.openDialog({ kind: 'ads-manager', path: single })
+        }
+      },
+      {
+        type: 'item',
         label: 'Properties',
         disabled: paths.length !== 1,
         action: () => {
@@ -1003,7 +1133,7 @@ export function ContextMenu(): JSX.Element | null {
   return (
     <div
       ref={ref}
-      className="context-menu"
+      className={`context-menu${menu.slideshow ? ' slideshow-ctx' : ''}`}
       style={{
         left: pos?.x ?? menu.x,
         top: pos?.y ?? menu.y,

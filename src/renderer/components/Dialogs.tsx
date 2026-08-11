@@ -21,6 +21,9 @@ import { iconForEntry, isImageExt } from '../lib/icons'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
+import { CategorizerMapManager } from './CategorizerMapManager'
+import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
+import { AdsManager } from './AdsManager'
 
 function Modal({
   title,
@@ -80,6 +83,12 @@ export function Dialogs(): JSX.Element | null {
       return <PropertiesDialog path={dialog.path} />
     case 'settings':
       return <SettingsDialog initialSection={dialog.section} />
+    case 'categorizer-map':
+      return <CategorizerMapManager returnSection={dialog.returnSection} />
+    case 'compiled-lists-config':
+      return <CompiledListsConfigDialog returnSection={dialog.returnSection} />
+    case 'ads-manager':
+      return <AdsManager path={dialog.path} />
     case 'layout-name':
       return (
         <LayoutNameDialog
@@ -1014,6 +1023,7 @@ type SettingsSection =
   | 'filter'
   | 'preview'
   | 'search'
+  | 'slideshow'
   | 'advanced'
 
 const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
@@ -1025,6 +1035,7 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'filter', label: 'View filter' },
   { id: 'preview', label: 'Preview' },
   { id: 'search', label: 'Search index' },
+  { id: 'slideshow', label: 'Slideshow' },
   { id: 'advanced', label: 'Advanced' }
 ]
 
@@ -1094,6 +1105,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     ? (initialSection as SettingsSection)
     : 'appearance'
   const [section, setSection] = useState<SettingsSection>(startSection)
+  const slideshowEnabled = settings.slideshowFeaturesEnabled
+  const navItems = SETTINGS_NAV.filter((item) => item.id !== 'slideshow' || slideshowEnabled)
+  const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
+  const loadCategorizerMapDialog = useAppStore((s) => s.loadCategorizerMapDialog)
+  const saveCategorizerMapDialog = useAppStore((s) => s.saveCategorizerMapDialog)
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
   const [excludeDraft, setExcludeDraft] = useState('')
   const [hideExtText, setHideExtText] = useState(settings.hideNameExtensions.join('\n'))
@@ -1166,10 +1182,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     if (res.path) await pinQuickAccess(res.path)
   }
 
-  const sectionTitle = SETTINGS_NAV.find((s) => s.id === section)?.label ?? 'Settings'
+  const sectionTitle = navItems.find((s) => s.id === section)?.label ?? 'Settings'
   const qaMissingBuiltins = knownFolders.filter(
     (k) => !qaEntries.some((e) => e.builtinId === k.id)
   )
+
+  useEffect(() => {
+    if (section === 'slideshow' && !slideshowEnabled) setSection('appearance')
+  }, [section, slideshowEnabled])
 
   return (
     <Modal
@@ -1185,7 +1205,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     >
       <div className="settings-shell">
         <nav className="settings-nav" aria-label="Settings sections">
-          {SETTINGS_NAV.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -1278,6 +1298,209 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   ))}
                 </div>
               )}
+              <SettingsToggle
+                id="set-slideshow-features"
+                label="Slideshow features"
+                hint="Show slideshow toolbar, folder menu, and Slideshow settings. Off = nothing slideshow-related in the UI."
+                checked={settings.slideshowFeaturesEnabled}
+                onChange={(v) => void applySettingsPatch({ slideshowFeaturesEnabled: v })}
+              />
+            </div>
+          )}
+
+          {section === 'slideshow' && slideshowEnabled && (
+            <div className="settings-stack">
+              <label className="settings-field" htmlFor="set-ss-delay">
+                <span>Delay between images (ms)</span>
+                <input
+                  id="set-ss-delay"
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={settings.slideshow.delayMs}
+                  onChange={(e) => {
+                    const v = Number(e.target.value)
+                    if (Number.isFinite(v) && Number.isInteger(v) && v >= 0) {
+                      void applySettingsPatch({ slideshow: { delayMs: v } })
+                    }
+                  }}
+                />
+              </label>
+              <label className="settings-field" htmlFor="set-ss-order">
+                <span>Order</span>
+                <select
+                  id="set-ss-order"
+                  value={settings.slideshow.order}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      slideshow: {
+                        order: e.target.value as typeof settings.slideshow.order
+                      }
+                    })
+                  }
+                >
+                  <option value="name">Name</option>
+                  <option value="size">Size</option>
+                  <option value="dimensions">Image dimensions</option>
+                  <option value="random">Random</option>
+                </select>
+              </label>
+              <SettingsToggle
+                id="set-ss-asc"
+                label="Ascending order"
+                hint="Off = descending (ignored for random)"
+                checked={settings.slideshow.ascending}
+                onChange={(v) => void applySettingsPatch({ slideshow: { ascending: v } })}
+              />
+              <SettingsToggle
+                id="set-ss-loop"
+                label="Loop slideshow"
+                hint="Off = stop when reaching the end"
+                checked={settings.slideshow.loop}
+                onChange={(v) => void applySettingsPatch({ slideshow: { loop: v } })}
+              />
+              <SettingsToggle
+                id="set-ss-caption"
+                label="Draw caption"
+                hint="Show filename overlay (full caption fields later)"
+                checked={settings.slideshow.drawCaption}
+                onChange={(v) => void applySettingsPatch({ slideshow: { drawCaption: v } })}
+              />
+              <div className="settings-field">
+                <span>Invalid images folder</span>
+                <p className="dim" style={{ margin: '4px 0 8px' }}>
+                  Unloadable / undecodable slideshow images are moved here and removed from the
+                  image-list cache so you can review, re-encode, or delete them. Set a folder to
+                  enable moves (name conflicts rename).
+                </p>
+                <div className="settings-inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    id="set-ss-invalid-dir"
+                    type="text"
+                    placeholder="(not set — skip only)"
+                    value={settings.slideshow.invalidImagesDir}
+                    onChange={(e) =>
+                      void applySettingsPatch({ slideshow: { invalidImagesDir: e.target.value } })
+                    }
+                    style={{ flex: 1, minWidth: 180 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      void (async () => {
+                        const res = await call(api.app.pickFolder())
+                        if (res.path) {
+                          void applySettingsPatch({ slideshow: { invalidImagesDir: res.path } })
+                        }
+                      })()
+                    }}
+                  >
+                    Browse…
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!settings.slideshow.invalidImagesDir}
+                    onClick={() =>
+                      void applySettingsPatch({ slideshow: { invalidImagesDir: '' } })
+                    }
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div className="settings-field">
+                <span>Compiled file lists folder</span>
+                <p className="dim" style={{ margin: '4px 0 8px' }}>
+                  Root for named .dat indexes and <code>!!Lists</code> composites (
+                  <code>last.txt</code> for resume; Load/Save additional named lists there). When
+                  set, a second toolbar slideshow button appears.
+                </p>
+                <div className="settings-inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="(not set)"
+                    value={settings.slideshow.compiledFileListsFolder}
+                    onChange={(e) =>
+                      void applySettingsPatch({
+                        slideshow: { compiledFileListsFolder: e.target.value }
+                      })
+                    }
+                    style={{ flex: 1, minWidth: 180 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      void (async () => {
+                        const res = await call(api.app.pickFolder())
+                        if (res.path) {
+                          void applySettingsPatch({
+                            slideshow: { compiledFileListsFolder: res.path }
+                          })
+                        }
+                      })()
+                    }}
+                  >
+                    Browse…
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!settings.slideshow.compiledFileListsFolder}
+                    onClick={() =>
+                      void applySettingsPatch({ slideshow: { compiledFileListsFolder: '' } })
+                    }
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={!settings.slideshow.compiledFileListsFolder}
+                    onClick={() =>
+                      openDialog({ kind: 'compiled-lists-config', returnSection: 'slideshow' })
+                    }
+                  >
+                    Update Lists…
+                  </button>
+                </div>
+              </div>
+              <div className="settings-field">
+                <span>Categorizer map</span>
+                <p className="dim" style={{ margin: '4px 0 8px' }}>
+                  {categorizerMap.length > 0
+                    ? `${categorizerMap.length} mapping${categorizerMap.length === 1 ? '' : 's'} saved in app settings`
+                    : 'No mappings in app settings'}
+                </p>
+                <div className="settings-inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() =>
+                      openDialog({ kind: 'categorizer-map', returnSection: 'slideshow' })
+                    }
+                  >
+                    Mapping Manager…
+                  </button>
+                  <button type="button" className="btn" onClick={() => void loadCategorizerMapDialog()}>
+                    Import…
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={categorizerMap.length === 0}
+                    onClick={() => void saveCategorizerMapDialog()}
+                  >
+                    Export…
+                  </button>
+                </div>
+                <p className="dim" style={{ marginTop: 8 }}>
+                  Import copies a map file into app settings (source of truth). Export writes a copy to
+                  disk. Mapping Manager edits are saved automatically.
+                </p>
+              </div>
             </div>
           )}
 

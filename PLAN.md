@@ -8,7 +8,7 @@ Status: **v0.4.0** — Phases 0–9 shipped; Everything-parity search (D34); mul
 
 ## What we are building
 
-A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), and optional **video preview-strip generation** into `!VIDTHUMB_CACHE`.
+A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, and **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38).
 
 ## Stack (locked)
 
@@ -49,6 +49,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/INTEGRATION.md](docs/INTEGRATION.md)                 | CLI / `mfe://` from other apps |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
 | [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
+| [docs/SLIDESHOW.md](docs/SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
