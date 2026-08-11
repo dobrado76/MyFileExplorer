@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.4.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D39).
+**Status:** v0.5.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D39).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -44,24 +44,26 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 ---
 
-## Recent behavior (v0.4.x)
+## Recent behavior (v0.5.x)
 
 | Area | Spec |
 | ---- | ---- |
+| Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
+| Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
+| NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |
 | Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
-| Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence |
+| Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence; empty pane Open Computer / Browse |
 | Tab icons | D32 — Lucide icon + color; tab context menu |
 | In-pane video | D33 — byte-range media; MKV remux; AVI strip-only |
-| Richer previews | HTML/Markdown Preview·Raw; Unity `.unitypackage`; PE VERSIONINFO; ZIP CD listing; `.chm` (D35) — see [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
+| Richer previews | HTML/Markdown Preview·Raw; Unity; PE; ZIP/7z/RAR/TAR/APK/MSI/ISO; `.chm` (D35); `.ttf` (D36) — [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
 | Windows Properties | Shell property sheet from in-app Properties dialog |
-| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll |
+| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll; tree hover-expand |
 | Search results | D29 — normal `FileView` (banner + path under names) |
 | Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate |
-| File-op progress | D28 — status bar; Cancel |
+| File-op progress | D28 — status bar; Cancel (incl. 7za ZIP compress) |
 | Image editor | D27 — Filerobot; originals under `userData` |
 | Recycle Bin | D7 — in-app bin view |
 | Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder |
 | Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |
 | vs Explorer | [ADVANTAGES.md](ADVANTAGES.md) |
-| NTFS ADS | D38 — [ADS.md](ADS.md) |

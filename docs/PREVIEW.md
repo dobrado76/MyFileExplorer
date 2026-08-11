@@ -1,6 +1,6 @@
 # Preview & metadata
 
-**Version:** 0.4.0
+**Version:** 0.5.0
 
 The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params).
 

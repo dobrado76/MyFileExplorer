@@ -9,22 +9,34 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-11
+
+Fifth product release: slideshow / categorizer + compiled lists, NTFS ADS tooling, deeper previews, ZIP/compress and multi-pane polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
-- **CHM preview (D35)** — `.chm` files open in the preview pane with a Contents TOC and sandboxed topic HTML (Windows `hh.exe` decompile under userData; `mfe-media://chm/…` for relative assets).
+- **Slideshow / image categorizer (D37)** — gated chrome; fullscreen player; categorizer map; image-list cache; invalid-images folder. See [docs/SLIDESHOW.md](docs/SLIDESHOW.md).
+- **Compiled file lists (D39)** — category `.dat` / `.txt` libraries; Update Lists writes ADS Index/Count on `.dat` only (`|=>` ignored); `.txt` expands from body at play; virtual playlist; Validate Lists; detached lists window.
+- **NTFS Alternate Data Streams (D38)** — opt-in Details column, ADS Manager, `ads:*` IPC. See [docs/ADS.md](docs/ADS.md).
+- **CHM preview (D35)** — `.chm` Contents TOC + sandboxed topic HTML (Windows `hh.exe` decompile under userData).
+- **Font preview (D36)** — `.ttf` sample pangram + name-table metadata in the preview pane.
+- **Archive preview breadth** — list-only contents trees for `.7z`, `.rar`, `.tar` / `.tar.gz` / `.tgz`, `.apk`, `.msi`, `.iso` / `.img` (alongside ZIP / Unity).
+- **Empty pane actions** — multi-pane empty slots offer **Open Computer** and **Browse…** in addition to drop-a-tab.
 - **Tree drag-hover expand** — while dragging, hover a collapsed folder in the tree ~2s to expand it (Explorer parity; D11).
-- **Archive preview for 7z / RAR / TAR** — contents tree (list-only) for `.7z`, `.rar`, `.tar`, `.tar.gz`, `.tgz` alongside ZIP / Unity (D30).
 
 ### Changed
 
-- **View layout control** — 1 / 2 / 4 pane switcher is a compact toolbar dropdown instead of three always-visible buttons.
-- **Shell icon extract** — `.exe` / per-file shell icons extract in the background (queued + throttled) so large app folders no longer freeze the UI (D21).
+- **ZIP compress** — uses bundled **7za** (stream to disk, `%` progress, Cancel kills the helper) instead of in-memory JSZip generate.
+- **View layout control** — 1 / 2 / 4 pane switcher is a compact toolbar dropdown.
+- **Shell icon extract** — `.exe` / per-file shell icons extract in the background (queued + throttled).
+- **Context submenus** — short close delay + hit-bridge so flyouts (e.g. Hide from view) stay reachable across the parent→submenu gap.
+- **Docs** — README / PLAN / ADVANTAGES / RELEASE_NOTES / SLIDESHOW / ADS / DECISIONS aligned to v0.5.0 (through D39).
 
 ### Fixed
 
 - **File-list / tree rename gesture** — double single-click is two slow clicks on the selected name; a single click no longer starts rename after hover/wait.
-- **CHM preview** — locate `hh.exe` at `%SystemRoot%\hh.exe` (and SysWOW64 fallback); `System32\hh.exe` is often missing, which left the viewer empty.
-- **CHM TOC encoding** — decode `.hhc` as Windows-1252 when not valid UTF-8 so titles like “What’s New” keep their apostrophe.
+- **CHM preview** — locate `hh.exe` at `%SystemRoot%\hh.exe` (and SysWOW64 fallback); TOC encoding for Windows-1252 titles.
+- **Update Lists OOM** — no longer builds Index for `.txt` or caches every folder scan in memory; processes one `.dat` at a time.
 
 ## [0.4.0] - 2026-08-09
 

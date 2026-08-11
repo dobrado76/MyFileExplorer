@@ -1,44 +1,43 @@
-# MyFileExplorer v0.4.0 — release notes
+# MyFileExplorer v0.5.0 — release notes
 
-**Date:** 2026-08-09  
-**Previous:** [v0.3.0](CHANGELOG.md#030---2026-08-09) (plus 0.3.x patches)
+**Date:** 2026-08-11  
+**Previous:** [v0.4.0](CHANGELOG.md#040---2026-08-09) (plus 0.4.x patches through 0.4.7)
 
-Fourth product release. Focus: **Everything-inspired search** (hybrid folder + drive index, rich query language, as-you-type), preview depth (HTML/Markdown/Unity/executables/video), and Explorer-parity polish (multi-pane layouts, tab icons, drag cancel, Windows Properties).
+Fifth product release. Focus: **slideshow / categorizer** (D37) with **compiled file lists** (D39), **NTFS Alternate Data Streams** tooling (D38), deeper previews (CHM D35, fonts D36, more archives), and Explorer-parity polish (ZIP via 7za, empty-pane open, submenu hover).
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md). Search reference: [docs/SEARCH.md](docs/SEARCH.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md). Slideshow: [docs/SLIDESHOW.md](docs/SLIDESHOW.md). ADS: [docs/ADS.md](docs/ADS.md).
 
 ---
 
 ## Highlights
 
-### Everything-parity search (D34)
-Opt-in **folder roots** and optional **Index this drive** (NTFS USN when available, walk fallback). As-you-type search, Match path / case / whole word / regex in a clean options menu, operators and macros (`size:`, `ext:`, `pic:`, `path:`, …), unindexed `content:` with an honesty banner, saved filters & bookmarks, optional localhost HTTP API. Results still use the normal file view (D29).
+### Slideshow & compiled lists (D37 / D39)
+Optional fullscreen slideshow with categorizer map, image-list cache, and **compiled `.dat` / `.txt` lists** for huge libraries — Update Lists writes ADS Index on `.dat` only; `.txt` expands from body at play; virtual playlist scales without multi‑GB path arrays.
+
+### NTFS Alternate Data Streams (D38)
+Opt-in Details column **Alternate streams**, ADS Manager dialog, and `ads:*` IPC — list / read / write / delete / copy streams without slowing every folder listing.
 
 ### Richer previews
-- **HTML / Markdown** — rendered Preview by default with a **Preview / Raw** toggle  
-- **Unity `.unitypackage`** — Assets tree (list-only)  
-- **Executables** — VERSIONINFO details + real shell icon  
-- **Video** — byte-range media; MKV remux when practical; AVI strip-only + Open  
-- **`.wlt` / `.ffs_gui`**, batch / VBScript / `.ps` syntax highlighting  
+- **`.chm`** — Contents TOC + sandboxed topic HTML (D35)  
+- **`.ttf`** — in-pane font sample (D36)  
+- **Archives** — list-only trees for 7z / RAR / TAR(.GZ) / APK / MSI / ISO / IMG alongside ZIP / Unity  
 
-### Workspace & Explorer parity
-- Multi-pane **1 / 2 / 4** views with layout persistence (D31)  
-- Tab icons + tab context menu (D32)  
-- Recent locations in Back order; opposite-button drag cancel  
-- **Windows Properties…** from the in-app Properties dialog  
-
-### Settings
-Larger Settings window; search index whitelist + exclude blacklist as compact lists.
+### Compress & workspace polish
+- **Compress to ZIP** streams via bundled **7za** (real `%` progress; Cancel kills the helper)  
+- Empty multi-pane slots: **Open Computer** / **Browse…** (drag-tab still works)  
+- Context submenu hover delay + gap bridge (Hide from view, etc.)  
+- Layout switcher is a compact toolbar dropdown; shell-icon extract stays background-queued  
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer Setup 0.4.0.exe` (or your updates-folder installer).
-2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.3.x — reinstall does not wipe them).
+1. Run `MyFileExplorer Setup 0.5.0.exe` (or your updates-folder installer).
+2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.4.x — reinstall does not wipe them).
 
 ## Upgrade notes
 
-- Fully quit and relaunch after upgrade (search index schema migrates on first launch; new settings keys get defaults).
-- Reindex large roots after upgrade if you want USN/watch monitors attached to existing folder roots.
-- Search bookmarks/filters are empty until you add them under Settings → Search.
+- Fully quit and relaunch after upgrade (new settings keys get Zod defaults).
+- Slideshow UI stays **off** until Settings → Slideshow → **Enable slideshow UI**.
+- Re-run **Update Lists** on compiled-list roots after upgrade if you still have old `.txt` Index ADS — play no longer reads them; only `.dat` Index matters.
+- ADS column is opt-in under Details column picker (Windows / NTFS only).

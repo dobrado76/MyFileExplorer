@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.4.0 (implemented)
+**Version:** 0.5.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -125,6 +125,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.2.0 release notes ([RELEASE_NOTES.md](../RELEASE_NOTES.md), CHANGELOG)
 - [x] v0.3.0 release notes + README / ADVANTAGES / docs alignment
 - [x] v0.4.0 release notes + README / ADVANTAGES / SEARCH / docs alignment
+- [x] v0.5.0 release notes + README / ADVANTAGES / SLIDESHOW / ADS / docs alignment
 
 ---
 
@@ -184,6 +185,10 @@ v0.2.0 plus: right-drag **Create shortcuts here**, drag edge auto-scroll, in-app
 ## Definition of done (v0.4.0 product)
 
 v0.3.0 plus: Everything-parity search (D34), multi-pane (D31), tab icons (D32), in-pane video (D33), HTML/Markdown/Unity/PE previews, Windows Properties…, drag/recent polish; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / SEARCH / docs aligned to 0.4.0. ✅
+
+## Definition of done (v0.5.0 product)
+
+v0.4.0 plus: slideshow / categorizer (D37), compiled file lists (D39), NTFS ADS (D38), CHM (D35) / font (D36) / broader archive previews, 7za ZIP compress, empty-pane Open Computer / Browse; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / SLIDESHOW / ADS / docs aligned to 0.5.0. ✅
 
 ---
 

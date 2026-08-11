@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.4.0
+**App:** MyFileExplorer · **Version:** 0.5.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
