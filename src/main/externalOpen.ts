@@ -4,9 +4,22 @@ import { parseOpenArgs, type ExternalOpenRequest } from './openTarget'
 
 const pending: ExternalOpenRequest[] = []
 let rendererReady = false
+let mainWindow: BrowserWindow | null = null
+
+/** Track the explorer shell window (not secondary windows like Compiled lists). */
+export function setMainWindow(win: BrowserWindow): void {
+  mainWindow = win
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
+}
+
+export function getMainWindow(): BrowserWindow | null {
+  return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
+}
 
 export function focusMainWindow(): BrowserWindow | null {
-  const win = BrowserWindow.getAllWindows()[0] ?? null
+  const win = getMainWindow() ?? BrowserWindow.getAllWindows()[0] ?? null
   if (!win || win.isDestroyed()) return null
   if (win.isMinimized()) win.restore()
   win.show()

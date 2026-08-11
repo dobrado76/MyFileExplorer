@@ -86,4 +86,4 @@ Column visibility / order live with the rest of the Details layout in settings (
 
 ## Related uses
 
-Compiled file lists (D39) write ADS **`Index`** (image path list) and **`Count`** on `.txt` / `.dat` under the compiled root. That is the same NTFS mechanism; slideshow code calls `adsWin32` helpers directly rather than going through the manager UI.
+Compiled file lists (D39) write ADS **`Index`** (image path list) and **`Count`** on `.dat` under the compiled root (Update Lists). `.txt` lists do not use Index ADS. Same NTFS mechanism; slideshow code calls `adsWin32` helpers directly rather than going through the manager UI.

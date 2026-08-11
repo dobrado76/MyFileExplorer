@@ -23,6 +23,10 @@ export type SlideshowAction =
 
 export type SlideshowState = {
   status: SlideshowStatus
+  /**
+   * Folder / cache slideshow: full path list.
+   * Compiled virtual mode: unused (empty); use compiledTotal + currentPath.
+   */
   paths: string[]
   index: number
   builtFromCache: boolean
@@ -30,8 +34,14 @@ export type SlideshowState = {
   buildFound: number
   buildCurrent: string
   actions: SlideshowAction[]
-  /** Playing from compiled !!Lists / .dat indexes. */
+  /** Playing from compiled !!Lists / .dat indexes (virtual playlist in main). */
   compiledMode?: boolean
+  /** Logical length of virtual compiled playlist (C# int scale). */
+  compiledTotal?: number
+  /** Path for `index` when compiledMode (resolved on demand). */
+  currentPath?: string | null
+  /** Playlist was truncated at Int32.MaxValue. */
+  compiledTruncated?: boolean
 }
 
 export type SlideshowSession = {
@@ -55,4 +65,16 @@ export function emptySlideshowSession(): SlideshowSession {
     active: null,
     imageRevision: 0
   }
+}
+
+/** Effective playlist length (virtual compiled or flat paths). */
+export function slideshowLength(a: SlideshowState): number {
+  if (a.compiledMode) return a.compiledTotal ?? 0
+  return a.paths.length
+}
+
+/** Current image path for overlay / categorizer. */
+export function slideshowCurrentPath(a: SlideshowState): string | null {
+  if (a.compiledMode) return a.currentPath ?? null
+  return a.paths[a.index] ?? null
 }

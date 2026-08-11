@@ -5,13 +5,30 @@ import { api, call } from '../lib/ipc'
 
 type Entry = { name: string; folder: string }
 
+type ValidationIssue = {
+  kind: 'missing-folder' | 'missing-list'
+  listPath: string
+  listLabel: string
+  refPath?: string
+  message: string
+}
+
 type Props = {
   returnSection?: string
 }
 
+function formatElapsed(ms: number): string {
+  const sec = Math.floor(ms / 1000)
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  if (m <= 0) return `${s}s`
+  return `${m}m ${s.toString().padStart(2, '0')}s`
+}
+
 /**
  * Configure category tabs (name = subfolder under compiled root).
- * Update Lists recompiles ADS Index on every `.txt` under that root (skips !!Lists).
+ * Update Lists recompiles ADS Index on every `.dat` under that root (skips !!Lists).
+ * `.txt` lists always expand from body at play time — no Index.
  */
 export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
@@ -20,6 +37,7 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const startCompiledSlideshow = useAppStore((s) => s.startCompiledSlideshow)
   const settings = useAppStore((s) => s.settings.slideshow)
+  const fileOp = useAppStore((s) => s.fileOp)
 
   const [entries, setEntries] = useState<Entry[]>(() =>
     (settings.compiledListEntries ?? []).map((e) => ({ ...e }))
@@ -29,18 +47,44 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
   const [draftFolder, setDraftFolder] = useState('')
   const [mode, setMode] = useState<'idle' | 'add' | 'edit'>('idle')
   const [busy, setBusy] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [updateStartedAt, setUpdateStartedAt] = useState<number | null>(null)
+  const [elapsedMs, setElapsedMs] = useState(0)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [diskTabs, setDiskTabs] = useState<string[]>([])
+  const [seededFromDisk, setSeededFromDisk] = useState(false)
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[] | null>(null)
+  const [validationSummary, setValidationSummary] = useState<string | null>(null)
 
   const compiledRoot = settings.compiledFileListsFolder.trim()
 
+  const compileOp = updating ? fileOp : null
+
+  useEffect(() => {
+    if (!updating || updateStartedAt == null) {
+      setElapsedMs(0)
+      return
+    }
+    const tick = (): void => setElapsedMs(Date.now() - updateStartedAt)
+    tick()
+    const id = window.setInterval(tick, 500)
+    return () => window.clearInterval(id)
+  }, [updating, updateStartedAt])
+
   const finish = (): void => {
+    if (updating) return
     if (returnSection) openDialog({ kind: 'settings', section: returnSection })
     else closeDialog()
   }
 
+  const persistEntries = async (next: Entry[]): Promise<void> => {
+    setEntries(next)
+    await applySettingsPatch({ slideshow: { compiledListEntries: next } })
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && mode === 'idle') {
+      if (e.key === 'Escape' && mode === 'idle' && !updating) {
         e.preventDefault()
         e.stopPropagation()
         finish()
@@ -48,12 +92,44 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [mode])
+  }, [mode, updating])
 
-  const persistEntries = async (next: Entry[]): Promise<void> => {
-    setEntries(next)
-    await applySettingsPatch({ slideshow: { compiledListEntries: next } })
-  }
+  // Discover category folders; when the table is empty, seed rows from disk (first pass).
+  useEffect(() => {
+    if (!compiledRoot) {
+      setDiskTabs([])
+      return
+    }
+    let cancelled = false
+    void call(api.slideshow.listCompiledDats({ compiledRoot, entries: [] }))
+      .then(async (res) => {
+        if (cancelled) return
+        const names = res.tabs.map((t) => t.name)
+        setDiskTabs(names)
+        if (seededFromDisk) return
+        if ((settings.compiledListEntries?.length ?? 0) > 0) {
+          setSeededFromDisk(true)
+          return
+        }
+        if (names.length === 0) return
+        const root = compiledRoot.replace(/[/\\]+$/, '')
+        const seeded: Entry[] = names.map((name) => ({
+          name,
+          folder: `${root}\\${name}`
+        }))
+        setSeededFromDisk(true)
+        setEntries(seeded)
+        await applySettingsPatch({ slideshow: { compiledListEntries: seeded } })
+      })
+      .catch(() => {
+        if (!cancelled) setDiskTabs([])
+      })
+    return () => {
+      cancelled = true
+    }
+    // Seed once per dialog open when settings rows are empty.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional one-shot seed
+  }, [compiledRoot])
 
   const startAdd = (): void => {
     setMode('add')
@@ -132,20 +208,67 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
       notify('Set Compiled file lists folder in Settings first', true)
       return
     }
-    if (entries.length === 0) {
-      notify('Add at least one list entry', true)
-      return
-    }
     setBusy(true)
+    setUpdating(true)
+    setUpdateStartedAt(Date.now())
+    setValidationIssues(null)
+    setValidationSummary(null)
     try {
       const res = await call(
         api.slideshow.updateCompiledLists({ compiledRoot, entries })
       )
-      notify(
-        res.updated === 0
-          ? 'No .txt lists found to compile (outside !!Lists)'
-          : `Compiled ${res.updated} .txt list(s), ${res.totalFiles} images in Index`
-      )
+      const listed = await call(
+        api.slideshow.listCompiledDats({ compiledRoot, entries: [] })
+      ).catch(() => null)
+      if (listed) setDiskTabs(listed.tabs.map((t) => t.name))
+      if (res.updated === 0) {
+        notify('No .dat lists found to compile (outside !!Lists)')
+      } else {
+        notify(
+          `Updated ${res.datUpdated} .dat — ${res.totalFiles.toLocaleString()} images in Index`
+        )
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (/cancel/i.test(msg)) notify('Update Lists cancelled')
+      else notify(msg, true)
+    } finally {
+      setUpdating(false)
+      setUpdateStartedAt(null)
+      setBusy(false)
+    }
+  }
+
+  const cancelUpdate = (): void => {
+    void api.fs.cancelOp()
+  }
+
+  const validateLists = async (): Promise<void> => {
+    if (!compiledRoot) {
+      notify('Set Compiled file lists folder in Settings first', true)
+      return
+    }
+    setBusy(true)
+    setValidationIssues(null)
+    setValidationSummary(null)
+    try {
+      const res = await call(api.slideshow.validateCompiledLists({ compiledRoot }))
+      setValidationIssues(res.issues)
+      if (res.ok) {
+        const summary = `Validate Lists: OK — checked ${res.checkedLists} list(s), no issues`
+        setValidationSummary(summary)
+        notify(summary)
+      } else {
+        const missingFolder = res.issues.filter((i) => i.kind === 'missing-folder').length
+        const missingList = res.issues.filter((i) => i.kind === 'missing-list').length
+        const bits = [
+          missingFolder ? `${missingFolder} missing folder(s)` : null,
+          missingList ? `${missingList} missing list(s)` : null
+        ].filter(Boolean)
+        const summary = `Validate Lists: ${res.issueCount} issue(s) in ${res.checkedLists} list(s) — ${bits.join(', ')}`
+        setValidationSummary(summary)
+        notify(summary, true)
+      }
     } catch (e) {
       notify(e instanceof Error ? e.message : String(e), true)
     } finally {
@@ -181,6 +304,11 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
     [compiledRoot]
   )
 
+  const opDone = compileOp?.done ?? 0
+  const opTotal = compileOp?.total ?? 0
+  const opPct =
+    opTotal > 0 ? Math.min(100, Math.round((Math.min(opDone, opTotal) / opTotal) * 100)) : 0
+
   return (
     <div className="modal-backdrop" onMouseDown={finish}>
       <div
@@ -191,10 +319,13 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
       >
         <div className="modal-title">Compiled lists</div>
         <p className="dim" style={{ margin: '0 16px 8px', fontSize: 12 }}>
-          Category tabs are detected from subfolders under the compiled lists folder (including{' '}
-          <code>!!Lists</code> as its own tab for selectable .dat/.txt). Optional rows below only set
-          tab order. <strong>Update Lists</strong> recompiles ADS <code>Index</code> on every{' '}
-          <code>.txt</code> <em>outside</em> <code>!!Lists</code>.
+          Category folders under the compiled lists root are listed automatically (including{' '}
+          <code>!!Lists</code>). Drag to reorder tabs; Add/Edit only if you need extras.{' '}
+          <strong>Update Lists</strong> crawls folders listed in each <code>.dat</code> body and
+          writes ADS <code>Index</code>/<code>Count</code> on every <code>.dat</code>{' '}
+          <em>outside</em> <code>!!Lists</code> (<code>{'|=>'}</code> ignored; <code>.txt</code> is
+          not indexed — play expands from body). <strong>Validate Lists</strong> reports missing
+          folders / nested list refs.
           {listsHint ? (
             <>
               {' '}
@@ -226,10 +357,39 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
             <button type="button" className="btn primary" disabled={busy} onClick={() => void updateLists()}>
               Update Lists
             </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => void validateLists()}>
+              Validate Lists
+            </button>
             <button type="button" className="btn" disabled={busy} onClick={() => void start()}>
               Start
             </button>
           </div>
+
+          {validationSummary ? (
+            <div
+              className={`compiled-validate-summary${validationIssues && validationIssues.length > 0 ? ' has-issues' : ''}`}
+            >
+              {validationSummary}
+            </div>
+          ) : null}
+          {validationIssues && validationIssues.length > 0 ? (
+            <div className="compiled-validate-issues" role="region" aria-label="Validation issues">
+              <ul>
+                {validationIssues.map((issue, i) => (
+                  <li key={`${issue.kind}-${issue.listPath}-${issue.refPath ?? ''}-${i}`} title={issue.refPath}>
+                    <span className={`compiled-validate-kind kind-${issue.kind}`}>
+                      {issue.kind === 'missing-folder'
+                        ? 'Folder'
+                        : issue.kind === 'missing-list'
+                          ? 'List'
+                          : 'Index'}
+                    </span>
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {mode !== 'idle' ? (
             <div className="ads-form">
@@ -292,7 +452,9 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
                   {entries.length === 0 ? (
                     <tr>
                       <td colSpan={2} className="dim">
-                        No entries — Add a named source folder.
+                        {compiledRoot
+                          ? 'No category folders found under the compiled lists root yet.'
+                          : 'Set Compiled file lists folder in Settings first.'}
                       </td>
                     </tr>
                   ) : null}
@@ -302,10 +464,45 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
           )}
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn" onClick={finish}>
+          <button type="button" className="btn" disabled={updating} onClick={finish}>
             Close
           </button>
         </div>
+
+        {updating ? (
+          <div className="compiled-update-progress" role="status" aria-live="polite">
+            <div className="compiled-update-progress-inner">
+              <div className="modal-title" style={{ marginBottom: 8 }}>
+                Updating Lists…
+              </div>
+              <div className="compiled-update-track" aria-valuemin={0} aria-valuemax={100} aria-valuenow={opPct}>
+                <div
+                  className={`compiled-update-fill${opTotal <= 0 ? ' indeterminate' : ''}`}
+                  style={opTotal > 0 ? { width: `${opPct}%` } : undefined}
+                />
+              </div>
+              <p className="compiled-update-counts">
+                {opTotal > 0
+                  ? `${Math.min(opDone, opTotal)} of ${opTotal} lists`
+                  : 'Scanning…'}
+                {' · '}
+                {formatElapsed(elapsedMs)}
+              </p>
+              {compileOp?.current ? (
+                <p className="compiled-update-current dim" title={compileOp.current}>
+                  {compileOp.current}
+                </p>
+              ) : (
+                <p className="compiled-update-current dim">Starting…</p>
+              )}
+              <div className="compiled-update-actions">
+                <button type="button" className="btn" onClick={cancelUpdate}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )

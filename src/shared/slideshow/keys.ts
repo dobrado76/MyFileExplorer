@@ -225,21 +225,31 @@ export function isKnownKeyToken(token: string): boolean {
   return normalizeKeyToken(token) != null
 }
 
+/** Minimal key fields shared by real KeyboardEvents and IPC relays. */
+export type SlideshowKeyLike = {
+  key: string
+  code: string
+  ctrlKey?: boolean
+  altKey?: boolean
+  shiftKey?: boolean
+  metaKey?: boolean
+}
+
 /** Numpad — reserved for Phase 6 crop; never categorize. */
 export function isNumpadCode(code: string): boolean {
   return code.startsWith('Numpad')
 }
 
 /** Tab — open in-app image editor during slideshow. */
-export function isEditImageSlideshowKey(e: KeyboardEvent): boolean {
+export function isEditImageSlideshowKey(e: SlideshowKeyLike): boolean {
   return e.key === 'Tab' || e.code === 'Tab'
 }
 
-export function isStopSlideshowKey(e: KeyboardEvent): boolean {
+export function isStopSlideshowKey(e: SlideshowKeyLike): boolean {
   return e.key === 'Escape' || e.key === 'Enter' || e.key === ' '
 }
 
-export function isPipeUndoKey(e: KeyboardEvent): boolean {
+export function isPipeUndoKey(e: SlideshowKeyLike): boolean {
   // | is typically Shift+\ — key is '|' (OemPipe alone without Shift is Backslash)
-  return e.key === '|' || ((e.code === 'Backslash' || e.code === 'IntlBackslash') && e.shiftKey)
+  return e.key === '|' || ((e.code === 'Backslash' || e.code === 'IntlBackslash') && !!e.shiftKey)
 }

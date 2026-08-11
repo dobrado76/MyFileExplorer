@@ -12,7 +12,8 @@ import { settingsStore } from './settings/store'
 import { thumbCacheDir } from './thumbs'
 import { shellIconCacheDir } from './icons/shell'
 import { logMain } from './logging'
-import { dispatchFromArgv, focusMainWindow } from './externalOpen'
+import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen'
+import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
 import { configureUserData } from './userData'
 
 // Shared %APPDATA%\MyFileExplorer for npm run dev and installed builds (before lock/stores).
@@ -60,6 +61,11 @@ if (!gotLock) {
     })
 
     trackWindowState(win)
+    setMainWindow(win)
+    // Compiled lists is a child of the shell — closing main must not leave it dangling.
+    win.on('close', () => {
+      closeCompiledListsWindow()
+    })
 
     // Font size is app-controlled (Ctrl+wheel / Settings); block Chromium page zoom.
     void win.webContents.setVisualZoomLevelLimits(1, 1)

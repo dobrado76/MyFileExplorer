@@ -170,7 +170,15 @@ export type Notice = { text: string; isError: boolean } | null
 /** Live progress for copy / move / trash / permanent delete (main → op-progress). */
 export type FileOpProgress = {
   opId: string
-  kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs' | 'zip'
+  kind:
+    | 'copy'
+    | 'move'
+    | 'trash'
+    | 'delete'
+    | 'relocate'
+    | 'vid-thumbs'
+    | 'zip'
+    | 'compile-lists'
   done: number
   total: number
   current?: string
@@ -768,6 +776,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (clearCut) set({ clipboard: null })
       if (get().mediaHold) set({ mediaHold: false })
       await get().refresh()
+      // After same-folder Keep both (and any successful copy into the open folder),
+      // select the new paths so the user can see/rename the duplicates.
+      if (op2 === 'copy' && r.copyPaths.length > 0 && samePath(dest, get().activeTab().path)) {
+        get().setSelection(r.copyPaths, r.copyPaths[0]!, r.copyPaths[0]!)
+      }
     } catch (e) {
       set({ mediaHold: false })
       throw e
@@ -1755,9 +1768,24 @@ export const useAppStore = create<AppState>()((set, get) => {
             })
           }
         } else if (event.type === 'compiled-playlist-apply') {
-          get().applyCompiledPlaylist(event.payload.paths, event.payload.preferPath)
+          const p = event.payload
+          if (typeof p.total === 'number') {
+            get().applyCompiledVirtual(
+              {
+                total: p.total,
+                index: p.index,
+                path: p.path,
+                truncated: p.truncated,
+                resumePlaying: p.resumePlaying === true
+              },
+              p.rev
+            )
+          } else if (p.paths) {
+            get().applyCompiledPlaylist(p.paths, p.preferPath, p.rev)
+          }
         } else if (event.type === 'compiled-lists-window-closed') {
-          void get().stopSlideshow()
+          const a = get().slideshow.active
+          if (a?.compiledMode) void get().stopSlideshow()
         }
       })
 
@@ -2734,6 +2762,19 @@ export const useAppStore = create<AppState>()((set, get) => {
           : sources
       if (effective.length === 0) return
       try {
+        // Same-folder copy (Ctrl+C / Ctrl+V in place): Explorer-style Keep both —
+        // auto-number (`name (2).ext`) with no dual-compare dialog; select the new copies.
+        const sameFolderCopy =
+          op === 'copy' &&
+          effective.every((p) => {
+            const parent = parentOf(p)
+            return parent != null && samePath(parent, destinationDir)
+          })
+        if (sameFolderCopy) {
+          await executeTransfer(op, effective, destinationDir, 'rename', clearCutAfter)
+          return
+        }
+
         const { conflicts, items } = await call(
           api.fs.checkConflicts({ sources: effective, destinationDir })
         )

@@ -7,6 +7,7 @@ import appIcon from '../../../resources/icon.png?asset'
 import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
+import { getMainWindow } from '../externalOpen'
 
 let listsWin: BrowserWindow | null = null
 
@@ -47,8 +48,10 @@ export function openCompiledListsWindow(): { opened: true } {
 
   const saved = settingsStore().get().compiledListsWindowBounds
   const bounds = saved ?? defaultBounds()
+  const parent = getMainWindow() ?? undefined
 
   listsWin = new BrowserWindow({
+    parent,
     x: bounds.x,
     y: bounds.y,
     width: bounds.width,
@@ -72,6 +75,8 @@ export function openCompiledListsWindow(): { opened: true } {
   win.once('ready-to-show', () => win.show())
   win.on('close', () => persistBounds(win))
   win.on('closed', () => {
+    // If a newer lists window already replaced this one, do not pair-stop the slideshow.
+    if (listsWin !== win) return
     listsWin = null
     broadcast({ type: 'compiled-lists-window-closed', payload: {} })
   })
@@ -89,8 +94,11 @@ export function openCompiledListsWindow(): { opened: true } {
 
 export function closeCompiledListsWindow(): { closed: boolean } {
   if (!listsWin || listsWin.isDestroyed()) return { closed: false }
-  listsWin.close()
+  const win = listsWin
+  // Detach before close so a quick re-open can own `listsWin` without the old
+  // `closed` handler killing the new compiled session.
   listsWin = null
+  win.close()
   return { closed: true }
 }
 

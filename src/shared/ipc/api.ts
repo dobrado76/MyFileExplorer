@@ -229,7 +229,28 @@ export type MyFileExplorerApi = {
     updateCompiledLists(req: {
       compiledRoot: string
       entries: { name: string; folder: string }[]
-    }): Promise<Result<{ updated: number; totalFiles: number }>>
+    }): Promise<
+      Result<{
+        updated: number
+        totalFiles: number
+        datUpdated: number
+        txtUpdated: number
+      }>
+    >
+    validateCompiledLists(req: { compiledRoot: string }): Promise<
+      Result<{
+        ok: boolean
+        checkedLists: number
+        issueCount: number
+        issues: {
+          kind: 'missing-folder' | 'missing-list'
+          listPath: string
+          listLabel: string
+          refPath?: string
+          message: string
+        }[]
+      }>
+    >
     listCompiledDats(req: {
       compiledRoot: string
       entries: { name: string; folder: string }[]
@@ -265,12 +286,40 @@ export type MyFileExplorerApi = {
     lastListUsable(req: { compiledRoot: string }): Promise<Result<{ usable: boolean }>>
     expandComposite(req: {
       lines: { datPath: string; count: number }[]
+      order?: 'random' | 'name' | 'size' | 'dimensions'
+      ascending?: boolean
     }): Promise<Result<{ paths: string[] }>>
     openCompiledListsWindow(): Promise<Result<{ opened: true }>>
     closeCompiledListsWindow(): Promise<Result<{ closed: boolean }>>
+    /** Relay a keystroke from the Compiled lists window to the main slideshow. */
+    relayKey(req: {
+      key: string
+      code: string
+      ctrlKey: boolean
+      altKey: boolean
+      shiftKey: boolean
+      metaKey: boolean
+    }): Promise<Result<{ ok: true }>>
+    /** Build main-process virtual playlist from last.txt lines; broadcast meta. */
+    applyCompiledLines(req: {
+      lines: { datPath: string; count: number }[]
+      order: 'random' | 'name' | 'size' | 'dimensions'
+      ascending: boolean
+      preferPath?: string | null
+      preferIndex?: number
+      rev?: number | null
+      /** Compiled lists Play — force status back to autoplay. */
+      resumePlaying?: boolean
+    }): Promise<
+      Result<{ total: number; index: number; path: string | null; truncated: boolean; rev?: number | null }>
+    >
+    compiledPathAt(req: { index: number }): Promise<Result<{ path: string | null }>>
+    clearVirtualPlaylist(): Promise<Result<{ ok: true }>>
+    /** @deprecated Prefer applyCompiledLines for compiled slideshow. */
     applyCompiledPlaylist(req: {
       paths: string[]
       preferPath?: string | null
+      rev?: number | null
     }): Promise<Result<{ ok: true }>>
   }
   ads: {

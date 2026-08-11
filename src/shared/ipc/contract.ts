@@ -94,6 +94,7 @@ export const IPC = {
   slideshowReadTextFile: 'slideshow:readTextFile',
   slideshowWriteTextFile: 'slideshow:writeTextFile',
   slideshowUpdateCompiledLists: 'slideshow:updateCompiledLists',
+  slideshowValidateCompiledLists: 'slideshow:validateCompiledLists',
   slideshowListCompiledDats: 'slideshow:listCompiledDats',
   slideshowReadDatIndex: 'slideshow:readDatIndex',
   slideshowReadLastList: 'slideshow:readLastList',
@@ -104,7 +105,11 @@ export const IPC = {
   slideshowExpandComposite: 'slideshow:expandComposite',
   slideshowOpenCompiledListsWindow: 'slideshow:openCompiledListsWindow',
   slideshowCloseCompiledListsWindow: 'slideshow:closeCompiledListsWindow',
+  slideshowRelayKey: 'slideshow:relayKey',
   slideshowApplyCompiledPlaylist: 'slideshow:applyCompiledPlaylist',
+  slideshowApplyCompiledLines: 'slideshow:applyCompiledLines',
+  slideshowCompiledPathAt: 'slideshow:compiledPathAt',
+  slideshowClearVirtualPlaylist: 'slideshow:clearVirtualPlaylist',
 
   /** NTFS Alternate Data Streams (win32; soft-fail elsewhere). */
   adsList: 'ads:list',
@@ -144,7 +149,15 @@ export type MfeEvent =
       type: 'op-progress'
       payload: {
         opId: string
-        kind: 'copy' | 'move' | 'trash' | 'delete' | 'relocate' | 'vid-thumbs' | 'zip'
+        kind:
+          | 'copy'
+          | 'move'
+          | 'trash'
+          | 'delete'
+          | 'relocate'
+          | 'vid-thumbs'
+          | 'zip'
+          | 'compile-lists'
         done: number
         total: number
         /** Basename (or short path) of the item currently being processed. */
@@ -173,10 +186,36 @@ export type MfeEvent =
     }
   | {
       type: 'compiled-playlist-apply'
-      /** Child lists window → main: replace active compiled slideshow paths. */
-      payload: { paths: string[]; preferPath?: string | null }
+      /**
+       * Virtual compiled playlist meta (not a flat path array).
+       * Legacy `paths` ignored when `total` is present.
+       */
+      payload: {
+        total: number
+        index: number
+        path: string | null
+        truncated?: boolean
+        rev?: number | null
+        /** Compiled lists Play — force autoplay even if currently manual. */
+        resumePlaying?: boolean
+        /** @deprecated flat expand — unused for virtual compiled */
+        paths?: string[]
+        preferPath?: string | null
+      }
     }
   | {
       type: 'compiled-lists-window-closed'
       payload: Record<string, never>
+    }
+  | {
+      type: 'slideshow-key'
+      /** Keystroke relayed from the Compiled lists window to the main slideshow. */
+      payload: {
+        key: string
+        code: string
+        ctrlKey: boolean
+        altKey: boolean
+        shiftKey: boolean
+        metaKey: boolean
+      }
     }

@@ -24,7 +24,7 @@ import {
   cancelDoubleSingleClick,
   isNameLabelTarget,
   noteItemClick,
-  tryLabelRenameClick
+  handleLabelClickForRename
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { ChevronDown, ChevronRight } from '../lib/icons'
@@ -642,9 +642,14 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             treeRef.current?.focus()
             const paneIdx = paneTabIds.indexOf(tabId)
             if (paneIdx >= 0) focusPane(paneIdx)
-            // Explorer: slow second click on the label of the current folder → rename now.
+            // Explorer: select, pause, click label again, hover ~500ms → rename.
             if (selected && isNameLabelTarget(e.target)) {
-              if (tryLabelRenameClick(path)) startRename(path, 'tree')
+              handleLabelClickForRename(
+                path,
+                () => startRename(path, 'tree'),
+                e.clientX,
+                e.clientY
+              )
               return
             }
             noteItemClick(path)
@@ -769,7 +774,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           ) : (
             <span className="twisty twisty-spacer" aria-hidden />
           )}
-          <ShellIcon path={path} size={16} isDir />
+          <ShellIcon path={path} size={16} isDir renaming={renaming} />
           {renaming ? (
             <RenameInput
               name={

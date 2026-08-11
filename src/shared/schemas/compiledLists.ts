@@ -10,6 +10,18 @@ export const updateCompiledListsRequestSchema = z.object({
   entries: z.array(compiledListEntrySchema)
 })
 
+export const validateCompiledListsRequestSchema = z.object({
+  compiledRoot: z.string().min(1)
+})
+
+export const compiledListValidationIssueSchema = z.object({
+  kind: z.enum(['missing-folder', 'missing-list']),
+  listPath: z.string().min(1),
+  listLabel: z.string().min(1),
+  refPath: z.string().optional(),
+  message: z.string().min(1)
+})
+
 export const compiledRootSchema = z.object({
   compiledRoot: z.string().min(1)
 })
@@ -39,5 +51,31 @@ export const writeCompositeListRequestSchema = z.object({
 })
 
 export const expandCompositeRequestSchema = z.object({
-  lines: z.array(lastListLineSchema)
+  lines: z.array(lastListLineSchema),
+  order: z.enum(['random', 'name', 'size', 'dimensions']).optional(),
+  ascending: z.boolean().optional()
+})
+
+export const applyCompiledLinesRequestSchema = z.object({
+  lines: z.array(lastListLineSchema),
+  order: z.enum(['random', 'name', 'size', 'dimensions']),
+  ascending: z.boolean(),
+  preferPath: z.string().nullable().optional(),
+  preferIndex: z.number().int().min(0).optional(),
+  rev: z.number().int().optional().nullable(),
+  /** When true, slideshow returns to autoplay (Compiled lists Play). */
+  resumePlaying: z.boolean().optional()
+})
+
+export const slideshowRelayKeySchema = z.object({
+  key: z.string().min(1),
+  code: z.string().min(1),
+  ctrlKey: z.boolean(),
+  altKey: z.boolean(),
+  shiftKey: z.boolean(),
+  metaKey: z.boolean()
+})
+
+export const compiledPathAtRequestSchema = z.object({
+  index: z.number().int().min(0)
 })

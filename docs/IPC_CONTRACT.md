@@ -134,15 +134,20 @@ Win32/NTFS only; soft-fail empty/false off-platform or on access errors. Paths v
 
 | Channel | Request | Response |
 | ------- | ------- | -------- |
-| `slideshow:updateCompiledLists` | `{ compiledRoot, entries[] }` | `{ updated, totalFiles }` — write `.dat` + Index/Count ADS |
+| `slideshow:updateCompiledLists` | `{ compiledRoot, entries[] }` | `{ updated, totalFiles, datUpdated, txtUpdated }` — crawl `.dat` source folders; write Index/Count ADS (skips `!!Lists`; `txtUpdated` always 0) |
+| `slideshow:validateCompiledLists` | `{ compiledRoot }` | `{ ok, checkedLists, issueCount, issues[] }` — missing folders / nested lists (skips `!!Lists`) |
+| `slideshow:relayKey` | `{ key, code, ctrlKey, altKey, shiftKey, metaKey }` | `{ ok }` — Compiled lists window → main slideshow keystroke |
 | `slideshow:listCompiledDats` | `{ compiledRoot, entries[] }` | `{ tabs: { name, dats[] }[] }` |
 | `slideshow:readDatIndex` | `{ path }` | `{ paths[] }` |
 | `slideshow:readLastList` / `writeLastList` | root + lines | resume file `!!Lists/last.txt` |
 | `slideshow:readCompositeList` / `writeCompositeList` | `{ path, lines? }` | any `!!Lists/*.txt` |
 | `slideshow:lastListUsable` | `{ compiledRoot }` | `{ usable }` |
-| `slideshow:expandComposite` | `{ lines }` | `{ paths[] }` — Index × count |
+| `slideshow:expandComposite` | `{ lines, order?, ascending? }` | `{ paths[] }` — flat expand (refuses >500k; debug/legacy) |
+| `slideshow:applyCompiledLines` | `{ lines, order, ascending, preferPath?, preferIndex?, rev? }` | `{ total, index, path, truncated }` — builds main virtual playlist; broadcasts meta |
+| `slideshow:compiledPathAt` | `{ index }` | `{ path }` — resolve play position |
+| `slideshow:clearVirtualPlaylist` | — | clears main virtual session |
 | `slideshow:openCompiledListsWindow` / `close…` | — | detached BrowserWindow |
-| `slideshow:applyCompiledPlaylist` | `{ paths, preferPath? }` | broadcasts `compiled-playlist-apply` |
+| `slideshow:applyCompiledPlaylist` | `{ paths, preferPath? }` | legacy flat broadcast (prefer `applyCompiledLines`) |
 
 ### `app.*`
 
@@ -164,7 +169,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `fs-watch-lost`           | `{ path }` — watcher closed; renderer may re-arm |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
-| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip; byte fields for large streaming copies |
+| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/compile-lists; byte fields for large streaming copies |
 | `compiled-playlist-apply` | `{ paths, preferPath? }` — detached lists window → main slideshow |
 | `session-external-change` | rare: multi-window later                      |
 

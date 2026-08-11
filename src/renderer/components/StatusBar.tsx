@@ -22,6 +22,8 @@ function fileOpTitle(kind: string, label?: string): string {
       return 'Video previews'
     case 'zip':
       return 'Compressing'
+    case 'compile-lists':
+      return 'Updating Lists'
     default:
       return 'Working'
   }

@@ -13,7 +13,7 @@ When **on**:
 
 ## Compiled file lists (D39)
 
-Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; **Update Lists** pre-compiles every `.txt` (outside `!!Lists`) into ADS `Index` + `Count` so start does not walk source folders. Composites live under `!!Lists/`.
+Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; **Update Lists** crawls source folders from each `.dat` body (outside `!!Lists`) into ADS `Index` + `Count` so `.dat` play does not walk source folders. `|=>` on `.dat` bodies is ignored during Update Lists. `.txt` is **not** indexed — play always expands from the body. Long Update Lists runs show a cancelable progress UI. Composites live under `!!Lists/`.
 
 **Settings**
 
@@ -24,17 +24,21 @@ Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; *
 
 **On disk** (under compiled root):
 
-- `.dat` — body (and ADS Index) = **image full paths**, one per line; Count ADS = n
-- `.txt` — body = **folders** (optional `folder|=>count`); **Update Lists** overwrites ADS Index with the expanded jpg/png list (and Count). Slideshow reads Index only (no live scan).
+- `.dat` — body = **source folder path(s)** (one per line; optional `folder|=>n` is ignored by Update Lists; a line that looks like a jpg/png path is treated as a single Index entry). ADS **Index** / **Count** = crawled image list after Update Lists (body is not rewritten). Slideshow prefers Index when present; otherwise body-as-images (legacy).
+- `.txt` — body = **folders** and/or **other `.dat`/`.txt` list refs** (optional `path|=>count`). **Never** uses ADS Index; slideshow always expands the body live (nested refs + folder walks; cycles break).
 - `!!Lists/` — own tab for selectable `.dat`/`.txt`; **Update Lists** does not recompile here. `last.txt` is resume-only (hidden from the grid); user-saved composites also live here.
 
-**Update Lists** walks the compiled root, skips `!!Lists`, processes **only `.txt`** (not `.dat`), and overwrites Index + Count.
+**Update Lists** walks the compiled root, skips `!!Lists`, processes **`.dat` only**, overwrites Index + Count, and reports progress (files done / total, current list, images found, current folder) with Cancel. Source folders that appear in multiple lists are **scanned once per Update Lists run** (in-memory cache keyed by absolute folder path); later lists reuse that result.
 
-**Second toolbar button:** if `last.txt` has no positive counts → Compiled Lists Config; else reload `last.txt`, expand list×count from Index, resume at `compiledPlaylistIndex`, open detached lists window.
+**Validate Lists** (same config dialog) checks every `.dat` / `.txt` outside `!!Lists` and reports: missing source **folders** and missing nested **list** refs (`.dat`/`.txt`).
 
-**Detached lists window** (second BrowserWindow): tabs = entry names; grid = `.dat` / `.txt` rows with # / ± / Nb. Files; Load/Save any `!!Lists/*.txt`; `#` / ± / Clear rewrite `last.txt` and **immediately** rebuild the live slideshow playlist (Clear → empty playlist in place). Closing the lists window stops the slideshow, and stopping the slideshow closes the lists window. Overlay controls unchanged.
+**Virtual playlist (C#-scale):** Compiled slideshow never materializes `path × count` as a flat string array. Main keeps **segments** (each list’s unique paths once + repeat count). Logical length is `sum(len × count)`, clamped to **2,147,483,647** (`Int32.MaxValue`). Overlay holds `compiledTotal` + `currentPath` and resolves the next path via IPC. **Random:** `Uint32Array` Fisher–Yates when `total ≤ 50_000_000`; Feistel permutation above that (O(1) memory). **Name** (and size/dimensions in compiled mode): per-segment basename sort only — not a global 42M expand. Folder **Start** slideshow remains capped at 100 000 paths.
 
-Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle and reappears on move.
+**Second toolbar button:** always open the detached lists window and enter compiled slideshow mode (empty playlist → blank/black screen). Reload `last.txt` when it has counts, build the virtual playlist with Settings → Slideshow order, resume at `compiledPlaylistIndex`. `#` / ± / Clear rewrite `last.txt` and immediately rebuild the live virtual playlist (including empty). Settings → **Update Lists…** opens the optional order/config dialog (entries are not required to compile).
+
+**Detached lists window** (second BrowserWindow, **child of the main shell**): tabs = entry names; grid = `.dat` / `.txt` rows with # / ± / Nb. Files; Load/Save any `!!Lists/*.txt`; `#` / ± / Clear rewrite `last.txt` and **immediately** rebuild the live slideshow playlist (Clear → empty playlist in place; status stays manual if interrupted). **Play** rebuilds and **resumes autoplay**. Closing the lists window stops the slideshow, and stopping the slideshow closes the lists window. Closing the **main** window also closes the lists window. While the lists window has focus, keystrokes (except typing in count fields / OS Load-Save dialogs) are **relayed to the slideshow**. Overlay controls unchanged.
+
+Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle on the **main overlay and the Compiled lists window** (reappears on move / click / wheel).
 
 Double-buffered display with V-Sync swaps (not a setting):
 
@@ -73,11 +77,14 @@ Exact line shape (blank lines allowed):
 | ---- | --------- | ----------- |
 | Esc, Space, Enter, click | Stop (commit buffer) | Stop (commit buffer) |
 | Tab | Open in-app image editor (same as context **Edit image…**); interrupt → manual. After Save, frame reloads | Same |
+| Home / End | Interrupt → first / last | First / last |
+| ← ↑ PageUp | Interrupt → previous | Previous (wraps when Loop is on) |
+| → ↓ PageDown | Interrupt → next | Next (wraps when Loop is on) |
+| Mouse wheel | Interrupt → prev/next (same sense as ↑/↓) | Prev/next |
+| Map delete keys | Interrupt → virtual delete + advance | Virtual delete + advance |
+| Map folder keys | Interrupt → virtual categorize + advance | Virtual categorize + advance |
+| `\|` | Interrupt → undo last buffer action | Undo last buffer action |
 | Any other key | Interrupt → manual | — |
-| Map delete keys | — | Virtual delete + advance |
-| Map folder keys | — | Virtual categorize + advance |
-| `\|` | — | Undo last buffer action |
-| Home/End, arrows, PageUp/Down, mouse wheel | — | Navigate (wraps when Loop is on; wheel interrupt→manual like arrows) |
 | Numpad | Reserved for crop (later) | Reserved |
 
 Disk changes (trash / move) happen only when stopping, if the action buffer is non-empty.

@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useLayoutEffect, useState, type CSSProperties, type JSX } from 'react'
 import { api } from '../lib/ipc'
 import { FileIcon, FolderIcon } from '../lib/icons'
 import { withIconRequestSlot } from '../lib/iconRequestQueue'
@@ -28,6 +28,12 @@ type Props = {
   /** Hint for generic placeholder while loading. */
   isDir?: boolean
   className?: string
+  /**
+   * When this flips from true → false (rename dismissed without a listing
+   * refresh), re-sync the glyph from the in-memory cache. A real rename
+   * refreshes the listing and remounts rows; Escape / same-name commit does not.
+   */
+  renaming?: boolean
 }
 
 function extOf(filePath: string): string {
@@ -36,40 +42,47 @@ function extOf(filePath: string): string {
   return d > 0 ? base.slice(d + 1).toLowerCase() : ''
 }
 
+function cachedUrl(key: string, extKey: string | null): string | null {
+  return memoryCache.get(key) ?? (extKey ? extMemoryCache.get(extKey) ?? null : null) ?? null
+}
+
 /**
  * Native Windows shell icon for a path (SHGetFileInfo via main).
  * Falls back to a simple SVG while loading or if the shell icon fails.
  */
-export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element {
+export function ShellIcon({ path, size, isDir, className, renaming }: Props): JSX.Element {
   const px = size <= 20 ? 16 : 32
   // Include kind in the key so a poisoned file glyph can't stick on a folder path.
   const key = `${path.toLowerCase()}|${px}|${isDir ? 'd' : 'f'}`
   const ext = isDir ? '' : extOf(path)
   const extKey =
     isDir !== true && ext && !PER_FILE_EXTS.has(ext) ? `${ext}|${px}` : null
-  const [url, setUrl] = useState<string | null>(
-    () => memoryCache.get(key) ?? (extKey ? extMemoryCache.get(extKey) ?? null : null)
-  )
+  const [url, setUrl] = useState<string | null>(() => cachedUrl(key, extKey))
   const [failed, setFailed] = useState(false)
+
+  const restoreFromCache = (): boolean => {
+    const hit = cachedUrl(key, extKey)
+    if (!hit) return false
+    if (extKey && !memoryCache.get(key)) {
+      memoryCache.set(key, hit)
+    }
+    setUrl(hit)
+    setFailed(false)
+    return true
+  }
+
+  // Cancel / same-name commit: no listing refresh — pull the glyph back from cache.
+  useLayoutEffect(() => {
+    if (renaming) return
+    restoreFromCache()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when rename ends
+  }, [renaming, key])
 
   useEffect(() => {
     let alive = true
-    const pathHit = memoryCache.get(key)
-    if (pathHit) {
-      setUrl(pathHit)
-      setFailed(false)
-      return
-    }
-    if (extKey) {
-      const extHit = extMemoryCache.get(extKey)
-      if (extHit) {
-        memoryCache.set(key, extHit)
-        setUrl(extHit)
-        setFailed(false)
-        return
-      }
-    }
-    setUrl(null)
+    if (restoreFromCache()) return
+
+    // Keep any existing glyph visible while a new fetch runs (do not flash blank).
     setFailed(false)
     const perFile = isDir === true || PER_FILE_EXTS.has(ext)
     const request = async (): Promise<void> => {
@@ -82,7 +95,8 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
         // Never put folder icons into the shared extension cache.
         if (extKey && isDir !== true) extMemoryCache.set(extKey, res.value.url)
         setUrl(res.value.url)
-      } else {
+        setFailed(false)
+      } else if (!cachedUrl(key, extKey)) {
         setFailed(true)
       }
     }
@@ -91,22 +105,38 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
     return () => {
       alive = false
     }
+    // restoreFromCache closes over key/extKey; deps cover those.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, path, size, extKey, isDir, ext])
+
+  const cls = `shell-icon${className ? ` ${className}` : ''}`
+  const box: CSSProperties = {
+    width: size,
+    height: size,
+    flexShrink: 0,
+    display: 'block'
+  }
 
   if (url && !failed) {
     return (
       <img
-        className={`shell-icon${className ? ` ${className}` : ''}`}
+        className={cls}
         src={url}
         width={size}
         height={size}
+        style={box}
         alt=""
         draggable={false}
-        onError={() => setFailed(true)}
+        onError={() => {
+          memoryCache.delete(key)
+          if (extKey) extMemoryCache.delete(extKey)
+          setUrl(null)
+          setFailed(true)
+        }}
       />
     )
   }
 
   const Placeholder = isDir ? FolderIcon : FileIcon
-  return <Placeholder size={size} className={`shell-icon${className ? ` ${className}` : ''}`} />
+  return <Placeholder size={size} className={cls} style={box} />
 }

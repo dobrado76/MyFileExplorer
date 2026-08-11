@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
-import { api } from '../lib/ipc'
+import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { isEditableImagePath } from '@shared/imageEdit'
 import {
@@ -9,9 +9,12 @@ import {
   isPipeUndoKey,
   isStopSlideshowKey,
   codeToKeyToken,
-  normalizeKeyToken
+  normalizeKeyToken,
+  type SlideshowKeyLike
 } from '@shared/slideshow/keys'
 import { SpinnerIcon } from '../lib/icons'
+import { slideshowCurrentPath, slideshowLength } from '../lib/slideshowTypes'
+import { useIdleCursorHide } from '../lib/useIdleCursorHide'
 
 type Buf = { url: string; path: string; rev: number }
 
@@ -44,10 +47,8 @@ export function SlideshowOverlay(): JSX.Element | null {
   const [bufs, setBufs] = useState<[Buf | null, Buf | null]>([null, null])
   const [front, setFront] = useState<0 | 1>(0)
   const [bootLoading, setBootLoading] = useState(false)
-  const [cursorHidden, setCursorHidden] = useState(false)
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const cursorHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGenRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const frontBufRef = useRef<Buf | null>(null)
@@ -56,16 +57,44 @@ export function SlideshowOverlay(): JSX.Element | null {
   frontBufRef.current = bufs[front]
   frontIdxRef.current = front
 
-  const path = active?.paths[active.index] ?? null
-  const prefetchPath =
-    active && active.status !== 'building' && active.paths.length > 1
-      ? (active.paths[(active.index + 1) % active.paths.length] ?? null)
-      : null
+  const path = active ? slideshowCurrentPath(active) : null
+  const listLen = active ? slideshowLength(active) : 0
+  const [prefetchPath, setPrefetchPath] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!enabled || !active || active.status === 'building' || listLen <= 1) {
+      setPrefetchPath(null)
+      return
+    }
+    const nextIdx = (active.index + 1) % listLen
+    if (active.compiledMode) {
+      let cancelled = false
+      void call(api.slideshow.compiledPathAt({ index: nextIdx }))
+        .then((r) => {
+          if (!cancelled) setPrefetchPath(r.path)
+        })
+        .catch(() => {
+          if (!cancelled) setPrefetchPath(null)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+    setPrefetchPath(active.paths[nextIdx] ?? null)
+  }, [enabled, active, active?.index, active?.compiledMode, listLen, active?.currentPath])
 
   // Present `path` via back buffer → decode → double-rAF swap (V-Sync).
   // Unloadable / undecodable images are skipped (do not interrupt autoplay).
+  // Empty playlist (compiled Clear / no counts) keeps the overlay up as a blank screen.
   useEffect(() => {
-    if (!enabled || !path || active?.status === 'building') return
+    if (!enabled || !active || active.status === 'building') return
+    if (!path) {
+      loadGenRef.current += 1
+      failStreakRef.current = 0
+      setBufs([null, null])
+      setBootLoading(false)
+      return
+    }
     if (
       frontBufRef.current?.path === path &&
       frontBufRef.current.rev === imageRevision
@@ -83,10 +112,15 @@ export function SlideshowOverlay(): JSX.Element | null {
     const skip = (): void => {
       if (cancelled || gen !== loadGenRef.current) return
       setBootLoading(false)
-      const total = active?.paths.length ?? 0
+      const total = listLen
       failStreakRef.current += 1
-      if (total > 0 && failStreakRef.current >= total) {
+      if (total > 0 && failStreakRef.current >= Math.min(total, 64)) {
         failStreakRef.current = 0
+        if (active?.compiledMode) {
+          // Stay on black compiled session — lists window can add counts back.
+          setBufs([null, null])
+          return
+        }
         void stopSlideshow()
         notify('No displayable images left — slideshow stopped', true)
         return
@@ -153,8 +187,10 @@ export function SlideshowOverlay(): JSX.Element | null {
   }, [
     enabled,
     path,
+    active,
     active?.status,
-    active?.paths.length,
+    listLen,
+    active?.compiledMode,
     imageRevision,
     slideshowSkipUnloadable,
     stopSlideshow,
@@ -183,7 +219,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       clearTimeout(timerRef.current)
       timerRef.current = null
     }
-    if (!enabled || !active || active.status !== 'playing' || active.paths.length === 0) return
+    if (!enabled || !active || active.status !== 'playing' || listLen === 0) return
     if (imageEditorOpen || dialogOpen) return
     const shown = bufs[front]
     if (!shown || shown.path !== path || shown.rev !== imageRevision) return
@@ -197,6 +233,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     active?.status,
     active?.index,
     active?.paths.length,
+    listLen,
     delayMs,
     slideshowAdvanceAuto,
     bufs,
@@ -209,10 +246,9 @@ export function SlideshowOverlay(): JSX.Element | null {
 
   useEffect(() => {
     if (!enabled || !active) return
-    const onKey = (e: KeyboardEvent): void => {
+
+    const handleKey = (e: SlideshowKeyLike): void => {
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
-      e.preventDefault()
-      e.stopPropagation()
 
       if (isStopSlideshowKey(e)) {
         void stopSlideshow()
@@ -221,7 +257,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       if (active.status === 'building') return
 
       if (isEditImageSlideshowKey(e)) {
-        const cur = active.paths[active.index]
+        const cur = slideshowCurrentPath(active)
         if (!cur || !isEditableImagePath(cur)) {
           notify('This image type cannot be edited in-app', true)
           return
@@ -244,22 +280,8 @@ export function SlideshowOverlay(): JSX.Element | null {
         return
       }
 
-      if (active.status === 'playing') {
-        slideshowInterrupt()
-        if (isNumpadCode(e.code)) return
-        if (isPipeUndoKey(e)) {
-          slideshowUndoAction()
-          return
-        }
-        const token = mapTokenFromEvent(e)
-        if (token) {
-          const row = map.find(
-            (r) => normalizeKeyToken(r.keyToken)?.toUpperCase() === token.toUpperCase()
-          )
-          if (row) slideshowMapAction(row)
-        }
-        return
-      }
+      // Auto → manual (wheel already does interrupt + navigate).
+      if (active.status === 'playing') slideshowInterrupt()
 
       if (isNumpadCode(e.code)) return
       if (isPipeUndoKey(e)) {
@@ -291,6 +313,19 @@ export function SlideshowOverlay(): JSX.Element | null {
       }
     }
 
+    const onKey = (e: KeyboardEvent): void => {
+      if (dialogOpen || imageEditorOpen || contextMenuOpen) return
+      e.preventDefault()
+      e.stopPropagation()
+      handleKey(e)
+    }
+
+    // Keys from the Compiled lists window (it keeps focus while the slideshow runs).
+    const unsubRelay = api.onEvent((event) => {
+      if (event.type !== 'slideshow-key') return
+      handleKey(event.payload)
+    })
+
     // Wheel = Up/Down arrows: interrupt auto → manual, then prev/next.
     let wheelLock = false
     const onWheel = (e: WheelEvent): void => {
@@ -317,6 +352,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     return () => {
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('wheel', onWheel, true)
+      unsubRelay()
     }
   }, [
     enabled,
@@ -341,44 +377,13 @@ export function SlideshowOverlay(): JSX.Element | null {
       setBufs([null, null])
       setFront(0)
       setBootLoading(false)
-      setCursorHidden(false)
     }
   }, [enabled, active])
 
-  // Auto-hide cursor after 2s idle; show again on any pointer move.
-  useEffect(() => {
-    if (!enabled || !active || imageEditorOpen || dialogOpen || contextMenuOpen) {
-      if (cursorHideTimerRef.current) {
-        clearTimeout(cursorHideTimerRef.current)
-        cursorHideTimerRef.current = null
-      }
-      setCursorHidden(false)
-      return
-    }
-
-    const armHide = (): void => {
-      if (cursorHideTimerRef.current) clearTimeout(cursorHideTimerRef.current)
-      cursorHideTimerRef.current = setTimeout(() => {
-        cursorHideTimerRef.current = null
-        setCursorHidden(true)
-      }, 2000)
-    }
-
-    const onMove = (): void => {
-      setCursorHidden(false)
-      armHide()
-    }
-
-    armHide()
-    window.addEventListener('pointermove', onMove, true)
-    return () => {
-      window.removeEventListener('pointermove', onMove, true)
-      if (cursorHideTimerRef.current) {
-        clearTimeout(cursorHideTimerRef.current)
-        cursorHideTimerRef.current = null
-      }
-    }
-  }, [enabled, active, imageEditorOpen, dialogOpen, contextMenuOpen])
+  const slideshowLive = Boolean(enabled && active)
+  const cursorHidden = useIdleCursorHide(
+    slideshowLive && !imageEditorOpen && !dialogOpen && !contextMenuOpen
+  )
 
   if (!enabled || !active) return null
 
@@ -386,7 +391,7 @@ export function SlideshowOverlay(): JSX.Element | null {
   const captionPath = shown?.path ?? path
   const caption =
     drawCaption && captionPath
-      ? `${basename(captionPath)}  (${active.index + 1}/${active.paths.length})`
+      ? `${basename(captionPath)}  (${active.index + 1}/${listLen})`
       : null
 
   return (
@@ -400,8 +405,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       onContextMenu={(e) => {
         e.preventDefault()
         e.stopPropagation()
-        setCursorHidden(false)
-        const cur = active.paths[active.index]
+        const cur = slideshowCurrentPath(active)
         openContextMenu({
           x: e.clientX,
           y: e.clientY,
@@ -425,17 +429,19 @@ export function SlideshowOverlay(): JSX.Element | null {
 
         <img
           className={`slideshow-image slideshow-buf${front === 0 ? ' is-front' : ' is-back'}`}
-          src={bufs[0]?.url}
+          src={bufs[0]?.url || undefined}
           alt=""
           draggable={false}
           decoding="async"
+          hidden={!bufs[0]?.url}
         />
         <img
           className={`slideshow-image slideshow-buf${front === 1 ? ' is-front' : ' is-back'}`}
-          src={bufs[1]?.url}
+          src={bufs[1]?.url || undefined}
           alt=""
           draggable={false}
           decoding="async"
+          hidden={!bufs[1]?.url}
         />
 
         {caption && <div className="slideshow-caption">{caption}</div>}
@@ -460,7 +466,7 @@ function waitImgLoad(img: HTMLImageElement): Promise<void> {
   })
 }
 
-function mapTokenFromEvent(e: KeyboardEvent): string | null {
+function mapTokenFromEvent(e: SlideshowKeyLike): string | null {
   // Prefer KeyboardEvent.code → Forms.Keys (handles OemMinus, Back, O, …)
   return codeToKeyToken(e.code)
 }

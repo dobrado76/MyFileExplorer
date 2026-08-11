@@ -8,6 +8,7 @@ import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { api, call } from '../lib/ipc'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
+import { slideshowCurrentPath } from '../lib/slideshowTypes'
 
 /** File extension including leading dot (e.g. `.ffs_gui`), or null. */
 function fileExtension(filePath: string): string | null {
@@ -143,7 +144,9 @@ export function ContextMenu(): JSX.Element | null {
 
     // Slideshow player — categorize / delete / undo / edit / reveal / exit.
     if (menu.slideshow) {
-      const cur = paths[0] ?? s.slideshow.active?.paths[s.slideshow.active.index] ?? null
+      const cur =
+        paths[0] ??
+        (s.slideshow.active ? slideshowCurrentPath(s.slideshow.active) : null)
       const map = s.slideshow.categorizerMap
       const folderRows = map.filter((r) => !isDeleteMapRow(r))
       const deleteRow = map.find(isDeleteMapRow) ?? {

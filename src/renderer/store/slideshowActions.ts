@@ -15,7 +15,7 @@ import {
 import { SLIDESHOW_IMAGE_LIST_CAP } from '@shared/slideshow/constants'
 import { api, call, IpcError } from '../lib/ipc'
 import type { SlideshowAction, SlideshowSession, SlideshowState } from '../lib/slideshowTypes'
-import { emptySlideshowSession } from '../lib/slideshowTypes'
+import { emptySlideshowSession, slideshowLength, slideshowCurrentPath } from '../lib/slideshowTypes'
 import { basename, samePath, isUnderPath } from '../lib/paths'
 
 type Get = () => SlideshowHost
@@ -75,6 +75,13 @@ function clampImageList(paths: string[]): string[] {
   return paths.length > SLIDESHOW_IMAGE_LIST_CAP
     ? paths.slice(0, SLIDESHOW_IMAGE_LIST_CAP)
     : paths
+}
+
+/** Ignores stale expand/apply results after a newer ±/# playlist push. */
+let compiledApplyRev = 0
+function nextCompiledApplyRev(): number {
+  compiledApplyRev += 1
+  return compiledApplyRev
 }
 
 /** Restore cache toggle, image list, and categorizer map from persisted settings. */
@@ -338,7 +345,8 @@ export function createSlideshowActions(get: Get, set: Set) {
 
     /**
      * Start/resume compiled slideshow from !!Lists/last.txt (+ Index ADS).
-     * Opens the detached lists window.
+     * Opens lists + black overlay immediately; main builds a virtual playlist
+     * (no flat path×count array).
      */
     async startCompiledSlideshow(opts?: { resume?: boolean }) {
       if (!gateOn(get)) return
@@ -351,122 +359,175 @@ export function createSlideshowActions(get: Get, set: Set) {
       const host = get() as SlideshowHost & { closeImageViewer?: () => void; imageViewer?: unknown }
       if (host.imageViewer && host.closeImageViewer) host.closeImageViewer()
 
+      const startRev = nextCompiledApplyRev()
+
       try {
         await call(api.slideshow.openCompiledListsWindow())
+        actions.applyCompiledVirtual(
+          { total: 0, index: 0, path: null, truncated: false },
+          startRev
+        )
+
         const { lines } = await call(api.slideshow.readLastList({ compiledRoot: root }))
-        if (!lines.some((l) => l.count > 0)) {
-          get().notify('No counts in last.txt — set # in the lists window, then Start there')
-          return
-        }
-        const { paths } = await call(api.slideshow.expandComposite({ lines }))
-        if (paths.length === 0) {
-          get().notify('Compiled playlist is empty', true)
-          return
-        }
-        const capped = clampImageList(paths)
-        let index = 0
-        if (opts?.resume !== false) {
-          const saved = get().settings.slideshow.compiledPlaylistIndex ?? 0
-          index = Math.max(0, Math.min(saved, capped.length - 1))
-        }
-        // Broadcast so the lists window marks the session live and +/- / Clear apply instantly.
-        await call(
-          api.slideshow.applyCompiledPlaylist({
-            paths: capped,
-            preferPath: capped[index] ?? null
+        const ss = get().settings.slideshow
+        const preferIndex =
+          opts?.resume !== false ? (ss.compiledPlaylistIndex ?? 0) : 0
+
+        if (startRev < compiledApplyRev) return
+
+        const snap = await call(
+          api.slideshow.applyCompiledLines({
+            lines,
+            order: ss.order,
+            ascending: ss.ascending,
+            preferIndex,
+            rev: nextCompiledApplyRev()
           })
         )
+        // Broadcast already applied via event; ensure local state if event raced.
+        if (get().slideshow.active?.compiledMode) {
+          actions.applyCompiledVirtual(snap, snap.rev ?? compiledApplyRev)
+        }
+        if (snap.truncated) {
+          get().notify('Compiled playlist truncated at 2,147,483,647 entries')
+        }
       } catch (e) {
+        if (!get().slideshow.active?.compiledMode) {
+          actions.applyCompiledVirtual(
+            { total: 0, index: 0, path: null },
+            nextCompiledApplyRev()
+          )
+        }
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
     },
 
-    /** Second toolbar button: config if no last.txt, else resume compiled slideshow. */
+    /**
+     * Second toolbar button: always open lists + start compiled session
+     * (blank screen when last.txt has no counts / empty Index).
+     */
     async compiledSlideshowToolbarClick() {
       if (!gateOn(get)) return
-      const root = get().settings.slideshow.compiledFileListsFolder.trim()
-      if (!root) {
-        get().notify('Set Compiled file lists folder in Settings', true)
-        return
-      }
-      try {
-        const { usable } = await call(api.slideshow.lastListUsable({ compiledRoot: root }))
-        if (!usable) {
-          get().openDialog({ kind: 'compiled-lists-config', returnSection: 'slideshow' })
-          return
-        }
-        await actions.startCompiledSlideshow({ resume: true })
-      } catch (e) {
-        get().notify(e instanceof IpcError ? e.message : String(e), true)
-      }
+      await actions.startCompiledSlideshow({ resume: true })
     },
 
-    /** Apply playlist from detached lists window (mid-session or start). */
-    applyCompiledPlaylist(paths: string[], preferPath?: string | null) {
+    /** Apply virtual compiled playlist meta from main (not a flat path array). */
+    applyCompiledVirtual(
+      meta: {
+        total: number
+        index: number
+        path: string | null
+        truncated?: boolean
+        resumePlaying?: boolean
+      },
+      rev?: number | null
+    ) {
       if (!gateOn(get)) return
-      const capped = clampImageList(paths)
-      const a = get().slideshow.active
-      if (capped.length === 0) {
-        // Clear counts → empty playlist in place (do not stopSlideshow — that closes the lists window).
-        if (a?.compiledMode) {
-          set({
-            slideshow: {
-              ...get().slideshow,
-              active: {
-                ...a,
-                paths: [],
-                index: 0,
-                buildFound: 0,
-                buildCurrent: ''
-              }
-            }
-          })
-        }
-        return
-      }
-      if (!a) {
-        let index = 0
-        if (preferPath) {
-          const found = capped.findIndex((p) => samePath(p, preferPath))
-          if (found >= 0) index = found
-        }
-        set({
-          slideshow: {
-            ...get().slideshow,
-            active: {
-              status: 'playing',
-              paths: capped,
-              index,
-              builtFromCache: true,
-              buildFound: capped.length,
-              buildCurrent: '',
-              actions: [],
-              compiledMode: true
-            }
-          }
-        })
-        return
-      }
-      let index = a.index
-      const prefer = preferPath || a.paths[a.index]
-      if (prefer) {
-        const found = capped.findIndex((p) => samePath(p, prefer))
-        index = found >= 0 ? found : Math.min(a.index, capped.length - 1)
+      if (rev != null) {
+        if (rev < compiledApplyRev) return
+        compiledApplyRev = rev
       } else {
-        index = Math.min(a.index, capped.length - 1)
+        compiledApplyRev += 1
       }
+      const a = get().slideshow.active
+      const status =
+        meta.resumePlaying === true
+          ? 'playing'
+          : a?.compiledMode && a.status !== 'building'
+            ? a.status
+            : 'playing'
       set({
         slideshow: {
           ...get().slideshow,
           active: {
-            ...a,
-            paths: capped,
-            index,
+            status,
+            paths: [],
+            index: meta.total <= 0 ? 0 : Math.max(0, Math.min(meta.index, meta.total - 1)),
+            builtFromCache: true,
+            buildFound: meta.total,
+            buildCurrent: '',
+            actions: a?.compiledMode ? a.actions : [],
             compiledMode: true,
-            buildFound: capped.length
+            compiledTotal: meta.total,
+            currentPath: meta.path,
+            compiledTruncated: meta.truncated === true
           }
         }
       })
+    },
+
+    /** @deprecated flat-path apply — only used if legacy broadcast includes paths[]. */
+    applyCompiledPlaylist(
+      paths: string[],
+      preferPath?: string | null,
+      rev?: number | null
+    ) {
+      if (!gateOn(get)) return
+      // Legacy: treat as tiny flat list converted to virtual-shaped state.
+      if (rev != null) {
+        if (rev < compiledApplyRev) return
+        compiledApplyRev = rev
+      } else {
+        compiledApplyRev += 1
+      }
+      const capped = clampImageList(paths)
+      let index = 0
+      if (preferPath) {
+        const found = capped.findIndex((p) => samePath(p, preferPath))
+        if (found >= 0) index = found
+      }
+      const a = get().slideshow.active
+      set({
+        slideshow: {
+          ...get().slideshow,
+          active: {
+            status: 'playing',
+            paths: capped,
+            index,
+            builtFromCache: true,
+            buildFound: capped.length,
+            buildCurrent: '',
+            actions: a?.compiledMode ? a.actions : [],
+            compiledMode: true,
+            compiledTotal: capped.length,
+            currentPath: capped[index] ?? null
+          }
+        }
+      })
+    },
+
+    async setCompiledPlayIndex(index: number, status?: SlideshowState['status']) {
+      const a = get().slideshow.active
+      if (!a?.compiledMode) return
+      const n = a.compiledTotal ?? 0
+      if (n <= 0) {
+        set({
+          slideshow: {
+            ...get().slideshow,
+            active: { ...a, index: 0, currentPath: null, status: status ?? a.status }
+          }
+        })
+        return
+      }
+      const i = Math.max(0, Math.min(index, n - 1))
+      try {
+        const { path } = await call(api.slideshow.compiledPathAt({ index: i }))
+        const cur = get().slideshow.active
+        if (!cur?.compiledMode) return
+        set({
+          slideshow: {
+            ...get().slideshow,
+            active: {
+              ...cur,
+              index: i,
+              currentPath: path,
+              status: status ?? cur.status
+            }
+          }
+        })
+      } catch {
+        /* ignore */
+      }
     },
 
     slideshowInterrupt() {
@@ -485,18 +546,27 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!gateOn(get)) return
       const a = get().slideshow.active
       if (!a || a.status !== 'playing') return
+      const n = slideshowLength(a)
+      if (n <= 0) return
       const next = a.index + 1
-      if (next >= a.paths.length) {
+      if (next >= n) {
         if (get().settings.slideshow.loop) {
-          set({
-            slideshow: {
-              ...get().slideshow,
-              active: { ...a, index: 0 }
-            }
-          })
+          void actions.setCompiledPlayIndex(0)
+          if (!a.compiledMode) {
+            set({
+              slideshow: {
+                ...get().slideshow,
+                active: { ...a, index: 0 }
+              }
+            })
+          }
         } else {
           void actions.stopSlideshow()
         }
+        return
+      }
+      if (a.compiledMode) {
+        void actions.setCompiledPlayIndex(next)
         return
       }
       set({
@@ -515,7 +585,30 @@ export function createSlideshowActions(get: Get, set: Set) {
     slideshowSkipUnloadable() {
       if (!gateOn(get)) return
       const a = get().slideshow.active
-      if (!a || a.status === 'building' || a.paths.length === 0) return
+      if (!a || a.status === 'building') return
+
+      if (a.compiledMode) {
+        const badPath = a.currentPath
+        if (!badPath) return
+        const imageListCache = get().slideshow.imageListCache.filter((p) => !samePath(p, badPath))
+        void call(api.slideshow.compiledPathAt({ index: a.index })).catch(() => {})
+        // Soft-skip: advance; main keeps virtual list intact.
+        const n = a.compiledTotal ?? 0
+        persistSlideshowCache(get)
+        void moveInvalidSlideshowImage(get, badPath)
+        set({ slideshow: { ...get().slideshow, imageListCache } })
+        if (n <= 0) return
+        const next = a.index + 1
+        if (next >= n) {
+          if (get().settings.slideshow.loop) void actions.setCompiledPlayIndex(0)
+          else get().notify('No displayable images left in compiled session', true)
+          return
+        }
+        void actions.setCompiledPlayIndex(next, a.status)
+        return
+      }
+
+      if (a.paths.length === 0) return
       const badPath = a.paths[a.index]
       if (!badPath) return
       const removeIdx = a.index
@@ -570,8 +663,9 @@ export function createSlideshowActions(get: Get, set: Set) {
     slideshowNavigate(dir: -1 | 1 | 'first' | 'last') {
       if (!gateOn(get)) return
       const a = get().slideshow.active
-      if (!a || a.paths.length === 0) return
-      const n = a.paths.length
+      if (!a) return
+      const n = slideshowLength(a)
+      if (n <= 0) return
       let index = a.index
       if (dir === 'first') index = 0
       else if (dir === 'last') index = n - 1
@@ -579,6 +673,10 @@ export function createSlideshowActions(get: Get, set: Set) {
         index = (((a.index + dir) % n) + n) % n
       } else {
         index = Math.max(0, Math.min(n - 1, a.index + dir))
+      }
+      if (a.compiledMode) {
+        void actions.setCompiledPlayIndex(index, a.status === 'building' ? a.status : 'manual')
+        return
       }
       set({
         slideshow: {
@@ -591,10 +689,52 @@ export function createSlideshowActions(get: Get, set: Set) {
     slideshowMapAction(row: CategorizerMapRow) {
       if (!gateOn(get)) return
       const a = get().slideshow.active
-      if (!a || a.status === 'building' || a.paths.length === 0) return
-      const curPath = a.paths[a.index]
+      if (!a || a.status === 'building') return
+      const curPath = slideshowCurrentPath(a)
       if (!curPath) return
       const insertIndex = a.index
+
+      if (a.compiledMode) {
+        // Soft-skip: do not rebuild virtual list; buffer action and advance.
+        let action: SlideshowAction
+        if (isDeleteMapRow(row)) {
+          action = {
+            id: nextActionId(),
+            type: 'delete',
+            path: curPath,
+            mapName: row.name,
+            keyToken: row.keyToken,
+            insertIndex
+          }
+        } else {
+          action = {
+            id: nextActionId(),
+            type: 'categorize',
+            path: curPath,
+            mapName: row.name,
+            keyToken: row.keyToken,
+            destPath: row.path,
+            insertIndex
+          }
+        }
+        set({
+          slideshow: {
+            ...get().slideshow,
+            active: {
+              ...a,
+              status: 'manual',
+              actions: [...a.actions, action]
+            }
+          }
+        })
+        const n = a.compiledTotal ?? 0
+        if (n <= 0) return
+        const next = Math.min(a.index + 1, n - 1)
+        void actions.setCompiledPlayIndex(next === a.index && n > 1 ? 0 : next, 'manual')
+        return
+      }
+
+      if (a.paths.length === 0) return
       const paths = a.paths.filter((_, i) => i !== a.index)
       const nextIndex = Math.min(insertIndex, Math.max(0, paths.length - 1))
       let action: SlideshowAction
@@ -641,6 +781,21 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!a || a.actions.length === 0) return
       const stack = [...a.actions]
       const last = stack.pop()!
+      if (a.compiledMode) {
+        set({
+          slideshow: {
+            ...get().slideshow,
+            active: {
+              ...a,
+              status: 'manual',
+              actions: stack,
+              currentPath: last.path,
+              index: Math.min(last.insertIndex, Math.max(0, (a.compiledTotal ?? 1) - 1))
+            }
+          }
+        })
+        return
+      }
       const paths = [...a.paths]
       const idx = Math.min(last.insertIndex, paths.length)
       paths.splice(idx, 0, last.path)
@@ -668,6 +823,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       }
       const pending = [...a.actions]
       set({ slideshow: { ...get().slideshow, active: null } })
+      void call(api.slideshow.clearVirtualPlaylist()).catch(() => {})
       // Lists window and slideshow are paired — closing either ends both.
       void call(api.slideshow.closeCompiledListsWindow()).catch(() => {})
       if (pending.length === 0) {
@@ -700,6 +856,7 @@ export function createSlideshowActions(get: Get, set: Set) {
 
     resetSlideshowForGateOff() {
       void api.slideshow.cancelList().catch(() => {})
+      void api.slideshow.clearVirtualPlaylist().catch(() => {})
       void api.slideshow.closeCompiledListsWindow().catch(() => {})
       set({ slideshow: emptySlideshowSession() })
     },
@@ -715,7 +872,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       const ss = get().slideshow
       const a = ss.active
       if (!a) return
-      const cur = a.paths[a.index]
+      const cur = slideshowCurrentPath(a)
       if (!cur || !samePath(cur, path)) return
       set({ slideshow: { ...ss, imageRevision: ss.imageRevision + 1 } })
     }

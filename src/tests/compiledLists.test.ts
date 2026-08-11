@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isCompiledListRefPath,
   lastListHasPositiveCounts,
   parseDatImageLines,
   parseLastListText,
+  parseTxtBodyLines,
   parseTxtFolderLines,
   sanitizeCompiledName,
   serializeLastList
 } from '../shared/slideshow/compiledLists'
+import { folderScanCacheKey } from '../main/slideshow/compiledLists'
 
 describe('compiledLists helpers', () => {
   it('sanitizes names', () => {
@@ -35,5 +38,87 @@ describe('compiledLists helpers', () => {
       { folder: 'C:\\photos', count: 1 },
       { folder: 'D:\\more', count: 3 }
     ])
+  })
+
+  it('detects list refs vs folders in .txt body', () => {
+    expect(isCompiledListRefPath('C:\\Lists\\Me.dat')).toBe(true)
+    expect(isCompiledListRefPath('C:\\Lists\\combo.TXT')).toBe(true)
+    expect(isCompiledListRefPath('C:\\photos')).toBe(false)
+
+    const rows = parseTxtBodyLines(
+      [
+        'C:\\Documents\\Lists\\All-Faces\\Me.dat |=> 3',
+        'C:\\Documents\\Lists\\All-Faces\\MyWife.dat |=> 1',
+        'C:\\Documents\\Lists\\All-NoFaces\\MyCat.dat |=> 1',
+        'C:\\Documents\\Lists\\All-NoFaces\\Friends.dat |=> 1',
+        'C:\\photos\\vacation',
+        'D:\\more |=> 2',
+        '# comment',
+        ''
+      ].join('\n')
+    )
+    expect(rows).toEqual([
+      { path: 'C:\\Documents\\Lists\\All-Faces\\Me.dat', count: 3, kind: 'list' },
+      { path: 'C:\\Documents\\Lists\\All-Faces\\MyWife.dat', count: 1, kind: 'list' },
+      { path: 'C:\\Documents\\Lists\\All-NoFaces\\MyCat.dat', count: 1, kind: 'list' },
+      { path: 'C:\\Documents\\Lists\\All-NoFaces\\Friends.dat', count: 1, kind: 'list' },
+      { path: 'C:\\photos\\vacation', count: 1, kind: 'folder' },
+      { path: 'D:\\more', count: 2, kind: 'folder' }
+    ])
+  })
+
+  it('folder scan cache keys normalize case and separators', () => {
+    const a = folderScanCacheKey('C:\\Photos\\Vacation')
+    const b = folderScanCacheKey('c:/Photos/Vacation')
+    expect(a).toBe(b)
+    expect(a).toBe('c:\\photos\\vacation')
+  })
+})
+
+describe('validateCompiledLists', () => {
+  it('reports missing folders and nested list refs', async () => {
+    const os = await import('node:os')
+    const fsp = await import('node:fs/promises')
+    const path = await import('node:path')
+    const { validateCompiledLists } = await import('../main/slideshow/compiledLists')
+
+    const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-validate-lists-'))
+    const cat = path.join(root, 'Cat')
+    await fsp.mkdir(cat, { recursive: true })
+    const realFolder = path.join(root, 'RealPhotos')
+    await fsp.mkdir(realFolder, { recursive: true })
+    const nestedOk = path.join(cat, 'ok.dat')
+    await fsp.writeFile(nestedOk, `${realFolder}\n`, 'utf8')
+
+    const brokenDat = path.join(cat, 'broken.dat')
+    await fsp.writeFile(
+      brokenDat,
+      [`${path.join(root, 'NoSuchFolder')}`, `${path.join(cat, 'missing.dat')}|=>2`, `${realFolder}`].join(
+        '\n'
+      ),
+      'utf8'
+    )
+
+    const brokenTxt = path.join(cat, 'combo.txt')
+    await fsp.writeFile(
+      brokenTxt,
+      [`${path.join(root, 'AlsoMissing')}`, `${path.join(cat, 'gone.txt')}`].join('\n'),
+      'utf8'
+    )
+
+    try {
+      const res = await validateCompiledLists(root)
+      expect(res.checkedLists).toBe(3)
+      expect(res.ok).toBe(false)
+      const kinds = res.issues.map((i) => i.kind).sort()
+      expect(kinds).toContain('missing-folder')
+      expect(kinds).toContain('missing-list')
+      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('nosuchfolder'))).toBe(true)
+      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('missing.dat'))).toBe(true)
+      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('gone.txt'))).toBe(true)
+      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('alsomissing'))).toBe(true)
+    } finally {
+      await fsp.rm(root, { recursive: true, force: true })
+    }
   })
 })

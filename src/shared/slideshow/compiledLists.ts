@@ -2,8 +2,10 @@
  * Compiled file lists — paths and last.txt / composite helpers.
  *
  * Per-category files under `{compiledRoot}/{Name}/`:
- * - `.dat` — body (and usually ADS Index) = image full paths, one per line
- * - `.txt` — body = folders (optional `path|=>count`); may also have ADS Index
+ * - `.dat` — body = source folder path(s) (optional image paths / `path|=>count`);
+ *   ADS Index/Count = crawled jpg/png list after Update Lists (`|=>` ignored then)
+ * - `.txt` — body = folders and/or other `.dat`/`.txt` list refs (optional `path|=>count`);
+ *   never Index ADS — expand from body at play time
  *
  * `!!Lists/last.txt` (+ user-saved `!!Lists/*.txt`) = composite of those files:
  * `absoluteListPath|=>count`
@@ -26,10 +28,19 @@ export type LastListLine = {
   count: number
 }
 
+/** @deprecated Use TxtBodyLine — kept for older call sites. */
 export type TxtFolderLine = {
   folder: string
   /** Repeat count from `|=>`; default 1 when omitted. */
   count: number
+}
+
+/** One line in a `.txt` list body: a folder to scan, or another list file to expand. */
+export type TxtBodyLine = {
+  path: string
+  /** Repeat count from `|=>`; default 1 when omitted. */
+  count: number
+  kind: 'folder' | 'list'
 }
 
 /** Sanitize a display name into a Windows-safe folder / .dat basename. */
@@ -62,6 +73,12 @@ export function isCompiledListFileName(name: string): boolean {
   return lower.endsWith('.dat') || lower.endsWith('.txt')
 }
 
+/** True if path points at a `.dat` / `.txt` list file (by extension). */
+export function isCompiledListRefPath(p: string): boolean {
+  const lower = p.trim().toLowerCase()
+  return lower.endsWith('.dat') || lower.endsWith('.txt')
+}
+
 /** Non-empty body lines (skip blanks / # comments). */
 export function parseBodyLines(text: string): string[] {
   const out: string[] = []
@@ -73,27 +90,45 @@ export function parseBodyLines(text: string): string[] {
   return out
 }
 
-/**
- * `.txt` body: folder paths, optional `folder|=>count` (spaces around `|=>` ok).
- * Lines without `|=>` count as 1.
- */
-export function parseTxtFolderLines(text: string): TxtFolderLine[] {
-  const out: TxtFolderLine[] = []
-  for (const line of parseBodyLines(text)) {
-    const sep = line.lastIndexOf(COMPILED_COUNT_SEP)
-    if (sep > 0) {
-      const folder = line.slice(0, sep).trim()
-      const count = Number.parseInt(line.slice(sep + COMPILED_COUNT_SEP.length).trim(), 10)
-      if (!folder) continue
-      out.push({
-        folder,
-        count: Number.isFinite(count) && count > 0 ? count : 1
-      })
-    } else {
-      out.push({ folder: line, count: 1 })
+function parseCountSuffix(line: string): { path: string; count: number } | null {
+  const sep = line.lastIndexOf(COMPILED_COUNT_SEP)
+  if (sep > 0) {
+    const p = line.slice(0, sep).trim()
+    const count = Number.parseInt(line.slice(sep + COMPILED_COUNT_SEP.length).trim(), 10)
+    if (!p) return null
+    return {
+      path: p,
+      count: Number.isFinite(count) && count > 0 ? count : 1
     }
   }
+  return { path: line, count: 1 }
+}
+
+/**
+ * `.txt` body: folder paths and/or `.dat`/`.txt` list refs.
+ * Optional `path|=>count` (spaces around `|=>` ok). Lines without `|=>` count as 1.
+ */
+export function parseTxtBodyLines(text: string): TxtBodyLine[] {
+  const out: TxtBodyLine[] = []
+  for (const line of parseBodyLines(text)) {
+    const parsed = parseCountSuffix(line)
+    if (!parsed) continue
+    out.push({
+      path: parsed.path,
+      count: parsed.count,
+      kind: isCompiledListRefPath(parsed.path) ? 'list' : 'folder'
+    })
+  }
   return out
+}
+
+/**
+ * `.txt` body as folder lines only (legacy helper).
+ * List-file refs (`.dat`/`.txt`) are still returned as `{ folder: path }` —
+ * prefer `parseTxtBodyLines` for new code.
+ */
+export function parseTxtFolderLines(text: string): TxtFolderLine[] {
+  return parseTxtBodyLines(text).map((r) => ({ folder: r.path, count: r.count }))
 }
 
 /** `.dat` body: image full paths (one per line). */

@@ -84,6 +84,72 @@ function shuffleInPlace<T>(arr: T[]): void {
   }
 }
 
+function sortImageEntries(
+  entries: ImageEntry[],
+  order: SlideshowListRequest['order'],
+  ascending: boolean
+): void {
+  if (order === 'random') {
+    shuffleInPlace(entries)
+    return
+  }
+  const dir = ascending ? 1 : -1
+  entries.sort((a, b) => {
+    let cmp = 0
+    if (order === 'name') {
+      cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    } else if (order === 'size') {
+      cmp = a.size - b.size
+    } else {
+      const aa = a.width * a.height
+      const bb = b.width * b.height
+      cmp = aa - bb
+      if (cmp === 0) {
+        cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+      }
+    }
+    return cmp * dir
+  })
+}
+
+/**
+ * Apply Settings → Slideshow order to an already-built path list
+ * (e.g. compiled expand). Used so ±/# rebuilds reshuffle/resort on the spot.
+ */
+export async function sortSlideshowImagePaths(
+  paths: string[],
+  order: SlideshowListRequest['order'],
+  ascending: boolean
+): Promise<string[]> {
+  if (paths.length <= 1) return [...paths]
+
+  const entries: ImageEntry[] = paths.map((p) => ({
+    path: p,
+    name: path.basename(p),
+    size: 0,
+    width: 0,
+    height: 0
+  }))
+
+  if (order === 'size' || order === 'dimensions') {
+    await Promise.all(
+      entries.map(async (e) => {
+        try {
+          e.size = (await fsp.stat(e.path)).size
+        } catch {
+          /* leave 0 */
+        }
+      })
+    )
+  }
+  if (order === 'dimensions') {
+    await fillDimensions(entries)
+  }
+
+  sortImageEntries(entries, order, ascending)
+  return entries.map((e) => e.path)
+}
+
 export async function listSlideshowImages(
   req: SlideshowListRequest
 ): Promise<{ paths: string[]; truncated: boolean }> {
@@ -109,27 +175,7 @@ export async function listSlideshowImages(
     throw new AppError('cancelled', 'Slideshow list cancelled')
   }
 
-  if (req.order === 'random') {
-    shuffleInPlace(entries)
-  } else {
-    const dir = req.ascending ? 1 : -1
-    entries.sort((a, b) => {
-      let cmp = 0
-      if (req.order === 'name') {
-        cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-      } else if (req.order === 'size') {
-        cmp = a.size - b.size
-      } else {
-        const aa = a.width * a.height
-        const bb = b.width * b.height
-        cmp = aa - bb
-        if (cmp === 0) {
-          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-        }
-      }
-      return cmp * dir
-    })
-  }
+  sortImageEntries(entries, req.order, req.ascending)
 
   logMain('info', `Slideshow list: ${entries.length} images from ${roots.length} root(s)`)
   return { paths: entries.map((e) => e.path), truncated }

@@ -105,7 +105,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
 | Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar. **Windows Properties…** (bottom-left) opens Explorer’s own property sheet for Security / Sharing / etc. (not reimplemented in-app) |
 
-Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dates/type for all) then Replace / Skip / Keep both (rename), per file or apply to all.
+Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dates/type for all) then Replace / Skip / Keep both (rename), per file or apply to all. **Same-folder copy-paste** skips the dialog and auto Keep both (`name (2).ext`), selecting the new copies.
 
 ---
 

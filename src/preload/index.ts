@@ -111,6 +111,7 @@ const api: MyFileExplorerApi = {
     readTextFile: invoke(IPC.slideshowReadTextFile),
     writeTextFile: invoke(IPC.slideshowWriteTextFile),
     updateCompiledLists: invoke(IPC.slideshowUpdateCompiledLists),
+    validateCompiledLists: invoke(IPC.slideshowValidateCompiledLists),
     listCompiledDats: invoke(IPC.slideshowListCompiledDats),
     readDatIndex: invoke(IPC.slideshowReadDatIndex),
     readLastList: invoke(IPC.slideshowReadLastList),
@@ -121,6 +122,10 @@ const api: MyFileExplorerApi = {
     expandComposite: invoke(IPC.slideshowExpandComposite),
     openCompiledListsWindow: invokeVoid(IPC.slideshowOpenCompiledListsWindow),
     closeCompiledListsWindow: invokeVoid(IPC.slideshowCloseCompiledListsWindow),
+    relayKey: invoke(IPC.slideshowRelayKey),
+    applyCompiledLines: invoke(IPC.slideshowApplyCompiledLines),
+    compiledPathAt: invoke(IPC.slideshowCompiledPathAt),
+    clearVirtualPlaylist: invokeVoid(IPC.slideshowClearVirtualPlaylist),
     applyCompiledPlaylist: invoke(IPC.slideshowApplyCompiledPlaylist)
   },
   ads: {

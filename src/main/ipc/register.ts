@@ -2,7 +2,7 @@ import { app, dialog, ipcMain, BrowserWindow, type IpcMainInvokeEvent } from 'el
 import fsp from 'node:fs/promises'
 import { z, type ZodType } from 'zod'
 import { ok, err, errFromUnknown, type Result } from '@shared/result'
-import { IPC } from '@shared/ipc/contract'
+import { IPC, EVENT_CHANNEL } from '@shared/ipc/contract'
 import { expandWindowsEnvPath } from '../paths/expandEnv'
 import {
   listRequestSchema,
@@ -26,12 +26,16 @@ import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/
 import { slideshowListRequestSchema } from '@shared/schemas/slideshow'
 import {
   updateCompiledListsRequestSchema,
+  validateCompiledListsRequestSchema,
   listCompiledDatsRequestSchema,
   compiledRootSchema,
   writeLastListRequestSchema,
   compositeFileSchema,
   writeCompositeListRequestSchema,
-  expandCompositeRequestSchema
+  expandCompositeRequestSchema,
+  applyCompiledLinesRequestSchema,
+  slideshowRelayKeySchema,
+  compiledPathAtRequestSchema
 } from '@shared/schemas/compiledLists'
 import {
   adsPathSchema,
@@ -72,11 +76,12 @@ import { restoreFromRecycleBin, listRecycleBin, emptyRecycleBin, deleteFromRecyc
 import { watchDirectory, unwatchDirectory, muteWatchers } from '../fs/watch'
 import { requestCancelActiveOps } from '../fs/opProgress'
 import { broadcast } from './events'
-import { markRendererReady } from '../externalOpen'
+import { getMainWindow, markRendererReady } from '../externalOpen'
 import { findUpdateInstaller, runUpdateInstaller } from '../update/installers'
 import { cancelSlideshowList, listSlideshowImages } from '../slideshow/listImages'
 import {
   updateCompiledLists,
+  validateCompiledLists,
   listCompiledDats,
   readDatIndex,
   readLastList,
@@ -90,6 +95,12 @@ import {
   openCompiledListsWindow,
   closeCompiledListsWindow
 } from '../slideshow/compiledListsWindow'
+import {
+  buildVirtualPlaylist,
+  clearVirtualPlaylist,
+  pathAtPlayIndex,
+  snapshotPreferPath
+} from '../slideshow/virtualPlaylist'
 import {
   openPath,
   showItemInFolder,
@@ -489,6 +500,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.slideshowUpdateCompiledLists, updateCompiledListsRequestSchema, async (req) =>
     updateCompiledLists(req.compiledRoot, req.entries)
   )
+  handle(IPC.slideshowValidateCompiledLists, validateCompiledListsRequestSchema, async (req) =>
+    validateCompiledLists(req.compiledRoot)
+  )
   handle(IPC.slideshowListCompiledDats, listCompiledDatsRequestSchema, async (req) => ({
     tabs: await listCompiledDats(req.compiledRoot, req.entries)
   }))
@@ -513,20 +527,85 @@ export function registerIpcHandlers(): void {
     usable: await lastListIsUsable(req.compiledRoot)
   }))
   handle(IPC.slideshowExpandComposite, expandCompositeRequestSchema, async (req) => ({
-    paths: await expandCompositePlaylist(req.lines)
+    paths: await expandCompositePlaylist(
+      req.lines,
+      req.order ?? 'name',
+      req.ascending ?? true
+    )
   }))
   handle(IPC.slideshowOpenCompiledListsWindow, emptySchema, () => openCompiledListsWindow())
-  handle(IPC.slideshowCloseCompiledListsWindow, emptySchema, () => closeCompiledListsWindow())
+  handle(IPC.slideshowCloseCompiledListsWindow, emptySchema, () => {
+    clearVirtualPlaylist()
+    return closeCompiledListsWindow()
+  })
+  handle(IPC.slideshowRelayKey, slideshowRelayKeySchema, (req) => {
+    const win = getMainWindow()
+    if (win && !win.isDestroyed()) {
+      win.webContents.send(EVENT_CHANNEL, { type: 'slideshow-key', payload: req })
+    }
+    return { ok: true as const }
+  })
+  handle(
+    IPC.slideshowApplyCompiledLines,
+    applyCompiledLinesRequestSchema,
+    async (req) => {
+      const built = await buildVirtualPlaylist(req.lines, req.order, req.ascending)
+      const snap =
+        req.preferPath || req.preferIndex != null
+          ? snapshotPreferPath(req.preferPath ?? null, req.preferIndex ?? 0)
+          : built
+      const payload = {
+        total: snap.total,
+        index: snap.index,
+        path: snap.path,
+        truncated: snap.truncated,
+        rev: req.rev ?? null,
+        resumePlaying: req.resumePlaying === true
+      }
+      broadcast({ type: 'compiled-playlist-apply', payload })
+      return payload
+    }
+  )
+  handle(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => ({
+    path: pathAtPlayIndex(req.index)
+  }))
+  handle(IPC.slideshowClearVirtualPlaylist, emptySchema, () => {
+    clearVirtualPlaylist()
+    return { ok: true as const }
+  })
+  // Legacy flat-path broadcast (small lists / tests only).
   handle(
     IPC.slideshowApplyCompiledPlaylist,
     z.object({
       paths: z.array(z.string()),
-      preferPath: z.string().nullable().optional()
+      preferPath: z.string().nullable().optional(),
+      rev: z.number().int().optional().nullable()
     }),
     (req) => {
+      // Empty paths → clear virtual session + black compiled overlay.
+      if (req.paths.length === 0) {
+        clearVirtualPlaylist()
+        broadcast({
+          type: 'compiled-playlist-apply',
+          payload: {
+            total: 0,
+            index: 0,
+            path: null,
+            rev: req.rev ?? null
+          }
+        })
+        return { ok: true as const }
+      }
       broadcast({
         type: 'compiled-playlist-apply',
-        payload: { paths: req.paths, preferPath: req.preferPath ?? null }
+        payload: {
+          total: req.paths.length,
+          index: 0,
+          path: req.preferPath ?? req.paths[0] ?? null,
+          paths: req.paths,
+          preferPath: req.preferPath ?? null,
+          rev: req.rev ?? null
+        }
       })
       return { ok: true as const }
     }

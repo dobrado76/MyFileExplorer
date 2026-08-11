@@ -11,6 +11,7 @@ import {
   SaveIcon
 } from '../lib/icons'
 import { api, call } from '../lib/ipc'
+import { useIdleCursorHide } from '../lib/useIdleCursorHide'
 
 type DatRow = {
   path: string
@@ -39,7 +40,6 @@ export function CompiledListsWindowApp(): JSX.Element {
   const [activeTab, setActiveTab] = useState(0)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
-  const [playing, setPlaying] = useState(false)
 
   const listsDir = useMemo(
     () => (compiledRoot ? compiledListsDir(compiledRoot) : ''),
@@ -76,11 +76,28 @@ export function CompiledListsWindowApp(): JSX.Element {
   )
 
   const rebuildAndApply = useCallback(
-    async (lines: { datPath: string; count: number }[], preferPath?: string | null): Promise<void> => {
-      const { paths } = await call(api.slideshow.expandComposite({ lines }))
-      await call(api.slideshow.applyCompiledPlaylist({ paths, preferPath: preferPath ?? null }))
-      // Stay live so Clear (empty) and later +/- keep pushing into the running session.
-      setPlaying(true)
+    async (
+      lines: { datPath: string; count: number }[],
+      preferPath?: string | null,
+      opts?: { resumePlaying?: boolean }
+    ): Promise<void> => {
+      const settings = await call(api.settings.get())
+      const snap = await call(
+        api.slideshow.applyCompiledLines({
+          lines,
+          order: settings.slideshow.order,
+          ascending: settings.slideshow.ascending,
+          preferPath: preferPath ?? null,
+          resumePlaying: opts?.resumePlaying === true
+        })
+      )
+      if (lines.some((l) => l.count > 0) && snap.total === 0) {
+        setStatus('No images resolved — check .dat Index / nested .txt refs (or run Update Lists on .dat)')
+      } else if (snap.truncated) {
+        setStatus(`Playlist truncated at 2,147,483,647 entries (${snap.total.toLocaleString()} kept)`)
+      } else if (snap.total > 0) {
+        setStatus('')
+      }
     },
     []
   )
@@ -129,13 +146,38 @@ export function CompiledListsWindowApp(): JSX.Element {
     document.documentElement.dataset.theme = 'dark'
   }, [])
 
-  // Main window starts/resumes via broadcast — mark this window as live for instant +/- / Clear.
+  // This window only exists during a compiled slideshow — hide idle cursor here too
+  // (focus often stays on lists while watching the main overlay).
+  useIdleCursorHide(true)
+
+  // No slideshow shortcuts here — relay keystrokes to the main slideshow overlay.
+  // Keep typing in count fields local; Load/Save filename entry uses OS dialogs.
   useEffect(() => {
-    return api.onEvent((event) => {
-      if (event.type === 'compiled-playlist-apply') {
-        setPlaying(true)
-      }
-    })
+    const isEditableTarget = (t: EventTarget | null): boolean => {
+      if (!(t instanceof HTMLElement)) return false
+      if (t.isContentEditable) return true
+      const tag = t.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+      return Boolean(t.closest('input, textarea, select, [contenteditable="true"]'))
+    }
+
+    const onKey = (e: KeyboardEvent): void => {
+      if (isEditableTarget(e.target)) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      e.preventDefault()
+      e.stopPropagation()
+      void api.slideshow.relayKey({
+        key: e.key,
+        code: e.code,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey,
+        metaKey: e.metaKey
+      })
+    }
+
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
   const setRowCount = async (tabIdx: number, rowIdx: number, count: number): Promise<void> => {
@@ -152,7 +194,7 @@ export function CompiledListsWindowApp(): JSX.Element {
     })
   }
 
-  // Persist last.txt; when live, push playlist to the slideshow immediately.
+  // Persist last.txt and always push playlist (window exists only for a live compiled session).
   useEffect(() => {
     if (!compiledRoot || tabs.length === 0) return
     const lines = collectLines()
@@ -160,14 +202,14 @@ export function CompiledListsWindowApp(): JSX.Element {
       void (async () => {
         try {
           await persistLast(lines)
-          if (playing) await rebuildAndApply(lines)
+          await rebuildAndApply(lines)
         } catch {
           /* ignore */
         }
       })()
-    }, 150)
+    }, 200)
     return () => window.clearTimeout(t)
-  }, [tabs, compiledRoot, persistLast, collectLines, playing, rebuildAndApply])
+  }, [tabs, compiledRoot, persistLast, collectLines, rebuildAndApply])
 
   const bump = async (tabIdx: number, rowIdx: number, delta: number): Promise<void> => {
     const row = tabs[tabIdx]?.rows[rowIdx]
@@ -181,6 +223,7 @@ export function CompiledListsWindowApp(): JSX.Element {
       }
     })
     setTabs(nextTabs)
+    // Debounced effect persists + applies; also push immediately for snappy +/-.
     const lines: { datPath: string; count: number }[] = []
     for (const t of nextTabs) {
       for (const r of t.rows) {
@@ -189,7 +232,7 @@ export function CompiledListsWindowApp(): JSX.Element {
     }
     try {
       await persistLast(lines)
-      if (playing) await rebuildAndApply(lines)
+      await rebuildAndApply(lines)
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e))
     }
@@ -214,7 +257,7 @@ export function CompiledListsWindowApp(): JSX.Element {
       setTabs((prev) => applyCounts(prev, lines))
       await persistLast(lines)
       setStatus('')
-      if (playing) await rebuildAndApply(lines)
+      await rebuildAndApply(lines)
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e))
     } finally {
@@ -249,13 +292,9 @@ export function CompiledListsWindowApp(): JSX.Element {
     setBusy(true)
     try {
       const lines = collectLines()
-      if (!lines.some((l) => l.count > 0)) {
-        setStatus('Set at least one count > 0 (or Load a saved list)')
-        return
-      }
       await persistLast(lines)
-      await rebuildAndApply(lines)
-      setPlaying(true)
+      // Play always resumes autoplay (manual → playing), even if the playlist is unchanged.
+      await rebuildAndApply(lines, null, { resumePlaying: true })
       setStatus('')
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e))
@@ -273,9 +312,7 @@ export function CompiledListsWindowApp(): JSX.Element {
       }))
       setTabs(nextTabs)
       await persistLast([])
-      // Always push empty playlist when live; if not live yet but slideshow was
-      // started from the main window, onEvent will have set playing.
-      if (playing) await rebuildAndApply([])
+      await rebuildAndApply([])
       setStatus('')
     } catch (e) {
       setStatus(e instanceof Error ? e.message : String(e))
@@ -334,8 +371,8 @@ export function CompiledListsWindowApp(): JSX.Element {
           type="button"
           className="icon-btn"
           disabled={busy}
-          aria-label={playing ? 'Apply to slideshow' : 'Start slideshow'}
-          title={playing ? 'Apply to slideshow' : 'Start slideshow'}
+          aria-label="Resume slideshow"
+          title="Resume slideshow (autoplay)"
           onClick={() => void startPlaylist()}
         >
           <PlayIcon />
@@ -386,7 +423,7 @@ export function CompiledListsWindowApp(): JSX.Element {
                       const lines = collectLines()
                       void (async () => {
                         await persistLast(lines)
-                        if (playing) await rebuildAndApply(lines)
+                        await rebuildAndApply(lines)
                       })()
                     }}
                   />

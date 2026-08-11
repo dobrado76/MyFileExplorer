@@ -1,16 +1,15 @@
-import { useAppStore } from '@renderer/store/appStore';
-import type { JSX } from 'react'
+import type { CSSProperties, JSX } from 'react'
 
-type IconProps = { size?: number; className?: string }
+type IconProps = { size?: number; className?: string; style?: CSSProperties }
 
 function svg(path: JSX.Element, viewBox = '0 0 24 24') {
-  return function Icon({ size = 16, className }: IconProps): JSX.Element {
-    // Secondary windows (e.g. Compiled lists) never call boot(), so settings may be null.
-    const iconSize = useAppStore.getState().settings?.iconSizePx ?? size
+  return function Icon({ size = 16, className, style }: IconProps): JSX.Element {
+    // Always honor the caller's size — shell list/tree slots are 16px; do not
+    // substitute settings.iconSizePx (that is for unrelated chrome scaling).
     return (
       <svg
-        width={iconSize}
-        height={iconSize}
+        width={size}
+        height={size}
         viewBox={viewBox}
         fill="none"
         stroke="currentColor"
@@ -18,6 +17,7 @@ function svg(path: JSX.Element, viewBox = '0 0 24 24') {
         strokeLinecap="round"
         strokeLinejoin="round"
         className={className}
+        style={style}
         aria-hidden="true"
       >
         {path}

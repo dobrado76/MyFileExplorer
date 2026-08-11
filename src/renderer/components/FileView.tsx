@@ -27,7 +27,7 @@ import {
   cancelDoubleSingleClick,
   isNameLabelTarget,
   noteItemClick,
-  tryLabelRenameClick
+  handleLabelClickForRename
 } from '../lib/doubleSingleClick'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
@@ -690,11 +690,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }, [overlayMode, virtualizer])
 
   // Keep the item being renamed in view (new folder/file, F2, etc.).
+  // Skip when already visible — scrollToIndex remounts virtual rows and can
+  // drop the shell icon if rename is then cancelled (no listing refresh).
   useLayoutEffect(() => {
     if (!renamingPath) return
     const idx = entries.findIndex((en) => samePath(en.path, renamingPath))
     if (idx < 0) return
     const rowIdx = spec ? Math.floor(idx / columns) : idx
+    const visible = virtualizer.getVirtualItems()
+    if (visible.some((v) => v.index === rowIdx)) return
     virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
   }, [renamingPath, entries, spec, columns, virtualizer])
 
@@ -1252,11 +1256,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const alreadySelected = selected.has(entry.path.toLowerCase())
       const onlyThis =
         alreadySelected && sel.length === 1 && samePath(sel[0]!, entry.path)
-      // Explorer: slow second click on the name of a sole-selected item → rename now.
+      // Explorer: select click, pause, click name again, hover ~500ms → rename.
+      // A lone click on an already-selected name only arms (first click).
       if (onlyThis && isNameLabelTarget(e.target)) {
-        if (tryLabelRenameClick(entry.path)) {
-          startRename(entry.path, 'files')
-        }
+        handleLabelClickForRename(
+          entry.path,
+          () => startRename(entry.path, 'files'),
+          e.clientX,
+          e.clientY
+        )
         return
       }
       noteItemClick(entry.path)
@@ -1654,7 +1662,16 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           onHasContent={(has) => noteContentThumb(entry.path, has)}
                         />
                       ) : (
-                        <ShellIcon path={entry.path} size={iconPx} isDir={entry.kind === 'dir'} />
+                        <ShellIcon
+                          path={entry.path}
+                          size={iconPx}
+                          isDir={entry.kind === 'dir'}
+                          renaming={
+                            renameSource === 'files' &&
+                            renamingPath !== null &&
+                            samePath(renamingPath, entry.path)
+                          }
+                        />
                       )}
                     </div>
                     {renameSource === 'files' &&
@@ -1715,7 +1732,16 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     viewMode === 'details' ? { width: nameColWidth, flex: '0 0 auto' } : undefined
                   }
                 >
-                  <ShellIcon path={entry.path} size={16} isDir={entry.kind === 'dir'} />
+                  <ShellIcon
+                    path={entry.path}
+                    size={16}
+                    isDir={entry.kind === 'dir'}
+                    renaming={
+                      renameSource === 'files' &&
+                      renamingPath !== null &&
+                      samePath(renamingPath, entry.path)
+                    }
+                  />
                   {renameSource === 'files' &&
                   renamingPath !== null &&
                   samePath(renamingPath, entry.path)
