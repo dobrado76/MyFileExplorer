@@ -642,8 +642,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const spec = isGrid ? GRID_SPECS[viewMode as GridMode] : null
   const columns = spec ? Math.max(1, Math.floor(width / spec.cellW)) : 1
   const rowCount = spec ? Math.ceil(entries.length / columns) : entries.length
-  // Recycle/search list rows show a path under the name — taller than a normal row.
-  const rowHeight = spec ? spec.cellH : overlayMode ? 40 : 24
+  // Only list (not Details) recycle rows show a path under the name — need taller rows.
+  // Details must stay at the normal 24px or columns look vertically misaligned.
+  const rowHeight = spec
+    ? spec.cellH
+    : recycleMode && viewMode !== 'details'
+      ? 40
+      : 24
 
   const virtualizer = useVirtualizer({
     count: rowCount,
@@ -658,7 +663,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   // estimateSize changes (e.g. switching view modes / leaving Recycle Bin).
   useLayoutEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, columns, rowCount, overlayMode, virtualizer])
+  }, [rowHeight, columns, rowCount, overlayMode, viewMode, virtualizer])
 
   // Search / Recycle overlays must not rewrite the tab's folder scrollOffset.
   // Otherwise Close leaves you scrolled past the end of the real listing (gaps /
@@ -1089,13 +1094,28 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const onItemPointerDown = useCallback(
     (entry: DirEntry, e: React.PointerEvent): void => {
-      if (recycleMode) return
       if (e.button !== 0 && e.button !== 2) return
       if (renameSource === 'files' && renamingPath !== null && samePath(renamingPath, entry.path)) {
         return
       }
 
       const alreadySelected = selected.has(entry.path.toLowerCase())
+
+      // Recycle Bin: selection only (no left/right file-drag from bin rows).
+      if (recycleMode) {
+        if (e.button === 2) {
+          if (!alreadySelected) setSelection([entry.path], entry.path, entry.path)
+          return
+        }
+        if (!e.ctrlKey && !e.shiftKey && alreadySelected) {
+          suppressClickRef.current = false
+          return
+        }
+        const next = selectionForModifiers(entry, e)
+        setSelection(next.paths, next.anchor, next.focused)
+        suppressClickRef.current = true
+        return
+      }
 
       if (e.button === 2) {
         e.preventDefault()
