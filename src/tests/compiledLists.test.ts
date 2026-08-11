@@ -9,7 +9,6 @@ import {
   sanitizeCompiledName,
   serializeLastList
 } from '../shared/slideshow/compiledLists'
-import { folderScanCacheKey } from '../main/slideshow/compiledLists'
 
 describe('compiledLists helpers', () => {
   it('sanitizes names', () => {
@@ -65,13 +64,6 @@ describe('compiledLists helpers', () => {
       { path: 'C:\\photos\\vacation', count: 1, kind: 'folder' },
       { path: 'D:\\more', count: 2, kind: 'folder' }
     ])
-  })
-
-  it('folder scan cache keys normalize case and separators', () => {
-    const a = folderScanCacheKey('C:\\Photos\\Vacation')
-    const b = folderScanCacheKey('c:/Photos/Vacation')
-    expect(a).toBe(b)
-    expect(a).toBe('c:\\photos\\vacation')
   })
 })
 

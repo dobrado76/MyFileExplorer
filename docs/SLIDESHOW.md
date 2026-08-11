@@ -28,7 +28,7 @@ Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; *
 - `.txt` — body = **folders** and/or **other `.dat`/`.txt` list refs** (optional `path|=>count`). **Never** uses ADS Index; slideshow always expands the body live (nested refs + folder walks; cycles break).
 - `!!Lists/` — own tab for selectable `.dat`/`.txt`; **Update Lists** does not recompile here. `last.txt` is resume-only (hidden from the grid); user-saved composites also live here.
 
-**Update Lists** walks the compiled root, skips `!!Lists`, processes **`.dat` only**, overwrites Index + Count, and reports progress (files done / total, current list, images found, current folder) with Cancel. Source folders that appear in multiple lists are **scanned once per Update Lists run** (in-memory cache keyed by absolute folder path); later lists reuse that result.
+**Update Lists** walks the compiled root, skips `!!Lists`, processes **`.dat` only** (one file at a time; no in-memory folder cache), overwrites Index + Count, and reports progress (files done / total, current list, images found, current folder) with Cancel.
 
 **Validate Lists** (same config dialog) checks every `.dat` / `.txt` outside `!!Lists` and reports: missing source **folders** and missing nested **list** refs (`.dat`/`.txt`).
 
