@@ -24,6 +24,7 @@ import { TabIconPickerDialog } from './TabIconPickerDialog'
 import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
+import { PowerRenameDialog } from './PowerRenameDialog'
 
 function Modal({
   title,
@@ -113,6 +114,8 @@ export function Dialogs(): JSX.Element | null {
           danger={dialog.danger}
         />
       )
+    case 'power-rename':
+      return <PowerRenameDialog paths={dialog.paths} />
   }
 }
 

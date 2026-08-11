@@ -7,6 +7,7 @@ export type UndoEntry =
   | { kind: 'copy'; paths: string[]; label: string }
   | { kind: 'rename'; from: string; to: string; label: string }
   | { kind: 'move'; pairs: UndoPathPair[]; label: string }
+  | { kind: 'power-rename'; pairs: UndoPathPair[]; label: string }
 
 export const MAX_UNDO = 30
 
@@ -28,6 +29,10 @@ export function undoActionTitle(entry: UndoEntry): string {
       return 'Undo Rename'
     case 'move':
       return entry.pairs.length === 1 ? 'Undo Move' : `Undo Move (${entry.pairs.length})`
+    case 'power-rename':
+      return entry.pairs.length === 1
+        ? 'Undo Power Rename'
+        : `Undo Power Rename (${entry.pairs.length})`
   }
 }
 
@@ -46,6 +51,7 @@ export function pathsAfterUndo(entry: UndoEntry): string[] {
     case 'rename':
       return [entry.from]
     case 'move':
+    case 'power-rename':
       return entry.pairs.map((p) => p.from)
   }
 }
@@ -61,6 +67,7 @@ export function pathsAfterRedo(entry: UndoEntry): string[] {
     case 'rename':
       return [entry.to]
     case 'move':
+    case 'power-rename':
       return entry.pairs.map((p) => p.to)
   }
 }

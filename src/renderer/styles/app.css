@@ -3003,6 +3003,135 @@ html.idle-cursor-hidden * {
 .modal.modal-wide {
   min-width: 520px;
 }
+.modal.modal-power-rename {
+  width: min(920px, 96vw);
+  min-width: min(720px, 96vw);
+  max-height: 88vh;
+}
+.modal-body.modal-body-power-rename {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.power-rename-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.power-rename-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.power-rename-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.power-rename-field input,
+.power-rename-field select {
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.power-rename-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.power-rename-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.power-rename-preview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.power-rename-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.power-rename-preview-toolbar .btn {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.power-rename-preview-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.power-rename-rows {
+  overflow: auto;
+  flex: 1;
+  min-height: 220px;
+  max-height: min(52vh, 480px);
+}
+.power-rename-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+.power-rename-row:last-child {
+  border-bottom: none;
+}
+.power-rename-row.is-unchecked {
+  opacity: 0.55;
+}
+.power-rename-orig,
+.power-rename-new {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.power-rename-arrow {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.power-rename-new.is-changed {
+  color: var(--accent, #3b82f6);
+  font-weight: 600;
+}
+.power-rename-row.is-error .power-rename-new {
+  color: var(--danger, #dc2626);
+  font-weight: 500;
+}
+.power-rename-row:not(.is-changed):not(.is-error) .power-rename-new {
+  color: var(--muted);
+}
 .modal.modal-tab-icon {
   width: min(560px, 96vw);
   max-height: 90vh;

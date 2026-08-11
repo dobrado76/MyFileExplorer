@@ -14,6 +14,7 @@ Features are deliberately patterned after tools people already trust — then fo
 | **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 4** panes in one window — side-by-side or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
 | **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, compiled file lists for large libraries, image-list cache. |
 | **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
+| **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
 
 Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27).
 
@@ -72,7 +73,8 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Side-by-side conflict dialog** | Incoming vs existing compared with size/dates (and image thumbs). Per-file or apply-to-all Skip / Keep both / Replace — not a thin name-only prompt. |
 | **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
 | **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. |
-| **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
+| **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
+| **In-app Power Rename** | Search/replace (literal or regex) across a selection with live preview and per-item include — no PowerToys shell extension required. |
 | **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses userData scratch, AV uses byte-range streaming so `<video>` actually plays. |
 | **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
 | **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |

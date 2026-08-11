@@ -910,6 +910,15 @@ export function ContextMenu(): JSX.Element | null {
       },
       {
         type: 'item',
+        label: 'Power Rename…',
+        disabled: paths.length < 1,
+        action: () => {
+          close()
+          s.openDialog({ kind: 'power-rename', paths: [...paths] })
+        }
+      },
+      {
+        type: 'item',
         label: 'Delete',
         hint: 'Del',
         action: () => {

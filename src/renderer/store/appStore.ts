@@ -66,7 +66,8 @@ import {
   undoActionTitle,
   pathsAfterRedo,
   pathsAfterUndo,
-  type UndoEntry
+  type UndoEntry,
+  type UndoPathPair
 } from '../lib/undoHistory'
 
 export type Tab = {
@@ -134,6 +135,7 @@ export type DialogState =
       confirmLabel?: string
       danger?: boolean
     }
+  | { kind: 'power-rename'; paths: string[] }
   | null
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
@@ -453,6 +455,15 @@ type AppState = {
   startRename(path: string, source?: 'tree' | 'files'): void
   submitRename(newName: string): Promise<void>
   cancelRename(): void
+  /**
+   * Power Rename Apply: rename each path to `newName` (basename only).
+   * Skips conflicts / IO errors; records one undo entry for successful pairs.
+   */
+  applyPowerRename(
+    items: { path: string; newName: string }[]
+  ): Promise<{ pairs: UndoPathPair[]; skipped: string[] }>
+  /** Dialog Undo: relocate pairs back; pop matching power-rename undo if still on top. */
+  undoPowerRenameApply(pairs: UndoPathPair[]): Promise<void>
   setTreeFocusPath(path: string | null): void
   createFolder(parent?: string): Promise<void>
   createNewFile(parent: string, name: string): Promise<void>
@@ -1428,7 +1439,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       return
     }
 
-    // move
+    // move | power-rename
     const pairs =
       direction === 'undo'
         ? entry.pairs.map((p) => ({ from: p.to, to: p.from }))
@@ -2758,6 +2769,147 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch (e) {
         set({ mediaHold: false })
         reportOperationError('Rename failed', e)
+      }
+    },
+
+    async applyPowerRename(items) {
+      const pairs: UndoPathPair[] = []
+      const skipped: string[] = []
+      if (items.length === 0) return { pairs, skipped }
+
+      // Detect collisions within this batch (same parent + same newName).
+      const claimed = new Map<string, string>()
+      const work: { path: string; newName: string }[] = []
+      for (const item of items) {
+        const parent = parentOf(item.path)
+        if (!parent || !item.newName.trim() || item.newName === basename(item.path)) {
+          skipped.push(basename(item.path))
+          continue
+        }
+        const key = `${parent.toLowerCase()}\\${item.newName.toLowerCase()}`
+        if (claimed.has(key)) {
+          skipped.push(item.newName)
+          continue
+        }
+        claimed.set(key, item.path)
+        work.push(item)
+      }
+
+      if (work.length === 0) return { pairs, skipped }
+
+      await releaseMediaLocks()
+      try {
+        await withBusyFeedback(
+          'relocate',
+          'Renaming…',
+          work.length === 1 ? work[0]!.newName : `${work.length} items`,
+          async () => {
+            for (const item of work) {
+              try {
+                const res = await call(api.fs.rename({ path: item.path, newName: item.newName }))
+                pairs.push({ from: item.path, to: res.path })
+              } catch (e) {
+                if (e instanceof IpcError && e.code === 'conflict') {
+                  skipped.push(item.newName)
+                  continue
+                }
+                skipped.push(basename(item.path))
+              }
+            }
+          }
+        )
+      } finally {
+        if (get().mediaHold) set({ mediaHold: false })
+      }
+
+      if (pairs.length > 0) {
+        recordUndo({
+          kind: 'power-rename',
+          pairs,
+          label: pairs.length === 1 ? basename(pairs[0]!.to) : `${pairs.length} items`
+        })
+        const rewriteOne = (p: string): string => {
+          for (const pair of pairs) {
+            if (samePath(p, pair.from)) return pair.to
+            if (isUnderPath(p, pair.from)) return pair.to + p.slice(pair.from.length)
+          }
+          return p
+        }
+        notifyTreeMutation({
+          removed: pairs.map((p) => p.from),
+          reloadParents: parentsOfPaths(pairs.flatMap((p) => [p.from, p.to]))
+        })
+        set((s) => ({
+          tabs: s.tabs.map((t) => ({
+            ...t,
+            path: rewriteOne(t.path),
+            rootPath: t.rootPath ? rewriteOne(t.rootPath) : null,
+            back: t.back.map(rewriteOne),
+            forward: t.forward.map(rewriteOne),
+            selected: t.selected.map(rewriteOne),
+            treeExpanded: t.treeExpanded.map(rewriteOne)
+          }))
+        }))
+        await get().refresh()
+        const selected = pairs.map((p) => p.to)
+        get().setSelection(selected, selected[0], selected[0])
+      }
+
+      return { pairs, skipped }
+    },
+
+    async undoPowerRenameApply(pairs) {
+      if (pairs.length === 0) return
+      const reverse = pairs.map((p) => ({ from: p.to, to: p.from }))
+      await releaseMediaLocks()
+      try {
+        await withBusyFeedback(
+          'relocate',
+          'Undoing rename…',
+          pairs.length === 1 ? basename(pairs[0]!.from) : `${pairs.length} items`,
+          () => call(api.fs.relocate({ pairs: reverse }))
+        )
+        notifyTreeMutation({
+          removed: reverse.map((p) => p.from),
+          reloadParents: parentsOfPaths(reverse.flatMap((p) => [p.from, p.to]))
+        })
+        const rewriteOne = (p: string): string => {
+          for (const pair of pairs) {
+            if (samePath(p, pair.to)) return pair.from
+            if (isUnderPath(p, pair.to)) return pair.from + p.slice(pair.to.length)
+          }
+          return p
+        }
+        set((s) => ({
+          mediaHold: false,
+          tabs: s.tabs.map((t) => ({
+            ...t,
+            path: rewriteOne(t.path),
+            rootPath: t.rootPath ? rewriteOne(t.rootPath) : null,
+            back: t.back.map(rewriteOne),
+            forward: t.forward.map(rewriteOne),
+            selected: t.selected.map(rewriteOne),
+            treeExpanded: t.treeExpanded.map(rewriteOne)
+          }))
+        }))
+        // Drop matching undo entry if it is still on top (dialog Undo already reversed).
+        const stack = get().undoStack
+        const top = stack[stack.length - 1]
+        if (
+          top?.kind === 'power-rename' &&
+          top.pairs.length === pairs.length &&
+          top.pairs.every(
+            (p, i) => samePath(p.from, pairs[i]!.from) && samePath(p.to, pairs[i]!.to)
+          )
+        ) {
+          set({ undoStack: stack.slice(0, -1) })
+        }
+        await get().refresh()
+        const selected = pairs.map((p) => p.from)
+        get().setSelection(selected, selected[0], selected[0])
+      } catch (e) {
+        set({ mediaHold: false })
+        reportOperationError('Undo Power Rename failed', e)
       }
     },
 

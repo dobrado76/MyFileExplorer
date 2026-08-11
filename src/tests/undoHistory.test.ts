@@ -22,6 +22,16 @@ describe('undoHistory', () => {
     )
     expect(undoActionTitle({ kind: 'rename', from: 'a', to: 'b', label: 'a' })).toBe('Undo Rename')
     expect(
+      undoActionTitle({
+        kind: 'power-rename',
+        pairs: [
+          { from: 'a', to: 'b' },
+          { from: 'c', to: 'd' }
+        ],
+        label: '2 items'
+      })
+    ).toBe('Undo Power Rename (2)')
+    expect(
       redoActionTitle({ kind: 'move', pairs: [{ from: 'a', to: 'b' }], label: 'b' })
     ).toBe('Redo Move')
   })

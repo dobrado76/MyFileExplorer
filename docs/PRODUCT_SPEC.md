@@ -95,6 +95,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | New folder         | Inline rename or dialog                                                                                                                          |
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext)                                                                                      |
 | Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits** |
+| Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
@@ -119,6 +120,7 @@ Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dat
 - Pin to Quick access / Unpin from Quick access (folders)
 - Cut / Copy / Paste
 - Rename
+- Power Rename… (search/replace with preview; files and folders in selection only)
 - Delete / Delete permanently
 - Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
 - Extract All… (on `.zip` selection — sibling folder named after the archive)
