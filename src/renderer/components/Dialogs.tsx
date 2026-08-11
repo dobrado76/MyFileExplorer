@@ -25,6 +25,7 @@ import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
+import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 
 function Modal({
   title,
@@ -1065,6 +1066,7 @@ const THEME_TOKENS: { key: keyof CustomTheme; label: string }[] = [
 type SettingsSection =
   | 'appearance'
   | 'behavior'
+  | 'contextmenu'
   | 'quickaccess'
   | 'layouts'
   | 'folderviews'
@@ -1077,6 +1079,7 @@ type SettingsSection =
 const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'behavior', label: 'Behavior' },
+  { id: 'contextmenu', label: 'Context menu' },
   { id: 'quickaccess', label: 'Quick access' },
   { id: 'layouts', label: 'Layouts' },
   { id: 'folderviews', label: 'Folder views' },
@@ -1628,6 +1631,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </label>
             </div>
           )}
+
+          {section === 'contextmenu' && <ContextMenuSettingsPanel />}
 
           {section === 'quickaccess' && (
             <div className="settings-stack">

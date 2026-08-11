@@ -121,6 +121,7 @@ Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dat
 - Cut / Copy / Paste
 - Rename
 - Power Rename… (search/replace with preview; files and folders in selection only)
+- User-defined commands (Settings → Context menu — separate lists for files vs folders; e.g. Edit in Photoshop, Play in VLC)
 - Delete / Delete permanently
 - Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
 - Extract All… (on `.zip` selection — sibling folder named after the archive)
@@ -173,6 +174,7 @@ See [SEARCH.md](SEARCH.md).
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size                                |
 | Behavior     | Default new-tab path; folders-first; video thumb frame delay (`vidThumbFrameMs`); **autoplay media in preview** (`previewVideoAutoplay`, default off); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
+| Context menu | Custom external commands for **files** and **folders** (separate lists): label, program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). Built-in items stay fixed (D4 / D41) |
 | Quick access | Manage tree shortcuts                                                              |
 | Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |

@@ -34,7 +34,16 @@ export function patchSettings(patch: unknown): Settings {
     ...parsed,
     slideshow: parsed.slideshow
       ? { ...defaultSettings.slideshow, ...cur.slideshow, ...parsed.slideshow }
-      : (cur.slideshow ?? defaultSettings.slideshow)
+      : (cur.slideshow ?? defaultSettings.slideshow),
+    contextMenu: parsed.contextMenu
+      ? {
+          ...defaultSettings.contextMenu,
+          ...cur.contextMenu,
+          ...parsed.contextMenu,
+          files: parsed.contextMenu.files ?? cur.contextMenu?.files ?? [],
+          folders: parsed.contextMenu.folders ?? cur.contextMenu?.folders ?? []
+        }
+      : (cur.contextMenu ?? defaultSettings.contextMenu)
   })
   settingsStore().replace(next)
   // Settings toggles should hit disk immediately (don’t wait for debounce / quit).

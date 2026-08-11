@@ -46,6 +46,8 @@ export const IPC = {
   /** Open the Windows Explorer property sheet (Security / Sharing / …). */
   shellShowProperties: 'shell:showProperties',
   shellOpenRecycleBin: 'shell:openRecycleBin',
+  /** Spawn a user-configured external program with argv (context-menu commands). */
+  shellExec: 'shell:exec',
   shellClipboardWriteFiles: 'shell:clipboardWriteFiles',
   shellClipboardReadFiles: 'shell:clipboardReadFiles',
   /** Sync: webContents.startDrag — must run during an active drag gesture. */

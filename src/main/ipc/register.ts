@@ -111,7 +111,8 @@ import {
   openRecycleBin,
   clipboardWriteFiles,
   clipboardReadFiles,
-  startOsFileDrag
+  startOsFileDrag,
+  execExternal
 } from '../shell'
 import { sessionStore } from '../session/store'
 import { getSettings, patchSettings } from '../settings/store'
@@ -370,6 +371,14 @@ export function registerIpcHandlers(): void {
   handle(IPC.shellShowItemInFolder, pathRequestSchema, (req) => showItemInFolder(req.path))
   handle(IPC.shellShowProperties, pathRequestSchema, (req) => showSystemProperties(req.path))
   handle(IPC.shellOpenRecycleBin, emptySchema, () => openRecycleBin())
+  handle(
+    IPC.shellExec,
+    z.object({
+      executable: z.string().min(1).max(1024),
+      args: z.array(z.string().max(32767)).max(256)
+    }),
+    (req) => execExternal(req.executable, req.args)
+  )
   handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
   // Sync + blocking: startDrag runs DoDragDrop until the OS gesture ends.

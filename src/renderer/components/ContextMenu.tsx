@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { findExactFolderView } from '@shared/folderViews'
+import { commandMatches } from '@shared/contextMenuCommands'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf } from '../lib/paths'
 import { isImageExt, isVideoExt } from '../lib/icons'
@@ -585,6 +586,45 @@ export function ContextMenu(): JSX.Element | null {
         }
       })
     }
+
+    // User-defined external commands (Settings → Context menu).
+    {
+      let selKind: 'file' | 'folder' | null = null
+      if (menu.inTree && paths.length >= 1) {
+        selKind = 'folder'
+      } else if (paths.length >= 1) {
+        let sawFile = false
+        let sawDir = false
+        let unknown = false
+        for (const p of paths) {
+          const e = entries.find((x) => samePath(x.path, p))
+          if (e?.kind === 'dir') sawDir = true
+          else if (e?.kind === 'file') sawFile = true
+          else unknown = true
+        }
+        if (!unknown && sawFile && !sawDir) selKind = 'file'
+        else if (!unknown && sawDir && !sawFile) selKind = 'folder'
+      }
+      if (selKind) {
+        const cmds =
+          selKind === 'file' ? s.settings.contextMenu.files : s.settings.contextMenu.folders
+        const matched = cmds.filter((c) => commandMatches(c, paths, selKind))
+        if (matched.length > 0) {
+          result.push({ type: 'sep' })
+          for (const cmd of matched) {
+            result.push({
+              type: 'item',
+              label: cmd.label,
+              action: () => {
+                close()
+                void s.runContextMenuCommand(cmd.id, paths)
+              }
+            })
+          }
+        }
+      }
+    }
+
     if (s.search.active && single) {
       result.push(
         {

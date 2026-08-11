@@ -21,11 +21,16 @@ import {
   defaultSlideshowSettings,
   slideshowSettingsSchema
 } from './slideshow'
+import {
+  MAX_CONTEXT_MENU_COMMANDS,
+  type ContextMenuCommand
+} from '../contextMenuCommands'
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
 export type { WorkspaceLayout } from '../layouts'
 export type { SlideshowSettings, SlideshowOrder } from './slideshow'
+export type { ContextMenuCommand, ContextMenuCommandMatch } from '../contextMenuCommands'
 
 export const themeModeSchema = z.enum(['dark', 'light', 'custom'])
 export type ThemeMode = z.infer<typeof themeModeSchema>
@@ -61,6 +66,55 @@ const defaultDetailsColumns = [
 ]
 
 const allowedColumnIds = new Set<string>(DETAILS_COLUMN_IDS)
+
+export const contextMenuCommandMatchSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('all') }),
+  z.object({
+    type: z.literal('extensions'),
+    extensions: z.array(z.string()).max(64)
+  })
+])
+
+export const contextMenuCommandSchema = z.object({
+  id: z.string().min(1).max(64),
+  label: z.string().min(1).max(80),
+  enabled: z.boolean(),
+  executable: z.string().min(1).max(1024),
+  argsTemplate: z.string().max(500),
+  match: contextMenuCommandMatchSchema
+})
+
+function sanitizeContextMenuCommands(raw: unknown): ContextMenuCommand[] {
+  if (!Array.isArray(raw)) return []
+  const out: ContextMenuCommand[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const p = contextMenuCommandSchema.safeParse(item)
+    if (!p.success || seen.has(p.data.id)) continue
+    seen.add(p.data.id)
+    out.push(p.data)
+    if (out.length >= MAX_CONTEXT_MENU_COMMANDS) break
+  }
+  return out
+}
+
+export const contextMenuSettingsSchema = z.object({
+  files: z.preprocess(
+    sanitizeContextMenuCommands,
+    z.array(contextMenuCommandSchema).max(MAX_CONTEXT_MENU_COMMANDS).catch([])
+  ),
+  folders: z.preprocess(
+    sanitizeContextMenuCommands,
+    z.array(contextMenuCommandSchema).max(MAX_CONTEXT_MENU_COMMANDS).catch([])
+  )
+})
+
+export type ContextMenuSettings = z.infer<typeof contextMenuSettingsSchema>
+
+export const defaultContextMenuSettings: ContextMenuSettings = {
+  files: [],
+  folders: []
+}
 
 function sanitizeDetailsColumns(raw: unknown): { id: string; width: number }[] {
   if (!Array.isArray(raw)) return defaultDetailsColumns
@@ -253,7 +307,18 @@ export const settingsSchema = z.object({
       height: z.number().min(240).max(10000)
     })
     .nullable()
-    .catch(null)
+    .catch(null),
+  /**
+   * User-defined external context-menu commands (D41). Built-in items stay fixed.
+   */
+  contextMenu: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultContextMenuSettings
+    const o = raw as { files?: unknown; folders?: unknown }
+    return {
+      files: sanitizeContextMenuCommands(o.files),
+      folders: sanitizeContextMenuCommands(o.folders)
+    }
+  }, contextMenuSettingsSchema)
 })
 
 export type DetailsColumn = { id: DetailsColumnId; width: number }
@@ -299,13 +364,15 @@ export const defaultSettings: Settings = settingsSchema.parse({
   slideshowFeaturesEnabled: false,
   slideshow: defaultSlideshowSettings,
   adsManagerBounds: null,
-  compiledListsWindowBounds: null
+  compiledListsWindowBounds: null,
+  contextMenu: defaultContextMenuSettings
 })
 
 export const settingsPatchSchema = settingsSchema
   .partial()
   .omit({ version: true })
   .extend({
-    slideshow: slideshowSettingsSchema.partial().optional()
+    slideshow: slideshowSettingsSchema.partial().optional(),
+    contextMenu: contextMenuSettingsSchema.partial().optional()
   })
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

@@ -38,6 +38,7 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
 import {
   createSlideshowActions,
@@ -539,6 +540,8 @@ type AppState = {
   closeDialog(): void
   openContextMenu(menu: ContextMenuState): void
   closeContextMenu(): void
+  /** Launch a Settings → Context menu external command for the given paths. */
+  runContextMenuCommand(commandId: string, paths: string[]): Promise<void>
 
   // settings
   applySettingsPatch(patch: SettingsPatch): Promise<void>
@@ -3628,6 +3631,23 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ contextMenu: null })
     },
 
+    async runContextMenuCommand(commandId, paths) {
+      if (paths.length === 0) return
+      const cm = get().settings.contextMenu
+      const cmd =
+        cm.files.find((c) => c.id === commandId) ?? cm.folders.find((c) => c.id === commandId)
+      if (!cmd || !cmd.enabled) {
+        get().notify('Command not found or disabled', true)
+        return
+      }
+      try {
+        const args = expandArgsTemplate(cmd.argsTemplate, paths)
+        await call(api.shell.exec({ executable: cmd.executable, args }))
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     async applySettingsPatch(patch) {
       const prev = get().settings
       const mergedPatch: SettingsPatch = { ...patch }
@@ -3637,6 +3657,14 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.slideshow
         }
       }
+      if (patch.contextMenu) {
+        mergedPatch.contextMenu = {
+          ...prev.contextMenu,
+          ...patch.contextMenu,
+          files: patch.contextMenu.files ?? prev.contextMenu.files,
+          folders: patch.contextMenu.folders ?? prev.contextMenu.folders
+        }
+      }
       // Optimistic update so toggles don’t snap back while IPC runs.
       set((s) => ({
         settings: {
@@ -3644,7 +3672,15 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...mergedPatch,
           slideshow: mergedPatch.slideshow
             ? { ...s.settings.slideshow, ...mergedPatch.slideshow }
-            : s.settings.slideshow
+            : s.settings.slideshow,
+          contextMenu: mergedPatch.contextMenu
+            ? {
+                ...s.settings.contextMenu,
+                ...mergedPatch.contextMenu,
+                files: mergedPatch.contextMenu.files ?? s.settings.contextMenu.files,
+                folders: mergedPatch.contextMenu.folders ?? s.settings.contextMenu.folders
+              }
+            : s.settings.contextMenu
         },
         ...(typeof patch.searchIndexedOnly === 'boolean'
           ? { search: { ...s.search, indexedOnly: patch.searchIndexedOnly } }

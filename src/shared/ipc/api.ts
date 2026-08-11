@@ -128,6 +128,11 @@ export type MyFileExplorerApi = {
     showProperties(req: PathRequest): Promise<Result<{ shown: true }>>
     /** Open the Windows Recycle Bin in system Explorer (legacy fallback). */
     openRecycleBin(): Promise<Result<{ opened: boolean; message?: string }>>
+    /**
+     * Launch a user-configured program with argv (no shell). Executable may
+     * include `%ENV%` segments; must resolve to an absolute existing path.
+     */
+    exec(req: { executable: string; args: string[] }): Promise<Result<{ launched: true }>>
     clipboardWriteFiles(req: PathsRequest): Promise<Result<{ written: boolean }>>
     clipboardReadFiles(): Promise<Result<{ paths: string[] }>>
     /**

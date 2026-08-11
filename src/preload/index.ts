@@ -54,6 +54,7 @@ const api: MyFileExplorerApi = {
     showItemInFolder: invoke(IPC.shellShowItemInFolder),
     showProperties: invoke(IPC.shellShowProperties),
     openRecycleBin: invokeVoid(IPC.shellOpenRecycleBin),
+    exec: invoke(IPC.shellExec),
     clipboardWriteFiles: invoke(IPC.shellClipboardWriteFiles),
     clipboardReadFiles: invokeVoid(IPC.shellClipboardReadFiles),
     /**

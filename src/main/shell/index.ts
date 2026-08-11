@@ -1,12 +1,63 @@
 import { spawn } from 'node:child_process'
 import { shell, clipboard } from 'electron'
 import { requireAbsolute, pathExists } from '../fs/list'
+import { expandWindowsEnvPath } from '../paths/expandEnv'
 import { AppError } from '@shared/result'
+
+const MAX_EXEC_ARGS = 256
+const MAX_ARG_LEN = 32767
 
 export async function openPath(p: string): Promise<{ opened: boolean; message?: string }> {
   const n = requireAbsolute(p)
   const message = await shell.openPath(n)
   return message ? { opened: false, message } : { opened: true }
+}
+
+/**
+ * Launch a user-configured external program with argv (no shell / cmd.exe).
+ * `executable` may contain `%ENV%` segments.
+ */
+export async function execExternal(
+  executable: string,
+  args: string[]
+): Promise<{ launched: true }> {
+  const raw = executable.trim()
+  if (!raw) throw new AppError('validation', 'Executable path is empty')
+  if (args.length > MAX_EXEC_ARGS) {
+    throw new AppError('validation', `Too many arguments (max ${MAX_EXEC_ARGS})`)
+  }
+  for (const a of args) {
+    if (typeof a !== 'string' || a.length > MAX_ARG_LEN) {
+      throw new AppError('validation', 'Argument is missing or too long')
+    }
+  }
+  const expanded = expandWindowsEnvPath(raw)
+  let exe: string
+  try {
+    exe = requireAbsolute(expanded)
+  } catch {
+    throw new AppError(
+      'validation',
+      `Executable must be an absolute path after expansion: ${expanded}`
+    )
+  }
+  if (!(await pathExists(exe))) {
+    throw new AppError('not-found', `Program not found: ${exe}`, 'Browse to the .exe in Settings.')
+  }
+  try {
+    const child = spawn(exe, args, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    })
+    child.unref()
+    return { launched: true }
+  } catch (e) {
+    throw new AppError(
+      'io',
+      e instanceof Error ? e.message : 'Could not launch program'
+    )
+  }
 }
 
 /** Open the Windows Recycle Bin in system Explorer (virtual shell folder). */

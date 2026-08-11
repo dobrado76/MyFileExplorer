@@ -4529,3 +4529,156 @@ html.idle-cursor-hidden * {
   border-radius: 4px;
   background: none;
 }
+
+/* Settings → Context menu */
+.context-menu-settings {
+  gap: 12px;
+}
+.context-menu-scope-tabs {
+  display: flex;
+  gap: 4px;
+}
+.context-menu-scope-tabs button {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+.context-menu-scope-tabs button.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.context-menu-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.context-menu-preset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.context-menu-preset select {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 6px;
+  max-width: 220px;
+}
+.context-menu-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.context-menu-cmd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: min(40vh, 360px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--bg);
+}
+.context-menu-empty {
+  padding: 12px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.context-menu-cmd-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.context-menu-cmd-row:last-child {
+  border-bottom: none;
+}
+.context-menu-cmd-enable {
+  padding-top: 2px;
+}
+.context-menu-cmd-main {
+  flex: 1;
+  min-width: 0;
+}
+.context-menu-cmd-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+.context-menu-cmd-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: ui-monospace, Consolas, monospace;
+}
+.context-menu-cmd-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.context-menu-cmd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.context-menu-cmd-actions .btn {
+  padding: 2px 8px;
+  font-size: 12px;
+}
+.context-menu-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--bg));
+}
+.context-menu-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.context-menu-tokens .btn {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.context-menu-match {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+.context-menu-match legend {
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.context-menu-match input[type='text'] {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.context-menu-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
