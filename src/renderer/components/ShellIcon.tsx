@@ -108,5 +108,5 @@ export function ShellIcon({ path, size, isDir, className }: Props): JSX.Element 
   }
 
   const Placeholder = isDir ? FolderIcon : FileIcon
-  return <Placeholder size={size} className={className} />
+  return <Placeholder size={size} className={`shell-icon${className ? ` ${className}` : ''}`} />
 }
