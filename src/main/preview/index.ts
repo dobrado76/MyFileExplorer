@@ -138,7 +138,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 14
+const PREVIEW_CACHE_REV = 15
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -164,7 +164,10 @@ function capText(s: string, warnings: string[], label: string): string {
   return s
 }
 
-export async function getPreview(rawPath: string): Promise<PreviewModel> {
+export async function getPreview(
+  rawPath: string,
+  ads?: string | null
+): Promise<PreviewModel> {
   const file = requireAbsolute(rawPath)
   const st = await statPath(file)
 
@@ -172,7 +175,19 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
     return { path: file, kind: 'missing', fields: [] }
   }
 
-  const cacheKey = `${PREVIEW_CACHE_REV}|${file.toLowerCase()}`
+  const adsCache =
+    ads === undefined ? 'tip' : ads === null ? 'data' : `ads:${ads.toLowerCase()}`
+  let verPart = 0
+  try {
+    const { isEditableImagePath } = await import('@shared/imageEdit')
+    if (isEditableImagePath(file) && process.platform === 'win32') {
+      const { readVerCount } = await import('../fs/imageEdit')
+      verPart = await readVerCount(file)
+    }
+  } catch {
+    /* ignore */
+  }
+  const cacheKey = `${PREVIEW_CACHE_REV}|${file.toLowerCase()}|v${verPart}|${adsCache}`
   const cached = cache.get(cacheKey)
   if (cached && cached.mtimeMs === st.mtimeMs && cached.size === st.size) {
     return cached.model
@@ -252,7 +267,7 @@ export async function getPreview(rawPath: string): Promise<PreviewModel> {
 
     const mediaCacheKey = `${st.mtimeMs}-${st.size}`
     if (IMAGE_EXTS.has(ext)) {
-      model = await buildImagePreview(file, ext, fields, warnings, mediaCacheKey)
+      model = await buildImagePreview(file, ext, fields, warnings, mediaCacheKey, ads)
     } else if (AUDIO_EXTS.has(ext)) {
       model = await buildAudioPreview(file, st.mtimeMs, st.size, mediaCacheKey, fields, warnings)
     } else if (VIDEO_EXTS.has(ext)) {
@@ -323,14 +338,28 @@ async function buildImagePreview(
   ext: string,
   fields: PreviewField[],
   warnings: string[],
-  mediaCacheKey: string
+  mediaCacheKey: string,
+  ads?: string | null
 ): Promise<PreviewModel> {
   protocolAllowlist.allowDir(path.dirname(file))
+
+  let openPath = file
+  let mediaAds: string | null | undefined = undefined
+  let effectiveCacheKey = mediaCacheKey
+  try {
+    const { resolveImageAdsStream } = await import('../fs/imageEdit')
+    const resolved = await resolveImageAdsStream(file, ads)
+    openPath = resolved.openPath
+    mediaAds = resolved.ads
+    effectiveCacheKey = resolved.cacheKey
+  } catch {
+    /* fall back to $DATA */
+  }
 
   let bytes: Buffer | null = null
   let exifBuf: Buffer | null = null
   try {
-    bytes = await fsp.readFile(file)
+    bytes = await fsp.readFile(openPath)
     const { default: sharp } = await import('sharp')
     // Read then close — sharp(path) can keep a Win32 handle on some builds.
     const meta = await sharp(bytes).metadata()
@@ -358,7 +387,11 @@ async function buildImagePreview(
   return {
     path: file,
     kind: 'image',
-    mediaUrl: mediaUrlFor(file, mediaCacheKey),
+    mediaUrl: mediaUrlFor(
+      file,
+      effectiveCacheKey,
+      mediaAds !== undefined ? { ads: mediaAds } : undefined
+    ),
     fields,
     warnings
   }

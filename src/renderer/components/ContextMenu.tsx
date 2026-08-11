@@ -18,7 +18,7 @@ function fileExtension(filePath: string): string | null {
   return name.slice(dot)
 }
 
-type SubEntry = { label: string; action(): void; sep?: boolean }
+type SubEntry = { label: string; action(): void; sep?: boolean; title?: string }
 
 type MenuItem =
   | { type: 'sep' }
@@ -80,6 +80,8 @@ export function ContextMenu(): JSX.Element | null {
   const [focusIdx, setFocusIdx] = useState(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
   const [subFocusIdx, setSubFocusIdx] = useState(-1)
+  /** Async Version Control state for a single editable image (omit submenu until ready). */
+  const [imageVer, setImageVer] = useState<{ path: string; count: number } | null>(null)
   /** Submenu placement relative to its parent row (after viewport clamp). */
   const [subPlace, setSubPlace] = useState<{
     flipX: boolean
@@ -122,6 +124,35 @@ export function ContextMenu(): JSX.Element | null {
   )
 
   useEffect(() => () => clearCloseSubTimer(), [clearCloseSubTimer])
+
+  useEffect(() => {
+    if (!menu || menu.dropTransfer || menu.slideshow) {
+      setImageVer(null)
+      return
+    }
+    const single = menu.paths.length === 1 ? menu.paths[0]! : null
+    if (!single || !isEditableImagePath(single)) {
+      setImageVer(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await api.fs.imageEditState({ path: single })
+        if (cancelled) return
+        if (res.ok && res.value.versionCount >= 1) {
+          setImageVer({ path: single, count: res.value.versionCount })
+        } else {
+          setImageVer(null)
+        }
+      } catch {
+        if (!cancelled) setImageVer(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [menu])
 
   const items = useMemo<MenuItem[]>(() => {
     if (!menu) return []
@@ -592,14 +623,58 @@ export function ContextMenu(): JSX.Element | null {
             })()
           }
         })
-        result.push({
-          type: 'item',
-          label: 'Revert to original',
-          action: () => {
-            close()
-            void s.revertImageOriginal(single)
+        if (imageVer && samePath(imageVer.path, single) && imageVer.count >= 1) {
+          const n = imageVer.count
+          const verItems: SubEntry[] = [
+            {
+              label: 'Commit changes',
+              title:
+                'Make the current tip edit the new file body and discard all version history. Other alternate streams (e.g. Zone.Identifier) are kept.',
+              action: () => {
+                close()
+                void s.commitImageVersion(single)
+              }
+            },
+            {
+              label: 'Revert to original',
+              title:
+                'Delete all in-app edit versions and show the pristine original again. Other alternate streams are kept.',
+              action: () => {
+                close()
+                void s.revertImageOriginal(single)
+              }
+            },
+            { label: '', sep: true, action: () => undefined },
+            {
+              label: 'Original',
+              title:
+                'Preview the pristine original (what Explorer and other apps open). Does not change the file.',
+              action: () => {
+                close()
+                s.setImageVersionPreview({ path: single, ads: null })
+              }
+            }
+          ]
+          for (let k = 1; k <= n; k++) {
+            const ver = k
+            const tip = ver === n
+            verItems.push({
+              label: `Version ${ver}${tip ? ' (current)' : ''}`,
+              title: tip
+                ? `Preview Version ${ver} — the latest in-app edit (what MFE shows by default). Drop it from the preview banner if you no longer need it.`
+                : `Preview Version ${ver}. Drop it from the preview banner to remove that edit; newer versions are renumbered.`,
+              action: () => {
+                close()
+                s.setImageVersionPreview({ path: single, ads: `VER_${ver}` })
+              }
+            })
           }
-        })
+          result.push({
+            type: 'submenu',
+            label: 'Version Control',
+            items: verItems
+          })
+        }
       }
       if (isVideoExt(singleEntry?.ext ?? fileExtension(single)?.slice(1) ?? '')) {
         result.push({
@@ -1045,7 +1120,7 @@ export function ContextMenu(): JSX.Element | null {
       }
     )
     return result
-  }, [menu, closeContextMenu, store])
+  }, [menu, closeContextMenu, store, imageVer])
 
   // Clamp open submenu into the viewport (flip X, shift Y, scroll if taller than screen).
   useLayoutEffect(() => {
@@ -1227,6 +1302,7 @@ export function ContextMenu(): JSX.Element | null {
                         className={`menu-item${subFocusIdx === j ? ' focused' : ''}`}
                         onClick={sub.action}
                         role="menuitem"
+                        title={sub.title}
                       >
                         {sub.label}
                       </button>

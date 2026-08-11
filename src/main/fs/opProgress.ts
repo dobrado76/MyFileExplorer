@@ -15,6 +15,8 @@ export type OpReporter = {
   /** Advance by multiple work units (e.g. same-volume folder rename). */
   advance(n: number, current?: string): void
   setDone(done: number, current?: string): void
+  /** Update total after a counting/scan pass (0 = indeterminate). */
+  setTotal(total: number, current?: string): void
   /** Re-emit current counters (keep UI alive during a long single rename/copy). */
   pulse(current?: string): void
   /** Byte progress for a large file currently being copied. */
@@ -46,7 +48,7 @@ let seq = 0
  */
 export function beginOp(kind: FileOpKind, total: number, label?: string): OpReporter {
   const opId = `${kind}-${Date.now()}-${++seq}`
-  const safeTotal = Math.max(0, total)
+  let safeTotal = Math.max(0, total)
   let done = 0
   let lastEmitMs = 0
   let pendingCurrent: string | undefined
@@ -118,6 +120,11 @@ export function beginOp(kind: FileOpKind, total: number, label?: string): OpRepo
     setDone(next, current) {
       throwIfCancelled()
       done = Math.max(0, next)
+      emit('running', current, true)
+    },
+    setTotal(next, current) {
+      throwIfCancelled()
+      safeTotal = Math.max(0, next)
       emit('running', current, true)
     },
     pulse(current) {

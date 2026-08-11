@@ -66,7 +66,9 @@ Details strip layout: Name (+ Dimensions when present), then a responsive pair �
 
 **Display:** image via protocol URL (respect EXIF orientation when feasible). Uses as much vertical space as possible above the details strip (`object-fit: contain`).
 
-**Edit:** pencil button in the preview header, context menu **Edit image…**, or **Ctrl+E** (single editable image selected; otherwise ignored) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). **Save** backs up the pristine file under `userData/image-originals/` then overwrites the live path; **Revert to original** restores that backup (D27). **Save as…** writes a new file via the system save dialog with no backup/revert. Not for SVG/PSD.
+**Edit:** pencil button in the preview header, context menu **Edit image…**, or **Ctrl+E** (single editable image selected; otherwise ignored) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). **On NTFS:** **Save** writes tip ADS `VER_n` (max 4; default stream stays pristine). Context menu **Version Control** (when history exists): Commit / Revert, then **Original** / **Version k** to preview that stream (D27). While previewing a version, the dim banner has **Show current** and **Drop** (tooltips). Slideshow always uses the tip. **On non-NTFS:** Save overwrites the file in place (no version streams — FAT/exFAT have no ADS). **Copy/move to a non-ADS volume:** destination gets the tip edit as the file body (edits kept; original/history dropped). **Save as…** writes a new file via the system save dialog with no version history. Not for SVG/PSD.
+
+**Tradeoffs (NTFS):** Explorer / Open with default app still see the default stream (original) while MFE preview/thumbs/slideshow show the tip. If another app overwrites the default stream while `VER_*` exist, MFE keeps showing the tip until Revert or Commit — no automatic merge. ZIP compress typically drops ADS.
 
 **Image fields:** dimensions in the file details strip. Generation metadata (when present) still appears in the scrollable content area.
 

@@ -101,7 +101,16 @@ export type PreviewModel = {
   warnings?: string[]
 }
 
-export const previewRequestSchema = z.object({ path: z.string().min(1) })
+export const previewRequestSchema = z.object({
+  path: z.string().min(1),
+  /**
+   * Optional ADS override for image version preview:
+   * - omit → default tip (`VER_{count}` or `$DATA`)
+   * - `null` → pristine `$DATA`
+   * - `"VER_k"` → that version stream
+   */
+  ads: z.string().min(1).nullable().optional()
+})
 export type PreviewRequest = z.infer<typeof previewRequestSchema>
 
 export const previewEnsurePlayableSchema = z.object({

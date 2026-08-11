@@ -1438,6 +1438,27 @@ body.right-dragging * {
 .preview-edit-btn {
   flex-shrink: 0;
 }
+.preview-version-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px;
+  font-size: 0.85em;
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--bg) 88%, var(--text) 12%);
+  border-bottom: 1px solid var(--border);
+}
+.preview-version-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.preview-version-banner-btn {
+  padding: 0 6px;
+  font-size: inherit;
+}
 .preview-header .preview-title {
   font-weight: 600;
   word-break: break-all;

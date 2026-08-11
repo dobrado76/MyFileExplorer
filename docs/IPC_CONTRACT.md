@@ -38,11 +38,14 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:unwatch`         | `{ path }`                                       | `{ ok: true }`                                |
 | `fs:listDrives`      | —                                                | `{ drives: { path, label, volumeName }[] }`   |
 | `fs:setVolumeLabel`  | `{ path, name }` (drive root; `name` '' clears)  | `{ path, volumeName }`                         |
-| `fs:saveEditedImage` | `{ path, dataBase64 }`                           | `{ path, preservedOriginal }` (D27)           |
-| `fs:hasImageOriginal`| `{ path }`                                       | `{ hasOriginal }`                             |
-| `fs:revertImageOriginal` | `{ path }`                                   | `{ path, reverted }`                          |
-| `fs:readImageForEdit` | `{ path }`                                      | `{ dataBase64, mime }` (editor load)          |
-| `fs:saveEditedImageAs` | `{ dataBase64, defaultPath }`                  | `{ path, cancelled }` — no original backup    |
+| `fs:saveEditedImage` | `{ path, dataBase64 }`                           | `{ path, preservedOriginal, versionCount }` — tip ADS (D27) |
+| `fs:imageEditState`  | `{ path }`                                       | `{ versionCount, tipVer, hasVersions }`       |
+| `fs:hasImageOriginal`| `{ path }`                                       | `{ hasOriginal }` — deprecated alias of `hasVersions` |
+| `fs:revertImageOriginal` | `{ path }`                                   | `{ path, reverted }` — drop all `VER_*`       |
+| `fs:dropImageVersion` | `{ path, ver }`                                 | `{ path, versionCount }` — drop + renumber    |
+| `fs:commitImageVersion` | `{ path }`                                    | `{ path, committed }` — tip → `$DATA`         |
+| `fs:readImageForEdit` | `{ path, ads? }`                                | `{ dataBase64, mime }` (editor load; tip default) |
+| `fs:saveEditedImageAs` | `{ dataBase64, defaultPath }`                  | `{ path, cancelled }` — no version history    |
 
 `conflictPolicy`: `'fail' (default) | 'replace' | 'skip' | 'rename'` — applied to the whole batch (D18). Renderer prechecks with `fs:checkConflicts` and prompts once.
 
@@ -80,7 +83,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 | Channel       | Purpose                                                    |
 | ------------- | ---------------------------------------------------------- |
-| `preview:get` | `{ path }` → `PreviewModel` (see [PREVIEW.md](PREVIEW.md)) |
+| `preview:get` | `{ path, ads? }` → `PreviewModel` — optional `ads` (`null` = `$DATA`, `"VER_k"` = stream; omit = tip) (see [PREVIEW.md](PREVIEW.md)) |
 | `preview:ensurePlayable` | `{ path }` → `{ mediaUrl }` — remux MKV/AVI/… to MP4 under userData for `<video>`; `mediaUrl` null on failure |
 
 ### `search.*`

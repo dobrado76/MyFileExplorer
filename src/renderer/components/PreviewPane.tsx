@@ -84,6 +84,9 @@ export function PreviewPane(): JSX.Element {
   const extractZip = useAppStore((s) => s.extractZip)
   const mediaHold = useAppStore((s) => s.mediaHold)
   const previewVideoAutoplay = useAppStore((s) => s.settings.previewVideoAutoplay)
+  const imageVersionPreview = useAppStore((s) => s.imageVersionPreview)
+  const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
+  const dropImageVersion = useAppStore((s) => s.dropImageVersion)
 
   const entries = useMemo(
     () =>
@@ -114,6 +117,39 @@ export function PreviewPane(): JSX.Element {
     return e ? `${e.mtimeMs}:${e.size}` : null
   }, [previewPath, entries])
 
+  // Clear version override when selection leaves that file.
+  useEffect(() => {
+    if (!imageVersionPreview) return
+    if (!previewPath || !samePath(previewPath, imageVersionPreview.path)) {
+      setImageVersionPreview(null)
+    }
+  }, [previewPath, imageVersionPreview, setImageVersionPreview])
+
+  const versionOverrideAds =
+    imageVersionPreview && previewPath && samePath(previewPath, imageVersionPreview.path)
+      ? imageVersionPreview.ads
+      : undefined
+
+  const [versionMeta, setVersionMeta] = useState<{ count: number } | null>(null)
+  useEffect(() => {
+    if (!previewPath || !isEditableImagePath(previewPath)) {
+      setVersionMeta(null)
+      return
+    }
+    let cancelled = false
+    void api.fs.imageEditState({ path: previewPath }).then((res) => {
+      if (cancelled) return
+      if (res.ok && res.value.versionCount >= 1) {
+        setVersionMeta({ count: res.value.versionCount })
+      } else {
+        setVersionMeta(null)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [previewPath, selectedStamp])
+
   useEffect(() => {
     if (!previewPath) {
       setModel(null)
@@ -129,7 +165,11 @@ export function PreviewPane(): JSX.Element {
     // Different path: keep prior model painted until the next preview arrives
     // (avoids black flash on delete / arrow navigation).
     setModel((prev) => (prev && samePath(prev.path, previewPath) ? null : prev))
-    void api.preview.get({ path: previewPath }).then((res) => {
+    const adsArg =
+      versionOverrideAds === undefined
+        ? {}
+        : { ads: versionOverrideAds }
+    void api.preview.get({ path: previewPath, ...adsArg }).then((res) => {
       if (seq !== previewSeq) return // superseded — cancel stale preview
       setLoading(false)
       const next = res.ok ? res.value : null
@@ -158,7 +198,7 @@ export function PreviewPane(): JSX.Element {
         })
       }
     })
-  }, [previewPath, selectedStamp])
+  }, [previewPath, selectedStamp, versionOverrideAds])
 
   const retryPlayableForce = (): void => {
     if (!previewPath) return
@@ -266,6 +306,50 @@ export function PreviewPane(): JSX.Element {
                 <EditImageIcon size={16} />
               </button>
             )}
+        </div>
+      ) : null}
+
+      {versionOverrideAds !== undefined && versionMeta ? (
+        <div className="preview-version-banner">
+          <span>
+            {versionOverrideAds === null
+              ? 'Viewing original'
+              : (() => {
+                  const m = /^VER_(\d+)$/i.exec(versionOverrideAds)
+                  const k = m ? Number(m[1]) : null
+                  return k != null
+                    ? `Viewing Version ${k} of ${versionMeta.count}`
+                    : `Viewing ${versionOverrideAds}`
+                })()}
+          </span>
+          <div className="preview-version-banner-actions">
+            {(() => {
+              const m =
+                typeof versionOverrideAds === 'string'
+                  ? /^VER_(\d+)$/i.exec(versionOverrideAds)
+                  : null
+              const dropVer = m ? Number(m[1]) : null
+              if (dropVer == null || !previewPath) return null
+              return (
+                <button
+                  type="button"
+                  className="btn preview-version-banner-btn"
+                  title={`Permanently remove Version ${dropVer}. Remaining versions are renumbered. The pristine original is kept until you Commit or Revert.`}
+                  onClick={() => void dropImageVersion(previewPath, dropVer)}
+                >
+                  Drop
+                </button>
+              )
+            })()}
+            <button
+              type="button"
+              className="btn preview-version-banner-btn"
+              title="Clear this preview override and show the current tip edit (or the file if there is no history)."
+              onClick={() => setImageVersionPreview(null)}
+            >
+              Show current
+            </button>
+          </div>
         </div>
       ) : null}
 

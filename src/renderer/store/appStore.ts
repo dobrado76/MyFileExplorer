@@ -127,7 +127,17 @@ export type DialogState =
     }
   | { kind: 'tab-icon'; tabId: string }
   | { kind: 'alert'; title: string; message: string; detail?: string }
+  | {
+      kind: 'confirm'
+      title: string
+      message: string
+      confirmLabel?: string
+      danger?: boolean
+    }
   | null
+
+/** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
+export type ImageVersionPreview = { path: string; ads: string | null }
 
 export type ContextMenuState = {
   x: number
@@ -248,6 +258,7 @@ let viewOrderCache: {
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
+let confirmResolve: ((confirmed: boolean) => void) | null = null
 
 type AppState = {
   booted: boolean
@@ -294,6 +305,11 @@ type AppState = {
   imageViewer: { path: string; siblings: string[] } | null
   /** In-app Filerobot image editor (preview Edit button / context menu). */
   imageEditor: { path: string; mediaUrl: string } | null
+  /**
+   * Temporary preview override for image version streams.
+   * `ads: null` = pristine `$DATA`; otherwise e.g. `VER_2`.
+   */
+  imageVersionPreview: ImageVersionPreview | null
   /**
    * When true, preview/viewer detach AV/PDF media so Windows can delete/rename
    * files Chromium may still hold. Image previews use buffered/scratch mfe-media
@@ -473,11 +489,21 @@ type AppState = {
   closeImageViewer(): void
   openImageEditor(path: string, mediaUrl: string): void
   closeImageEditor(): void
-  /** Save Filerobot output over the live file (pristine backup under userData). */
+  /** Save Filerobot output as tip ADS (pristine `$DATA` kept on first save). */
   saveEditedImage(path: string, dataBase64: string): Promise<void>
   /** Save to a new path via dialog — no original backup. */
   saveEditedImageAs(sourcePath: string, dataBase64: string): Promise<string | null>
   revertImageOriginal(path: string): Promise<void>
+  dropImageVersion(path: string, ver: number): Promise<void>
+  commitImageVersion(path: string): Promise<void>
+  setImageVersionPreview(preview: ImageVersionPreview | null): void
+  askConfirm(opts: {
+    title: string
+    message: string
+    confirmLabel?: string
+    danger?: boolean
+  }): Promise<boolean>
+  resolveConfirm(confirmed: boolean): void
   imageViewerNavigate(delta: number | 'first' | 'last'): void
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
@@ -1450,6 +1476,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     dialog: null,
     imageViewer: null,
     imageEditor: null,
+    imageVersionPreview: null,
     mediaHold: false,
     contextMenu: null,
     search: {
@@ -3189,8 +3216,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       try {
         await call(api.fs.saveEditedImage({ path, dataBase64 }))
         get().notify('Image saved')
-        set({ imageEditor: null })
+        set({ imageEditor: null, imageVersionPreview: null })
         get().slideshowInvalidateImage(path)
+        await api.meta.invalidate({ paths: [path] })
+        get().bumpColumnMeta(path)
         await get().refresh()
         set({ mediaHold: false })
       } catch (e) {
@@ -3221,12 +3250,110 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async askConfirm(opts) {
+      if (confirmResolve) {
+        confirmResolve(false)
+        confirmResolve = null
+      }
+      return await new Promise<boolean>((resolve) => {
+        confirmResolve = resolve
+        set({
+          dialog: {
+            kind: 'confirm',
+            title: opts.title,
+            message: opts.message,
+            confirmLabel: opts.confirmLabel,
+            danger: opts.danger
+          }
+        })
+      })
+    },
+
+    resolveConfirm(confirmed) {
+      set({ dialog: null })
+      const r = confirmResolve
+      confirmResolve = null
+      r?.(confirmed)
+    },
+
+    setImageVersionPreview(preview) {
+      set({ imageVersionPreview: preview })
+    },
+
     async revertImageOriginal(path) {
+      const ok = await get().askConfirm({
+        title: 'Revert to original',
+        message:
+          'Delete all in-app edit versions and show the pristine original? Other alternate streams are kept.',
+        confirmLabel: 'Revert',
+        danger: true
+      })
+      if (!ok) return
       await releaseMediaLocks()
       try {
         await call(api.fs.revertImageOriginal({ path }))
         get().notify('Reverted to original')
+        set({ imageVersionPreview: null })
+        get().slideshowInvalidateImage(path)
+        await api.meta.invalidate({ paths: [path] })
+        get().bumpColumnMeta(path)
         await get().refresh()
+        set({ mediaHold: false })
+      } catch (e) {
+        set({ mediaHold: false })
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async dropImageVersion(path, ver) {
+      const ok = await get().askConfirm({
+        title: 'Drop version',
+        message: `Permanently drop Version ${ver}? Remaining versions will be renumbered.`,
+        confirmLabel: 'Drop',
+        danger: true
+      })
+      if (!ok) return
+      await releaseMediaLocks()
+      try {
+        await call(api.fs.dropImageVersion({ path, ver }))
+        get().notify(`Dropped Version ${ver}`)
+        set({ imageVersionPreview: null })
+        get().slideshowInvalidateImage(path)
+        await api.meta.invalidate({ paths: [path] })
+        get().bumpColumnMeta(path)
+        await get().refresh()
+        set({ mediaHold: false })
+      } catch (e) {
+        set({ mediaHold: false })
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async commitImageVersion(path) {
+      let tipVer = 1
+      try {
+        const st = await call(api.fs.imageEditState({ path }))
+        tipVer = st.tipVer || st.versionCount || 1
+      } catch {
+        /* use 1 */
+      }
+      const ok = await get().askConfirm({
+        title: 'Commit changes',
+        message: `Make Version ${tipVer} the new original and discard version history?`,
+        confirmLabel: 'Commit',
+        danger: true
+      })
+      if (!ok) return
+      await releaseMediaLocks()
+      try {
+        const res = await call(api.fs.commitImageVersion({ path }))
+        get().notify('Committed as new original')
+        set({ imageVersionPreview: null })
+        get().slideshowInvalidateImage(path)
+        await api.meta.invalidate({ paths: [res.path] })
+        get().bumpColumnMeta(res.path)
+        await get().refresh()
+        get().setSelection([res.path], res.path, res.path)
         set({ mediaHold: false })
       } catch (e) {
         set({ mediaHold: false })

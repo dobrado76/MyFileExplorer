@@ -40,8 +40,11 @@ const api: MyFileExplorerApi = {
     measureFolder: invoke(IPC.fsMeasureFolder),
     setAttributes: invoke(IPC.fsSetAttributes),
     saveEditedImage: invoke(IPC.fsSaveEditedImage),
+    imageEditState: invoke(IPC.fsImageEditState),
     hasImageOriginal: invoke(IPC.fsHasImageOriginal),
     revertImageOriginal: invoke(IPC.fsRevertImageOriginal),
+    dropImageVersion: invoke(IPC.fsDropImageVersion),
+    commitImageVersion: invoke(IPC.fsCommitImageVersion),
     readImageForEdit: invoke(IPC.fsReadImageForEdit),
     saveEditedImageAs: invoke(IPC.fsSaveEditedImageAs),
     ensureLamaModel: invokeVoid(IPC.fsEnsureLamaModel)

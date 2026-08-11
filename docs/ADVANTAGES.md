@@ -13,7 +13,7 @@ Features are deliberately patterned after tools people already trust — then fo
 | **[Everything](https://www.voidtools.com/)** (voidtools) | Instant, operator-rich search over an opt-in index (folder roots + optional NTFS USN volume index), as-you-type, match toggles, filters/bookmarks — without forcing whole-disk indexing. |
 | **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 4** panes in one window — side-by-side or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
 | **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, compiled file lists for large libraries, image-list cache. |
-| **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; pristine backup under app `userData`, not a sidecar in your folder. |
+| **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
 
 Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27).
 
@@ -41,7 +41,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | --------- | --------------------- |
 | **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted). Explorer’s preview is weaker and often disabled or pane-starved. |
 | **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
-| **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. First save keeps a pristine backup under app `userData` (not a sidecar in your folder); **Revert to original** restores it. Entry: preview button, context menu, **Ctrl+E**. |
+| **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. Saves tip ADS on NTFS (`VER_*`); `$DATA` stays original. **Version Control** submenu: commit / revert / preview versions; Drop from the preview banner. Entry: preview button, context menu, **Ctrl+E**. |
 | **ACDSee-inspired slideshow** | Gated fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop), image-list cache, and compiled file lists for huge libraries — Explorer has no equivalent. |
 | **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |

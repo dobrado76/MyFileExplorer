@@ -249,6 +249,28 @@ async function copyFileWithProgress(
   displayName: string
 ): Promise<void> {
   progress?.throwIfCancelled()
+
+  // Versioned NTFS image → non-ADS volume: write tip as the file body
+  // (keep latest edit; pristine original + VER_* history cannot travel).
+  try {
+    const { tipBytesForNonAdsDest } = await import('./imageEdit')
+    const tip = await tipBytesForNonAdsDest(source, target)
+    if (tip) {
+      if (!progress || tip.length < LARGE_FILE_COPY_BYTES) {
+        await fsp.writeFile(target, tip)
+        progress?.tick(displayName)
+        return
+      }
+      progress.reportBytes(0, tip.length, displayName)
+      await fsp.writeFile(target, tip)
+      progress.reportBytes(tip.length, tip.length, displayName)
+      progress.tick(displayName)
+      return
+    }
+  } catch {
+    /* fall through to normal copy */
+  }
+
   if (!progress || size < LARGE_FILE_COPY_BYTES) {
     await fsp.copyFile(source, target)
     progress?.tick(displayName)

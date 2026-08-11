@@ -151,6 +151,24 @@ if (!gotLock) {
     // Cold start with a path / protocol URL on the command line.
     dispatchFromArgv(process.argv)
 
+    // Best-effort: migrate AppData image-originals → on-file VER_* ADS (D27).
+    void import('./fs/imageEdit')
+      .then((m) => m.migrateImageOriginalsToAds())
+      .then((r) => {
+        if (r.migrated > 0 || r.failed > 0) {
+          logMain(
+            'info',
+            `image-originals migrate: migrated=${r.migrated} skipped=${r.skipped} failed=${r.failed}`
+          )
+        }
+      })
+      .catch((e) => {
+        logMain(
+          'warn',
+          `image-originals migrate failed: ${e instanceof Error ? e.message : String(e)}`
+        )
+      })
+
     logMain('info', `MyFileExplorer started (userData: ${app.getPath('userData')})`)
 
     app.on('activate', () => {

@@ -281,13 +281,16 @@ export async function writeStreamText(
 export async function copyStreams(
   sourcePath: string,
   destPath: string,
-  ignoreNames?: string[]
+  ignoreNames?: string[],
+  /** When true, skip that stream (in addition to `ignoreNames`). */
+  ignorePred?: (name: string) => boolean
 ): Promise<number> {
   const ignore = new Set((ignoreNames ?? []).map((n) => n.toLowerCase()))
   const streams = listStreams(sourcePath)
   let copied = 0
   for (const s of streams) {
     if (ignore.has(s.name.toLowerCase())) continue
+    if (ignorePred?.(s.name)) continue
     const data = await readStreamBytes(sourcePath, s.name)
     if (!data) continue
     await writeStreamBytes(destPath, s.name, data)

@@ -53,7 +53,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | `svg` | Displayed as image; **not** in-app editable. |
 | `ico` | Displayed as image; **not** in-app editable. |
 
-**In-app image editor** (Filerobot; Save / Revert / Save as…): `png` `jpg` `jpeg` `webp` `gif` `bmp` `avif` `tiff` `tif` — not `svg` / `ico` / `psd`.
+**In-app image editor** (Filerobot; Save → `VER_*` ADS / Version Control / Save as…): `png` `jpg` `jpeg` `webp` `gif` `bmp` `avif` `tiff` `tif` — not `svg` / `ico` / `psd`.
 
 ---
 

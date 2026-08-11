@@ -104,6 +104,15 @@ export function Dialogs(): JSX.Element | null {
       return (
         <AlertDialog title={dialog.title} message={dialog.message} detail={dialog.detail} />
       )
+    case 'confirm':
+      return (
+        <ConfirmDialog
+          title={dialog.title}
+          message={dialog.message}
+          confirmLabel={dialog.confirmLabel}
+          danger={dialog.danger}
+        />
+      )
   }
 }
 
@@ -202,6 +211,42 @@ function AlertDialog({
     >
       <div className="alert-message">{message}</div>
       {detail ? <div className="alert-detail">{detail}</div> : null}
+    </Modal>
+  )
+}
+
+function ConfirmDialog({
+  title,
+  message,
+  confirmLabel,
+  danger
+}: {
+  title: string
+  message: string
+  confirmLabel?: string
+  danger?: boolean
+}): JSX.Element {
+  const resolveConfirm = useAppStore((s) => s.resolveConfirm)
+  return (
+    <Modal
+      title={title}
+      onClose={() => resolveConfirm(false)}
+      actions={
+        <>
+          <button className="btn" onClick={() => resolveConfirm(false)}>
+            Cancel
+          </button>
+          <button
+            className={`btn ${danger ? 'danger' : 'primary'}`}
+            onClick={() => resolveConfirm(true)}
+            autoFocus
+          >
+            {confirmLabel ?? 'OK'}
+          </button>
+        </>
+      }
+    >
+      <div className="alert-message">{message}</div>
     </Modal>
   )
 }

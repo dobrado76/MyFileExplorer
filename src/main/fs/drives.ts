@@ -12,12 +12,12 @@ type VolumeApi = {
   GetDriveTypeW: (lpRootPathName: string) => number
   GetVolumeInformationW: (
     root: string,
-    nameBuf: Buffer,
+    nameBuf: Buffer | null,
     nameSize: number,
     serial: null,
     maxComp: null,
     flags: null,
-    fsBuf: null,
+    fsBuf: Buffer | null,
     fsSize: number
   ) => number
   SetVolumeLabelW: (root: string, name: string) => number
@@ -73,6 +73,37 @@ export function readVolumeName(rootPath: string): string {
   const raw = nameBuf.toString('utf16le').replace(/\0.*$/s, '').trim()
   if (isHiddenVolumeName(raw)) return ''
   return raw
+}
+
+/** File system name for a drive root (`NTFS`, `FAT32`, …), or null when unknown. */
+export function readFileSystemName(rootPath: string): string | null {
+  const api = ensureVolumeApi()
+  if (!api) return null
+  const root = normalizeDriveRoot(rootPath)
+  const fsBuf = Buffer.alloc(64 * 2)
+  const ok = api.GetVolumeInformationW(root, null, 0, null, null, null, fsBuf, 64)
+  if (!ok) return null
+  const raw = fsBuf.toString('utf16le').replace(/\0.*$/s, '').trim()
+  return raw || null
+}
+
+const ntfsPathCache = new Map<string, boolean>()
+
+/**
+ * True when `absPath` is on an NTFS volume (ADS-capable). Non-win32 / unknown → false.
+ * Cached per drive root for bulk copy/move.
+ */
+export function pathIsNtfs(absPath: string): boolean {
+  if (process.platform !== 'win32') return false
+  const m = /^([a-zA-Z]:)/.exec(absPath.replace(/\//g, '\\'))
+  if (!m) return false
+  const root = `${m[1]!.toUpperCase()}\\`
+  const cached = ntfsPathCache.get(root)
+  if (cached !== undefined) return cached
+  const fsName = readFileSystemName(root)
+  const ok = (fsName ?? '').toUpperCase() === 'NTFS'
+  ntfsPathCache.set(root, ok)
+  return ok
 }
 
 function driveLabel(letter: string, volumeName: string): string {

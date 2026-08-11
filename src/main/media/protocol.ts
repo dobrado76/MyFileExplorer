@@ -179,9 +179,21 @@ export function mediaPathFromUrl(rawUrl: string): string | null {
  * Build a media URL. Optional `cacheKey` (e.g. mtimeMs-size) busts Chromium’s
  * HTTP cache when the file bytes change but the path stays the same — needed
  * after in-place image edits so preview/thumbs don’t keep showing the old image.
+ *
+ * Optional `ads`: NTFS alternate stream name to serve (`VER_2`), or `null` /
+ * `''` for the default `$DATA` stream. Omit to leave the query without `&ads=`
+ * (callers that want the version tip must pass `ads: 'VER_n'` explicitly).
  */
-export function mediaUrlFor(absPath: string, cacheKey?: number | string): string {
-  const base = `${MEDIA_SCHEME}://local/?p=${encodeURIComponent(absPath)}`
+export function mediaUrlFor(
+  absPath: string,
+  cacheKey?: number | string,
+  opts?: { ads?: string | null }
+): string {
+  let base = `${MEDIA_SCHEME}://local/?p=${encodeURIComponent(absPath)}`
+  if (opts && 'ads' in (opts ?? {})) {
+    const a = opts?.ads
+    base += `&ads=${a ? encodeURIComponent(a) : ''}`
+  }
   if (cacheKey === undefined || cacheKey === '') return base
   return `${base}&v=${encodeURIComponent(String(cacheKey))}`
 }
@@ -384,8 +396,29 @@ export function registerMediaProtocolHandler(): void {
       return new Response('Forbidden', { status: 403 })
     }
     try {
-      const st = await fsp.stat(requested)
-      if (!st.isFile() || st.size <= 0) {
+      let openPath = requested
+      let adsName: string | null = null
+      try {
+        const url = new URL(request.url)
+        if (url.searchParams.has('ads')) {
+          const raw = url.searchParams.get('ads') ?? ''
+          adsName = raw.trim() || null
+        }
+      } catch {
+        /* ignore */
+      }
+      if (adsName) {
+        const { buildStreamPath, validateStreamName } = await import('../fs/adsWin32')
+        try {
+          validateStreamName(adsName)
+          openPath = buildStreamPath(requested, adsName)
+        } catch {
+          return new Response('Bad stream', { status: 400 })
+        }
+      }
+
+      const st = await fsp.stat(openPath)
+      if ((!st.isFile() && !adsName) || st.size <= 0) {
         return new Response('Not found', { status: 404 })
       }
 
@@ -395,18 +428,18 @@ export function registerMediaProtocolHandler(): void {
         // Typical sizes: buffer then close source (D7). Huge AV: range from path
         // so playback starts immediately (full scratch copy of movies is unusable).
         if (st.size <= MAX_BUFFER_BYTES) {
-          const buf = await fsp.readFile(requested)
+          const buf = await fsp.readFile(openPath)
           return serveBufferWithRanges(buf, request, mime)
         }
-        return serveFileWithRanges(requested, st.size, request, mime)
+        return serveFileWithRanges(openPath, st.size, request, mime)
       }
 
       if (st.size <= MAX_BUFFER_BYTES) {
-        const buf = await fsp.readFile(requested)
+        const buf = await fsp.readFile(openPath)
         return bufferedResponse(buf, requested)
       }
 
-      const scratch = await ensureScratchCopy(requested, st.mtimeMs, st.size)
+      const scratch = await ensureScratchCopy(openPath, st.mtimeMs, st.size)
       const scratchStat = await fsp.stat(scratch)
       return serveFileWithRanges(scratch, scratchStat.size, request, mime)
     } catch {

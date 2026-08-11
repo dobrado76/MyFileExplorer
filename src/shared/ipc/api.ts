@@ -87,15 +87,30 @@ export type MyFileExplorerApi = {
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
     setAttributes(req: SetAttributesRequest): Promise<Result<SetAttributesResponse>>
-    /** Save Filerobot output; first edit backs up pristine bytes under userData. */
+    /** Save Filerobot output as tip ADS (`VER_n`); `$DATA` stays pristine original. */
     saveEditedImage(req: {
       path: string
       dataBase64: string
-    }): Promise<Result<{ path: string; preservedOriginal: boolean }>>
+    }): Promise<Result<{ path: string; preservedOriginal: boolean; versionCount: number }>>
+    /** Version Control state (`VER_COUNT` / tip). */
+    imageEditState(req: PathRequest): Promise<
+      Result<{ versionCount: number; tipVer: number; hasVersions: boolean }>
+    >
+    /** @deprecated Prefer imageEditState — true when VER_COUNT ≥ 1. */
     hasImageOriginal(req: PathRequest): Promise<Result<{ hasOriginal: boolean }>>
+    /** Drop all VER_* / VER_COUNT (leave $DATA). */
     revertImageOriginal(req: PathRequest): Promise<Result<{ path: string; reverted: boolean }>>
-    /** Load image bytes for Filerobot (data URL-safe base64). */
-    readImageForEdit(req: PathRequest): Promise<Result<{ dataBase64: string; mime: string }>>
+    dropImageVersion(req: {
+      path: string
+      ver: number
+    }): Promise<Result<{ path: string; versionCount: number }>>
+    /** Collapse tip into $DATA; preserve non-version ADS. */
+    commitImageVersion(req: PathRequest): Promise<Result<{ path: string; committed: boolean }>>
+    /** Load image bytes for Filerobot (tip by default; optional ADS override). */
+    readImageForEdit(req: {
+      path: string
+      ads?: string | null
+    }): Promise<Result<{ dataBase64: string; mime: string }>>
     /** Save dialog + write; no original backup (Save As). */
     saveEditedImageAs(req: {
       dataBase64: string

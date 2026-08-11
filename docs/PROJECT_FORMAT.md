@@ -17,12 +17,22 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   window-state.json      # x, y, width, height, maximized
   search-index.sqlite    # FTS index + indexed roots registry
   thumbs/                # thumbnail cache files
-  image-originals/       # pristine copies before in-app image edits (D27)
+  image-originals/       # legacy D27 backups (migrated to VER_* ADS on ready; may be empty)
   shell-icons/           # Windows shell icon cache
   logs/                  # optional main log files
 ```
 
 Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and install stay aligned.
+
+**Image edit versions (D27)** live on the image file as NTFS ADS — not under `userData` after migration:
+
+| Stream | Role |
+|--------|------|
+| `$DATA` | Pristine original (unchanged after first in-app save) |
+| `VER_1` … `VER_4` | Successive edits; higher = newer |
+| `VER_COUNT` | Decimal text count `1`…`4` |
+
+Compress-to-ZIP (7za) typically **omits** ADS — version history is not inside the `.zip`.
 
 Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow.cacheActive`, `slideshow.imageListCache`, capped at 100 000 paths). Categorizer mappings live in `settings.slideshow.categorizerMap` (Import copies a file in; path is not the source of truth). Optional `slideshow.invalidImagesDir` receives files that fail preview/decode during slideshow. Compiled lists: `slideshow.compiledFileListsFolder`, `compiledListEntries`, `compiledPlaylistIndex`; window geometry `settings.compiledListsWindowBounds`. On disk under the compiled root: `{Name}/*.dat` (body = source folders; ADS Index/Count after Update Lists), `{Name}/*.txt` (body expand at play; no Index), `!!Lists/last.txt` (resume), and user-saved `!!Lists/*.txt` composites. ADS Manager geometry is `settings.adsManagerBounds` (`{ x, y, width, height }` or `null` for centered defaults).
 

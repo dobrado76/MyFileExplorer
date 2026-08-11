@@ -31,8 +31,11 @@ export const IPC = {
   fsMeasureFolder: 'fs:measureFolder',
   fsSetAttributes: 'fs:setAttributes',
   fsSaveEditedImage: 'fs:saveEditedImage',
+  fsImageEditState: 'fs:imageEditState',
   fsHasImageOriginal: 'fs:hasImageOriginal',
   fsRevertImageOriginal: 'fs:revertImageOriginal',
+  fsDropImageVersion: 'fs:dropImageVersion',
+  fsCommitImageVersion: 'fs:commitImageVersion',
   fsReadImageForEdit: 'fs:readImageForEdit',
   fsSaveEditedImageAs: 'fs:saveEditedImageAs',
   /** Ensure LaMa ONNX is cached under userData; returns fetchable model URL. */

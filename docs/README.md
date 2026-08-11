@@ -61,7 +61,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Search results | D29 — normal `FileView` (banner + path under names) |
 | Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate |
 | File-op progress | D28 — status bar; Cancel (incl. 7za ZIP compress) |
-| Image editor | D27 — Filerobot; originals under `userData` |
+| Image editor | D27 — Filerobot; tip ADS `VER_*` on file |
 | Recycle Bin | D7 — in-app bin view |
 | Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder |
 | Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |

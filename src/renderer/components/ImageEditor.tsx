@@ -8,7 +8,7 @@ import { ImageRemoveOverlay } from './ImageRemoveOverlay'
 /**
  * Full-window Filerobot host. Image bytes come from main via IPC.
  * Remove mode runs local LaMa ONNX inpainting, then remounts Filerobot.
- * In-place save preserves AppData `image-originals/` backup.
+ * Save writes tip ADS (`VER_n`); `$DATA` stays the pristine original (D27).
  */
 export function ImageEditor(): JSX.Element | null {
   const editor = useAppStore((s) => s.imageEditor)

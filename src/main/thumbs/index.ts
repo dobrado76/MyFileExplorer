@@ -6,6 +6,7 @@ import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
 import { resolveVidThumbFrames } from './vidCache'
+import { isEditableImagePath } from '@shared/imageEdit'
 
 const THUMB_EXTS = new Set([
   'png',
@@ -75,10 +76,34 @@ export async function getThumbUrl(
   }
   if (!st.isFile()) return { url: null }
 
+  let tipAds: string | null = null
+  let tipOpenPath = file
+  let tipSize = st.size
+  let tipVer = 0
+  if (isEditableImagePath(file) && process.platform === 'win32') {
+    try {
+      const { resolveImageAdsStream } = await import('../fs/imageEdit')
+      const resolved = await resolveImageAdsStream(file)
+      tipAds = resolved.ads
+      tipOpenPath = resolved.openPath
+      tipVer = resolved.versionCount
+      try {
+        const sst = await fsp.stat(tipOpenPath)
+        tipSize = sst.size
+      } catch {
+        /* keep default size */
+      }
+    } catch {
+      /* tip = $DATA */
+    }
+  }
+
   const target = nearestSize(size)
   const key = crypto
     .createHash('sha1')
-    .update(`${file.toLowerCase()}|${st.mtimeMs}|${st.size}|${target}`)
+    .update(
+      `${file.toLowerCase()}|${st.mtimeMs}|${st.size}|v${tipVer}|${tipAds ?? 'data'}|${tipSize}|${target}`
+    )
     .digest('hex')
   const cacheFile = path.join(thumbCacheDir(), `${key}.webp`)
 
@@ -109,7 +134,7 @@ export async function getThumbUrl(
         input = await fsp.readFile(raster.cachePath)
       } else {
         // Buffer so sharp does not hold the browsed file open on Windows.
-        input = await fsp.readFile(file)
+        input = await fsp.readFile(tipOpenPath)
       }
       await sharp(input, { failOn: 'truncated', limitInputPixels: 512 * 1024 * 1024 })
         .rotate()

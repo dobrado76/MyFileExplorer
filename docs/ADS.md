@@ -61,7 +61,7 @@ Single module: `src/main/fs/adsWin32.ts` (koffi → `kernel32` `BackupRead` / `B
 
 Normal copy/move of the host file relies on Win32 preserving streams; `ads:copy` is explicit tooling when you need stream-only copy.
 
-Well-known streams such as `Zone.Identifier` appear in the list with **no** special UI.
+Well-known streams such as `Zone.Identifier` appear in the list with **no** special UI. Image-edit history streams `VER_1`…`VER_4` and `VER_COUNT` (D27) are listed like any other stream (binary preview `[...]`); no special hide.
 
 ## IPC summary
 
@@ -87,3 +87,55 @@ Column visibility / order live with the rest of the Details layout in settings (
 ## Related uses
 
 Compiled file lists (D39) write ADS **`Index`** (image path list) and **`Count`** on `.dat` under the compiled root (Update Lists). `.txt` lists do not use Index ADS. Same NTFS mechanism; slideshow code calls `adsWin32` helpers directly rather than going through the manager UI.
+
+Image-edit history uses `VER_*` / `VER_COUNT` — see below.
+
+## Image edit versions (D27)
+
+In-app Filerobot saves use ADS **only on NTFS**. The default stream (`::$DATA`) is the pristine original; successive edits live in named streams. Decision: [DECISIONS.md](DECISIONS.md) **D27**. Preview UX: [PREVIEW.md](PREVIEW.md).
+
+| Stream | Role |
+| ------ | ---- |
+| Default (`::$DATA`) | Pristine original — unchanged after the first in-app save |
+| `VER_1` … `VER_4` | Successive edits; **higher = newer** (max 4; further saves shift oldest) |
+| `VER_COUNT` | Decimal text tip index `1`…`4` |
+
+**Who sees what (NTFS):**
+
+- MFE preview / slideshow / thumbs / editor → tip `VER_{VER_COUNT}`
+- Explorer / Open with default app → default stream (original)
+- ADS Manager lists `VER_*` / `VER_COUNT` like any other stream (binary preview `[...]`)
+
+```mermaid
+flowchart TB
+  subgraph ntfs["NTFS file photo.jpg"]
+    DATA["::$DATA<br/>pristine original"]
+    V1["VER_1<br/>first edit"]
+    V2["VER_2<br/>second edit = tip"]
+    VC["VER_COUNT = 2"]
+  end
+
+  save1["First Save"] --> DATA
+  save1 --> V1
+  save1 --> VC
+  save2["Second Save"] --> V2
+  save2 --> VC
+
+  mfe["MFE preview / thumbs / slideshow"] --> V2
+  explorer["Explorer / default app"] --> DATA
+
+  subgraph nonNtfs["Non-NTFS (FAT / exFAT / …)"]
+    plain["photo.jpg<br/>file body only — no streams"]
+  end
+
+  saveNon["Save on non-NTFS"] --> plain
+  copyOut["Copy / move NTFS → non-NTFS"] -->|"write tip bytes"| plain
+```
+
+**Non-NTFS:** There is no `$DATA` / no ADS — only the file body. Save overwrites that file in place (no warning, no version history).
+
+**Copy / move NTFS → non-ADS volume:** Destination gets the **tip** bytes as the file body (keep the latest edit; original + `VER_*` history cannot travel). NTFS→NTFS relies on normal Win32 copy preserving streams.
+
+**Version Control** (context submenu when `VER_COUNT ≥ 1`): Commit tip into the default stream (preserve other ADS), Revert (drop `VER_*` only), then **Original** / **Version k** items that only switch the preview override. While an override is active, the preview banner offers **Show current** and (for a version, not original) **Drop** with tooltips.
+
+**Legacy migration:** old C# apps that used a single `repaired` ADS can be converted with `scripts/migrate_repaired_ads.bat` (writes `VER_1` + `VER_COUNT=1`, leaves the file body as the original).

@@ -67,8 +67,11 @@ import { createShortcuts } from '../fs/shortcuts'
 import { compressToZip, extractZips } from '../fs/zip'
 import {
   saveEditedImage,
+  getImageEditState,
   hasImageOriginal,
   revertImageOriginal,
+  dropImageVersion,
+  commitImageVersion,
   readImageForEdit,
   writeEditedImageToPath
 } from '../fs/imageEdit'
@@ -285,14 +288,44 @@ export function registerIpcHandlers(): void {
   handle(
     IPC.fsSaveEditedImage,
     z.object({ path: z.string().min(1), dataBase64: z.string().min(1) }),
-    (req) => saveEditedImage(req.path, req.dataBase64)
+    async (req) => {
+      const res = await saveEditedImage(req.path, req.dataBase64)
+      await invalidateColumnMetaPaths([res.path])
+      return res
+    }
   )
+  handle(IPC.fsImageEditState, pathRequestSchema, (req) => getImageEditState(req.path))
   handle(IPC.fsHasImageOriginal, pathRequestSchema, (req) => hasImageOriginal(req.path))
   handle(IPC.fsRevertImageOriginal, pathRequestSchema, async (req) => {
     muteWatchers()
-    return revertImageOriginal(req.path)
+    const res = await revertImageOriginal(req.path)
+    await invalidateColumnMetaPaths([res.path])
+    return res
   })
-  handle(IPC.fsReadImageForEdit, pathRequestSchema, (req) => readImageForEdit(req.path))
+  handle(
+    IPC.fsDropImageVersion,
+    z.object({ path: z.string().min(1), ver: z.number().int().min(1).max(4) }),
+    async (req) => {
+      muteWatchers()
+      const res = await dropImageVersion(req.path, req.ver)
+      await invalidateColumnMetaPaths([res.path])
+      return res
+    }
+  )
+  handle(IPC.fsCommitImageVersion, pathRequestSchema, async (req) => {
+    muteWatchers()
+    const res = await commitImageVersion(req.path)
+    await invalidateColumnMetaPaths([res.path])
+    return res
+  })
+  handle(
+    IPC.fsReadImageForEdit,
+    z.object({
+      path: z.string().min(1),
+      ads: z.string().min(1).nullable().optional()
+    }),
+    (req) => readImageForEdit(req.path, req.ads)
+  )
   handle(IPC.fsEnsureLamaModel, emptySchema, async () => {
     const result = await ensureLamaModel()
     return {
@@ -369,7 +402,9 @@ export function registerIpcHandlers(): void {
   })
 
   // preview
-  handle(IPC.previewGet, previewRequestSchema, (req) => getPreview(req.path))
+  handle(IPC.previewGet, previewRequestSchema, (req) =>
+    getPreview(req.path, req.ads === undefined ? undefined : req.ads)
+  )
   handle(IPC.previewEnsurePlayable, previewEnsurePlayableSchema, (req) =>
     ensurePlayablePreview(req.path, { force: req.force })
   )
