@@ -813,11 +813,33 @@ textarea:focus {
   background: var(--bg-panel);
   color: var(--text-dim);
 }
+.pane-empty-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 280px;
+  text-align: center;
+}
 .pane-drop-hint {
   padding: 16px 24px;
   border: 1px dashed var(--border);
   border-radius: 8px;
   font-size: 0.95em;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pane-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.pane-empty-note {
+  margin: 0;
+  font-size: 0.82em;
+  color: var(--text-dim);
+  opacity: 0.85;
 }
 .pane-toolbar {
   display: flex;

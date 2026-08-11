@@ -31,7 +31,7 @@ Custom theme = user-editable map of these tokens in settings.
 ### Multi-view panes (D31)
 
 - Layout modes: single, side-by-side, 2×2 grid
-- Focused pane gets a clear focus ring; empty panes show “Drop a tab here”
+- Focused pane gets a clear focus ring; empty panes show “Drop a tab here” plus **Open Computer** (new tab at default/home path) and **Browse…** (folder picker) — drag-tab still works
 - Per-pane mini toolbar: Back / Forward / Up / Refresh / breadcrumb / view mode
 - Breadcrumb: click segment to jump; **click empty address area** (or Ctrl+L) to edit the path
 

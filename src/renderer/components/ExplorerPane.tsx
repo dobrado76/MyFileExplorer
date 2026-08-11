@@ -2,6 +2,7 @@ import { useCallback, type JSX } from 'react'
 import { resolveFolderView } from '@shared/folderViews'
 import type { ViewMode } from '@shared/schemas/session'
 import { dropOperation, useAppStore } from '../store/appStore'
+import { api, call } from '../lib/ipc'
 import { Breadcrumb } from './Breadcrumb'
 import { FolderTree } from './FolderTree'
 import { FileView } from './FileView'
@@ -34,6 +35,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const showFocusRing = focused && viewLayout > 1
   const focusPane = useAppStore((s) => s.focusPane)
   const assignTabToPane = useAppStore((s) => s.assignTabToPane)
+  const newTab = useAppStore((s) => s.newTab)
   const tab = useAppStore((s) => (tabId ? s.tabs.find((t) => t.id === tabId) : undefined))
   const splitters = useAppStore((s) => s.splitters)
   const setSplitters = useAppStore((s) => s.setSplitters)
@@ -75,6 +77,33 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
     [assignTabToPane, paneIndex]
   )
 
+  /** Put a new tab in this empty pane (newTab assigns to focused pane). */
+  const openInThisPane = useCallback(
+    async (path?: string): Promise<void> => {
+      focusPane(paneIndex)
+      await newTab(path)
+    },
+    [focusPane, newTab, paneIndex]
+  )
+
+  const openComputer = useCallback((): void => {
+    const s = useAppStore.getState()
+    const target = s.settings.defaultNewTabPath || s.homePath
+    void openInThisPane(target || undefined)
+  }, [openInThisPane])
+
+  const browseFolder = useCallback((): void => {
+    void (async () => {
+      try {
+        const res = await call(api.app.pickFolder())
+        if (!res.path) return
+        await openInThisPane(res.path)
+      } catch {
+        /* picker cancelled / failed */
+      }
+    })()
+  }, [openInThisPane])
+
   if (!tabId || !tab) {
     return (
       <div
@@ -83,7 +112,18 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
         onDragOver={onTabDragOver}
         onDrop={onTabDrop}
       >
-        <div className="pane-drop-hint">Drop a tab here</div>
+        <div className="pane-empty-panel">
+          <div className="pane-drop-hint">Drop a tab here</div>
+          <div className="pane-empty-actions">
+            <button type="button" className="btn primary" onClick={openComputer}>
+              Open Computer
+            </button>
+            <button type="button" className="btn" onClick={browseFolder}>
+              Browse…
+            </button>
+          </div>
+          <p className="pane-empty-note">Or drag a tab from the tab bar</p>
+        </div>
       </div>
     )
   }
