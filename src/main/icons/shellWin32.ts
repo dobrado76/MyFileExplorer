@@ -86,6 +86,7 @@ function ensureWinShellIconApi(): WinShellIconApi | null {
     ) as WinShellIconApi['DrawIconEx']
   }
 
+  void SHFILEINFOW
   void BITMAPINFO
   return winShellIconApi
 }
