@@ -307,7 +307,7 @@ export const settingsSchema = z.object({
   /** @deprecated Migrated into `quickAccess` on edit. */
   quickAccessHiddenDefaults: z.array(z.string()).catch([]),
   /** Local folder or GitHub Releases URL for installer updates. */
-  updatesFolder: z.string().catch(''),
+  updatesFolder: z.string().catch(DEFAULT_UPDATES_SOURCE),
   /**
    * Chromium GPU compositing off (Electron `app.disableHardwareAcceleration`).
    * Applied at process start — restart required after change. Frees VRAM when

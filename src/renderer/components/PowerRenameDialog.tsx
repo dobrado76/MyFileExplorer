@@ -207,20 +207,26 @@ function Modal({
     }
   }, [onPointerMove, onPointerUp, persistState])
 
-  const beginDrag = (kind: 'move' | ResizeEdge, e: ReactPointerEvent): void => {
-    if (maximizedRef.current) return
-    e.preventDefault()
-    e.stopPropagation()
-    dragRef.current = {
-      kind,
-      startX: e.clientX,
-      startY: e.clientY,
-      orig: boundsRef.current
-    }
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-    window.addEventListener('pointercancel', onPointerUp)
-  }
+  const onChromePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>): void => {
+      if (maximizedRef.current) return
+      const kindAttr = e.currentTarget.dataset.dragKind
+      const kind: 'move' | ResizeEdge =
+        kindAttr === 'move' || !kindAttr ? 'move' : (kindAttr as ResizeEdge)
+      e.preventDefault()
+      e.stopPropagation()
+      dragRef.current = {
+        kind,
+        startX: e.clientX,
+        startY: e.clientY,
+        orig: boundsRef.current
+      }
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', onPointerUp)
+      window.addEventListener('pointercancel', onPointerUp)
+    },
+    [onPointerMove, onPointerUp]
+  )
 
   const edges: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
 
@@ -243,12 +249,14 @@ function Modal({
             <div
               key={edge}
               className={`modal-resize-handle ${edge}`}
-              onPointerDown={(e) => beginDrag(edge, e)}
+              data-drag-kind={edge}
+              onPointerDown={onChromePointerDown}
             />
           ))}
         <div
           className="modal-title modal-title-chrome"
-          onPointerDown={(e) => beginDrag('move', e)}
+          data-drag-kind="move"
+          onPointerDown={onChromePointerDown}
           onDoubleClick={(e) => {
             e.preventDefault()
             toggleMaximize()

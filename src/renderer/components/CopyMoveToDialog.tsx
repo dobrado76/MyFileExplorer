@@ -24,6 +24,14 @@ function driveLabel(d: DriveInfo): string {
   return vol ? `${vol} (${letter})` : letter
 }
 
+function updateTreeNode(list: TreeNode[], path: string, patch: Partial<TreeNode>): TreeNode[] {
+  return list.map((n) => {
+    if (samePath(n.path, path)) return { ...n, ...patch }
+    if (n.children) return { ...n, children: updateTreeNode(n.children, path, patch) }
+    return n
+  })
+}
+
 function ModalShell({
   title,
   children,
@@ -97,11 +105,7 @@ export function CopyMoveToDialog({ op, paths }: Props): JSX.Element {
   }, [])
 
   const updateNode = useCallback((list: TreeNode[], path: string, patch: Partial<TreeNode>): TreeNode[] => {
-    return list.map((n) => {
-      if (samePath(n.path, path)) return { ...n, ...patch }
-      if (n.children) return { ...n, children: updateNode(n.children, path, patch) }
-      return n
-    })
+    return updateTreeNode(list, path, patch)
   }, [])
 
   const toggleExpand = async (node: TreeNode): Promise<void> => {
