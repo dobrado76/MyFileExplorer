@@ -290,6 +290,17 @@ textarea:focus {
   min-width: 0;
   overflow: hidden;
 }
+/* Full-path measure row: same crumb styles, not laid out in the bar. */
+.breadcrumb-measure {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
 
 .breadcrumb .crumb {
   padding: 3px 6px;

@@ -47,7 +47,11 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   )
   const inputRef = useRef<HTMLInputElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const trailRef = useRef<HTMLDivElement>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
   const historyBtnRef = useRef<HTMLButtonElement>(null)
+  /** Middle segment indices [start, end) hidden behind … — only when the full trail overflows. */
+  const [hiddenRange, setHiddenRange] = useState<{ start: number; end: number } | null>(null)
 
   const history = useMemo(
     () => historyEntries(back ?? [], path, forward ?? []),
@@ -150,6 +154,85 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   const clearHistory = useAppStore((s) => s.clearHistory)
   const canClearHistory = (back?.length ?? 0) > 0 || (forward?.length ?? 0) > 0
 
+  const segments = useMemo(() => {
+    const all = segmentsOf(path)
+    return rootPath ? all.filter((seg) => isUnderPath(seg.path, rootPath)) : all
+  }, [path, rootPath])
+
+  useLayoutEffect(() => {
+    setHiddenRange(null)
+    setOverflowOpen(false)
+  }, [path])
+
+  useLayoutEffect(() => {
+    if (editing) return
+    const trail = trailRef.current
+    const measure = measureRef.current
+    if (!trail || !measure) return
+
+    const recompute = (): void => {
+      const n = segments.length
+      if (n <= 2) {
+        setHiddenRange(null)
+        return
+      }
+
+      const available = trail.clientWidth
+      if (available <= 0) return
+
+      const crumbEls = measure.querySelectorAll<HTMLElement>('[data-crumb-i]')
+      const sepEl = measure.querySelector<HTMLElement>('[data-crumb-sep]')
+      const overflowEl = measure.querySelector<HTMLElement>('[data-crumb-overflow-measure]')
+      if (crumbEls.length !== n) return
+
+      const widths: number[] = []
+      for (let i = 0; i < n; i++) {
+        widths.push(crumbEls[i]?.offsetWidth ?? 0)
+      }
+      const sepW = sepEl?.offsetWidth ?? 12
+      const overflowW = overflowEl?.offsetWidth ?? 28
+
+      let full = 0
+      for (let i = 0; i < n; i++) {
+        full += widths[i] ?? 0
+        if (i < n - 1) full += sepW
+      }
+      if (full <= available + 0.5) {
+        setHiddenRange((prev) => (prev == null ? prev : null))
+        return
+      }
+
+      // Keep first + last; grow the visible tail leftward while space remains.
+      let used = (widths[0] ?? 0) + sepW + overflowW + sepW + (widths[n - 1] ?? 0)
+      let keepFrom = n - 1
+      for (let i = n - 2; i >= 1; i--) {
+        const next = used + sepW + (widths[i] ?? 0)
+        if (next <= available + 0.5) {
+          used = next
+          keepFrom = i
+        } else {
+          break
+        }
+      }
+
+      const start = 1
+      const end = keepFrom
+      if (end <= start) {
+        setHiddenRange(n > 2 ? { start: 1, end: n - 1 } : null)
+        return
+      }
+      setHiddenRange((prev) =>
+        prev && prev.start === start && prev.end === end ? prev : { start, end }
+      )
+    }
+
+    recompute()
+    const ro = new ResizeObserver(() => recompute())
+    ro.observe(trail)
+    if (rootRef.current) ro.observe(rootRef.current)
+    return () => ro.disconnect()
+  }, [segments, editing])
+
   const historyMenu =
     historyOpen && menuPos
       ? createPortal(
@@ -209,14 +292,11 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
     )
   }
 
-  const segments = rootPath
-    ? segmentsOf(path).filter((seg) => isUnderPath(seg.path, rootPath))
-    : segmentsOf(path)
-  const MAX_VISIBLE = 5
-  const collapsed = segments.length > MAX_VISIBLE
-  const head = collapsed ? segments.slice(0, 1) : []
-  const hidden = collapsed ? segments.slice(1, segments.length - (MAX_VISIBLE - 2)) : []
-  const visible = collapsed ? segments.slice(segments.length - (MAX_VISIBLE - 2)) : segments
+  const hidden =
+    hiddenRange != null ? segments.slice(hiddenRange.start, hiddenRange.end) : []
+  const head = hiddenRange != null ? segments.slice(0, 1) : []
+  const visible =
+    hiddenRange != null ? segments.slice(hiddenRange.end) : segments
 
   return (
     <div
@@ -232,7 +312,25 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
       }}
       title="Click empty area or Ctrl+L to type a path"
     >
-      <div className="breadcrumb-trail">
+      {/* Off-layout full trail used only to measure natural crumb widths. */}
+      <div className="breadcrumb-measure" ref={measureRef} aria-hidden>
+        {segments.map((seg, i) => (
+          <span key={`m-${seg.path}`} style={{ display: 'contents' }}>
+            <button type="button" className="crumb" data-crumb-i={i} tabIndex={-1}>
+              {seg.label}
+            </button>
+            {i < segments.length - 1 && (
+              <span className="crumb-sep" data-crumb-sep={i === 0 ? '' : undefined}>
+                <ChevronRight size={12} />
+              </span>
+            )}
+          </span>
+        ))}
+        <button type="button" className="crumb-overflow" data-crumb-overflow-measure tabIndex={-1}>
+          …
+        </button>
+      </div>
+      <div className="breadcrumb-trail" ref={trailRef}>
         {head.map((seg) => (
           <span key={seg.path} style={{ display: 'contents' }}>
             <button type="button" className="crumb" onClick={() => go(seg.path)}>

@@ -19,6 +19,7 @@ Patch line **0.6.x** (package currently **0.6.3**). Product release notes for th
 
 - `npm run dist` refuses non-Windows hosts (use `build:linux` on Linux).
 - Docs / README / PLAN / BUILD index Linux as experimental under **v0.6.x**.
+- **Breadcrumb** collapses middle segments with `…` only when the address trail actually overflows (no fixed max segment count).
 
 ## [0.6.0] - 2026-08-12
 

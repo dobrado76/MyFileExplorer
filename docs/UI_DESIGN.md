@@ -60,7 +60,7 @@ Custom theme = user-editable map of these tokens in settings.
 ## Breadcrumb
 
 - Segments as buttons; chevrons between
-- Deep paths: collapse middle into `…` menu
+- Deep paths: collapse middle into `…` menu **only when the trail overflows** available width (keep root + as much of the tail as fits)
 - Trailing editable segment / address mode on Ctrl+L
 
 ---
