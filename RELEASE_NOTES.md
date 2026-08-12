@@ -3,9 +3,11 @@
 **Date:** 2026-08-12  
 **Previous:** [v0.5.0](CHANGELOG.md#050---2026-08-11) (plus 0.5.x patches through 0.5.10)
 
+> Current package line is still **0.6.x** (e.g. 0.6.3). Post-0.6.0 patches — including **experimental Linux packaging** — are tracked under [CHANGELOG Unreleased](CHANGELOG.md#unreleased). This document is the **v0.6.0** product-release summary.
+
 Sixth product release. Focus: **Network neighborhood & mapped drives** (D44 / D3), **portable settings export/import** (D45), and Explorer-parity polish (Open Command Line, context Add icons).
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Network: [docs/Networks.md](docs/Networks.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Network: [docs/Networks.md](docs/Networks.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md). Linux (experimental): [docs/LINUX.md](docs/LINUX.md).
 
 ---
 

@@ -1,12 +1,14 @@
 # Locked decisions
 
-**Version:** 0.6.0
+**Version:** 0.6.x
+
+All notable locked product/tech decisions. Through **D45** for the v0.6 product line.
 
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 
 | ID  | Decision                                                                                                                                                    | Why                                                                     |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| D1  | **Windows-first** Electron desktop app; other OS later if ever                                                                                              | Matches Explorer replacement use case                                   |
+| D1  | **Windows-first** Electron desktop app. Experimental Linux AppImage / Wayland helpers exist for contributors ([LINUX.md](LINUX.md)) but are **not** a supported product matrix; Win32 features degrade/no-op off Windows | Matches Explorer replacement use case; keep Linux from blocking Windows releases |
 | D2  | **All app state in Electron `userData`** — never write MyFileExplorer sidecars into browsed folders                                                         | User folders stay clean; backup/app reset is clear                      |
 | D3  | **Tabs** are the primary navigation unit; restore session on launch. Unreachable paths (unmounted / encrypted drives) stay open as **Offline** and auto-retry until available — never drop session tabs just because a volume is offline. The tree **Drives** list is live mounts (USB eject removes the letter). **Mapped network letters** remain listed when disconnected (Explorer red-X); opening them reconnects via **WNetAddConnection2W** (interactive `WNetUseConnectionW` when credentials are needed). **Disconnect N:** on a mapped letter runs **WNetCancelConnection2W** + **CONNECT_UPDATE_PROFILE** (forget persistent mapping; force if in use). `WNetRestoreConnectionW` is not relied on — often missing from `mpr.dll` | Multi-folder workflows; reboot + late-mounted volumes must not lose tabs; tree matches Explorer; ditch WFE for mapped-drive reconnect / forget |
 | D4  | **Curated context menu** — short allowlist, not Explorer’s full verb dump. Extended by **D41** (user-defined external commands + optional hide of built-in verbs). Includes **Open Command Line here** on folders (tree, file list, empty pane) via `shell:openCommandLine` — **ShellExecute** to Windows Terminal / PowerShell / cmd (visible external window). **Shift+click** (or Shift held) → **as administrator** (`runas` / UAC) | Speed and clarity; ditch WFE for a console in the folder |

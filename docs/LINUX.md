@@ -1,5 +1,7 @@
 # Linux setup for MyFileExplorer (experimental)
 
+**Version:** 0.6.x · Windows remains the primary product target.
+
 This project is **Windows-first**. Linux packaging and launch scripts are experimental helpers for contributors; they are not a supported product matrix yet. Windows features that depend on Win32 APIs (shell icons, Recycle Bin, ADS, NTFS search, Network neighborhood, etc.) degrade or no-op on Linux.
 
 The notes below target a Wayland desktop session (e.g. Kubuntu/Plasma). Paths and flags may need adjustment on other distros.

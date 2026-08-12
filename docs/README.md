@@ -1,8 +1,8 @@
 # MyFileExplorer documentation
 
-**Status:** v0.6.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D45).
+**Status:** v0.6.x (package **0.6.3**). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md) (v0.6.0). Locked choices: [DECISIONS.md](DECISIONS.md) (through D45). Experimental Linux: [LINUX.md](LINUX.md).
 
-Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
+Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
@@ -27,7 +27,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [PRODUCT_SPEC.md](PRODUCT_SPEC.md)               | Features & UX requirements            |
 | [ADVANTAGES.md](ADVANTAGES.md)                   | Advantages vs classic Windows Explorer |
 | [BUILD.md](BUILD.md)                             | Local build + tagged GitHub Releases   |
-| [LINUX.md](LINUX.md)                             | Linux dev/build/run notes             |
+| [LINUX.md](LINUX.md)                             | Experimental Linux AppImage / Wayland helpers |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
@@ -50,6 +50,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
+| Experimental Linux packaging | AppImage + Wayland helpers; Win32 APIs lazy-load; not a support matrix — [LINUX.md](LINUX.md) |
 | Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [Networks.md](Networks.md) |
 | Settings export / import | D45 — portable prefs + remembered hosts (no window geometry) |
 | Open Command Line | Folder context; Terminal / PS / cmd; Shift = Admin |

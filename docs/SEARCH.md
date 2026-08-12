@@ -1,6 +1,6 @@
 # Search & indexing
 
-**Version:** 0.6.0 · Decision **D34** (Everything-parity hybrid index)
+**Version:** 0.6.x · Decision **D34** (Everything-parity hybrid index)
 
 Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 

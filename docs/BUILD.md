@@ -1,8 +1,10 @@
 # Building & releases
 
-**Version:** 0.6.0
+**Version:** 0.6.x (package 0.6.3)
 
 The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
+
+**Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](LINUX.md) (`npm run build:linux`). `npm run dist` / `dist:nobump` are **Windows-host only**.
 
 ---
 
@@ -26,6 +28,17 @@ If the build dies with `EBUSY: resource busy or locked … app.asar`, something 
 
 `npm run dist` / `dist:nobump` now stop processes under `dist/win-unpacked` and retry deleting that folder before packaging. If it still fails: close that window (or reboot), delete `dist/win-unpacked` manually, retry.
 
+### Experimental Linux
+
+On a Linux host (Wayland-oriented helpers):
+
+```bash
+npm run build:linux    # AppImage (+ linux-unpacked)
+npm run run:unpacked   # preferred launch path on many Plasma/Wayland setups
+```
+
+Details, flags, and troubleshooting: [LINUX.md](LINUX.md).
+
 ---
 
 ## GitHub Actions
@@ -35,15 +48,17 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | Trigger | What runs |
 | ------- | --------- |
 | Pull request / push to `main` | `npm run check` only |
-| Tag `v*` (e.g. `v0.6.0`) | Check + build installer → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.6.3`) | Check + build **Windows** installer → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (same as a main push) |
+
+CI does not build Linux installers yet.
 
 ### Ship a build for friends
 
 ```bash
-# package.json version should match the tag (e.g. 0.6.0)
-git tag v0.6.0
-git push origin v0.6.0
+# package.json version should match the tag (e.g. 0.6.3)
+git tag v0.6.3
+git push origin v0.6.3
 ```
 
 When the workflow finishes, download from:

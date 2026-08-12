@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.6.0** — Phases 0–10 shipped; Network neighborhood & mapped-drive reconnect (D44/D3); settings export/import (D45); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.6.x** (package **0.6.3**) — Phases 0–10 shipped; Network neighborhood & mapped-drive reconnect (D44/D3); settings export/import (D45); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). Experimental Linux AppImage helpers landed on the 0.6 line — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) (v0.6.0) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -27,8 +27,9 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 
 - Full Windows Explorer parity (ribbon clone, Libraries UX, shell-extension hosting, zip-as-folder deep UX)
 - Replacing OS file dialogs system-wide
-- macOS / Linux as primary targets
+- macOS / Linux as primary targets (Linux packaging helpers are experimental only — [docs/LINUX.md](docs/LINUX.md))
 - Remote FTP/SFTP as a must-have (optional bonus only — [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md); not scheduled)
+
 ## Doc map
 
 | Doc                                                        | Read when                     |
@@ -38,6 +39,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)               | What the product must do      |
 | [docs/ADVANTAGES.md](docs/ADVANTAGES.md)                   | Advantages vs classic Explorer |
 | [docs/BUILD.md](docs/BUILD.md)                             | Local build + tagged GitHub Releases |
+| [docs/LINUX.md](docs/LINUX.md)                             | Experimental Linux AppImage / Wayland |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
 | [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
@@ -59,7 +61,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 
 1. Manual acceptance pass against the PRODUCT_SPEC checklist (esp. Network / mapped drives / settings export)
 2. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
-3. Share / soak-test v0.6.0; gather friend feedback
+3. Share / soak-test v0.6.x; gather friend feedback (Linux remains contributor-only)
 
 ## Agent rules
 

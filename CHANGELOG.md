@@ -9,6 +9,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+Patch line **0.6.x** (package currently **0.6.3**). Product release notes for the 0.6 series remain [RELEASE_NOTES.md](RELEASE_NOTES.md) (v0.6.0).
+
+### Added
+
+- **Experimental Linux packaging** — AppImage via `npm run build:linux` / `dist:linux`; Wayland-oriented helpers (`dev:linux`, `run:unpacked`, `run:linux`, `install:linux`). Win32 koffi APIs lazy-load so Linux hosts do not crash on import. Not a supported product matrix — Windows remains primary. See [docs/LINUX.md](docs/LINUX.md).
+
+### Changed
+
+- `npm run dist` refuses non-Windows hosts (use `build:linux` on Linux).
+- Docs / README / PLAN / BUILD index Linux as experimental under **v0.6.x**.
+
 ## [0.6.0] - 2026-08-12
 
 Sixth product release: Network neighborhood & mapped-drive reconnect, portable settings export/import, Open Command Line (incl. Admin). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [docs/Networks.md](docs/Networks.md).

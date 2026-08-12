@@ -3,13 +3,13 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.6.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
+**v0.6.x** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
 | | |
 | --- | --- |
-| **Platform** | Windows 10 / 11 |
+| **Platform** | Windows 10 / 11 (primary) · Linux packaging experimental |
 | **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
 | **License** | MIT |
 
@@ -102,7 +102,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
-| **[docs/LINUX.md](docs/LINUX.md)** | Linux dev/build/run guide |
+| **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
 | **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D45 |
 | **[docs/Networks.md](docs/Networks.md)** | Network neighborhood & mapped drives |
@@ -111,7 +111,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.6.0 summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.6.0 product-release summary |
 
 ---
 
@@ -126,7 +126,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 
 ## Non-goals (still)
 
-Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux-first support. Optional FTP/SFTP remotes are a documented bonus only — see [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) (not scheduled).
+Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux as primary targets (Linux AppImage helpers are experimental only — [docs/LINUX.md](docs/LINUX.md)). Optional FTP/SFTP remotes are a documented bonus only — see [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) (not scheduled).
 
 ---
 
@@ -138,9 +138,11 @@ Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linu
 | `npm run check` | typecheck + lint + test |
 | `npm run test` | Vitest |
 | `npm run build` | Production electron-vite build |
-| `npm run dist` | Bump patch, prune old Setup*.exe, build Windows installer |
+| `npm run dist` | Bump patch, prune old Setup*.exe, build Windows installer (Windows host only) |
 | `npm run dist:nobump` | Installer without version bump |
 | `npm run build:win` | Windows installer only |
+| `npm run build:linux` / `dist:linux` | Experimental Linux AppImage (see [docs/LINUX.md](docs/LINUX.md)) |
+| `npm run run:unpacked` / `run:linux` | Launch Linux unpacked binary / AppImage (Linux) |
 
 ---
 

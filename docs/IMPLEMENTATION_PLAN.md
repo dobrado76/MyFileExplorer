@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.6.0 (implemented)
+**Version:** 0.6.x (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -127,6 +127,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.4.0 release notes + README / ADVANTAGES / SEARCH / docs alignment
 - [x] v0.5.0 release notes + README / ADVANTAGES / SLIDESHOW / ADS / docs alignment
 - [x] v0.6.0 Network (D44) + settings export (D45) + Networks.md / docs alignment
+- [x] v0.6.x experimental Linux AppImage helpers + docs ([LINUX.md](LINUX.md)); Windows remains primary
 
 ---
 
@@ -194,6 +195,10 @@ v0.4.0 plus: slideshow / categorizer (D37), compiled file lists (D39), NTFS ADS 
 ## Definition of done (v0.6.0 product)
 
 v0.5.0 plus: Network neighborhood & mapped-drive reconnect (D44/D3), Settings export/import (D45), Open Command Line (Shift=Admin), docs/Networks.md; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / DECISIONS aligned to 0.6.0 (through D45). ✅
+
+## Definition of done (v0.6.x patches)
+
+v0.6.0 plus: experimental Linux AppImage / Wayland helpers ([LINUX.md](LINUX.md)); lazy Win32 koffi loads; Windows `dist` host guard; docs stay on the **0.6** line (not a 0.7 product release).
 
 ---
 
