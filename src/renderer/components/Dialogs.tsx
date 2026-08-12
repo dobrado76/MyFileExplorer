@@ -36,6 +36,7 @@ import { AdsManager } from './AdsManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
+import { CloseIcon } from '../lib/icons'
 
 function Modal({
   title,
@@ -69,7 +70,18 @@ function Modal({
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={modalClass} role="dialog" aria-label={title}>
-        <div className="modal-title">{title}</div>
+        <div className="modal-title modal-title-chrome">
+          <span className="modal-title-text">{title}</span>
+          <button
+            type="button"
+            className="modal-title-btn"
+            aria-label="Close"
+            title="Close"
+            onClick={onClose}
+          >
+            <CloseIcon size={18} />
+          </button>
+        </div>
         <div className={bodyClass}>{children}</div>
         <div className="modal-actions">{actions}</div>
       </div>
@@ -1147,6 +1159,7 @@ type SettingsSection =
   | 'remoterepos'
   | 'slideshow'
   | 'advanced'
+  | 'about'
 
 const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'appearance', label: 'Appearance' },
@@ -1161,7 +1174,8 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'network', label: 'Network' },
   { id: 'remoterepos', label: 'Remote repositories' },
   { id: 'slideshow', label: 'Slideshow' },
-  { id: 'advanced', label: 'Advanced' }
+  { id: 'advanced', label: 'Advanced' },
+  { id: 'about', label: 'About' }
 ]
 
 function SettingsToggle({
@@ -1335,7 +1349,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
       onClose={closeDialog}
       actions={
         <button className="btn primary" onClick={closeDialog}>
-          Done
+          Close
         </button>
       }
     >
@@ -1916,8 +1930,10 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <p className="settings-help">
                 Named workspaces for different tasks (AI training, book editing, a coding project…).
                 Each layout stores the full tab set — folders, custom titles, view/sort, tree
-                expand, scoped roots — plus tree/preview pane sizes. Applying a layout replaces the
-                current tabs. Per-folder Details customizations (Folder views) stay separate.
+                expand, scoped roots — plus tree/preview widths, multi-pane mode (1 / 2 / 4), which
+                tab sits in each pane, and the 2- and 4-pane splitter positions. Applying a layout
+                replaces the current tabs. Per-folder Details customizations (Folder views) stay
+                separate.
               </p>
               <div className="settings-qa-actions" style={{ justifyContent: 'flex-start' }}>
                 <button
@@ -1965,7 +1981,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                           <button
                             type="button"
                             className="btn"
-                            title="Overwrite this layout with the current tabs and panes"
+                            title="Overwrite this layout with the current tabs, panes, and splitter positions"
                             onClick={() => void updateLayout(entry.id)}
                           >
                             Update
@@ -2371,125 +2387,6 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
           {section === 'advanced' && (
             <div className="settings-stack">
-              <div className="settings-action-card">
-                <div>
-                  <div className="settings-toggle-label">Updates</div>
-                  <div className="settings-toggle-hint">
-                    Current version: {appVersion || '…'}. Leave empty (or use the default GitHub
-                    Releases URL), or point at a local folder of installers named like{' '}
-                    <code>MyFileExplorer Setup 0.x.y.exe</code>. Check finds the newest build;
-                    Install downloads (if URL) and runs it.
-                  </div>
-                </div>
-              </div>
-              <label className="settings-field" htmlFor="set-updates-folder">
-                <span>Updates source</span>
-                <div className="settings-inline">
-                  <input
-                    id="set-updates-folder"
-                    type="text"
-                    spellCheck={false}
-                    value={settings.updatesFolder}
-                    placeholder={DEFAULT_UPDATES_SOURCE}
-                    onChange={(e) => void applySettingsPatch({ updatesFolder: e.target.value })}
-                  />
-                  <button
-                    type="button"
-                    className="btn"
-                    title="Browse for a local updates folder"
-                    onClick={() => {
-                      void (async () => {
-                        const res = await call(api.app.pickFolder())
-                        if (res.path) {
-                          void applySettingsPatch({ updatesFolder: res.path })
-                          setUpdateStatus(null)
-                          setUpdateCandidate(null)
-                        }
-                      })()
-                    }}
-                  >
-                    Browse…
-                  </button>
-                </div>
-              </label>
-              <div className="settings-inline">
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={updateBusy}
-                  onClick={() => {
-                    void (async () => {
-                      setUpdateBusy(true)
-                      setUpdateStatus(null)
-                      setUpdateCandidate(null)
-                      const source = resolveUpdatesSource(settings.updatesFolder)
-                      try {
-                        const res = await call(api.app.checkUpdate({ source }))
-                        if (!res.candidate) {
-                          setUpdateStatus(
-                            'No MyFileExplorer installer found at that source.'
-                          )
-                        } else {
-                          setUpdateCandidate(res.candidate)
-                          const where =
-                            res.candidate.sourceKind === 'url' ? 'on GitHub' : 'in that folder'
-                          if (res.candidate.newer) {
-                            setUpdateStatus(
-                              res.candidate.version
-                                ? `Found ${res.candidate.fileName} ${where} (v${res.candidate.version}) — newer than ${res.candidate.currentVersion}.`
-                                : `Found ${res.candidate.fileName} ${where}.`
-                            )
-                          } else {
-                            setUpdateStatus(
-                              res.candidate.version
-                                ? `Found ${res.candidate.fileName} ${where} (v${res.candidate.version}) — same or older than installed ${res.candidate.currentVersion}.`
-                                : `Found ${res.candidate.fileName} ${where}.`
-                            )
-                          }
-                        }
-                      } catch (e) {
-                        setUpdateStatus(e instanceof Error ? e.message : String(e))
-                      } finally {
-                        setUpdateBusy(false)
-                      }
-                    })()
-                  }}
-                >
-                  Check for update
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={!updateCandidate || updateBusy}
-                  onClick={() => {
-                    if (!updateCandidate) return
-                    void (async () => {
-                      setUpdateBusy(true)
-                      const source = resolveUpdatesSource(settings.updatesFolder)
-                      try {
-                        if (updateCandidate.downloadUrl) {
-                          setUpdateStatus('Downloading installer…')
-                        }
-                        await call(
-                          api.app.runUpdate({
-                            path: updateCandidate.path || updateCandidate.fileName,
-                            source,
-                            downloadUrl: updateCandidate.downloadUrl
-                          })
-                        )
-                        setUpdateStatus('Launching installer… the app will close.')
-                      } catch (e) {
-                        setUpdateStatus(e instanceof Error ? e.message : String(e))
-                        setUpdateBusy(false)
-                      }
-                    })()
-                  }}
-                >
-                  Update
-                </button>
-              </div>
-              {updateStatus && <p className="settings-help">{updateStatus}</p>}
-
               <SettingsToggle
                 id="set-disable-hw-accel"
                 label="Disable hardware acceleration"
@@ -2541,30 +2438,6 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
               <div className="settings-action-card">
                 <div>
-                  <div className="settings-toggle-label">Export / import settings</div>
-                  <div className="settings-toggle-hint">
-                    Save a portable JSON backup of all preferences — including context menu
-                    customization (built-in show/hide and order, Discover scan catalog and enabled
-                    verbs, Custom files/folders commands), theme, named layouts, folder views,
-                    slideshow, network discovery, remembered Network hosts, remote repository
-                    connections without passwords, and everything else in Settings. Dialog and
-                    main-window positions are not included. Import replaces current settings; open
-                    tabs are unchanged (apply a named layout to restore a workspace). Re-enter
-                    remote passwords after import.
-                  </div>
-                </div>
-                <div className="settings-inline">
-                  <button type="button" className="btn" onClick={() => void exportSettingsFile()}>
-                    Export…
-                  </button>
-                  <button type="button" className="btn" onClick={() => void importSettingsFile()}>
-                    Import…
-                  </button>
-                </div>
-              </div>
-
-              <div className="settings-action-card">
-                <div>
                   <div className="settings-toggle-label">App data</div>
                   <div className="settings-toggle-hint">
                     Settings, session, and caches live here for both <code>npm run dev</code> and
@@ -2600,6 +2473,149 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <button type="button" className="btn" onClick={() => void clearThumbCache()}>
                   Clear cache
                 </button>
+              </div>
+            </div>
+          )}
+
+          {section === 'about' && (
+            <div className="settings-stack">
+              <div className="settings-action-card">
+                <div className="settings-updates-body">
+                  <div className="settings-toggle-label">Updates</div>
+                  <div className="settings-toggle-hint">
+                    Current version: {appVersion || '…'}. Leave empty (or use the default GitHub
+                    Releases URL), or point at a local folder of installers named like{' '}
+                    <code>MyFileExplorer Setup 0.x.y.exe</code>. Check finds the newest build;
+                    Update downloads (if URL) and runs it.
+                  </div>
+                  <label className="settings-field" htmlFor="set-updates-folder">
+                    <span>Updates source</span>
+                    <div className="settings-inline">
+                      <input
+                        id="set-updates-folder"
+                        type="text"
+                        spellCheck={false}
+                        value={settings.updatesFolder}
+                        placeholder={DEFAULT_UPDATES_SOURCE}
+                        onChange={(e) => void applySettingsPatch({ updatesFolder: e.target.value })}
+                      />
+                      <button
+                        type="button"
+                        className="btn"
+                        title="Browse for a local updates folder"
+                        onClick={() => {
+                          void (async () => {
+                            const res = await call(api.app.pickFolder())
+                            if (res.path) {
+                              void applySettingsPatch({ updatesFolder: res.path })
+                              setUpdateStatus(null)
+                              setUpdateCandidate(null)
+                            }
+                          })()
+                        }}
+                      >
+                        Browse…
+                      </button>
+                    </div>
+                  </label>
+                  {updateStatus && <p className="settings-help settings-updates-status">{updateStatus}</p>}
+                </div>
+                <div className="settings-btn-stack">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={updateBusy}
+                    onClick={() => {
+                      void (async () => {
+                        setUpdateBusy(true)
+                        setUpdateStatus(null)
+                        setUpdateCandidate(null)
+                        const source = resolveUpdatesSource(settings.updatesFolder)
+                        try {
+                          const res = await call(api.app.checkUpdate({ source }))
+                          if (!res.candidate) {
+                            setUpdateStatus(
+                              'No MyFileExplorer installer found at that source.'
+                            )
+                          } else if (res.candidate.newer) {
+                            setUpdateCandidate(res.candidate)
+                            const where =
+                              res.candidate.sourceKind === 'url' ? 'on GitHub' : 'in that folder'
+                            setUpdateStatus(
+                              res.candidate.version
+                                ? `Update available: ${res.candidate.fileName} ${where} (v${res.candidate.version}).`
+                                : `Update available: ${res.candidate.fileName} ${where}.`
+                            )
+                          } else {
+                            setUpdateStatus("You're up to date.")
+                          }
+                        } catch (e) {
+                          setUpdateStatus(e instanceof Error ? e.message : String(e))
+                        } finally {
+                          setUpdateBusy(false)
+                        }
+                      })()
+                    }}
+                  >
+                    Check for update
+                  </button>
+                  {updateCandidate?.newer && (
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={updateBusy}
+                      onClick={() => {
+                        if (!updateCandidate?.newer) return
+                        void (async () => {
+                          setUpdateBusy(true)
+                          const source = resolveUpdatesSource(settings.updatesFolder)
+                          try {
+                            if (updateCandidate.downloadUrl) {
+                              setUpdateStatus('Downloading installer…')
+                            }
+                            await call(
+                              api.app.runUpdate({
+                                path: updateCandidate.path || updateCandidate.fileName,
+                                source,
+                                downloadUrl: updateCandidate.downloadUrl
+                              })
+                            )
+                            setUpdateStatus('Launching installer… the app will close.')
+                          } catch (e) {
+                            setUpdateStatus(e instanceof Error ? e.message : String(e))
+                            setUpdateBusy(false)
+                          }
+                        })()
+                      }}
+                    >
+                      Update
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-action-card">
+                <div>
+                  <div className="settings-toggle-label">Export / import settings</div>
+                  <div className="settings-toggle-hint">
+                    Save a portable JSON backup of all preferences — including context menu
+                    customization (built-in show/hide and order, Discover scan catalog and enabled
+                    verbs, Custom files/folders commands), theme, named layouts, folder views,
+                    slideshow, network discovery, remembered Network hosts, remote repository
+                    connections without passwords, and everything else in Settings. Dialog and
+                    main-window positions are not included. Import replaces current settings; open
+                    tabs are unchanged (apply a named layout to restore a workspace). Re-enter
+                    remote passwords after import.
+                  </div>
+                </div>
+                <div className="settings-btn-stack">
+                  <button type="button" className="btn" onClick={() => void exportSettingsFile()}>
+                    Export…
+                  </button>
+                  <button type="button" className="btn" onClick={() => void importSettingsFile()}>
+                    Import…
+                  </button>
+                </div>
               </div>
             </div>
           )}

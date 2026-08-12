@@ -91,7 +91,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
 7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box.
 8. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
-9. Settings → Context menu → Discover (optional) / Custom — then **Advanced → Export…** so you can restore after a reinstall.
+9. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
 10. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)

@@ -57,7 +57,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 
 Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable Lucide name + color), `treeExpanded` (folder-tree expand/collapse paths).
 
-**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + splitter chrome + multi-view layout/pane assignments) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
+**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, and **pane split ratios**) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 
@@ -184,7 +184,8 @@ See [SEARCH.md](SEARCH.md).
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
-| Advanced     | **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands) + remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry); Updates source…; clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training) |
+| Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
+| About        | App version; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands) + remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 
 ---
 

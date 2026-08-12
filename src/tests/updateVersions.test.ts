@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { compareVersions, versionFromInstallerName } from '@shared/version'
+import { compareVersions, isNewerVersion, versionFromInstallerName } from '@shared/version'
 
 describe('compareVersions', () => {
   it('orders semver-ish strings', () => {
     expect(compareVersions('0.2.0', '0.1.0')).toBeGreaterThan(0)
     expect(compareVersions('0.1.0', '0.1.0')).toBe(0)
     expect(compareVersions('0.1.0', '0.2.0')).toBeLessThan(0)
+  })
+})
+
+describe('isNewerVersion', () => {
+  it('requires a strictly higher version', () => {
+    expect(isNewerVersion('0.6.5', '0.6.4')).toBe(true)
+    expect(isNewerVersion('0.6.4', '0.6.4')).toBe(false)
+    expect(isNewerVersion('0.6.3', '0.6.4')).toBe(false)
+    expect(isNewerVersion(null, '0.6.4')).toBe(false)
   })
 })
 

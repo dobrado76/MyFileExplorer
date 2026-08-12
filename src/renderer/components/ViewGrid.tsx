@@ -14,15 +14,18 @@ export function ViewGrid(): JSX.Element {
   const focusedPaneIndex = useAppStore((s) => s.focusedPaneIndex)
   const gridRef = useRef<HTMLDivElement>(null)
 
+  // Read live ratios from the store — Splitter keeps the pointerdown-era onDrag
+  // for the whole gesture, so a closed-over paneSplitCols would stick after one step.
   const onColDrag = useCallback(
     (delta: number): void => {
       const el = gridRef.current
       if (!el) return
       const w = el.clientWidth
       if (w < 40) return
-      setPaneSplitCols(paneSplitCols + delta / w)
+      const cur = useAppStore.getState().paneSplitCols
+      setPaneSplitCols(cur + delta / w)
     },
-    [paneSplitCols, setPaneSplitCols]
+    [setPaneSplitCols]
   )
 
   const onRowDrag = useCallback(
@@ -31,9 +34,10 @@ export function ViewGrid(): JSX.Element {
       if (!el) return
       const h = el.clientHeight
       if (h < 40) return
-      setPaneSplitRows(paneSplitRows + delta / h)
+      const cur = useAppStore.getState().paneSplitRows
+      setPaneSplitRows(cur + delta / h)
     },
-    [paneSplitRows, setPaneSplitRows]
+    [setPaneSplitRows]
   )
 
   if (viewLayout === 1) {
@@ -56,7 +60,7 @@ export function ViewGrid(): JSX.Element {
     const leftPct = paneSplitCols * 100
     return (
       <div className="view-grid layout-2" ref={gridRef}>
-        <div className="view-grid-cell" style={{ width: `${leftPct}%` }}>
+        <div className="view-grid-cell" style={{ flex: `0 0 ${leftPct}%` }}>
           {focusedPaneIndex === 0 && (
             <>
               <RecycleBinBanner />
@@ -66,7 +70,7 @@ export function ViewGrid(): JSX.Element {
           <ExplorerPane paneIndex={0} />
         </div>
         <Splitter onDrag={onColDrag} />
-        <div className="view-grid-cell" style={{ flex: 1, minWidth: 0 }}>
+        <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
           {focusedPaneIndex === 1 && (
             <>
               <RecycleBinBanner />
@@ -84,8 +88,8 @@ export function ViewGrid(): JSX.Element {
   const rowPct = paneSplitRows * 100
   return (
     <div className="view-grid layout-4" ref={gridRef}>
-      <div className="view-grid-row" style={{ height: `${rowPct}%` }}>
-        <div className="view-grid-cell" style={{ width: `${colPct}%` }}>
+      <div className="view-grid-row" style={{ flex: `0 0 ${rowPct}%` }}>
+        <div className="view-grid-cell" style={{ flex: `0 0 ${colPct}%` }}>
           {focusedPaneIndex === 0 && (
             <>
               <RecycleBinBanner />
@@ -95,7 +99,7 @@ export function ViewGrid(): JSX.Element {
           <ExplorerPane paneIndex={0} />
         </div>
         <Splitter onDrag={onColDrag} />
-        <div className="view-grid-cell" style={{ flex: 1, minWidth: 0 }}>
+        <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
           {focusedPaneIndex === 1 && (
             <>
               <RecycleBinBanner />
@@ -106,8 +110,8 @@ export function ViewGrid(): JSX.Element {
         </div>
       </div>
       <Splitter orientation="horizontal" onDrag={onRowDrag} />
-      <div className="view-grid-row" style={{ flex: 1, minHeight: 0 }}>
-        <div className="view-grid-cell" style={{ width: `${colPct}%` }}>
+      <div className="view-grid-row" style={{ flex: '1 1 0', minHeight: 0 }}>
+        <div className="view-grid-cell" style={{ flex: `0 0 ${colPct}%` }}>
           {focusedPaneIndex === 2 && (
             <>
               <RecycleBinBanner />
@@ -117,7 +121,7 @@ export function ViewGrid(): JSX.Element {
           <ExplorerPane paneIndex={2} />
         </div>
         <Splitter onDrag={onColDrag} />
-        <div className="view-grid-cell" style={{ flex: 1, minWidth: 0 }}>
+        <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
           {focusedPaneIndex === 3 && (
             <>
               <RecycleBinBanner />

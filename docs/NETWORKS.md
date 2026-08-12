@@ -74,7 +74,7 @@ Shell paints as soon as settings/session load. **Drives**, pane listings, and th
 - Opening `\\server` or listing shares **remembers** the host (for faster probes next time).
 - Persisted in `network-hosts.json` (capped); collapsed IP ↔ hostname aliases where possible.
 - Remembered ≠ visible: a name stays in the file when offline, but the tree only lists hosts that answered on the latest discovery pass.
-- Included in **Settings → Advanced → Export settings** (D45). Import replaces the remembered list when the export envelope contains `networkHosts`.
+- Included in **Settings → About → Export settings** (D45). Import replaces the remembered list when the export envelope contains `networkHosts`.
 
 ---
 

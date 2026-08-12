@@ -19,7 +19,7 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Network: [docs/NETWORKS.md](docs/NETW
 - UNC `\\server` / shares; Map / Disconnect via native WNet dialogs.
 
 ### Settings export / import (D45)
-Settings → Advanced → **Export…** / **Import…** — portable JSON of **all** preferences, including:
+Settings → About → **Export…** / **Import…** — portable JSON of **all** preferences, including:
 - Theme, named layouts, folder views, slideshow
 - **Full context-menu customization** (built-in hide/order/separators, Discover catalog + enabled verbs, Custom files/folders commands)
 - Network discovery prefs + remembered hosts
@@ -53,7 +53,7 @@ Excludes main-window and dialog geometry. Open tabs unchanged (apply a named lay
 
 1. Run `MyFileExplorer Setup 0.6.3.exe` (or your Updates-folder / GitHub Release installer).
 2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged — reinstall does not wipe them).
-3. Before a wipe / new PC: **Settings → Advanced → Export…** so context menu, remotes metadata, and Network hosts come back with **Import…**.
+3. Before a wipe / new PC: **Settings → About → Export…** so context menu, remotes metadata, and Network hosts come back with **Import…**.
 
 ## Upgrade notes
 

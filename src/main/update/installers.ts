@@ -9,6 +9,7 @@ import { isUnderPath, normalizeSlashes, samePath, stripTrailingSep } from '@shar
 import {
   compareVersions,
   isInstallerFileName,
+  isNewerVersion,
   versionFromInstallerName
 } from '@shared/version'
 import {
@@ -30,12 +31,6 @@ export type UpdateCandidate = {
   newer: boolean
   currentVersion: string
   sourceKind: 'folder' | 'url'
-}
-
-function isNewer(candidateVersion: string | null, current: string): boolean {
-  if (candidateVersion) return compareVersions(candidateVersion, current) > 0
-  // Unversioned name — still offer as a candidate (manual drop-in build).
-  return true
 }
 
 function tagToVersion(tag: string): string | null {
@@ -96,7 +91,7 @@ async function findFolderUpdate(rawFolder: string): Promise<UpdateCandidate | nu
     fileName: best.fileName,
     version: best.version,
     mtimeMs: best.mtimeMs,
-    newer: isNewer(best.version, currentVersion),
+    newer: isNewerVersion(best.version, currentVersion),
     currentVersion,
     sourceKind: 'folder'
   }
@@ -180,7 +175,7 @@ async function findGithubUpdate(rawUrl: string): Promise<UpdateCandidate | null>
     fileName: best.fileName,
     version: best.version,
     mtimeMs: best.mtimeMs,
-    newer: isNewer(best.version, currentVersion),
+    newer: isNewerVersion(best.version, currentVersion),
     currentVersion,
     sourceKind: 'url'
   }
@@ -324,6 +319,17 @@ export async function runUpdateInstaller(
     await fsp.access(exe)
   } catch {
     throw new AppError('not-found', `Installer not found: ${exe}`)
+  }
+
+  const candidateVer = versionFromInstallerName(path.basename(exe))
+  const currentVersion = app.getVersion()
+  if (!isNewerVersion(candidateVer, currentVersion)) {
+    throw new AppError(
+      'validation',
+      candidateVer
+        ? `Installer v${candidateVer} is not newer than installed ${currentVersion}`
+        : 'Installer has no version in its name — only versioned Setup builds can be installed from Check for update'
+    )
   }
 
   const child = spawn(exe, [], {

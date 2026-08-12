@@ -446,7 +446,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
         Turn built-in menu items on or off, drag to set order and separators. Use Discover to scan
         static Windows shell verbs — tick to enable (they appear under Built-in for ordering; no COM
         shell extensions). Custom (files/folders) are hand-edited external programs. All of this is
-        included in Settings → Advanced → Export / Import.
+        included in Settings → About → Export / Import.
       </p>
 
       <div className="context-menu-scope-tabs" role="tablist">

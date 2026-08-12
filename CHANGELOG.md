@@ -11,11 +11,15 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
+- **Settings → About** — version, Updates source / Check / Update, and Export / Import moved out of Advanced into their own nav section.
+- **Settings dialog** — footer button is **Close** (was Done); title bar has a standard **✕** close control (all shared modals).
 - **Tab bar** — tabs share width and shrink toward a minimum (~90px), then overflow with ◀ ▶ controls (Chrome-style); active tab scrolls into view; mouse wheel scrolls the strip horizontally.
 - **Scoped tabs** — tree no longer shows a section header that repeats the root folder name (e.g. “DROPBOX” above “Dropbox”).
 
 ### Fixed
 
+- **Multi-pane splitters** — 2- and 4-pane column/row dividers resize and persist again (flex equal-share and a stale drag ratio had made them feel stuck at 50%).
+- **Context menu submenus** — flyout stayed hidden after hovering away and back (placement `ready` reset without reopening).
 - **Custom context commands** — `.bat` / `.cmd` launch via `cmd.exe` (Node `spawn` on the script alone caused `EINVAL` on Windows). Arguments also accept `%1` / `%*` as aliases for `{path}` / `{paths}`.
 
 ## [0.6.3] - 2026-08-12

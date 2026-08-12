@@ -1,3 +1,11 @@
+/** True only when candidate is a strictly higher semver than the running app. */
+export function isNewerVersion(candidateVersion: string | null, current: string): boolean {
+  if (!candidateVersion) return false
+  const cur = current.trim()
+  if (!cur) return true
+  return compareVersions(candidateVersion, cur) > 0
+}
+
 function parseVersionParts(v: string): number[] {
   return v.split('.').map((p) => {
     const n = Number.parseInt(p, 10)

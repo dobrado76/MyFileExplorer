@@ -64,6 +64,28 @@ describe('layouts', () => {
     expect(layoutSummary(layout)).toContain('2 tabs')
   })
 
+  it('persists multi-pane splitter ratios through save and settings round-trip', () => {
+    const layout = buildLayoutFromSnapshot('Split workspace', {
+      ...sampleSource,
+      viewLayout: 4,
+      paneTabIds: ['tab_a', 'tab_b', null, null],
+      paneSplitCols: 0.35,
+      paneSplitRows: 0.62
+    })
+    expect(layout.viewLayout).toBe(4)
+    expect(layout.paneSplitCols).toBe(0.35)
+    expect(layout.paneSplitRows).toBe(0.62)
+
+    const parsed = settingsSchema.parse({ layouts: [layout] })
+    expect(parsed.layouts).toHaveLength(1)
+    expect(parsed.layouts[0]?.paneSplitCols).toBe(0.35)
+    expect(parsed.layouts[0]?.paneSplitRows).toBe(0.62)
+
+    const again = workspaceLayoutSchema.parse(JSON.parse(JSON.stringify(parsed.layouts[0])))
+    expect(again.paneSplitCols).toBe(0.35)
+    expect(again.paneSplitRows).toBe(0.62)
+  })
+
   it('upsert / rename / remove', () => {
     const a = buildLayoutFromSnapshot('A', sampleSource)
     const b = buildLayoutFromSnapshot('B', sampleSource)

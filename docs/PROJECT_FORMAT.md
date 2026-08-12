@@ -23,7 +23,7 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   logs/                  # optional main log files
 ```
 
-**Settings export / import (D45):** Settings → Advanced writes a portable JSON envelope (`format: "myfileexplorer-settings"`) with the **full** `settingsSchema` document (dialog bounds nulled) plus `networkHosts`. **Any new preference must be added to `settingsSchema` (or a nested object already under it)** so it round-trips — there is no separate export allowlist. It does **not** include `window-state.json` or live `session.json` (open tabs). Import replaces `settings.json` (and hosts when present). A raw `settings.json` file is also accepted.
+**Settings export / import (D45):** Settings → About writes a portable JSON envelope (`format: "myfileexplorer-settings"`) with the **full** `settingsSchema` document (dialog bounds nulled) plus `networkHosts`. **Any new preference must be added to `settingsSchema` (or a nested object already under it)** so it round-trips — there is no separate export allowlist. It does **not** include `window-state.json` or live `session.json` (open tabs). Import replaces `settings.json` (and hosts when present). A raw `settings.json` file is also accepted.
 
 Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and install stay aligned.
 
