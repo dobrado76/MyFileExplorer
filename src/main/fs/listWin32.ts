@@ -14,14 +14,32 @@ const FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 const FIND_DATA_SIZE = 592
 const INVALID_HANDLE = 0xffffffffffffffffn
 
-const kernel32 = koffi.load('kernel32.dll')
-const FindFirstFileW = kernel32.func(
-  'void * __stdcall FindFirstFileW(str16 lpFileName, void *lpFindFileData)'
-)
-const FindNextFileW = kernel32.func(
-  'int32 __stdcall FindNextFileW(void *hFindFile, void *lpFindFileData)'
-)
-const FindClose = kernel32.func('int32 __stdcall FindClose(void *hFindFile)')
+type WinFindApis = {
+  FindFirstFileW: (lpFileName: string, lpFindFileData: Buffer) => unknown
+  FindNextFileW: (hFindFile: unknown, lpFindFileData: Buffer) => number
+  FindClose: (hFindFile: unknown) => number
+}
+
+let winFindApis: WinFindApis | null | undefined
+
+function ensureWinFindApis(): WinFindApis | null {
+  if (winFindApis !== undefined) return winFindApis
+  if (process.platform !== 'win32') {
+    winFindApis = null
+    return null
+  }
+  const kernel32 = koffi.load('kernel32.dll')
+  winFindApis = {
+    FindFirstFileW: kernel32.func(
+      'void * __stdcall FindFirstFileW(str16 lpFileName, void *lpFindFileData)'
+    ) as WinFindApis['FindFirstFileW'],
+    FindNextFileW: kernel32.func(
+      'int32 __stdcall FindNextFileW(void *hFindFile, void *lpFindFileData)'
+    ) as WinFindApis['FindNextFileW'],
+    FindClose: kernel32.func('int32 __stdcall FindClose(void *hFindFile)') as WinFindApis['FindClose']
+  }
+  return winFindApis
+}
 
 function isInvalidHandle(h: unknown): boolean {
   if (h == null) return true
@@ -69,9 +87,12 @@ function joinUnder(dirPath: string, name: string): string {
  * caller can fall back to readdir+stat.
  */
 export function listDirectoryWin32(dirPath: string, includeHidden: boolean): DirEntry[] | null {
+  const apis = ensureWinFindApis()
+  if (!apis) return null
+
   const pattern = dirPath.endsWith('\\') || dirPath.endsWith('/') ? `${dirPath}*` : `${dirPath}\\*`
   const buf = Buffer.alloc(FIND_DATA_SIZE)
-  const handle = FindFirstFileW(pattern, buf)
+  const handle = apis.FindFirstFileW(pattern, buf)
   if (isInvalidHandle(handle)) return null
 
   const entries: DirEntry[] = []
@@ -100,10 +121,10 @@ export function listDirectoryWin32(dirPath: string, includeHidden: boolean): Dir
           })
         }
       }
-      if (!FindNextFileW(handle, buf)) break
+      if (!apis.FindNextFileW(handle, buf)) break
     }
   } finally {
-    FindClose(handle)
+    apis.FindClose(handle)
   }
   return entries
 }

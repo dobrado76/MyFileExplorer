@@ -162,6 +162,11 @@ async function removeUnpackedDir() {
   }
 }
 
+if (process.platform !== 'win32') {
+  console.error('Windows packaging is only supported on a Windows host. For Linux use: npm run build:linux')
+  process.exit(1)
+}
+
 process.chdir(root)
 
 if (!noBump) {

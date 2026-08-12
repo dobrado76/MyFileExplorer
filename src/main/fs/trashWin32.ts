@@ -29,27 +29,44 @@ const DRIVE_REMOTE = 4
 const DRIVE_CDROM = 5
 const DRIVE_RAMDISK = 6
 
-const shell32 = koffi.load('shell32.dll')
-const kernel32 = koffi.load('kernel32.dll')
+type WinShellApi = {
+  SHFileOperationW: (op: Record<string, unknown>) => number
+  GetDriveTypeW: (lpRootPathName: string) => number
+}
 
-/** Win64 layout with explicit pads (matches Windows SDK SHFILEOPSTRUCTW). */
-koffi.struct('MfeSHFILEOPSTRUCTW', {
-  hwnd: 'void *',
-  wFunc: 'uint32',
-  _pad0: 'uint32',
-  pFrom: 'void *',
-  pTo: 'void *',
-  fFlags: 'uint16',
-  _pad1: 'uint16',
-  fAnyOperationsAborted: 'int32',
-  hNameMappings: 'void *',
-  lpszProgressTitle: 'void *'
-})
+let winShellApi: WinShellApi | null | undefined
 
-const SHFileOperationW = shell32.func(
-  'int __stdcall SHFileOperationW(_Inout_ MfeSHFILEOPSTRUCTW *lpFileOp)'
-)
-const GetDriveTypeW = kernel32.func('uint32 __stdcall GetDriveTypeW(str16 lpRootPathName)')
+function ensureWinShellApi(): WinShellApi | null {
+  if (winShellApi !== undefined) return winShellApi
+  if (process.platform !== 'win32') {
+    winShellApi = null
+    return null
+  }
+  const shell32 = koffi.load('shell32.dll')
+  const kernel32 = koffi.load('kernel32.dll')
+
+  /** Win64 layout with explicit pads (matches Windows SDK SHFILEOPSTRUCTW). */
+  koffi.struct('MfeSHFILEOPSTRUCTW', {
+    hwnd: 'void *',
+    wFunc: 'uint32',
+    _pad0: 'uint32',
+    pFrom: 'void *',
+    pTo: 'void *',
+    fFlags: 'uint16',
+    _pad1: 'uint16',
+    fAnyOperationsAborted: 'int32',
+    hNameMappings: 'void *',
+    lpszProgressTitle: 'void *'
+  })
+
+  winShellApi = {
+    SHFileOperationW: shell32.func(
+      'int __stdcall SHFileOperationW(_Inout_ MfeSHFILEOPSTRUCTW *lpFileOp)'
+    ) as WinShellApi['SHFileOperationW'],
+    GetDriveTypeW: kernel32.func('uint32 __stdcall GetDriveTypeW(str16 lpRootPathName)') as WinShellApi['GetDriveTypeW']
+  }
+  return winShellApi
+}
 
 function toDoubleNullWide(paths: string[]): Buffer {
   const chars: number[] = []
@@ -69,15 +86,18 @@ function rootForPath(p: string): string {
 }
 
 export function volumeSupportsRecycleBin(filePath: string): boolean {
+  const api = ensureWinShellApi()
+  if (!api) return false
   const root = rootForPath(filePath)
   if (!root) return false
-  const type = GetDriveTypeW(root) as number
+  const type = api.GetDriveTypeW(root) as number
   return type === DRIVE_FIXED || type === DRIVE_RAMDISK || type === DRIVE_REMOVABLE
 }
 
 function driveTypeLabel(filePath: string): string {
+  const api = ensureWinShellApi()
   const root = rootForPath(filePath)
-  const type = root ? (GetDriveTypeW(root) as number) : 0
+  const type = root && api ? (api.GetDriveTypeW(root) as number) : 0
   switch (type) {
     case DRIVE_REMOTE:
       return 'network location'
@@ -148,6 +168,10 @@ function sleep(ms: number): Promise<void> {
 }
 
 function runShFileRecycle(filePath: string): void {
+  const api = ensureWinShellApi()
+  if (!api) {
+    throw new AppError('not-allowed', 'Recycle Bin is only supported on Windows')
+  }
   const fromBuf = toDoubleNullWide([filePath])
   const op = {
     hwnd: null,
@@ -162,7 +186,7 @@ function runShFileRecycle(filePath: string): void {
     lpszProgressTitle: null
   }
 
-  const code = SHFileOperationW(op) as number
+  const code = api.SHFileOperationW(op) as number
   if (code !== 0) {
     const mapped = shellErrorMessage(code)
     throw new AppError('io', mapped.message, mapped.remediation)

@@ -102,6 +102,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
+| **[docs/LINUX.md](docs/LINUX.md)** | Linux dev/build/run guide |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
 | **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D45 |
 | **[docs/Networks.md](docs/Networks.md)** | Network neighborhood & mapped drives |
