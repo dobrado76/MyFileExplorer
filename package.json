@@ -1,6 +1,7 @@
 {
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
+  "desktopName": "MyFileExplorer",
   "version": "0.5.2",
   "description": "Windows-first Electron + React file manager: tabs, rich previews (incl. A1111/ComfyUI metadata), Everything-inspired opt-in search, curated context menu, OS drag-out, in-app Recycle Bin.",
   "main": "./out/main/index.js",
@@ -11,6 +12,12 @@
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "build": "electron-vite build",
+    "build:linux": "electron-vite build && electron-builder --linux --config electron-builder.yml --publish never",
+    "dev:wayland": "bash ./scripts/run-linux-dev.sh",
+    "dev:linux": "bash ./scripts/run-linux-dev.sh",
+    "install:linux": "bash ./scripts/install-linux-bundle.sh",
+    "run:linux": "bash ./scripts/run-linux-appimage.sh",
+    "run:unpacked": "bash ./scripts/run-linux-unpacked.sh",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
@@ -20,7 +27,8 @@
     "postinstall": "node scripts/patch-filerobot-crop.mjs",
     "build:win": "electron-vite build && electron-builder --win --config electron-builder.yml --publish never",
     "dist": "node scripts/dist.mjs",
-    "dist:nobump": "node scripts/dist.mjs --no-bump"
+    "dist:nobump": "node scripts/dist.mjs --no-bump",
+    "dist:linux": "npm run build:linux"
   },
   "dependencies": {
     "7zip-bin": "^5.2.0",

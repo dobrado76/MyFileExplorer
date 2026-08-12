@@ -4,21 +4,44 @@
  */
 import koffi from 'koffi'
 
-const version = koffi.load('version.dll')
-const kernel32 = koffi.load('kernel32.dll')
+type WinVersionApi = {
+  GetFileVersionInfoSizeW: (lptstrFilename: string, lpdwHandle: number[]) => number
+  GetFileVersionInfoW: (
+    lptstrFilename: string,
+    dwHandle: number,
+    dwLen: number,
+    lpData: Buffer
+  ) => boolean
+  VerQueryValueW: (pBlock: Buffer, lpSubBlock: string, outPtr: unknown[], outLen: number[]) => boolean
+  VerLanguageNameW: (wLang: number, szLang: Buffer, cchLang: number) => number
+}
 
-const GetFileVersionInfoSizeW = version.func(
-  'uint32 __stdcall GetFileVersionInfoSizeW(str16 lptstrFilename, _Out_ uint32 *lpdwHandle)'
-)
-const GetFileVersionInfoW = version.func(
-  'bool __stdcall GetFileVersionInfoW(str16 lptstrFilename, uint32 dwHandle, uint32 dwLen, void *lpData)'
-)
-const VerQueryValueW = version.func(
-  'bool __stdcall VerQueryValueW(const void *pBlock, str16 lpSubBlock, _Out_ void **lplpBuffer, _Out_ uint32 *puLen)'
-)
-const VerLanguageNameW = kernel32.func(
-  'uint32 __stdcall VerLanguageNameW(uint32 wLang, _Out_ uint16 *szLang, uint32 cchLang)'
-)
+let winVersionApi: WinVersionApi | null | undefined
+
+function ensureWinVersionApi(): WinVersionApi | null {
+  if (winVersionApi !== undefined) return winVersionApi
+  if (process.platform !== 'win32') {
+    winVersionApi = null
+    return null
+  }
+  const version = koffi.load('version.dll')
+  const kernel32 = koffi.load('kernel32.dll')
+  winVersionApi = {
+    GetFileVersionInfoSizeW: version.func(
+      'uint32 __stdcall GetFileVersionInfoSizeW(str16 lptstrFilename, _Out_ uint32 *lpdwHandle)'
+    ) as WinVersionApi['GetFileVersionInfoSizeW'],
+    GetFileVersionInfoW: version.func(
+      'bool __stdcall GetFileVersionInfoW(str16 lptstrFilename, uint32 dwHandle, uint32 dwLen, void *lpData)'
+    ) as WinVersionApi['GetFileVersionInfoW'],
+    VerQueryValueW: version.func(
+      'bool __stdcall VerQueryValueW(const void *pBlock, str16 lpSubBlock, _Out_ void **lplpBuffer, _Out_ uint32 *puLen)'
+    ) as WinVersionApi['VerQueryValueW'],
+    VerLanguageNameW: kernel32.func(
+      'uint32 __stdcall VerLanguageNameW(uint32 wLang, _Out_ uint16 *szLang, uint32 cchLang)'
+    ) as WinVersionApi['VerLanguageNameW']
+  }
+  return winVersionApi
+}
 
 export type PeVersionInfo = {
   fileDescription: string | null
@@ -77,8 +100,10 @@ function dwordPairVersion(ms: number, ls: number): string {
 }
 
 function languageName(langId: number): string | null {
+  const api = ensureWinVersionApi()
+  if (!api) return null
   const buf = Buffer.alloc(512)
-  const n = VerLanguageNameW(langId, buf, 256)
+  const n = api.VerLanguageNameW(langId, buf, 256)
   if (!n) return null
   const words: number[] = []
   for (let i = 0; i < n && i < 256; i++) {
@@ -92,19 +117,20 @@ function languageName(langId: number): string | null {
  * Best-effort VERSIONINFO. Returns null when the file has no version resource.
  */
 export function readPeVersionInfo(filePath: string): PeVersionInfo | null {
-  if (process.platform !== 'win32') return null
+  const api = ensureWinVersionApi()
+  if (!api || process.platform !== 'win32') return null
   try {
     const handleOut = [0]
-    const size = GetFileVersionInfoSizeW(filePath, handleOut)
+    const size = api.GetFileVersionInfoSizeW(filePath, handleOut)
     if (!size) return null
     const block = Buffer.alloc(size)
-    if (!GetFileVersionInfoW(filePath, 0, size, block)) return null
+    if (!api.GetFileVersionInfoW(filePath, 0, size, block)) return null
 
     const outPtr: unknown[] = [null]
     const outLen = [0]
     let fileVersionFixed: string | null = null
     let productVersionFixed: string | null = null
-    if (VerQueryValueW(block, '\\', outPtr, outLen) && outPtr[0]) {
+    if (api.VerQueryValueW(block, '\\', outPtr, outLen) && outPtr[0]) {
       const fixedLen = outLen[0] ?? 0
       if (fixedLen >= 52) {
         // VS_FIXEDFILEINFO: dwSignature@0, … dwFileVersionMS@8, dwFileVersionLS@12,
@@ -125,7 +151,7 @@ export function readPeVersionInfo(filePath: string): PeVersionInfo | null {
     const translations: { lang: number; cp: number }[] = []
     outPtr[0] = null
     outLen[0] = 0
-    if (VerQueryValueW(block, '\\VarFileInfo\\Translation', outPtr, outLen) && outPtr[0]) {
+    if (api.VerQueryValueW(block, '\\VarFileInfo\\Translation', outPtr, outLen) && outPtr[0]) {
       const transLen = outLen[0] ?? 0
       if (transLen >= 4) {
         const raw = Buffer.from(
@@ -147,7 +173,7 @@ export function readPeVersionInfo(filePath: string): PeVersionInfo | null {
         if (strings[key]) continue
         outPtr[0] = null
         outLen[0] = 0
-        if (!VerQueryValueW(block, `${prefix}\\${key}`, outPtr, outLen) || !outPtr[0]) continue
+        if (!api.VerQueryValueW(block, `${prefix}\\${key}`, outPtr, outLen) || !outPtr[0]) continue
         const text = readVersionString(outPtr[0], outLen[0] ?? 0)
         if (text) strings[key] = text
       }

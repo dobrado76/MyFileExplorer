@@ -25,6 +25,12 @@ win:
   icon: build/icon.ico
   target:
     - nsis
+linux:
+  icon: build/icon.png
+  target:
+    - AppImage
+    - snap
+  category: Utility
 protocols:
   - name: MyFileExplorer
     schemes:

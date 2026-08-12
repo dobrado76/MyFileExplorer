@@ -15,61 +15,90 @@ const DI_NORMAL = 0x0003
 const DIB_RGB_COLORS = 0
 const BI_RGB = 0
 
-const shell32 = koffi.load('shell32.dll')
-const user32 = koffi.load('user32.dll')
-const gdi32 = koffi.load('gdi32.dll')
+type WinShellIconApi = {
+  SHGetFileInfoW: (pszPath: string, dwFileAttributes: number, psfi: { hIcon?: unknown }, cbFileInfo: number, uFlags: number) => unknown
+  DestroyIcon: (hIcon: unknown) => boolean
+  GetDC: (hWnd: unknown) => unknown
+  ReleaseDC: (hWnd: unknown, hDC: unknown) => number
+  CreateCompatibleDC: (hdc: unknown) => unknown
+  DeleteDC: (hdc: unknown) => boolean
+  CreateDIBSection: (hdc: unknown, pbmi: Record<string, unknown>, usage: number, ppvBits: unknown[], hSection: unknown, offset: number) => unknown
+  SelectObject: (hdc: unknown, h: unknown) => unknown
+  DeleteObject: (ho: unknown) => boolean
+  DrawIconEx: (hdc: unknown, xLeft: number, yTop: number, hIcon: unknown, cxWidth: number, cyWidth: number, istepIfAniCur: number, hbrFlickerFreeDraw: unknown, diFlags: number) => boolean
+}
 
-const SHFILEINFOW = koffi.struct('SHFILEINFOW', {
-  hIcon: 'void *',
-  iIcon: 'int',
-  dwAttributes: 'uint32',
-  szDisplayName: koffi.array('uint16', 260),
-  szTypeName: koffi.array('uint16', 80),
-})
+let winShellIconApi: WinShellIconApi | null | undefined
 
-const BITMAPINFOHEADER = koffi.struct('BITMAPINFOHEADER', {
-  biSize: 'uint32',
-  biWidth: 'int32',
-  biHeight: 'int32',
-  biPlanes: 'uint16',
-  biBitCount: 'uint16',
-  biCompression: 'uint32',
-  biSizeImage: 'uint32',
-  biXPelsPerMeter: 'int32',
-  biYPelsPerMeter: 'int32',
-  biClrUsed: 'uint32',
-  biClrImportant: 'uint32',
-})
+function ensureWinShellIconApi(): WinShellIconApi | null {
+  if (winShellIconApi !== undefined) return winShellIconApi
+  if (process.platform !== 'win32') {
+    winShellIconApi = null
+    return null
+  }
 
-const BITMAPINFO = koffi.struct('BITMAPINFO', {
-  bmiHeader: BITMAPINFOHEADER,
-})
+  const shell32 = koffi.load('shell32.dll')
+  const user32 = koffi.load('user32.dll')
+  const gdi32 = koffi.load('gdi32.dll')
 
-const SHGetFileInfoW = shell32.func(
-  'void * __stdcall SHGetFileInfoW(str16 pszPath, uint32 dwFileAttributes, _Out_ SHFILEINFOW *psfi, uint32 cbFileInfo, uint32 uFlags)',
-)
-const DestroyIcon = user32.func('bool __stdcall DestroyIcon(void *hIcon)')
-const GetDC = user32.func('void * __stdcall GetDC(void *hWnd)')
-const ReleaseDC = user32.func('int __stdcall ReleaseDC(void *hWnd, void *hDC)')
-const CreateCompatibleDC = gdi32.func('void * __stdcall CreateCompatibleDC(void *hdc)')
-const DeleteDC = gdi32.func('bool __stdcall DeleteDC(void *hdc)')
-const CreateDIBSection = gdi32.func(
-  'void * __stdcall CreateDIBSection(void *hdc, const BITMAPINFO *pbmi, uint32 usage, _Out_ void **ppvBits, void *hSection, uint32 offset)',
-)
-const SelectObject = gdi32.func('void * __stdcall SelectObject(void *hdc, void *h)')
-const DeleteObject = gdi32.func('bool __stdcall DeleteObject(void *ho)')
-const DrawIconEx = user32.func(
-  'bool __stdcall DrawIconEx(void *hdc, int xLeft, int yTop, void *hIcon, int cxWidth, int cyWidth, uint32 istepIfAniCur, void *hbrFlickerFreeDraw, uint32 diFlags)',
-)
+  const SHFILEINFOW = koffi.struct('SHFILEINFOW', {
+    hIcon: 'void *',
+    iIcon: 'int',
+    dwAttributes: 'uint32',
+    szDisplayName: koffi.array('uint16', 260),
+    szTypeName: koffi.array('uint16', 80),
+  })
 
-void BITMAPINFO
+  const BITMAPINFOHEADER = koffi.struct('BITMAPINFOHEADER', {
+    biSize: 'uint32',
+    biWidth: 'int32',
+    biHeight: 'int32',
+    biPlanes: 'uint16',
+    biBitCount: 'uint16',
+    biCompression: 'uint32',
+    biSizeImage: 'uint32',
+    biXPelsPerMeter: 'int32',
+    biYPelsPerMeter: 'int32',
+    biClrUsed: 'uint32',
+    biClrImportant: 'uint32',
+  })
+
+  const BITMAPINFO = koffi.struct('BITMAPINFO', {
+    bmiHeader: BITMAPINFOHEADER,
+  })
+
+  winShellIconApi = {
+    SHGetFileInfoW: shell32.func(
+      'void * __stdcall SHGetFileInfoW(str16 pszPath, uint32 dwFileAttributes, _Out_ SHFILEINFOW *psfi, uint32 cbFileInfo, uint32 uFlags)',
+    ) as WinShellIconApi['SHGetFileInfoW'],
+    DestroyIcon: user32.func('bool __stdcall DestroyIcon(void *hIcon)') as WinShellIconApi['DestroyIcon'],
+    GetDC: user32.func('void * __stdcall GetDC(void *hWnd)') as WinShellIconApi['GetDC'],
+    ReleaseDC: user32.func('int __stdcall ReleaseDC(void *hWnd, void *hDC)') as WinShellIconApi['ReleaseDC'],
+    CreateCompatibleDC: gdi32.func('void * __stdcall CreateCompatibleDC(void *hdc)') as WinShellIconApi['CreateCompatibleDC'],
+    DeleteDC: gdi32.func('bool __stdcall DeleteDC(void *hdc)') as WinShellIconApi['DeleteDC'],
+    CreateDIBSection: gdi32.func(
+      'void * __stdcall CreateDIBSection(void *hdc, const BITMAPINFO *pbmi, uint32 usage, _Out_ void **ppvBits, void *hSection, uint32 offset)',
+    ) as WinShellIconApi['CreateDIBSection'],
+    SelectObject: gdi32.func('void * __stdcall SelectObject(void *hdc, void *h)') as WinShellIconApi['SelectObject'],
+    DeleteObject: gdi32.func('bool __stdcall DeleteObject(void *ho)') as WinShellIconApi['DeleteObject'],
+    DrawIconEx: user32.func(
+      'bool __stdcall DrawIconEx(void *hdc, int xLeft, int yTop, void *hIcon, int cxWidth, int cyWidth, uint32 istepIfAniCur, void *hbrFlickerFreeDraw, uint32 diFlags)',
+    ) as WinShellIconApi['DrawIconEx']
+  }
+
+  void BITMAPINFO
+  return winShellIconApi
+}
 
 function createBuffer(hIcon: unknown, canvas: number): Buffer | null {
-  const hdcScreen = GetDC(null)
+  const api = ensureWinShellIconApi()
+  if (!api) return null
+
+  const hdcScreen = api.GetDC(null)
   if (!hdcScreen) return null
-  const hdc = CreateCompatibleDC(hdcScreen)
+  const hdc = api.CreateCompatibleDC(hdcScreen)
   if (!hdc) {
-    ReleaseDC(null, hdcScreen)
+    api.ReleaseDC(null, hdcScreen)
     return null
   }
 
@@ -93,12 +122,12 @@ function createBuffer(hIcon: unknown, canvas: number): Buffer | null {
   let old: unknown = null
   try {
     const bitsOut: unknown[] = [null]
-    hbmp = CreateDIBSection(hdc, bmi, DIB_RGB_COLORS, bitsOut, null, 0)
+    hbmp = api.CreateDIBSection(hdc, bmi, DIB_RGB_COLORS, bitsOut, null, 0)
     const bits = bitsOut[0]
     if (!hbmp || !bits) return null
 
-    old = SelectObject(hdc, hbmp)
-    if (!DrawIconEx(hdc, 0, 0, hIcon, canvas, canvas, 0, null, DI_NORMAL)) return null
+    old = api.SelectObject(hdc, hbmp)
+    if (!api.DrawIconEx(hdc, 0, 0, hIcon, canvas, canvas, 0, null, DI_NORMAL)) return null
 
     const byteLen = canvas * canvas * 4
     const bgra = Buffer.from(koffi.decode(bits, koffi.array('uint8_t', byteLen)) as Uint8Array)
@@ -111,10 +140,10 @@ function createBuffer(hIcon: unknown, canvas: number): Buffer | null {
     }
     return rgba
   } finally {
-    if (old && hbmp) SelectObject(hdc, old)
-    if (hbmp) DeleteObject(hbmp)
-    DeleteDC(hdc)
-    ReleaseDC(null, hdcScreen)
+    if (old && hbmp) api.SelectObject(hdc, old)
+    if (hbmp) api.DeleteObject(hbmp)
+    api.DeleteDC(hdc)
+    api.ReleaseDC(null, hdcScreen)
   }
 }
 
@@ -139,13 +168,16 @@ export function extractShellIconRgba(
     attrs = FILE_ATTRIBUTE_NORMAL
   }
 
+  const api = ensureWinShellIconApi()
+  if (!api) return null
+
   const sfi: { hIcon?: unknown } = {}
-  const ret = SHGetFileInfoW(filePath, attrs, sfi, koffi.sizeof(SHFILEINFOW), flags)
+  const ret = api.SHGetFileInfoW(filePath, attrs, sfi, koffi.sizeof('SHFILEINFOW'), flags)
   if (!ret || !sfi.hIcon) return null
 
   try {
     return createBuffer(sfi.hIcon, wantSmall ? 16 : 32)
   } finally {
-    DestroyIcon(sfi.hIcon)
+    api.DestroyIcon(sfi.hIcon)
   }
 }
