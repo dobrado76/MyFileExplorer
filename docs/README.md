@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.6.x (package **0.6.3**). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md) (v0.6.0). Locked choices: [DECISIONS.md](DECISIONS.md) (through D45). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** v0.6.x (package **0.6.3**). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md) (v0.6.0). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -15,8 +15,8 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
-7. Deferred / bonus only when relevant: [REMOTE_FTP.md](REMOTE_FTP.md) (not scheduled)
+6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+7. Deferred notes only when relevant
 
 ---
 
@@ -31,16 +31,16 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D45               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D46               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions    |
 | [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
-| [Networks.md](Networks.md)                       | Network neighborhood & mapped drives (D44) |
+| [NETWORKS.md](NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
-| [REMOTE_FTP.md](REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
+| [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) / compiled lists (D39) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 
@@ -51,8 +51,9 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Experimental Linux packaging | AppImage + Wayland helpers; Win32 APIs lazy-load; not a support matrix — [LINUX.md](LINUX.md) |
-| Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [Networks.md](Networks.md) |
-| Settings export / import | D45 — portable prefs + remembered hosts (no window geometry) |
+| Remote repositories | D46 — opt-in FTP/FTPS/SFTP; toolbar + tree; stage Open/preview; FTP ops serialized — [REMOTE_FTP.md](REMOTE_FTP.md) |
+| Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [NETWORKS.md](NETWORKS.md) |
+| Settings export / import | D45 — portable prefs + Network hosts + remote connection metadata (no passwords / window geometry) |
 | Open Command Line | Folder context; Terminal / PS / cmd; Shift = Admin |
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |

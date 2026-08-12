@@ -144,7 +144,7 @@ Not exported: `window-state.json`, live `session.json` tabs (use a **named layou
 - No SMBv1 Computer Browser dependency.
 - Empty LAN / only this PC → Network section stays hidden (no flash then disappear).
 - Bare `\\server` is not a shell cwd for **Open Command Line** (item hidden for host-only UNC).
-- Cloud provider namespaces / remote FTP are out of scope here ([REMOTE_FTP.md](REMOTE_FTP.md) deferred).
+- Cloud provider namespaces / remote FTP are out of scope here — remotes are [REMOTE_FTP.md](REMOTE_FTP.md) (D46).
 
 ---
 

@@ -93,6 +93,13 @@ function listUncHostAsShares(dir: string): DirEntry[] {
 
 export async function listDirectory(dirPath: string, includeHidden = true): Promise<ListResponse> {
   const dir = requireAbsolute(dirPath)
+
+  if (dir.toLowerCase().startsWith('mfe-remote://')) {
+    const { listRemoteDirectory } = await import('../remote/sessionPool')
+    const result = await listRemoteDirectory(dir, includeHidden)
+    return { path: result.path, entries: dedupeDirEntries(result.entries) }
+  }
+
   const driveLetter = /^([a-zA-Z]):/i.exec(dir)
 
   // Mapped / missing letters: never call sync FindFirstFileW on main — it can
@@ -136,6 +143,20 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
 
 export async function statPath(p: string): Promise<StatResult> {
   const n = requireAbsolute(p)
+  if (n.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteStat } = await import('../remote/sessionPool')
+    const st = await remoteStat(n)
+    return {
+      path: n,
+      exists: st != null,
+      kind: st?.kind === 'dir' ? 'dir' : st?.kind === 'file' ? 'file' : null,
+      size: st?.size ?? 0,
+      mtimeMs: st?.mtimeMs ?? 0,
+      ctimeMs: st?.mtimeMs ?? 0,
+      birthtimeMs: 0,
+      isReadonly: true
+    }
+  }
   // Bare UNC hosts are not real directories; treat as existing dirs so refresh
   // / navigation do not bounce away before share enum runs.
   if (isNetworkHostUnc(n)) {
@@ -188,6 +209,10 @@ export async function statPath(p: string): Promise<StatResult> {
 export async function pathExists(p: string): Promise<boolean> {
   try {
     const n = requireAbsolute(p)
+    if (n.toLowerCase().startsWith('mfe-remote://')) {
+      const { remoteStatKind } = await import('../remote/sessionPool')
+      return (await remoteStatKind(n)) != null
+    }
     if (isNetworkHostUnc(n)) return true
     await fsp.access(n)
     return true

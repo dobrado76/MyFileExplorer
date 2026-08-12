@@ -1,6 +1,7 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { parseUnc } from '@shared/networkPaths'
+import { formatRemoteLocation, parseRemoteLocation } from '@shared/remotePaths'
 
 /**
  * Normalize a UNC path without Node's path.normalize, which collapses
@@ -39,6 +40,14 @@ function normalizeUncAbsolute(input: string): string | null {
 export function normalizeAbsolute(input: string): string | null {
   if (typeof input !== 'string' || input.trim().length === 0) return null
   let p = input.trim()
+
+  // Remote repository URIs (FTP/SFTP) — POSIX normalize under connection id.
+  if (p.toLowerCase().startsWith('mfe-remote://')) {
+    const loc = parseRemoteLocation(p)
+    if (!loc) return null
+    return formatRemoteLocation(loc.connectionId, loc.remotePath)
+  }
+
   // Bare drive like "C:" means "current dir on C:" in Windows — force root.
   if (/^[a-zA-Z]:$/.test(p)) p = p + path.sep
 

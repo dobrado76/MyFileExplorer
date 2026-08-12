@@ -131,11 +131,15 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
     const raw = text.trim()
     if (!raw) return
     try {
+      if (looksAbsolute(raw) && raw.toLowerCase().startsWith('mfe-remote://')) {
+        await navigate(raw, { tabId })
+        return
+      }
       const expanded = (await call(api.app.expandPath({ path: raw }))).path
       const target = stripTrailingSep(normalizeSlashes(expanded))
       if (!target || !looksAbsolute(target)) {
         notify(
-          'Enter an absolute path like C:\\folder, \\\\server\\share, or %LOCALAPPDATA%\\…',
+          'Enter an absolute path like C:\\folder, \\\\server\\share, mfe-remote://…, or %LOCALAPPDATA%\\…',
           true
         )
         return

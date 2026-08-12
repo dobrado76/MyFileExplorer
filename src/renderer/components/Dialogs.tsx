@@ -1144,6 +1144,7 @@ type SettingsSection =
   | 'preview'
   | 'search'
   | 'network'
+  | 'remoterepos'
   | 'slideshow'
   | 'advanced'
 
@@ -1158,6 +1159,7 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'preview', label: 'Preview' },
   { id: 'search', label: 'Search index' },
   { id: 'network', label: 'Network' },
+  { id: 'remoterepos', label: 'Remote repositories' },
   { id: 'slideshow', label: 'Slideshow' },
   { id: 'advanced', label: 'Advanced' }
 ]
@@ -1517,6 +1519,24 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   Disconnect…
                 </button>
               </div>
+            </div>
+          )}
+
+          {section === 'remoterepos' && (
+            <div className="settings-stack">
+              <p className="settings-help">
+                Opt-in FTP / FTPS / SFTP bookmarks. When enabled, a toolbar group manages
+                connections and a <strong>Remote repositories</strong> tree section appears
+                once you have saved at least one. Details:{' '}
+                <code>docs/REMOTE_FTP.md</code>.
+              </p>
+              <SettingsToggle
+                id="set-remote-enabled"
+                label="Enable remote repositories"
+                hint="Off by default. When on: toolbar Select / Add / Edit / Connect. Passwords use OS secret storage."
+                checked={settings.remoteRepos.enabled === true}
+                onChange={(v) => void applySettingsPatch({ remoteRepos: { enabled: v } })}
+              />
             </div>
           )}
 
@@ -2524,10 +2544,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <div className="settings-toggle-label">Export / import settings</div>
                   <div className="settings-toggle-hint">
                     Save a portable JSON backup (theme, named layouts, folder views, slideshow,
-                    context menu, network discovery, remembered Network hosts, and all other
-                    preferences). Dialog and main-window positions are not included. Import
-                    replaces current settings; open tabs are unchanged (apply a named layout to
-                    restore a workspace).
+                    context menu, network discovery, remembered Network hosts, remote repository
+                    connections without passwords, and all other preferences). Dialog and
+                    main-window positions are not included. Import replaces current settings;
+                    open tabs are unchanged (apply a named layout to restore a workspace).
+                    Re-enter remote passwords after import.
                   </div>
                 </div>
                 <div className="settings-inline">

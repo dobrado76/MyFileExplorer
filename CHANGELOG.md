@@ -14,25 +14,35 @@ Patch line **0.6.x** (package currently **0.6.3**). Product release notes for th
 ### Added
 
 - **Experimental Linux packaging** — AppImage via `npm run build:linux` / `dist:linux`; Wayland-oriented helpers (`dev:linux`, `run:unpacked`, `run:linux`, `install:linux`). Win32 koffi APIs lazy-load so Linux hosts do not crash on import. Not a supported product matrix — Windows remains primary. See [docs/LINUX.md](docs/LINUX.md).
+- **Remote repositories (D46)** — opt-in FTP / FTPS / SFTP connections; Settings master switch (default off); toolbar + tree section; `mfe-remote://` locations; upload/download / mkdir / rename / permanent delete; Connect / Open / folder-nav busy dialogs; Open & preview stage under `userData` scratch then use local handlers. See [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md).
 
 ### Changed
 
 - `npm run dist` refuses non-Windows hosts (use `build:linux` on Linux).
 - Docs / README / PLAN / BUILD index Linux as experimental under **v0.6.x**.
 - **Breadcrumb** collapses middle segments with `…` only when the address trail actually overflows (no fixed max segment count).
+- **Settings export** strips `remoteConnectionBounds` with other dialog geometry (D45).
+- **Add/Edit remote connection** dialog: solid modal chrome, wider layout, drag/resize + persisted bounds, label|field rows, proper Cancel/Save buttons.
 
+### Fixed
+
+- **Remote Open** no longer hands `mfe-remote://` to Windows (Store “no app” dialog) — stages then `shell.openPath` on the local copy.
+- **Remote preview / properties** use remote size/mtime; preview/media stage through scratch.
+- **Remote → local drag/drop** to a drive root (`Z:\`) no longer fails with `EPERM` on `mkdir('Z:\')`.
+- **FTP/FTPS concurrency** — serialize all ops per connection (`basic-ftp` one-command-at-a-time); reconnect+retry if a prior race closed the client (SFTP was already fine).
+- **Remote move** across local↔remote uses copy-then-delete; conflict checks understand remote names/paths.
 ## [0.6.0] - 2026-08-12
 
-Sixth product release: Network neighborhood & mapped-drive reconnect, portable settings export/import, Open Command Line (incl. Admin). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [docs/Networks.md](docs/Networks.md).
+Sixth product release: Network neighborhood & mapped-drive reconnect, portable settings export/import, Open Command Line (incl. Admin). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [docs/NETWORKS.md](docs/NETWORKS.md).
 
 ### Added
 
-- **Network neighborhood (D44)** — tree Network section; remembered hosts in `network-hosts.json`; async worker discovery (~20s); Settings → Network (auto/manual + interval); Map / Disconnect WNet dialogs; UNC host/share browsing. See [docs/Networks.md](docs/Networks.md).
+- **Network neighborhood (D44)** — tree Network section; remembered hosts in `network-hosts.json`; async worker discovery (~20s); Settings → Network (auto/manual + interval); Map / Disconnect WNet dialogs; UNC host/share browsing. See [docs/NETWORKS.md](docs/NETWORKS.md).
 - **Mapped drive reconnect (D3)** — disconnected mapped letters stay under Drives; open/list restores via `WNetAddConnection2W` / interactive `WNetUseConnectionW`.
 - **Settings export / import (D45)** — Advanced → Export… / Import… portable JSON (prefs + remembered network hosts; no window geometry).
 - **Open Command Line here** — folder context menu; ShellExecute to Terminal / PowerShell / cmd; **Shift+click** elevated (UAC).
 - **Add submenu icons** — same shell probes as toolbar + New.
-- **docs/Networks.md** — network feature reference.
+- **docs/NETWORKS.md** — network feature reference.
 
 ### Changed
 

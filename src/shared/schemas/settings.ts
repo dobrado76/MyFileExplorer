@@ -26,6 +26,10 @@ import {
   networkDiscoverySettingsSchema
 } from './networkDiscovery'
 import {
+  defaultRemoteReposSettings,
+  remoteReposSettingsSchema
+} from './remoteRepos'
+import {
   MAX_CONTEXT_MENU_COMMANDS,
   type ContextMenuCommand
 } from '../contextMenuCommands'
@@ -329,6 +333,11 @@ export const settingsSchema = z.object({
     if (!raw || typeof raw !== 'object') return defaultNetworkDiscoverySettings
     return { ...defaultNetworkDiscoverySettings, ...(raw as object) }
   }, networkDiscoverySettingsSchema),
+  /** Opt-in FTP/FTPS/SFTP remotes (D46). */
+  remoteRepos: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultRemoteReposSettings
+    return { ...defaultRemoteReposSettings, ...(raw as object) }
+  }, remoteReposSettingsSchema),
   /** Last ADS Manager dialog geometry (null = centered defaults). */
   adsManagerBounds: z
     .object({
@@ -345,6 +354,17 @@ export const settingsSchema = z.object({
       x: z.number(),
       y: z.number(),
       width: z.number().min(480).max(10000),
+      height: z.number().min(360).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
+  /** Last Add/Edit remote connection dialog geometry. */
+  remoteConnectionBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(420).max(10000),
       height: z.number().min(360).max(10000),
       maximized: z.boolean().catch(false)
     })
@@ -418,8 +438,10 @@ export const defaultSettings: Settings = settingsSchema.parse({
   slideshowFeaturesEnabled: false,
   slideshow: defaultSlideshowSettings,
   networkDiscovery: defaultNetworkDiscoverySettings,
+  remoteRepos: defaultRemoteReposSettings,
   adsManagerBounds: null,
   powerRenameBounds: null,
+  remoteConnectionBounds: null,
   compiledListsWindowBounds: null,
   contextMenu: defaultContextMenuSettings
 })
@@ -430,6 +452,7 @@ export const settingsPatchSchema = settingsSchema
   .extend({
     slideshow: slideshowSettingsSchema.partial().optional(),
     networkDiscovery: networkDiscoverySettingsSchema.partial().optional(),
+    remoteRepos: remoteReposSettingsSchema.partial().optional(),
     contextMenu: contextMenuSettingsSchema.partial().optional()
   })
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

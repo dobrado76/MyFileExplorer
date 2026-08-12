@@ -15,6 +15,7 @@ describe('settings export / import', () => {
       theme: 'light' as const,
       adsManagerBounds: { x: 1, y: 2, width: 800, height: 600 },
       powerRenameBounds: { x: 3, y: 4, width: 900, height: 700, maximized: true },
+      remoteConnectionBounds: { x: 7, y: 8, width: 640, height: 520, maximized: false },
       compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 }
     }
     const portable = settingsForPortableExport(withBounds)
@@ -62,7 +63,51 @@ describe('settings export / import', () => {
     })
   })
 
-  it('accepts bare settings.json and leaves network hosts unchanged', () => {
+  it('round-trips remoteRepos.enabled via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        remoteRepos: { enabled: true }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.remoteRepos).toEqual({ enabled: true })
+  })
+
+  it('round-trips remote connection metadata and strips hasPassword', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, remoteRepos: { enabled: true } },
+      networkHosts: [],
+      remoteConnections: [
+        {
+          id: 'conn-1',
+          name: 'Rebex',
+          protocol: 'sftp',
+          host: 'test.rebex.net',
+          port: 22,
+          username: 'demo',
+          startPath: '/',
+          insecureFtpAck: false,
+          hostFingerprint: 'abc',
+          hasPassword: true,
+          updatedAt: 1
+        }
+      ]
+    })
+    expect(doc.remoteConnections[0]?.hasPassword).toBe(false)
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.remoteConnections).toHaveLength(1)
+    expect(parsed.remoteConnections?.[0]).toMatchObject({
+      id: 'conn-1',
+      name: 'Rebex',
+      protocol: 'sftp',
+      host: 'test.rebex.net',
+      hasPassword: false
+    })
+  })
+
+  it('accepts bare settings.json and leaves network hosts / remotes unchanged', () => {
     const parsed = parseSettingsImport({
       ...defaultSettings,
       theme: 'light',
@@ -72,6 +117,7 @@ describe('settings export / import', () => {
     expect(parsed.settings.theme).toBe('light')
     expect(parsed.settings.fontSizePx).toBe(16)
     expect(parsed.networkHosts).toBeNull()
+    expect(parsed.remoteConnections).toBeNull()
   })
 
   it('rejects unknown documents', () => {

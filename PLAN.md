@@ -28,7 +28,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 - Full Windows Explorer parity (ribbon clone, Libraries UX, shell-extension hosting, zip-as-folder deep UX)
 - Replacing OS file dialogs system-wide
 - macOS / Linux as primary targets (Linux packaging helpers are experimental only — [docs/LINUX.md](docs/LINUX.md))
-- Remote FTP/SFTP as a must-have (optional bonus only — [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md); not scheduled)
+- Remote FTP/SFTP as a must-have (optional bonus only — [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md); opt-in D46)
 
 ## Doc map
 
@@ -50,9 +50,9 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/SECURITY.md](docs/SECURITY.md)                       | Path guards & deletes         |
 | [docs/INTEGRATION.md](docs/INTEGRATION.md)                 | CLI / `mfe://` from other apps |
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
-| [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
+| [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)                   | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | [docs/SLIDESHOW.md](docs/SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
-| [docs/Networks.md](docs/Networks.md)                       | Network neighborhood & mapped drives (D44) |
+| [docs/NETWORKS.md](docs/NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |

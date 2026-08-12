@@ -159,7 +159,12 @@ export type MyFileExplorerApi = {
     clearThumbCache(): Promise<Result<{ cleared: true }>>
     exportFile(): Promise<Result<{ saved: boolean; path?: string }>>
     importFile(): Promise<
-      Result<{ imported: boolean; settings?: Settings; networkHostCount?: number }>
+      Result<{
+        imported: boolean
+        settings?: Settings
+        networkHostCount?: number
+        remoteConnectionCount?: number
+      }>
     >
   }
   preview: {
@@ -403,6 +408,39 @@ export type MyFileExplorerApi = {
     }): Promise<Result<{ disconnected: true; letter: string; remotePath?: string }>>
     /** Local PC name for Settings → “Show local computer …”. */
     localComputerName(): Promise<Result<{ name: string }>>
+  }
+  remote: {
+    listConnections(): Promise<
+      Result<{ connections: import('../schemas/remoteConnections').RemoteConnection[] }>
+    >
+    upsertConnection(req: {
+      id?: string
+      name: string
+      protocol: import('../schemas/remoteConnections').RemoteProtocol
+      host: string
+      port?: number
+      username: string
+      startPath?: string
+      insecureFtpAck?: boolean
+      password?: string | null
+      clearFingerprint?: boolean
+    }): Promise<Result<{ connection: import('../schemas/remoteConnections').RemoteConnection }>>
+    renameConnection(req: {
+      id: string
+      name: string
+    }): Promise<Result<{ connection: import('../schemas/remoteConnections').RemoteConnection }>>
+    deleteConnection(req: { id: string }): Promise<Result<{ deleted: true }>>
+    connect(req: { id: string }): Promise<
+      Result<{
+        connection: import('../schemas/remoteConnections').RemoteConnection
+        location: string
+      }>
+    >
+    disconnect(req: { id: string }): Promise<Result<{ disconnected: true }>>
+    connectedIds(): Promise<Result<{ ids: string[] }>>
+    testPresets(): Promise<
+      Result<{ presets: import('../schemas/remoteConnections').RemoteTestPreset[] }>
+    >
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

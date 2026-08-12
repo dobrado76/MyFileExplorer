@@ -191,6 +191,66 @@ async function countImmediateChildren(
 
 export async function getProperties(inputPath: string): Promise<PropertiesModel> {
   const abs = requireAbsolute(inputPath)
+
+  if (abs.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteStat } = await import('../remote/sessionPool')
+    const {
+      parseRemoteLocation,
+      remoteBasename,
+      remoteParentPath,
+      formatRemoteLocation
+    } = await import('@shared/remotePaths')
+    const loc = parseRemoteLocation(abs)
+    const st = await remoteStat(abs)
+    const name = loc ? remoteBasename(loc.remotePath) || loc.connectionId : abs
+    const parentPosix = loc ? remoteParentPath(loc.remotePath) : null
+    const location =
+      loc && parentPosix != null
+        ? formatRemoteLocation(loc.connectionId, parentPosix)
+        : loc
+          ? formatRemoteLocation(loc.connectionId, '/')
+          : null
+    if (!st) {
+      return {
+        path: abs,
+        name,
+        location,
+        kind: 'missing',
+        typeLabel: 'Missing',
+        sizeBytes: null,
+        contains: null,
+        canMeasure: false,
+        createdMs: null,
+        modifiedMs: null,
+        accessedMs: null,
+        attributes: [],
+        drive: null,
+        linkTarget: null
+      }
+    }
+    const kind: PropertiesKind = st.kind === 'dir' ? 'dir' : 'file'
+    const ext =
+      kind === 'file' && name.includes('.')
+        ? name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+        : ''
+    return {
+      path: abs,
+      name,
+      location,
+      kind,
+      typeLabel: `${typeLabelFor(ext, kind, null)} (remote)`,
+      sizeBytes: kind === 'file' ? st.size : null,
+      contains: null,
+      canMeasure: false,
+      createdMs: null,
+      modifiedMs: st.mtimeMs > 0 ? st.mtimeMs : null,
+      accessedMs: null,
+      attributes: ['Remote'],
+      drive: null,
+      linkTarget: null
+    }
+  }
+
   const name = displayName(abs)
   const location = parentLocation(abs)
 

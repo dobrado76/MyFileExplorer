@@ -2,13 +2,15 @@
  * Portable settings backup / restore (D45).
  *
  * Export includes the full `settingsSchema` document (via `settingsForPortableExport`)
- * plus optional `networkHosts`. **Any new preference must live on `settingsSchema`
- * (or a nested object already under it)** so it round-trips automatically — do not
- * invent a parallel export allowlist. Only window/dialog geometry is stripped
- * (`WINDOW_LIKE_KEYS`). Main `window-state.json` / live `session.json` stay out.
+ * plus optional `networkHosts` and `remoteConnections`. **Any new preference must live
+ * on `settingsSchema` (or a nested object already under it)** so it round-trips
+ * automatically — do not invent a parallel export allowlist. Only window/dialog
+ * geometry is stripped (`WINDOW_LIKE_KEYS`). Main `window-state.json` / live
+ * `session.json` stay out. Remote passwords never leave the machine (`safeStorage`).
  */
 import { z } from 'zod'
 import { networkHostSchema, type NetworkHost } from './network'
+import { remoteConnectionSchema, type RemoteConnection } from './remoteConnections'
 import { defaultSettings, settingsSchema, type Settings } from './settings'
 
 export const SETTINGS_EXPORT_FORMAT = 'myfileexplorer-settings' as const
@@ -18,6 +20,7 @@ export const SETTINGS_EXPORT_FORMAT_VERSION = 1 as const
 const WINDOW_LIKE_KEYS = [
   'adsManagerBounds',
   'powerRenameBounds',
+  'remoteConnectionBounds',
   'compiledListsWindowBounds'
 ] as const
 
@@ -31,8 +34,21 @@ export function settingsForPortableExport(settings: Settings): Settings {
     ...settings,
     adsManagerBounds: null,
     powerRenameBounds: null,
+    remoteConnectionBounds: null,
     compiledListsWindowBounds: null
   })
+}
+
+/** Strip password flags for portable export (secrets stay in safeStorage). */
+export function remoteConnectionsForPortableExport(
+  connections: RemoteConnection[]
+): RemoteConnection[] {
+  return connections.map((c) =>
+    remoteConnectionSchema.parse({
+      ...c,
+      hasPassword: false
+    })
+  )
 }
 
 export const settingsExportDocumentSchema = z.object({
@@ -42,7 +58,9 @@ export const settingsExportDocumentSchema = z.object({
   appVersion: z.string().optional(),
   settings: z.unknown(),
   /** When present (including `[]`), replace remembered LAN hosts on import. */
-  networkHosts: z.array(networkHostSchema).optional()
+  networkHosts: z.array(networkHostSchema).optional(),
+  /** When present (including `[]`), replace remote connection metadata on import (no passwords). */
+  remoteConnections: z.array(remoteConnectionSchema).optional()
 })
 
 export type SettingsExportDocument = {
@@ -52,11 +70,13 @@ export type SettingsExportDocument = {
   appVersion?: string
   settings: Settings
   networkHosts: NetworkHost[]
+  remoteConnections: RemoteConnection[]
 }
 
 export function buildSettingsExportDocument(input: {
   settings: Settings
   networkHosts: NetworkHost[]
+  remoteConnections?: RemoteConnection[]
   appVersion?: string
 }): SettingsExportDocument {
   return {
@@ -65,7 +85,8 @@ export function buildSettingsExportDocument(input: {
     exportedAt: new Date().toISOString(),
     ...(input.appVersion ? { appVersion: input.appVersion } : {}),
     settings: settingsForPortableExport(input.settings),
-    networkHosts: input.networkHosts
+    networkHosts: input.networkHosts,
+    remoteConnections: remoteConnectionsForPortableExport(input.remoteConnections ?? [])
   }
 }
 
@@ -73,6 +94,8 @@ export type ParsedSettingsImport = {
   settings: Settings
   /** `null` = leave `network-hosts.json` unchanged (bare settings.json import). */
   networkHosts: NetworkHost[] | null
+  /** `null` = leave `remote-connections.json` unchanged (bare settings.json import). */
+  remoteConnections: RemoteConnection[] | null
   source: 'envelope' | 'settings-json'
 }
 
@@ -103,6 +126,9 @@ export function parseSettingsImport(raw: unknown): ParsedSettingsImport {
         networkHosts: Object.prototype.hasOwnProperty.call(o, 'networkHosts')
           ? (env.networkHosts ?? [])
           : null,
+        remoteConnections: Object.prototype.hasOwnProperty.call(o, 'remoteConnections')
+          ? remoteConnectionsForPortableExport(env.remoteConnections ?? [])
+          : null,
         source: 'envelope'
       }
     }
@@ -117,6 +143,7 @@ export function parseSettingsImport(raw: unknown): ParsedSettingsImport {
       settingsSchema.parse({ ...defaultSettings, ...(raw as object) })
     ),
     networkHosts: null,
+    remoteConnections: null,
     source: 'settings-json'
   }
 }

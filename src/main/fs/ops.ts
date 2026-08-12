@@ -36,6 +36,10 @@ const IMAGE_DIM_EXTS = new Set([
 
 export async function makeDirectory(parent: string, name: string): Promise<{ path: string }> {
   const dir = requireAbsolute(parent)
+  if (dir.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteMkdir } = await import('../remote/sessionPool')
+    return { path: await remoteMkdir(dir, name) }
+  }
   const target = path.join(dir, name)
   await fsp.mkdir(target)
   return { path: target }
@@ -51,6 +55,10 @@ export async function createFile(parent: string, name: string): Promise<{ path: 
 
 export async function renameEntry(p: string, newName: string): Promise<{ path: string }> {
   const source = requireAbsolute(p)
+  if (source.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteRename } = await import('../remote/sessionPool')
+    return { path: await remoteRename(source, newName) }
+  }
   const target = path.join(path.dirname(source), newName)
   if (target === source) return { path: source }
   // Allow case-only renames on Windows (target "exists" as the same file).
@@ -100,6 +108,23 @@ export async function uniqueTargetName(dir: string, name: string): Promise<strin
 
 async function readConflictSide(filePath: string): Promise<ConflictSide> {
   const p = requireAbsolute(filePath)
+  if (p.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteStat } = await import('../remote/sessionPool')
+    const { remoteBasename, parseRemoteLocation } = await import('@shared/remotePaths')
+    const st = await remoteStat(p)
+    const name = remoteBasename(parseRemoteLocation(p)?.remotePath ?? '') || p
+    const ext = path.extname(name).replace(/^\./, '').toLowerCase()
+    return {
+      path: p,
+      kind: st?.kind === 'dir' ? 'dir' : st?.kind === 'file' ? 'file' : null,
+      size: st?.size ?? 0,
+      mtimeMs: st?.mtimeMs ?? 0,
+      birthtimeMs: 0,
+      ext,
+      width: null,
+      height: null
+    }
+  }
   const ext = path.extname(p).replace(/^\./, '').toLowerCase()
   let kind: EntryKind | null = null
   let size = 0
@@ -140,13 +165,38 @@ export async function checkConflicts(
   destinationDir: string
 ): Promise<{ conflicts: string[]; items: ConflictItem[] }> {
   const dest = requireAbsolute(destinationDir)
+  const involvesRemote =
+    dest.toLowerCase().startsWith('mfe-remote://') ||
+    sources.some((s) => s.toLowerCase().startsWith('mfe-remote://'))
+
+  const remotePaths = involvesRemote ? await import('@shared/remotePaths') : null
+  const remotePool = involvesRemote ? await import('../remote/sessionPool') : null
+
   const conflicts: string[] = []
   const items: ConflictItem[] = []
   for (const s of sources) {
     const sourcePath = requireAbsolute(s)
-    const name = path.basename(sourcePath)
-    const destPath = path.join(dest, name)
-    if (!(await pathExists(destPath))) continue
+    const srcRemote = sourcePath.toLowerCase().startsWith('mfe-remote://')
+    const name = srcRemote
+      ? remotePaths!.remoteBasename(
+          remotePaths!.parseRemoteLocation(sourcePath)?.remotePath ?? ''
+        ) || 'file'
+      : path.basename(sourcePath)
+
+    let destPath: string
+    if (dest.toLowerCase().startsWith('mfe-remote://')) {
+      const loc = remotePaths!.parseRemoteLocation(dest)
+      const joined = remotePaths!.remoteJoin(loc?.remotePath ?? '/', name)
+      if (!loc || !joined) continue
+      destPath = remotePaths!.formatRemoteLocation(loc.connectionId, joined)
+    } else {
+      destPath = path.join(dest, name)
+    }
+
+    const exists = dest.toLowerCase().startsWith('mfe-remote://')
+      ? (await remotePool!.remoteStatKind(destPath)) != null
+      : await pathExists(destPath)
+    if (!exists) continue
     conflicts.push(name)
     const [source, destination] = await Promise.all([
       readConflictSide(sourcePath),
@@ -390,11 +440,132 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
   }
 }
 
+async function copyWithRemotes(
+  sources: string[],
+  destinationDir: string,
+  policy: ConflictPolicy
+): Promise<CopyResponse> {
+  const {
+    remoteUploadFile,
+    remoteDownloadFile,
+    remoteStatKind
+  } = await import('../remote/sessionPool')
+  const { parseRemoteLocation, formatRemoteLocation, remoteJoin, remoteBasename } =
+    await import('@shared/remotePaths')
+  const { app } = await import('electron')
+  const scratchRoot = path.join(app.getPath('userData'), 'remote-transfer-scratch')
+  await fsp.mkdir(scratchRoot, { recursive: true })
+
+  const copied: string[] = []
+  const skipped: string[] = []
+  const progress = beginOp('copy', sources.length, 'Transferring…')
+  try {
+    for (const source of sources) {
+      progress.throwIfCancelled()
+      const name = source.toLowerCase().startsWith('mfe-remote://')
+        ? remoteBasename(parseRemoteLocation(source)?.remotePath ?? '') || 'file'
+        : path.basename(source)
+      progress.pulse(name)
+
+      const destIsRemote = destinationDir.toLowerCase().startsWith('mfe-remote://')
+      const srcIsRemote = source.toLowerCase().startsWith('mfe-remote://')
+
+      if (destIsRemote) {
+        const destUri = remoteJoin(
+          parseRemoteLocation(destinationDir)?.remotePath ?? '/',
+          name
+        )
+        const destFull = formatRemoteLocation(
+          parseRemoteLocation(destinationDir)!.connectionId,
+          destUri!
+        )
+        const exists = (await remoteStatKind(destFull)) != null
+        if (exists && policy === 'skip') {
+          skipped.push(source)
+          continue
+        }
+        if (exists && policy === 'fail') {
+          throw new AppError('conflict', `"${name}" already exists on the remote`)
+        }
+        if (exists && policy === 'replace') {
+          const { remoteDelete } = await import('../remote/sessionPool')
+          await remoteDelete(destFull)
+        }
+
+        if (srcIsRemote) {
+          // Stage via local temp
+          const tmp = path.join(scratchRoot, `${Date.now()}-${name}`)
+          const kind = await remoteStatKind(source)
+          if (kind === 'dir') {
+            throw new AppError(
+              'not-allowed',
+              'Folder transfer between remotes is not supported yet — download then upload'
+            )
+          }
+          await remoteDownloadFile(source, tmp)
+          try {
+            copied.push(await remoteUploadFile(tmp, destinationDir, name))
+          } finally {
+            await fsp.rm(tmp, { force: true }).catch(() => undefined)
+          }
+        } else {
+          const st = await fsp.stat(source)
+          if (st.isDirectory()) {
+            throw new AppError(
+              'not-allowed',
+              'Uploading folders is not supported yet — zip locally or upload files'
+            )
+          }
+          copied.push(await remoteUploadFile(source, destinationDir, name))
+        }
+      } else if (srcIsRemote) {
+        // Download to local destinationDir
+        const target = path.join(destinationDir, name)
+        if (await pathExists(target)) {
+          if (policy === 'skip') {
+            skipped.push(source)
+            continue
+          }
+          if (policy === 'fail') {
+            throw new AppError('conflict', `"${name}" already exists`)
+          }
+          if (policy === 'replace') {
+            await fsp.rm(target, { recursive: true, force: true })
+          }
+        }
+        const kind = await remoteStatKind(source)
+        if (kind === 'dir') {
+          throw new AppError(
+            'not-allowed',
+            'Downloading remote folders is not supported yet — download files individually'
+          )
+        }
+        await remoteDownloadFile(source, target)
+        copied.push(target)
+      }
+      progress.tick(name)
+    }
+    progress.finish()
+  } catch (e) {
+    progress.fail()
+    throw e
+  }
+  return { copied, skipped }
+}
+
 export async function copyEntries(
   sources: string[],
   destinationDir: string,
   policy: ConflictPolicy
 ): Promise<CopyResponse> {
+  const dest = requireAbsolute(destinationDir)
+  const absSources = sources.map((s) => requireAbsolute(s))
+  const destRemote = dest.toLowerCase().startsWith('mfe-remote://')
+  const anyRemote = destRemote || absSources.some((s) => s.toLowerCase().startsWith('mfe-remote://'))
+  if (anyRemote) {
+    return copyWithRemotes(absSources, dest, policy)
+  }
+
   const plan = await planTransfer(sources, destinationDir, policy)
   const copied: string[] = []
   const skipped: string[] = []
@@ -452,7 +623,12 @@ async function relocateOne(
   if (!caseOnly && (await pathExists(target))) {
     throw new AppError('conflict', `"${path.basename(target)}" already exists`)
   }
-  await fsp.mkdir(path.dirname(target), { recursive: true })
+  await fsp.mkdir(path.dirname(target), { recursive: true }).catch((e: unknown) => {
+    const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
+    // Drive roots (Z:\) exist but mkdir is EPERM on Windows — ignore if parent is there.
+    if ((code === 'EPERM' || code === 'EEXIST') && fs.existsSync(path.dirname(target))) return
+    throw e
+  })
   let isDir = false
   try {
     isDir = (await fsp.stat(source)).isDirectory()
@@ -523,6 +699,34 @@ export async function moveEntries(
   destinationDir: string,
   policy: ConflictPolicy
 ): Promise<MoveResponse> {
+  const dest = requireAbsolute(destinationDir)
+  const absSources = sources.map((s) => requireAbsolute(s))
+  const anyRemote =
+    dest.toLowerCase().startsWith('mfe-remote://') ||
+    absSources.some((s) => s.toLowerCase().startsWith('mfe-remote://'))
+
+  if (anyRemote) {
+    // Cross-scheme move = copy then delete source (no native rename).
+    const { copied, skipped } = await copyWithRemotes(absSources, dest, policy)
+    const { remoteDelete } = await import('../remote/sessionPool')
+    const moves: { from: string; to: string }[] = []
+    const moved: string[] = []
+    let copyIdx = 0
+    for (const source of absSources) {
+      if (skipped.includes(source)) continue
+      const target = copied[copyIdx++]
+      if (!target) continue
+      moved.push(target)
+      moves.push({ from: source, to: target })
+      if (source.toLowerCase().startsWith('mfe-remote://')) {
+        await remoteDelete(source)
+      } else {
+        await fsp.rm(source, { recursive: true, force: true })
+      }
+    }
+    return { moved, moves, skipped }
+  }
+
   const plan = await planTransfer(sources, destinationDir, policy)
   const moved: string[] = []
   const moves: { from: string; to: string }[] = []
@@ -563,6 +767,12 @@ export async function trashEntries(paths: string[]): Promise<{ trashed: string[]
   const absolute: string[] = []
   for (const raw of paths) {
     const p = requireAbsolute(raw)
+    if (p.toLowerCase().startsWith('mfe-remote://')) {
+      throw new AppError(
+        'not-allowed',
+        'Recycle Bin is not available on remote repositories — use permanent Delete'
+      )
+    }
     if (!(await pathExists(p))) throw new AppError('not-found', `Not found: ${p}`)
     absolute.push(p)
   }
@@ -628,11 +838,32 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
   for (const raw of paths) {
     absolute.push(requireAbsolute(raw))
   }
-  const total = absolute.length > 0 ? await countWorkUnits(absolute) : 0
-  const progress = beginOp('delete', total, 'Deleting…')
+  const remotes = absolute.filter((p) => p.toLowerCase().startsWith('mfe-remote://'))
+  const locals = absolute.filter((p) => !p.toLowerCase().startsWith('mfe-remote://'))
   const deleted: string[] = []
+  if (remotes.length > 0) {
+    const { remoteDelete } = await import('../remote/sessionPool')
+    const progress = beginOp('delete', remotes.length, 'Deleting…')
+    try {
+      for (const p of remotes) {
+        progress.throwIfCancelled()
+        progress.pulse(p)
+        await remoteDelete(p)
+        deleted.push(p)
+        progress.tick(p)
+      }
+      progress.finish()
+    } catch (e) {
+      progress.fail()
+      throw e
+    }
+  }
+  if (locals.length === 0) return { deleted }
+
+  const total = locals.length > 0 ? await countWorkUnits(locals) : 0
+  const progress = beginOp('delete', total, 'Deleting…')
   try {
-    for (const p of absolute) {
+    for (const p of locals) {
       progress.throwIfCancelled()
       let isDir = false
       try {

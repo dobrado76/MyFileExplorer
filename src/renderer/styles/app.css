@@ -866,15 +866,20 @@ textarea:focus {
   height: 26px;
   margin: 0 2px;
 }
-.pane-toolbar select {
-  max-width: 110px;
+.toolbar-remote-select {
+  max-width: 180px;
   flex-shrink: 0;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  padding: 2px 4px;
+  padding: 2px 6px;
   font-size: 0.85em;
+}
+.toolbar-remote-glyph {
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 1;
 }
 .pane-body {
   flex: 1;
@@ -3111,6 +3116,131 @@ html.idle-cursor-hidden * {
 .modal.modal-power-rename .modal-title-btn:hover {
   background: var(--bg-elevated);
   color: var(--text);
+}
+.modal.modal-remote-connection {
+  /* Size/position set inline; defaults applied in RemoteReposToolbar. */
+  position: fixed;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  min-width: 520px;
+  min-height: 420px;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal.modal-remote-connection .modal-title {
+  cursor: move;
+  user-select: none;
+}
+.modal.modal-remote-connection.is-maximized .modal-title {
+  cursor: default;
+}
+.modal.modal-remote-connection .modal-title-chrome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 10px;
+}
+.modal.modal-remote-connection .modal-title-text {
+  flex: 1;
+  min-width: 0;
+}
+.modal.modal-remote-connection .modal-title-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.modal.modal-remote-connection .modal-title-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+.modal-body.modal-body-remote-connection {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px 16px 8px;
+}
+.remote-conn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.remote-conn-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  margin: 0;
+}
+.remote-conn-row > span {
+  color: var(--text-dim);
+  font-size: 0.92em;
+  line-height: 1.2;
+}
+.remote-conn-row > input,
+.remote-conn-row > select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.remote-conn-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0 0;
+  color: var(--text-dim);
+  font-size: 0.92em;
+  line-height: 1.35;
+}
+.remote-conn-check input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.modal.modal-remote-connect-status {
+  min-width: 360px;
+  max-width: 480px;
+}
+.modal-body.modal-body-remote-connect-status {
+  padding: 16px 18px 12px;
+}
+.remote-connect-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  color: var(--text);
+}
+.remote-connect-status-error {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.remote-connect-status-target {
+  margin: 0;
+  color: var(--text);
+}
+.remote-connect-status-message {
+  margin: 0;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
 }
 .modal.modal-copy-move-to {
   width: min(520px, 96vw);

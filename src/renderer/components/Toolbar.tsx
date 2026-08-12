@@ -25,6 +25,7 @@ import { LayoutsMenu } from './LayoutsMenu'
 import { NewItemMenu } from './NewItemMenu'
 import { SearchOptionsMenu } from './SearchOptionsMenu'
 import { ViewLayoutSelector } from './ViewLayoutSelector'
+import { RemoteReposToolbar } from './RemoteReposToolbar'
 
 export function Toolbar(): JSX.Element {
   const search = useAppStore((s) => s.search)
@@ -212,6 +213,8 @@ export function Toolbar(): JSX.Element {
           )}
         </div>
       )}
+
+      <RemoteReposToolbar />
 
       <div className="toolbar-trailing">
         <ViewLayoutSelector />

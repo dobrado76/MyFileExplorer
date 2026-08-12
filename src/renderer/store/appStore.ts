@@ -39,6 +39,7 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
 import { isNetworkHostUnc } from '@shared/networkPaths'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
@@ -144,6 +145,11 @@ export type DialogState =
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
 export type ImageVersionPreview = { path: string; ads: string | null }
+
+/** Staging feedback when opening a remote file with the default app. */
+export type RemoteBusyDialog =
+  | { status: 'working'; title: string; message: string }
+  | { status: 'error'; title: string; message: string; detail: string }
 
 export type ContextMenuState = {
   x: number
@@ -354,6 +360,11 @@ type AppState = {
    */
   columnMetaBump: { rev: number; path: string | null }
   notice: Notice
+  /**
+   * Modal while staging a remote file for Open (download → default app),
+   * or the resulting error. Connect uses its own local feedback.
+   */
+  remoteBusyDialog: RemoteBusyDialog | null
   addressEditing: boolean
   /**
    * Bumped after FS mutations so the folder tree can prune removed nodes and/or
@@ -379,6 +390,7 @@ type AppState = {
 
   // notices
   notify(text: string, isError?: boolean): void
+  clearRemoteBusyDialog(): void
   /**
    * After ADS (or similar) edits: bump so FileView re-fetches column meta for `path`.
    */
@@ -990,6 +1002,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     const tabId = opts?.tabId ?? get().activeTabId
     if (!tabId) return
     const seq = nextListSeq(tabId)
+    const showRemoteBusy =
+      isRemoteLocation(path) && !opts?.soft && tabId === get().activeTabId
+    const remoteLabel = (() => {
+      const loc = parseRemoteLocation(path)
+      if (!loc) return 'folder'
+      if (loc.remotePath === '/') return 'remote folder'
+      return remoteBasename(loc.remotePath) || 'folder'
+    })()
     if (!opts?.soft) {
       set((s) => {
         const prev = s.listingsByTabId[tabId] ?? emptyListing(path)
@@ -1003,7 +1023,16 @@ export const useAppStore = create<AppState>()((set, get) => {
         const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
         return {
           listingsByTabId,
-          listing: tabId === s.activeTabId ? nextListing : s.listing
+          listing: tabId === s.activeTabId ? nextListing : s.listing,
+          ...(showRemoteBusy
+            ? {
+                remoteBusyDialog: {
+                  status: 'working' as const,
+                  title: 'Opening',
+                  message: `Opening ${remoteLabel}…`
+                }
+              }
+            : {})
         }
       })
     }
@@ -1040,7 +1069,10 @@ export const useAppStore = create<AppState>()((set, get) => {
         return {
           listingsByTabId,
           listing: tabId === s.activeTabId ? nextListing : syncActiveListing(listingsByTabId, s.activeTabId),
-          tabs
+          tabs,
+          ...(showRemoteBusy && s.remoteBusyDialog?.status === 'working'
+            ? { remoteBusyDialog: null }
+            : {})
         }
       })
       if (get().activeTabId === tabId) stopOfflinePoll()
@@ -1078,7 +1110,17 @@ export const useAppStore = create<AppState>()((set, get) => {
         const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
         return {
           listingsByTabId,
-          listing: tabId === s.activeTabId ? nextListing : s.listing
+          listing: tabId === s.activeTabId ? nextListing : s.listing,
+          ...(showRemoteBusy
+            ? {
+                remoteBusyDialog: {
+                  status: 'error' as const,
+                  title: 'Could not open folder',
+                  message: `Could not open ${remoteLabel}.`,
+                  detail: message
+                }
+              }
+            : {})
         }
       })
       if (offline && tabId === get().activeTabId) startOfflinePoll(path, tabId)
@@ -1614,6 +1656,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     videoThumbRev: 0,
     columnMetaBump: { rev: 0, path: null },
     notice: null,
+    remoteBusyDialog: null,
     addressEditing: false,
     treeMutation: { rev: 0, removed: [], reloadParents: [] },
     treeRefreshRev: 0,
@@ -2040,6 +2083,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ notice: { text, isError } })
       if (noticeTimer) clearTimeout(noticeTimer)
       noticeTimer = setTimeout(() => set({ notice: null }), isError ? 6000 : 3000)
+    },
+
+    clearRemoteBusyDialog() {
+      set({ remoteBusyDialog: null })
     },
 
     bumpColumnMeta(path) {
@@ -3631,11 +3678,49 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async openPath(path) {
+      const remote = isRemoteLocation(path)
+      const label = basename(path) || path
+      if (remote) {
+        set({
+          remoteBusyDialog: {
+            status: 'working',
+            title: 'Opening',
+            message: `Opening ${label}…`
+          }
+        })
+      }
       try {
         const res = await call(api.shell.openPath({ path }))
+        if (remote) {
+          if (!res.opened) {
+            set({
+              remoteBusyDialog: {
+                status: 'error',
+                title: 'Open failed',
+                message: `Could not open ${label}.`,
+                detail: res.message ?? 'Unknown error'
+              }
+            })
+            return
+          }
+          set({ remoteBusyDialog: null })
+          return
+        }
         if (!res.opened) get().notify(res.message ?? 'Could not open file', true)
       } catch (e) {
-        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        const detail = e instanceof IpcError ? e.message : String(e)
+        if (remote) {
+          set({
+            remoteBusyDialog: {
+              status: 'error',
+              title: 'Open failed',
+              message: `Could not open ${label}.`,
+              detail
+            }
+          })
+          return
+        }
+        get().notify(detail, true)
       }
     },
 
@@ -3991,6 +4076,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.networkDiscovery
         }
       }
+      if (patch.remoteRepos) {
+        mergedPatch.remoteRepos = {
+          ...prev.remoteRepos,
+          ...patch.remoteRepos
+        }
+      }
       if (patch.contextMenu) {
         mergedPatch.contextMenu = {
           ...prev.contextMenu,
@@ -4011,6 +4102,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           networkDiscovery: mergedPatch.networkDiscovery
             ? { ...s.settings.networkDiscovery, ...mergedPatch.networkDiscovery }
             : s.settings.networkDiscovery,
+          remoteRepos: mergedPatch.remoteRepos
+            ? { ...s.settings.remoteRepos, ...mergedPatch.remoteRepos }
+            : s.settings.remoteRepos,
           contextMenu: mergedPatch.contextMenu
             ? {
                 ...s.settings.contextMenu,
@@ -4225,7 +4319,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     async importSettingsFile() {
       const ok = window.confirm(
         'Replace all settings with the imported file?\n\n' +
-          'Theme, named layouts, folder views, slideshow, context menu, network discovery, and other preferences will be overwritten.\n\n' +
+          'Theme, named layouts, folder views, slideshow, context menu, network discovery, remembered Network hosts, remote repository connections (passwords are not included — re-enter them), and other preferences will be overwritten.\n\n' +
           'The main window position/size is not changed. Open tabs stay as they are (use a named layout to restore a workspace).'
       )
       if (!ok) return
@@ -4254,7 +4348,11 @@ export const useAppStore = create<AppState>()((set, get) => {
           typeof res.networkHostCount === 'number'
             ? ` · ${res.networkHostCount} network host${res.networkHostCount === 1 ? '' : 's'}`
             : ''
-        get().notify(`Settings imported${hostNote}`)
+        const remoteNote =
+          typeof res.remoteConnectionCount === 'number'
+            ? ` · ${res.remoteConnectionCount} remote connection${res.remoteConnectionCount === 1 ? '' : 's'}`
+            : ''
+        get().notify(`Settings imported${hostNote}${remoteNote}`)
         if (res.settings.disableHardwareAcceleration !== prevHw) {
           get().notify('Hardware acceleration change applies after restart')
         }

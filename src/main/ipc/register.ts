@@ -1,7 +1,7 @@
 import { app, dialog, ipcMain, BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import fsp from 'node:fs/promises'
 import { z, type ZodType } from 'zod'
-import { ok, err, errFromUnknown, type Result } from '@shared/result'
+import { ok, err, errFromUnknown, AppError, type Result } from '@shared/result'
 import { IPC, EVENT_CHANNEL } from '@shared/ipc/contract'
 import { expandWindowsEnvPath } from '../paths/expandEnv'
 import {
@@ -136,6 +136,35 @@ import {
 } from '../shell'
 import { sessionStore } from '../session/store'
 import { getSettings, patchSettings, replaceSettings } from '../settings/store'
+import {
+  listRemoteConnections,
+  listRemoteConnectionsForExport,
+  upsertRemoteConnection,
+  renameRemoteConnection,
+  deleteRemoteConnection,
+  replaceRemoteConnections
+} from '../remote/connectionsStore'
+import {
+  connectRemote,
+  disconnectRemote,
+  listConnectedRemoteIds,
+  remoteStartLocation
+} from '../remote/sessionPool'
+import { REMOTE_TEST_PRESETS } from '@shared/schemas/remoteConnections'
+import {
+  remoteUpsertRequestSchema,
+  remoteIdRequestSchema,
+  remoteRenameRequestSchema
+} from '@shared/schemas/remoteIpc'
+
+function assertRemoteReposEnabled(): void {
+  if (!getSettings().remoteRepos.enabled) {
+    throw new AppError(
+      'not-allowed',
+      'Remote repositories are disabled — enable them in Settings → Remote repositories'
+    )
+  }
+}
 import { ensurePlayablePreview, getChmTopicPreview, getMediaPreviewMeta, getPreview } from '../preview'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
@@ -452,6 +481,7 @@ export function registerIpcHandlers(): void {
     const doc = buildSettingsExportDocument({
       settings: getSettings(),
       networkHosts: getRememberedNetworkHosts(),
+      remoteConnections: listRemoteConnectionsForExport(),
       appVersion: app.getVersion()
     })
     const opts = {
@@ -490,10 +520,15 @@ export function registerIpcHandlers(): void {
     if (parsed.networkHosts) {
       networkHostCount = replaceRememberedNetworkHosts(parsed.networkHosts).length
     }
+    let remoteConnectionCount: number | undefined
+    if (parsed.remoteConnections) {
+      remoteConnectionCount = replaceRemoteConnections(parsed.remoteConnections).length
+    }
     return {
       imported: true as const,
       settings,
-      ...(networkHostCount !== undefined ? { networkHostCount } : {})
+      ...(networkHostCount !== undefined ? { networkHostCount } : {}),
+      ...(remoteConnectionCount !== undefined ? { remoteConnectionCount } : {})
     }
   })
 
@@ -817,5 +852,47 @@ export function registerIpcHandlers(): void {
   )
   handle(IPC.networkLocalComputerName, emptySchema, () => ({
     name: localComputerDisplayName()
+  }))
+
+  handle(IPC.remoteListConnections, emptySchema, () => ({
+    connections: listRemoteConnections()
+  }))
+  handle(IPC.remoteUpsertConnection, remoteUpsertRequestSchema, (req) => {
+    const connection = upsertRemoteConnection({
+      id: req.id,
+      name: req.name,
+      protocol: req.protocol,
+      host: req.host,
+      port: req.port,
+      username: req.username,
+      startPath: req.startPath,
+      insecureFtpAck: req.insecureFtpAck,
+      password: req.password,
+      hostFingerprint: req.clearFingerprint ? null : undefined
+    })
+    return { connection }
+  })
+  handle(IPC.remoteRenameConnection, remoteRenameRequestSchema, (req) => {
+    return { connection: renameRemoteConnection(req.id, req.name) }
+  })
+  handle(IPC.remoteDeleteConnection, remoteIdRequestSchema, async (req) => {
+    await disconnectRemote(req.id)
+    deleteRemoteConnection(req.id)
+    return { deleted: true as const }
+  })
+  handle(IPC.remoteConnect, remoteIdRequestSchema, async (req) => {
+    assertRemoteReposEnabled()
+    const connection = await connectRemote(req.id)
+    return { connection, location: remoteStartLocation(connection) }
+  })
+  handle(IPC.remoteDisconnect, remoteIdRequestSchema, async (req) => {
+    await disconnectRemote(req.id)
+    return { disconnected: true as const }
+  })
+  handle(IPC.remoteConnectedIds, emptySchema, () => ({
+    ids: listConnectedRemoteIds()
+  }))
+  handle(IPC.remoteTestPresets, emptySchema, () => ({
+    presets: REMOTE_TEST_PRESETS
   }))
 }

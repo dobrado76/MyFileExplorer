@@ -32,7 +32,8 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Multi-pane layouts (1 / 2 / 4) and named layouts you can switch in one click
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
-- **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/Networks.md](docs/Networks.md)**
+- **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/NETWORKS.md](docs/NETWORKS.md)**
+- Opt-in **FTP / FTPS / SFTP** remotes (deploy/sync) — **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)**
 - Portable **settings export/import** (theme, layouts, everything except window position)
 
 **See what you’re looking at**
@@ -90,7 +91,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box.
 8. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
 
-Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/Networks.md](docs/Networks.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
+Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ---
 
@@ -104,8 +105,9 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D45 |
-| **[docs/Networks.md](docs/Networks.md)** | Network neighborhood & mapped drives |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D46 |
+| **[docs/NETWORKS.md](docs/NETWORKS.md)** | Network neighborhood & mapped drives |
+| **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
@@ -126,7 +128,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 
 ## Non-goals (still)
 
-Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux as primary targets (Linux AppImage helpers are experimental only — [docs/LINUX.md](docs/LINUX.md)). Optional FTP/SFTP remotes are a documented bonus only — see [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) (not scheduled).
+Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux as primary targets (Linux AppImage helpers are experimental only — [docs/LINUX.md](docs/LINUX.md)). Optional FTP/SFTP remotes are opt-in (D46) — see [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md).
 
 ---
 

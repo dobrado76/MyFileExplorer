@@ -11,6 +11,7 @@ import { useAppStore, dropOperation } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { samePath, isUnderPath, basename, segmentsOf, parentOf } from '../lib/paths'
 import { isNetworkHostUnc, normalizeServerName } from '@shared/networkPaths'
+import { formatRemoteLocation } from '@shared/remotePaths'
 import {
   beginRightDragGesture,
   getLiveRightDragSession,
@@ -132,8 +133,38 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   /** Tab id whose session `treeExpanded` has been applied (avoids wiping on tab switch). */
   const [expandReadyTabId, setExpandReadyTabId] = useState<string | null>(null)
   const settings = useAppStore((s) => s.settings)
+  const notify = useAppStore((s) => s.notify)
+  const [remoteConnections, setRemoteConnections] = useState<
+    import('@shared/schemas/remoteConnections').RemoteConnection[]
+  >([])
   const viewFilterOn = settings.viewFilterEnabled
   const viewPatterns = settings.viewFilterPatterns
+
+  useEffect(() => {
+    if (!settings.remoteRepos.enabled) {
+      setRemoteConnections([])
+      return
+    }
+    let cancelled = false
+    const load = async (): Promise<void> => {
+      try {
+        const res = await call(api.remote.listConnections())
+        if (!cancelled) setRemoteConnections(res.connections)
+      } catch (e) {
+        if (!cancelled) {
+          notify(e instanceof Error ? e.message : 'Failed to list remotes', true)
+        }
+      }
+    }
+    void load()
+    const t = window.setInterval(() => {
+      void load()
+    }, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(t)
+    }
+  }, [settings.remoteRepos.enabled, notify])
 
   const setNodes = useCallback(
     (updater: NodesMap | ((prev: NodesMap) => NodesMap), tabId = activeTabId): void => {
@@ -672,7 +703,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     path: string,
     label: string,
     depth: number,
-    section: 'qa' | 'drives' | 'scoped' | 'network' = 'drives',
+    section: 'qa' | 'drives' | 'scoped' | 'network' | 'remote' = 'drives',
     parentPath: string | null = null
   ): JSX.Element {
     const node = nodes[path]
@@ -967,6 +998,19 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             ) : null}
           </div>
           {network.hosts.map((h) => renderNode(h.unc, h.name, 0, 'network'))}
+        </>
+      )}
+      {settings.remoteRepos.enabled && remoteConnections.length > 0 && (
+        <>
+          <div className="tree-section">Remote repositories</div>
+          {remoteConnections.map((c) =>
+            renderNode(
+              formatRemoteLocation(c.id, c.startPath || '/'),
+              `${c.name} (${c.protocol})`,
+              0,
+              'remote'
+            )
+          )}
         </>
       )}
     </div>

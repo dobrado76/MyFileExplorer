@@ -30,8 +30,9 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Q-Dir-style multi-pane (1 / 2 / 4)** | Side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |
 | **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
 | **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |
-| **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [Networks.md](Networks.md). |
-| **Portable settings backup** | Export / import full preferences (theme, named layouts, network hosts, …) without window position — move to a new PC in one file. |
+| **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](NETWORKS.md). |
+| **Opt-in FTP / FTPS / SFTP remotes** | Bookmark hosts, browse, upload/download, and open/preview via local scratch — without leaving the file manager. Not Explorer parity over the wire. Details: [REMOTE_FTP.md](REMOTE_FTP.md). |
+| **Portable settings backup** | Export / import full preferences (theme, named layouts, network hosts, remote connection metadata, …) without window position — move to a new PC in one file. |
 | **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Configurable Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings — not a fixed Home-centric strip. |

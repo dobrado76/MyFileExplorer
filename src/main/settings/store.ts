@@ -33,6 +33,7 @@ export function replaceSettings(raw: unknown): Settings {
     ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as object) : {}),
     adsManagerBounds: null,
     powerRenameBounds: null,
+    remoteConnectionBounds: null,
     compiledListsWindowBounds: null
   })
   settingsStore().replace(next)

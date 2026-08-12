@@ -156,6 +156,16 @@ const api: MyFileExplorerApi = {
     disconnectMappedDrive: invoke(IPC.networkDisconnectMappedDrive),
     localComputerName: invokeVoid(IPC.networkLocalComputerName)
   },
+  remote: {
+    listConnections: invokeVoid(IPC.remoteListConnections),
+    upsertConnection: invoke(IPC.remoteUpsertConnection),
+    renameConnection: invoke(IPC.remoteRenameConnection),
+    deleteConnection: invoke(IPC.remoteDeleteConnection),
+    connect: invoke(IPC.remoteConnect),
+    disconnect: invoke(IPC.remoteDisconnect),
+    connectedIds: invokeVoid(IPC.remoteConnectedIds),
+    testPresets: invokeVoid(IPC.remoteTestPresets)
+  },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)
     ipcRenderer.on(EVENT_CHANNEL, listener)

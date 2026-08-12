@@ -169,6 +169,51 @@ export async function getPreview(
   ads?: string | null
 ): Promise<PreviewModel> {
   const file = requireAbsolute(rawPath)
+
+  // Remote files: stage under userData scratch, then reuse local preview handlers.
+  // Keep model.path as the remote URI so selection / chrome stay wired correctly.
+  if (file.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteStat } = await import('../remote/sessionPool')
+    const st = await remoteStat(file)
+    if (!st) {
+      return { path: file, kind: 'missing', fields: [] }
+    }
+    if (st.kind === 'dir') {
+      const { parseRemoteLocation, remoteBasename } = await import('@shared/remotePaths')
+      const loc = parseRemoteLocation(file)
+      const name = loc ? remoteBasename(loc.remotePath) || loc.connectionId : file
+      const fields: PreviewField[] = [
+        {
+          id: 'file.name',
+          label: 'Name',
+          value: name,
+          group: 'file',
+          copyable: true
+        },
+        { id: 'file.type', label: 'Type', value: 'Folder', group: 'file' }
+      ]
+      if (st.mtimeMs > 0) {
+        fields.push({
+          id: 'file.modified',
+          label: 'Date modified',
+          value: dateHuman(st.mtimeMs),
+          group: 'file'
+        })
+      }
+      fields.push({
+        id: 'file.remote',
+        label: 'Location',
+        value: 'Remote repository',
+        group: 'file'
+      })
+      return { path: file, kind: 'directory', fields }
+    }
+    const { ensureRemoteLocalFile } = await import('../remote/scratch')
+    const { localPath } = await ensureRemoteLocalFile(file)
+    const model = await getPreview(localPath, ads)
+    return { ...model, path: file }
+  }
+
   const st = await statPath(file)
 
   if (!st.exists) {
@@ -734,7 +779,11 @@ export async function ensurePlayablePreview(
   rawPath: string,
   opts?: { force?: boolean }
 ): Promise<{ mediaUrl: string | null }> {
-  const file = requireAbsolute(rawPath)
+  let file = requireAbsolute(rawPath)
+  if (file.toLowerCase().startsWith('mfe-remote://')) {
+    const { ensureRemoteLocalFile } = await import('../remote/scratch')
+    file = (await ensureRemoteLocalFile(file)).localPath
+  }
   const st = await statPath(file)
   if (!st.exists || st.kind === 'dir') return { mediaUrl: null }
   const ext = path.extname(file).replace(/^\./, '').toLowerCase()
@@ -756,7 +805,11 @@ export async function getMediaPreviewMeta(rawPath: string): Promise<{
   subtitle?: string
   coverUrl?: string
 }> {
-  const file = requireAbsolute(rawPath)
+  let file = requireAbsolute(rawPath)
+  if (file.toLowerCase().startsWith('mfe-remote://')) {
+    const { ensureRemoteLocalFile } = await import('../remote/scratch')
+    file = (await ensureRemoteLocalFile(file)).localPath
+  }
   const st = await statPath(file)
   if (!st.exists || st.kind === 'dir') return { fields: [] }
   const ext = path.extname(file).replace(/^\./, '').toLowerCase()

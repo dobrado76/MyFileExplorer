@@ -145,7 +145,17 @@ export const IPC = {
   /** Disconnect + forget a specific mapped letter (WNetCancelConnection2). */
   networkDisconnectMappedDrive: 'network:disconnectMappedDrive',
   /** This PC’s display name for Settings → Network. */
-  networkLocalComputerName: 'network:localComputerName'
+  networkLocalComputerName: 'network:localComputerName',
+
+  /** Remote repositories (FTP / FTPS / SFTP). */
+  remoteListConnections: 'remote:listConnections',
+  remoteUpsertConnection: 'remote:upsertConnection',
+  remoteRenameConnection: 'remote:renameConnection',
+  remoteDeleteConnection: 'remote:deleteConnection',
+  remoteConnect: 'remote:connect',
+  remoteDisconnect: 'remote:disconnect',
+  remoteConnectedIds: 'remote:connectedIds',
+  remoteTestPresets: 'remote:testPresets'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

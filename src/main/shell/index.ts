@@ -9,6 +9,25 @@ const MAX_ARG_LEN = 32767
 
 export async function openPath(p: string): Promise<{ opened: boolean; message?: string }> {
   const n = requireAbsolute(p)
+  if (n.toLowerCase().startsWith('mfe-remote://')) {
+    const { remoteStat } = await import('../remote/sessionPool')
+    const { ensureRemoteLocalFile } = await import('../remote/scratch')
+    const st = await remoteStat(n)
+    if (!st) return { opened: false, message: 'Remote file not found' }
+    if (st.kind === 'dir') {
+      return { opened: false, message: 'Open folders by navigating into them' }
+    }
+    try {
+      const { localPath } = await ensureRemoteLocalFile(n)
+      const message = await shell.openPath(localPath)
+      return message ? { opened: false, message } : { opened: true }
+    } catch (e) {
+      return {
+        opened: false,
+        message: e instanceof Error ? e.message : 'Could not download remote file'
+      }
+    }
+  }
   const message = await shell.openPath(n)
   return message ? { opened: false, message } : { opened: true }
 }
