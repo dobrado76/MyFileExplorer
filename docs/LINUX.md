@@ -113,6 +113,40 @@ This checks the build output in `dist/`, prefers the unpacked binary when availa
 
 This is helpful when you want a launcher entry for the current session, even though the actual working runtime on this Kubuntu/Wayland system is still the unpacked binary path.
 
+### Optional: manual desktop launcher with the project icon
+
+If you want the Linux launcher to show the app icon from this repository, create a desktop entry like this:
+
+```bash
+nano ~/.local/share/applications/my-file-explorer.desktop
+```
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=MyFileExplorer
+Comment=Custom Electron File Explorer
+Exec=env GSETTINGS_SCHEMA_DIR=/usr/share/glib-2.0/schemas/ GDK_BACKEND=wayland ELECTRON_OZONE_PLATFORM_HINT=wayland /home/ghislainb/sourcecode/MyFileExplorer/dist/linux-unpacked/my-file-explorer --ozone-platform=wayland --enable-features=UseOzonePlatform --no-sandbox
+Icon=/home/ghislainb/sourcecode/MyFileExplorer/build/icon.png
+Terminal=false
+Categories=Utility;FileManager;
+StartupWMClass=myfileexplorer
+```
+
+Then refresh the menu or run:
+
+```bash
+update-desktop-database ~/.local/share/applications
+```
+
+This is the same runtime pattern used by the working unpacked-binary flow, and it is the most reliable way to get both a launcher entry and the correct app icon on KDE/Plasma Wayland.
+
+If you prefer a more generic KDE look instead of the repo icon, replace the `Icon=` line with:
+
+```ini
+Icon=folder
+```
+
 ---
 
 ## 7) Troubleshooting
