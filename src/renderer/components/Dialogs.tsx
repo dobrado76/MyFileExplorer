@@ -1258,6 +1258,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
   const [excludeDraft, setExcludeDraft] = useState('')
   const [hideExtText, setHideExtText] = useState(settings.hideNameExtensions.join('\n'))
+  const [addingFilter, setAddingFilter] = useState(false)
+  const [filterName, setFilterName] = useState('')
+  const [filterQuery, setFilterQuery] = useState('')
+  const [filterMacro, setFilterMacro] = useState('')
+  const [addingBookmark, setAddingBookmark] = useState(false)
+  const [bookmarkName, setBookmarkName] = useState('')
+  const [bookmarkQuery, setBookmarkQuery] = useState('')
   const [appVersion, setAppVersion] = useState('')
   const [userDataPath, setUserDataPath] = useState('')
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
@@ -2303,30 +2310,88 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  const name = window.prompt('Filter name')
-                  if (!name?.trim()) return
-                  const query = window.prompt('Query (e.g. ext:jpg;png or pic:)')
-                  if (query == null) return
-                  const macro = window.prompt('Macro alias (optional, without colon)') ?? ''
-                  void applySettingsPatch({
-                    searchFilters: [
-                      ...settings.searchFilters,
-                      {
-                        id: `flt_${Date.now().toString(36)}`,
-                        name: name.trim(),
-                        query: query.trim(),
-                        ...(macro.trim() ? { macro: macro.trim() } : {})
-                      }
-                    ]
-                  })
-                }}
-              >
-                Add filter…
-              </button>
+              {addingFilter ? (
+                <div className="settings-add-form">
+                  <label className="settings-field" htmlFor="set-filter-name">
+                    <span>Name</span>
+                    <input
+                      id="set-filter-name"
+                      type="text"
+                      value={filterName}
+                      autoFocus
+                      placeholder="Photos"
+                      onChange={(e) => setFilterName(e.target.value)}
+                    />
+                  </label>
+                  <label className="settings-field" htmlFor="set-filter-query">
+                    <span>Query</span>
+                    <input
+                      id="set-filter-query"
+                      type="text"
+                      value={filterQuery}
+                      placeholder="ext:jpg;png"
+                      spellCheck={false}
+                      onChange={(e) => setFilterQuery(e.target.value)}
+                    />
+                  </label>
+                  <label className="settings-field" htmlFor="set-filter-macro">
+                    <span>Macro alias (optional)</span>
+                    <input
+                      id="set-filter-macro"
+                      type="text"
+                      value={filterMacro}
+                      placeholder="photos"
+                      spellCheck={false}
+                      onChange={(e) => setFilterMacro(e.target.value)}
+                    />
+                  </label>
+                  <div className="settings-inline">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setAddingFilter(false)
+                        setFilterName('')
+                        setFilterQuery('')
+                        setFilterMacro('')
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={!filterName.trim()}
+                      onClick={() => {
+                        const name = filterName.trim()
+                        if (!name) return
+                        const macro = filterMacro.trim()
+                        void applySettingsPatch({
+                          searchFilters: [
+                            ...settings.searchFilters,
+                            {
+                              id: `flt_${Date.now().toString(36)}`,
+                              name,
+                              query: filterQuery.trim(),
+                              ...(macro ? { macro } : {})
+                            }
+                          ]
+                        })
+                        setAddingFilter(false)
+                        setFilterName('')
+                        setFilterQuery('')
+                        setFilterMacro('')
+                      }}
+                    >
+                      Save filter
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="btn" onClick={() => setAddingFilter(true)}>
+                  Add filter…
+                </button>
+              )}
 
               <div className="form-section">Bookmarks</div>
               {(settings.searchBookmarks ?? []).map((b) => (
@@ -2359,29 +2424,96 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  const name = window.prompt('Bookmark name')
-                  if (!name?.trim()) return
-                  const query = window.prompt('Query')
-                  if (query == null || !query.trim()) return
-                  void applySettingsPatch({
-                    searchBookmarks: [
-                      ...settings.searchBookmarks,
-                      {
-                        id: `bm_${Date.now().toString(36)}`,
-                        name: name.trim(),
-                        query: query.trim(),
-                        scope: 'indexed'
-                      }
-                    ]
-                  })
-                }}
-              >
-                Add bookmark…
-              </button>
+              {addingBookmark ? (
+                <div className="settings-add-form">
+                  <label className="settings-field" htmlFor="set-bookmark-name">
+                    <span>Name</span>
+                    <input
+                      id="set-bookmark-name"
+                      type="text"
+                      value={bookmarkName}
+                      autoFocus
+                      placeholder="Recent JPGs"
+                      onChange={(e) => setBookmarkName(e.target.value)}
+                    />
+                  </label>
+                  <label className="settings-field" htmlFor="set-bookmark-query">
+                    <span>Query</span>
+                    <input
+                      id="set-bookmark-query"
+                      type="text"
+                      value={bookmarkQuery}
+                      placeholder="ext:jpg"
+                      spellCheck={false}
+                      onChange={(e) => setBookmarkQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter') return
+                        e.preventDefault()
+                        const name = bookmarkName.trim()
+                        const query = bookmarkQuery.trim()
+                        if (!name || !query) return
+                        void applySettingsPatch({
+                          searchBookmarks: [
+                            ...settings.searchBookmarks,
+                            {
+                              id: `bm_${Date.now().toString(36)}`,
+                              name,
+                              query,
+                              scope: 'indexed'
+                            }
+                          ]
+                        })
+                        setAddingBookmark(false)
+                        setBookmarkName('')
+                        setBookmarkQuery('')
+                      }}
+                    />
+                  </label>
+                  <div className="settings-inline">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setAddingBookmark(false)
+                        setBookmarkName('')
+                        setBookmarkQuery('')
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={!bookmarkName.trim() || !bookmarkQuery.trim()}
+                      onClick={() => {
+                        const name = bookmarkName.trim()
+                        const query = bookmarkQuery.trim()
+                        if (!name || !query) return
+                        void applySettingsPatch({
+                          searchBookmarks: [
+                            ...settings.searchBookmarks,
+                            {
+                              id: `bm_${Date.now().toString(36)}`,
+                              name,
+                              query,
+                              scope: 'indexed'
+                            }
+                          ]
+                        })
+                        setAddingBookmark(false)
+                        setBookmarkName('')
+                        setBookmarkQuery('')
+                      }}
+                    >
+                      Save bookmark
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" className="btn" onClick={() => setAddingBookmark(true)}>
+                  Add bookmark…
+                </button>
+              )}
             </div>
           )}
 
