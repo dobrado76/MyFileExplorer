@@ -158,6 +158,8 @@ export function ContextMenu(): JSX.Element | null {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
+  const openSubRef = useRef<number | null>(null)
+  openSubRef.current = openSub
   const [subFocusIdx, setSubFocusIdx] = useState(-1)
   /** Async Version Control state for a single editable image (omit submenu until ready). */
   const [imageVer, setImageVer] = useState<{ path: string; count: number } | null>(null)
@@ -200,6 +202,10 @@ export function ContextMenu(): JSX.Element | null {
    * Open/close nested menu. Closing from mouse hover uses a short delay so the
    * pointer can cross the parent→submenu gap (or a diagonally shifted panel)
    * without the flyout vanishing.
+   *
+   * When re-entering the same still-open submenu (e.g. canceling a delayed close),
+   * do not reset `subPlace.ready` — that would hide the flyout while `openSub`
+   * stays unchanged, so the clamp layout effect never runs again.
    */
   const showSub = useCallback(
     (i: number | null, opts?: { delayMs?: number }): void => {
@@ -209,13 +215,21 @@ export function ContextMenu(): JSX.Element | null {
         if (delay > 0) {
           closeSubTimerRef.current = setTimeout(() => {
             closeSubTimerRef.current = null
+            openSubRef.current = null
             setOpenSub(null)
             setSubFocusIdx(-1)
             setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
           }, delay)
           return
         }
+        openSubRef.current = null
+        setOpenSub(null)
+        setSubFocusIdx(-1)
+        setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+        return
       }
+      if (openSubRef.current === i) return
+      openSubRef.current = i
       setOpenSub(i)
       setSubFocusIdx(-1)
       setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
@@ -1523,8 +1537,10 @@ export function ContextMenu(): JSX.Element | null {
     setPos({ x: Math.max(0, x), y: Math.max(0, y) })
     setFocusIdx(-1)
     clearCloseSubTimer()
+    openSubRef.current = null
     setOpenSub(null)
     setSubFocusIdx(-1)
+    setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
   }, [menu, clearCloseSubTimer])
 
   useEffect(() => {
