@@ -1,15 +1,23 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { findExactFolderView } from '@shared/folderViews'
 import { commandMatches } from '@shared/contextMenuCommands'
+import {
+  collapseMenuSeparators,
+  isContextMenuBuiltinEnabled,
+  type ContextMenuBuiltinId
+} from '@shared/contextMenuBuiltins'
+import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
-import { samePath, basename, parentOf } from '../lib/paths'
+import { samePath, basename, parentOf, joinPath } from '../lib/paths'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
+import { parseUnc } from '@shared/networkPaths'
 import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { api, call } from '../lib/ipc'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { slideshowCurrentPath } from '../lib/slideshowTypes'
+import { ShellIcon } from './ShellIcon'
 
 /** File extension including leading dot (e.g. `.ffs_gui`), or null. */
 function fileExtension(filePath: string): string | null {
@@ -19,7 +27,16 @@ function fileExtension(filePath: string): string | null {
   return name.slice(dot)
 }
 
-type SubEntry = { label: string; action(): void; sep?: boolean; title?: string }
+type MenuActionEv = { shiftKey?: boolean }
+
+type SubEntry = {
+  label: string
+  action(ev?: MenuActionEv): void
+  sep?: boolean
+  title?: string
+  /** Leading icon (same pattern as toolbar + New). */
+  icon?: ReactNode
+}
 
 type MenuItem =
   | { type: 'sep' }
@@ -29,21 +46,61 @@ type MenuItem =
       hint?: string
       danger?: boolean
       disabled?: boolean
-      action(): void
+      builtin?: ContextMenuBuiltinId
+      action(ev?: MenuActionEv): void
     }
-  | { type: 'submenu'; label: string; disabled?: boolean; items: SubEntry[] }
+  | {
+      type: 'submenu'
+      label: string
+      disabled?: boolean
+      builtin?: ContextMenuBuiltinId
+      items: SubEntry[]
+    }
+
+function filterHiddenBuiltins(items: MenuItem[], hidden: readonly string[] | undefined): MenuItem[] {
+  const filtered = items.filter((it) => {
+    if (it.type === 'sep') return true
+    if (!it.builtin) return true
+    return isContextMenuBuiltinEnabled(hidden, it.builtin)
+  })
+  return collapseMenuSeparators(filtered)
+}
+
+function openCommandLineMenuItem(
+  folderPath: string,
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>,
+  shiftHeld: boolean
+): MenuItem {
+  return {
+    type: 'item',
+    label: shiftHeld
+      ? 'Open Command Line here as administrator'
+      : 'Open Command Line here',
+    hint: shiftHeld ? 'UAC' : 'Shift = Admin',
+    builtin: 'open-command-line',
+    action: (ev) => {
+      close()
+      void s.openCommandLineHere(folderPath, { elevated: !!ev?.shiftKey })
+    }
+  }
+}
 
 function newSubmenu(
   parent: string,
   close: () => void,
   s: ReturnType<typeof useAppStore.getState>
 ): MenuItem {
+  const folderProbe = joinPath(parent, '__mfe_new_folder')
+  const fileProbe = (ext: string): string => joinPath(parent, `__mfe_new${ext}`)
   return {
     type: 'submenu',
     label: 'Add',
+    builtin: 'add',
     items: [
       {
         label: 'Folder',
+        icon: <ShellIcon path={folderProbe} size={16} isDir />,
         action: () => {
           close()
           void s.createFolder(parent)
@@ -52,6 +109,7 @@ function newSubmenu(
       { label: '', sep: true, action: () => undefined },
       ...NEW_FILE_TYPES.map((t) => ({
         label: t.label,
+        icon: <ShellIcon path={fileProbe(t.ext)} size={16} isDir={false} />,
         action: () => {
           close()
           void s.createTypedFile(parent, t.stem, t.ext)
@@ -60,6 +118,12 @@ function newSubmenu(
       { label: '', sep: true, action: () => undefined },
       {
         label: 'Other…',
+        icon: createElement(FilePlus2, {
+          size: 16,
+          strokeWidth: 2,
+          'aria-hidden': true,
+          className: 'new-item-menu-glyph'
+        }),
         action: () => {
           close()
           s.openDialog({ kind: 'new-file', parent })
@@ -83,6 +147,8 @@ export function ContextMenu(): JSX.Element | null {
   const [subFocusIdx, setSubFocusIdx] = useState(-1)
   /** Async Version Control state for a single editable image (omit submenu until ready). */
   const [imageVer, setImageVer] = useState<{ path: string; count: number } | null>(null)
+  /** Live Shift key — Explorer-style “as administrator” label on Open Command Line. */
+  const [shiftHeld, setShiftHeld] = useState(false)
   /** Submenu placement relative to its parent row (after viewport clamp). */
   const [subPlace, setSubPlace] = useState<{
     flipX: boolean
@@ -90,6 +156,25 @@ export function ContextMenu(): JSX.Element | null {
     maxHeight: number | null
     ready: boolean
   }>({ flipX: false, top: -5, maxHeight: null, ready: false })
+
+  useEffect(() => {
+    if (!menu) {
+      setShiftHeld(false)
+      return
+    }
+    const sync = (e: KeyboardEvent): void => {
+      setShiftHeld(e.shiftKey)
+    }
+    const onBlur = (): void => setShiftHeld(false)
+    window.addEventListener('keydown', sync, true)
+    window.addEventListener('keyup', sync, true)
+    window.addEventListener('blur', onBlur)
+    return () => {
+      window.removeEventListener('keydown', sync, true)
+      window.removeEventListener('keyup', sync, true)
+      window.removeEventListener('blur', onBlur)
+    }
+  }, [menu])
 
   const clearCloseSubTimer = useCallback((): void => {
     if (closeSubTimerRef.current == null) return
@@ -202,6 +287,45 @@ export function ContextMenu(): JSX.Element | null {
           action: () => close()
         }
       ]
+    }
+
+    // Tree section headers: Drives / Network (Map / Disconnect / Refresh).
+    if (menu.treeSection) {
+      const out: MenuItem[] = [
+        {
+          type: 'item',
+          label: 'Map network drive…',
+          builtin: 'map-network-drive',
+          action: () => {
+            close()
+            void s.openMapNetworkDrive()
+          }
+        },
+        {
+          type: 'item',
+          label: 'Disconnect network drive…',
+          builtin: 'disconnect-network-drive',
+          action: () => {
+            close()
+            void s.openDisconnectNetworkDrive()
+          }
+        }
+      ]
+      if (menu.treeSection === 'network') {
+        out.push(
+          { type: 'sep' },
+          {
+            type: 'item',
+            label: 'Refresh',
+            builtin: 'network-refresh',
+            action: () => {
+              close()
+              void s.startNetworkDiscovery()
+            }
+          }
+        )
+      }
+      return filterHiddenBuiltins(out, s.settings.contextMenu.hiddenBuiltins)
     }
 
     // Slideshow player — categorize / delete / undo / edit / reveal / exit.
@@ -416,6 +540,7 @@ export function ContextMenu(): JSX.Element | null {
             type: 'item',
             label: undoLabel,
             hint: 'Ctrl+Z',
+            builtin: 'undo',
             action: () => {
               close()
               void s.undo()
@@ -427,6 +552,7 @@ export function ContextMenu(): JSX.Element | null {
             type: 'item',
             label: redoLabel,
             hint: 'Ctrl+Y',
+            builtin: 'redo',
             action: () => {
               close()
               void s.redo()
@@ -442,6 +568,7 @@ export function ContextMenu(): JSX.Element | null {
           type: 'item',
           label: 'Paste',
           hint: 'Ctrl+V',
+          builtin: 'paste',
           action: () => {
             close()
             void s.paste()
@@ -451,6 +578,7 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'submenu',
           label: 'Customize this folder',
+          builtin: 'customize-folder',
           items: [
             {
               label: 'This folder only',
@@ -473,6 +601,7 @@ export function ContextMenu(): JSX.Element | null {
               {
                 type: 'item' as const,
                 label: 'Remove folder customization',
+                builtin: 'remove-folder-customization' as const,
                 action: () => {
                   close()
                   void s.removeFolderCustomization(folderPath)
@@ -484,6 +613,7 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Copy path',
+          builtin: 'copy-path',
           action: () => {
             close()
             void s.copyPathsToClipboard([folderPath], false)
@@ -492,14 +622,19 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Show in system Explorer',
+          builtin: 'show-in-system-explorer',
           action: () => {
             close()
             void s.showInExplorer(folderPath)
           }
         },
+        ...(parseUnc(folderPath)?.kind === 'host'
+          ? []
+          : [openCommandLineMenuItem(folderPath, close, s, shiftHeld)]),
         {
           type: 'submenu',
           label: 'Video previews',
+          builtin: 'video-previews',
           items: [
             {
               label: 'Generate missing',
@@ -527,6 +662,7 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Alternate streams…',
+          builtin: 'alternate-streams',
           action: () => {
             close()
             s.openDialog({ kind: 'ads-manager', path: folderPath })
@@ -535,19 +671,21 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Properties',
+          builtin: 'properties',
           action: () => {
             close()
             s.openDialog({ kind: 'properties', path: folderPath })
           }
         }
       )
-      return result
+      return filterHiddenBuiltins(result, s.settings.contextMenu.hiddenBuiltins)
     }
 
     result.push({
       type: 'item',
       label: 'Open',
       hint: 'Enter',
+      builtin: 'open',
       action: () => {
         close()
         if (single) {
@@ -580,6 +718,7 @@ export function ContextMenu(): JSX.Element | null {
       result.push({
         type: 'item',
         label: 'Open with default app',
+        builtin: 'open-with-default',
         action: () => {
           close()
           void s.openPath(single)
@@ -630,6 +769,7 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Open File Path',
+          builtin: 'open-file-path',
           action: () => {
             close()
             void s.openFileLocation(single)
@@ -638,6 +778,7 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Open File in new tab',
+          builtin: 'open-file-in-new-tab',
           action: () => {
             close()
             void s.openFileInNewTab(single)
@@ -651,6 +792,7 @@ export function ContextMenu(): JSX.Element | null {
           type: 'item',
           label: 'Edit image…',
           hint: 'Ctrl+E',
+          builtin: 'edit-image',
           action: () => {
             close()
             void (async () => {
@@ -712,6 +854,7 @@ export function ContextMenu(): JSX.Element | null {
           result.push({
             type: 'submenu',
             label: 'Version Control',
+            builtin: 'version-control',
             items: verItems
           })
         }
@@ -720,6 +863,7 @@ export function ContextMenu(): JSX.Element | null {
         result.push({
           type: 'item',
           label: 'Generate video preview',
+          builtin: 'generate-video-preview',
           action: () => {
             close()
             void s.generateVideoThumbs([single], 'all')
@@ -738,6 +882,7 @@ export function ContextMenu(): JSX.Element | null {
         result.push({
           type: 'item',
           label: 'Generate video previews',
+          builtin: 'generate-video-preview',
           action: () => {
             close()
             void s.generateVideoThumbs(paths, 'all')
@@ -746,116 +891,152 @@ export function ContextMenu(): JSX.Element | null {
       }
     }
     if (isDir && single) {
-      result.push(
-        {
-          type: 'item',
-          label: 'Open in new tab',
-          action: () => {
-            close()
-            void s.newTab(single)
-          }
-        },
-        {
+      const unc = parseUnc(single)
+      const isNetHost = unc?.kind === 'host'
+      const isNetShare = unc?.kind === 'share'
+      result.push({
+        type: 'item',
+        label: 'Open in new tab',
+        builtin: 'open-in-new-tab',
+        action: () => {
+          close()
+          void s.newTab(single)
+        }
+      })
+      if (!isNetHost) {
+        result.push({
           type: 'item',
           label: 'Open as root in new tab',
+          builtin: 'open-as-root-in-new-tab',
           action: () => {
             close()
             void s.newTab(single, single)
           }
-        },
-        { type: 'sep' },
-        newSubmenu(single, close, s)
-      )
-      const qa = buildQuickAccess(
-        s.knownFolders,
-        materializeQuickAccessTokens(
-          s.settings.quickAccess,
-          s.settings.quickAccessPins,
-          s.settings.quickAccessHiddenDefaults
+        })
+      }
+      if (isNetHost || isNetShare) {
+        result.push(
+          { type: 'sep' },
+          {
+            type: 'item',
+            label: 'Map network drive…',
+            builtin: 'map-network-drive',
+            action: () => {
+              close()
+              void s.openMapNetworkDrive()
+            }
+          }
         )
-      )
-      const pinned = qa.some((e) => samePath(e.path, single))
-      result.push(
-        pinned
-          ? {
-              type: 'item',
-              label: 'Unpin from Quick access',
-              action: () => {
-                close()
-                void s.unpinQuickAccess(single)
-              }
+        if (isNetHost && unc) {
+          result.push({
+            type: 'item',
+            label: 'Refresh shares',
+            builtin: 'network-refresh',
+            action: () => {
+              close()
+              void s.loadNetworkShares(unc.server, { force: true })
             }
-          : {
-              type: 'item',
-              label: 'Pin to Quick access',
-              action: () => {
-                close()
-                void s.pinQuickAccess(single)
-              }
-            }
-      )
-      const hasExact = !!findExactFolderView(single, s.settings.folderViews)
-      result.push(
-        {
-          type: 'submenu',
-          label: 'Customize this folder',
-          items: [
-            {
-              label: 'This folder only',
-              action: () => {
-                close()
-                void s.customizeFolderView(single, false)
-              }
-            },
-            {
-              label: 'This folder and subfolders',
-              action: () => {
-                close()
-                void s.customizeFolderView(single, true)
-              }
-            }
-          ]
-        },
-        {
-          type: 'submenu',
-          label: 'Video previews',
-          items: [
-            {
-              label: 'Generate missing',
-              action: () => {
-                close()
-                void s.generateVideoThumbs([single], 'missing')
-              }
-            },
-            {
-              label: 'Generate missing (all subfolders)',
-              action: () => {
-                close()
-                void s.generateVideoThumbs([single], 'missing', { recursive: true })
-              }
-            },
-            {
-              label: 'Regenerate all',
-              action: () => {
-                close()
-                void s.generateVideoThumbs([single], 'all')
-              }
-            }
-          ]
-        },
-        ...(hasExact
-          ? [
-              {
-                type: 'item' as const,
-                label: 'Remove folder customization',
+          })
+        }
+      }
+      if (!isNetHost) {
+        result.push({ type: 'sep' }, newSubmenu(single, close, s))
+        const qa = buildQuickAccess(
+          s.knownFolders,
+          materializeQuickAccessTokens(
+            s.settings.quickAccess,
+            s.settings.quickAccessPins,
+            s.settings.quickAccessHiddenDefaults
+          )
+        )
+        const pinned = qa.some((e) => samePath(e.path, single))
+        result.push(
+          pinned
+            ? {
+                type: 'item',
+                label: 'Unpin from Quick access',
+                builtin: 'pin-quick-access',
                 action: () => {
                   close()
-                  void s.removeFolderCustomization(single)
+                  void s.unpinQuickAccess(single)
+                }
+              }
+            : {
+                type: 'item',
+                label: 'Pin to Quick access',
+                builtin: 'pin-quick-access',
+                action: () => {
+                  close()
+                  void s.pinQuickAccess(single)
+                }
+              }
+        )
+        const hasExact = !!findExactFolderView(single, s.settings.folderViews)
+        result.push(
+          {
+            type: 'submenu',
+            label: 'Customize this folder',
+            builtin: 'customize-folder',
+            items: [
+              {
+                label: 'This folder only',
+                action: () => {
+                  close()
+                  void s.customizeFolderView(single, false)
+                }
+              },
+              {
+                label: 'This folder and subfolders',
+                action: () => {
+                  close()
+                  void s.customizeFolderView(single, true)
                 }
               }
             ]
-          : [])
-      )
+          },
+          {
+            type: 'submenu',
+            label: 'Video previews',
+            builtin: 'video-previews',
+            items: [
+              {
+                label: 'Generate missing',
+                action: () => {
+                  close()
+                  void s.generateVideoThumbs([single], 'missing')
+                }
+              },
+              {
+                label: 'Generate missing (all subfolders)',
+                action: () => {
+                  close()
+                  void s.generateVideoThumbs([single], 'missing', { recursive: true })
+                }
+              },
+              {
+                label: 'Regenerate all',
+                action: () => {
+                  close()
+                  void s.generateVideoThumbs([single], 'all')
+                }
+              }
+            ]
+          },
+          ...(hasExact
+            ? [
+                {
+                  type: 'item' as const,
+                  label: 'Remove folder customization',
+                  builtin: 'remove-folder-customization' as const,
+                  action: () => {
+                    close()
+                    void s.removeFolderCustomization(single)
+                  }
+                }
+              ]
+            : [])
+        )
+      }
     }
     {
       const undoLabel = s.undoLabel()
@@ -867,6 +1048,7 @@ export function ContextMenu(): JSX.Element | null {
             type: 'item',
             label: undoLabel,
             hint: 'Ctrl+Z',
+            builtin: 'undo',
             action: () => {
               close()
               void s.undo()
@@ -878,6 +1060,7 @@ export function ContextMenu(): JSX.Element | null {
             type: 'item',
             label: redoLabel,
             hint: 'Ctrl+Y',
+            builtin: 'redo',
             action: () => {
               close()
               void s.redo()
@@ -893,6 +1076,7 @@ export function ContextMenu(): JSX.Element | null {
         label: 'Cut',
         hint: 'Ctrl+X',
         disabled: paths.length === 0,
+        builtin: 'cut',
         action: () => {
           close()
           s.cutSelection(menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined)
@@ -903,6 +1087,7 @@ export function ContextMenu(): JSX.Element | null {
         label: 'Copy',
         hint: 'Ctrl+C',
         disabled: paths.length === 0,
+        builtin: 'copy',
         action: () => {
           close()
           s.copySelection(menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined)
@@ -913,6 +1098,7 @@ export function ContextMenu(): JSX.Element | null {
       result.push({
         type: 'item',
         label: 'Paste into folder',
+        builtin: 'paste-into-folder',
         action: () => {
           close()
           void (async () => {
@@ -936,6 +1122,43 @@ export function ContextMenu(): JSX.Element | null {
         }
       })
     }
+    {
+      const toolPaths = menu.inTree && single ? [single] : paths
+      const fileToolsItems: SubEntry[] = [
+        {
+          label: 'Copy To…',
+          action: () => {
+            close()
+            if (toolPaths.length < 1) return
+            s.openDialog({ kind: 'copy-move-to', op: 'copy', paths: [...toolPaths] })
+          }
+        },
+        {
+          label: 'Move To…',
+          action: () => {
+            close()
+            if (toolPaths.length < 1) return
+            s.openDialog({ kind: 'copy-move-to', op: 'move', paths: [...toolPaths] })
+          }
+        }
+      ]
+      if (isDir && single) {
+        fileToolsItems.push({
+          label: 'Change Icon…',
+          action: () => {
+            close()
+            void s.changeFolderIcon(single)
+          }
+        })
+      }
+      result.push({
+        type: 'submenu',
+        label: 'File Tools',
+        disabled: toolPaths.length < 1,
+        builtin: 'file-tools',
+        items: fileToolsItems
+      })
+    }
     result.push(
       { type: 'sep' },
       {
@@ -943,6 +1166,7 @@ export function ContextMenu(): JSX.Element | null {
         label: 'Rename',
         hint: 'F2',
         disabled: paths.length !== 1,
+        builtin: 'rename',
         action: () => {
           close()
           if (single) s.startRename(single, menu.inTree ? 'tree' : 'files')
@@ -952,6 +1176,7 @@ export function ContextMenu(): JSX.Element | null {
         type: 'item',
         label: 'Power Rename…',
         disabled: paths.length < 1,
+        builtin: 'power-rename',
         action: () => {
           close()
           s.openDialog({ kind: 'power-rename', paths: [...paths] })
@@ -961,6 +1186,7 @@ export function ContextMenu(): JSX.Element | null {
         type: 'item',
         label: 'Delete',
         hint: 'Del',
+        builtin: 'delete',
         action: () => {
           close()
           // Del → Recycle Bin (never permanent).
@@ -975,6 +1201,7 @@ export function ContextMenu(): JSX.Element | null {
         label: 'Delete permanently',
         hint: 'Shift+Del',
         danger: true,
+        builtin: 'delete-permanently',
         action: () => {
           close()
           void s.deleteSelection(
@@ -988,6 +1215,7 @@ export function ContextMenu(): JSX.Element | null {
             {
               type: 'item' as const,
               label: 'Compress to ZIP file',
+              builtin: 'compress-zip' as const,
               action: () => {
                 close()
                 void s.compressToZip(
@@ -1003,6 +1231,7 @@ export function ContextMenu(): JSX.Element | null {
             {
               type: 'item' as const,
               label: 'Extract All…',
+              builtin: 'extract-zip' as const,
               action: () => {
                 close()
                 void s.extractZip(menu.inTree && single ? [single] : paths)
@@ -1014,6 +1243,7 @@ export function ContextMenu(): JSX.Element | null {
       {
         type: 'item',
         label: 'Copy path',
+        builtin: 'copy-path',
         action: () => {
           close()
           void s.copyPathsToClipboard(paths, false)
@@ -1022,6 +1252,7 @@ export function ContextMenu(): JSX.Element | null {
       {
         type: 'item',
         label: 'Copy name',
+        builtin: 'copy-name',
         action: () => {
           close()
           void s.copyPathsToClipboard(paths, true)
@@ -1030,15 +1261,20 @@ export function ContextMenu(): JSX.Element | null {
       {
         type: 'item',
         label: 'Show in system Explorer',
+        builtin: 'show-in-system-explorer',
         action: () => {
           close()
           if (single) void s.showInExplorer(single)
         }
       },
+      ...(isDir && single && parseUnc(single)?.kind !== 'host'
+        ? [openCommandLineMenuItem(single, close, s, shiftHeld)]
+        : []),
       { type: 'sep' },
       {
         type: 'submenu',
         label: 'Hide from view',
+        builtin: 'hide-from-view',
         items: single
           ? (() => {
               const name = basename(single)
@@ -1118,10 +1354,34 @@ export function ContextMenu(): JSX.Element | null {
     if (isDir && single) {
       result.push({ type: 'sep' })
       const isDriveRoot = /^[a-zA-Z]:\\?$/i.test(single.replace(/[\\/]+$/, ''))
-      if (isIndexedRoot) {
+      const uncKind = parseUnc(single)?.kind
+      if (isDriveRoot) {
+        const drive = s.drives.find(
+          (d) => d.path.replace(/[\\/]+$/, '').toLowerCase() === single.replace(/[\\/]+$/, '').toLowerCase()
+        )
+        if (drive?.driveType === 'remote') {
+          const letter = single.replace(/[\\/]+$/, '').toUpperCase().slice(0, 2)
+          result.push({
+            type: 'item',
+            label: drive.offline
+              ? `Disconnect ${letter} (forget mapping)…`
+              : `Disconnect ${letter}…`,
+            hint: drive.offline ? 'Removes persistent map' : undefined,
+            builtin: 'disconnect-network-drive',
+            action: () => {
+              close()
+              void s.disconnectMappedDrive(single)
+            }
+          })
+        }
+      }
+      if (uncKind === 'host') {
+        /* bare \\server — no search index */
+      } else if (isIndexedRoot) {
         result.push({
           type: 'item',
           label: 'Remove from search index',
+          builtin: 'search-index',
           action: () => {
             close()
             void s.removeIndexRootAction(single)
@@ -1131,6 +1391,7 @@ export function ContextMenu(): JSX.Element | null {
         result.push({
           type: 'item',
           label: 'Index this drive',
+          builtin: 'search-index',
           action: () => {
             close()
             void s.addVolumeRootAction(single)
@@ -1140,6 +1401,7 @@ export function ContextMenu(): JSX.Element | null {
         result.push({
           type: 'item',
           label: 'Add folder to search index',
+          builtin: 'search-index',
           action: () => {
             close()
             void s.addIndexRootAction(single)
@@ -1153,6 +1415,7 @@ export function ContextMenu(): JSX.Element | null {
         type: 'item',
         label: 'Alternate streams…',
         disabled: paths.length !== 1,
+        builtin: 'alternate-streams',
         action: () => {
           close()
           if (single) s.openDialog({ kind: 'ads-manager', path: single })
@@ -1162,14 +1425,15 @@ export function ContextMenu(): JSX.Element | null {
         type: 'item',
         label: 'Properties',
         disabled: paths.length !== 1,
+        builtin: 'properties',
         action: () => {
           close()
           if (single) s.openDialog({ kind: 'properties', path: single })
         }
       }
     )
-    return result
-  }, [menu, closeContextMenu, store, imageVer])
+    return filterHiddenBuiltins(result, s.settings.contextMenu.hiddenBuiltins)
+  }, [menu, closeContextMenu, store, imageVer, shiftHeld])
 
   // Clamp open submenu into the viewport (flip X, shift Y, scroll if taller than screen).
   useLayoutEffect(() => {
@@ -1267,13 +1531,13 @@ export function ContextMenu(): JSX.Element | null {
       } else if (e.key === 'Enter') {
         if (subItems && subFocusIdx >= 0) {
           const sub = subItems[subFocusIdx]
-          if (sub && !sub.sep) sub.action()
+          if (sub && !sub.sep) sub.action({ shiftKey: e.shiftKey })
         } else if (focused?.type === 'submenu' && !focused.disabled) {
           showSub(focusIdx)
           const first = focused.items.findIndex((x) => !x.sep)
           setSubFocusIdx(first >= 0 ? first : 0)
         } else if (focused && focused.type === 'item' && !focused.disabled) {
-          focused.action()
+          focused.action({ shiftKey: e.shiftKey })
         }
       }
       e.stopPropagation()
@@ -1300,6 +1564,9 @@ export function ContextMenu(): JSX.Element | null {
       }}
       role="menu"
       onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => {
+        if (e.shiftKey !== shiftHeld) setShiftHeld(e.shiftKey)
+      }}
     >
       {items.map((item, i) => {
         if (item.type === 'sep') return <div key={i} className="menu-sep" />
@@ -1349,11 +1616,12 @@ export function ContextMenu(): JSX.Element | null {
                       <button
                         key={j}
                         className={`menu-item${subFocusIdx === j ? ' focused' : ''}`}
-                        onClick={sub.action}
+                        onClick={(e) => sub.action({ shiftKey: e.shiftKey })}
                         role="menuitem"
                         title={sub.title}
                       >
-                        {sub.label}
+                        {sub.icon}
+                        <span className="menu-item-label">{sub.label}</span>
                       </button>
                     )
                   )}
@@ -1367,7 +1635,7 @@ export function ContextMenu(): JSX.Element | null {
             key={i}
             className={`menu-item${item.danger ? ' danger' : ''}${focusIdx === i ? ' focused' : ''}`}
             disabled={item.disabled}
-            onClick={item.action}
+            onClick={(e) => item.action({ shiftKey: e.shiftKey })}
             onMouseEnter={() => showSub(null, { delayMs: 300 })}
             role="menuitem"
           >

@@ -14,7 +14,9 @@ import {
   VideoFileIcon,
   PdfFileIcon,
   SpinnerIcon,
-  EditImageIcon
+  EditImageIcon,
+  isAudioExt,
+  isVideoExt
 } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import {
@@ -169,6 +171,37 @@ export function PreviewPane(): JSX.Element {
       versionOverrideAds === undefined
         ? {}
         : { ads: versionOverrideAds }
+
+    const base = basename(previewPath)
+    const dot = base.lastIndexOf('.')
+    const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : ''
+    const likelyAv = isVideoExt(ext) || isAudioExt(ext)
+
+    // Start tag parse in parallel with preview:get so metadata can arrive while
+    // the player buffers (get no longer waits on music-metadata duration scan).
+    const metaPromise = likelyAv
+      ? api.preview.getMediaMeta({ path: previewPath })
+      : null
+
+    const applyMediaMeta = (
+      metaRes: Awaited<ReturnType<typeof api.preview.getMediaMeta>>
+    ): void => {
+      if (seq !== previewSeq || !metaRes.ok) return
+      const meta = metaRes.value
+      setModel((prev) => {
+        if (!prev || !samePath(prev.path, previewPath)) return prev
+        if (prev.kind !== 'video' && prev.kind !== 'audio') return prev
+        const kept = prev.fields.filter((f) => f.group !== 'video' && f.group !== 'audio')
+        return {
+          ...prev,
+          fields: [...kept, ...meta.fields],
+          subtitle: meta.subtitle ?? prev.subtitle,
+          posterUrl: prev.kind === 'audio' && meta.coverUrl ? meta.coverUrl : prev.posterUrl,
+          mediaMetaPending: false
+        }
+      })
+    }
+
     void api.preview.get({ path: previewPath, ...adsArg }).then((res) => {
       if (seq !== previewSeq) return // superseded — cancel stale preview
       setLoading(false)
@@ -196,6 +229,11 @@ export function PreviewPane(): JSX.Element {
               : prev
           )
         })
+      }
+      if (metaPromise && next?.mediaMetaPending) {
+        void metaPromise.then(applyMediaMeta)
+      } else if (next?.mediaMetaPending && (next.kind === 'video' || next.kind === 'audio')) {
+        void api.preview.getMediaMeta({ path: previewPath }).then(applyMediaMeta)
       }
     })
   }, [previewPath, selectedStamp, versionOverrideAds])

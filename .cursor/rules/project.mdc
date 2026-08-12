@@ -29,3 +29,9 @@ alwaysApply: true
 
 Until scaffold exists, prefer updating `docs/` + `PLAN.md` when product decisions change; then implement.
 Keep [docs/DECISIONS.md](docs/DECISIONS.md) in sync when locking behavior.
+
+## Settings (D45)
+
+- **Every new preference** must be added to `settingsSchema` (or a nested Zod object already under it) so Settings → Export / Import round-trips it automatically.
+- Do not invent a parallel export allowlist. Only dialog/window geometry is stripped (`settingsExport.ts` `WINDOW_LIKE_KEYS`).
+- Add/adjust a unit test in `src/tests/settingsExport.test.ts` when introducing non-obvious nested prefs.

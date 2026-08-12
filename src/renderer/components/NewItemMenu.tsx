@@ -151,7 +151,7 @@ export function NewItemMenu(): JSX.Element {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="new-item-plus" aria-hidden>
-          <PlusIcon size={14} />
+          <PlusIcon />
         </span>
         <span className="new-item-label">New</span>
         <ChevronDown size={12} />

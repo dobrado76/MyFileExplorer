@@ -14,6 +14,12 @@ import { basename } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { api, call } from '../lib/ipc'
+import {
+  FONT_SIZE_PX_MAX,
+  FONT_SIZE_PX_MIN,
+  ICON_SIZE_PX_MAX,
+  ICON_SIZE_PX_MIN
+} from '@shared/schemas/settings'
 
 const ImageEditor = lazy(async () => {
   const m = await import('../components/ImageEditor')
@@ -109,7 +115,8 @@ export function ExplorerShell(): JSX.Element {
         return
       }
       void s.goUp()
-    } else if (key === 'F5') {
+    } else if (key === 'F5' || (ctrl && !shift && !alt && key.toLowerCase() === 'r')) {
+      // F5 and Ctrl+R — same in-app full refresh (not Chromium page reload).
       e.preventDefault()
       void s.refresh()
     } else if (key === 'F2') {
@@ -211,8 +218,9 @@ export function ExplorerShell(): JSX.Element {
   }, [])
 
   useEffect(() => {
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    // Capture so Ctrl+R is handled before Chromium's default renderer reload.
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
   }, [onKeyDown])
 
   useEffect(() => {
@@ -252,20 +260,20 @@ export function ExplorerShell(): JSX.Element {
     }
   }, [])
 
-  /** Ctrl/⌘ + mouse wheel → font size (same setting as Appearance). */
+  /** Ctrl/⌘ + mouse wheel → Appearance font size + chrome icon size. */
   useEffect(() => {
-    const MIN = 9
-    const MAX = 28
     let accum = 0
-    let pending: number | null = null
+    let pendingFont: number | null = null
+    let pendingIcon: number | null = null
     let persistTimer: ReturnType<typeof setTimeout> | null = null
 
     const persist = (): void => {
-      if (pending == null) return
-      const v = pending
-      pending = null
-      void useAppStore.getState().applySettingsPatch({ fontSizePx: v })
-      void useAppStore.getState().applySettingsPatch({ iconSizePx: v })
+      const font = pendingFont
+      const icon = pendingIcon
+      pendingFont = null
+      pendingIcon = null
+      if (font != null) void useAppStore.getState().applySettingsPatch({ fontSizePx: font })
+      if (icon != null) void useAppStore.getState().applySettingsPatch({ iconSizePx: icon })
     }
 
     const onWheel = (e: WheelEvent): void => {
@@ -281,12 +289,18 @@ export function ExplorerShell(): JSX.Element {
       if (Math.abs(accum) < threshold) return
       const step = accum > 0 ? -1 : 1
       accum = 0
-      const current = pending ?? s.settings.fontSizePx
-      const next = Math.min(MAX, Math.max(MIN, current + step))
-      if (next === current) return
-      pending = next
-      useAppStore.setState({ settings: { ...s.settings, fontSizePx: next } })
-      document.documentElement.style.setProperty('--font-size', `${next}px`)
+      const curFont = pendingFont ?? s.settings.fontSizePx
+      const curIcon = pendingIcon ?? s.settings.iconSizePx
+      const nextFont = Math.min(FONT_SIZE_PX_MAX, Math.max(FONT_SIZE_PX_MIN, curFont + step))
+      const nextIcon = Math.min(ICON_SIZE_PX_MAX, Math.max(ICON_SIZE_PX_MIN, curIcon + step))
+      if (nextFont === curFont && nextIcon === curIcon) return
+      pendingFont = nextFont
+      pendingIcon = nextIcon
+      useAppStore.setState({
+        settings: { ...s.settings, fontSizePx: nextFont, iconSizePx: nextIcon }
+      })
+      document.documentElement.style.setProperty('--font-size', `${nextFont}px`)
+      document.documentElement.style.setProperty('--icon-size', `${nextIcon}px`)
       if (persistTimer) clearTimeout(persistTimer)
       persistTimer = setTimeout(persist, 180)
     }

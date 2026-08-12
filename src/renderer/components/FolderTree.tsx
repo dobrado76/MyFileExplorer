@@ -10,6 +10,7 @@ import {
 import { useAppStore, dropOperation } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { samePath, isUnderPath, basename, segmentsOf, parentOf } from '../lib/paths'
+import { isNetworkHostUnc, normalizeServerName } from '@shared/networkPaths'
 import {
   beginRightDragGesture,
   getLiveRightDragSession,
@@ -85,6 +86,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const activeTabIdStore = useAppStore((s) => s.activeTabId)
   const tabId = tabIdProp ?? activeTabIdStore
   const drives = useAppStore((s) => s.drives)
+  const network = useAppStore((s) => s.network)
+  const loadNetworkShares = useAppStore((s) => s.loadNetworkShares)
   const tabs = useAppStore((s) => s.tabs)
   const activePath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.path ?? '')
   const rootPath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.rootPath ?? null)
@@ -213,6 +216,58 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     [activeTabId, setNodes]
   )
 
+  const loadNetworkHostChildren = useCallback(
+    async (hostPath: string, tabId = activeTabId): Promise<string[]> => {
+      const server = normalizeServerName(hostPath)
+      setNodes((n) => {
+        const prev = n[hostPath]
+        return {
+          ...n,
+          [hostPath]: {
+            expanded: true,
+            children: prev?.children ?? null,
+            loading: true,
+            childHidden: prev?.childHidden
+          }
+        }
+      }, tabId)
+      try {
+        await loadNetworkShares(server)
+        const key = server.toLowerCase()
+        const shares = useAppStore.getState().network.sharesByHost[key]?.shares ?? []
+        const dirs = shares.map((s) => s.unc)
+        setNodes(
+          (n) => ({
+            ...n,
+            [hostPath]: {
+              expanded: true,
+              children: dirs,
+              loading: false,
+              childHidden: {}
+            }
+          }),
+          tabId
+        )
+        return dirs
+      } catch {
+        setNodes(
+          (n) => ({
+            ...n,
+            [hostPath]: {
+              expanded: true,
+              children: [],
+              loading: false,
+              childHidden: {}
+            }
+          }),
+          tabId
+        )
+        return []
+      }
+    },
+    [activeTabId, loadNetworkShares, setNodes]
+  )
+
   const toggle = useCallback(
     (path: string): void => {
       const node = nodes[path]
@@ -221,11 +276,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         setNodes((n) => collapseUnder(n, path))
       } else if (node?.children) {
         setNodes((n) => ({ ...n, [path]: { ...n[path]!, expanded: true } }))
+      } else if (isNetworkHostUnc(path)) {
+        void loadNetworkHostChildren(path)
       } else {
         void loadChildren(path)
       }
     },
-    [nodes, loadChildren, setNodes]
+    [nodes, loadChildren, loadNetworkHostChildren, setNodes]
   )
 
   // Drop closed tabs' tree caches.
@@ -257,13 +314,15 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const dragExpandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dragExpandPathRef = useRef<string | null>(null)
   const loadChildrenRef = useRef(loadChildren)
+  const loadNetworkHostChildrenRef = useRef(loadNetworkHostChildren)
   const setNodesRef = useRef(setNodes)
   const dragPathsRef = useRef(dragPaths)
   useEffect(() => {
     loadChildrenRef.current = loadChildren
+    loadNetworkHostChildrenRef.current = loadNetworkHostChildren
     setNodesRef.current = setNodes
     dragPathsRef.current = dragPaths
-  }, [loadChildren, setNodes, dragPaths])
+  }, [loadChildren, loadNetworkHostChildren, setNodes, dragPaths])
   useEffect(() => {
     const clearTimer = (): void => {
       if (dragExpandTimerRef.current !== null) {
@@ -312,7 +371,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           n[target] ? { ...n, [target]: { ...n[target]!, expanded: true } } : n
         )
       } else {
-        void loadChildrenRef.current(target)
+        if (isNetworkHostUnc(target)) void loadNetworkHostChildrenRef.current(target)
+        else void loadChildrenRef.current(target)
       }
     }, DRAG_HOVER_EXPAND_MS)
 
@@ -336,6 +396,15 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     const run = async (): Promise<void> => {
       for (const path of persisted) {
         if (cancelled || activeTabIdRef.current !== tabId) return
+        // Never auto-list mapped/offline letters on restore — listing/reconnect on a
+        // dead Z: freezes the whole UI. User can expand them manually.
+        const drive = /^([a-zA-Z]:)(?:\\|\/|$)/i.exec(path.replace(/\//g, '\\'))
+        if (drive) {
+          const root = `${drive[1]!.toUpperCase()}\\`
+          const meta = useAppStore.getState().drives.find((d) => d.path.toUpperCase() === root)
+          if (meta?.offline || meta?.driveType === 'remote') continue
+        }
+        if (isNetworkHostUnc(path)) continue
         const map = nodesRef.current
         const key = Object.keys(map).find((k) => samePath(k, path)) ?? path
         const node = map[key]
@@ -568,7 +637,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             n[cursor] ? { ...n, [cursor]: { ...n[cursor]!, expanded: true } } : n
           )
         } else {
-          void loadChildren(cursor)
+          if (isNetworkHostUnc(cursor)) void loadNetworkHostChildren(cursor)
+          else void loadChildren(cursor)
         }
         return
       }
@@ -602,7 +672,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     path: string,
     label: string,
     depth: number,
-    section: 'qa' | 'drives' | 'scoped' = 'drives',
+    section: 'qa' | 'drives' | 'scoped' | 'network' = 'drives',
     parentPath: string | null = null
   ): JSX.Element {
     const node = nodes[path]
@@ -610,11 +680,15 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     // While browsing via Quick access, only highlight there — not the same
     // folder again under Drives (even if that branch was already expanded).
     const selected =
-      samePath(path, activePath) && !(inQuickAccess && section === 'drives')
+      samePath(path, activePath) &&
+      !(inQuickAccess && (section === 'drives' || section === 'network'))
     const treeFocused = treeFocusPath !== null && samePath(path, treeFocusPath)
     const fsHidden = isFsHidden(path, parentPath)
     const renaming =
-      renameSource === 'tree' && renamingPath !== null && samePath(path, renamingPath)
+      renameSource === 'tree' &&
+      renamingPath !== null &&
+      samePath(path, renamingPath) &&
+      section !== 'network'
     const visibleChildren =
       node?.children?.filter((child) => {
         const winHidden = !!node.childHidden?.[child.toLowerCase()]
@@ -625,13 +699,24 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         )
       }) ?? null
     // Explorer: keep the chevron until we know there are no subfolders; hide once listed empty.
-    const showTwisty = visibleChildren === null || visibleChildren.length > 0
-    const canDrag = !renaming && !isVolumeRootPath(path)
+    const showTwisty =
+      section === 'network' && isNetworkHostUnc(path)
+        ? true
+        : visibleChildren === null || visibleChildren.length > 0
+    const canDrag = !renaming && !isVolumeRootPath(path) && !isNetworkHostUnc(path)
+    const driveMeta = section === 'drives' ? drives.find((d) => samePath(d.path, path)) : undefined
+    const driveOffline = !!driveMeta?.offline
+    const driveTitle = driveOffline
+      ? driveMeta?.remotePath
+        ? `Disconnected — ${driveMeta.remotePath}`
+        : 'Disconnected network drive'
+      : driveMeta?.remotePath
     return (
       <div key={`${section}:${path}`}>
         <div
-          className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${dropHighlightPath && samePath(dropHighlightPath, path) ? ' drop-target' : ''}`}
+          className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${driveOffline ? ' drive-offline' : ''}${dropHighlightPath && samePath(dropHighlightPath, path) ? ' drop-target' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
+          title={driveTitle}
           data-drop-dir={path}
           data-tree-path={path}
           draggable={false}
@@ -844,8 +929,46 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       ) : (
         quickAccess.map((entry) => renderNode(entry.path, entry.label, 0, 'qa'))
       )}
-      <div className="tree-section">Drives</div>
+      <div className="tree-section"
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          openContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            paths: [],
+            inTree: true,
+            treeSection: 'drives'
+          })
+        }}
+      >
+        Drives
+      </div>
       {drives.map((d) => renderNode(d.path, d.label, 0, 'drives'))}
+      {network.hosts.length > 0 && (
+        <>
+          <div
+            className="tree-section"
+            onContextMenu={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              openContextMenu({
+                x: e.clientX,
+                y: e.clientY,
+                paths: [],
+                inTree: true,
+                treeSection: 'network'
+              })
+            }}
+          >
+            Network
+            {network.status === 'running' ? (
+              <span className="tree-section-hint"> discovering…</span>
+            ) : null}
+          </div>
+          {network.hosts.map((h) => renderNode(h.unc, h.name, 0, 'network'))}
+        </>
+      )}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 # Building & releases
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 
 The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
@@ -13,10 +13,12 @@ npm ci
 npm run check
 npm run build:win      # electron-vite + electron-builder → dist/
 # or
-npm run dist:nobump    # same idea; also syncs Settings → Updates folder if set
+npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a local path is set
 ```
 
 Output: `dist/MyFileExplorer Setup <version>.exe` (plus `.blockmap` / `latest.yml`).
+
+In-app **Settings → Advanced → Updates source** accepts a local installer folder **or** a GitHub Releases URL (new installs default to https://github.com/dobrado76/MyFileExplorer/releases).
 
 ### `EBUSY` / `app.asar` locked
 
@@ -33,15 +35,15 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | Trigger | What runs |
 | ------- | --------- |
 | Pull request / push to `main` | `npm run check` only |
-| Tag `v*` (e.g. `v0.5.0`) | Check + build installer → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.6.0`) | Check + build installer → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (same as a main push) |
 
 ### Ship a build for friends
 
 ```bash
-# package.json version should match the tag (e.g. 0.5.0)
-git tag v0.5.0
-git push origin v0.5.0
+# package.json version should match the tag (e.g. 0.6.0)
+git tag v0.6.0
+git push origin v0.6.0
 ```
 
 When the workflow finishes, download from:

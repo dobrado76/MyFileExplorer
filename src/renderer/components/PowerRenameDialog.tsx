@@ -1,12 +1,74 @@
-import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode
+} from 'react'
 import {
   previewPowerRename,
   type PowerRenameApplyTo,
   type PowerRenameOptions
 } from '@shared/powerRename'
+import type { Settings } from '@shared/schemas/settings'
 import { useAppStore } from '../store/appStore'
 import { basename } from '../lib/paths'
 import type { UndoPathPair } from '../lib/undoHistory'
+
+type Bounds = { x: number; y: number; width: number; height: number }
+type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+
+const MIN_W = 640
+const MIN_H = 420
+const DEFAULT_W = 1040
+const DEFAULT_H = 720
+
+function clampBounds(b: Bounds): Bounds {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const maxW = Math.max(MIN_W, Math.floor(vw * 0.98))
+  const maxH = Math.max(MIN_H, Math.floor(vh * 0.94))
+  const width = Math.min(Math.max(Math.round(b.width), MIN_W), maxW)
+  const height = Math.min(Math.max(Math.round(b.height), MIN_H), maxH)
+  const x = Math.min(Math.max(Math.round(b.x), 0), Math.max(0, vw - width))
+  const y = Math.min(Math.max(Math.round(b.y), 0), Math.max(0, vh - height))
+  return { x, y, width, height }
+}
+
+function maximizedBounds(): Bounds {
+  const pad = 6
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  return {
+    x: pad,
+    y: pad,
+    width: Math.max(MIN_W, vw - pad * 2),
+    height: Math.max(MIN_H, vh - pad * 2)
+  }
+}
+
+function defaultBounds(): Bounds {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const width = Math.min(DEFAULT_W, Math.floor(vw * 0.96))
+  const height = Math.min(DEFAULT_H, Math.floor(vh * 0.92))
+  return clampBounds({
+    x: (vw - width) / 2,
+    y: (vh - height) / 2,
+    width,
+    height
+  })
+}
+
+type StoredBounds = NonNullable<Settings['powerRenameBounds']>
+
+function normalBoundsFromSettings(saved: Settings['powerRenameBounds']): Bounds {
+  if (!saved) return defaultBounds()
+  return clampBounds({ x: saved.x, y: saved.y, width: saved.width, height: saved.height })
+}
 
 function Modal({
   title,
@@ -19,6 +81,44 @@ function Modal({
   actions: ReactNode
   onClose(): void
 }): JSX.Element {
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const savedBounds = useAppStore((s) => s.settings.powerRenameBounds)
+
+  const [maximized, setMaximized] = useState(() => !!savedBounds?.maximized)
+  const restoreBoundsRef = useRef<Bounds>(normalBoundsFromSettings(savedBounds))
+  const [bounds, setBounds] = useState<Bounds>(() =>
+    savedBounds?.maximized ? maximizedBounds() : normalBoundsFromSettings(savedBounds)
+  )
+
+  const boundsRef = useRef(bounds)
+  useEffect(() => {
+    boundsRef.current = bounds
+  }, [bounds])
+  const maximizedRef = useRef(maximized)
+  useEffect(() => {
+    maximizedRef.current = maximized
+  }, [maximized])
+
+  const dragRef = useRef<{
+    kind: 'move' | ResizeEdge
+    startX: number
+    startY: number
+    orig: Bounds
+  } | null>(null)
+  const endDragRef = useRef<() => void>(() => {})
+
+  const persistState = useCallback(
+    (normal: Bounds, isMax: boolean) => {
+      const clamped = clampBounds(normal)
+      const payload: StoredBounds = {
+        ...clamped,
+        maximized: isMax
+      }
+      void applySettingsPatch({ powerRenameBounds: payload })
+    },
+    [applySettingsPatch]
+  )
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -28,10 +128,156 @@ function Modal({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
+  useEffect(() => {
+    const onResize = (): void => {
+      if (maximizedRef.current) {
+        setBounds(maximizedBounds())
+      } else {
+        setBounds((b) => clampBounds(b))
+      }
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const toggleMaximize = useCallback((): void => {
+    if (maximizedRef.current) {
+      const restored = clampBounds(restoreBoundsRef.current)
+      setBounds(restored)
+      setMaximized(false)
+      persistState(restored, false)
+      return
+    }
+    restoreBoundsRef.current = boundsRef.current
+    const next = maximizedBounds()
+    setBounds(next)
+    setMaximized(true)
+    persistState(restoreBoundsRef.current, true)
+  }, [persistState])
+
+  const onPointerMove = useCallback((e: PointerEvent): void => {
+    const drag = dragRef.current
+    if (!drag || maximizedRef.current) return
+    const dx = e.clientX - drag.startX
+    const dy = e.clientY - drag.startY
+    const o = drag.orig
+    let next = { ...o }
+
+    if (drag.kind === 'move') {
+      next = { ...o, x: o.x + dx, y: o.y + dy }
+    } else {
+      const edge = drag.kind
+      if (edge.includes('e')) next.width = o.width + dx
+      if (edge.includes('s')) next.height = o.height + dy
+      if (edge.includes('w')) {
+        next.width = o.width - dx
+        next.x = o.x + dx
+      }
+      if (edge.includes('n')) {
+        next.height = o.height - dy
+        next.y = o.y + dy
+      }
+      if (edge.includes('w') && next.width < MIN_W) {
+        next.x = o.x + o.width - MIN_W
+        next.width = MIN_W
+      }
+      if (edge.includes('n') && next.height < MIN_H) {
+        next.y = o.y + o.height - MIN_H
+        next.height = MIN_H
+      }
+    }
+    setBounds(clampBounds(next))
+  }, [])
+
+  const onPointerUp = useCallback((): void => {
+    endDragRef.current()
+  }, [])
+
+  useEffect(() => {
+    endDragRef.current = (): void => {
+      if (!dragRef.current) return
+      dragRef.current = null
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+      if (!maximizedRef.current) {
+        restoreBoundsRef.current = boundsRef.current
+        persistState(boundsRef.current, false)
+      }
+    }
+  }, [onPointerMove, onPointerUp, persistState])
+
+  const beginDrag = (kind: 'move' | ResizeEdge, e: ReactPointerEvent): void => {
+    if (maximizedRef.current) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragRef.current = {
+      kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      orig: boundsRef.current
+    }
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
+  }
+
+  const edges: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal modal-wide modal-power-rename" role="dialog" aria-label={title}>
-        <div className="modal-title">{title}</div>
+      <div
+        className={`modal modal-power-rename${maximized ? ' is-maximized' : ''}`}
+        role="dialog"
+        aria-label={title}
+        style={{
+          left: bounds.x,
+          top: bounds.y,
+          width: bounds.width,
+          height: bounds.height
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {!maximized &&
+          edges.map((edge) => (
+            <div
+              key={edge}
+              className={`modal-resize-handle ${edge}`}
+              onPointerDown={(e) => beginDrag(edge, e)}
+            />
+          ))}
+        <div
+          className="modal-title modal-title-chrome"
+          onPointerDown={(e) => beginDrag('move', e)}
+          onDoubleClick={(e) => {
+            e.preventDefault()
+            toggleMaximize()
+          }}
+        >
+          <span className="modal-title-text">{title}</span>
+          <button
+            type="button"
+            className="modal-title-btn"
+            aria-label={maximized ? 'Restore' : 'Maximize'}
+            title={maximized ? 'Restore' : 'Maximize'}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              toggleMaximize()
+            }}
+          >
+            {maximized ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+                <rect x="3" y="1" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="1" y="3" width="7" height="7" fill="var(--bg, #1a1d24)" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+                <rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            )}
+          </button>
+        </div>
         <div className="modal-body modal-body-power-rename">{children}</div>
         <div className="modal-actions">{actions}</div>
       </div>

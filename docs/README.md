@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.5.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D39).
+**Status:** v0.6.0. Docs describe the shipped behavior; locked choices are in [DECISIONS.md](DECISIONS.md) (through D45).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -15,7 +15,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-6. Domain docs as needed: PREVIEW, SEARCH, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 7. Deferred / bonus only when relevant: [REMOTE_FTP.md](REMOTE_FTP.md) (not scheduled)
 
 ---
@@ -30,11 +30,12 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D39               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D45               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions    |
 | [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
+| [Networks.md](Networks.md)                       | Network neighborhood & mapped drives (D44) |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
@@ -44,10 +45,13 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 ---
 
-## Recent behavior (v0.5.x)
+## Recent behavior (v0.6.x)
 
 | Area | Spec |
 | ---- | ---- |
+| Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [Networks.md](Networks.md) |
+| Settings export / import | D45 — portable prefs + remembered hosts (no window geometry) |
+| Open Command Line | Folder context; Terminal / PS / cmd; Shift = Admin |
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
 | NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |

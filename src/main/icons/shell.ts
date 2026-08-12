@@ -1,11 +1,21 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import { Worker } from 'node:worker_threads'
 import { app } from 'electron'
 import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
 import { enqueueShellIconExtract } from './extractQueue'
+import { isNetworkHostUnc, isNetworkShareUnc } from '@shared/networkPaths'
+import {
+  DRIVE_NO_ROOT_DIR,
+  DRIVE_REMOTE,
+  DRIVE_UNKNOWN
+} from '@shared/networkPaths'
+import { getDriveTypeWin32 } from '../fs/drives'
+import { logMain } from '../logging'
 
 /** Extensions whose icon is embedded / per-file (not shared by type). */
 const PER_FILE_EXTS = new Set([
@@ -87,6 +97,183 @@ function cacheKey(file: string, stamp: string, isDir: boolean, kind: ShellIconSi
       .digest('hex')
   }
   return crypto.createHash('sha1').update(`e|${ext || '_none'}|${px}|v3`).digest('hex')
+}
+
+/** Stable cache key for deferred rich icons (no mtime/stat — those can hang on cloud/maps). */
+function deferredRichCacheKey(file: string, px: number): string {
+  return crypto.createHash('sha1').update(`deferred|${file.toLowerCase()}|${px}|v1`).digest('hex')
+}
+
+/**
+ * Paths where live SHGetFileInfo on the UI thread often freezes Electron.
+ * Still get rich icons — just via a worker + optional fast placeholder first.
+ */
+export function isDeferredShellIconPath(file: string, isDirHint?: boolean): boolean {
+  if (isDirHint !== true) return false
+  const n = file.replace(/\//g, '\\')
+  if (isNetworkHostUnc(n) || isNetworkShareUnc(n)) return true
+  if (/(?:^|\\)(Dropbox|OneDrive|Google Drive|iCloud Drive)(?:\\|$)/i.test(n)) return true
+  const m = /^([a-zA-Z]:)(?:\\|\/|$)/i.exec(n)
+  if (!m) return false
+  const dt = getDriveTypeWin32(`${m[1]}\\`)
+  return dt === DRIVE_REMOTE || dt <= DRIVE_NO_ROOT_DIR || dt === DRIVE_UNKNOWN
+}
+
+// —— Deferred rich icon worker (Dropbox / mapped drives) ——
+
+let iconWorker: Worker | null = null
+let iconJobId = 0
+const iconJobWaiters = new Map<
+  number,
+  { resolve: (png: Buffer | null) => void; timer: ReturnType<typeof setTimeout> }
+>()
+
+function iconWorkerScriptPath(): string {
+  const candidates = [
+    path.join(app.getAppPath(), 'out', 'main', 'shellIconWorker.js'),
+    path.join(path.dirname(process.execPath), 'resources', 'app.asar', 'out', 'main', 'shellIconWorker.js'),
+    path.join(__dirname, 'shellIconWorker.js'),
+    path.join(__dirname, '..', 'shellIconWorker.js')
+  ]
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c
+    } catch {
+      /* ignore */
+    }
+  }
+  return candidates[0]!
+}
+
+function ensureIconWorker(): Worker | null {
+  if (process.platform !== 'win32') return null
+  if (iconWorker) return iconWorker
+  try {
+    const w = new Worker(iconWorkerScriptPath())
+    w.on('message', (msg: unknown) => {
+      if (!msg || typeof msg !== 'object') return
+      const m = msg as { id?: number; ok?: boolean; png?: Uint8Array | Buffer }
+      if (typeof m.id !== 'number') return
+      const waiter = iconJobWaiters.get(m.id)
+      if (!waiter) return
+      clearTimeout(waiter.timer)
+      iconJobWaiters.delete(m.id)
+      if (m.ok && m.png) {
+        waiter.resolve(Buffer.isBuffer(m.png) ? m.png : Buffer.from(m.png))
+      } else {
+        waiter.resolve(null)
+      }
+    })
+    w.on('error', (err) => {
+      logMain('warn', `shell icon worker error: ${err instanceof Error ? err.message : String(err)}`)
+      iconWorker = null
+      for (const [id, waiter] of iconJobWaiters) {
+        clearTimeout(waiter.timer)
+        waiter.resolve(null)
+        iconJobWaiters.delete(id)
+      }
+    })
+    w.on('exit', () => {
+      iconWorker = null
+    })
+    iconWorker = w
+    return w
+  } catch (e) {
+    logMain(
+      'warn',
+      `shell icon worker failed to start: ${e instanceof Error ? e.message : String(e)}`
+    )
+    return null
+  }
+}
+
+/** Extract a rich shell PNG off the UI thread (15s cap). */
+function extractRichIconInWorker(file: string, px: 16 | 32): Promise<Buffer | null> {
+  const w = ensureIconWorker()
+  if (!w) return Promise.resolve(null)
+  const id = ++iconJobId
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      iconJobWaiters.delete(id)
+      resolve(null)
+    }, 15_000)
+    iconJobWaiters.set(id, { resolve, timer })
+    try {
+      w.postMessage({ id, file, px })
+    } catch {
+      clearTimeout(timer)
+      iconJobWaiters.delete(id)
+      resolve(null)
+    }
+  })
+}
+
+async function readDeferredRichUrl(file: string, px: 16 | 32): Promise<string | null> {
+  const key = deferredRichCacheKey(file, px)
+  const cacheFile = path.join(shellIconCacheDir(), `${key}.png`)
+  try {
+    await fsp.access(cacheFile)
+    return mediaUrlFor(cacheFile)
+  } catch {
+    return null
+  }
+}
+
+async function writeDeferredRichUrl(file: string, px: 16 | 32, png: Buffer): Promise<string> {
+  const key = deferredRichCacheKey(file, px)
+  const cacheFile = path.join(shellIconCacheDir(), `${key}.png`)
+  await fsp.mkdir(shellIconCacheDir(), { recursive: true })
+  const tmp = cacheFile + '.tmp'
+  await fsp.writeFile(tmp, png)
+  await fsp.rename(tmp, cacheFile)
+  return mediaUrlFor(cacheFile)
+}
+
+/** Fill deferred rich cache in the background (does not block the caller). */
+function scheduleDeferredRichExtract(file: string, px: 16 | 32): void {
+  const flightKey = `deferred|${file.toLowerCase()}|${px}`
+  if (inFlight.has(flightKey)) return
+  const job = (async (): Promise<string | null> => {
+    try {
+      const existing = await readDeferredRichUrl(file, px)
+      if (existing) return existing
+      const png = await extractRichIconInWorker(file, px)
+      if (!png) return null
+      return await writeDeferredRichUrl(file, px, png)
+    } catch {
+      return null
+    } finally {
+      inFlight.delete(flightKey)
+    }
+  })()
+  inFlight.set(flightKey, job)
+}
+
+async function resolveDeferredRichIcon(
+  file: string,
+  px: 16 | 32,
+  opts?: { fast?: boolean }
+): Promise<{ url: string | null; pendingRich?: boolean }> {
+  const cached = await readDeferredRichUrl(file, px)
+  if (cached) return { url: cached }
+
+  if (opts?.fast === true) {
+    scheduleDeferredRichExtract(file, px)
+    const attr = await getAttributeIconUrl(file, px, 'dir', '')
+    return { url: attr.url, pendingRich: true }
+  }
+
+  // Await worker enrich (UI stays responsive — work is off-thread).
+  const flightKey = `deferred|${file.toLowerCase()}|${px}`
+  let job = inFlight.get(flightKey)
+  if (!job) {
+    scheduleDeferredRichExtract(file, px)
+    job = inFlight.get(flightKey)
+  }
+  const url = job ? await job : null
+  if (url) return { url }
+  const attr = await getAttributeIconUrl(file, px, 'dir', '')
+  return { url: attr.url }
 }
 
 async function encodePng(rgba: Buffer, px: number): Promise<Buffer> {
@@ -185,12 +372,15 @@ async function getAttributeIconUrl(
  *
  * @param isDirHint — from the renderer (tree/list already know kind). Required to
  *   keep folder icons out of the shared extension cache.
+ * @param opts.fast — for deferred paths (Dropbox / mapped drives): return a type
+ *   icon immediately and set `pendingRich` so the renderer can upgrade async.
  */
 export async function getShellIconUrl(
   rawPath: string,
   sizePx: number,
-  isDirHint?: boolean
-): Promise<{ url: string | null }> {
+  isDirHint?: boolean,
+  opts?: { fast?: boolean }
+): Promise<{ url: string | null; pendingRich?: boolean }> {
   const file = requireAbsolute(rawPath)
   const kind = mapSize(sizePx)
   const px = pixelSize(kind)
@@ -203,6 +393,17 @@ export async function getShellIconUrl(
     const extKey = `${ext || '_none'}|${px}`
     const hit = extUrlCache.get(extKey)
     if (hit) return { url: hit }
+  }
+
+  // Dropbox / OneDrive / mapped Z: — never SHGetFileInfo on the UI thread.
+  // fast → placeholder + background worker; otherwise await worker enrich.
+  if (isDeferredShellIconPath(file, isDirHint)) {
+    return resolveDeferredRichIcon(file, px, opts)
+  }
+
+  // Opt-in attribute-only (tests / probes).
+  if (opts?.fast === true && isDirHint === true) {
+    return getAttributeIconUrl(file, px, 'dir', ext)
   }
 
   let st

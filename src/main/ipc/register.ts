@@ -18,8 +18,13 @@ import {
 import { sessionSchema } from '@shared/schemas/session'
 import { settingsPatchSchema } from '@shared/schemas/settings'
 import {
+  buildSettingsExportDocument,
+  parseSettingsImport
+} from '@shared/schemas/settingsExport'
+import {
   previewChmTopicSchema,
   previewEnsurePlayableSchema,
+  previewMediaMetaSchema,
   previewRequestSchema
 } from '@shared/schemas/preview'
 import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/search'
@@ -45,9 +50,23 @@ import {
   adsCopySchema,
   adsInvalidateMetaSchema
 } from '@shared/schemas/ads'
+import { networkListSharesRequestSchema } from '@shared/schemas/network'
 import { listDirectory, statPath, pathExists, requireAbsolute } from '../fs/list'
-import { listDrives, setVolumeLabel } from '../fs/drives'
+import { listDrives, setVolumeLabel, disconnectMappedNetworkDrive } from '../fs/drives'
+import {
+  startNetworkDiscovery,
+  cancelNetworkDiscovery,
+  listNetworkShares,
+  localComputerDisplayName,
+  openMapNetworkDriveDialog,
+  openDisconnectNetworkDriveDialog
+} from '../fs/network'
+import {
+  getRememberedNetworkHosts,
+  replaceRememberedNetworkHosts
+} from '../fs/networkRemembered'
 import { getProperties, measureFolder, setPathAttributes } from '../fs/properties'
+import { setFolderCustomIcon } from '../fs/folderIcon'
 import {
   propertiesRequestSchema,
   setAttributesRequestSchema
@@ -107,6 +126,7 @@ import {
 import {
   openPath,
   showItemInFolder,
+  openCommandLineHere,
   showSystemProperties,
   openRecycleBin,
   clipboardWriteFiles,
@@ -115,8 +135,8 @@ import {
   execExternal
 } from '../shell'
 import { sessionStore } from '../session/store'
-import { getSettings, patchSettings } from '../settings/store'
-import { ensurePlayablePreview, getChmTopicPreview, getPreview } from '../preview'
+import { getSettings, patchSettings, replaceSettings } from '../settings/store'
+import { ensurePlayablePreview, getChmTopicPreview, getMediaPreviewMeta, getPreview } from '../preview'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
@@ -182,7 +202,12 @@ const iconRequestSchema = z.object({
   path: z.string().min(1),
   size: z.number().int().min(16).max(1024),
   /** When true, never share the file-extension icon cache (tree folders). */
-  isDir: z.boolean().optional()
+  isDir: z.boolean().optional(),
+  /**
+   * Tree glyphs: attribute-only folder icons (skip live SHGetFileInfo).
+   * Prevents Dropbox/OneDrive / dead-map hangs from freezing the UI.
+   */
+  fast: z.boolean().optional()
 })
 const generateVidThumbsSchema = z.object({
   paths: z.array(z.string().min(1)).min(1),
@@ -287,6 +312,11 @@ export function registerIpcHandlers(): void {
     })
   )
   handle(
+    IPC.fsSetFolderIcon,
+    z.object({ path: z.string().min(1), iconPath: z.string().min(1) }),
+    (req) => setFolderCustomIcon(req.path, req.iconPath)
+  )
+  handle(
     IPC.fsSaveEditedImage,
     z.object({ path: z.string().min(1), dataBase64: z.string().min(1) }),
     async (req) => {
@@ -369,6 +399,14 @@ export function registerIpcHandlers(): void {
   // shell
   handle(IPC.shellOpenPath, pathRequestSchema, (req) => openPath(req.path))
   handle(IPC.shellShowItemInFolder, pathRequestSchema, (req) => showItemInFolder(req.path))
+  handle(
+    IPC.shellOpenCommandLine,
+    z.object({
+      path: z.string().min(1),
+      elevated: z.boolean().optional()
+    }),
+    (req) => openCommandLineHere(req.path, { elevated: req.elevated === true })
+  )
   handle(IPC.shellShowProperties, pathRequestSchema, (req) => showSystemProperties(req.path))
   handle(IPC.shellOpenRecycleBin, emptySchema, () => openRecycleBin())
   handle(
@@ -409,6 +447,55 @@ export function registerIpcHandlers(): void {
     await clearThumbCache()
     return { cleared: true as const }
   })
+  handle(IPC.settingsExport, emptySchema, async (_req, event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const doc = buildSettingsExportDocument({
+      settings: getSettings(),
+      networkHosts: getRememberedNetworkHosts(),
+      appVersion: app.getVersion()
+    })
+    const opts = {
+      title: 'Export settings',
+      defaultPath: `MyFileExplorer-settings.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    }
+    const picked = win
+      ? await dialog.showSaveDialog(win, opts)
+      : await dialog.showSaveDialog(opts)
+    if (picked.canceled || !picked.filePath) return { saved: false as const }
+    await fsp.writeFile(picked.filePath, JSON.stringify(doc, null, 2), 'utf8')
+    return { saved: true as const, path: picked.filePath }
+  })
+  handle(IPC.settingsImport, emptySchema, async (_req, event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const opts = {
+      title: 'Import settings',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile' as const]
+    }
+    const picked = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts)
+    if (picked.canceled || !picked.filePaths[0]) return { imported: false as const }
+    const text = await fsp.readFile(picked.filePaths[0], 'utf8')
+    let raw: unknown
+    try {
+      raw = JSON.parse(text) as unknown
+    } catch {
+      throw new Error('Settings file is not valid JSON')
+    }
+    const parsed = parseSettingsImport(raw)
+    const settings = replaceSettings(parsed.settings)
+    let networkHostCount: number | undefined
+    if (parsed.networkHosts) {
+      networkHostCount = replaceRememberedNetworkHosts(parsed.networkHosts).length
+    }
+    return {
+      imported: true as const,
+      settings,
+      ...(networkHostCount !== undefined ? { networkHostCount } : {})
+    }
+  })
 
   // preview
   handle(IPC.previewGet, previewRequestSchema, (req) =>
@@ -417,6 +504,7 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewEnsurePlayable, previewEnsurePlayableSchema, (req) =>
     ensurePlayablePreview(req.path, { force: req.force })
   )
+  handle(IPC.previewGetMediaMeta, previewMediaMetaSchema, (req) => getMediaPreviewMeta(req.path))
   handle(IPC.previewChmTopic, previewChmTopicSchema, (req) =>
     getChmTopicPreview(req.path, req.topic)
   )
@@ -436,7 +524,7 @@ export function registerIpcHandlers(): void {
     generateVidThumbStrips(req.paths, req.mode, req.recursive ?? false)
   )
   handle(IPC.iconsGet, iconRequestSchema, (req) =>
-    getShellIconUrl(req.path, req.size, req.isDir)
+    getShellIconUrl(req.path, req.size, req.isDir, { fast: req.fast === true })
   )
   handle(IPC.metaGetMany, metaGetManyRequestSchema, async (req) => ({
     values: await getColumnMetaMany(req.paths, req.columns)
@@ -465,13 +553,17 @@ export function registerIpcHandlers(): void {
   handle(IPC.appGetVersion, emptySchema, () => ({ version: app.getVersion() }))
   handle(
     IPC.appCheckUpdate,
-    z.object({ folder: z.string() }),
-    async (req) => ({ candidate: await findUpdateInstaller(req.folder) })
+    z.object({ source: z.string() }),
+    async (req) => ({ candidate: await findUpdateInstaller(req.source) })
   )
   handle(
     IPC.appRunUpdate,
-    z.object({ path: z.string().min(1), folder: z.string().min(1) }),
-    (req) => runUpdateInstaller(req.path, req.folder)
+    z.object({
+      path: z.string().min(1),
+      source: z.string().min(1),
+      downloadUrl: z.string().optional()
+    }),
+    (req) => runUpdateInstaller(req.path, req.source, req.downloadUrl)
   )
 
   // slideshow (renderer must gate on slideshowFeaturesEnabled)
@@ -707,4 +799,23 @@ export function registerIpcHandlers(): void {
     await invalidateColumnMetaPaths([dest])
     return { copied }
   })
+
+  handle(IPC.networkStartDiscovery, emptySchema, () => startNetworkDiscovery())
+  handle(IPC.networkCancelDiscovery, emptySchema, () => cancelNetworkDiscovery())
+  handle(IPC.networkListShares, networkListSharesRequestSchema, (req) => ({
+    shares: listNetworkShares(req.server)
+  }))
+  handle(IPC.networkMapDriveDialog, emptySchema, () => openMapNetworkDriveDialog())
+  handle(IPC.networkDisconnectDriveDialog, emptySchema, () => openDisconnectNetworkDriveDialog())
+  handle(
+    IPC.networkDisconnectMappedDrive,
+    z.object({
+      path: z.string().min(1),
+      force: z.boolean().optional()
+    }),
+    async (req) => disconnectMappedNetworkDrive(req.path, { force: req.force === true })
+  )
+  handle(IPC.networkLocalComputerName, emptySchema, () => ({
+    name: localComputerDisplayName()
+  }))
 }

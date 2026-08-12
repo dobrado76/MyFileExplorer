@@ -664,24 +664,6 @@ async function buildRtfPreview(
   }
 }
 
-async function attachVideoTagFields(
-  file: string,
-  mtimeMs: number,
-  size: number,
-  fields: PreviewField[]
-): Promise<string | undefined> {
-  try {
-    const meta = await loadMediaPreviewMeta(file, mtimeMs, size, {
-      group: 'video',
-      includeCover: false
-    })
-    fields.push(...meta.fields)
-    return meta.subtitle
-  } catch {
-    return undefined
-  }
-}
-
 async function buildVideoPreview(
   file: string,
   ext: string,
@@ -703,7 +685,8 @@ async function buildVideoPreview(
     }
   }
 
-  const subtitle = await attachVideoTagFields(file, mtimeMs, size, fields)
+  // Do not await music-metadata here — large files can scan the whole stream for
+  // duration and would block mediaUrl / the player. Renderer loads tags via getMediaMeta.
 
   // AVI: no in-pane player — animated !VIDTHUMB_CACHE strip + Open (D33).
   if (STRIP_ONLY_VIDEO_EXTS.has(ext)) {
@@ -711,8 +694,8 @@ async function buildVideoPreview(
     return {
       path: file,
       kind: 'video',
-      subtitle,
       stripFrames: stripFrames.length > 0 ? stripFrames : undefined,
+      mediaMetaPending: true,
       fields,
       warnings: warnings.length ? warnings : undefined
     }
@@ -737,10 +720,10 @@ async function buildVideoPreview(
   return {
     path: file,
     kind: 'video',
-    subtitle,
     mediaUrl,
     posterUrl,
     needsPlayable: needsPlayable || undefined,
+    mediaMetaPending: true,
     fields,
     warnings: warnings.length ? warnings : undefined
   }
@@ -764,6 +747,41 @@ export async function ensurePlayablePreview(
   return { mediaUrl: url }
 }
 
+/**
+ * Load A/V format/tag fields for the preview pane (async follow-up after fast get).
+ * May scan large files for duration — must not block `preview:get` / mediaUrl.
+ */
+export async function getMediaPreviewMeta(rawPath: string): Promise<{
+  fields: PreviewField[]
+  subtitle?: string
+  coverUrl?: string
+}> {
+  const file = requireAbsolute(rawPath)
+  const st = await statPath(file)
+  if (!st.exists || st.kind === 'dir') return { fields: [] }
+  const ext = path.extname(file).replace(/^\./, '').toLowerCase()
+  if (AUDIO_EXTS.has(ext)) {
+    try {
+      const meta = await loadAudioPreviewMeta(file, st.mtimeMs, st.size)
+      return { fields: meta.fields, subtitle: meta.subtitle, coverUrl: meta.coverUrl }
+    } catch {
+      return { fields: [] }
+    }
+  }
+  if (VIDEO_EXTS.has(ext)) {
+    try {
+      const meta = await loadMediaPreviewMeta(file, st.mtimeMs, st.size, {
+        group: 'video',
+        includeCover: false
+      })
+      return { fields: meta.fields, subtitle: meta.subtitle }
+    } catch {
+      return { fields: [] }
+    }
+  }
+  return { fields: [] }
+}
+
 async function buildAudioPreview(
   file: string,
   mtimeMs: number,
@@ -784,23 +802,12 @@ async function buildAudioPreview(
     }
   }
 
-  let subtitle: string | undefined
-  let posterUrl: string | undefined
-  try {
-    const meta = await loadAudioPreviewMeta(file, mtimeMs, size)
-    fields.push(...meta.fields)
-    subtitle = meta.subtitle
-    posterUrl = meta.coverUrl
-  } catch (e) {
-    warnings.push(e instanceof Error ? e.message : 'Could not read audio metadata')
-  }
-
+  // Tags/cover load async via getMediaMeta so playback can start immediately.
   return {
     path: file,
     kind: 'audio',
-    subtitle,
     mediaUrl: mediaUrlFor(file, mediaCacheKey),
-    posterUrl,
+    mediaMetaPending: true,
     fields,
     warnings: warnings.length ? warnings : undefined
   }

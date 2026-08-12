@@ -3,8 +3,8 @@
  * 1. Bump package.json patch (Major.Minor.Patch) so Check Update sees a newer build
  * 2. Remove previous Setup .exe / .blockmap / latest.yml from dist/
  * 3. Clear dist/win-unpacked (stop any process locking app.asar) then electron-builder
- * 4. If Settings → Updates folder is set (and not dist/), copy the new installer
- *    there and delete older MyFileExplorer Setup*.exe files in that folder
+ * 4. If Settings → Updates source is a local folder (not a URL, and not dist/),
+ *    copy the new installer there and delete older MyFileExplorer Setup*.exe files
  *
  * Flags:
  *   --no-bump   skip version bump (rebuild same version)
@@ -78,7 +78,10 @@ function readUpdatesFolderFromSettings() {
     if (!fs.existsSync(settingsPath)) return null
     const json = JSON.parse(fs.readFileSync(settingsPath, 'utf8'))
     const folder = typeof json.updatesFolder === 'string' ? json.updatesFolder.trim() : ''
-    return folder || null
+    if (!folder) return null
+    // Settings may be a GitHub Releases URL — only sync to a local folder.
+    if (/^https?:\/\//i.test(folder)) return null
+    return folder
   } catch {
     return null
   }

@@ -151,6 +151,8 @@ if (!gotLock) {
     // Cold start with a path / protocol URL on the command line.
     dispatchFromArgv(process.argv)
 
+    void import('./update/installers').then((m) => m.cleanupStaleUpdateTemps())
+
     // Best-effort: migrate AppData image-originals → on-file VER_* ADS (D27).
     void import('./fs/imageEdit')
       .then((m) => m.migrateImageOriginalsToAds())
@@ -179,6 +181,7 @@ if (!gotLock) {
   app.on('before-quit', () => {
     sessionStore().flush()
     settingsStore().flush()
+    void import('./fs/network').then((m) => m.disposeNetworkDiscovery())
     void import('./search').then((m) => m.shutdownSearchIndexRuntime())
     void import('./search/httpServer').then((h) => h.stopSearchHttpServer())
   })

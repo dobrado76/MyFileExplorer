@@ -137,5 +137,3 @@ flowchart TB
 **Copy / move NTFS → non-ADS volume:** Destination gets the **tip** bytes as the file body (keep the latest edit; original + `VER_*` history cannot travel). NTFS→NTFS relies on normal Win32 copy preserving streams.
 
 **Version Control** (context submenu when `VER_COUNT ≥ 1`): Commit tip into the default stream (preserve other ADS), Revert (drop `VER_*` only), then **Original** / **Version k** items that only switch the preview override. While an override is active, the preview banner offers **Show current** and (for a version, not original) **Drop** with tooltips.
-
-**Legacy migration:** old C# apps that used a single `repaired` ADS can be converted with `scripts/migrate_repaired_ads.bat` (writes `VER_1` + `VER_COUNT=1`, leaves the file body as the original).

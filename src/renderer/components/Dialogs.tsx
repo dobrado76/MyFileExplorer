@@ -8,6 +8,14 @@ import {
 } from 'react'
 import type { ConflictDecision, ConflictItem, ConflictSide } from '@shared/schemas/fs'
 import type { CustomTheme } from '@shared/schemas/settings'
+import {
+  FONT_SIZE_PX_MAX,
+  FONT_SIZE_PX_MIN,
+  ICON_SIZE_PX_MAX,
+  ICON_SIZE_PX_MIN,
+  NETWORK_DISCOVERY_INTERVAL_MAX_MINUTES,
+  NETWORK_DISCOVERY_INTERVAL_MIN_MINUTES
+} from '@shared/schemas/settings'
 import type { FolderMeasureResult, PropertiesModel } from '@shared/schemas/properties'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
@@ -18,6 +26,7 @@ import { VID_THUMB_FRAME_MS_MAX, VID_THUMB_FRAME_MS_MIN } from '@shared/vidThumb
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { basename } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
+import { DEFAULT_UPDATES_SOURCE, resolveUpdatesSource } from '@shared/updatesSource'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
@@ -25,6 +34,7 @@ import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
+import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 
 function Modal({
@@ -64,6 +74,64 @@ function Modal({
         <div className="modal-actions">{actions}</div>
       </div>
     </div>
+  )
+}
+
+/** Typeable number field: draft while editing, clamp + commit on blur / valid values. */
+function SettingsClampedNumber({
+  id,
+  value,
+  min,
+  max,
+  onCommit
+}: {
+  id: string
+  value: number
+  min: number
+  max: number
+  onCommit: (n: number) => void
+}): JSX.Element {
+  const [draft, setDraft] = useState(String(value))
+  useEffect(() => {
+    setDraft(String(value))
+  }, [value])
+
+  function clamp(n: number): number {
+    return Math.min(max, Math.max(min, Math.round(n)))
+  }
+
+  function commitRaw(raw: string): void {
+    const n = Number(raw)
+    const next = Number.isFinite(n) ? clamp(n) : clamp(value)
+    setDraft(String(next))
+    if (next !== value) onCommit(next)
+  }
+
+  return (
+    <input
+      id={id}
+      type="number"
+      min={min}
+      max={max}
+      step={1}
+      inputMode="numeric"
+      value={draft}
+      onChange={(e) => {
+        const raw = e.target.value
+        setDraft(raw)
+        if (raw.trim() === '') return
+        const n = Number(raw)
+        if (Number.isFinite(n) && n >= min && n <= max) onCommit(Math.round(n))
+      }}
+      onBlur={() => commitRaw(draft)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commitRaw(draft)
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+    />
   )
 }
 
@@ -117,6 +185,8 @@ export function Dialogs(): JSX.Element | null {
       )
     case 'power-rename':
       return <PowerRenameDialog paths={dialog.paths} />
+    case 'copy-move-to':
+      return <CopyMoveToDialog op={dialog.op} paths={dialog.paths} />
   }
 }
 
@@ -1073,6 +1143,7 @@ type SettingsSection =
   | 'filter'
   | 'preview'
   | 'search'
+  | 'network'
   | 'slideshow'
   | 'advanced'
 
@@ -1086,6 +1157,7 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'filter', label: 'View filter' },
   { id: 'preview', label: 'Preview' },
   { id: 'search', label: 'Search index' },
+  { id: 'network', label: 'Network' },
   { id: 'slideshow', label: 'Slideshow' },
   { id: 'advanced', label: 'Advanced' }
 ]
@@ -1126,6 +1198,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const closeDialog = useAppStore((s) => s.closeDialog)
   const openDialog = useAppStore((s) => s.openDialog)
   const clearThumbCache = useAppStore((s) => s.clearThumbCache)
+  const exportSettingsFile = useAppStore((s) => s.exportSettingsFile)
+  const importSettingsFile = useAppStore((s) => s.importSettingsFile)
   const indexRoots = useAppStore((s) => s.indexRoots)
   const indexProgress = useAppStore((s) => s.indexProgress)
   const addIndexRootAction = useAppStore((s) => s.addIndexRootAction)
@@ -1149,6 +1223,10 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const updateLayout = useAppStore((s) => s.updateLayout)
   const removeLayoutAction = useAppStore((s) => s.removeLayout)
   const navigate = useAppStore((s) => s.navigate)
+  const startNetworkDiscovery = useAppStore((s) => s.startNetworkDiscovery)
+  const openMapNetworkDrive = useAppStore((s) => s.openMapNetworkDrive)
+  const openDisconnectNetworkDrive = useAppStore((s) => s.openDisconnectNetworkDrive)
+  const networkStatus = useAppStore((s) => s.network.status)
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const layouts = useAppStore((s) => s.settings.layouts)
 
@@ -1156,6 +1234,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     ? (initialSection as SettingsSection)
     : 'appearance'
   const [section, setSection] = useState<SettingsSection>(startSection)
+  const [localComputerName, setLocalComputerName] = useState('')
   const navItems = SETTINGS_NAV
   const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
   const loadCategorizerMapDialog = useAppStore((s) => s.loadCategorizerMapDialog)
@@ -1168,9 +1247,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
   const [updateCandidate, setUpdateCandidate] = useState<{
     path: string
+    downloadUrl?: string
     fileName: string
     version: string | null
     newer: boolean
+    sourceKind: 'folder' | 'url'
   } | null>(null)
   const [updateBusy, setUpdateBusy] = useState(false)
 
@@ -1182,6 +1263,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
       .then((r) => setUserDataPath(r.path))
       .catch(() => setUserDataPath(''))
   }, [])
+
+  useEffect(() => {
+    if (section !== 'network') return
+    void call(api.network.localComputerName())
+      .then((r) => setLocalComputerName(r.name || ''))
+      .catch(() => setLocalComputerName(''))
+  }, [section])
   const qaEntries = useMemo(() => {
     const tokens = materializeQuickAccessTokens(
       quickAccessSetting,
@@ -1293,16 +1381,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <label className="settings-field settings-field-narrow" htmlFor="set-fontsize">
                 <span>Font size</span>
                 <div className="settings-inline">
-                  <input
+                  <SettingsClampedNumber
                     id="set-fontsize"
-                    type="number"
-                    min={9}
-                    max={28}
                     value={settings.fontSizePx}
-                    onChange={(e) => {
-                      const v = Number(e.target.value)
-                      if (v >= 9 && v <= 28) void applySettingsPatch({ fontSizePx: v })
-                    }}
+                    min={FONT_SIZE_PX_MIN}
+                    max={FONT_SIZE_PX_MAX}
+                    onCommit={(v) => void applySettingsPatch({ fontSizePx: v })}
                   />
                   <span className="dim">px</span>
                 </div>
@@ -1310,16 +1394,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <label className="settings-field settings-field-narrow" htmlFor="set-iconsize">
                 <span>Icon size</span>
                 <div className="settings-inline">
-                  <input
+                  <SettingsClampedNumber
                     id="set-iconsize"
-                    type="number"
-                    min={12}
-                    max={40}
                     value={settings.iconSizePx}
-                    onChange={(e) => {
-                      const v = Number(e.target.value)
-                      if (v >= 9 && v <= 40) void applySettingsPatch({ iconSizePx: v })
-                    }}
+                    min={ICON_SIZE_PX_MIN}
+                    max={ICON_SIZE_PX_MAX}
+                    onCommit={(v) => void applySettingsPatch({ iconSizePx: v })}
                   />
                   <span className="dim">px</span>
                 </div>
@@ -1344,6 +1424,99 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {section === 'network' && (
+            <div className="settings-stack">
+              <p className="settings-help">
+                Controls the tree <strong>Network</strong> neighborhood. Each discovery pass
+                runs up to ~20 seconds. Only reachable computers are listed (offline hosts stay
+                hidden). F5 / Ctrl+R and <strong>Refresh Network</strong> rediscover when
+                discovery is enabled.
+              </p>
+              <SettingsToggle
+                id="set-net-enabled"
+                label="Enable network discovery"
+                hint="Off = no LAN discovery at all (boot / F5 / timer / Discover now). Use this to test whether discovery is related to startup freezes. Mapped drives still work."
+                checked={settings.networkDiscovery.enabled !== false}
+                onChange={(v) => void applySettingsPatch({ networkDiscovery: { enabled: v } })}
+              />
+              <label className="settings-field" htmlFor="set-net-mode">
+                <span>Discovery mode</span>
+                <select
+                  id="set-net-mode"
+                  value={settings.networkDiscovery.mode}
+                  disabled={settings.networkDiscovery.enabled === false}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      networkDiscovery: {
+                        mode: e.target.value as 'auto' | 'manual'
+                      }
+                    })
+                  }
+                >
+                  <option value="auto">Automatic (timed refresh)</option>
+                  <option value="manual">Manual only</option>
+                </select>
+                <span className="settings-field-hint">
+                  Manual: launch + explicit refresh only. Automatic: also rediscovers on a timer.
+                </span>
+              </label>
+              {settings.networkDiscovery.mode === 'auto' ? (
+                <label className="settings-field settings-field-narrow" htmlFor="set-net-interval">
+                  <span>Auto refresh every (minutes)</span>
+                  <SettingsClampedNumber
+                    id="set-net-interval"
+                    value={settings.networkDiscovery.intervalMinutes}
+                    min={NETWORK_DISCOVERY_INTERVAL_MIN_MINUTES}
+                    max={NETWORK_DISCOVERY_INTERVAL_MAX_MINUTES}
+                    onCommit={(n) =>
+                      void applySettingsPatch({ networkDiscovery: { intervalMinutes: n } })
+                    }
+                  />
+                  <span className="settings-field-hint">
+                    {NETWORK_DISCOVERY_INTERVAL_MIN_MINUTES}–
+                    {NETWORK_DISCOVERY_INTERVAL_MAX_MINUTES} minutes (default 5)
+                  </span>
+                </label>
+              ) : null}
+              <SettingsToggle
+                id="set-net-show-local"
+                label={
+                  localComputerName
+                    ? `Show local computer ${localComputerName}`
+                    : 'Show local computer'
+                }
+                hint="Off by default. When on, this PC can appear under Network if discovery finds it."
+                checked={settings.networkDiscovery.showLocalComputer}
+                onChange={(v) =>
+                  void applySettingsPatch({ networkDiscovery: { showLocalComputer: v } })
+                }
+              />
+              <div className="form-section">Actions</div>
+              <div className="settings-inline">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={
+                    settings.networkDiscovery.enabled === false || networkStatus === 'running'
+                  }
+                  onClick={() => void startNetworkDiscovery()}
+                >
+                  {networkStatus === 'running' ? 'Discovering…' : 'Discover now'}
+                </button>
+                <button type="button" className="btn" onClick={() => void openMapNetworkDrive()}>
+                  Map network drive…
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void openDisconnectNetworkDrive()}
+                >
+                  Disconnect…
+                </button>
+              </div>
             </div>
           )}
 
@@ -1573,6 +1746,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 hint="Sort folders above files in the file view"
                 checked={settings.foldersFirst}
                 onChange={(v) => void applySettingsPatch({ foldersFirst: v })}
+              />
+              <SettingsToggle
+                id="set-item-checkboxes"
+                label="Item check boxes"
+                hint="Show check boxes in the file list to select items without holding Ctrl (like classic Explorer)"
+                checked={settings.itemCheckboxes}
+                onChange={(v) => void applySettingsPatch({ itemCheckboxes: v })}
               />
               <label className="settings-field settings-field-narrow" htmlFor="set-vidthumbms">
                 <span>Video thumbnail frame delay (ms)</span>
@@ -2175,26 +2355,28 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <div>
                   <div className="settings-toggle-label">Updates</div>
                   <div className="settings-toggle-hint">
-                    Current version: {appVersion || '…'}. Point at a folder that contains
-                    installers named like <code>MyFileExplorer Setup 0.x.y.exe</code>, then check
-                    and run the newest one.
+                    Current version: {appVersion || '…'}. Leave empty (or use the default GitHub
+                    Releases URL), or point at a local folder of installers named like{' '}
+                    <code>MyFileExplorer Setup 0.x.y.exe</code>. Check finds the newest build;
+                    Install downloads (if URL) and runs it.
                   </div>
                 </div>
               </div>
               <label className="settings-field" htmlFor="set-updates-folder">
-                <span>Updates folder</span>
+                <span>Updates source</span>
                 <div className="settings-inline">
                   <input
                     id="set-updates-folder"
                     type="text"
                     spellCheck={false}
                     value={settings.updatesFolder}
-                    placeholder="e.g. D:\Builds\MyFileExplorer"
+                    placeholder={DEFAULT_UPDATES_SOURCE}
                     onChange={(e) => void applySettingsPatch({ updatesFolder: e.target.value })}
                   />
                   <button
                     type="button"
                     className="btn"
+                    title="Browse for a local updates folder"
                     onClick={() => {
                       void (async () => {
                         const res = await call(api.app.pickFolder())
@@ -2214,31 +2396,34 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <button
                   type="button"
                   className="btn"
-                  disabled={!settings.updatesFolder.trim() || updateBusy}
+                  disabled={updateBusy}
                   onClick={() => {
                     void (async () => {
                       setUpdateBusy(true)
                       setUpdateStatus(null)
                       setUpdateCandidate(null)
+                      const source = resolveUpdatesSource(settings.updatesFolder)
                       try {
-                        const res = await call(
-                          api.app.checkUpdate({ folder: settings.updatesFolder })
-                        )
+                        const res = await call(api.app.checkUpdate({ source }))
                         if (!res.candidate) {
-                          setUpdateStatus('No MyFileExplorer installer found in that folder.')
+                          setUpdateStatus(
+                            'No MyFileExplorer installer found at that source.'
+                          )
                         } else {
                           setUpdateCandidate(res.candidate)
+                          const where =
+                            res.candidate.sourceKind === 'url' ? 'on GitHub' : 'in that folder'
                           if (res.candidate.newer) {
                             setUpdateStatus(
                               res.candidate.version
-                                ? `Found ${res.candidate.fileName} (v${res.candidate.version}) — newer than ${res.candidate.currentVersion}.`
-                                : `Found ${res.candidate.fileName}.`
+                                ? `Found ${res.candidate.fileName} ${where} (v${res.candidate.version}) — newer than ${res.candidate.currentVersion}.`
+                                : `Found ${res.candidate.fileName} ${where}.`
                             )
                           } else {
                             setUpdateStatus(
                               res.candidate.version
-                                ? `Found ${res.candidate.fileName} (v${res.candidate.version}) — same or older than installed ${res.candidate.currentVersion}.`
-                                : `Found ${res.candidate.fileName}.`
+                                ? `Found ${res.candidate.fileName} ${where} (v${res.candidate.version}) — same or older than installed ${res.candidate.currentVersion}.`
+                                : `Found ${res.candidate.fileName} ${where}.`
                             )
                           }
                         }
@@ -2260,11 +2445,16 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                     if (!updateCandidate) return
                     void (async () => {
                       setUpdateBusy(true)
+                      const source = resolveUpdatesSource(settings.updatesFolder)
                       try {
+                        if (updateCandidate.downloadUrl) {
+                          setUpdateStatus('Downloading installer…')
+                        }
                         await call(
                           api.app.runUpdate({
-                            path: updateCandidate.path,
-                            folder: settings.updatesFolder
+                            path: updateCandidate.path || updateCandidate.fileName,
+                            source,
+                            downloadUrl: updateCandidate.downloadUrl
                           })
                         )
                         setUpdateStatus('Launching installer… the app will close.')
@@ -2275,7 +2465,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                     })()
                   }}
                 >
-                  {updateCandidate?.newer ? 'Install update' : 'Run installer'}
+                  Update
                 </button>
               </div>
               {updateStatus && <p className="settings-help">{updateStatus}</p>}
@@ -2328,6 +2518,27 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   onChange={(e) => void applySettingsPatch({ searchHttpToken: e.target.value })}
                 />
               </label>
+
+              <div className="settings-action-card">
+                <div>
+                  <div className="settings-toggle-label">Export / import settings</div>
+                  <div className="settings-toggle-hint">
+                    Save a portable JSON backup (theme, named layouts, folder views, slideshow,
+                    context menu, network discovery, remembered Network hosts, and all other
+                    preferences). Dialog and main-window positions are not included. Import
+                    replaces current settings; open tabs are unchanged (apply a named layout to
+                    restore a workspace).
+                  </div>
+                </div>
+                <div className="settings-inline">
+                  <button type="button" className="btn" onClick={() => void exportSettingsFile()}>
+                    Export…
+                  </button>
+                  <button type="button" className="btn" onClick={() => void importSettingsFile()}>
+                    Import…
+                  </button>
+                </div>
+              </div>
 
               <div className="settings-action-card">
                 <div>

@@ -26,6 +26,21 @@ export function getSettings(): Settings {
   return settingsSchema.parse(settingsStore().get())
 }
 
+/** Full replace (import). Still clears dialog geometry for portability. */
+export function replaceSettings(raw: unknown): Settings {
+  const next = settingsSchema.parse({
+    ...defaultSettings,
+    ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as object) : {}),
+    adsManagerBounds: null,
+    powerRenameBounds: null,
+    compiledListsWindowBounds: null
+  })
+  settingsStore().replace(next)
+  settingsStore().flush()
+  void import('../search/httpServer').then((m) => m.syncSearchHttpServer())
+  return next
+}
+
 export function patchSettings(patch: unknown): Settings {
   const parsed = settingsPatchSchema.parse(patch)
   const cur = settingsStore().get()
@@ -35,13 +50,24 @@ export function patchSettings(patch: unknown): Settings {
     slideshow: parsed.slideshow
       ? { ...defaultSettings.slideshow, ...cur.slideshow, ...parsed.slideshow }
       : (cur.slideshow ?? defaultSettings.slideshow),
+    networkDiscovery: parsed.networkDiscovery
+      ? {
+          ...defaultSettings.networkDiscovery,
+          ...cur.networkDiscovery,
+          ...parsed.networkDiscovery
+        }
+      : (cur.networkDiscovery ?? defaultSettings.networkDiscovery),
     contextMenu: parsed.contextMenu
       ? {
           ...defaultSettings.contextMenu,
           ...cur.contextMenu,
           ...parsed.contextMenu,
           files: parsed.contextMenu.files ?? cur.contextMenu?.files ?? [],
-          folders: parsed.contextMenu.folders ?? cur.contextMenu?.folders ?? []
+          folders: parsed.contextMenu.folders ?? cur.contextMenu?.folders ?? [],
+          hiddenBuiltins:
+            parsed.contextMenu.hiddenBuiltins ??
+            cur.contextMenu?.hiddenBuiltins ??
+            []
         }
       : (cur.contextMenu ?? defaultSettings.contextMenu)
   })

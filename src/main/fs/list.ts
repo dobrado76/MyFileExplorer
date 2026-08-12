@@ -2,9 +2,18 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { AppError } from '@shared/result'
 import type { DirEntry, ListResponse, StatResult } from '@shared/schemas/fs'
+import {
+  DRIVE_NO_ROOT_DIR,
+  DRIVE_REMOTE,
+  DRIVE_UNKNOWN,
+  isNetworkHostUnc
+} from '@shared/networkPaths'
 import { normalizeAbsolute, protocolAllowlist } from '../security/paths'
 import { pathIsHidden } from './winAttrs'
 import { listDirectoryWin32 } from './listWin32'
+import { listNetworkShares } from './network'
+import { rememberNetworkHost } from './networkRemembered'
+import { getDriveTypeWin32 } from './drives'
 import { dedupeDirEntries } from '@shared/dirEntries'
 
 function extOf(name: string): string {
@@ -26,7 +35,7 @@ async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<D
     const batch = dirents.slice(i, i + CONCURRENCY)
     const settled = await Promise.allSettled(
       batch.map(async (d): Promise<DirEntry | null> => {
-        const full = path.join(dir, d.name)
+        const full = dir.replace(/[\\/]+$/, '') + '\\' + d.name
         // Windows: only FILE_ATTRIBUTE_HIDDEN (Explorer). Leading "." is not special.
         const isHidden = pathIsHidden(full)
         if (isHidden && !includeHidden) return null
@@ -66,10 +75,53 @@ async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<D
   return entries
 }
 
+/** Explorer-style: bare `\\server` lists disk shares as folders. */
+function listUncHostAsShares(dir: string): DirEntry[] {
+  const shares = listNetworkShares(dir)
+  rememberNetworkHost(dir)
+  return shares.map((s) => ({
+    name: s.name,
+    path: s.unc,
+    kind: 'dir' as const,
+    size: 0,
+    mtimeMs: 0,
+    birthtimeMs: 0,
+    ext: '',
+    isHidden: false
+  }))
+}
+
 export async function listDirectory(dirPath: string, includeHidden = true): Promise<ListResponse> {
   const dir = requireAbsolute(dirPath)
+  const driveLetter = /^([a-zA-Z]):/i.exec(dir)
+
+  // Mapped / missing letters: never call sync FindFirstFileW on main — it can
+  // block the UI for 5–20s on a dead Z: (etc.). Offline → fail fast; live remote
+  // → async libuv readdir (off main). Local fixed disks keep the Win32 fast path.
+  if (driveLetter && process.platform === 'win32') {
+    const dt = getDriveTypeWin32(`${driveLetter[1]}:\\`)
+    if (dt <= DRIVE_NO_ROOT_DIR || dt === DRIVE_UNKNOWN) {
+      // Explicit open / Offline Retry only reaches here (tree restore skips these letters).
+      // Reconnect may block briefly — better than FindFirstFileW hanging with no recovery.
+      const { restoreMappedNetworkDrive } = await import('./drives')
+      restoreMappedNetworkDrive(`${driveLetter[1]}:\\`)
+      const entries = dedupeDirEntries(await listDirectoryNode(dir, includeHidden))
+      protocolAllowlist.allowDir(dir)
+      return { path: dir, entries }
+    }
+    if (dt === DRIVE_REMOTE) {
+      // Async libuv listing — keeps Electron main free. Reconnect is Offline Retry /
+      // explicit open (restoreMappedNetworkDrive), not every list.
+      const entries = dedupeDirEntries(await listDirectoryNode(dir, includeHidden))
+      protocolAllowlist.allowDir(dir)
+      return { path: dir, entries }
+    }
+  }
+
   let entries: DirEntry[] | null = null
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' && isNetworkHostUnc(dir)) {
+    entries = listUncHostAsShares(dir)
+  } else if (process.platform === 'win32') {
     try {
       entries = listDirectoryWin32(dir, includeHidden)
     } catch {
@@ -78,13 +130,26 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
   }
   if (!entries) entries = await listDirectoryNode(dir, includeHidden)
   entries = dedupeDirEntries(entries)
-  // Successful listing approves this dir for the media protocol (icons/thumbs).
   protocolAllowlist.allowDir(dir)
   return { path: dir, entries }
 }
 
 export async function statPath(p: string): Promise<StatResult> {
   const n = requireAbsolute(p)
+  // Bare UNC hosts are not real directories; treat as existing dirs so refresh
+  // / navigation do not bounce away before share enum runs.
+  if (isNetworkHostUnc(n)) {
+    return {
+      path: n,
+      exists: true,
+      kind: 'dir',
+      size: 0,
+      mtimeMs: 0,
+      ctimeMs: 0,
+      birthtimeMs: 0,
+      isReadonly: false
+    }
+  }
   try {
     const st = await fsp.stat(n)
     let isReadonly = false
@@ -122,7 +187,9 @@ export async function statPath(p: string): Promise<StatResult> {
 
 export async function pathExists(p: string): Promise<boolean> {
   try {
-    await fsp.access(requireAbsolute(p))
+    const n = requireAbsolute(p)
+    if (isNetworkHostUnc(n)) return true
+    await fsp.access(n)
     return true
   } catch {
     return false

@@ -12,7 +12,13 @@ export default defineConfig({
       alias: { '@shared': shared, '@main': resolve(__dirname, 'src/main') }
     },
     build: {
-      rollupOptions: { input: { index: resolve(__dirname, 'src/main/index.ts') } }
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          networkDiscoverWorker: resolve(__dirname, 'src/main/fs/networkDiscoverWorker.ts'),
+          shellIconWorker: resolve(__dirname, 'src/main/icons/shellIconWorker.ts')
+        }
+      }
     }
   },
   preload: {

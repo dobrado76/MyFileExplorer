@@ -1,43 +1,39 @@
-# MyFileExplorer v0.5.0 — release notes
+# MyFileExplorer v0.6.0 — release notes
 
-**Date:** 2026-08-11  
-**Previous:** [v0.4.0](CHANGELOG.md#040---2026-08-09) (plus 0.4.x patches through 0.4.7)
+**Date:** 2026-08-12  
+**Previous:** [v0.5.0](CHANGELOG.md#050---2026-08-11) (plus 0.5.x patches through 0.5.10)
 
-Fifth product release. Focus: **slideshow / categorizer** (D37) with **compiled file lists** (D39), **NTFS Alternate Data Streams** tooling (D38), deeper previews (CHM D35, fonts D36, more archives), and Explorer-parity polish (ZIP via 7za, empty-pane open, submenu hover).
+Sixth product release. Focus: **Network neighborhood & mapped drives** (D44 / D3), **portable settings export/import** (D45), and Explorer-parity polish (Open Command Line, context Add icons).
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md). Slideshow: [docs/SLIDESHOW.md](docs/SLIDESHOW.md). ADS: [docs/ADS.md](docs/ADS.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Network: [docs/Networks.md](docs/Networks.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Slideshow & compiled lists (D37 / D39)
-Optional fullscreen slideshow with categorizer map, image-list cache, and **compiled `.dat` / `.txt` lists** for huge libraries — Update Lists writes ADS Index on `.dat` only; `.txt` expands from body at play; virtual playlist scales without multi‑GB path arrays.
+### Network neighborhood & mapped drives (D44 / D3)
+- Tree **Network** section: remembered hosts paint immediately; async discovery (~20s budget) without blocking browse.
+- Settings → **Network**: Automatic (default every **5** minutes) or Manual rediscovery; Discover now; Map / Disconnect.
+- Disconnected **mapped letters** stay under Drives; click reconnects via `WNetAddConnection2W` (no need to open Explorer first).
+- UNC `\\server` / shares; Map / Disconnect via native WNet dialogs.
 
-### NTFS Alternate Data Streams (D38)
-Opt-in Details column **Alternate streams**, ADS Manager dialog, and `ads:*` IPC — list / read / write / delete / copy streams without slowing every folder listing.
+### Settings export / import (D45)
+Settings → Advanced → **Export…** / **Import…** — portable JSON of all preferences (theme, named layouts, folder views, slideshow, context menu, network discovery, remembered hosts, …). Excludes main-window and dialog geometry. Open tabs unchanged (apply a named layout to restore a workspace).
 
-### Richer previews
-- **`.chm`** — Contents TOC + sandboxed topic HTML (D35)  
-- **`.ttf`** — in-pane font sample (D36)  
-- **Archives** — list-only trees for 7z / RAR / TAR(.GZ) / APK / MSI / ISO / IMG alongside ZIP / Unity  
-
-### Compress & workspace polish
-- **Compress to ZIP** streams via bundled **7za** (real `%` progress; Cancel kills the helper)  
-- Empty multi-pane slots: **Open Computer** / **Browse…** (drag-tab still works)  
-- Context submenu hover delay + gap bridge (Hide from view, etc.)  
-- Layout switcher is a compact toolbar dropdown; shell-icon extract stays background-queued  
+### Explorer-parity polish
+- **Open Command Line here** on folders (tree / list / empty pane) — visible Windows Terminal / PowerShell / cmd; **Shift+click** = Administrator (UAC).
+- Context **Add** submenu uses the same shell type icons as toolbar **+ New**.
+- Export/import action card wraps so Import is never clipped.
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer Setup 0.5.0.exe` (or your updates-folder installer).
-2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged from 0.4.x — reinstall does not wipe them).
+1. Run `MyFileExplorer Setup 0.6.0.exe` (or your updates-folder installer).
+2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged — reinstall does not wipe them).
 
 ## Upgrade notes
 
-- Fully quit and relaunch after upgrade (new settings keys get Zod defaults).
-- Slideshow UI stays **off** until Settings → Slideshow → **Enable slideshow UI**.
-- Re-run **Update Lists** on compiled-list roots after upgrade if you still have old `.txt` Index ADS — play no longer reads them; only `.dat` Index matters.
-- ADS column is opt-in under Details column picker (Windows / NTFS only).
+- Fully quit and relaunch after upgrade (new `networkDiscovery` settings get Zod defaults: auto / 5 minutes).
+- Export a settings backup before major machine moves (D45).
+- Mapped-drive reconnect no longer depends on `WNetRestoreConnectionW` (often absent on current Windows).

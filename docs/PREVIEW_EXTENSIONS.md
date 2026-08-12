@@ -1,6 +1,6 @@
 # Preview pane — supported extensions
 
-**Version:** 0.5.0  
+**Version:** 0.6.0  
 **Source of truth:** extension sets in [`src/main/preview/index.ts`](../src/main/preview/index.ts) (plus CHM / video helpers). Behavior detail: [PREVIEW.md](PREVIEW.md).
 
 Selecting a file shows a type-appropriate preview above the file details strip. Extensions are matched case-insensitively on the final path segment (no leading dot in the tables below).

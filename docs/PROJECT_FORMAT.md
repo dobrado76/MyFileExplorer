@@ -1,6 +1,6 @@
 # Project / app data format
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 
 MyFileExplorer browses the **real filesystem**. App-owned state lives only under Electron **`userData`** — always **`%APPDATA%\MyFileExplorer`** for both `npm run dev` and packaged installs (D17). Optional overrides: `MFE_USER_DATA`, or `MFE_ISOLATED_USER_DATA=1` for a repo-local `.dev-user-data/`.
 
@@ -12,15 +12,18 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
 
 ```
 %APPDATA%/MyFileExplorer/
-  settings.json          # theme, font, behavior, search excludes
+  settings.json          # theme, font, behavior, search excludes, named layouts, …
   session.json           # tabs, active tab, splitter sizes, preview collapsed
-  window-state.json      # x, y, width, height, maximized
+  window-state.json      # x, y, width, height, maximized (not included in Settings export)
+  network-hosts.json     # remembered LAN hosts (included in Settings export envelope)
   search-index.sqlite    # FTS index + indexed roots registry
   thumbs/                # thumbnail cache files
   image-originals/       # legacy D27 backups (migrated to VER_* ADS on ready; may be empty)
   shell-icons/           # Windows shell icon cache
   logs/                  # optional main log files
 ```
+
+**Settings export / import (D45):** Settings → Advanced writes a portable JSON envelope (`format: "myfileexplorer-settings"`) with the **full** `settingsSchema` document (dialog bounds nulled) plus `networkHosts`. **Any new preference must be added to `settingsSchema` (or a nested object already under it)** so it round-trips — there is no separate export allowlist. It does **not** include `window-state.json` or live `session.json` (open tabs). Import replaces `settings.json` (and hosts when present). A raw `settings.json` file is also accepted.
 
 Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and install stay aligned.
 
@@ -56,6 +59,7 @@ Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow
   "fontSizePx": 13,
   "iconSizePx": 20,
   "foldersFirst": true,
+  "itemCheckboxes": false,
   "defaultNewTabPath": "",
   "confirmPermanentDeleteAlways": false,
   "previewVisibleDefault": true,

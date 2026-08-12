@@ -22,15 +22,39 @@ import {
   slideshowSettingsSchema
 } from './slideshow'
 import {
+  defaultNetworkDiscoverySettings,
+  networkDiscoverySettingsSchema
+} from './networkDiscovery'
+import {
   MAX_CONTEXT_MENU_COMMANDS,
   type ContextMenuCommand
 } from '../contextMenuCommands'
+import { sanitizeHiddenBuiltins, type ContextMenuBuiltinId } from '../contextMenuBuiltins'
+import { DEFAULT_UPDATES_SOURCE } from '../updatesSource'
+
+/** Settings → Appearance font size (px). */
+export const FONT_SIZE_PX_MIN = 9
+export const FONT_SIZE_PX_MAX = 28
+/** Settings → Appearance chrome / toolbar icon size (px). */
+export const ICON_SIZE_PX_MIN = 12
+export const ICON_SIZE_PX_MAX = 40
 
 export type { DetailsColumnId } from './columns'
 export type { FolderView } from '../folderViews'
 export type { WorkspaceLayout } from '../layouts'
 export type { SlideshowSettings, SlideshowOrder } from './slideshow'
+export type {
+  NetworkDiscoverySettings,
+  NetworkDiscoveryMode
+} from './networkDiscovery'
 export type { ContextMenuCommand, ContextMenuCommandMatch } from '../contextMenuCommands'
+export type { ContextMenuBuiltinId } from '../contextMenuBuiltins'
+export {
+  NETWORK_DISCOVERY_INTERVAL_MIN_MINUTES,
+  NETWORK_DISCOVERY_INTERVAL_MAX_MINUTES,
+  NETWORK_DISCOVERY_INTERVAL_DEFAULT_MINUTES,
+  networkDiscoveryIntervalMs
+} from './networkDiscovery'
 
 export const themeModeSchema = z.enum(['dark', 'light', 'custom'])
 export type ThemeMode = z.infer<typeof themeModeSchema>
@@ -106,14 +130,21 @@ export const contextMenuSettingsSchema = z.object({
   folders: z.preprocess(
     sanitizeContextMenuCommands,
     z.array(contextMenuCommandSchema).max(MAX_CONTEXT_MENU_COMMANDS).catch([])
-  )
+  ),
+  /** Built-in verb ids the user turned off (missing ⇒ shown). */
+  hiddenBuiltins: z.preprocess(sanitizeHiddenBuiltins, z.array(z.string()).catch([]))
 })
 
-export type ContextMenuSettings = z.infer<typeof contextMenuSettingsSchema>
+export type ContextMenuSettings = {
+  files: ContextMenuCommand[]
+  folders: ContextMenuCommand[]
+  hiddenBuiltins: ContextMenuBuiltinId[]
+}
 
 export const defaultContextMenuSettings: ContextMenuSettings = {
   files: [],
-  folders: []
+  folders: [],
+  hiddenBuiltins: []
 }
 
 function sanitizeDetailsColumns(raw: unknown): { id: string; width: number }[] {
@@ -153,9 +184,14 @@ export const settingsSchema = z.object({
   theme: themeModeSchema.catch('dark'),
   customTheme: customThemeSchema.catch(defaultCustomTheme),
   fontFamily: z.string().catch('Segoe UI'),
-  fontSizePx: z.number().min(9).max(28).catch(13),
-  iconSizePx: z.number().min(12).max(40).catch(20),
+  fontSizePx: z.number().min(FONT_SIZE_PX_MIN).max(FONT_SIZE_PX_MAX).catch(13),
+  iconSizePx: z.number().min(ICON_SIZE_PX_MIN).max(ICON_SIZE_PX_MAX).catch(20),
   foldersFirst: z.boolean().catch(true),
+  /**
+   * Explorer-style item checkboxes in the file view (toggle selection without Ctrl).
+   * Off by default.
+   */
+  itemCheckboxes: z.boolean().catch(false),
   defaultNewTabPath: z.string().catch(''),
   confirmPermanentDeleteAlways: z.boolean().catch(false),
   previewVisibleDefault: z.boolean().catch(true),
@@ -270,7 +306,7 @@ export const settingsSchema = z.object({
   quickAccessPins: z.array(z.string()).catch([]),
   /** @deprecated Migrated into `quickAccess` on edit. */
   quickAccessHiddenDefaults: z.array(z.string()).catch([]),
-  /** Folder scanned for `MyFileExplorer Setup x.y.z.exe` installers. */
+  /** Local folder or GitHub Releases URL for installer updates. */
   updatesFolder: z.string().catch(''),
   /**
    * Chromium GPU compositing off (Electron `app.disableHardwareAcceleration`).
@@ -288,6 +324,11 @@ export const settingsSchema = z.object({
     if (!raw || typeof raw !== 'object') return defaultSlideshowSettings
     return { ...defaultSlideshowSettings, ...(raw as object) }
   }, slideshowSettingsSchema),
+  /** LAN neighborhood discovery (tree Network section). */
+  networkDiscovery: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultNetworkDiscoverySettings
+    return { ...defaultNetworkDiscoverySettings, ...(raw as object) }
+  }, networkDiscoverySettingsSchema),
   /** Last ADS Manager dialog geometry (null = centered defaults). */
   adsManagerBounds: z
     .object({
@@ -295,6 +336,17 @@ export const settingsSchema = z.object({
       y: z.number(),
       width: z.number().min(320).max(10000),
       height: z.number().min(240).max(10000)
+    })
+    .nullable()
+    .catch(null),
+  /** Last Power Rename dialog geometry (null = centered defaults). */
+  powerRenameBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(480).max(10000),
+      height: z.number().min(360).max(10000),
+      maximized: z.boolean().catch(false)
     })
     .nullable()
     .catch(null),
@@ -309,14 +361,15 @@ export const settingsSchema = z.object({
     .nullable()
     .catch(null),
   /**
-   * User-defined external context-menu commands (D41). Built-in items stay fixed.
+   * User-defined external context-menu commands + optional hidden built-ins (D41).
    */
   contextMenu: z.preprocess((raw) => {
     if (!raw || typeof raw !== 'object') return defaultContextMenuSettings
-    const o = raw as { files?: unknown; folders?: unknown }
+    const o = raw as { files?: unknown; folders?: unknown; hiddenBuiltins?: unknown }
     return {
       files: sanitizeContextMenuCommands(o.files),
-      folders: sanitizeContextMenuCommands(o.folders)
+      folders: sanitizeContextMenuCommands(o.folders),
+      hiddenBuiltins: sanitizeHiddenBuiltins(o.hiddenBuiltins)
     }
   }, contextMenuSettingsSchema)
 })
@@ -332,6 +385,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   fontSizePx: 13,
   iconSizePx: 20,
   foldersFirst: true,
+  itemCheckboxes: false,
   defaultNewTabPath: '',
   confirmPermanentDeleteAlways: false,
   previewVisibleDefault: true,
@@ -359,11 +413,13 @@ export const defaultSettings: Settings = settingsSchema.parse({
   quickAccess: [],
   quickAccessPins: [],
   quickAccessHiddenDefaults: [],
-  updatesFolder: '',
+  updatesFolder: DEFAULT_UPDATES_SOURCE,
   disableHardwareAcceleration: false,
   slideshowFeaturesEnabled: false,
   slideshow: defaultSlideshowSettings,
+  networkDiscovery: defaultNetworkDiscoverySettings,
   adsManagerBounds: null,
+  powerRenameBounds: null,
   compiledListsWindowBounds: null,
   contextMenu: defaultContextMenuSettings
 })
@@ -373,6 +429,7 @@ export const settingsPatchSchema = settingsSchema
   .omit({ version: true })
   .extend({
     slideshow: slideshowSettingsSchema.partial().optional(),
+    networkDiscovery: networkDiscoverySettingsSchema.partial().optional(),
     contextMenu: contextMenuSettingsSchema.partial().optional()
   })
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

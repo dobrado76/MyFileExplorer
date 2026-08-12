@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState, type CSSProperties, type JSX } fr
 import { api } from '../lib/ipc'
 import { FileIcon, FolderIcon } from '../lib/icons'
 import { withIconRequestSlot } from '../lib/iconRequestQueue'
+import { useAppStore } from '../store/appStore'
 
 const memoryCache = new Map<string, string>()
 /** Same glyph for every file of an extension (matches main's extUrlCache). */
@@ -42,6 +43,34 @@ function extOf(filePath: string): string {
   return d > 0 ? base.slice(d + 1).toLowerCase() : ''
 }
 
+/** Dropbox / OneDrive / mapped letters — rich icon loads async after a placeholder. */
+function pathNeedsDeferredRichIcon(
+  filePath: string,
+  isDir: boolean | undefined,
+  drives: { path: string; driveType?: string; offline?: boolean }[]
+): boolean {
+  if (isDir !== true) return false
+  const n = filePath.replace(/\//g, '\\')
+  if (n.startsWith('\\\\')) return true
+  if (/(?:^|\\)(Dropbox|OneDrive|Google Drive|iCloud Drive)(?:\\|$)/i.test(n)) return true
+  const m = /^([a-zA-Z]:)/i.exec(n)
+  if (!m) return false
+  const root = `${m[1]!.toUpperCase()}\\`
+  const d = drives.find((x) => x.path.toUpperCase() === root)
+  return d?.driveType === 'remote' || d?.offline === true
+}
+
+/** Drop in-memory glyphs for a path and tell mounted ShellIcons to re-fetch. */
+export function invalidateShellIconPath(filePath: string): void {
+  const lower = filePath.toLowerCase()
+  for (const k of [...memoryCache.keys()]) {
+    if (k.startsWith(`${lower}|`)) memoryCache.delete(k)
+  }
+  window.dispatchEvent(
+    new CustomEvent('mfe-shell-icon-invalidate', { detail: { path: lower } })
+  )
+}
+
 function cachedUrl(key: string, extKey: string | null): string | null {
   const hit = memoryCache.get(key)
   if (hit !== undefined) return hit
@@ -52,8 +81,13 @@ function cachedUrl(key: string, extKey: string | null): string | null {
 /**
  * Native Windows shell icon for a path (SHGetFileInfo via main).
  * Falls back to a simple SVG while loading or if the shell icon fails.
+ *
+ * Dropbox / mapped-drive folders: show a type icon immediately, then upgrade to
+ * the rich shell glyph when the off-thread worker finishes (does not freeze UI).
  */
 export function ShellIcon({ path, size, isDir, className, renaming }: Props): JSX.Element {
+  const drives = useAppStore((s) => s.drives)
+  const deferred = pathNeedsDeferredRichIcon(path, isDir, drives)
   const px = size <= 20 ? 16 : 32
   // Include kind in the key so a poisoned file glyph can't stick on a folder path.
   const key = `${path.toLowerCase()}|${px}|${isDir ? 'd' : 'f'}`
@@ -74,6 +108,14 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     return true
   }
 
+  const applyUrl = (next: string): void => {
+    if (memoryCache.size > MAX_CACHE) memoryCache.clear()
+    memoryCache.set(key, next)
+    if (extKey && isDir !== true) extMemoryCache.set(extKey, next)
+    setUrl(next)
+    setFailed(false)
+  }
+
   // Cancel / same-name commit: no listing refresh — pull the glyph back from cache.
   useLayoutEffect(() => {
     if (renaming) return
@@ -85,32 +127,83 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     let alive = true
     if (restoreFromCache()) return
 
-    // Keep any existing glyph visible while a new fetch runs (do not flash blank).
     setFailed(false)
     const perFile = isDir === true || PER_FILE_EXTS.has(ext)
+
     const request = async (): Promise<void> => {
       if (!alive) return
-      const res = await api.icons.get({ path, size, isDir: isDir === true })
+      // Deferred paths: placeholder first (fast), then rich upgrade off-thread.
+      const first = await api.icons.get({
+        path,
+        size,
+        isDir: isDir === true,
+        fast: deferred === true
+      })
       if (!alive) return
-      if (res.ok && res.value.url) {
-        if (memoryCache.size > MAX_CACHE) memoryCache.clear()
-        memoryCache.set(key, res.value.url)
-        // Never put folder icons into the shared extension cache.
-        if (extKey && isDir !== true) extMemoryCache.set(extKey, res.value.url)
-        setUrl(res.value.url)
-        setFailed(false)
+      if (first.ok && first.value.url) {
+        applyUrl(first.value.url)
       } else if (!cachedUrl(key, extKey)) {
         setFailed(true)
       }
+
+      if (!alive) return
+      if (deferred && first.ok && first.value.pendingRich) {
+        const rich = await api.icons.get({
+          path,
+          size,
+          isDir: isDir === true,
+          fast: false
+        })
+        if (!alive) return
+        if (rich.ok && rich.value.url) applyUrl(rich.value.url)
+      }
     }
-    // Per-file shell icons (esp. .exe) are expensive — throttle IPC flood.
-    void (perFile ? withIconRequestSlot(request) : request())
+
+    void (perFile && !deferred ? withIconRequestSlot(request) : request())
     return () => {
       alive = false
     }
-    // restoreFromCache closes over key/extKey; deps cover those.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, path, size, extKey, isDir, ext])
+  }, [key, path, size, extKey, isDir, ext, deferred])
+
+  useEffect(() => {
+    const onInvalidate = (ev: Event): void => {
+      const detail = (ev as CustomEvent<{ path?: string }>).detail
+      const target = detail?.path
+      if (!target || path.toLowerCase() !== target) return
+      memoryCache.delete(key)
+      setUrl(null)
+      setFailed(false)
+      void (async () => {
+        const res = await api.icons.get({
+          path,
+          size,
+          isDir: isDir === true,
+          fast: deferred === true
+        })
+        if (res.ok && res.value.url) {
+          memoryCache.set(key, res.value.url)
+          setUrl(res.value.url)
+          if (deferred && res.value.pendingRich) {
+            const rich = await api.icons.get({
+              path,
+              size,
+              isDir: isDir === true,
+              fast: false
+            })
+            if (rich.ok && rich.value.url) {
+              memoryCache.set(key, rich.value.url)
+              setUrl(rich.value.url)
+            }
+          }
+        } else {
+          setFailed(true)
+        }
+      })()
+    }
+    window.addEventListener('mfe-shell-icon-invalidate', onInvalidate)
+    return () => window.removeEventListener('mfe-shell-icon-invalidate', onInvalidate)
+  }, [key, path, size, isDir, deferred])
 
   const cls = `shell-icon${className ? ` ${className}` : ''}`
   const box: CSSProperties = {

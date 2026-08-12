@@ -28,6 +28,8 @@ import type { Settings, SettingsPatch } from '../schemas/settings'
 import type {
   PreviewChmTopicRequest,
   PreviewEnsurePlayableRequest,
+  PreviewMediaMetaRequest,
+  PreviewMediaMetaResponse,
   PreviewModel,
   PreviewRequest
 } from '../schemas/preview'
@@ -87,6 +89,8 @@ export type MyFileExplorerApi = {
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
     setAttributes(req: SetAttributesRequest): Promise<Result<SetAttributesResponse>>
+    /** Custom folder icon via desktop.ini + Folder.ico. */
+    setFolderIcon(req: { path: string; iconPath: string }): Promise<Result<{ path: string }>>
     /** Save Filerobot output as tip ADS (`VER_n`); `$DATA` stays pristine original. */
     saveEditedImage(req: {
       path: string
@@ -124,6 +128,8 @@ export type MyFileExplorerApi = {
   shell: {
     openPath(req: PathRequest): Promise<Result<{ opened: boolean; message?: string }>>
     showItemInFolder(req: PathRequest): Promise<Result<{ shown: true }>>
+    /** Open Windows Terminal / PowerShell / cmd in a folder. Shift = elevated. */
+    openCommandLine(req: PathRequest & { elevated?: boolean }): Promise<Result<{ opened: true }>>
     /** Open Explorer’s property sheet (NTFS Security, Sharing, etc.). */
     showProperties(req: PathRequest): Promise<Result<{ shown: true }>>
     /** Open the Windows Recycle Bin in system Explorer (legacy fallback). */
@@ -151,10 +157,16 @@ export type MyFileExplorerApi = {
     get(): Promise<Result<Settings>>
     set(patch: SettingsPatch): Promise<Result<Settings>>
     clearThumbCache(): Promise<Result<{ cleared: true }>>
+    exportFile(): Promise<Result<{ saved: boolean; path?: string }>>
+    importFile(): Promise<
+      Result<{ imported: boolean; settings?: Settings; networkHostCount?: number }>
+    >
   }
   preview: {
     get(req: PreviewRequest): Promise<Result<PreviewModel>>
     ensurePlayable(req: PreviewEnsurePlayableRequest): Promise<Result<{ mediaUrl: string | null }>>
+    /** A/V duration/codecs/tags — call after get when `mediaMetaPending` (non-blocking for player). */
+    getMediaMeta(req: PreviewMediaMetaRequest): Promise<Result<PreviewMediaMetaResponse>>
     /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
     chmTopic(req: PreviewChmTopicRequest): Promise<Result<{ mediaUrl: string }>>
   }
@@ -191,7 +203,12 @@ export type MyFileExplorerApi = {
       size: number
       /** Pass true for directories so they never reuse a file-extension glyph. */
       isDir?: boolean
-    }): Promise<Result<{ url: string | null }>>
+      /**
+       * Deferred paths (Dropbox / mapped drives): return a type icon immediately
+       * and set `pendingRich` so the client can upgrade via a second call.
+       */
+      fast?: boolean
+    }): Promise<Result<{ url: string | null; pendingRich?: boolean }>>
   }
   meta: {
     /** Batch column metadata (image / A/V / generation fields / ADS). */
@@ -217,19 +234,25 @@ export type MyFileExplorerApi = {
     /** Tell main the UI is ready for queued external-open requests. */
     ready(): Promise<Result<{ ok: true }>>
     getVersion(): Promise<Result<{ version: string }>>
-    checkUpdate(req: { folder: string }): Promise<
+    checkUpdate(req: { source: string }): Promise<
       Result<{
         candidate: {
           path: string
+          downloadUrl?: string
           fileName: string
           version: string | null
           newer: boolean
           currentVersion: string
+          sourceKind: 'folder' | 'url'
         } | null
       }>
     >
-    /** Launch installer from the updates folder, then quit the app. */
-    runUpdate(req: { path: string; folder: string }): Promise<Result<{ launched: true }>>
+    /** Launch installer (local path or download from GitHub), then quit the app. */
+    runUpdate(req: {
+      path: string
+      source: string
+      downloadUrl?: string
+    }): Promise<Result<{ launched: true }>>
   }
   slideshow: {
     listImages(req: SlideshowListRequest): Promise<Result<{ paths: string[]; truncated?: boolean }>>
@@ -364,6 +387,22 @@ export type MyFileExplorerApi = {
       dest: string
       ignoreNames?: string[]
     }): Promise<Result<{ copied: number }>>
+  }
+  network: {
+    startDiscovery(): Promise<Result<{ generation: number }>>
+    cancelDiscovery(): Promise<Result<{ cancelled: boolean }>>
+    listShares(req: { server: string }): Promise<
+      Result<{ shares: { name: string; unc: string; remark?: string }[] }>
+    >
+    mapDriveDialog(): Promise<Result<{ opened: boolean; result: number }>>
+    disconnectDriveDialog(): Promise<Result<{ opened: boolean; result: number }>>
+    /** Disconnect + forget one mapped letter (`N:`). */
+    disconnectMappedDrive(req: {
+      path: string
+      force?: boolean
+    }): Promise<Result<{ disconnected: true; letter: string; remotePath?: string }>>
+    /** Local PC name for Settings → “Show local computer …”. */
+    localComputerName(): Promise<Result<{ name: string }>>
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

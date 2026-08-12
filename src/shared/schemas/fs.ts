@@ -125,6 +125,15 @@ export type DriveInfo = {
   label: string
   /** Editable volume label only (empty when unnamed). */
   volumeName: string
+  /** From GetDriveTypeW — used for mapped-letter Disconnect, etc. */
+  driveType?: 'fixed' | 'removable' | 'remote' | 'cdrom' | 'ramdisk' | 'unknown'
+  /**
+   * Mapped network letter that is currently disconnected (red X in Explorer).
+   * Still listed so the user can click to reconnect without opening Explorer first.
+   */
+  offline?: boolean
+  /** UNC target for mapped letters when known (`\\server\share`). */
+  remotePath?: string
 }
 
 export const setVolumeLabelRequestSchema = z.object({

@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.5.0** — Phases 0–10 shipped; slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); CHM/font & archive previews; Everything-parity search (D34). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.6.0** — Phases 0–10 shipped; Network neighborhood & mapped-drive reconnect (D44/D3); settings export/import (D45); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -50,14 +50,16 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
 | [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)                   | Deferred bonus: FTP/SFTP remotes (not scheduled) |
 | [docs/SLIDESHOW.md](docs/SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
+| [docs/Networks.md](docs/Networks.md)                       | Network neighborhood & mapped drives (D44) |
+| [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
 ## Immediate next work
 
-1. Manual acceptance pass against the PRODUCT_SPEC checklist (esp. slideshow / ADS / search)
+1. Manual acceptance pass against the PRODUCT_SPEC checklist (esp. Network / mapped drives / settings export)
 2. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
-3. Share / soak-test v0.5.0; gather friend feedback
+3. Share / soak-test v0.6.0; gather friend feedback
 
 ## Agent rules
 

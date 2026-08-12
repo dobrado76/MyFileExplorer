@@ -40,11 +40,15 @@ describe('segmentsOf', () => {
       { label: 'x', path: 'C:\\Users\\x' }
     ])
   })
-  it('builds UNC segments', () => {
+  it('builds UNC segments including the host', () => {
     expect(segmentsOf('\\\\srv\\share\\sub')).toEqual([
-      { label: '\\\\srv\\share', path: '\\\\srv\\share' },
+      { label: 'srv', path: '\\\\srv' },
+      { label: 'share', path: '\\\\srv\\share' },
       { label: 'sub', path: '\\\\srv\\share\\sub' }
     ])
+  })
+  it('builds a single segment for bare UNC hosts', () => {
+    expect(segmentsOf('\\\\newonyx')).toEqual([{ label: 'newonyx', path: '\\\\newonyx' }])
   })
 })
 
@@ -54,14 +58,24 @@ describe('parentOf / basename / roots', () => {
     expect(parentOf('C:\\Users')).toBe('C:\\')
     expect(parentOf('C:\\')).toBeNull()
   })
+  it('walks from share up to UNC host', () => {
+    expect(parentOf('\\\\srv\\share\\sub')).toBe('\\\\srv\\share')
+    expect(parentOf('\\\\srv\\share')).toBe('\\\\srv')
+    expect(parentOf('\\\\srv')).toBeNull()
+  })
   it('basename of root is the drive', () => {
     expect(basename('C:\\')).toBe('C:')
     expect(basename('C:\\Users\\x.txt')).toBe('x.txt')
+    expect(basename('\\\\srv\\share')).toBe('share')
   })
   it('detects roots', () => {
     expect(isRootPath('C:\\')).toBe(true)
     expect(isRootPath('C:\\Users')).toBe(false)
     expect(rootOf('C:\\Users\\x')).toBe('C:\\')
+    expect(isRootPath('\\\\srv')).toBe(true)
+    expect(isRootPath('\\\\srv\\share')).toBe(false)
+    expect(rootOf('\\\\srv\\share\\x')).toBe('\\\\srv\\share')
+    expect(rootOf('\\\\srv')).toBe('\\\\srv')
   })
   it('samePath tolerates separator noise and case', () => {
     expect(samePath('C:\\\\Users', 'c:/users/')).toBe(true)
@@ -69,6 +83,7 @@ describe('parentOf / basename / roots', () => {
   it('looksAbsolute accepts drive and UNC forms', () => {
     expect(looksAbsolute('C:\\x')).toBe(true)
     expect(looksAbsolute('\\\\srv\\share')).toBe(true)
+    expect(looksAbsolute('\\\\srv')).toBe(true)
     expect(looksAbsolute('relative\\x')).toBe(false)
   })
 })

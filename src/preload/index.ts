@@ -39,6 +39,7 @@ const api: MyFileExplorerApi = {
     properties: invoke(IPC.fsProperties),
     measureFolder: invoke(IPC.fsMeasureFolder),
     setAttributes: invoke(IPC.fsSetAttributes),
+    setFolderIcon: invoke(IPC.fsSetFolderIcon),
     saveEditedImage: invoke(IPC.fsSaveEditedImage),
     imageEditState: invoke(IPC.fsImageEditState),
     hasImageOriginal: invoke(IPC.fsHasImageOriginal),
@@ -52,6 +53,7 @@ const api: MyFileExplorerApi = {
   shell: {
     openPath: invoke(IPC.shellOpenPath),
     showItemInFolder: invoke(IPC.shellShowItemInFolder),
+    openCommandLine: invoke(IPC.shellOpenCommandLine),
     showProperties: invoke(IPC.shellShowProperties),
     openRecycleBin: invokeVoid(IPC.shellOpenRecycleBin),
     exec: invoke(IPC.shellExec),
@@ -71,11 +73,14 @@ const api: MyFileExplorerApi = {
   settings: {
     get: invokeVoid(IPC.settingsGet),
     set: invoke(IPC.settingsSet),
-    clearThumbCache: invokeVoid(IPC.settingsClearThumbCache)
+    clearThumbCache: invokeVoid(IPC.settingsClearThumbCache),
+    exportFile: invokeVoid(IPC.settingsExport),
+    importFile: invokeVoid(IPC.settingsImport)
   },
   preview: {
     get: invoke(IPC.previewGet),
     ensurePlayable: invoke(IPC.previewEnsurePlayable),
+    getMediaMeta: invoke(IPC.previewGetMediaMeta),
     chmTopic: invoke(IPC.previewChmTopic)
   },
   search: {
@@ -141,6 +146,15 @@ const api: MyFileExplorerApi = {
     readBytes: invoke(IPC.adsReadBytes),
     writeBytes: invoke(IPC.adsWriteBytes),
     copy: invoke(IPC.adsCopy)
+  },
+  network: {
+    startDiscovery: invokeVoid(IPC.networkStartDiscovery),
+    cancelDiscovery: invokeVoid(IPC.networkCancelDiscovery),
+    listShares: invoke(IPC.networkListShares),
+    mapDriveDialog: invokeVoid(IPC.networkMapDriveDialog),
+    disconnectDriveDialog: invokeVoid(IPC.networkDisconnectDriveDialog),
+    disconnectMappedDrive: invoke(IPC.networkDisconnectMappedDrive),
+    localComputerName: invokeVoid(IPC.networkLocalComputerName)
   },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)

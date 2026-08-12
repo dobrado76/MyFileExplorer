@@ -30,6 +30,8 @@ export const IPC = {
   fsProperties: 'fs:properties',
   fsMeasureFolder: 'fs:measureFolder',
   fsSetAttributes: 'fs:setAttributes',
+  /** Write desktop.ini + Folder.ico for a custom folder glyph. */
+  fsSetFolderIcon: 'fs:setFolderIcon',
   fsSaveEditedImage: 'fs:saveEditedImage',
   fsImageEditState: 'fs:imageEditState',
   fsHasImageOriginal: 'fs:hasImageOriginal',
@@ -43,6 +45,8 @@ export const IPC = {
 
   shellOpenPath: 'shell:openPath',
   shellShowItemInFolder: 'shell:showItemInFolder',
+  /** Open wt / PowerShell / cmd in a folder. */
+  shellOpenCommandLine: 'shell:openCommandLine',
   /** Open the Windows Explorer property sheet (Security / Sharing / …). */
   shellShowProperties: 'shell:showProperties',
   shellOpenRecycleBin: 'shell:openRecycleBin',
@@ -59,10 +63,16 @@ export const IPC = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   settingsClearThumbCache: 'settings:clearThumbCache',
+  /** Save portable settings (+ remembered network hosts) via save dialog. */
+  settingsExport: 'settings:export',
+  /** Replace settings from an export file / settings.json via open dialog. */
+  settingsImport: 'settings:import',
 
   previewGet: 'preview:get',
   /** Remux MKV/etc. to playable MP4 under userData for in-pane `<video>`. */
   previewEnsurePlayable: 'preview:ensurePlayable',
+  /** Async A/V tag fields after fast preview:get (does not block mediaUrl). */
+  previewGetMediaMeta: 'preview:getMediaMeta',
   /** Resolve a `.chm` TOC topic to an mfe-media://chm/ URL for the preview iframe. */
   previewChmTopic: 'preview:chmTopic',
 
@@ -124,7 +134,18 @@ export const IPC = {
   adsDelete: 'ads:delete',
   adsReadBytes: 'ads:readBytes',
   adsWriteBytes: 'ads:writeBytes',
-  adsCopy: 'ads:copy'
+  adsCopy: 'ads:copy',
+
+  /** Network neighborhood (async discovery; native map/disconnect dialogs). */
+  networkStartDiscovery: 'network:startDiscovery',
+  networkCancelDiscovery: 'network:cancelDiscovery',
+  networkListShares: 'network:listShares',
+  networkMapDriveDialog: 'network:mapDriveDialog',
+  networkDisconnectDriveDialog: 'network:disconnectDriveDialog',
+  /** Disconnect + forget a specific mapped letter (WNetCancelConnection2). */
+  networkDisconnectMappedDrive: 'network:disconnectMappedDrive',
+  /** This PC’s display name for Settings → Network. */
+  networkLocalComputerName: 'network:localComputerName'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -222,5 +243,14 @@ export type MfeEvent =
         altKey: boolean
         shiftKey: boolean
         metaKey: boolean
+      }
+    }
+  | {
+      type: 'network-discovery'
+      payload: {
+        generation: number
+        status: 'running' | 'done' | 'error'
+        hosts?: { name: string; unc: string }[]
+        message?: string
       }
     }

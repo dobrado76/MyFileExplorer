@@ -1,6 +1,6 @@
 # UI design
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 
 Dark-first workbench aesthetic; light and custom themes via CSS variables. This is a **tool**, not a marketing site.
 
@@ -48,7 +48,7 @@ Custom theme = user-editable map of these tokens in settings.
 
 - **Icons modes:** CSS grid of cells; virtualized (`@tanstack/react-virtual` or equivalent)
 - **List / Details:** virtualized rows; details header clickable for sort
-- Selection: click, Ctrl, Shift range; marquee optional Phase 10
+- Selection: click, Ctrl, Shift range; marquee optional Phase 10; optional **item check boxes** (Settings → Behavior) for Ctrl-free multi-select
 - Rename: F2 / context, or **Explorer two-click** (select, pause, click name → rename immediately; double-click still opens / expands)
 - Focus ring for keyboard nav
 - Folder tree: ↑↓ move selection; ← collapse (or select parent); → expand (or select first child)

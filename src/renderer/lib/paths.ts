@@ -12,12 +12,13 @@ export function isUnc(p: string): boolean {
   return p.startsWith('\\\\')
 }
 
-/** "C:\" for drive paths, "\\server\share" for UNC, null otherwise. */
+/** "C:\" for drive paths, "\\server\share" for UNC share roots, "\\server" for hosts. */
 export function rootOf(p: string): string | null {
   const n = normalizeSlashes(p)
   if (isUnc(n)) {
     const parts = n.slice(2).split(SEP_RE).filter(Boolean)
     if (parts.length >= 2) return `\\\\${parts[0]}\\${parts[1]}`
+    if (parts.length === 1) return `\\\\${parts[0]}`
     return null
   }
   const m = /^([a-zA-Z]:)/.exec(n)
@@ -26,6 +27,11 @@ export function rootOf(p: string): string | null {
 
 export function isRootPath(p: string): boolean {
   const n = stripTrailingSep(normalizeSlashes(p))
+  if (isUnc(n)) {
+    // Share root is the filesystem root for browsing; host is also a stop.
+    const parts = n.slice(2).split(SEP_RE).filter(Boolean)
+    return parts.length === 1
+  }
   const root = rootOf(n)
   return root !== null && stripTrailingSep(root).toLowerCase() === n.toLowerCase()
 }
@@ -38,21 +44,27 @@ export function stripTrailingSep(p: string): string {
 export function basename(p: string): string {
   const n = stripTrailingSep(normalizeSlashes(p))
   if (/^[a-zA-Z]:\\?$/.test(n)) return n.slice(0, 2)
+  if (isUnc(n)) {
+    const parts = n.slice(2).split(SEP_RE).filter(Boolean)
+    return parts[parts.length - 1] ?? n
+  }
   const parts = n.split(SEP_RE).filter(Boolean)
   return parts[parts.length - 1] ?? n
 }
 
 export function parentOf(p: string): string | null {
   const n = stripTrailingSep(normalizeSlashes(p))
+  if (isUnc(n)) {
+    const parts = n.slice(2).split(SEP_RE).filter(Boolean)
+    if (parts.length <= 1) return null
+    if (parts.length === 2) return `\\\\${parts[0]}`
+    return `\\\\${parts.slice(0, -1).join('\\')}`
+  }
   if (isRootPath(n)) return null
   const idx = n.lastIndexOf('\\')
   if (idx < 0) return null
   const parent = n.slice(0, idx)
   if (/^[a-zA-Z]:$/.test(parent)) return parent + '\\'
-  if (isUnc(n)) {
-    const root = rootOf(n)
-    if (root && parent.length < root.length) return null
-  }
   return parent
 }
 
@@ -67,14 +79,13 @@ export function segmentsOf(p: string): Segment[] {
   const n = stripTrailingSep(normalizeSlashes(p))
   const segments: Segment[] = []
   if (isUnc(n)) {
-    const root = rootOf(n)
-    if (!root) return [{ label: n, path: n }]
-    segments.push({ label: root, path: root })
-    const rest = n.slice(root.length).split(SEP_RE).filter(Boolean)
-    let acc = root
-    for (const part of rest) {
-      acc = `${acc}\\${part}`
-      segments.push({ label: part, path: acc })
+    const parts = n.slice(2).split(SEP_RE).filter(Boolean)
+    if (parts.length === 0) return [{ label: n, path: n }]
+    let acc = `\\\\${parts[0]}`
+    segments.push({ label: parts[0]!, path: acc })
+    for (let i = 1; i < parts.length; i++) {
+      acc = `${acc}\\${parts[i]}`
+      segments.push({ label: parts[i]!, path: acc })
     }
     return segments
   }

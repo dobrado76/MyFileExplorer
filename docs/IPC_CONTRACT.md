@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.5.0
+**Version:** 0.6.0
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 
@@ -36,7 +36,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:exists`          | `{ path }`                                       | `{ exists: boolean }`                         |
 | `fs:watch`           | `{ path }`                                       | `{ watching: true }` (main tracks per window) |
 | `fs:unwatch`         | `{ path }`                                       | `{ ok: true }`                                |
-| `fs:listDrives`      | —                                                | `{ drives: { path, label, volumeName }[] }`   |
+| `fs:listDrives`      | —                                                | `{ drives: { path, label, volumeName, driveType? }[] }`   |
 | `fs:setVolumeLabel`  | `{ path, name }` (drive root; `name` '' clears)  | `{ path, volumeName }`                         |
 | `fs:saveEditedImage` | `{ path, dataBase64 }`                           | `{ path, preservedOriginal, versionCount }` — tip ADS (D27) |
 | `fs:imageEditState`  | `{ path }`                                       | `{ versionCount, tipVer, hasVersions }`       |
@@ -57,6 +57,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | --------------------------- | ------------------------------- |
 | `shell:openPath`            | OS default open                 |
 | `shell:showItemInFolder`    | System Explorer select          |
+| `shell:openCommandLine`     | Open wt / PowerShell / cmd in folder |
 | `shell:showProperties`      | Open Explorer’s property sheet (`ShellExecute` “properties” verb) |
 | `shell:openRecycleBin`      | Legacy: open Windows Recycle Bin in Explorer (prefer in-app view) |
 | `shell:clipboardWriteFiles` | Cut/copy file list for OS paste |
@@ -78,6 +79,8 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `settings:get`             | Full settings   |
 | `settings:set`             | Patch settings  |
 | `settings:clearThumbCache` | Wipe thumbs dir |
+| `settings:export`          | Save-dialog portable settings + network hosts (D45) |
+| `settings:import`          | Open-dialog replace settings (+ hosts when present) |
 
 ### `preview.*`
 
@@ -133,6 +136,20 @@ Win32/NTFS only; soft-fail empty/false off-platform or on access errors. Paths v
 | `ads:writeBytes`  | `{ path, name, dataBase64 }` | `{ ok: true }` |
 | `ads:copy`        | `{ source, dest, ignoreNames? }` | `{ copied }` — copy named streams file↔file or dir↔dir |
 
+### `network.*` (LAN neighborhood — D44)
+
+Discovery runs in a worker thread; results arrive on `mfe-event` `network-discovery`. Map/Disconnect open native Windows dialogs.
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `network:startDiscovery` | — | `{ generation }` |
+| `network:cancelDiscovery` | — | `{ cancelled }` |
+| `network:listShares` | `{ server }` | `{ shares: { name, unc, remark? }[] }` — hides `$` shares |
+| `network:mapDriveDialog` | — | `{ opened, result }` |
+| `network:disconnectDriveDialog` | — | `{ opened, result }` |
+| `network:disconnectMappedDrive` | `{ path, force? }` | `{ disconnected, letter, remotePath? }` — cancel + forget persistent map |
+| `network:localComputerName` | — | `{ name }` — display name for Settings → Show local computer |
+
 ### `slideshow.*` (compiled lists — D39)
 
 | Channel | Request | Response |
@@ -185,7 +202,7 @@ window.myFileExplorer = {
   fs: { list, stat, mkdir, createFile, rename, copy, move, trash, deletePermanent, … },
   shell: { openPath, showItemInFolder, … },
   session: { get, set },
-  settings: { get, set, clearThumbCache },
+  settings: { get, set, clearThumbCache, exportFile, importFile },
   preview: { get },
   search: { query, addRoot, removeRoot, reindex, listRoots, cancel },
   thumbs: { get, generateVidCache },
@@ -197,4 +214,4 @@ window.myFileExplorer = {
 }
 ```
 
-`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history).
+`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history), `network-discovery` (D44).

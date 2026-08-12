@@ -1084,6 +1084,50 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [selectionForModifiers, setSelection]
   )
 
+  /** Checkbox click = Ctrl-toggle (additive select / deselect). */
+  const toggleItemCheckbox = useCallback(
+    (entry: DirEntry): void => {
+      const next = selectionForModifiers(entry, { ctrlKey: true, shiftKey: false })
+      setSelection(next.paths, next.anchor, next.focused)
+    },
+    [selectionForModifiers, setSelection]
+  )
+
+  const itemCheckboxes = settings.itemCheckboxes
+
+  const itemCheck = (entry: DirEntry, isSel: boolean): JSX.Element | null => {
+    if (!itemCheckboxes) return null
+    return (
+      <input
+        type="checkbox"
+        className="item-check"
+        checked={isSel}
+        tabIndex={-1}
+        aria-label={isSel ? `Deselect ${entry.name}` : `Select ${entry.name}`}
+        onPointerDown={(e) => {
+          // Toggle on press (not click): preventDefault on pointerdown would suppress
+          // the click event and force a second press to tick the box.
+          if (e.button !== 0) return
+          e.stopPropagation()
+          e.preventDefault()
+          toggleItemCheckbox(entry)
+          suppressClickRef.current = true
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+        }}
+        onClick={(e) => {
+          e.stopPropagation()
+          e.preventDefault()
+        }}
+        onChange={() => {
+          /* selection is the source of truth; toggled in pointerdown */
+        }}
+      />
+    )
+  }
+
   const highlightDropDest = useCallback(
     (dest: string | null): void => {
       setDropHighlight(dest)
@@ -1099,6 +1143,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const onItemPointerDown = useCallback(
     (entry: DirEntry, e: React.PointerEvent): void => {
       if (e.button !== 0 && e.button !== 2) return
+      // Checkbox owns its own toggle — don't treat as a row select/drag start.
+      if ((e.target as HTMLElement | null)?.closest?.('.item-check')) return
       if (renameSource === 'files' && renamingPath !== null && samePath(renamingPath, entry.path)) {
         return
       }
@@ -1225,6 +1271,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const onItemMouseDown = useCallback(
     (entry: DirEntry, e: React.MouseEvent): void => {
       if (e.button === 2) return // handled by onItemPointerDown
+      if ((e.target as HTMLElement | null)?.closest?.('.item-check')) return
       // Shift/Ctrl selection is applied in pointerdown so the same press can drag.
       if (e.ctrlKey || e.shiftKey) {
         suppressClickRef.current = true
@@ -1243,6 +1290,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const onItemClick = useCallback(
     (entry: DirEntry, e: React.MouseEvent): void => {
+      if ((e.target as HTMLElement | null)?.closest?.('.item-check')) {
+        suppressClickRef.current = false
+        return
+      }
       if (suppressClickRef.current || shouldSuppressClickAfterLeftDrag()) {
         suppressClickRef.current = false
         return
@@ -1547,7 +1598,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       )}
       <div
         ref={setScrollEl}
-        className={`fileview${isGrid ? ' fileview-icons' : ''}${overlayMode ? ' fileview-search' : ''}${bgDropActive ? ' drop-target' : ''}`}
+        className={`fileview${isGrid ? ' fileview-icons' : ''}${overlayMode ? ' fileview-search' : ''}${itemCheckboxes ? ' fileview-item-checks' : ''}${bgDropActive ? ' drop-target' : ''}`}
         data-drag-scroll
         onScroll={onScroll}
         tabIndex={0}
@@ -1650,6 +1701,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     onDrop={(e) => onItemDrop(entry, e)}
                     title={entry.name}
                   >
+                    {itemCheck(entry, isSel)}
                     <div className="cell-thumb">
                       {entry.kind === 'file' &&
                       !recycleMode &&
@@ -1732,6 +1784,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     viewMode === 'details' ? { width: nameColWidth, flex: '0 0 auto' } : undefined
                   }
                 >
+                  {itemCheck(entry, isSel)}
                   <ShellIcon
                     path={entry.path}
                     size={16}

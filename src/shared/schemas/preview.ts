@@ -76,6 +76,11 @@ export type PreviewModel = {
    */
   needsPlayable?: boolean
   /**
+   * When true, A/V tag fields (duration, codecs, …) are still loading via
+   * `preview.getMediaMeta` so the player can start without waiting on a full-file parse.
+   */
+  mediaMetaPending?: boolean
+  /**
    * `!VIDTHUMB_CACHE` strip frame URLs (e.g. `.avi` — no in-pane player; animate + Open).
    */
   stripFrames?: string[]
@@ -119,6 +124,19 @@ export const previewEnsurePlayableSchema = z.object({
   force: z.boolean().optional()
 })
 export type PreviewEnsurePlayableRequest = z.infer<typeof previewEnsurePlayableSchema>
+
+/** Async A/V tag fields after a fast `preview:get` (duration/codecs/cover). */
+export const previewMediaMetaSchema = z.object({
+  path: z.string().min(1)
+})
+export type PreviewMediaMetaRequest = z.infer<typeof previewMediaMetaSchema>
+
+export type PreviewMediaMetaResponse = {
+  fields: PreviewField[]
+  subtitle?: string
+  /** Embedded cover URL for audio only. */
+  coverUrl?: string
+}
 
 /** Load a topic HTML URL from a `.chm` after `preview:get`. */
 export const previewChmTopicSchema = z.object({

@@ -3,7 +3,7 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.5.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
+**v0.6.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
@@ -32,11 +32,13 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Multi-pane layouts (1 / 2 / 4) and named layouts you can switch in one click
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
+- **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/Networks.md](docs/Networks.md)**
+- Portable **settings export/import** (theme, layouts, everything except window position)
 
 **See what you’re looking at**
 - Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
 - **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
-- In-app image editor with Revert-to-original (backup stays in AppData, not next to your files)
+- In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 
 **Move files without the drama**
@@ -45,6 +47,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app Recycle Bin (restore / empty) — never forced into system Explorer
 - Undo / redo for the ops you expect (Ctrl+Z / Ctrl+Y)
 - Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
+- **Open Command Line here** (Shift = Administrator)
 
 **Find things on purpose**
 - **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), content scan, filters/bookmarks
@@ -85,8 +88,9 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
 6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
 7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box.
+8. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
 
-Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
+Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/Networks.md](docs/Networks.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ---
 
@@ -99,13 +103,14 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D39 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D45 |
+| **[docs/Networks.md](docs/Networks.md)** | Network neighborhood & mapped drives |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.5.0 summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.6.0 summary |
 
 ---
 
@@ -116,6 +121,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 - Multi-tab browsing with real session restore
 - Customizable theme and UI font
 - Dramatic search speed for folders (and drives) you choose to index — Everything-style queries
+- LAN + mapped drives without depending on Explorer for reconnect
 
 ## Non-goals (still)
 

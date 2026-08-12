@@ -58,6 +58,12 @@ function extOf(name: string): string {
   return e.startsWith('.') ? e.slice(1).toLowerCase() : e.toLowerCase()
 }
 
+/** Join under a dir without collapsing UNC `\\server` via path.join. */
+function joinUnder(dirPath: string, name: string): string {
+  const base = dirPath.replace(/[\\/]+$/, '')
+  return `${base}\\${name}`
+}
+
 /**
  * List a directory with FindFirstFileW. Returns null if the API fails so the
  * caller can fall back to readdir+stat.
@@ -84,7 +90,7 @@ export function listDirectoryWin32(dirPath: string, includeHidden: boolean): Dir
           const size = isDir ? 0 : sizeHigh * 0x1_0000_0000 + sizeLow
           entries.push({
             name,
-            path: path.join(dirPath, name),
+            path: joinUnder(dirPath, name),
             kind,
             size,
             mtimeMs: fileTimeToMs(buf, 20), // ftLastWriteTime

@@ -9,6 +9,29 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-12
+
+Sixth product release: Network neighborhood & mapped-drive reconnect, portable settings export/import, Open Command Line (incl. Admin). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [docs/Networks.md](docs/Networks.md).
+
+### Added
+
+- **Network neighborhood (D44)** — tree Network section; remembered hosts in `network-hosts.json`; async worker discovery (~20s); Settings → Network (auto/manual + interval); Map / Disconnect WNet dialogs; UNC host/share browsing. See [docs/Networks.md](docs/Networks.md).
+- **Mapped drive reconnect (D3)** — disconnected mapped letters stay under Drives; open/list restores via `WNetAddConnection2W` / interactive `WNetUseConnectionW`.
+- **Settings export / import (D45)** — Advanced → Export… / Import… portable JSON (prefs + remembered network hosts; no window geometry).
+- **Open Command Line here** — folder context menu; ShellExecute to Terminal / PowerShell / cmd; **Shift+click** elevated (UAC).
+- **Add submenu icons** — same shell probes as toolbar + New.
+- **docs/Networks.md** — network feature reference.
+
+### Changed
+
+- Network rediscovery defaults to **every 5 minutes** (configurable) instead of a 90s poll that felt permanently “discovering…”.
+- Docs / README / PLAN / ADVANTAGES / DECISIONS aligned to **v0.6.0** (through D45).
+
+### Fixed
+
+- Settings Export/Import action card no longer clips the Import button.
+- Command-line launch uses ShellExecute (visible window; WindowsApps `wt.exe` stub-safe).
+
 ## [0.5.0] - 2026-08-11
 
 Fifth product release: slideshow / categorizer + compiled lists, NTFS ADS tooling, deeper previews, ZIP/compress and multi-pane polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

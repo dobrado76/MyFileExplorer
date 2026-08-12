@@ -947,6 +947,10 @@ body.right-dragging * {
   opacity: 0.55;
   color: var(--text-dim);
 }
+.tree-node.drive-offline {
+  color: var(--text-dim);
+  font-style: italic;
+}
 .tree-node .twisty {
   display: flex;
   align-items: center;
@@ -986,6 +990,13 @@ body.right-dragging * {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 6px 8px 1px;
+  user-select: none;
+}
+.tree-section-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.85;
 }
 
 /* ---------- file view ---------- */
@@ -1270,6 +1281,32 @@ body.right-dragging * {
 }
 .row .row-name > .shell-icon {
   flex-shrink: 0;
+}
+.row .row-name > .item-check {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.fileview-item-checks.fileview-icons .grid-cell > .item-check {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  /* Visible when hovered or selected — Explorer-like */
+  opacity: 0;
+}
+.fileview-item-checks.fileview-icons .grid-cell:hover > .item-check,
+.fileview-item-checks.fileview-icons .grid-cell.selected > .item-check,
+.fileview-item-checks.fileview-icons .grid-cell.focused > .item-check {
+  opacity: 1;
 }
 .row .col {
   color: var(--text-dim);
@@ -2611,9 +2648,22 @@ body.right-dragging * {
 }
 .context-submenu .menu-item {
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+.context-submenu .menu-item .shell-icon,
+.context-submenu .menu-item .new-item-menu-glyph {
+  flex-shrink: 0;
+}
+.context-submenu .menu-item .new-item-menu-glyph {
+  color: var(--text-dim);
+}
+.context-submenu .menu-item .menu-item-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: block;
 }
 
 /* ---------- in-app image editor (Filerobot) ---------- */
@@ -3004,9 +3054,115 @@ html.idle-cursor-hidden * {
   min-width: 520px;
 }
 .modal.modal-power-rename {
-  width: min(920px, 96vw);
-  min-width: min(720px, 96vw);
+  /* Size/position set inline; defaults applied in PowerRenameDialog. */
+  position: fixed;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  min-width: 640px;
+  min-height: 420px;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal.modal-power-rename .modal-title {
+  cursor: move;
+  user-select: none;
+}
+.modal.modal-power-rename.is-maximized .modal-title {
+  cursor: default;
+}
+.modal.modal-power-rename .modal-title-chrome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 10px;
+}
+.modal.modal-power-rename .modal-title-text {
+  flex: 1;
+  min-width: 0;
+}
+.modal.modal-power-rename .modal-title-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.modal.modal-power-rename .modal-title-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.modal.modal-copy-move-to {
+  width: min(520px, 96vw);
+  min-width: min(420px, 96vw);
   max-height: 88vh;
+}
+.modal-body.modal-body-copy-move-to {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.copy-move-tree {
+  flex: 1;
+  min-height: 220px;
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  padding: 4px 0;
+}
+.copy-move-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 26px;
+}
+.copy-move-tree-row.selected {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+.copy-move-tree-twist {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 11px;
+  line-height: 1;
+}
+.copy-move-tree-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  padding: 2px 8px 2px 0;
+  font-size: 13px;
+}
+.copy-move-tree-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .modal-body.modal-body-power-rename {
   display: flex;
@@ -3672,61 +3828,70 @@ html.idle-cursor-hidden * {
   cursor: move;
   user-select: none;
 }
-.ads-resize-handle {
+.ads-resize-handle,
+.modal-resize-handle {
   position: absolute;
   z-index: 2;
   touch-action: none;
 }
-.ads-resize-handle.n {
+.ads-resize-handle.n,
+.modal-resize-handle.n {
   top: 0;
   left: 8px;
   right: 8px;
   height: 6px;
   cursor: ns-resize;
 }
-.ads-resize-handle.s {
+.ads-resize-handle.s,
+.modal-resize-handle.s {
   bottom: 0;
   left: 8px;
   right: 8px;
   height: 6px;
   cursor: ns-resize;
 }
-.ads-resize-handle.e {
+.ads-resize-handle.e,
+.modal-resize-handle.e {
   top: 8px;
   bottom: 8px;
   right: 0;
   width: 6px;
   cursor: ew-resize;
 }
-.ads-resize-handle.w {
+.ads-resize-handle.w,
+.modal-resize-handle.w {
   top: 8px;
   bottom: 8px;
   left: 0;
   width: 6px;
   cursor: ew-resize;
 }
-.ads-resize-handle.ne {
+.ads-resize-handle.ne,
+.modal-resize-handle.ne {
   top: 0;
   right: 0;
   width: 12px;
   height: 12px;
   cursor: nesw-resize;
 }
-.ads-resize-handle.nw {
+.ads-resize-handle.nw,
+.modal-resize-handle.nw {
   top: 0;
   left: 0;
   width: 12px;
   height: 12px;
   cursor: nwse-resize;
 }
-.ads-resize-handle.se {
+.ads-resize-handle.se,
+.modal-resize-handle.se {
   bottom: 0;
   right: 0;
   width: 14px;
   height: 14px;
   cursor: nwse-resize;
 }
-.ads-resize-handle.sw {
+.ads-resize-handle.sw,
+.modal-resize-handle.sw {
   bottom: 0;
   left: 0;
   width: 12px;
@@ -4296,6 +4461,7 @@ html.idle-cursor-hidden * {
 .settings-inline {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -4428,13 +4594,23 @@ html.idle-cursor-hidden * {
 }
 .settings-action-card {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px 16px;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
+}
+.settings-action-card > :first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.settings-action-card > .btn,
+.settings-action-card > .settings-inline {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
 }
 .settings-stack .filter-textarea {
   flex: 1;
@@ -4585,6 +4761,39 @@ html.idle-cursor-hidden * {
   border-radius: 6px;
   padding: 6px;
   background: var(--bg);
+}
+.context-menu-builtin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--bg);
+}
+.context-menu-builtin-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 13px;
+}
+.context-menu-builtin-row:last-child {
+  border-bottom: none;
+}
+.context-menu-builtin-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.context-menu-builtin-hint {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 .context-menu-empty {
   padding: 12px;

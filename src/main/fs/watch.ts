@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import type { WebContents } from 'electron'
 import { EVENT_CHANNEL } from '@shared/ipc/contract'
+import { isNetworkHostUnc } from '@shared/networkPaths'
 import { isSameOrUnder, pathKey } from '../security/paths'
 import { requireAbsolute } from './list'
 
@@ -34,6 +35,8 @@ export function isWatchingSuspended(): boolean {
 export function watchDirectory(wc: WebContents, rawPath: string): { watching: true } {
   if (watchSuspended) return { watching: true }
   const dir = requireAbsolute(rawPath)
+  // Bare `\\server` is not a real directory — fs.watch can fault on it.
+  if (isNetworkHostUnc(dir)) return { watching: true }
   const key = pathKey(dir)
   let byPath = watchers.get(wc.id)
   if (!byPath) {

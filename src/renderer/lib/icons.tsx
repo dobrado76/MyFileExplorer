@@ -1,15 +1,18 @@
+import { useAppStore } from '@renderer/store/appStore'
 import type { CSSProperties, JSX } from 'react'
 
 type IconProps = { size?: number; className?: string; style?: CSSProperties }
 
 function svg(path: JSX.Element, viewBox = '0 0 24 24') {
-  return function Icon({ size = 16, className, style }: IconProps): JSX.Element {
-    // Always honor the caller's size — shell list/tree slots are 16px; do not
-    // substitute settings.iconSizePx (that is for unrelated chrome scaling).
+  return function Icon({ size, className, style }: IconProps): JSX.Element {
+    // Explicit `size` = fixed slot (tree/list/preview). Omitted = chrome scale (toolbar)
+    // via settings.iconSizePx. Secondary windows may lack settings before boot.
+    const resolved =
+      size !== undefined ? size : (useAppStore.getState().settings?.iconSizePx ?? 16)
     return (
       <svg
-        width={size}
-        height={size}
+        width={resolved}
+        height={resolved}
         viewBox={viewBox}
         fill="none"
         stroke="currentColor"
@@ -323,4 +326,8 @@ export function isImageExt(ext: string): boolean {
 
 export function isVideoExt(ext: string): boolean {
   return VIDEO_EXTS.has(ext.toLowerCase())
+}
+
+export function isAudioExt(ext: string): boolean {
+  return AUDIO_EXTS.has(ext.toLowerCase())
 }

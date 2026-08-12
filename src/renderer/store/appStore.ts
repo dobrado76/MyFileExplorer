@@ -18,6 +18,7 @@ import type {
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
+import { networkDiscoveryIntervalMs } from '@shared/schemas/settings'
 import type { IndexRootInfo, SearchResultItem } from '@shared/schemas/search'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
 import type { MfeEvent } from '@shared/ipc/contract'
@@ -38,6 +39,7 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { isNetworkHostUnc } from '@shared/networkPaths'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
 import {
@@ -137,6 +139,7 @@ export type DialogState =
       danger?: boolean
     }
   | { kind: 'power-rename'; paths: string[] }
+  | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | null
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
@@ -155,7 +158,21 @@ export type ContextMenuState = {
   dropTransfer?: { destDir: string }
   /** Slideshow player menu (categorize / delete / undo / edit / reveal / exit). */
   slideshow?: boolean
+  /** Tree section header (Drives / Network) — Map / Disconnect / Refresh. */
+  treeSection?: 'drives' | 'network'
 } | null
+
+export type NetworkNeighborhoodState = {
+  status: 'idle' | 'running' | 'done' | 'error'
+  hosts: { name: string; unc: string }[]
+  /** Cached shares keyed by lowercased server name. */
+  sharesByHost: Record<
+    string,
+    { status: 'idle' | 'loading' | 'done' | 'error'; shares: { name: string; unc: string; remark?: string }[]; message?: string }
+  >
+  generation: number
+  message?: string
+}
 
 export type SearchState = {
   active: boolean
@@ -270,6 +287,8 @@ type AppState = {
   /** Resolved known folders for Quick access (Desktop, Downloads, …). */
   knownFolders: KnownFolder[]
   drives: DriveInfo[]
+  /** Async Network neighborhood (LAN hosts); never blocks listing refresh. */
+  network: NetworkNeighborhoodState
   tabs: Tab[]
   activeTabId: string
   splitters: Splitters
@@ -382,6 +401,19 @@ type AppState = {
   /** Clear Back/Forward stacks for a tab (address-bar Recent locations). */
   clearHistory(tabId?: string): void
 
+  /** Start / restart LAN host discovery (async; does not block listings). */
+  startNetworkDiscovery(): Promise<void>
+  /** Lazy-load shares for `\\server` when expanding in the tree. */
+  loadNetworkShares(server: string, opts?: { force?: boolean }): Promise<void>
+  /** Open Windows Map Network Drive dialog, then refresh drives. */
+  openMapNetworkDrive(): Promise<void>
+  /** Open Windows Disconnect Network Drive dialog, then refresh drives. */
+  openDisconnectNetworkDrive(): Promise<void>
+  /** Disconnect + forget one mapped letter (removes persistent mapping). */
+  disconnectMappedDrive(path: string, opts?: { force?: boolean }): Promise<void>
+  /** Immediately re-list drive letters (after map/disconnect). */
+  refreshDrivesNow(): Promise<void>
+
   // tabs
   newTab(path?: string, rootPath?: string): Promise<void>
   /** Duplicate a tab (same path/view/title/icon; fresh history/selection). */
@@ -480,7 +512,7 @@ type AppState = {
     sources: string[],
     destinationDir: string,
     clearCutAfter?: boolean
-  ): Promise<void>
+  ): Promise<boolean>
   /** Right-drag “Create shortcuts here” — write .lnk files pointing at sources. */
   createShortcutsHere(sources: string[], destinationDir: string): Promise<void>
   /** Compress selection (or explicit paths) to a sibling `.zip` like Explorer. */
@@ -496,6 +528,8 @@ type AppState = {
   ): Promise<void>
   /** Delete file-view selection, or explicit `paths` (e.g. tree-focused folder). */
   deleteSelection(permanent: boolean, paths?: string[]): Promise<void>
+  /** Set a custom folder icon (desktop.ini + Folder.ico). Picks a .ico via dialog. */
+  changeFolderIcon(folderPath: string): Promise<void>
   confirmPermanentDelete(confirmed: boolean): Promise<void>
   openEntry(entry: DirEntry): Promise<void>
   openPath(path: string): Promise<void>
@@ -529,6 +563,8 @@ type AppState = {
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
   showInExplorer(path: string): Promise<void>
+  /** Open wt / PowerShell / cmd with cwd = folder. Pass elevated for UAC (Shift+click). */
+  openCommandLineHere(path: string, opts?: { elevated?: boolean }): Promise<void>
   copyPathsToClipboard(paths: string[], nameOnly: boolean): Promise<void>
 
   // drag & drop
@@ -547,6 +583,10 @@ type AppState = {
   applySettingsPatch(patch: SettingsPatch): Promise<void>
   addViewFilterPatterns(patterns: string[]): Promise<void>
   clearThumbCache(): Promise<void>
+  /** Portable backup: settings + remembered network hosts (not window geometry). */
+  exportSettingsFile(): Promise<void>
+  /** Replace settings from an export / settings.json file. */
+  importSettingsFile(): Promise<void>
   /**
    * Generate `!VIDTHUMB_CACHE` strip frames for videos (or videos in folders).
    * `missing` skips only complete 20-frame strips (partials are cleared and redone);
@@ -693,10 +733,11 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   const OFFLINE_POLL_MS = 8_000
   /** Tree Drives list — live mounts only (not Offline-tab retry). */
-  const DRIVE_POLL_MS = 3_000
+  const DRIVE_POLL_MS = 10_000
   let offlinePollTimer: ReturnType<typeof setInterval> | null = null
   let offlinePollPath: string | null = null
   let drivePollTimer: ReturnType<typeof setInterval> | null = null
+  let networkPollTimer: ReturnType<typeof setInterval> | null = null
 
   function stopOfflinePoll(): void {
     if (offlinePollTimer) {
@@ -707,7 +748,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function drivesKey(list: DriveInfo[]): string {
-    return list.map((d) => `${d.path.toLowerCase()}|${d.label}`).join('\n')
+    return list.map((d) => `${d.path.toLowerCase()}|${d.label}|${d.driveType ?? ''}|${d.offline ? 1 : 0}|${d.remotePath ?? ''}`).join('\n')
   }
 
   function startDrivePoll(): void {
@@ -725,6 +766,35 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       })()
     }, DRIVE_POLL_MS)
+  }
+
+  /** Start / stop background Network rediscovery from Settings → Network. */
+  function syncNetworkDiscoveryPoll(): void {
+    if (networkPollTimer) {
+      clearInterval(networkPollTimer)
+      networkPollTimer = null
+    }
+    const nd = get().settings.networkDiscovery
+    if (!nd || nd.enabled === false || nd.mode !== 'auto') return
+    const ms = networkDiscoveryIntervalMs(nd)
+    networkPollTimer = setInterval(() => {
+      if (!get().booted) return
+      if (get().settings.networkDiscovery.enabled === false) return
+      if (get().network.status === 'running') return
+      void get().startNetworkDiscovery()
+    }, ms)
+  }
+
+  function stopNetworkDiscoveryUi(reason?: string): void {
+    set((s) => ({
+      network: {
+        ...s.network,
+        status: 'idle',
+        hosts: [],
+        sharesByHost: {},
+        message: reason
+      }
+    }))
   }
 
   function isOfflineFailure(e: unknown): boolean {
@@ -880,16 +950,21 @@ export const useAppStore = create<AppState>()((set, get) => {
    * Large folders (≥8k): parent only (detect gone/renamed); no active-dir soft-reload watch.
    */
   function armWatchesForPath(dirPath: string, entryCount: number): void {
+    // Network host roots (`\\server`) are virtual share lists — don't watch.
+    if (isNetworkHostUnc(dirPath)) {
+      void api.fs.unwatch({ path: dirPath }).catch(() => {})
+      return
+    }
     const mode = watchArmModeForCount(entryCount)
     const parent = parentOf(dirPath)
     if (mode === 'full') {
       void api.fs.watch({ path: dirPath })
-      if (parent) void api.fs.watch({ path: parent })
+      if (parent && !isNetworkHostUnc(parent)) void api.fs.watch({ path: parent })
       return
     }
     // parent-only (or none): drop active-dir watch so we never soft-relist huge dirs
     void api.fs.unwatch({ path: dirPath }).catch(() => {})
-    if (mode === 'parent-only' && parent) {
+    if (mode === 'parent-only' && parent && !isNetworkHostUnc(parent)) {
       void api.fs.watch({ path: parent })
     } else if (parent) {
       void api.fs.unwatch({ path: parent }).catch(() => {})
@@ -970,6 +1045,14 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       if (get().activeTabId === tabId) stopOfflinePoll()
       armWatchesForPath(path, sortedEntries.length)
+      // Clear “(Disconnected)” in the tree as soon as a mapped letter is reachable again.
+      const driveRoot = /^([a-zA-Z]:)\\/i.exec(path)
+      if (driveRoot) {
+        const root = `${driveRoot[1]!.toUpperCase()}\\`
+        if (get().drives.some((d) => d.offline && d.path.toUpperCase() === root)) {
+          void get().refreshDrivesNow()
+        }
+      }
       if (tabId === get().activeTabId) {
         viewOrderCache = null
         queueMicrotask(() => {
@@ -1472,6 +1555,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     homePath: '',
     knownFolders: [],
     drives: [],
+    network: {
+      status: 'idle',
+      hosts: [],
+      sharesByHost: {},
+      generation: 0
+    },
     tabs: [],
     activeTabId: '',
     splitters: {
@@ -1604,28 +1693,31 @@ export const useAppStore = create<AppState>()((set, get) => {
         { id: 'videos', label: 'Videos' },
         { id: 'home', label: 'User folder' }
       ]
-      const [settings, session, home, drivesRes, ...knownPathResults] = await Promise.all([
+      const [settings, session, home, ...knownPathResults] = await Promise.all([
         call(api.settings.get()),
         call(api.session.get()),
         call(api.app.getPath({ name: 'home' })),
-        call(api.fs.listDrives()),
         ...knownSpecs.map((k) =>
           call(api.app.getPath({ name: k.id })).catch(() => ({ path: '' as string }))
         )
       ])
-      const knownFolders: KnownFolder[] = []
-      for (let i = 0; i < knownSpecs.length; i++) {
-        const spec = knownSpecs[i]!
-        const p = knownPathResults[i]?.path
-        if (!p) continue
-        try {
-          if ((await call(api.fs.exists({ path: p }))).exists) {
-            knownFolders.push({ id: spec.id, label: spec.label, path: p })
-          }
-        } catch {
-          // skip missing known folders
-        }
-      }
+      // Parallel exists checks — do not serialize round-trips before first paint.
+      const knownFolders: KnownFolder[] = (
+        await Promise.all(
+          knownSpecs.map(async (spec, i) => {
+            const p = knownPathResults[i]?.path
+            if (!p) return null
+            try {
+              if ((await call(api.fs.exists({ path: p }))).exists) {
+                return { id: spec.id, label: spec.label, path: p } satisfies KnownFolder
+              }
+            } catch {
+              /* skip */
+            }
+            return null
+          })
+        )
+      ).filter((k): k is KnownFolder => k != null)
 
       // Keep session tabs even when a drive is unmounted (encrypted volumes after reboot).
       // loadListing will show Offline and poll until the path is reachable again.
@@ -1687,7 +1779,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         settings,
         homePath: home.path,
         knownFolders,
-        drives: drivesRes.drives,
+        drives: [],
         tabs,
         activeTabId,
         splitters,
@@ -1832,12 +1924,70 @@ export const useAppStore = create<AppState>()((set, get) => {
         } else if (event.type === 'compiled-lists-window-closed') {
           const a = get().slideshow.active
           if (a?.compiledMode) void get().stopSlideshow()
+        } else if (event.type === 'network-discovery') {
+          const p = event.payload
+          set((state) => {
+            if (p.generation < state.network.generation && p.status !== 'running') {
+              return {}
+            }
+            const incoming = p.hosts
+            let hosts = state.network.hosts
+            if (p.status === 'running') {
+              // Empty running: keep prior online list (no flash). Non-empty: union so
+              // rediscovery does not drop still-probing hosts until done replaces.
+              if (incoming && incoming.length > 0) {
+                const byKey = new Map(
+                  state.network.hosts.map((h) => [h.unc.toLowerCase(), h] as const)
+                )
+                for (const h of incoming) {
+                  byKey.set(h.unc.toLowerCase(), h)
+                }
+                hosts = [...byKey.values()].sort((a, b) =>
+                  a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+                )
+              }
+            } else if (incoming) {
+              // done: replace with reachable-only (empty → hide Network).
+              // error + empty: keep prior list rather than wiping on a transient failure.
+              if (p.status === 'done' || incoming.length > 0) {
+                hosts = incoming
+              }
+            }
+            return {
+              network: {
+                ...state.network,
+                generation: Math.max(state.network.generation, p.generation),
+                status:
+                  p.status === 'running'
+                    ? 'running'
+                    : p.status === 'error'
+                      ? 'error'
+                      : 'done',
+                hosts,
+                message: p.message
+              }
+            }
+          })
         }
       })
 
       void get().refreshIndexRoots()
       startDrivePoll()
-      await loadVisiblePaneListings()
+      syncNetworkDiscoveryPoll()
+      // Paint shell first; drives / listings / LAN discovery refresh in the background.
+      void get().refreshDrivesNow()
+      void (async () => {
+        try {
+          await loadVisiblePaneListings()
+        } catch {
+          /* listings soft-fail per pane */
+        }
+        // Defer discovery so PowerShell/ARP does not compete with first folder lists / icons.
+        window.setTimeout(() => {
+          if (!get().booted) return
+          void get().startNetworkDiscovery()
+        }, 1500)
+      })()
       // Flush any CLI/protocol opens that arrived before boot finished.
       void call(api.app.ready())
       // One-time migration: old builds only stored a file path — import if settings map empty.
@@ -2009,6 +2159,19 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch {
         /* ignore */
       }
+      // Same gesture as Explorer Refresh / Ctrl+R: re-probe Network (new PCs online)
+      // and drop cached shares so expand re-lists. Fire-and-forget — don't block listing.
+      if (get().settings.networkDiscovery.enabled !== false) {
+        set((s) => ({
+          network: {
+            ...s.network,
+            sharesByHost: {},
+            status: 'running',
+            message: undefined
+          }
+        }))
+        void get().startNetworkDiscovery()
+      }
       await loadVisiblePaneListings({ preserveSelection: true })
       // File list and tree keep separate caches — always refresh both.
       set((s) => ({ treeRefreshRev: s.treeRefreshRev + 1 }))
@@ -2016,6 +2179,138 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setAddressEditing(v) {
       set({ addressEditing: v })
+    },
+
+    async refreshDrivesNow() {
+      try {
+        const d = await call(api.fs.listDrives())
+        set({ drives: d.drives })
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async startNetworkDiscovery() {
+      if (get().settings.networkDiscovery.enabled === false) {
+        stopNetworkDiscoveryUi()
+        try {
+          await call(api.network.cancelDiscovery())
+        } catch {
+          /* ignore */
+        }
+        return
+      }
+      try {
+        set((s) => ({
+          network: {
+            ...s.network,
+            status: 'running',
+            message: undefined
+          }
+        }))
+        const res = await call(api.network.startDiscovery())
+        set((s) => ({
+          network: { ...s.network, generation: res.generation }
+        }))
+      } catch (e) {
+        set((s) => ({
+          network: {
+            ...s.network,
+            status: 'error',
+            message: e instanceof IpcError ? e.message : String(e)
+          }
+        }))
+      }
+    },
+
+    async loadNetworkShares(server, opts) {
+      const key = server.replace(/^\\\\/, '').split(/[\\/]/)[0]?.toLowerCase() ?? ''
+      if (!key) return
+      const existing = get().network.sharesByHost[key]
+      if (!opts?.force && (existing?.status === 'loading' || existing?.status === 'done')) return
+      set((s) => ({
+        network: {
+          ...s.network,
+          sharesByHost: {
+            ...s.network.sharesByHost,
+            [key]: { status: 'loading', shares: opts?.force ? [] : (existing?.shares ?? []) }
+          }
+        }
+      }))
+      try {
+        const res = await call(api.network.listShares({ server }))
+        set((s) => ({
+          network: {
+            ...s.network,
+            sharesByHost: {
+              ...s.network.sharesByHost,
+              [key]: { status: 'done', shares: res.shares }
+            }
+          }
+        }))
+      } catch (e) {
+        set((s) => ({
+          network: {
+            ...s.network,
+            sharesByHost: {
+              ...s.network.sharesByHost,
+              [key]: {
+                status: 'error',
+                shares: [],
+                message: e instanceof IpcError ? e.message : String(e)
+              }
+            }
+          }
+        }))
+      }
+    },
+
+    async openMapNetworkDrive() {
+      try {
+        await call(api.network.mapDriveDialog())
+        await get().refreshDrivesNow()
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async openDisconnectNetworkDrive() {
+      try {
+        await call(api.network.disconnectDriveDialog())
+        await get().refreshDrivesNow()
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async disconnectMappedDrive(path, opts) {
+      const letter = /^([a-zA-Z]):/i.exec(path.replace(/\//g, '\\'))?.[1]?.toUpperCase() ?? '?'
+      const drive = get().drives.find(
+        (d) => d.path.replace(/[\\/]+$/, '').toUpperCase() === `${letter}:`
+      )
+      const remote = drive?.remotePath
+      const force = opts?.force === true
+      const msg = force
+        ? `Force disconnect ${letter}:${remote ? ` (${remote})` : ''}?\n\nOpen files may be interrupted. The persistent mapping will be removed.`
+        : `Disconnect ${letter}:${remote ? ` — ${remote}` : ''}?\n\nThis removes the persistent “Reconnect at sign-in” mapping so the letter no longer appears under Drives.`
+      if (!window.confirm(msg)) return
+      try {
+        await call(api.network.disconnectMappedDrive({ path, force }))
+        await get().refreshDrivesNow()
+        get().notify(`Disconnected ${letter}:`)
+      } catch (e) {
+        if (e instanceof IpcError && e.code === 'busy' && !force) {
+          if (
+            window.confirm(
+              `${letter}: is in use.\n\nForce disconnect anyway? Open files on that drive may fail.`
+            )
+          ) {
+            await get().disconnectMappedDrive(path, { force: true })
+          }
+          return
+        }
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
     },
 
     clearHistory(tabId) {
@@ -2996,7 +3291,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         op === 'move'
           ? sources.filter((p) => !samePath(parentOf(p) ?? '', destinationDir))
           : sources
-      if (effective.length === 0) return
+      if (effective.length === 0) return false
       try {
         // Same-folder copy (Ctrl+C / Ctrl+V in place): Explorer-style Keep both —
         // auto-number (`name (2).ext`) with no dual-compare dialog; select the new copies.
@@ -3008,7 +3303,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
         if (sameFolderCopy) {
           await executeTransfer(op, effective, destinationDir, 'rename', clearCutAfter)
-          return
+          return true
         }
 
         const { conflicts, items } = await call(
@@ -3026,11 +3321,13 @@ export const useAppStore = create<AppState>()((set, get) => {
               clearCutAfter
             }
           })
-          return
+          return false
         }
         await executeTransfer(op, effective, destinationDir, 'fail', clearCutAfter)
+        return true
       } catch (e) {
         reportOperationError(op === 'move' ? 'Move failed' : 'Copy failed', e)
+        return false
       }
     },
 
@@ -3598,6 +3895,37 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async openCommandLineHere(path, opts) {
+      try {
+        await call(api.shell.openCommandLine({ path, elevated: opts?.elevated === true }))
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async changeFolderIcon(folderPath) {
+      try {
+        const pick = await call(
+          api.slideshow.pickOpenFile({
+            title: 'Choose folder icon',
+            defaultPath: folderPath,
+            filters: [{ name: 'Icon files', extensions: ['ico'] }]
+          })
+        )
+        if (!pick.path) return
+        await call(api.fs.setFolderIcon({ path: folderPath, iconPath: pick.path }))
+        window.dispatchEvent(
+          new CustomEvent('mfe-shell-icon-invalidate', {
+            detail: { path: folderPath.toLowerCase() }
+          })
+        )
+        get().notify(`Icon set for ${basename(folderPath)}`)
+        await get().refresh()
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     async copyPathsToClipboard(paths, nameOnly) {
       const text = paths.map((p) => (nameOnly ? basename(p) : p)).join('\r\n')
       await navigator.clipboard.writeText(text)
@@ -3657,12 +3985,19 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.slideshow
         }
       }
+      if (patch.networkDiscovery) {
+        mergedPatch.networkDiscovery = {
+          ...prev.networkDiscovery,
+          ...patch.networkDiscovery
+        }
+      }
       if (patch.contextMenu) {
         mergedPatch.contextMenu = {
           ...prev.contextMenu,
           ...patch.contextMenu,
           files: patch.contextMenu.files ?? prev.contextMenu.files,
-          folders: patch.contextMenu.folders ?? prev.contextMenu.folders
+          folders: patch.contextMenu.folders ?? prev.contextMenu.folders,
+          hiddenBuiltins: patch.contextMenu.hiddenBuiltins ?? prev.contextMenu.hiddenBuiltins
         }
       }
       // Optimistic update so toggles don’t snap back while IPC runs.
@@ -3673,12 +4008,18 @@ export const useAppStore = create<AppState>()((set, get) => {
           slideshow: mergedPatch.slideshow
             ? { ...s.settings.slideshow, ...mergedPatch.slideshow }
             : s.settings.slideshow,
+          networkDiscovery: mergedPatch.networkDiscovery
+            ? { ...s.settings.networkDiscovery, ...mergedPatch.networkDiscovery }
+            : s.settings.networkDiscovery,
           contextMenu: mergedPatch.contextMenu
             ? {
                 ...s.settings.contextMenu,
                 ...mergedPatch.contextMenu,
                 files: mergedPatch.contextMenu.files ?? s.settings.contextMenu.files,
-                folders: mergedPatch.contextMenu.folders ?? s.settings.contextMenu.folders
+                folders: mergedPatch.contextMenu.folders ?? s.settings.contextMenu.folders,
+                hiddenBuiltins:
+                  mergedPatch.contextMenu.hiddenBuiltins ??
+                  s.settings.contextMenu.hiddenBuiltins
               }
             : s.settings.contextMenu
         },
@@ -3686,6 +4027,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           ? { search: { ...s.search, indexedOnly: patch.searchIndexedOnly } }
           : {})
       }))
+      if (patch.networkDiscovery) {
+        syncNetworkDiscoveryPoll()
+      }
       try {
         const settings = await call(api.settings.set(mergedPatch))
         set((s) => ({
@@ -3694,6 +4038,26 @@ export const useAppStore = create<AppState>()((set, get) => {
             ? { search: { ...s.search, indexedOnly: settings.searchIndexedOnly } }
             : {})
         }))
+        if (patch.networkDiscovery) {
+          syncNetworkDiscoveryPoll()
+          if (
+            typeof patch.networkDiscovery.enabled === 'boolean' &&
+            patch.networkDiscovery.enabled !== prev.networkDiscovery.enabled
+          ) {
+            if (patch.networkDiscovery.enabled) {
+              void get().startNetworkDiscovery()
+            } else {
+              stopNetworkDiscoveryUi()
+              void call(api.network.cancelDiscovery()).catch(() => {})
+            }
+          } else if (
+            typeof patch.networkDiscovery.showLocalComputer === 'boolean' &&
+            patch.networkDiscovery.showLocalComputer !== prev.networkDiscovery.showLocalComputer &&
+            get().settings.networkDiscovery.enabled !== false
+          ) {
+            void get().startNetworkDiscovery()
+          }
+        }
         if (patch.slideshowFeaturesEnabled === false) {
           get().resetSlideshowForGateOff()
         }
@@ -3716,6 +4080,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       } catch (e) {
         set({ settings: prev })
+        if (patch.networkDiscovery) {
+          syncNetworkDiscoveryPoll()
+        }
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
     },
@@ -3840,6 +4207,57 @@ export const useAppStore = create<AppState>()((set, get) => {
       try {
         await call(api.settings.clearThumbCache())
         get().notify('Thumbnail cache cleared')
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async exportSettingsFile() {
+      try {
+        const res = await call(api.settings.exportFile())
+        if (!res.saved) return
+        get().notify(res.path ? `Settings exported to ${res.path}` : 'Settings exported')
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async importSettingsFile() {
+      const ok = window.confirm(
+        'Replace all settings with the imported file?\n\n' +
+          'Theme, named layouts, folder views, slideshow, context menu, network discovery, and other preferences will be overwritten.\n\n' +
+          'The main window position/size is not changed. Open tabs stay as they are (use a named layout to restore a workspace).'
+      )
+      if (!ok) return
+      try {
+        const prevHw = get().settings.disableHardwareAcceleration
+        const res = await call(api.settings.importFile())
+        if (!res.imported || !res.settings) return
+        set({ settings: res.settings })
+        syncNetworkDiscoveryPoll()
+        // Rediscover when enabled so imported networkDiscovery prefs apply.
+        if (res.settings.networkDiscovery.enabled !== false) {
+          void get().startNetworkDiscovery()
+        } else {
+          stopNetworkDiscoveryUi()
+          void call(api.network.cancelDiscovery()).catch(() => {})
+        }
+        if (res.settings.slideshowFeaturesEnabled) {
+          hydrateSlideshowCacheFromSettings(
+            get as unknown as Parameters<typeof hydrateSlideshowCacheFromSettings>[0],
+            set as unknown as Parameters<typeof hydrateSlideshowCacheFromSettings>[1]
+          )
+        } else {
+          get().resetSlideshowForGateOff()
+        }
+        const hostNote =
+          typeof res.networkHostCount === 'number'
+            ? ` · ${res.networkHostCount} network host${res.networkHostCount === 1 ? '' : 's'}`
+            : ''
+        get().notify(`Settings imported${hostNote}`)
+        if (res.settings.disableHardwareAcceleration !== prevHw) {
+          get().notify('Hardware acceleration change applies after restart')
+        }
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }

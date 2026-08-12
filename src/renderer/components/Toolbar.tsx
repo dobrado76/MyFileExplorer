@@ -217,7 +217,7 @@ export function Toolbar(): JSX.Element {
         <ViewLayoutSelector />
         <div className="search-cluster">
           <div className="searchbox">
-            <SearchIcon size={14} />
+            <SearchIcon />
             <input
               ref={searchInputRef}
               data-search-input

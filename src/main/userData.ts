@@ -5,7 +5,7 @@ import { app } from 'electron'
 /** Stable folder under `%APPDATA%` for both `npm run dev` and installed builds (D17). */
 export const USER_DATA_FOLDER_NAME = 'MyFileExplorer'
 
-const PROFILE_FILES = ['settings.json', 'session.json', 'window-state.json'] as const
+const PROFILE_FILES = ['settings.json', 'session.json', 'window-state.json', 'network-hosts.json'] as const
 const MIGRATE_MARKER = '.migrated-userdata-v1'
 
 /**

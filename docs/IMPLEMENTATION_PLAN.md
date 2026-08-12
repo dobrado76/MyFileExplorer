@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.5.0 (implemented)
+**Version:** 0.6.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -126,6 +126,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.3.0 release notes + README / ADVANTAGES / docs alignment
 - [x] v0.4.0 release notes + README / ADVANTAGES / SEARCH / docs alignment
 - [x] v0.5.0 release notes + README / ADVANTAGES / SLIDESHOW / ADS / docs alignment
+- [x] v0.6.0 Network (D44) + settings export (D45) + Networks.md / docs alignment
 
 ---
 
@@ -189,6 +190,10 @@ v0.3.0 plus: Everything-parity search (D34), multi-pane (D31), tab icons (D32), 
 ## Definition of done (v0.5.0 product)
 
 v0.4.0 plus: slideshow / categorizer (D37), compiled file lists (D39), NTFS ADS (D38), CHM (D35) / font (D36) / broader archive previews, 7za ZIP compress, empty-pane Open Computer / Browse; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / SLIDESHOW / ADS / docs aligned to 0.5.0. ✅
+
+## Definition of done (v0.6.0 product)
+
+v0.5.0 plus: Network neighborhood & mapped-drive reconnect (D44/D3), Settings export/import (D45), Open Command Line (Shift=Admin), docs/Networks.md; README / CHANGELOG / RELEASE_NOTES / ADVANTAGES / DECISIONS aligned to 0.6.0 (through D45). ✅
 
 ---
 

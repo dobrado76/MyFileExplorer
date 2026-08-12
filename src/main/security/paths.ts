@@ -1,5 +1,35 @@
 import path from 'node:path'
 import fs from 'node:fs'
+import { parseUnc } from '@shared/networkPaths'
+
+/**
+ * Normalize a UNC path without Node's path.normalize, which collapses
+ * bare `\\server` to `\server` (a local absolute path).
+ */
+function normalizeUncAbsolute(input: string): string | null {
+  const withBs = input.replace(/\//g, '\\')
+  if (!withBs.startsWith('\\\\')) return null
+  // Collapse runs of \ but keep the leading UNC prefix.
+  const collapsed = '\\' + withBs.replace(/\\{2,}/g, '\\')
+  const body = collapsed.slice(2)
+  const rawParts = body.split('\\').filter((p) => p.length > 0)
+  const stack: string[] = []
+  for (const part of rawParts) {
+    if (part === '.') continue
+    if (part === '..') {
+      // Never climb above the server name.
+      if (stack.length <= 1) return null
+      stack.pop()
+      continue
+    }
+    stack.push(part)
+  }
+  if (stack.length === 0) return null
+  // Reject empty / illegal server tokens.
+  const server = stack[0]!
+  if (!server || /[:<>"|?*]/.test(server)) return null
+  return '\\\\' + stack.join('\\')
+}
 
 /**
  * Normalize to an absolute path or return null when the input is unusable.
@@ -11,6 +41,12 @@ export function normalizeAbsolute(input: string): string | null {
   let p = input.trim()
   // Bare drive like "C:" means "current dir on C:" in Windows — force root.
   if (/^[a-zA-Z]:$/.test(p)) p = p + path.sep
+
+  // UNC must not go through path.normalize — bare `\\host` becomes `\host`.
+  if (p.startsWith('\\\\') || p.startsWith('//')) {
+    return normalizeUncAbsolute(p)
+  }
+
   const normalized = path.normalize(p)
   if (!path.isAbsolute(normalized)) return null
   if (normalized.split(/[\\/]/).includes('..')) return null
@@ -61,6 +97,8 @@ export class ProtocolAllowlist {
       const oldest = this.dirs.keys().next().value
       if (oldest !== undefined) this.dirs.delete(oldest)
     }
+    // Skip realpath for bare UNC hosts — they are not filesystem dirs.
+    if (parseUnc(n)?.kind === 'host') return
     // Also allow the realpath in case the listed dir is a symlink/junction.
     try {
       const real = fs.realpathSync.native(n)

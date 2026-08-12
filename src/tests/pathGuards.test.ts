@@ -42,6 +42,20 @@ describe('normalizeAbsolute', () => {
   it('resolves .. segments instead of leaving escapes', () => {
     expect(normalizeAbsolute('C:\\a\\b\\..\\c')).toBe('C:\\a\\c')
   })
+  it('preserves bare UNC hosts (Node path.normalize would collapse them)', () => {
+    expect(normalizeAbsolute('\\\\newonyx')).toBe('\\\\newonyx')
+    expect(normalizeAbsolute('\\\\newonyx\\')).toBe('\\\\newonyx')
+    expect(normalizeAbsolute('//newonyx')).toBe('\\\\newonyx')
+  })
+  it('preserves UNC share and deeper paths', () => {
+    expect(normalizeAbsolute('\\\\newonyx\\F')).toBe('\\\\newonyx\\F')
+    expect(normalizeAbsolute('\\\\newonyx\\F\\Users')).toBe('\\\\newonyx\\F\\Users')
+  })
+  it('resolves .. under UNC without climbing past the server', () => {
+    expect(normalizeAbsolute('\\\\srv\\share\\a\\..\\b')).toBe('\\\\srv\\share\\b')
+    expect(normalizeAbsolute('\\\\srv\\share\\..')).toBe('\\\\srv')
+    expect(normalizeAbsolute('\\\\srv\\..')).toBeNull()
+  })
 })
 
 describe('isSameOrUnder', () => {
