@@ -5156,8 +5156,8 @@ html.idle-cursor-hidden * {
 .context-menu-edit {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 6px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-elevated, var(--bg));
@@ -5165,24 +5165,54 @@ html.idle-cursor-hidden * {
   max-height: min(42%, 320px);
   overflow: auto;
 }
+.context-menu-edit > .settings-subheading {
+  margin: 0;
+}
+.context-menu-edit-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.context-menu-edit-field > span:first-child {
+  flex: 0 0 4.75rem;
+  line-height: 1.2;
+}
+.context-menu-edit-field > input,
+.context-menu-edit-field > .settings-inline {
+  flex: 1;
+  min-width: 0;
+}
 .context-menu-tokens {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-left: calc(4.75rem + 10px);
 }
 .context-menu-tokens .btn {
   padding: 2px 8px;
   font-size: 12px;
   font-family: ui-monospace, Consolas, monospace;
 }
+.context-menu-edit-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
 .context-menu-match {
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 4px 8px 6px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
   margin: 0;
+  flex: 0 1 auto;
+  max-width: min(100%, 22rem);
+  min-width: 0;
 }
 .context-menu-match legend {
   padding: 0 4px;
@@ -5192,14 +5222,19 @@ html.idle-cursor-hidden * {
 .context-menu-match input[type='text'] {
   font: inherit;
   font-size: 13px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--bg);
   color: var(--text);
+  flex: 1 1 8rem;
+  min-width: 0;
+  max-width: 14rem;
 }
 .context-menu-edit-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
 }

@@ -882,7 +882,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
               <h3 className="settings-subheading">
                 {list.some((c) => c.id === editing.id) ? 'Edit command' : 'New command'}
               </h3>
-              <label className="settings-field">
+              <label className="settings-field context-menu-edit-field">
                 <span>Label</span>
                 <input
                   type="text"
@@ -894,7 +894,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   autoFocus
                 />
               </label>
-              <label className="settings-field">
+              <label className="settings-field context-menu-edit-field">
                 <span>Program</span>
                 <div className="settings-inline">
                   <input
@@ -915,7 +915,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   </button>
                 </div>
               </label>
-              <label className="settings-field">
+              <label className="settings-field context-menu-edit-field">
                 <span>Arguments</span>
                 <input
                   type="text"
@@ -946,78 +946,69 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   </button>
                 ))}
               </div>
-              {scope === 'files' && (
-                <fieldset className="context-menu-match">
-                  <legend>Show for</legend>
-                  <label
-                    className="power-rename-check"
-                    title="Show this command for any selected files"
+              <div className="context-menu-edit-footer">
+                {scope === 'files' && (
+                  <fieldset className="context-menu-match">
+                    <legend>Show for</legend>
+                    <label
+                      className="power-rename-check"
+                      title="Show this command for any selected files"
+                    >
+                      <input
+                        type="radio"
+                        name="cmc-match"
+                        checked={editing.match.type === 'all'}
+                        onChange={() => setEditing({ ...editing, match: { type: 'all' } })}
+                      />
+                      All files
+                    </label>
+                    <label
+                      className="power-rename-check"
+                      title="Only show when every selected file matches these extensions"
+                    >
+                      <input
+                        type="radio"
+                        name="cmc-match"
+                        checked={editing.match.type === 'extensions'}
+                        onChange={() =>
+                          setEditing({
+                            ...editing,
+                            match: { type: 'extensions', extensions: normalizeExtensions(extText) }
+                          })
+                        }
+                      />
+                      These extensions
+                    </label>
+                    {editing.match.type === 'extensions' && (
+                      <input
+                        type="text"
+                        value={extText}
+                        onChange={(e) => setExtText(e.target.value)}
+                        placeholder="jpg, png, psd"
+                        spellCheck={false}
+                        title="Comma-separated extensions without dots"
+                      />
+                    )}
+                  </fieldset>
+                )}
+                <div className="context-menu-edit-actions">
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Discard changes and close the editor"
+                    onClick={() => setEditing(null)}
                   >
-                    <input
-                      type="radio"
-                      name="cmc-match"
-                      checked={editing.match.type === 'all'}
-                      onChange={() => setEditing({ ...editing, match: { type: 'all' } })}
-                    />
-                    All files
-                  </label>
-                  <label
-                    className="power-rename-check"
-                    title="Only show when every selected file matches these extensions"
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    title="Save this command to the custom list"
+                    onClick={saveEdit}
                   >
-                    <input
-                      type="radio"
-                      name="cmc-match"
-                      checked={editing.match.type === 'extensions'}
-                      onChange={() =>
-                        setEditing({
-                          ...editing,
-                          match: { type: 'extensions', extensions: normalizeExtensions(extText) }
-                        })
-                      }
-                    />
-                    These extensions
-                  </label>
-                  {editing.match.type === 'extensions' && (
-                    <input
-                      type="text"
-                      value={extText}
-                      onChange={(e) => setExtText(e.target.value)}
-                      placeholder="jpg, png, psd"
-                      spellCheck={false}
-                      title="Comma-separated extensions without dots"
-                    />
-                  )}
-                </fieldset>
-              )}
-              <label
-                className="power-rename-check"
-                title="Uncheck to keep the command saved but hidden from the menu"
-              >
-                <input
-                  type="checkbox"
-                  checked={editing.enabled}
-                  onChange={(e) => setEditing({ ...editing, enabled: e.target.checked })}
-                />
-                Enabled
-              </label>
-              <div className="context-menu-edit-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  title="Discard changes and close the editor"
-                  onClick={() => setEditing(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn primary"
-                  title="Save this command to the custom list"
-                  onClick={saveEdit}
-                >
-                  Save
-                </button>
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
           )}
