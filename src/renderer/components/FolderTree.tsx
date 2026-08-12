@@ -915,7 +915,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     )
   }
 
-  // Scoped tab: the tab's root folder is the only top-level tree node.
+  // Scoped tab: the tab's root folder is the only top-level tree node (no section header —
+  // it would just repeat the folder name).
   if (rootPath) {
     return (
       <div
@@ -926,7 +927,6 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         tabIndex={0}
         onKeyDown={onTreeKeyDown}
       >
-        <div className="tree-section">{basename(rootPath)}</div>
         {renderNode(rootPath, basename(rootPath), 0, 'scoped')}
       </div>
     )

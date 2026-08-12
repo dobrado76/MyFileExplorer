@@ -3,6 +3,7 @@ import { shell, clipboard } from 'electron'
 import { requireAbsolute, pathExists } from '../fs/list'
 import { expandWindowsEnvPath } from '../paths/expandEnv'
 import { AppError } from '@shared/result'
+import { isWindowsBatchFile, quoteWindowsCmdArg } from '@shared/shellExec'
 
 const MAX_EXEC_ARGS = 256
 const MAX_ARG_LEN = 32767
@@ -33,7 +34,9 @@ export async function openPath(p: string): Promise<{ opened: boolean; message?: 
 }
 
 /**
- * Launch a user-configured external program with argv (no shell / cmd.exe).
+ * Launch a user-configured external program with argv.
+ * `.exe` / scripts spawn directly; `.bat` / `.cmd` go through `cmd.exe /d /s /c`
+ * (Node cannot spawn batch files on Windows — that yields EINVAL).
  * `executable` may contain `%ENV%` segments.
  */
 export async function execExternal(
@@ -64,11 +67,23 @@ export async function execExternal(
     throw new AppError('not-found', `Program not found: ${exe}`, 'Browse to the .exe in Settings.')
   }
   try {
-    const child = spawn(exe, args, {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true
-    })
+    const child =
+      process.platform === 'win32' && isWindowsBatchFile(exe)
+        ? spawn(
+            process.env.ComSpec || 'cmd.exe',
+            ['/d', '/s', '/c', [exe, ...args].map(quoteWindowsCmdArg).join(' ')],
+            {
+              detached: true,
+              stdio: 'ignore',
+              windowsHide: true,
+              windowsVerbatimArguments: true
+            }
+          )
+        : spawn(exe, args, {
+            detached: true,
+            stdio: 'ignore',
+            windowsHide: true
+          })
     child.unref()
     return { launched: true }
   } catch (e) {

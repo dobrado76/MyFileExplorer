@@ -82,4 +82,9 @@ describe('expandArgsTemplate', () => {
       'C:\\a b\\x.txt'
     ])
   })
+
+  it('maps %1 / %* like Windows shell verbs', () => {
+    expect(expandArgsTemplate('%1', ['C:\\folder'])).toEqual(['C:\\folder'])
+    expect(expandArgsTemplate('%*', ['C:\\a', 'C:\\b'])).toEqual(['C:\\a', 'C:\\b'])
+  })
 })

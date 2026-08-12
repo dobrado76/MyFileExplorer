@@ -95,9 +95,16 @@ function replaceScalarTokens(text: string, path: string): string {
 /**
  * Expand an args template into argv. `{paths}` becomes one argument per path;
  * other tokens use the first selected path. No shell evaluation.
+ * Also accepts Windows-style `%1` / `%*` as aliases for `{path}` / `{paths}`.
  */
 export function expandArgsTemplate(template: string, paths: string[]): string[] {
-  const trimmed = template.trim()
+  const trimmed = template
+    .trim()
+    .replace(/%\*/g, '{paths}')
+    .replace(/%1/gi, '{path}')
+    .replace(/%L/gi, '{path}')
+    .replace(/%V/gi, '{dir}')
+    .replace(/%W/gi, '{dir}')
   if (!trimmed) {
     return paths.length > 0 ? [paths[0]!] : []
   }

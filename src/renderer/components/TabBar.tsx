@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
 import { findDropDirAt, isValidDropDest } from '../lib/rightDrag'
-import { CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
+import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
 type TabMenuState = { tabId: string; x: number; y: number }
+
+const EDGE_SCROLL_PX = 28
+const EDGE_SCROLL_STEP = 18
 
 export function TabBar(): JSX.Element {
   const tabs = useAppStore((s) => s.tabs)
@@ -31,8 +34,66 @@ export function TabBar(): JSX.Element {
   const [editText, setEditText] = useState('')
   const [dropTabId, setDropTabId] = useState<string | null>(null)
   const [menu, setMenu] = useState<TabMenuState | null>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [overflowing, setOverflowing] = useState(false)
   const dragIndex = useRef<number | null>(null)
+  const tabsStripRef = useRef<HTMLDivElement | null>(null)
+  const edgeScrollRaf = useRef<number | null>(null)
   const fileDragActive = dragPaths.length > 0
+
+  const updateScrollState = useCallback((): void => {
+    const el = tabsStripRef.current
+    if (!el) return
+    const max = el.scrollWidth - el.clientWidth
+    const overflow = max > 1
+    setOverflowing(overflow)
+    setCanScrollLeft(overflow && el.scrollLeft > 1)
+    setCanScrollRight(overflow && el.scrollLeft < max - 1)
+  }, [])
+
+  const scrollByPage = (dir: -1 | 1): void => {
+    const el = tabsStripRef.current
+    if (!el) return
+    const delta = Math.max(80, Math.floor(el.clientWidth * 0.8)) * dir
+    el.scrollBy({ left: delta, behavior: 'smooth' })
+  }
+
+  const scrollActiveIntoView = useCallback((): void => {
+    const el = tabsStripRef.current
+    if (!el || !activeTabId || recycleBinActive) return
+    const tabEl = Array.from(el.querySelectorAll<HTMLElement>('[data-tab-id]')).find(
+      (n) => n.dataset.tabId === activeTabId
+    )
+    tabEl?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+    updateScrollState()
+  }, [activeTabId, recycleBinActive, updateScrollState])
+
+  useLayoutEffect(() => {
+    updateScrollState()
+  }, [tabs, updateScrollState])
+
+  useEffect(() => {
+    const el = tabsStripRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => updateScrollState())
+    ro.observe(el)
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+    return () => {
+      ro.disconnect()
+      el.removeEventListener('scroll', updateScrollState)
+    }
+  }, [updateScrollState])
+
+  useEffect(() => {
+    scrollActiveIntoView()
+  }, [scrollActiveIntoView, tabs.length])
+
+  useEffect(() => {
+    return () => {
+      if (edgeScrollRaf.current != null) cancelAnimationFrame(edgeScrollRaf.current)
+    }
+  }, [])
 
   const commitRename = (id: string): void => {
     const text = editText.trim()
@@ -107,6 +168,35 @@ export function TabBar(): JSX.Element {
     setDropTabId(null)
   }
 
+  const maybeEdgeScrollDuringTabDrag = (clientX: number): void => {
+    if (dragIndex.current == null) return
+    const el = tabsStripRef.current
+    if (!el || !overflowing) return
+    const rect = el.getBoundingClientRect()
+    let dir = 0
+    if (clientX < rect.left + EDGE_SCROLL_PX) dir = -1
+    else if (clientX > rect.right - EDGE_SCROLL_PX) dir = 1
+    if (dir === 0) {
+      if (edgeScrollRaf.current != null) {
+        cancelAnimationFrame(edgeScrollRaf.current)
+        edgeScrollRaf.current = null
+      }
+      return
+    }
+    if (edgeScrollRaf.current != null) return
+    const step = (): void => {
+      const strip = tabsStripRef.current
+      if (!strip || dragIndex.current == null) {
+        edgeScrollRaf.current = null
+        return
+      }
+      strip.scrollLeft += dir * EDGE_SCROLL_STEP
+      updateScrollState()
+      edgeScrollRaf.current = requestAnimationFrame(step)
+    }
+    edgeScrollRaf.current = requestAnimationFrame(step)
+  }
+
   const menuTab = menu ? tabs.find((t) => t.id === menu.tabId) : null
   const menuPos = menu
     ? {
@@ -117,7 +207,33 @@ export function TabBar(): JSX.Element {
 
   return (
     <div className="tabbar" role="tablist" aria-label="Folder tabs">
-      <div className="tabbar-tabs">
+      <button
+        type="button"
+        className={`tabbar-scroll-btn${overflowing ? '' : ' is-hidden'}`}
+        aria-label="Scroll tabs left"
+        title="Scroll tabs left"
+        disabled={!canScrollLeft}
+        onClick={() => scrollByPage(-1)}
+      >
+        <ChevronLeft size={14} />
+      </button>
+      <div
+        ref={tabsStripRef}
+        className="tabbar-tabs"
+        onScroll={updateScrollState}
+        onWheel={(e) => {
+          const el = tabsStripRef.current
+          if (!el) return
+          if (el.scrollWidth <= el.clientWidth + 1) return
+          if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return
+          e.preventDefault()
+          el.scrollLeft += e.deltaY
+          updateScrollState()
+        }}
+        onDragOver={(e) => {
+          if (dragIndex.current != null) maybeEdgeScrollDuringTabDrag(e.clientX)
+        }}
+      >
         {tabs.map((tab, index) => {
           const title = tab.title ?? basename(tab.path)
           const active = tab.id === activeTabId && !recycleBinActive
@@ -127,6 +243,7 @@ export function TabBar(): JSX.Element {
             <div
               key={tab.id}
               role="tab"
+              data-tab-id={tab.id}
               aria-selected={active}
               className={`tab${active ? ' active' : ''}${offline ? ' offline' : ''}${dropTarget ? ' drop-target' : ''}`}
               title={
@@ -148,6 +265,13 @@ export function TabBar(): JSX.Element {
                 e.dataTransfer.setData('text/x-mfe-tab', tab.id)
                 e.dataTransfer.setData('text/plain', tab.id)
               }}
+              onDragEnd={() => {
+                dragIndex.current = null
+                if (edgeScrollRaf.current != null) {
+                  cancelAnimationFrame(edgeScrollRaf.current)
+                  edgeScrollRaf.current = null
+                }
+              }}
               onDragOver={(e) => {
                 if (fileDragActive && isValidDropDest(dragPaths, tab.path)) {
                   e.preventDefault()
@@ -155,13 +279,20 @@ export function TabBar(): JSX.Element {
                   setDropTabId(tab.id)
                   return
                 }
-                if (dragIndex.current !== null) e.preventDefault()
+                if (dragIndex.current !== null) {
+                  e.preventDefault()
+                  maybeEdgeScrollDuringTabDrag(e.clientX)
+                }
               }}
               onDragLeave={() => {
                 setDropTabId((id) => (id === tab.id ? null : id))
               }}
               onDrop={(e) => {
                 e.preventDefault()
+                if (edgeScrollRaf.current != null) {
+                  cancelAnimationFrame(edgeScrollRaf.current)
+                  edgeScrollRaf.current = null
+                }
                 if (fileDragActive) {
                   dropOnTab(tab.path, e.ctrlKey, e.shiftKey)
                   dragIndex.current = null
@@ -225,15 +356,25 @@ export function TabBar(): JSX.Element {
             </div>
           )
         })}
-        <button
-          className="tab-new"
-          aria-label="New tab"
-          title="New tab (Ctrl+T)"
-          onClick={() => void newTab()}
-        >
-          <PlusIcon size={14} />
-        </button>
       </div>
+      <button
+        type="button"
+        className={`tabbar-scroll-btn${overflowing ? '' : ' is-hidden'}`}
+        aria-label="Scroll tabs right"
+        title="Scroll tabs right"
+        disabled={!canScrollRight}
+        onClick={() => scrollByPage(1)}
+      >
+        <ChevronRight size={14} />
+      </button>
+      <button
+        className="tab-new"
+        aria-label="New tab"
+        title="New tab (Ctrl+T)"
+        onClick={() => void newTab()}
+      >
+        <PlusIcon size={14} />
+      </button>
       <button
         type="button"
         className={`tabbar-recycle${recycleBinActive ? ' active' : ''}`}

@@ -79,6 +79,8 @@ textarea:focus {
 /* ---------- tab bar ---------- */
 
 .tabbar {
+  --tab-min: 90px;
+  --tab-max: 220px;
   display: flex;
   align-items: stretch;
   background: var(--bg-panel);
@@ -98,6 +100,34 @@ textarea:focus {
 }
 .tabbar-tabs::-webkit-scrollbar {
   display: none;
+}
+.tabbar-scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+  margin-bottom: 4px;
+  width: 22px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.tabbar-scroll-btn:hover:not(:disabled) {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+.tabbar-scroll-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.tabbar-scroll-btn.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 .tabbar-recycle {
   display: flex;
@@ -132,13 +162,15 @@ textarea:focus {
   /* Inactive: dark “tab” chrome (same family as the old selected look). */
   background: var(--bg);
   color: var(--text-dim);
-  max-width: 220px;
-  min-width: 90px;
+  /* Equal share until max; compress toward min; then strip scrolls. */
+  flex: 1 1 0;
+  width: 0;
+  max-width: var(--tab-max);
+  min-width: var(--tab-min);
   white-space: nowrap;
   border: 1px solid var(--border);
   border-bottom: none;
   cursor: default;
-  flex-shrink: 0;
 }
 
 .tab.active {
@@ -207,6 +239,7 @@ textarea:focus {
   display: flex;
   color: var(--text-dim);
   visibility: hidden;
+  flex-shrink: 0;
 }
 .tab:hover .tab-close,
 .tab.active .tab-close {
@@ -218,7 +251,8 @@ textarea:focus {
 }
 
 .tab-rename-input {
-  width: 110px;
+  width: 100%;
+  min-width: 0;
   padding: 1px 4px;
   font-size: inherit;
 }
@@ -229,6 +263,8 @@ textarea:focus {
   border-radius: 4px;
   color: var(--text-dim);
   flex-shrink: 0;
+  align-self: center;
+  margin-bottom: 4px;
 }
 .tabbar .tab-new:hover {
   background: var(--bg-elevated);

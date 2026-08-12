@@ -923,7 +923,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   onChange={(e) => setEditing({ ...editing, argsTemplate: e.target.value })}
                   placeholder="{path}"
                   spellCheck={false}
-                  title="Command-line arguments. Use tokens below; no shell evaluation"
+                  title="Command-line arguments. Prefer {path}; %1 also works. .bat/.cmd are supported"
                 />
               </label>
               <div className="context-menu-tokens">

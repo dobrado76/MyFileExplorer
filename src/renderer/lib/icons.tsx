@@ -101,6 +101,7 @@ export const DriveIcon = svg(
 )
 export const HomeIcon = svg(<path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z" />)
 export const ChevronRight = svg(<path d="M9 6l6 6-6 6" />)
+export const ChevronLeft = svg(<path d="M15 6l-6 6 6 6" />)
 export const ChevronDown = svg(<path d="M6 9l6 6 6-6" />)
 export const ArrowLeft = svg(<path d="M19 12H5m6-7l-7 7 7 7" />)
 export const ArrowRight = svg(<path d="M5 12h14m-6-7l7 7-7 7" />)

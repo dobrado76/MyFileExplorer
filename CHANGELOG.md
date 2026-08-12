@@ -9,6 +9,15 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Changed
+
+- **Tab bar** — tabs share width and shrink toward a minimum (~90px), then overflow with ◀ ▶ controls (Chrome-style); active tab scrolls into view; mouse wheel scrolls the strip horizontally.
+- **Scoped tabs** — tree no longer shows a section header that repeats the root folder name (e.g. “DROPBOX” above “Dropbox”).
+
+### Fixed
+
+- **Custom context commands** — `.bat` / `.cmd` launch via `cmd.exe` (Node `spawn` on the script alone caused `EINVAL` on Windows). Arguments also accept `%1` / `%*` as aliases for `{path}` / `{paths}`.
+
 ## [0.6.3] - 2026-08-12
 
 Completes the **v0.6** product line for tagging (`v0.6.3`): opt-in remotes (D46), context-menu Discover + layout (D41), experimental Linux packaging, and polish on top of **0.6.0** Network / settings export. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
