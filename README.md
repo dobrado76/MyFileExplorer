@@ -3,7 +3,7 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.6.x** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
+**v0.6.3** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
@@ -34,7 +34,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Offline tabs wait for encrypted / network drives instead of vanishing
 - **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/NETWORKS.md](docs/NETWORKS.md)**
 - Opt-in **FTP / FTPS / SFTP** remotes (deploy/sync) — **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)**
-- Portable **settings export/import** (theme, layouts, everything except window position)
+- Portable **settings export/import** (theme, layouts, context menu, remotes metadata, Network hosts — everything except window position)
 
 **See what you’re looking at**
 - Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
@@ -56,7 +56,8 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Built to stay smooth in folders with tens of thousands of files
 
 **Comfort**
-- Dark / light / custom theme, font size, curated context menu
+- Dark / light / custom theme, font size
+- **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
 - Per-folder view overrides, view filters, Details columns for media & generation fields
 - Optional gated **slideshow / categorizer** and **compiled file lists** for media libraries
 - NTFS **Alternate Data Streams** manager + optional Details column
@@ -90,8 +91,10 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
 7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box.
 8. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
+9. Settings → Context menu → Discover (optional) / Custom — then **Advanced → Export…** so you can restore after a reinstall.
+10. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 
-Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
+Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ---
 
@@ -113,7 +116,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.6.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.6.3 product-release summary |
 
 ---
 

@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** v0.6.x (package **0.6.3**). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md) (v0.6.0). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.6.3** (tag-ready). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -53,7 +53,8 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Experimental Linux packaging | AppImage + Wayland helpers; Win32 APIs lazy-load; not a support matrix — [LINUX.md](LINUX.md) |
 | Remote repositories | D46 — opt-in FTP/FTPS/SFTP; toolbar + tree; stage Open/preview; FTP ops serialized — [REMOTE_FTP.md](REMOTE_FTP.md) |
 | Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [NETWORKS.md](NETWORKS.md) |
-| Settings export / import | D45 — portable prefs + Network hosts + remote connection metadata (no passwords / window geometry) |
+| Settings export / import | D45 — portable prefs + Network hosts + remote connection metadata + **full context-menu customization** (no passwords / window geometry) |
+| Context menu Discover / layout | D41 — HKCR verb scan (persist + tick to enable); Built-in drag order & separators; Custom files/folders |
 | Open Command Line | Folder context; Terminal / PS / cmd; Shift = Admin |
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |

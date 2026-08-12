@@ -2543,12 +2543,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <div>
                   <div className="settings-toggle-label">Export / import settings</div>
                   <div className="settings-toggle-hint">
-                    Save a portable JSON backup (theme, named layouts, folder views, slideshow,
-                    context menu, network discovery, remembered Network hosts, remote repository
-                    connections without passwords, and all other preferences). Dialog and
-                    main-window positions are not included. Import replaces current settings;
-                    open tabs are unchanged (apply a named layout to restore a workspace).
-                    Re-enter remote passwords after import.
+                    Save a portable JSON backup of all preferences — including context menu
+                    customization (built-in show/hide and order, Discover scan catalog and enabled
+                    verbs, Custom files/folders commands), theme, named layouts, folder views,
+                    slideshow, network discovery, remembered Network hosts, remote repository
+                    connections without passwords, and everything else in Settings. Dialog and
+                    main-window positions are not included. Import replaces current settings; open
+                    tabs are unchanged (apply a named layout to restore a workspace). Re-enter
+                    remote passwords after import.
                   </div>
                 </div>
                 <div className="settings-inline">

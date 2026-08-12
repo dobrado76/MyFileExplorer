@@ -124,4 +124,106 @@ describe('settings export / import', () => {
     expect(() => parseSettingsImport({ format: 'other', settings: {} })).toThrow()
     expect(() => parseSettingsImport({ hello: true })).toThrow(/Not a MyFileExplorer/)
   })
+
+  it('round-trips full context menu customization (D41) via settingsSchema', () => {
+    const verb = {
+      id: 'sv-acdsee',
+      label: 'Browse with ACDSee',
+      verbKey: 'BrowseWithACDSee',
+      registryKey: 'HKCR\\Directory\\shell\\BrowseWithACDSee',
+      targetKind: 'folders' as const,
+      targetHint: 'Directory',
+      commandPreview: '"C:\\Program Files\\ACD Systems\\ACDSee\\ACDSee.exe" "%1"',
+      executable: 'C:\\Program Files\\ACD Systems\\ACDSee\\ACDSee.exe',
+      argsTemplate: '{path}',
+      extensions: null,
+      supported: true,
+      advanced: false
+    }
+    const contextMenu = {
+      files: [
+        {
+          id: 'cmc_ps',
+          label: 'Edit in Photoshop',
+          enabled: true,
+          executable: '%ProgramFiles%\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe',
+          argsTemplate: '{path}',
+          match: { type: 'extensions' as const, extensions: ['psd', 'png'] }
+        }
+      ],
+      folders: [
+        {
+          id: 'cmc_code',
+          label: 'Open in VS Code',
+          enabled: true,
+          executable: '%LocalAppData%\\Programs\\Microsoft VS Code\\Code.exe',
+          argsTemplate: '{path}',
+          match: { type: 'all' as const }
+        }
+      ],
+      hiddenBuiltins: ['power-rename', 'alternate-streams'] as const,
+      builtinLayout: [
+        { type: 'item' as const, id: 'open' as const },
+        { type: 'discovered' as const, id: 'sv-acdsee' },
+        { type: 'sep' as const, id: 'sep-export-1' },
+        { type: 'item' as const, id: 'properties' as const }
+      ],
+      discovered: {
+        verbs: [verb],
+        scannedKeys: 42,
+        enabledIds: ['sv-acdsee']
+      }
+    }
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        contextMenu: {
+          ...defaultSettings.contextMenu,
+          ...contextMenu,
+          hiddenBuiltins: [...contextMenu.hiddenBuiltins]
+        }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    const cm = parsed.settings.contextMenu
+    expect(cm.files).toEqual(contextMenu.files)
+    expect(cm.folders).toEqual(contextMenu.folders)
+    expect(cm.hiddenBuiltins).toEqual(['power-rename', 'alternate-streams'])
+    expect(cm.discovered).toEqual(contextMenu.discovered)
+    expect(cm.builtinLayout[0]).toEqual({ type: 'item', id: 'open' })
+    expect(cm.builtinLayout[1]).toEqual({ type: 'discovered', id: 'sv-acdsee' })
+    expect(cm.builtinLayout[2]).toEqual({ type: 'sep', id: 'sep-export-1' })
+    expect(cm.builtinLayout.some((e) => e.type === 'item' && e.id === 'copy')).toBe(true)
+  })
+
+  it('round-trips contextMenu.builtinLayout via full settingsSchema', () => {
+    const layout = [
+      { type: 'item' as const, id: 'properties' as const },
+      { type: 'sep' as const, id: 'my-sep' },
+      { type: 'item' as const, id: 'open' as const }
+    ]
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        contextMenu: {
+          ...defaultSettings.contextMenu,
+          builtinLayout: layout
+        }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    const ids = parsed.settings.contextMenu.builtinLayout
+      .filter((e) => e.type === 'item')
+      .map((e) => e.id)
+    expect(parsed.settings.contextMenu.builtinLayout[0]).toEqual({
+      type: 'item',
+      id: 'properties'
+    })
+    expect(parsed.settings.contextMenu.builtinLayout[1]).toEqual({ type: 'sep', id: 'my-sep' })
+    expect(ids[0]).toBe('properties')
+    expect(ids[1]).toBe('open')
+    expect(ids).toContain('copy')
+  })
 })

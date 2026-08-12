@@ -4562,6 +4562,7 @@ html.idle-cursor-hidden * {
   font-size: 1.05em;
   font-weight: 600;
   margin: 0;
+  flex-shrink: 0;
 }
 .settings-grid {
   display: grid;
@@ -4849,7 +4850,170 @@ html.idle-cursor-hidden * {
 
 /* Settings → Context menu */
 .context-menu-settings {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  /* Override .settings-grid: fill the pane so lists can grow */
+  grid-template-columns: unset;
+  align-items: stretch;
+}
+.context-menu-settings > .settings-help,
+.context-menu-settings > .context-menu-scope-tabs,
+.context-menu-settings > .context-menu-toolbar,
+.context-menu-settings > .context-menu-edit {
+  flex-shrink: 0;
+}
+.context-menu-discover-search {
+  min-width: 140px;
+  flex: 1;
+  max-width: 280px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.context-menu-discover-badge {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+  vertical-align: middle;
+}
+.context-menu-discover-badge.warn {
+  color: #f0c674;
+  background: color-mix(in srgb, #f0c674 18%, transparent);
+}
+.context-menu-discover-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--bg);
+}
+.context-menu-discover-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 13px;
+}
+.context-menu-discover-row:last-child {
+  border-bottom: none;
+}
+.context-menu-discover-row.is-disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+.context-menu-discover-row .context-menu-builtin-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.context-menu-builtin-row.is-discovered {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  grid-template-columns: 18px minmax(140px, 1fr) minmax(100px, 1.4fr);
+}
+.context-menu-builtin-row.is-discovered .context-menu-builtin-discovered-mark {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+  margin-left: 6px;
+}
+.context-menu-builtin-row.is-disabled {
+  opacity: 0.65;
+}
+.context-menu-builtin-row.drag-over,
+.context-menu-builtin-sep.drag-over {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.context-menu-builtin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  background: var(--bg);
+}
+.context-menu-builtin-row {
+  display: grid;
+  grid-template-columns: 18px 18px minmax(140px, 1fr) minmax(100px, 1.4fr);
+  align-items: center;
+  column-gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  min-height: 28px;
+  cursor: grab;
+}
+.context-menu-builtin-row:active,
+.context-menu-builtin-sep:active {
+  cursor: grabbing;
+}
+.context-menu-builtin-sep {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px;
+  border-radius: 4px;
+  min-height: 28px;
+  cursor: grab;
+}
+.context-menu-builtin-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+.context-menu-builtin-sep-line {
+  display: block;
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+.context-menu-builtin-sep-remove {
+  padding: 2px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.context-menu-builtin-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.context-menu-builtin-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .context-menu-scope-tabs {
   display: flex;
@@ -4896,45 +5060,13 @@ html.idle-cursor-hidden * {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: min(40vh, 360px);
+  flex: 1;
+  min-height: 120px;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px;
   background: var(--bg);
-}
-.context-menu-builtin-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: min(48vh, 420px);
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px;
-  background: var(--bg);
-}
-.context-menu-builtin-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  font-size: 13px;
-}
-.context-menu-builtin-row:last-child {
-  border-bottom: none;
-}
-.context-menu-builtin-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.context-menu-builtin-hint {
-  font-size: 11px;
-  color: var(--text-dim);
 }
 .context-menu-empty {
   padding: 12px;
@@ -4993,6 +5125,9 @@ html.idle-cursor-hidden * {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg-elevated, var(--bg));
+  flex-shrink: 0;
+  max-height: min(42%, 320px);
+  overflow: auto;
 }
 .context-menu-tokens {
   display: flex;

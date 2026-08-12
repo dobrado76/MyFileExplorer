@@ -52,6 +52,8 @@ export const IPC = {
   shellOpenRecycleBin: 'shell:openRecycleBin',
   /** Spawn a user-configured external program with argv (context-menu commands). */
   shellExec: 'shell:exec',
+  /** Scan static HKCR shell verbs for Discover → custom commands (D41). */
+  shellDiscoverVerbs: 'shell:discoverVerbs',
   shellClipboardWriteFiles: 'shell:clipboardWriteFiles',
   shellClipboardReadFiles: 'shell:clipboardReadFiles',
   /** Sync: webContents.startDrag — must run during an active drag gesture. */

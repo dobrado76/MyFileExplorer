@@ -139,6 +139,11 @@ export type MyFileExplorerApi = {
      * include `%ENV%` segments; must resolve to an absolute existing path.
      */
     exec(req: { executable: string; args: string[] }): Promise<Result<{ launched: true }>>
+    /**
+     * Scan static Windows shell verbs (HKCR) for Settings → Context menu → Discover.
+     * Never loads COM shell extensions.
+     */
+    discoverVerbs(): Promise<Result<import('../schemas/shellVerbs').DiscoverShellVerbsResponse>>
     clipboardWriteFiles(req: PathsRequest): Promise<Result<{ written: boolean }>>
     clipboardReadFiles(): Promise<Result<{ paths: string[] }>>
     /**

@@ -33,7 +33,19 @@ import {
   MAX_CONTEXT_MENU_COMMANDS,
   type ContextMenuCommand
 } from '../contextMenuCommands'
-import { sanitizeHiddenBuiltins, type ContextMenuBuiltinId } from '../contextMenuBuiltins'
+import {
+  DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT,
+  sanitizeBuiltinLayout,
+  sanitizeHiddenBuiltins,
+  type ContextMenuBuiltinId,
+  type ContextMenuBuiltinLayoutEntry
+} from '../contextMenuBuiltins'
+import {
+  defaultContextMenuDiscoveredSettings,
+  discoveredShellVerbSchema,
+  sanitizeDiscoveredSettings,
+  type ContextMenuDiscoveredSettings
+} from './shellVerbs'
 import { DEFAULT_UPDATES_SOURCE } from '../updatesSource'
 
 /** Settings → Appearance font size (px). */
@@ -126,6 +138,12 @@ function sanitizeContextMenuCommands(raw: unknown): ContextMenuCommand[] {
   return out
 }
 
+const contextMenuBuiltinLayoutEntrySchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('item'), id: z.string() }),
+  z.object({ type: z.literal('discovered'), id: z.string().min(1) }),
+  z.object({ type: z.literal('sep'), id: z.string().min(1) })
+])
+
 export const contextMenuSettingsSchema = z.object({
   files: z.preprocess(
     sanitizeContextMenuCommands,
@@ -136,19 +154,39 @@ export const contextMenuSettingsSchema = z.object({
     z.array(contextMenuCommandSchema).max(MAX_CONTEXT_MENU_COMMANDS).catch([])
   ),
   /** Built-in verb ids the user turned off (missing ⇒ shown). */
-  hiddenBuiltins: z.preprocess(sanitizeHiddenBuiltins, z.array(z.string()).catch([]))
+  hiddenBuiltins: z.preprocess(sanitizeHiddenBuiltins, z.array(z.string()).catch([])),
+  /** Order + separator grouping for built-ins / enabled Discover verbs. */
+  builtinLayout: z.preprocess(
+    sanitizeBuiltinLayout,
+    z.array(contextMenuBuiltinLayoutEntrySchema).catch(DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT)
+  ),
+  /** Last Discover scan catalog + enabled verb ids (D41). */
+  discovered: z.preprocess(
+    sanitizeDiscoveredSettings,
+    z
+      .object({
+        verbs: z.array(discoveredShellVerbSchema),
+        scannedKeys: z.number().int().nonnegative(),
+        enabledIds: z.array(z.string())
+      })
+      .catch(defaultContextMenuDiscoveredSettings)
+  )
 })
 
 export type ContextMenuSettings = {
   files: ContextMenuCommand[]
   folders: ContextMenuCommand[]
   hiddenBuiltins: ContextMenuBuiltinId[]
+  builtinLayout: ContextMenuBuiltinLayoutEntry[]
+  discovered: ContextMenuDiscoveredSettings
 }
 
 export const defaultContextMenuSettings: ContextMenuSettings = {
   files: [],
   folders: [],
-  hiddenBuiltins: []
+  hiddenBuiltins: [],
+  builtinLayout: DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT,
+  discovered: defaultContextMenuDiscoveredSettings
 }
 
 function sanitizeDetailsColumns(raw: unknown): { id: string; width: number }[] {
@@ -385,11 +423,19 @@ export const settingsSchema = z.object({
    */
   contextMenu: z.preprocess((raw) => {
     if (!raw || typeof raw !== 'object') return defaultContextMenuSettings
-    const o = raw as { files?: unknown; folders?: unknown; hiddenBuiltins?: unknown }
+    const o = raw as {
+      files?: unknown
+      folders?: unknown
+      hiddenBuiltins?: unknown
+      builtinLayout?: unknown
+      discovered?: unknown
+    }
     return {
       files: sanitizeContextMenuCommands(o.files),
       folders: sanitizeContextMenuCommands(o.folders),
-      hiddenBuiltins: sanitizeHiddenBuiltins(o.hiddenBuiltins)
+      hiddenBuiltins: sanitizeHiddenBuiltins(o.hiddenBuiltins),
+      builtinLayout: sanitizeBuiltinLayout(o.builtinLayout),
+      discovered: sanitizeDiscoveredSettings(o.discovered)
     }
   }, contextMenuSettingsSchema)
 })

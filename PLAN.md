@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.6.x** (package **0.6.3**) — Phases 0–10 shipped; Network neighborhood & mapped-drive reconnect (D44/D3); settings export/import (D45); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). Experimental Linux AppImage helpers landed on the 0.6 line — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) (v0.6.0) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.6.3** (tag-ready) — Phases 0–10 shipped; Network (D44/D3); settings export/import (D45); remotes (D46); context-menu Discover + layout (D41); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). Experimental Linux AppImage helpers on the 0.6 line — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -59,9 +59,10 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 
 ## Immediate next work
 
-1. Manual acceptance pass against the PRODUCT_SPEC checklist (esp. Network / mapped drives / settings export)
-2. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
-3. Share / soak-test v0.6.x; gather friend feedback (Linux remains contributor-only)
+1. Tag **`v0.6.3`** and publish the GitHub Release (CI attaches Setup.exe) — see [docs/BUILD.md](docs/BUILD.md)
+2. Manual acceptance pass against the PRODUCT_SPEC checklist (Network / remotes / context menu / settings export)
+3. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
+4. Soak-test v0.6.3; gather friend feedback (Linux remains contributor-only)
 
 ## Agent rules
 

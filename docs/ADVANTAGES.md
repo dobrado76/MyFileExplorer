@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.6.x
+**App:** MyFileExplorer · **Version:** 0.6.3
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -32,7 +32,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |
 | **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](NETWORKS.md). |
 | **Opt-in FTP / FTPS / SFTP remotes** | Bookmark hosts, browse, upload/download, and open/preview via local scratch — without leaving the file manager. Not Explorer parity over the wire. Details: [REMOTE_FTP.md](REMOTE_FTP.md). |
-| **Portable settings backup** | Export / import full preferences (theme, named layouts, network hosts, remote connection metadata, …) without window position — move to a new PC in one file. |
+| **Portable settings backup** | Export / import full preferences — theme, named layouts, **context-menu customization**, network hosts, remote connection metadata, … — without window position. Move to a new PC or survive an OS reinstall in one file. |
 | **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Configurable Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings — not a fixed Home-centric strip. |
@@ -78,7 +78,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. |
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
 | **In-app Power Rename** | Search/replace (literal or regex) across a selection with live preview and per-item include — no PowerToys shell extension required. |
-| **Custom context commands** | Settings → Context menu: hide unused built-ins; add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders (match by extension) — without dumping every Explorer shell verb. |
+| **Custom context commands** | Settings → Context menu: hide/reorder built-ins; **Discover** static shell verbs (tick to enable + order under Built-in); add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders — without dumping every Explorer shell verb. All of it exports with settings (D45). |
 | **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses userData scratch, AV uses byte-range streaming so `<video>` actually plays. |
 | **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
 | **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |
@@ -92,7 +92,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git / twenty third-party overlays. **Open Command Line here** opens a real Terminal/PowerShell window; **Shift+click** = Administrator. |
+| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git overlays. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). **Open Command Line here** opens a real Terminal/PowerShell window; **Shift+click** = Administrator. |
 | **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
 | **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
@@ -122,9 +122,11 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D39)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D46)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
+- [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  
+- [REMOTE_FTP.md](REMOTE_FTP.md) — opt-in FTP/FTPS/SFTP remotes  
 - [SLIDESHOW.md](SLIDESHOW.md) — ACDSee-inspired slideshow / categorizer  
 - [ADS.md](ADS.md) — NTFS Alternate Data Streams  
 - [../README.md](../README.md) — product overview  

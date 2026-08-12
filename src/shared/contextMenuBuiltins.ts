@@ -142,3 +142,254 @@ export function collapseMenuSeparators<T extends { type: string }>(items: T[]): 
   while (out.length > 0 && out[out.length - 1]!.type === 'sep') out.pop()
   return out
 }
+
+/** Settings / persisted layout entry: a built-in verb, enabled Discover verb, or separator. */
+export type ContextMenuBuiltinLayoutEntry =
+  | { type: 'item'; id: ContextMenuBuiltinId }
+  | { type: 'discovered'; id: string }
+  | { type: 'sep'; id: string }
+
+let sepSeq = 0
+export function newBuiltinLayoutSepId(): string {
+  sepSeq += 1
+  return `sep-${Date.now().toString(36)}-${sepSeq}`
+}
+
+/** Default order + grouping for Settings and runtime menus (D41). */
+export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[] = [
+  { type: 'item', id: 'undo' },
+  { type: 'item', id: 'redo' },
+  { type: 'sep', id: 'sep-default-1' },
+  { type: 'item', id: 'open' },
+  { type: 'item', id: 'open-with-default' },
+  { type: 'item', id: 'open-file-path' },
+  { type: 'item', id: 'open-file-in-new-tab' },
+  { type: 'item', id: 'edit-image' },
+  { type: 'item', id: 'version-control' },
+  { type: 'item', id: 'generate-video-preview' },
+  { type: 'sep', id: 'sep-default-2' },
+  { type: 'item', id: 'open-in-new-tab' },
+  { type: 'item', id: 'open-as-root-in-new-tab' },
+  { type: 'sep', id: 'sep-default-3' },
+  { type: 'item', id: 'add' },
+  { type: 'item', id: 'pin-quick-access' },
+  { type: 'item', id: 'customize-folder' },
+  { type: 'item', id: 'remove-folder-customization' },
+  { type: 'item', id: 'video-previews' },
+  { type: 'sep', id: 'sep-default-4' },
+  { type: 'item', id: 'cut' },
+  { type: 'item', id: 'copy' },
+  { type: 'item', id: 'paste' },
+  { type: 'item', id: 'paste-into-folder' },
+  { type: 'item', id: 'file-tools' },
+  { type: 'sep', id: 'sep-default-5' },
+  { type: 'item', id: 'rename' },
+  { type: 'item', id: 'power-rename' },
+  { type: 'item', id: 'delete' },
+  { type: 'item', id: 'delete-permanently' },
+  { type: 'sep', id: 'sep-default-6' },
+  { type: 'item', id: 'compress-zip' },
+  { type: 'item', id: 'extract-zip' },
+  { type: 'sep', id: 'sep-default-7' },
+  { type: 'item', id: 'copy-path' },
+  { type: 'item', id: 'copy-name' },
+  { type: 'item', id: 'show-in-system-explorer' },
+  { type: 'item', id: 'open-command-line' },
+  { type: 'item', id: 'hide-from-view' },
+  { type: 'item', id: 'search-index' },
+  { type: 'sep', id: 'sep-default-8' },
+  { type: 'item', id: 'map-network-drive' },
+  { type: 'item', id: 'disconnect-network-drive' },
+  { type: 'item', id: 'network-refresh' },
+  { type: 'sep', id: 'sep-default-9' },
+  { type: 'item', id: 'alternate-streams' },
+  { type: 'item', id: 'properties' }
+]
+
+/**
+ * Prefer inserting user custom commands after the first of these that appears
+ * in the ordered menu (matches historical “after Open with…” placement).
+ */
+const CUSTOM_COMMAND_INSERT_AFTER: readonly ContextMenuBuiltinId[] = [
+  'open-with-default',
+  'open',
+  'generate-video-preview',
+  'edit-image',
+  'open-file-in-new-tab',
+  'open-file-path',
+  'open-as-root-in-new-tab',
+  'open-in-new-tab'
+]
+
+/** Validate, dedupe, and append any missing built-in ids (catalog order). */
+export function sanitizeBuiltinLayout(raw: unknown): ContextMenuBuiltinLayoutEntry[] {
+  const out: ContextMenuBuiltinLayoutEntry[] = []
+  const seenItems = new Set<string>()
+  const seenSeps = new Set<string>()
+  const seenDiscovered = new Set<string>()
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (!entry || typeof entry !== 'object') continue
+      const t = (entry as { type?: unknown }).type
+      if (t === 'sep') {
+        const rawId = (entry as { id?: unknown }).id
+        const id =
+          typeof rawId === 'string' && rawId.trim() ? rawId : newBuiltinLayoutSepId()
+        if (seenSeps.has(id)) continue
+        seenSeps.add(id)
+        out.push({ type: 'sep', id })
+        continue
+      }
+      if (t === 'discovered') {
+        const id = (entry as { id?: unknown }).id
+        if (typeof id !== 'string' || !id.trim() || seenDiscovered.has(id)) continue
+        seenDiscovered.add(id)
+        out.push({ type: 'discovered', id })
+        continue
+      }
+      if (t === 'item') {
+        const id = (entry as { id?: unknown }).id
+        if (typeof id !== 'string' || !isContextMenuBuiltinId(id) || seenItems.has(id)) continue
+        seenItems.add(id)
+        out.push({ type: 'item', id })
+      }
+    }
+  }
+
+  for (const id of CONTEXT_MENU_BUILTIN_IDS) {
+    if (seenItems.has(id)) continue
+    out.push({ type: 'item', id })
+  }
+
+  // Empty / junk-only input → ship the curated default (includes separators).
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT.slice()
+  }
+
+  return out
+}
+
+/**
+ * Reorder built-in / Discover menu rows per layout and inject layout separators.
+ * Manual custom commands (no builtin / discoveredId) stay as a block after an open/edit anchor.
+ * Hardcoded separators in `items` are discarded.
+ */
+export function applyBuiltinLayoutToMenu<
+  T extends { type: string; builtin?: string; discoveredId?: string }
+>(
+  items: T[],
+  layout: readonly (
+    | { type: 'item'; id: string }
+    | { type: 'discovered'; id: string }
+    | { type: 'sep'; id: string }
+  )[]
+): T[] {
+  const byId = new Map<string, T>()
+  const byDiscovered = new Map<string, T>()
+  const others: T[] = []
+  for (const it of items) {
+    if (it.type === 'sep') continue
+    if (it.discoveredId) {
+      if (!byDiscovered.has(it.discoveredId)) byDiscovered.set(it.discoveredId, it)
+    } else if (it.builtin) {
+      if (!byId.has(it.builtin)) byId.set(it.builtin, it)
+    } else {
+      others.push(it)
+    }
+  }
+
+  const out: T[] = []
+  let pendingSep = false
+  let customsInjected = others.length === 0
+
+  const pushSep = (): void => {
+    if (out.length === 0 || out[out.length - 1]!.type === 'sep') return
+    out.push({ type: 'sep' } as T)
+  }
+
+  const tryInjectCustoms = (afterBuiltinId: string | null): void => {
+    if (customsInjected || afterBuiltinId == null) return
+    if (!(CUSTOM_COMMAND_INSERT_AFTER as readonly string[]).includes(afterBuiltinId)) return
+    const emittedIds = new Set(
+      out.filter((x) => x.type !== 'sep' && x.builtin).map((x) => x.builtin!)
+    )
+    const firstAnchor = CUSTOM_COMMAND_INSERT_AFTER.find((id) => emittedIds.has(id))
+    if (firstAnchor !== afterBuiltinId) return
+    pushSep()
+    for (const o of others) out.push(o)
+    pendingSep = true
+    customsInjected = true
+  }
+
+  for (const entry of layout) {
+    if (entry.type === 'sep') {
+      pendingSep = true
+      continue
+    }
+    if (entry.type === 'discovered') {
+      const item = byDiscovered.get(entry.id)
+      if (!item) continue
+      byDiscovered.delete(entry.id)
+      if (pendingSep) pushSep()
+      pendingSep = false
+      out.push(item)
+      continue
+    }
+    const item = byId.get(entry.id)
+    if (!item) continue
+    byId.delete(entry.id)
+    if (pendingSep) pushSep()
+    pendingSep = false
+    out.push(item)
+    tryInjectCustoms(entry.id)
+  }
+
+  for (const id of CONTEXT_MENU_BUILTIN_IDS) {
+    const item = byId.get(id)
+    if (!item) continue
+    byId.delete(id)
+    if (pendingSep) pushSep()
+    pendingSep = false
+    out.push(item)
+    tryInjectCustoms(id)
+  }
+
+  for (const item of byDiscovered.values()) {
+    if (pendingSep) pushSep()
+    pendingSep = false
+    out.push(item)
+  }
+
+  if (!customsInjected && others.length > 0) {
+    pushSep()
+    for (const o of others) out.push(o)
+  }
+
+  return collapseMenuSeparators(out)
+}
+
+/** Keep discovered layout rows that are still enabled; append any newly enabled at the end. */
+export function syncDiscoveredInLayout(
+  layout: readonly ContextMenuBuiltinLayoutEntry[],
+  enabledIds: readonly string[]
+): ContextMenuBuiltinLayoutEntry[] {
+  const enabled = new Set(enabledIds)
+  const out: ContextMenuBuiltinLayoutEntry[] = []
+  const seen = new Set<string>()
+  for (const e of layout) {
+    if (e.type === 'discovered') {
+      if (!enabled.has(e.id) || seen.has(e.id)) continue
+      seen.add(e.id)
+      out.push(e)
+      continue
+    }
+    out.push(e)
+  }
+  for (const id of enabledIds) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    out.push({ type: 'discovered', id })
+  }
+  return out
+}

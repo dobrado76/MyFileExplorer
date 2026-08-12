@@ -1,6 +1,6 @@
 # Building & releases
 
-**Version:** 0.6.x (package 0.6.3)
+**Version:** 0.6.3 (tag `v0.6.3`)
 
 The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 

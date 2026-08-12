@@ -590,6 +590,7 @@ type AppState = {
   closeContextMenu(): void
   /** Launch a Settings → Context menu external command for the given paths. */
   runContextMenuCommand(commandId: string, paths: string[]): Promise<void>
+  runDiscoveredContextMenuVerb(verbId: string, paths: string[]): Promise<void>
 
   // settings
   applySettingsPatch(patch: SettingsPatch): Promise<void>
@@ -4061,6 +4062,26 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async runDiscoveredContextMenuVerb(verbId, paths) {
+      if (paths.length === 0) return
+      const disc = get().settings.contextMenu.discovered
+      if (!disc?.enabledIds.includes(verbId)) {
+        get().notify('Command not found or disabled', true)
+        return
+      }
+      const verb = disc.verbs.find((v) => v.id === verbId)
+      if (!verb?.supported || !verb.executable || !verb.argsTemplate) {
+        get().notify('Command not found or disabled', true)
+        return
+      }
+      try {
+        const args = expandArgsTemplate(verb.argsTemplate, paths)
+        await call(api.shell.exec({ executable: verb.executable, args }))
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     async applySettingsPatch(patch) {
       const prev = get().settings
       const mergedPatch: SettingsPatch = { ...patch }
@@ -4088,7 +4109,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.contextMenu,
           files: patch.contextMenu.files ?? prev.contextMenu.files,
           folders: patch.contextMenu.folders ?? prev.contextMenu.folders,
-          hiddenBuiltins: patch.contextMenu.hiddenBuiltins ?? prev.contextMenu.hiddenBuiltins
+          hiddenBuiltins: patch.contextMenu.hiddenBuiltins ?? prev.contextMenu.hiddenBuiltins,
+          builtinLayout: patch.contextMenu.builtinLayout ?? prev.contextMenu.builtinLayout,
+          discovered: patch.contextMenu.discovered ?? prev.contextMenu.discovered
         }
       }
       // Optimistic update so toggles don’t snap back while IPC runs.
@@ -4113,7 +4136,12 @@ export const useAppStore = create<AppState>()((set, get) => {
                 folders: mergedPatch.contextMenu.folders ?? s.settings.contextMenu.folders,
                 hiddenBuiltins:
                   mergedPatch.contextMenu.hiddenBuiltins ??
-                  s.settings.contextMenu.hiddenBuiltins
+                  s.settings.contextMenu.hiddenBuiltins,
+                builtinLayout:
+                  mergedPatch.contextMenu.builtinLayout ??
+                  s.settings.contextMenu.builtinLayout,
+                discovered:
+                  mergedPatch.contextMenu.discovered ?? s.settings.contextMenu.discovered
               }
             : s.settings.contextMenu
         },

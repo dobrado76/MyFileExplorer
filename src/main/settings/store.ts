@@ -68,7 +68,15 @@ export function patchSettings(patch: unknown): Settings {
           hiddenBuiltins:
             parsed.contextMenu.hiddenBuiltins ??
             cur.contextMenu?.hiddenBuiltins ??
-            []
+            [],
+          builtinLayout:
+            parsed.contextMenu.builtinLayout ??
+            cur.contextMenu?.builtinLayout ??
+            defaultSettings.contextMenu.builtinLayout,
+          discovered:
+            parsed.contextMenu.discovered ??
+            cur.contextMenu?.discovered ??
+            defaultSettings.contextMenu.discovered
         }
       : (cur.contextMenu ?? defaultSettings.contextMenu)
   })

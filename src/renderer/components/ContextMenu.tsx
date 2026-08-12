@@ -2,10 +2,12 @@ import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef
 import { findExactFolderView } from '@shared/folderViews'
 import { commandMatches } from '@shared/contextMenuCommands'
 import {
+  applyBuiltinLayoutToMenu,
   collapseMenuSeparators,
   isContextMenuBuiltinEnabled,
   type ContextMenuBuiltinId
 } from '@shared/contextMenuBuiltins'
+import { discoveredVerbMatches } from '@shared/schemas/shellVerbs'
 import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf, joinPath } from '../lib/paths'
@@ -47,6 +49,8 @@ type MenuItem =
       danger?: boolean
       disabled?: boolean
       builtin?: ContextMenuBuiltinId
+      /** Enabled Discover verb id (ordered via builtinLayout). */
+      discoveredId?: string
       action(ev?: MenuActionEv): void
     }
   | {
@@ -57,13 +61,23 @@ type MenuItem =
       items: SubEntry[]
     }
 
-function filterHiddenBuiltins(items: MenuItem[], hidden: readonly string[] | undefined): MenuItem[] {
+function filterHiddenBuiltins(
+  items: MenuItem[],
+  hidden: readonly string[] | undefined,
+  layout?: readonly (
+    | { type: 'item'; id: string }
+    | { type: 'discovered'; id: string }
+    | { type: 'sep'; id: string }
+  )[]
+): MenuItem[] {
   const filtered = items.filter((it) => {
     if (it.type === 'sep') return true
     if (!it.builtin) return true
     return isContextMenuBuiltinEnabled(hidden, it.builtin)
   })
-  return collapseMenuSeparators(filtered)
+  const collapsed = collapseMenuSeparators(filtered)
+  if (!layout?.length) return collapsed
+  return applyBuiltinLayoutToMenu(collapsed, layout)
 }
 
 function openCommandLineMenuItem(
@@ -325,7 +339,11 @@ export function ContextMenu(): JSX.Element | null {
           }
         )
       }
-      return filterHiddenBuiltins(out, s.settings.contextMenu.hiddenBuiltins)
+      return filterHiddenBuiltins(
+        out,
+        s.settings.contextMenu.hiddenBuiltins,
+        s.settings.contextMenu.builtinLayout
+      )
     }
 
     // Slideshow player — categorize / delete / undo / edit / reveal / exit.
@@ -678,7 +696,11 @@ export function ContextMenu(): JSX.Element | null {
           }
         }
       )
-      return filterHiddenBuiltins(result, s.settings.contextMenu.hiddenBuiltins)
+      return filterHiddenBuiltins(
+        result,
+        s.settings.contextMenu.hiddenBuiltins,
+        s.settings.contextMenu.builtinLayout
+      )
     }
 
     result.push({
@@ -726,7 +748,7 @@ export function ContextMenu(): JSX.Element | null {
       })
     }
 
-    // User-defined external commands (Settings → Context menu).
+    // User-defined customs + enabled Discover verbs (Settings → Context menu).
     {
       let selKind: 'file' | 'folder' | null = null
       if (menu.inTree && paths.length >= 1) {
@@ -757,6 +779,24 @@ export function ContextMenu(): JSX.Element | null {
               action: () => {
                 close()
                 void s.runContextMenuCommand(cmd.id, paths)
+              }
+            })
+          }
+        }
+        const disc = s.settings.contextMenu.discovered
+        const enabled = new Set(disc?.enabledIds ?? [])
+        if (disc?.verbs?.length && enabled.size > 0) {
+          for (const id of disc.enabledIds) {
+            if (!enabled.has(id)) continue
+            const verb = disc.verbs.find((v) => v.id === id)
+            if (!verb || !discoveredVerbMatches(verb, paths, selKind)) continue
+            result.push({
+              type: 'item',
+              label: verb.label,
+              discoveredId: verb.id,
+              action: () => {
+                close()
+                void s.runDiscoveredContextMenuVerb(verb.id, paths)
               }
             })
           }
@@ -1432,7 +1472,11 @@ export function ContextMenu(): JSX.Element | null {
         }
       }
     )
-    return filterHiddenBuiltins(result, s.settings.contextMenu.hiddenBuiltins)
+    return filterHiddenBuiltins(
+        result,
+        s.settings.contextMenu.hiddenBuiltins,
+        s.settings.contextMenu.builtinLayout
+      )
   }, [menu, closeContextMenu, store, imageVer, shiftHeld])
 
   // Clamp open submenu into the viewport (flip X, shift Y, scroll if taller than screen).

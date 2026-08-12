@@ -446,6 +446,10 @@ export function registerIpcHandlers(): void {
     }),
     (req) => execExternal(req.executable, req.args)
   )
+  handle(IPC.shellDiscoverVerbs, emptySchema, async () => {
+    const { discoverShellVerbs } = await import('../shell/discoverShellVerbs')
+    return discoverShellVerbs()
+  })
   handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
   // Sync + blocking: startDrag runs DoDragDrop until the OS gesture ends.
