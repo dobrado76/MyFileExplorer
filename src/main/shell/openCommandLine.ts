@@ -105,7 +105,7 @@ export async function openCommandLineHere(
     throw new AppError('io', 'Open command line is only available on Windows')
   }
   const n = requireAbsolute(dirPath)
-  let isDir = false
+  let isDir: boolean
   try {
     isDir = (await fsp.stat(n)).isDirectory()
   } catch {

@@ -165,7 +165,7 @@ function hasDiskShares(serverRaw: string): boolean {
   const entriesread = [0]
   const totalentries = [0]
   const resume = [0]
-  let status = 1
+  let status: number
   try {
     status = api.NetShareEnum(server, 1, bufptr, 0xffffffff, entriesread, totalentries, resume)
   } catch {

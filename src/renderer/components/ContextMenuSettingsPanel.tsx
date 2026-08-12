@@ -141,7 +141,10 @@ export function ContextMenuSettingsPanel(): JSX.Element {
       : scope === 'folders'
         ? settings.contextMenu.folders
         : []
-  const hiddenBuiltins = settings.contextMenu.hiddenBuiltins ?? []
+  const hiddenBuiltins = useMemo(
+    () => settings.contextMenu.hiddenBuiltins ?? [],
+    [settings.contextMenu.hiddenBuiltins]
+  )
   const hiddenSet = useMemo(() => new Set(hiddenBuiltins), [hiddenBuiltins])
 
   const presetsForScope = useMemo(
