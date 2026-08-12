@@ -1,8 +1,10 @@
 /** Updates source: local installer folder or GitHub Releases URL. */
 
+/** Public GitHub repository (docs, issues, source). */
+export const GITHUB_REPO_URL = 'https://github.com/dobrado76/MyFileExplorer'
+
 /** Default for new installs — public GitHub Releases page. */
-export const DEFAULT_UPDATES_SOURCE =
-  'https://github.com/dobrado76/MyFileExplorer/releases'
+export const DEFAULT_UPDATES_SOURCE = `${GITHUB_REPO_URL}/releases`
 
 /** Empty / whitespace → public GitHub Releases URL. */
 export function resolveUpdatesSource(raw: string | null | undefined): string {

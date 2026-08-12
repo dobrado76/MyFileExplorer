@@ -26,7 +26,7 @@ import { VID_THUMB_FRAME_MS_MAX, VID_THUMB_FRAME_MS_MIN } from '@shared/vidThumb
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { basename } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
-import { DEFAULT_UPDATES_SOURCE, resolveUpdatesSource } from '@shared/updatesSource'
+import { DEFAULT_UPDATES_SOURCE, GITHUB_REPO_URL, resolveUpdatesSource } from '@shared/updatesSource'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
@@ -2611,6 +2611,24 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
           {section === 'about' && (
             <div className="settings-stack">
+              <div className="settings-action-card">
+                <div>
+                  <div className="settings-toggle-label">Help & documentation</div>
+                  <div className="settings-toggle-hint">
+                    README, feature guides, and issue tracker on the project GitHub page.
+                  </div>
+                </div>
+                <a
+                  className="btn"
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Open the MyFileExplorer GitHub repository in your browser"
+                >
+                  Open GitHub…
+                </a>
+              </div>
+
               <div className="settings-action-card">
                 <div className="settings-updates-body">
                   <div className="settings-toggle-label">Updates</div>

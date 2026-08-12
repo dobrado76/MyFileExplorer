@@ -4443,6 +4443,11 @@ html.idle-cursor-hidden * {
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 .btn:hover {
   border-color: var(--text-dim);
@@ -4833,6 +4838,9 @@ html.idle-cursor-hidden * {
 .settings-action-card > .settings-btn-stack {
   flex: 0 0 auto;
   flex-wrap: wrap;
+}
+.settings-action-card > a.btn {
+  white-space: nowrap;
 }
 .settings-btn-stack {
   display: flex;
