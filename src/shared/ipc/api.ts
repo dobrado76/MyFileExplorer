@@ -88,7 +88,9 @@ export type MyFileExplorerApi = {
     ): Promise<Result<{ path: string; volumeName: string }>>
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
-    calculateFolderStatistics(req: PathRequest): Promise<Result<import('../folderStats').FolderStatisticsResult>>
+    calculateFolderStatistics(
+      req: import('../schemas/fs').CalculateFolderStatisticsRequest
+    ): Promise<Result<import('../folderStats').FolderStatisticsResult>>
     setAttributes(req: SetAttributesRequest): Promise<Result<SetAttributesResponse>>
     /** Custom folder icon via desktop.ini + Folder.ico. */
     setFolderIcon(req: { path: string; iconPath: string }): Promise<Result<{ path: string }>>

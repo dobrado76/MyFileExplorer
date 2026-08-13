@@ -614,7 +614,10 @@ type AppState = {
     opts?: { recursive?: boolean }
   ): Promise<void>
   /** Count files/folders and attach FileCount / FolderCount ADS streams on a local folder. */
-  calculateFolderStatistics(path: string): Promise<void>
+  calculateFolderStatistics(
+    folderPath: string,
+    opts?: { skipTagged?: boolean }
+  ): Promise<void>
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
@@ -4434,12 +4437,21 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
-    async calculateFolderStatistics(folderPath) {
+    async calculateFolderStatistics(folderPath, opts) {
       try {
-        const res = await call(api.fs.calculateFolderStatistics({ path: folderPath }))
+        const res = await call(
+          api.fs.calculateFolderStatistics({
+            path: folderPath,
+            ...(opts?.skipTagged ? { skipTagged: true } : {})
+          })
+        )
         get().bumpColumnMeta(res.path)
+        const skipped =
+          res.foldersSkipped != null && res.foldersSkipped > 0
+            ? ` · ${res.foldersSkipped.toLocaleString()} skipped`
+            : ''
         get().notify(
-          `Statistics saved — ${res.foldersTagged.toLocaleString()} folders tagged · ${res.fileTotCount.toLocaleString()} files · ${res.folderTotCount.toLocaleString()} folders · ${formatBytes(res.totalSize)}`
+          `Statistics saved — ${res.foldersTagged.toLocaleString()} folders tagged${skipped} · ${res.fileTotCount.toLocaleString()} files · ${res.folderTotCount.toLocaleString()} folders · ${formatBytes(res.totalSize)}`
         )
       } catch (e) {
         reportOperationError('Calculate Statistics failed', e)

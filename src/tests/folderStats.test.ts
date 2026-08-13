@@ -3,6 +3,7 @@ import {
   FOLDER_STAT_FILE_COUNT,
   FOLDER_STATS_COLUMN_IDS,
   FOLDER_STATS_STREAM_BY_COLUMN,
+  parseFolderStatInt,
   rollupFolderStats
 } from '@shared/folderStats'
 import { columnNeedsDirectoryMeta, filterMetaFetchColumns, isDirectoryMetaColumn } from '@shared/schemas/columns'
@@ -14,6 +15,16 @@ describe('folderStats streams', () => {
     expect(FOLDER_STATS_STREAM_BY_COLUMN.fsFolderCount).toBe('FolderCount')
     expect(FOLDER_STATS_STREAM_BY_COLUMN.fsFolderTotCount).toBe('FolderTotCount')
     expect(FOLDER_STATS_COLUMN_IDS).toHaveLength(4)
+  })
+
+  it('parseFolderStatInt accepts non-negative decimal integers', () => {
+    expect(parseFolderStatInt('0')).toBe(0)
+    expect(parseFolderStatInt(' 1234567890 ')).toBe(1234567890)
+    expect(parseFolderStatInt('')).toBe(null)
+    expect(parseFolderStatInt('12.3')).toBe(null)
+    expect(parseFolderStatInt('-1')).toBe(null)
+    expect(parseFolderStatInt('abc')).toBe(null)
+    expect(parseFolderStatInt(null)).toBe(null)
   })
 
   it('rollupFolderStats adds immediate counts to child subtree totals', () => {

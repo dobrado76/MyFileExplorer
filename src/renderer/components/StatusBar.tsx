@@ -95,11 +95,13 @@ export function StatusBar(): JSX.Element {
   const opCounts =
     fileOp == null
       ? ''
-      : fileOp.total > 0
-        ? `${Math.min(fileOp.done, fileOp.total).toLocaleString()} of ${fileOp.total.toLocaleString()}`
-        : fileOp.done > 0
-          ? `${fileOp.done.toLocaleString()} scanned`
-          : '…'
+      : fileOp.current && fileOp.total <= 0
+        ? ''
+        : fileOp.total > 0
+          ? `${Math.min(fileOp.done, fileOp.total).toLocaleString()} of ${fileOp.total.toLocaleString()}`
+          : fileOp.done > 0
+            ? `${fileOp.done.toLocaleString()} scanned`
+            : '…'
 
   let opCurrent = ''
   if (fileOp?.current) opCurrent = fileOp.current
@@ -123,6 +125,17 @@ export function StatusBar(): JSX.Element {
     <div className="statusbar">
       {fileOp ? (
         <div className="status-op" role="status" aria-live="polite">
+          <button
+            type="button"
+            className="status-op-cancel"
+            onClick={() => {
+              void api.fs.cancelOp().then((res) => {
+                if (res.ok && res.value.cancelled) notify('Cancelling…')
+              })
+            }}
+          >
+            Cancel
+          </button>
           <div
             className="status-op-track"
             role="progressbar"
@@ -143,17 +156,6 @@ export function StatusBar(): JSX.Element {
               {opCurrent}
             </span>
           ) : null}
-          <button
-            type="button"
-            className="status-op-cancel"
-            onClick={() => {
-              void api.fs.cancelOp().then((res) => {
-                if (res.ok && res.value.cancelled) notify('Cancelling…')
-              })
-            }}
-          >
-            Cancel
-          </button>
         </div>
       ) : (
         <span>{itemCountLabel}</span>

@@ -55,5 +55,16 @@ export type FolderStatisticsResult = FolderStatCounts & {
   path: string
   /** Folders that received ADS streams (includes the root). */
   foldersTagged: number
+  /** Folders skipped because TotalSize ADS already existed (skipTagged runs only). */
+  foldersSkipped?: number
   truncated?: boolean
+}
+
+/** Parse a decimal integer folder-stat ADS value; rejects empty/non-digit. */
+export function parseFolderStatInt(raw: string | null | undefined): number | null {
+  if (raw == null) return null
+  const v = raw.trim()
+  if (!/^\d+$/.test(v)) return null
+  const n = Number(v)
+  return Number.isSafeInteger(n) ? n : null
 }

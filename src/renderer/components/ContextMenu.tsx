@@ -783,11 +783,12 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Calculate Statistics',
+          hint: shiftHeld ? 'Skip tagged' : 'Shift = skip tagged',
           builtin: 'calculate-folder-statistics',
           disabled: folderPath.toLowerCase().startsWith('mfe-remote://'),
-          action: () => {
+          action: (ev) => {
             close()
-            void s.calculateFolderStatistics(folderPath)
+            void s.calculateFolderStatistics(folderPath, { skipTagged: !!ev?.shiftKey })
           }
         },
         {
@@ -1575,11 +1576,12 @@ export function ContextMenu(): JSX.Element | null {
             {
               type: 'item' as const,
               label: 'Calculate Statistics',
+              hint: shiftHeld ? 'Skip tagged' : 'Shift = skip tagged',
               builtin: 'calculate-folder-statistics' as const,
               disabled: single.toLowerCase().startsWith('mfe-remote://'),
-              action: () => {
+              action: (ev?: MenuActionEv) => {
                 close()
-                void s.calculateFolderStatistics(single)
+                void s.calculateFolderStatistics(single, { skipTagged: !!ev?.shiftKey })
               }
             }
           ]
