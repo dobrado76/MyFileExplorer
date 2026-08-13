@@ -30,6 +30,7 @@ import {
   noteItemClick,
   handleLabelClickForRename
 } from '../lib/doubleSingleClick'
+import { FOLDER_STATS_STREAM_BY_COLUMN } from '@shared/folderStats'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
@@ -141,8 +142,15 @@ function detailCellValue(
       return formatBytes(e.size)
     case 'ext':
       return e.ext
-    default:
-      return meta?.[id] ?? ''
+    default: {
+      const raw = meta?.[id] ?? ''
+      if (!raw) return ''
+      if (id in FOLDER_STATS_STREAM_BY_COLUMN) {
+        const n = Number(raw)
+        return Number.isFinite(n) ? n.toLocaleString() : raw
+      }
+      return raw
+    }
   }
 }
 
@@ -163,8 +171,8 @@ function compareColumnValues(id: DetailsColumnId, a: string, b: string): number 
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
   }
   if (DETAILS_COLUMN_META[id].numeric) {
-    const na = parseFloat(a.replace(/[^0-9.-]+/g, ' ').trim())
-    const nb = parseFloat(b.replace(/[^0-9.-]+/g, ' ').trim())
+    const na = Number(a.replace(/,/g, ''))
+    const nb = Number(b.replace(/,/g, ''))
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
   }
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })

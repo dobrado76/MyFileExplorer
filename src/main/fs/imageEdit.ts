@@ -30,6 +30,7 @@ import {
 import { pathIsNtfs } from './drives'
 import { requireAbsolute } from './list'
 import { muteWatchers } from './watch'
+import { preserveMetadataFromSource } from './imageMetadata'
 
 export type ImageEditState = {
   versionCount: number
@@ -66,13 +67,21 @@ function mimeForImagePath(file: string): string {
   return 'application/octet-stream'
 }
 
-async function encodeEditedBuffer(destFile: string, dataBase64: string): Promise<Buffer> {
+async function encodeEditedBuffer(
+  destFile: string,
+  dataBase64: string,
+  metadataSourceFile?: string
+): Promise<Buffer> {
   const { bytes } = stripDataUrl(dataBase64)
   if (bytes.length === 0) throw new AppError('validation', 'Empty image data')
-  return encodeRawImageBuffer(destFile, bytes)
+  return encodeRawImageBuffer(destFile, bytes, metadataSourceFile)
 }
 
-async function encodeRawImageBuffer(destFile: string, bytes: Buffer): Promise<Buffer> {
+async function encodeRawImageBuffer(
+  destFile: string,
+  bytes: Buffer,
+  metadataSourceFile?: string
+): Promise<Buffer> {
   if (bytes.length === 0) throw new AppError('validation', 'Empty image data')
 
   const ext = imageExt(destFile)
@@ -92,7 +101,22 @@ async function encodeRawImageBuffer(destFile: string, bytes: Buffer): Promise<Bu
     else if (format === 'avif') pipeline = pipeline.avif({ quality: 80 })
     else pipeline = pipeline.toFormat(format)
 
-    return await pipeline.toBuffer()
+    let encoded = await pipeline.toBuffer()
+    if (metadataSourceFile) {
+      try {
+        // `$DATA` holds the pristine original (and its metadata) when version ADS exist.
+        const sourceBytes = await fsp.readFile(metadataSourceFile)
+        encoded = await preserveMetadataFromSource(
+          encoded,
+          destFile,
+          sourceBytes,
+          imageExt(metadataSourceFile)
+        )
+      } catch {
+        /* metadata is best-effort — never block save */
+      }
+    }
+    return encoded
   } catch (e) {
     throw e instanceof AppError
       ? e
@@ -156,8 +180,12 @@ async function writeEncodedImageBytes(
   }
 }
 
-async function writeEncodedFile(destFile: string, dataBase64: string): Promise<void> {
-  const buf = await encodeEditedBuffer(destFile, dataBase64)
+async function writeEncodedFile(
+  destFile: string,
+  dataBase64: string,
+  metadataSourceFile?: string
+): Promise<void> {
+  const buf = await encodeEditedBuffer(destFile, dataBase64, metadataSourceFile)
   const tmp = destFile + '.mfe-edit.tmp'
   try {
     await fsp.mkdir(path.dirname(destFile), { recursive: true })
@@ -362,7 +390,8 @@ async function shiftVersionsDown(file: string, count: number): Promise<void> {
  */
 export async function writeEditedImageToPath(
   destPath: string,
-  dataBase64: string
+  dataBase64: string,
+  metadataSourcePath?: string
 ): Promise<{ path: string }> {
   const file = requireAbsolute(destPath)
   if (!isEditableImagePath(file)) {
@@ -372,7 +401,8 @@ export async function writeEditedImageToPath(
     )
   }
   muteWatchers(1500)
-  await writeEncodedFile(file, dataBase64)
+  const metaSource = metadataSourcePath ? requireAbsolute(metadataSourcePath) : undefined
+  await writeEncodedFile(file, dataBase64, metaSource)
   return { path: file }
 }
 
@@ -399,7 +429,7 @@ export async function saveEditedImage(
   }
   if (!st.isFile()) throw new AppError('validation', 'Not a file')
 
-  const encoded = await encodeEditedBuffer(file, dataBase64)
+  const encoded = await encodeEditedBuffer(file, dataBase64, file)
   return writeEncodedImageBytes(file, encoded)
 }
 
@@ -586,7 +616,7 @@ export async function cropSlideshowImageFromOriginal(
     )
   }
 
-  const encoded = await encodeRawImageBuffer(file, extracted)
+  const encoded = await encodeRawImageBuffer(file, extracted, file)
   return writeEncodedImageBytes(file, encoded)
 }
 

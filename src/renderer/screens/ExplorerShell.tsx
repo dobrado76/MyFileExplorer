@@ -175,6 +175,9 @@ export function ExplorerShell(): JSX.Element {
           useAppStore.getState().openImageEditor(path, res.value.mediaUrl)
         }
       })()
+    } else if (ctrl && shift && !alt && key.toLowerCase() === 'f') {
+      e.preventDefault()
+      s.openDialog({ kind: 'power-search' })
     } else if (ctrl && !shift && !alt && key.toLowerCase() === 'f') {
       e.preventDefault()
       document.querySelector<HTMLInputElement>('[data-search-input]')?.focus()

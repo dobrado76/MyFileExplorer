@@ -142,6 +142,7 @@ export type DialogState =
     }
   | { kind: 'power-rename'; paths: string[] }
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
+  | { kind: 'power-search' }
   | null
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
@@ -3842,7 +3843,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       const defaultPath = joinPath(parent, `${stem}_edited${ext}`)
       try {
         const res = await call(
-          api.fs.saveEditedImageAs({ dataBase64, defaultPath })
+          api.fs.saveEditedImageAs({
+            dataBase64,
+            defaultPath,
+            sourcePath
+          })
         )
         if (res.cancelled || !res.path) return null
         get().notify(`Saved as ${basename(res.path)}`)

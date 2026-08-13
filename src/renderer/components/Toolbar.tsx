@@ -2,6 +2,7 @@ import { useRef, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import {
   SearchIcon,
+  SlidersIcon,
   CloseIcon,
   PanelIcon,
   SettingsIcon,
@@ -249,6 +250,15 @@ export function Toolbar(): JSX.Element {
             )}
           </div>
           <SearchOptionsMenu />
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="Power search"
+            title="Power search (Ctrl+Shift+F)"
+            onClick={() => openDialog({ kind: 'power-search' })}
+          >
+            <SlidersIcon />
+          </button>
         </div>
         <button
           className={`icon-btn${settings.viewFilterEnabled ? ' active' : ''}`}

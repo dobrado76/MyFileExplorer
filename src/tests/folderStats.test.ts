@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   FOLDER_STAT_FILE_COUNT,
   FOLDER_STATS_COLUMN_IDS,
@@ -7,6 +7,14 @@ import {
   rollupFolderStats
 } from '@shared/folderStats'
 import { columnNeedsDirectoryMeta, filterMetaFetchColumns, isDirectoryMetaColumn } from '@shared/schemas/columns'
+import { AppError } from '@shared/result'
+
+vi.mock('../main/fs/winAttrs', () => ({
+  pathIsReadOnly: vi.fn(() => false)
+}))
+
+import { folderStatWriteError } from '../main/fs/folderStats'
+import { pathIsReadOnly } from '../main/fs/winAttrs'
 
 describe('folderStats streams', () => {
   it('maps column ids to ADS stream names', () => {
@@ -51,5 +59,25 @@ describe('folderStats streams', () => {
     expect(columnNeedsDirectoryMeta('ads')).toBe(true)
     expect(isDirectoryMetaColumn('size')).toBe(true)
     expect(columnNeedsDirectoryMeta('mtime')).toBe(false)
+  })
+})
+
+describe('folderStatWriteError', () => {
+  it('maps EPERM on a read-only folder to a clear message', () => {
+    vi.mocked(pathIsReadOnly).mockReturnValueOnce(true)
+    const err = folderStatWriteError('Z:\\Music\\Stories', 'FileCount', {
+      code: 'EPERM',
+      message: "EPERM: operation not permitted, open 'Z:\\\\Music\\\\Stories:FileCount:$DATA'"
+    })
+    expect(err).toBeInstanceOf(AppError)
+    expect(err.message).toContain('Read-only')
+    expect(err.message).not.toContain('EPERM')
+  })
+
+  it('maps EPERM without read-only to a permission hint', () => {
+    vi.mocked(pathIsReadOnly).mockReturnValueOnce(false)
+    const err = folderStatWriteError('C:\\locked', 'FileCount', { code: 'EPERM', message: 'nope' })
+    expect(err.message).toContain('denied permission')
+    expect(err.message).not.toContain('EPERM')
   })
 })

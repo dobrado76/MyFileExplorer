@@ -643,9 +643,13 @@ textarea:focus {
   font-size: 12px;
   cursor: pointer;
 }
-.search-options-chip:hover {
+.search-options-chip:hover,
+.search-options-chip.active {
   border-color: var(--accent);
   color: var(--accent);
+}
+.search-options-chip.active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .toolbar-edit {
   display: flex;
@@ -3331,6 +3335,172 @@ html.idle-cursor-hidden * {
   flex: 1;
   overflow: hidden;
 }
+.modal.modal-power-search {
+  width: min(920px, 96vw);
+  min-width: min(640px, 96vw);
+  max-width: 96vw;
+  max-height: none;
+}
+.modal-body.modal-body-power-search {
+  overflow: visible;
+  padding: 10px 16px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.power-search-lead {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+.power-search-query-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.power-search-query {
+  width: 100%;
+  min-height: 36px;
+  resize: vertical;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.power-search-sync {
+  align-self: flex-start;
+  margin-top: -2px;
+  font-size: 12px;
+}
+.power-search-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+.power-search-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.power-search-section-wide {
+  grid-column: 1 / -1;
+}
+.power-search-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: normal;
+  margin-top: 2px;
+}
+.power-search-radio {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  cursor: pointer;
+}
+.power-search-radio input {
+  margin-top: 3px;
+}
+.power-search-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 13px;
+}
+.power-search-checks label,
+.power-search-check-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.power-search-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+.power-search-fields-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 760px) {
+  .power-search-grid,
+  .power-search-fields,
+  .power-search-fields-3 {
+    grid-template-columns: 1fr;
+  }
+}
+.power-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  min-width: 0;
+}
+.power-search-field span {
+  color: var(--text-dim);
+}
+.power-search-field input,
+.power-search-field select,
+.power-search-section > select {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.power-search-kind {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.power-search-kind-label {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.power-search-radio-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.power-search-warn {
+  margin: 0;
+  font-size: 12px;
+  color: var(--warn, #c9a227);
+}
+.power-search-saved-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.power-search-saved-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  min-width: 72px;
+}
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+}
+.btn-link:hover {
+  opacity: 0.85;
+}
 .copy-move-tree {
   flex: 1;
   min-height: 220px;
@@ -4467,6 +4637,16 @@ html.idle-cursor-hidden * {
 }
 .modal-actions .modal-action-start {
   margin-right: auto;
+}
+.modal-actions.modal-actions-power-search {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  padding-bottom: 12px;
+  align-items: center;
+}
+.modal-actions-power-search .btn-link.modal-action-start {
+  padding: 4px 0;
+  font-size: 13px;
 }
 .props-sys-actions {
   display: flex;

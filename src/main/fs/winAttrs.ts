@@ -71,6 +71,16 @@ export function flagsFromAttributes(attrs: number): WinAttrFlags {
   }
 }
 
+export function getWinAttributeFlags(absPath: string): WinAttrFlags | null {
+  const attrs = getFileAttributes(absPath)
+  if (attrs === null) return null
+  return flagsFromAttributes(attrs)
+}
+
+export function pathIsReadOnly(absPath: string): boolean {
+  return getWinAttributeFlags(absPath)?.readOnly === true
+}
+
 export function attributeLabels(flags: WinAttrFlags): string[] {
   const out: string[] = []
   if (flags.readOnly) out.push('Read-only')

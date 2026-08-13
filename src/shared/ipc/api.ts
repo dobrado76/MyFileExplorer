@@ -126,6 +126,7 @@ export type MyFileExplorerApi = {
     saveEditedImageAs(req: {
       dataBase64: string
       defaultPath: string
+      sourcePath: string
     }): Promise<Result<{ path: string | null; cancelled: boolean }>>
     /** Ensure LaMa ONNX is cached; returns path + fetchable modelUrl for ORT. */
     ensureLamaModel(): Promise<

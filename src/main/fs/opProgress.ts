@@ -128,7 +128,8 @@ export function beginOp(kind: FileOpKind, total: number, label?: string): OpRepo
       emit('running', current, true)
     },
     pulse(current) {
-      throwIfCancelled()
+      // Heartbeat timers call pulse between async work — must not throw uncaught on cancel.
+      if (token.cancelled) return
       emit('running', current, true)
     },
     reportBytes(bDone, bTotal, current) {

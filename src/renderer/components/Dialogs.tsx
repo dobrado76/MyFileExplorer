@@ -34,6 +34,7 @@ import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
+import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 import { CloseIcon } from '../lib/icons'
@@ -199,6 +200,8 @@ export function Dialogs(): JSX.Element | null {
       return <PowerRenameDialog paths={dialog.paths} />
     case 'copy-move-to':
       return <CopyMoveToDialog op={dialog.op} paths={dialog.paths} />
+    case 'power-search':
+      return <PowerSearchDialog />
   }
 }
 

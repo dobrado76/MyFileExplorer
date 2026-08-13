@@ -408,7 +408,11 @@ export function registerIpcHandlers(): void {
   })
   handle(
     IPC.fsSaveEditedImageAs,
-    z.object({ dataBase64: z.string().min(1), defaultPath: z.string().min(1) }),
+    z.object({
+      dataBase64: z.string().min(1),
+      defaultPath: z.string().min(1),
+      sourcePath: z.string().min(1)
+    }),
     async (req, event) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       const opts = {
@@ -433,7 +437,11 @@ export function registerIpcHandlers(): void {
         return { path: null as string | null, cancelled: true }
       }
       muteWatchers()
-      const written = await writeEditedImageToPath(result.filePath, req.dataBase64)
+      const written = await writeEditedImageToPath(
+        result.filePath,
+        req.dataBase64,
+        req.sourcePath
+      )
       return { path: written.path, cancelled: false }
     }
   )

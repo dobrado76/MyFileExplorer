@@ -129,6 +129,15 @@ export const SearchIcon = svg(
     <path d="M21 21l-4.5-4.5" />
   </>
 )
+/** Advanced / power search builder. */
+export const SlidersIcon = svg(
+  <>
+    <path d="M4 6h16M4 12h10M4 18h6" />
+    <circle cx="16" cy="6" r="2" />
+    <circle cx="10" cy="12" r="2" />
+    <circle cx="12" cy="18" r="2" />
+  </>
+)
 export const CopyIcon = svg(
   <>
     <rect x="9" y="9" width="11" height="11" rx="2" />

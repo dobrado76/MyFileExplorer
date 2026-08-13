@@ -17,6 +17,7 @@ import { readStreamText, writeStreamText } from './adsWin32'
 import { beginOp, type OpReporter } from './opProgress'
 import { muteWatchers } from './watch'
 import { dropColumnMetaMemoryPath, invalidateColumnMetaPaths } from '../meta/columns'
+import { pathIsReadOnly } from './winAttrs'
 
 const STAT_CONCURRENCY = 32
 /** Throttle status-bar updates during large tree walks. */
@@ -153,18 +154,56 @@ async function readTaggedSubtreeStats(
   return out
 }
 
+function errCode(e: unknown): string | null {
+  if (e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string') {
+    return (e as { code: string }).code
+  }
+  return null
+}
+
+function folderDisplayName(dir: string): string {
+  return path.basename(dir) || dir
+}
+
+/** User-facing error when ADS statistics cannot be written on a folder. */
+export function folderStatWriteError(dir: string, streamName: string, e: unknown): AppError {
+  if (pathIsReadOnly(dir)) {
+    const name = folderDisplayName(dir)
+    return new AppError(
+      'io',
+      `Could not save statistics on “${name}”: the folder is Read-only. Open Properties, clear Read-only (apply to this folder only), then try again.`
+    )
+  }
+  const code = errCode(e)
+  if (code === 'EPERM' || code === 'EACCES') {
+    const name = folderDisplayName(dir)
+    return new AppError(
+      'io',
+      `Could not save statistics on “${name}”: Windows denied permission. Check Properties → Security for this folder.`
+    )
+  }
+  return new AppError(
+    'io',
+    `Could not write statistics stream “${streamName}” on “${dir}”: ${errMsg(e)}`
+  )
+}
+
+async function assertFolderWritableForStats(dir: string): Promise<void> {
+  if (pathIsReadOnly(dir)) {
+    throw folderStatWriteError(dir, FOLDER_STAT_FILE_COUNT, null)
+  }
+}
+
 async function writeStatStream(dir: string, streamName: string, value: string): Promise<void> {
   try {
     await writeStreamText(dir, streamName, value)
   } catch (e) {
-    throw new AppError(
-      'io',
-      `Could not write ADS stream “${streamName}” on “${dir}”: ${errMsg(e)}`
-    )
+    throw folderStatWriteError(dir, streamName, e)
   }
 }
 
 async function writeFolderStatStreams(dir: string, stats: FolderStatCounts): Promise<void> {
+  await assertFolderWritableForStats(dir)
   await Promise.all([
     writeStatStream(dir, FOLDER_STAT_FILE_COUNT, String(stats.fileCount)),
     writeStatStream(dir, FOLDER_STAT_FILE_TOT_COUNT, String(stats.fileTotCount)),

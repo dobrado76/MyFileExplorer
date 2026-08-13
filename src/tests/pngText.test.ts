@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import zlib from 'node:zlib'
-import { extractPngTextChunks } from '../main/preview/pngText'
+import { extractPngTextChunks, insertPngTextChunks } from '../main/preview/pngText'
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -89,5 +89,19 @@ describe('extractPngTextChunks', () => {
     const buf = png(textChunk('prompt', '{"1":{}}'), itxtChunk('workflow', '{"w":1}'))
     const chunks = extractPngTextChunks(buf)
     expect(chunks.map((c) => c.keyword)).toEqual(['prompt', 'workflow'])
+  })
+
+  it('round-trips text chunks via insertPngTextChunks', () => {
+    const original = png(textChunk('parameters', 'a cat\nSteps: 20'), itxtChunk('workflow', '{"w":1}'))
+    const bare = png()
+    const restored = insertPngTextChunks(bare, extractPngTextChunks(original))
+    expect(extractPngTextChunks(restored)).toEqual(extractPngTextChunks(original))
+  })
+
+  it('insertPngTextChunks preserves utf8 in iTXt', () => {
+    const bare = png()
+    const withMeta = insertPngTextChunks(bare, [{ keyword: 'prompt', text: 'café — 日本語' }])
+    const chunks = extractPngTextChunks(withMeta)
+    expect(chunks).toEqual([{ keyword: 'prompt', text: 'café — 日本語' }])
   })
 })
