@@ -38,28 +38,57 @@ function normalizeUncAbsolute(input: string): string | null {
  * (can happen with malformed UNC input) and relative paths.
  */
 export function normalizeAbsolute(input: string): string | null {
-  if (typeof input !== 'string' || input.trim().length === 0) return null
-  let p = input.trim()
+  if (typeof input !== "string" || input.trim().length === 0) return null;
 
-  // Remote repository URIs (FTP/SFTP) — POSIX normalize under connection id.
-  if (p.toLowerCase().startsWith('mfe-remote://')) {
-    const loc = parseRemoteLocation(p)
-    if (!loc) return null
-    return formatRemoteLocation(loc.connectionId, loc.remotePath)
+  let p = input.trim();
+
+  if (p.toLowerCase().startsWith("mfe-remote://")) {
+    const loc = parseRemoteLocation(p);
+    if (!loc) return null;
+    return formatRemoteLocation(loc.connectionId, loc.remotePath);
   }
 
-  // Bare drive like "C:" means "current dir on C:" in Windows — force root.
-  if (/^[a-zA-Z]:$/.test(p)) p = p + path.sep
+  // "C:" => "C:\" (Windows)
+  if (/^[a-zA-Z]:$/.test(p)) p = p + "\\";
 
-  // UNC must not go through path.normalize — bare `\\host` becomes `\host`.
+  // Windows drive paths (C:\foo or C:/foo)
+  if (/^[a-zA-Z]:/.test(p)) {
+    const withBs = p.replace(/\//g, "\\");
+    const m = /^([a-zA-Z]:)(\\.*)?$/.exec(withBs);
+    if (!m) return null;
+
+    const drive = m[1];
+    const restRaw = (m[2] ?? "").replace(/^\\+/, "");
+    const rawParts = restRaw.split("\\").filter(Boolean);
+
+    const stack: string[] = [];
+    for (const part of rawParts) {
+      if (part === ".") continue;
+      if (part === "..") {
+        if (stack.length === 0) return null;
+        stack.pop();
+        continue;
+      }
+      stack.push(part);
+    }
+
+    return stack.length === 0 ? drive + "\\" : drive + "\\" + stack.join("\\");
+  }
+
+  // UNC (\\server or //server) must be handled before POSIX normalization.
   if (p.startsWith('\\\\') || p.startsWith('//')) {
     return normalizeUncAbsolute(p)
   }
 
-  const normalized = path.normalize(p)
-  if (!path.isAbsolute(normalized)) return null
-  if (normalized.split(/[\\/]/).includes('..')) return null
-  return normalized
+  // POSIX absolute paths only on Linux/posix
+  if (p.startsWith('/')) {
+    const normalized = path.posix.normalize(p)
+    if (!path.posix.isAbsolute(normalized)) return null
+    if (normalized.split('/').includes('..')) return null
+    return normalized
+  }
+
+  return null;
 }
 
 /** Case-insensitive comparison key on Windows. */

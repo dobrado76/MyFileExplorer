@@ -3,6 +3,15 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'node:path'
 
 const shared = resolve(__dirname, 'src/shared')
+const isWin32Build = process.platform === 'win32'
+
+const mainInputs: Record<string, string> = {
+  index: resolve(__dirname, 'src/main/index.ts'),
+  shellIconWorker: resolve(__dirname, 'src/main/icons/shellIconWorker.ts')
+}
+if (isWin32Build) {
+  mainInputs.networkDiscoverWorker = resolve(__dirname, 'src/main/fs/networkDiscoverWorker.ts')
+}
 
 export default defineConfig({
   main: {
@@ -13,11 +22,7 @@ export default defineConfig({
     },
     build: {
       rollupOptions: {
-        input: {
-          index: resolve(__dirname, 'src/main/index.ts'),
-          networkDiscoverWorker: resolve(__dirname, 'src/main/fs/networkDiscoverWorker.ts'),
-          shellIconWorker: resolve(__dirname, 'src/main/icons/shellIconWorker.ts')
-        }
+        input: mainInputs
       }
     }
   },

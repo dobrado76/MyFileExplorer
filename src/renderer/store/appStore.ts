@@ -290,6 +290,8 @@ let confirmResolve: ((confirmed: boolean) => void) | null = null
 
 type AppState = {
   booted: boolean
+  /** Main-process OS (from app:ready). */
+  platform: string
   settings: Settings
   homePath: string
   /** Resolved known folders for Quick access (Desktop, Downloads, …). */
@@ -788,12 +790,13 @@ export const useAppStore = create<AppState>()((set, get) => {
     }, DRIVE_POLL_MS)
   }
 
-  /** Start / stop background Network rediscovery from Settings → Network. */
+  /** Start / stop background Network rediscovery from Settings → Network (Windows only). */
   function syncNetworkDiscoveryPoll(): void {
     if (networkPollTimer) {
       clearInterval(networkPollTimer)
       networkPollTimer = null
     }
+    if (get().platform !== 'win32') return
     const nd = get().settings.networkDiscovery
     if (!nd || nd.enabled === false || nd.mode !== 'auto') return
     const ms = networkDiscoveryIntervalMs(nd)
@@ -1601,6 +1604,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   return {
     ...slideshowActions,
     booted: false,
+    platform: 'linux',
     settings: null as unknown as Settings, // set during boot before UI renders
     homePath: '',
     knownFolders: [],
@@ -1744,10 +1748,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         { id: 'videos', label: 'Videos' },
         { id: 'home', label: 'User folder' }
       ]
-      const [settings, session, home, ...knownPathResults] = await Promise.all([
+      const [settings, session, home, ready, ...knownPathResults] = await Promise.all([
         call(api.settings.get()),
         call(api.session.get()),
         call(api.app.getPath({ name: 'home' })),
+        call(api.app.ready()),
         ...knownSpecs.map((k) =>
           call(api.app.getPath({ name: k.id })).catch(() => ({ path: '' as string }))
         )
@@ -1827,6 +1832,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
       set((state) => ({
         booted: true,
+        platform: ready.platform,
         settings,
         homePath: home.path,
         knownFolders,
@@ -2033,14 +2039,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         } catch {
           /* listings soft-fail per pane */
         }
+        if (get().platform !== 'win32') return
         // Defer discovery so PowerShell/ARP does not compete with first folder lists / icons.
         window.setTimeout(() => {
           if (!get().booted) return
           void get().startNetworkDiscovery()
         }, 1500)
       })()
-      // Flush any CLI/protocol opens that arrived before boot finished.
-      void call(api.app.ready())
       // One-time migration: old builds only stored a file path — import if settings map empty.
       if (
         get().settings.slideshowFeaturesEnabled &&

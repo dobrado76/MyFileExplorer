@@ -14,6 +14,8 @@ import { api, call } from '../lib/ipc'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { historyEntries } from '../lib/historyEntries'
 
+const isWindows = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.platform === 'win32'
+
 type Props = {
   /** Bind to a specific tab (pane toolbar). Default: active tab + global address editing. */
   tabId?: string
@@ -60,7 +62,8 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
 
   useEffect(() => {
     if (editing) {
-      setText(path)
+      // Display POSIX-style on non-Windows, but keep internal `path` unchanged.
+      setText(isWindows ? path : path.replace(/\\\\/g, '/'))
       setHistoryOpen(false)
       requestAnimationFrame(() => {
         inputRef.current?.focus()
@@ -139,7 +142,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
       const target = stripTrailingSep(normalizeSlashes(expanded))
       if (!target || !looksAbsolute(target)) {
         notify(
-          'Enter an absolute path like C:\\folder, \\\\server\\share, mfe-remote://…, or %LOCALAPPDATA%\\…',
+          'Enter an absolute path like /home/user/folder, C:\\folder, smb://server/share, mfe-remote://…, or %LOCALAPPDATA%\\…',
           true
         )
         return
@@ -449,12 +452,12 @@ function HistoryMenu({
             role="option"
             aria-selected={item.current}
             className={`menu-item${item.current ? ' current' : ''}`}
-            title={item.path}
+            title={isWindows ? item.path : item.path.replace(/\\\\/g, '/')}
             onClick={() => onPick(item.path)}
           >
             <span className="menu-check">{item.current ? '✓' : ''}</span>
             <span className="crumb-history-label">{basename(item.path)}</span>
-            <span className="crumb-history-path">{item.path}</span>
+            <span className="crumb-history-path">{isWindows ? item.path : item.path.replace(/\\\\/g, '/')}</span>
           </button>
         ))
       )}

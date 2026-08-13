@@ -11,7 +11,6 @@ import {
 import { normalizeAbsolute, protocolAllowlist } from '../security/paths'
 import { pathIsHidden } from './winAttrs'
 import { listDirectoryWin32 } from './listWin32'
-import { listNetworkShares } from './network'
 import { rememberNetworkHost } from './networkRemembered'
 import { getDriveTypeWin32 } from './drives'
 import { dedupeDirEntries } from '@shared/dirEntries'
@@ -35,7 +34,8 @@ async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<D
     const batch = dirents.slice(i, i + CONCURRENCY)
     const settled = await Promise.allSettled(
       batch.map(async (d): Promise<DirEntry | null> => {
-        const full = dir.replace(/[\\/]+$/, '') + '\\' + d.name
+        // Use path.join so separators match the OS (avoids mixing '/' and '\\').
+        const full = path.join(dir, d.name)
         // Windows: only FILE_ATTRIBUTE_HIDDEN (Explorer). Leading "." is not special.
         const isHidden = pathIsHidden(full)
         if (isHidden && !includeHidden) return null
@@ -76,8 +76,9 @@ async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<D
 }
 
 /** Explorer-style: bare `\\server` lists disk shares as folders. */
-function listUncHostAsShares(dir: string): DirEntry[] {
-  const shares = listNetworkShares(dir)
+async function listUncHostAsShares(dir: string): Promise<DirEntry[]> {
+  const { listNetworkShares } = await import('./network')
+  const shares = await listNetworkShares(dir)
   rememberNetworkHost(dir)
   return shares.map((s) => ({
     name: s.name,
@@ -127,7 +128,7 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
 
   let entries: DirEntry[] | null = null
   if (process.platform === 'win32' && isNetworkHostUnc(dir)) {
-    entries = listUncHostAsShares(dir)
+    entries = await listUncHostAsShares(dir)
   } else if (process.platform === 'win32') {
     try {
       entries = listDirectoryWin32(dir, includeHidden)
@@ -157,9 +158,8 @@ export async function statPath(p: string): Promise<StatResult> {
       isReadonly: true
     }
   }
-  // Bare UNC hosts are not real directories; treat as existing dirs so refresh
-  // / navigation do not bounce away before share enum runs.
-  if (isNetworkHostUnc(n)) {
+  // Bare UNC hosts are virtual share lists on Windows only.
+  if (process.platform === 'win32' && isNetworkHostUnc(n)) {
     return {
       path: n,
       exists: true,

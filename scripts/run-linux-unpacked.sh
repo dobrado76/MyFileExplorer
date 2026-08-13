@@ -12,17 +12,18 @@ if [[ ! -x "$BIN" ]]; then
   exit 1
 fi
 
-# Prefer sandbox. Override if needed, e.g.:
-#   MFE_LINUX_ELECTRON_FLAGS='--ozone-platform=wayland --enable-features=UseOzonePlatform --no-sandbox' npm run run:unpacked
-EXTRA_FLAGS="${MFE_LINUX_ELECTRON_FLAGS:---ozone-platform=wayland --enable-features=UseOzonePlatform}"
-
 echo "Launching unpacked MyFileExplorer binary in Wayland mode..."
-echo "GTK theme-module warnings are usually non-fatal."
 
-# shellcheck disable=SC2086
+# Use Electron's native environment flag to force the sandbox and zygote off
+# This bypasses the command-line argument parser completely
+export ELECTRON_DISABLE_SANDBOX=1
+
 exec env \
   GSETTINGS_SCHEMA_DIR=/usr/share/glib-2.0/schemas/ \
   GDK_BACKEND=wayland \
   ELECTRON_OZONE_PLATFORM_HINT=wayland \
+  GTK_MODULES="" \
+  NO_AT_BRIDGE=1 \
   "$BIN" \
-  $EXTRA_FLAGS
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform,NetworkServiceInProcess
