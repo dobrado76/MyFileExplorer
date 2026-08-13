@@ -1,13 +1,24 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { isEditableImagePath } from '@shared/imageEdit'
 import {
+  applyCropStep,
+  EMPTY_SLIDESHOW_CROP,
+  hasSlideshowCrop,
+  numpadCropStepPct,
+  type SlideshowAccumulatedCrop,
+  type SlideshowCropEdge
+} from '@shared/slideshow/crop'
+import {
   isEditImageSlideshowKey,
   isNumpadCode,
   isPipeUndoKey,
-  isStopSlideshowKey,
+  isSlideshowCropCancelKey,
+  isSlideshowCropSaveKey,
+  isSlideshowStopKey,
+  numpadCropEdgeFromCode,
   codeToKeyToken,
   normalizeKeyToken,
   type SlideshowKeyLike
@@ -15,8 +26,14 @@ import {
 import { SpinnerIcon } from '../lib/icons'
 import { slideshowCurrentPath, slideshowLength } from '../lib/slideshowTypes'
 import { useIdleCursorHide } from '../lib/useIdleCursorHide'
+import { tryCaptionPosterUrl } from '../lib/captionPoster'
+import {
+  drawSlideshowCropPreview,
+  loadCropOriginalBitmap,
+  type CropOriginalBitmap
+} from '../lib/slideshowCropPreview'
 
-type Buf = { url: string; path: string; rev: number }
+type Buf = { url: string; path: string; rev: number; poster: boolean; slideKey: string }
 
 /**
  * Fullscreen slideshow / categorizer (gate-on only).
@@ -32,6 +49,8 @@ export function SlideshowOverlay(): JSX.Element | null {
   const delayMs = useAppStore((s) => s.settings.slideshow.delayMs)
   const stopSlideshow = useAppStore((s) => s.stopSlideshow)
   const slideshowInterrupt = useAppStore((s) => s.slideshowInterrupt)
+  const slideshowResumePlaying = useAppStore((s) => s.slideshowResumePlaying)
+  const slideshowCropSave = useAppStore((s) => s.slideshowCropSave)
   const slideshowNavigate = useAppStore((s) => s.slideshowNavigate)
   const slideshowMapAction = useAppStore((s) => s.slideshowMapAction)
   const slideshowUndoAction = useAppStore((s) => s.slideshowUndoAction)
@@ -47,6 +66,31 @@ export function SlideshowOverlay(): JSX.Element | null {
   const [bufs, setBufs] = useState<[Buf | null, Buf | null]>([null, null])
   const [front, setFront] = useState<0 | 1>(0)
   const [bootLoading, setBootLoading] = useState(false)
+  const [cropMode, setCropMode] = useState(false)
+  const [cropAcc, setCropAcc] = useState<SlideshowAccumulatedCrop>(EMPTY_SLIDESHOW_CROP)
+
+  const cropModeRef = useRef(false)
+  const cropAccRef = useRef<SlideshowAccumulatedCrop>(EMPTY_SLIDESHOW_CROP)
+  const cropBitmapRef = useRef<CropOriginalBitmap | null>(null)
+  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const cropSavingRef = useRef(false)
+
+  const setCropModeBoth = useCallback((on: boolean): void => {
+    cropModeRef.current = on
+    setCropMode(on)
+  }, [])
+
+  const resetCrop = useCallback((): void => {
+    cropBitmapRef.current = null
+    cropAccRef.current = EMPTY_SLIDESHOW_CROP
+    setCropAcc(EMPTY_SLIDESHOW_CROP)
+    setCropModeBoth(false)
+  }, [setCropModeBoth])
+
+  const syncCropAcc = useCallback((next: SlideshowAccumulatedCrop): void => {
+    cropAccRef.current = next
+    setCropAcc(next)
+  }, [])
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadGenRef = useRef(0)
@@ -61,7 +105,12 @@ export function SlideshowOverlay(): JSX.Element | null {
 
   const path = active ? slideshowCurrentPath(active) : null
   const listLen = active ? slideshowLength(active) : 0
+  const showCropPreview = cropMode || hasSlideshowCrop(cropAcc)
   const [prefetchPath, setPrefetchPath] = useState<string | null>(null)
+
+  useEffect(() => {
+    resetCrop()
+  }, [path, active?.index, resetCrop])
 
   useEffect(() => {
     if (!enabled || !active || active.status === 'building' || listLen <= 1) {
@@ -97,10 +146,8 @@ export function SlideshowOverlay(): JSX.Element | null {
       setBootLoading(false)
       return
     }
-    if (
-      frontBufRef.current?.path === path &&
-      frontBufRef.current.rev === imageRevision
-    ) {
+    const slideKey = `${path}#${active.index}#${imageRevision}#${drawCaption ? '1' : '0'}`
+    if (frontBufRef.current?.slideKey === slideKey) {
       failStreakRef.current = 0
       setBootLoading(false)
       return
@@ -132,13 +179,15 @@ export function SlideshowOverlay(): JSX.Element | null {
 
     void (async () => {
       try {
+        let mediaUrl: string | null = null
+        let poster = false
         const res = await api.preview.get({ path })
         if (cancelled || gen !== loadGenRef.current) return
         if (!res.ok || !res.value.mediaUrl) {
           skip()
           return
         }
-        const mediaUrl = res.value.mediaUrl
+        mediaUrl = res.value.mediaUrl
         const probe = new Image()
         probe.decoding = 'async'
         probe.src = mediaUrl
@@ -154,10 +203,18 @@ export function SlideshowOverlay(): JSX.Element | null {
           skip()
           return
         }
+        if (drawCaption) {
+          const framed = await tryCaptionPosterUrl(path, probe)
+          if (cancelled || gen !== loadGenRef.current) return
+          if (framed) {
+            mediaUrl = framed
+            poster = true
+          }
+        }
 
         failStreakRef.current = 0
         const backIdx: 0 | 1 = frontIdxRef.current === 0 ? 1 : 0
-        const slot: Buf = { url: mediaUrl, path, rev: imageRevision }
+        const slot: Buf = { url: mediaUrl, path, rev: imageRevision, poster, slideKey }
         setBufs((prev) => {
           const next: [Buf | null, Buf | null] = [prev[0], prev[1]]
           next[backIdx] = slot
@@ -194,6 +251,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     listLen,
     active?.compiledMode,
     imageRevision,
+    drawCaption,
     slideshowSkipUnloadable,
     stopSlideshow,
     notify
@@ -246,13 +304,126 @@ export function SlideshowOverlay(): JSX.Element | null {
     dialogOpen
   ])
 
+  // Crop preview canvas
+  useEffect(() => {
+    if (!showCropPreview || !cropBitmapRef.current) return
+    const canvas = cropCanvasRef.current
+    if (!canvas) return
+    drawSlideshowCropPreview(canvas, cropBitmapRef.current, cropAccRef.current)
+    const stage = canvas.parentElement
+    if (!stage) return
+    const ro = new ResizeObserver(() => {
+      if (cropBitmapRef.current) {
+        drawSlideshowCropPreview(canvas, cropBitmapRef.current, cropAccRef.current)
+      }
+    })
+    ro.observe(stage)
+    return () => ro.disconnect()
+  }, [showCropPreview, cropAcc, cropMode, path])
+
   useEffect(() => {
     if (!enabled || !active) return
+
+    const ensureBitmap = async (imagePath: string): Promise<boolean> => {
+      if (cropBitmapRef.current?.path === imagePath) return true
+      try {
+        cropBitmapRef.current = await loadCropOriginalBitmap(imagePath)
+        return true
+      } catch (e) {
+        notify(e instanceof Error ? e.message : String(e), true)
+        return false
+      }
+    }
+
+    const applyCropEdge = async (edge: SlideshowCropEdge, e: SlideshowKeyLike): Promise<void> => {
+      const cur = slideshowCurrentPath(active)
+      if (!cur || !isEditableImagePath(cur)) {
+        notify('This image type cannot be cropped in-app', true)
+        return
+      }
+      if (!(await ensureBitmap(cur))) return
+      try {
+        const step = numpadCropStepPct(!!e.shiftKey, !!e.ctrlKey)
+        syncCropAcc(applyCropStep(cropAccRef.current, edge, step))
+        setCropModeBoth(true)
+      } catch (err) {
+        notify(err instanceof Error ? err.message : String(err), true)
+      }
+    }
+
+    const saveCrop = async (): Promise<boolean> => {
+      if (cropSavingRef.current) return false
+      const cur = slideshowCurrentPath(active)
+      if (!cur || !hasSlideshowCrop(cropAccRef.current)) {
+        resetCrop()
+        return true
+      }
+      cropSavingRef.current = true
+      try {
+        const ok = await slideshowCropSave(cur, cropAccRef.current)
+        if (ok) resetCrop()
+        return ok
+      } finally {
+        cropSavingRef.current = false
+      }
+    }
+
+    const saveCropAndNavigate = async (nav: -1 | 1 | 'first' | 'last'): Promise<void> => {
+      const ok = await saveCrop()
+      if (!ok) return
+      slideshowNavigate(nav)
+    }
+
+    const cancelCropAndNavigate = (nav: -1 | 1): void => {
+      resetCrop()
+      slideshowNavigate(nav)
+    }
 
     const handleKey = (e: SlideshowKeyLike): void => {
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
 
-      if (isStopSlideshowKey(e)) {
+      if (cropModeRef.current) {
+        if (isSlideshowCropSaveKey(e)) {
+          void saveCrop()
+          return
+        }
+        if (isSlideshowCropCancelKey(e)) {
+          resetCrop()
+          return
+        }
+        const edge = numpadCropEdgeFromCode(e.code)
+        if (edge) {
+          void applyCropEdge(edge, e)
+          return
+        }
+        if (e.key === 'Home') {
+          void saveCropAndNavigate('first')
+          return
+        }
+        if (e.key === 'End') {
+          void saveCropAndNavigate('last')
+          return
+        }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+          void saveCropAndNavigate(-1)
+          return
+        }
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
+          void saveCropAndNavigate(1)
+          return
+        }
+        if (e.key === 'Backspace') {
+          cancelCropAndNavigate(-1)
+          return
+        }
+        if (e.key === 'Delete') {
+          cancelCropAndNavigate(1)
+          return
+        }
+        return
+      }
+
+      if (isSlideshowStopKey(e)) {
         void stopSlideshow()
         return
       }
@@ -279,6 +450,18 @@ export function SlideshowOverlay(): JSX.Element | null {
             notify(res.ok ? 'No image preview available' : res.error.message, true)
           }
         })()
+        return
+      }
+
+      const cropEdge = numpadCropEdgeFromCode(e.code)
+      if (cropEdge) {
+        if (active.status === 'playing') slideshowInterrupt()
+        void applyCropEdge(cropEdge, e)
+        return
+      }
+
+      if (isSlideshowCropSaveKey(e)) {
+        if (active.status === 'manual') slideshowResumePlaying()
         return
       }
 
@@ -332,6 +515,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     let wheelLock = false
     const onWheel = (e: WheelEvent): void => {
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
+      if (cropModeRef.current) return
       if (active.status === 'building') return
       // Leave Ctrl/⌘+wheel to app font-size handling.
       if (e.ctrlKey || e.metaKey) return
@@ -365,11 +549,16 @@ export function SlideshowOverlay(): JSX.Element | null {
     contextMenuOpen,
     stopSlideshow,
     slideshowInterrupt,
+    slideshowResumePlaying,
+    slideshowCropSave,
     slideshowNavigate,
     slideshowMapAction,
     slideshowUndoAction,
     openImageEditor,
-    notify
+    notify,
+    resetCrop,
+    syncCropAcc,
+    setCropModeBoth
   ])
 
   useEffect(() => {
@@ -392,7 +581,7 @@ export function SlideshowOverlay(): JSX.Element | null {
   const shown = bufs[front]
   const captionPath = shown?.path ?? path
   const caption =
-    drawCaption && captionPath
+    drawCaption && captionPath && !shown?.poster
       ? `${basename(captionPath)}  (${active.index + 1}/${listLen})`
       : null
 
@@ -402,6 +591,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       role="dialog"
       aria-label="Slideshow"
       onClick={() => {
+        if (cropMode) return
         if (!dialogOpen && !imageEditorOpen && !contextMenuOpen) void stopSlideshow()
       }}
       onContextMenu={(e) => {
@@ -435,7 +625,7 @@ export function SlideshowOverlay(): JSX.Element | null {
           alt=""
           draggable={false}
           decoding="async"
-          hidden={!bufs[0]?.url}
+          hidden={!bufs[0]?.url || showCropPreview}
         />
         <img
           className={`slideshow-image slideshow-buf${front === 1 ? ' is-front' : ' is-back'}`}
@@ -443,11 +633,25 @@ export function SlideshowOverlay(): JSX.Element | null {
           alt=""
           draggable={false}
           decoding="async"
-          hidden={!bufs[1]?.url}
+          hidden={!bufs[1]?.url || showCropPreview}
         />
 
-        {caption && <div className="slideshow-caption">{caption}</div>}
-        {map.length === 0 && active.status === 'manual' && (
+        {showCropPreview && (
+          <canvas
+            ref={cropCanvasRef}
+            className="slideshow-image slideshow-crop-canvas is-front"
+            aria-hidden
+          />
+        )}
+
+        {caption && !showCropPreview && <div className="slideshow-caption">{caption}</div>}
+        {cropMode && (
+          <div className="slideshow-hint slideshow-crop-hint">
+            Crop — 2/4/6/8 trim · Enter/0 save · Esc/5 cancel · arrows/PgUp/PgDn/Home/End save &amp;
+            go · Backspace/Delete discard &amp; go
+          </div>
+        )}
+        {!cropMode && map.length === 0 && active.status === 'manual' && (
           <div className="slideshow-hint">
             No categorizer map loaded — load one in Settings → Slideshow. Delete/categorize keys inactive.
           </div>

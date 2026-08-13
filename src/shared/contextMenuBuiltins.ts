@@ -38,6 +38,7 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'disconnect-network-drive',
   'network-refresh',
   'alternate-streams',
+  'calculate-folder-statistics',
   'properties'
 ] as const
 
@@ -98,6 +99,11 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   { id: 'disconnect-network-drive', label: 'Disconnect network drive', hint: 'Mapped letter or system dialog' },
   { id: 'network-refresh', label: 'Refresh Network', hint: 'Re-run LAN discovery' },
   { id: 'alternate-streams', label: 'Alternate streams…' },
+  {
+    id: 'calculate-folder-statistics',
+    label: 'Calculate Statistics',
+    hint: 'Folders — attach FileCount / FolderCount ADS'
+  },
   { id: 'properties', label: 'Properties' }
 ]
 
@@ -203,8 +209,19 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'network-refresh' },
   { type: 'sep', id: 'sep-default-9' },
   { type: 'item', id: 'alternate-streams' },
+  { type: 'item', id: 'calculate-folder-statistics' },
   { type: 'item', id: 'properties' }
 ]
+
+/** Properties stays last in layout (Windows File Explorer convention). */
+function pinPropertiesLayoutLast(
+  layout: ContextMenuBuiltinLayoutEntry[]
+): ContextMenuBuiltinLayoutEntry[] {
+  const idx = layout.findIndex((e) => e.type === 'item' && e.id === 'properties')
+  if (idx < 0 || idx === layout.length - 1) return layout
+  const props = layout[idx]!
+  return [...layout.filter((_, i) => i !== idx), props]
+}
 
 /**
  * Prefer inserting user custom commands after the first of these that appears
@@ -267,7 +284,7 @@ export function sanitizeBuiltinLayout(raw: unknown): ContextMenuBuiltinLayoutEnt
     return DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT.slice()
   }
 
-  return out
+  return pinPropertiesLayoutLast(out)
 }
 
 /**
@@ -366,7 +383,17 @@ export function applyBuiltinLayoutToMenu<
     for (const o of others) out.push(o)
   }
 
-  return collapseMenuSeparators(out)
+  return pinPropertiesMenuItemLast(collapseMenuSeparators(out))
+}
+
+/** Properties stays last in the rendered menu (Windows File Explorer convention). */
+function pinPropertiesMenuItemLast<T extends { type: string; builtin?: string }>(
+  items: T[]
+): T[] {
+  const idx = items.findIndex((it) => it.type !== 'sep' && it.builtin === 'properties')
+  if (idx < 0 || idx === items.length - 1) return items
+  const props = items[idx]!
+  return collapseMenuSeparators([...items.filter((_, i) => i !== idx), props])
 }
 
 /** Keep discovered layout rows that are still enabled; append any newly enabled at the end. */

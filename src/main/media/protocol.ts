@@ -302,7 +302,9 @@ function baseMediaHeaders(mime: string): Record<string, string> {
     'Accept-Ranges': 'bytes',
     // no-store: Chromium media cache + custom protocols has broken seeking in
     // several Electron versions when responses are cached aggressively.
-    'Cache-Control': 'private, no-store'
+    'Cache-Control': 'private, no-store',
+    // Renderer canvas/fetch (caption posters) need an origin-clean bitmap.
+    'Access-Control-Allow-Origin': '*'
   }
 }
 
@@ -381,7 +383,8 @@ function bufferedResponse(buf: Buffer, filePath: string): Response {
     headers: {
       'Content-Type': mimeFor(filePath),
       'Content-Length': String(body.byteLength),
-      'Cache-Control': 'private, max-age=300'
+      'Cache-Control': 'private, max-age=300',
+      'Access-Control-Allow-Origin': '*'
     }
   })
 }

@@ -6,7 +6,7 @@ When the gate is **off**, the app must not show slideshow toolbar buttons, folde
 
 When **on**:
 
-- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, draw caption, invalid-images folder, **Compiled file lists folder** + Update Lists…, Import/Export categorizer map
+- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder, **Compiled file lists folder** + Update Lists…, Import/Export categorizer map
 - Toolbar: Start (folder/cache walk), optional **Compiled lists** button (when compiled folder is set), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
 - Folder context menu: **Start Slideshow**
 - **Categorizer map** rows persist in `settings.slideshow.categorizerMap` (source of truth). Import copies a file into settings; Export writes a copy out. Deleting the original file does not clear mappings.
@@ -39,6 +39,8 @@ Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; *
 **Detached lists window** (second BrowserWindow, **child of the main shell**): tabs = entry names; grid = `.dat` / `.txt` rows with # / ± / Nb. Files; Load/Save any `!!Lists/*.txt`; `#` / ± / Clear rewrite `last.txt` and **immediately** rebuild the live slideshow playlist (Clear → empty playlist in place; status stays manual if interrupted). **Play** rebuilds and **resumes autoplay**. Closing the lists window stops the slideshow, and stopping the slideshow closes the lists window. Closing the **main** window also closes the lists window. While the lists window has focus, keystrokes (except typing in count fields / OS Load-Save dialogs) are **relayed to the slideshow**. Overlay controls unchanged.
 
 Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle on the **main overlay and the Compiled lists window** (reappears on move / click / wheel).
+
+**Draw caption:** when Settings → Slideshow → **Draw caption** is on, a file with NTFS ADS `Caption` (JSON array of `{ Caption, Descriptor, Sentence }`) is shown as a demotivational-style poster: the photo (or latest `VER_n` tip) sits in the framed rectangle; one array entry is picked at random each preview / slideshow display. Border and title colors are hashed from the **full Caption ADS stream text** (before the random pick) so every display of that file shares one accent color. Missing or invalid ADS falls back to the photo plus a filename overlay.
 
 Double-buffered display with V-Sync swaps (not a setting):
 
@@ -75,7 +77,8 @@ Exact line shape (blank lines allowed):
 
 | Keys | Auto mode | Manual mode |
 | ---- | --------- | ----------- |
-| Esc, Space, Enter, click | Stop (commit buffer) | Stop (commit buffer) |
+| Esc, Space, click | Stop (commit buffer) | Stop (commit buffer) |
+| Enter | Interrupt → manual | Resume autoplay (same as Compiled Lists **Play**) |
 | Tab | Open in-app image editor (same as context **Edit image…**); interrupt → manual. After Save, frame reloads | Same |
 | Home / End | Interrupt → first / last | First / last |
 | ← ↑ PageUp | Interrupt → previous | Previous (wraps when Loop is on) |
@@ -85,7 +88,28 @@ Exact line shape (blank lines allowed):
 | Map folder keys | Interrupt → virtual categorize + advance | Virtual categorize + advance |
 | `\|` | Interrupt → undo last buffer action | Undo last buffer action |
 | Any other key | Interrupt → manual | — |
-| Numpad | Reserved for crop (later) | Reserved |
+
+### Manual crop (numpad)
+
+Interrupt autoplay first (any nav key, wheel, etc.), then:
+
+| Keys | Not in crop mode | Crop mode |
+| ---- | ---------------- | --------- |
+| **Numpad0**, **Enter** | Resume autoplay | Save crop to disk (single encode from pristine `$DATA`) and exit crop |
+| **Numpad5**, **Esc** | — | Abandon crop (no save) and exit crop |
+| **Numpad2** | Enter crop + trim bottom 10% | +10% bottom (height) |
+| **Numpad8** | Enter crop + trim top 10% | +10% top |
+| **Numpad4** | Enter crop + trim left 10% | +10% left |
+| **Numpad6** | Enter crop + trim right 10% | +10% right |
+| **Shift** held | 5% step | 5% step |
+| **Ctrl** held | 2% step | 2% step |
+| **Shift+Ctrl** | 1% step | 1% step |
+| **← ↑ PageUp**, **→ ↓ PageDown**, **Home**, **End** | Normal navigation | Save crop (if any) and go prev / next / first / last |
+| **Backspace** | — | Discard crop and go **previous** |
+| **Delete** | — | Discard crop and go **next** |
+| All other keys | Normal manual shortcuts | **Blocked** |
+
+Steps accumulate on the **original** file bytes (not prior saves). Save is skipped when nothing was trimmed. While cropping, click does not stop the slideshow.
 
 Disk changes (trash / move) happen only when stopping, if the action buffer is non-empty.
 

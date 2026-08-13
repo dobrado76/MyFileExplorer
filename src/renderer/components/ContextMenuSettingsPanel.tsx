@@ -3,6 +3,7 @@ import {
   MAX_CONTEXT_MENU_COMMANDS,
   newContextMenuCommandId,
   normalizeExtensions,
+  parseCommandLabelSegments,
   type ContextMenuCommand
 } from '@shared/contextMenuCommands'
 import {
@@ -126,6 +127,12 @@ function matchSummary(cmd: ContextMenuCommand, scope: CommandScope): string {
   if (scope === 'folders') return 'All folders'
   if (cmd.match.type === 'all') return 'All files'
   return cmd.match.extensions.map((e) => `.${e}`).join(', ') || '(no extensions)'
+}
+
+/** Settings list: show submenu path as breadcrumbs. */
+function formatCommandListLabel(label: string): string {
+  const segs = parseCommandLabelSegments(label)
+  return segs.length > 1 ? segs.join(' › ') : label
 }
 
 function emptyDraft(_scope: CommandScope): ContextMenuCommand {
@@ -445,8 +452,9 @@ export function ContextMenuSettingsPanel(): JSX.Element {
       <p className="settings-help">
         Turn built-in menu items on or off, drag to set order and separators. Use Discover to scan
         static Windows shell verbs — tick to enable (they appear under Built-in for ordering; no COM
-        shell extensions). Custom (files/folders) are hand-edited external programs. All of this is
-        included in Settings → About → Export / Import.
+        shell extensions). Custom (files/folders) are hand-edited external programs; use{' '}
+        <code>\</code> in the label to group items into submenus (e.g.{' '}
+        <code>My Tools \ Option 1</code>). Included in Settings → About → Export / Import.
       </p>
 
       <div className="context-menu-scope-tabs" role="tablist">
@@ -831,7 +839,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   />
                 </label>
                 <div className="context-menu-cmd-main">
-                  <div className="context-menu-cmd-label">{cmd.label}</div>
+                  <div className="context-menu-cmd-label">{formatCommandListLabel(cmd.label)}</div>
                   <div className="context-menu-cmd-meta">
                     <span>{matchSummary(cmd, scope)}</span>
                     <span title={cmd.executable}>{cmd.executable}</span>
@@ -887,10 +895,10 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                 <input
                   type="text"
                   value={editing.label}
-                  maxLength={80}
+                  maxLength={120}
                   onChange={(e) => setEditing({ ...editing, label: e.target.value })}
-                  placeholder="Edit in Photoshop"
-                  title="Text shown in the right-click menu"
+                  placeholder="My Tools \\ Option 1"
+                  title="Menu text. Use backslash (\\) to nest under a submenu, e.g. My Tools \\ Option 1"
                   autoFocus
                 />
               </label>

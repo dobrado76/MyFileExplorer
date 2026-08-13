@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { FOLDER_STATS_COLUMN_IDS } from '../folderStats'
 
 /** Built-in file columns filled from DirEntry (sync), plus opt-in async ADS. */
 export const FILE_COLUMN_IDS = ['folder', 'mtime', 'ctime', 'type', 'size', 'ext', 'ads'] as const
@@ -56,6 +57,7 @@ export const GEN_COLUMN_IDS = [
 
 export const DETAILS_COLUMN_IDS = [
   ...FILE_COLUMN_IDS,
+  ...FOLDER_STATS_COLUMN_IDS,
   ...IMAGE_COLUMN_IDS,
   ...MEDIA_COLUMN_IDS,
   ...TAG_COLUMN_IDS,
@@ -66,7 +68,7 @@ export type DetailsColumnId = (typeof DETAILS_COLUMN_IDS)[number]
 
 export const detailsColumnIdSchema = z.enum(DETAILS_COLUMN_IDS)
 
-export type ColumnGroup = 'file' | 'image' | 'media' | 'tags' | 'generation'
+export type ColumnGroup = 'file' | 'folderStats' | 'image' | 'media' | 'tags' | 'generation'
 
 export type DetailsColumnMeta = {
   id: DetailsColumnId
@@ -97,6 +99,39 @@ export const DETAILS_COLUMN_META: Record<DetailsColumnId, DetailsColumnMeta> = {
     label: 'Alternate streams',
     group: 'file',
     defaultWidth: 180,
+    async: true
+  },
+
+  fsFileCount: {
+    id: 'fsFileCount',
+    label: 'Files',
+    group: 'folderStats',
+    defaultWidth: 72,
+    numeric: true,
+    async: true
+  },
+  fsFileTotCount: {
+    id: 'fsFileTotCount',
+    label: 'Total Files',
+    group: 'folderStats',
+    defaultWidth: 96,
+    numeric: true,
+    async: true
+  },
+  fsFolderCount: {
+    id: 'fsFolderCount',
+    label: 'Folders',
+    group: 'folderStats',
+    defaultWidth: 80,
+    numeric: true,
+    async: true
+  },
+  fsFolderTotCount: {
+    id: 'fsFolderTotCount',
+    label: 'Total Folders',
+    group: 'folderStats',
+    defaultWidth: 108,
+    numeric: true,
     async: true
   },
 
@@ -297,6 +332,7 @@ export const DETAILS_COLUMN_META: Record<DetailsColumnId, DetailsColumnMeta> = {
 
 export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
   file: 'File',
+  folderStats: 'Folder statistics',
   image: 'Image',
   media: 'Audio / video',
   tags: 'Tags',
@@ -305,11 +341,26 @@ export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
 
 export const COLUMN_GROUP_ORDER: ColumnGroup[] = [
   'file',
+  'folderStats',
   'image',
   'media',
   'tags',
   'generation'
 ]
+
+/** Columns fetched via meta.getMany for directory rows (includes sync Size when TotalSize ADS exists). */
+export function isDirectoryMetaColumn(id: DetailsColumnId): boolean {
+  return columnNeedsDirectoryMeta(id) || id === 'size'
+}
+
+export function filterMetaFetchColumns(columns: DetailsColumnId[]): DetailsColumnId[] {
+  return columns.filter((id) => isAsyncColumn(id) || id === 'size')
+}
+
+/** Columns that need directory rows in async metadata fetch (ADS, folder stats). */
+export function columnNeedsDirectoryMeta(id: DetailsColumnId): boolean {
+  return id === 'ads' || (FOLDER_STATS_COLUMN_IDS as readonly string[]).includes(id)
+}
 
 /** Columns that need main-process metadata extraction. */
 export function isAsyncColumn(id: DetailsColumnId): boolean {

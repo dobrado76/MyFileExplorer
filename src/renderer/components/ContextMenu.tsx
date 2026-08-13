@@ -1,6 +1,6 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { findExactFolderView } from '@shared/folderViews'
-import { commandMatches } from '@shared/contextMenuCommands'
+import { buildCommandMenuRows, commandMatches, type CommandMenuSubRow } from '@shared/contextMenuCommands'
 import {
   applyBuiltinLayoutToMenu,
   collapseMenuSeparators,
@@ -33,7 +33,9 @@ type MenuActionEv = { shiftKey?: boolean }
 
 type SubEntry = {
   label: string
-  action(ev?: MenuActionEv): void
+  action?(ev?: MenuActionEv): void
+  /** Nested custom-command submenu (Settings label `Parent \ Child`). */
+  items?: SubEntry[]
   sep?: boolean
   title?: string
   /** Leading icon (same pattern as toolbar + New). */
@@ -60,6 +62,84 @@ type MenuItem =
       builtin?: ContextMenuBuiltinId
       items: SubEntry[]
     }
+
+function mapCommandSubRows(rows: CommandMenuSubRow[]): SubEntry[] {
+  return rows.map((r) =>
+    r.items?.length
+      ? { label: r.label, items: mapCommandSubRows(r.items) }
+      : { label: r.label, action: r.action ?? (() => {}) }
+  )
+}
+
+function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: number }): JSX.Element {
+  const [openNested, setOpenNested] = useState<number | null>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearClose = (): void => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+
+  const scheduleClose = (): void => {
+    clearClose()
+    closeTimer.current = setTimeout(() => setOpenNested(null), 280)
+  }
+
+  useEffect(() => () => clearClose(), [])
+
+  return (
+    <>
+      {entries.map((sub, j) => {
+        if (sub.sep) return <div key={j} className="menu-sep" />
+        if (sub.items?.length) {
+          const open = openNested === j
+          return (
+            <div
+              key={j}
+              className="menu-sub-wrap"
+              onMouseEnter={() => {
+                clearClose()
+                setOpenNested(j)
+              }}
+              onMouseLeave={scheduleClose}
+            >
+              <button type="button" className={`menu-item has-sub${open ? ' focused' : ''}`} role="menuitem">
+                <span className="menu-item-label">{sub.label}</span>
+                <span className="menu-hint">▸</span>
+              </button>
+              {open && (
+                <div
+                  className={`context-menu context-submenu context-submenu-nested depth-${depth + 1}`}
+                  role="menu"
+                  onMouseEnter={clearClose}
+                  onMouseLeave={scheduleClose}
+                >
+                  <SubMenuFlyout entries={sub.items} depth={depth + 1} />
+                </div>
+              )}
+            </div>
+          )
+        }
+        return (
+          <button
+            key={j}
+            type="button"
+            className="menu-item"
+            onClick={(e) => sub.action?.({ shiftKey: e.shiftKey })}
+            role="menuitem"
+            title={sub.title}
+            onMouseEnter={() => setOpenNested(null)}
+          >
+            {sub.icon}
+            <span className="menu-item-label">{sub.label}</span>
+          </button>
+        )
+      })}
+    </>
+  )
+}
 
 function filterHiddenBuiltins(
   items: MenuItem[],
@@ -702,6 +782,16 @@ export function ContextMenu(): JSX.Element | null {
         },
         {
           type: 'item',
+          label: 'Calculate Statistics',
+          builtin: 'calculate-folder-statistics',
+          disabled: folderPath.toLowerCase().startsWith('mfe-remote://'),
+          action: () => {
+            close()
+            void s.calculateFolderStatistics(folderPath)
+          }
+        },
+        {
+          type: 'item',
           label: 'Properties',
           builtin: 'properties',
           action: () => {
@@ -786,15 +876,20 @@ export function ContextMenu(): JSX.Element | null {
         const matched = cmds.filter((c) => commandMatches(c, paths, selKind))
         if (matched.length > 0) {
           result.push({ type: 'sep' })
-          for (const cmd of matched) {
-            result.push({
-              type: 'item',
-              label: cmd.label,
-              action: () => {
-                close()
-                void s.runContextMenuCommand(cmd.id, paths)
-              }
-            })
+          const built = buildCommandMenuRows(matched, (cmd) => {
+            close()
+            void s.runContextMenuCommand(cmd.id, paths)
+          })
+          for (const row of built) {
+            if (row.type === 'item') {
+              result.push({ type: 'item', label: row.label, action: () => row.action() })
+            } else {
+              result.push({
+                type: 'submenu',
+                label: row.label,
+                items: mapCommandSubRows(row.items)
+              })
+            }
           }
         }
         const disc = s.settings.contextMenu.discovered
@@ -1475,6 +1570,20 @@ export function ContextMenu(): JSX.Element | null {
           if (single) s.openDialog({ kind: 'ads-manager', path: single })
         }
       },
+      ...(isDir && single
+        ? [
+            {
+              type: 'item' as const,
+              label: 'Calculate Statistics',
+              builtin: 'calculate-folder-statistics' as const,
+              disabled: single.toLowerCase().startsWith('mfe-remote://'),
+              action: () => {
+                close()
+                void s.calculateFolderStatistics(single)
+              }
+            }
+          ]
+        : []),
       {
         type: 'item',
         label: 'Properties',
@@ -1591,7 +1700,7 @@ export function ContextMenu(): JSX.Element | null {
       } else if (e.key === 'Enter') {
         if (subItems && subFocusIdx >= 0) {
           const sub = subItems[subFocusIdx]
-          if (sub && !sub.sep) sub.action({ shiftKey: e.shiftKey })
+          if (sub && !sub.sep && sub.action) sub.action({ shiftKey: e.shiftKey })
         } else if (focused?.type === 'submenu' && !focused.disabled) {
           showSub(focusIdx)
           const first = focused.items.findIndex((x) => !x.sep)
@@ -1669,22 +1778,7 @@ export function ContextMenu(): JSX.Element | null {
                     visibility: subPlace.ready ? 'visible' : 'hidden'
                   }}
                 >
-                  {item.items.map((sub, j) =>
-                    sub.sep ? (
-                      <div key={j} className="menu-sep" />
-                    ) : (
-                      <button
-                        key={j}
-                        className={`menu-item${subFocusIdx === j ? ' focused' : ''}`}
-                        onClick={(e) => sub.action({ shiftKey: e.shiftKey })}
-                        role="menuitem"
-                        title={sub.title}
-                      >
-                        {sub.icon}
-                        <span className="menu-item-label">{sub.label}</span>
-                      </button>
-                    )
-                  )}
+                  <SubMenuFlyout entries={item.items} />
                 </div>
               )}
             </div>

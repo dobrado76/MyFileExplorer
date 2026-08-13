@@ -11,9 +11,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
-- **Settings → About** — version, Updates source / Check / Update, and Export / Import moved out of Advanced into their own nav section.
+- **Folder statistics columns** — Details column labels are now **Files**, **Total Files**, **Folders**, **Total Folders** (ADS stream names unchanged). **Calculate Statistics** now depth-first tags **every subfolder** with immediate + rolled-up ADS streams (not only the selected root).
+- **Calculate Statistics** — no 250k entry cap; walks complete trees. Scan or ADS write failures show an explicit alert dialog with the path and error (same as other FS operations).
+- **Slideshow manual crop** — numpad 2/4/6/8 trims edges (Shift/Ctrl for finer steps); Enter/Numpad0 saves or resumes autoplay; Esc/Numpad5 cancels crop.
+- **Custom context menu labels** — use `\` in Settings → Context menu → Custom (files/folders) labels to group commands into nested submenus (e.g. `My Tools \ Option 1`).
 - **Settings dialog** — footer button is **Close** (was Done); title bar has a standard **✕** close control (all shared modals).
 - **Tab bar** — tabs size to the widest label (instead of stretching to fill the bar), then equal-shrink toward a minimum (~90px) and overflow with ◀ ▶ controls; active tab scrolls into view; mouse wheel scrolls the strip horizontally.
+- **Draw caption** — when enabled, images with an NTFS `Caption` ADS are framed as a poster (photo in the box; random JSON entry; border/titles hashed from the caption text) in slideshow, preview, and the image viewer; otherwise the filename overlay remains.
 - **Scoped tabs** — tree no longer shows a section header that repeats the root folder name (e.g. “DROPBOX” above “Dropbox”).
 
 ### Fixed

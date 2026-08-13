@@ -88,6 +88,7 @@ export type MyFileExplorerApi = {
     ): Promise<Result<{ path: string; volumeName: string }>>
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
+    calculateFolderStatistics(req: PathRequest): Promise<Result<import('../folderStats').FolderStatisticsResult>>
     setAttributes(req: SetAttributesRequest): Promise<Result<SetAttributesResponse>>
     /** Custom folder icon via desktop.ini + Folder.ico. */
     setFolderIcon(req: { path: string; iconPath: string }): Promise<Result<{ path: string }>>
@@ -115,6 +116,10 @@ export type MyFileExplorerApi = {
       path: string
       ads?: string | null
     }): Promise<Result<{ dataBase64: string; mime: string }>>
+    /** Slideshow numpad crop — single encode from pristine `$DATA`. */
+    cropSlideshowImage(req: import('../schemas/imageEdit').CropSlideshowImageRequest): Promise<
+      Result<{ path: string; preservedOriginal: boolean; versionCount: number }>
+    >
     /** Save dialog + write; no original backup (Save As). */
     saveEditedImageAs(req: {
       dataBase64: string

@@ -16,6 +16,7 @@ import {
   setVolumeLabelRequestSchema
 } from '@shared/schemas/fs'
 import { sessionSchema } from '@shared/schemas/session'
+import { cropSlideshowImageRequestSchema } from '@shared/schemas/imageEdit'
 import { settingsPatchSchema } from '@shared/schemas/settings'
 import {
   buildSettingsExportDocument,
@@ -66,6 +67,7 @@ import {
   replaceRememberedNetworkHosts
 } from '../fs/networkRemembered'
 import { getProperties, measureFolder, setPathAttributes } from '../fs/properties'
+import { calculateFolderStatistics } from '../fs/folderStats'
 import { setFolderCustomIcon } from '../fs/folderIcon'
 import {
   propertiesRequestSchema,
@@ -92,7 +94,8 @@ import {
   dropImageVersion,
   commitImageVersion,
   readImageForEdit,
-  writeEditedImageToPath
+  writeEditedImageToPath,
+  cropSlideshowImageFromOriginal
 } from '../fs/imageEdit'
 import { restoreFromRecycleBin, listRecycleBin, emptyRecycleBin, deleteFromRecycleBin } from '../fs/recycle'
 import { watchDirectory, unwatchDirectory, muteWatchers } from '../fs/watch'
@@ -332,6 +335,7 @@ export function registerIpcHandlers(): void {
   )
   handle(IPC.fsProperties, propertiesRequestSchema, (req) => getProperties(req.path))
   handle(IPC.fsMeasureFolder, propertiesRequestSchema, (req) => measureFolder(req.path))
+  handle(IPC.fsCalculateFolderStatistics, pathRequestSchema, (req) => calculateFolderStatistics(req.path))
   handle(IPC.fsSetAttributes, setAttributesRequestSchema, (req) =>
     setPathAttributes(req.path, {
       readOnly: req.readOnly,
@@ -386,6 +390,12 @@ export function registerIpcHandlers(): void {
     }),
     (req) => readImageForEdit(req.path, req.ads)
   )
+  handle(IPC.fsCropSlideshowImage, cropSlideshowImageRequestSchema, async (req) => {
+    muteWatchers()
+    const res = await cropSlideshowImageFromOriginal(req.path, req.crop)
+    await invalidateColumnMetaPaths([res.path])
+    return res
+  })
   handle(IPC.fsEnsureLamaModel, emptySchema, async () => {
     const result = await ensureLamaModel()
     return {

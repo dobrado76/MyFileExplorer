@@ -1,8 +1,9 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { DetailsColumnId, EntryColumnValues } from '@shared/schemas/columns'
+import { FOLDER_STATS_COLUMN_IDS, FOLDER_STATS_STREAM_BY_COLUMN, FOLDER_STAT_TOTAL_SIZE } from '@shared/folderStats'
 import { formatAdsColumnValue } from '@shared/ads/paths'
-import { listStreamNames } from '../fs/adsWin32'
+import { listStreamNames, readStreamText } from '../fs/adsWin32'
 import { parseA1111Parameters } from '../preview/a1111'
 import { resolveGenerationParametersText } from '../preview/genFields'
 
@@ -103,6 +104,34 @@ function truncate(s: string, max = 240): string {
   const t = s.replace(/\s+/g, ' ').trim()
   if (t.length <= max) return t
   return t.slice(0, max - 1) + '…'
+}
+
+async function readStatInt(dir: string, streamName: string): Promise<string | null> {
+  try {
+    const raw = await readStreamText(dir, streamName)
+    const v = raw.trim()
+    return /^\d+$/.test(v) ? v : null
+  } catch {
+    return null
+  }
+}
+
+async function extractFolderStats(
+  dir: string,
+  wanted: Set<DetailsColumnId>
+): Promise<EntryColumnValues> {
+  const out: EntryColumnValues = {}
+  for (const col of FOLDER_STATS_COLUMN_IDS) {
+    if (!wanted.has(col)) continue
+    const streamName = FOLDER_STATS_STREAM_BY_COLUMN[col]
+    const v = await readStatInt(dir, streamName)
+    if (v) out[col] = v
+  }
+  if (wanted.has('size')) {
+    const total = await readStatInt(dir, FOLDER_STAT_TOTAL_SIZE)
+    if (total) out.size = total
+  }
+  return out
 }
 
 function pick<T extends DetailsColumnId>(
@@ -295,6 +324,11 @@ export async function extractColumnValues(
     } catch {
       /* soft-fail */
     }
+  }
+
+  if (st.isDirectory()) {
+    Object.assign(out, await extractFolderStats(file, wanted))
+    return out
   }
 
   if (!st.isFile()) return out

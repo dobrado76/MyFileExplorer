@@ -29,6 +29,7 @@ export const IPC = {
   fsSetVolumeLabel: 'fs:setVolumeLabel',
   fsProperties: 'fs:properties',
   fsMeasureFolder: 'fs:measureFolder',
+  fsCalculateFolderStatistics: 'fs:calculateFolderStatistics',
   fsSetAttributes: 'fs:setAttributes',
   /** Write desktop.ini + Folder.ico for a custom folder glyph. */
   fsSetFolderIcon: 'fs:setFolderIcon',
@@ -40,6 +41,7 @@ export const IPC = {
   fsCommitImageVersion: 'fs:commitImageVersion',
   fsReadImageForEdit: 'fs:readImageForEdit',
   fsSaveEditedImageAs: 'fs:saveEditedImageAs',
+  fsCropSlideshowImage: 'fs:cropSlideshowImage',
   /** Ensure LaMa ONNX is cached under userData; returns fetchable model URL. */
   fsEnsureLamaModel: 'fs:ensureLamaModel',
 
@@ -196,6 +198,7 @@ export type MfeEvent =
           | 'vid-thumbs'
           | 'zip'
           | 'compile-lists'
+          | 'folder-stats'
         done: number
         total: number
         /** Basename (or short path) of the item currently being processed. */

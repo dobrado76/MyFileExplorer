@@ -19,6 +19,7 @@ import {
   isVideoExt
 } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
+import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
 import {
   AudioPreview,
   HtmlDocumentPreview,
@@ -89,6 +90,8 @@ export function PreviewPane(): JSX.Element {
   const imageVersionPreview = useAppStore((s) => s.imageVersionPreview)
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
+  const drawCaption = useAppStore((s) => s.settings.slideshow.drawCaption)
+  const [captionPosterUrl, setCaptionPosterUrl] = useState<string | null>(null)
 
   const entries = useMemo(
     () =>
@@ -151,6 +154,28 @@ export function PreviewPane(): JSX.Element {
       cancelled = true
     }
   }, [previewPath, selectedStamp])
+
+  useEffect(() => {
+    if (!drawCaption || !previewPath || model?.kind !== 'image' || !model.mediaUrl) {
+      if (!drawCaption || !previewPath) setCaptionPosterUrl(null)
+      return
+    }
+    const photoUrl = model.mediaUrl
+    let cancelled = false
+    void (async () => {
+      try {
+        const img = await decodeImageUrl(photoUrl)
+        if (!img || cancelled) return
+        const url = await tryCaptionPosterUrl(previewPath, img)
+        if (!cancelled) setCaptionPosterUrl(url)
+      } catch {
+        if (!cancelled) setCaptionPosterUrl(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [drawCaption, previewPath, selectedStamp, model?.kind, model?.mediaUrl])
 
   useEffect(() => {
     if (!previewPath) {
@@ -333,6 +358,7 @@ export function PreviewPane(): JSX.Element {
           </div>
           {model.kind === 'image' &&
             model.mediaUrl &&
+            !captionPosterUrl &&
             isEditableImagePath(model.path) && (
               <button
                 type="button"
@@ -393,9 +419,13 @@ export function PreviewPane(): JSX.Element {
 
       <div className="preview-content">
         {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
-        {model.kind === 'image' && model.mediaUrl && (
+        {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
           <div className="preview-media preview-media-fill">
-            <img src={model.mediaUrl} alt={basename(model.path)} draggable={false} />
+            <img
+              src={captionPosterUrl || model.mediaUrl}
+              alt={basename(model.path)}
+              draggable={false}
+            />
           </div>
         )}
         {model.kind === 'text' && model.textSample !== undefined && (

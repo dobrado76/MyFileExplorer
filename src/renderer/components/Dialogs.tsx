@@ -1622,7 +1622,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <SettingsToggle
                 id="set-ss-caption"
                 label="Draw caption"
-                hint="Show filename overlay (full caption fields later)"
+                hint="When an image has an NTFS Caption stream, frame the photo in a poster (random entry each view; border and titles use a color hashed from the caption text). Otherwise overlay the filename."
                 checked={settings.slideshow.drawCaption}
                 onChange={(v) => void applySettingsPatch({ slideshow: { drawCaption: v } })}
               />

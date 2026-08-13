@@ -14,6 +14,8 @@ import {
   sharpFormatForExt,
   verStreamName
 } from '@shared/imageEdit'
+import type { SlideshowAccumulatedCrop } from '@shared/slideshow/crop'
+import { cropExtractRect } from '@shared/slideshow/crop'
 import { pathKey } from '../security/paths'
 import {
   buildStreamPath,
@@ -67,6 +69,11 @@ function mimeForImagePath(file: string): string {
 async function encodeEditedBuffer(destFile: string, dataBase64: string): Promise<Buffer> {
   const { bytes } = stripDataUrl(dataBase64)
   if (bytes.length === 0) throw new AppError('validation', 'Empty image data')
+  return encodeRawImageBuffer(destFile, bytes)
+}
+
+async function encodeRawImageBuffer(destFile: string, bytes: Buffer): Promise<Buffer> {
+  if (bytes.length === 0) throw new AppError('validation', 'Empty image data')
 
   const ext = imageExt(destFile)
   const format = sharpFormatForExt(ext)
@@ -90,6 +97,62 @@ async function encodeEditedBuffer(destFile: string, dataBase64: string): Promise
     throw e instanceof AppError
       ? e
       : new AppError('io', e instanceof Error ? e.message : 'Failed to encode edited image')
+  }
+}
+
+async function writeEncodedImageBytes(
+  file: string,
+  encoded: Buffer
+): Promise<{ path: string; preservedOriginal: boolean; versionCount: number }> {
+  const useAds = pathSupportsImageVersions(file)
+  muteWatchers(2000)
+
+  if (!useAds) {
+    const tmp = file + '.mfe-edit.tmp'
+    try {
+      await fsp.writeFile(tmp, encoded)
+      await fsp.rename(tmp, file)
+    } catch (e) {
+      try {
+        await fsp.unlink(tmp)
+      } catch {
+        /* ignore */
+      }
+      throw e instanceof AppError
+        ? e
+        : new AppError('io', e instanceof Error ? e.message : 'Failed to save edited image')
+    }
+    return { path: file, preservedOriginal: false, versionCount: 0 }
+  }
+
+  let count = await readVerCount(file)
+  const preservedOriginal = count === 0
+
+  try {
+    if (count >= IMAGE_VER_MAX) {
+      await shiftVersionsDown(file, count)
+      count = IMAGE_VER_MAX - 1
+    }
+    const next = count + 1
+    await writeStreamBytes(file, verStreamName(next), encoded)
+    await writeVerCount(file, next)
+    return { path: file, preservedOriginal, versionCount: next }
+  } catch {
+    const tmp = file + '.mfe-edit.tmp'
+    try {
+      await fsp.writeFile(tmp, encoded)
+      await fsp.rename(tmp, file)
+      return { path: file, preservedOriginal: false, versionCount: 0 }
+    } catch (e2) {
+      try {
+        await fsp.unlink(tmp)
+      } catch {
+        /* ignore */
+      }
+      throw e2 instanceof AppError
+        ? e2
+        : new AppError('io', e2 instanceof Error ? e2.message : 'Failed to save edited image')
+    }
   }
 }
 
@@ -337,58 +400,7 @@ export async function saveEditedImage(
   if (!st.isFile()) throw new AppError('validation', 'Not a file')
 
   const encoded = await encodeEditedBuffer(file, dataBase64)
-  const useAds = pathSupportsImageVersions(file)
-
-  muteWatchers(2000)
-
-  if (!useAds) {
-    const tmp = file + '.mfe-edit.tmp'
-    try {
-      await fsp.writeFile(tmp, encoded)
-      await fsp.rename(tmp, file)
-    } catch (e) {
-      try {
-        await fsp.unlink(tmp)
-      } catch {
-        /* ignore */
-      }
-      throw e instanceof AppError
-        ? e
-        : new AppError('io', e instanceof Error ? e.message : 'Failed to save edited image')
-    }
-    return { path: file, preservedOriginal: false, versionCount: 0 }
-  }
-
-  let count = await readVerCount(file)
-  const preservedOriginal = count === 0
-
-  try {
-    if (count >= IMAGE_VER_MAX) {
-      await shiftVersionsDown(file, count)
-      count = IMAGE_VER_MAX - 1
-    }
-    const next = count + 1
-    await writeStreamBytes(file, verStreamName(next), encoded)
-    await writeVerCount(file, next)
-    return { path: file, preservedOriginal, versionCount: next }
-  } catch {
-    // ADS write failed despite NTFS probe — fall back to overwriting the file body.
-    const tmp = file + '.mfe-edit.tmp'
-    try {
-      await fsp.writeFile(tmp, encoded)
-      await fsp.rename(tmp, file)
-      return { path: file, preservedOriginal: false, versionCount: 0 }
-    } catch (e2) {
-      try {
-        await fsp.unlink(tmp)
-      } catch {
-        /* ignore */
-      }
-      throw e2 instanceof AppError
-        ? e2
-        : new AppError('io', e2 instanceof Error ? e2.message : 'Failed to save edited image')
-    }
-  }
+  return writeEncodedImageBytes(file, encoded)
 }
 
 /** Delete all `VER_*` / `VER_COUNT` — leave `$DATA` and other ADS untouched. */
@@ -525,6 +537,57 @@ export async function readImageForEdit(
 
   const buf = await fsp.readFile(resolved.openPath)
   return { dataBase64: buf.toString('base64'), mime: mimeForImagePath(resolved.file) }
+}
+
+/**
+ * Slideshow numpad crop — extract from pristine `$DATA` once, encode once, save as tip ADS.
+ */
+export async function cropSlideshowImageFromOriginal(
+  rawPath: string,
+  crop: SlideshowAccumulatedCrop
+): Promise<{ path: string; preservedOriginal: boolean; versionCount: number }> {
+  const file = requireAbsolute(rawPath)
+  if (!isEditableImagePath(file)) {
+    throw new AppError('validation', 'This image type cannot be edited in-app')
+  }
+
+  let st
+  try {
+    st = await fsp.stat(file)
+  } catch {
+    throw new AppError('not-found', 'File not found')
+  }
+  if (!st.isFile()) throw new AppError('validation', 'Not a file')
+
+  const resolved = await resolveImageAdsStream(rawPath, null)
+  const buf = await fsp.readFile(resolved.openPath)
+  const { default: sharp } = await import('sharp')
+  const meta = await sharp(buf).metadata()
+  const w = meta.width ?? 0
+  const h = meta.height ?? 0
+  if (w < 1 || h < 1) {
+    throw new AppError('validation', 'Could not read image dimensions')
+  }
+
+  let rect
+  try {
+    rect = cropExtractRect(w, h, crop)
+  } catch (e) {
+    throw new AppError('validation', e instanceof Error ? e.message : 'Invalid crop')
+  }
+
+  let extracted: Buffer
+  try {
+    extracted = await sharp(buf).extract(rect).toBuffer()
+  } catch (e) {
+    throw new AppError(
+      'io',
+      e instanceof Error ? e.message : 'Failed to crop image'
+    )
+  }
+
+  const encoded = await encodeRawImageBuffer(file, extracted)
+  return writeEncodedImageBytes(file, encoded)
 }
 
 /**

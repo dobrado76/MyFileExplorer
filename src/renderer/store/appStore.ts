@@ -38,6 +38,7 @@ import {
   type WorkspaceLayout
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
+import { formatBytes } from '../lib/format'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
 import { isNetworkHostUnc } from '@shared/networkPaths'
@@ -213,6 +214,7 @@ export type FileOpProgress = {
     | 'delete'
     | 'relocate'
     | 'vid-thumbs'
+    | 'folder-stats'
     | 'zip'
     | 'compile-lists'
   done: number
@@ -611,6 +613,8 @@ type AppState = {
     mode: 'missing' | 'all',
     opts?: { recursive?: boolean }
   ): Promise<void>
+  /** Count files/folders and attach FileCount / FolderCount ADS streams on a local folder. */
+  calculateFolderStatistics(path: string): Promise<void>
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
@@ -4427,6 +4431,18 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async calculateFolderStatistics(folderPath) {
+      try {
+        const res = await call(api.fs.calculateFolderStatistics({ path: folderPath }))
+        get().bumpColumnMeta(res.path)
+        get().notify(
+          `Statistics saved — ${res.foldersTagged.toLocaleString()} folders tagged · ${res.fileTotCount.toLocaleString()} files · ${res.folderTotCount.toLocaleString()} folders · ${formatBytes(res.totalSize)}`
+        )
+      } catch (e) {
+        reportOperationError('Calculate Statistics failed', e)
       }
     },
 

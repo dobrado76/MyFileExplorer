@@ -542,6 +542,31 @@ export function createSlideshowActions(get: Get, set: Set) {
       })
     },
 
+    slideshowResumePlaying() {
+      if (!gateOn(get)) return
+      const a = get().slideshow.active
+      if (!a || a.status !== 'manual') return
+      set({
+        slideshow: {
+          ...get().slideshow,
+          active: { ...a, status: 'playing' }
+        }
+      })
+    },
+
+    async slideshowCropSave(imagePath: string, crop: import('@shared/slideshow/crop').SlideshowAccumulatedCrop) {
+      if (!gateOn(get)) return false
+      try {
+        await call(api.fs.cropSlideshowImage({ path: imagePath, crop }))
+        actions.slideshowInvalidateImage(imagePath)
+        get().notify('Crop saved')
+        return true
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        return false
+      }
+    },
+
     slideshowAdvanceAuto() {
       if (!gateOn(get)) return
       const a = get().slideshow.active

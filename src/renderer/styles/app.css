@@ -2735,6 +2735,13 @@ body.right-dragging * {
   text-overflow: ellipsis;
 }
 
+.context-submenu .menu-sub-wrap {
+  position: relative;
+}
+.context-submenu-nested {
+  z-index: 2;
+}
+
 /* ---------- in-app image editor (Filerobot) ---------- */
 
 .image-editor {
@@ -3062,6 +3069,17 @@ html.idle-cursor-hidden * {
 .slideshow-buf:not([src]),
 .slideshow-buf[src=''] {
   opacity: 0 !important;
+}
+.slideshow-crop-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+.slideshow-crop-hint {
+  bottom: 3rem;
 }
 .slideshow-loading,
 .slideshow-error {

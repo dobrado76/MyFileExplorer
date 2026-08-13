@@ -3,6 +3,7 @@ import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { CloseIcon, ArrowLeft, ArrowRight, SpinnerIcon } from '../lib/icons'
+import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
 
 /**
  * Full-window image viewer for double-click / Enter.
@@ -15,6 +16,7 @@ export function ImageViewer(): JSX.Element | null {
   const imageViewerDelete = useAppStore((s) => s.imageViewerDelete)
   const openPath = useAppStore((s) => s.openPath)
   const dialogOpen = useAppStore((s) => s.dialog !== null)
+  const drawCaption = useAppStore((s) => s.settings.slideshow.drawCaption)
 
   const [url, setUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -30,20 +32,39 @@ export function ImageViewer(): JSX.Element | null {
     setError(null)
     setFit(true)
     // Keep the previous bitmap mounted until the next URL is ready (no black flash).
-    void api.preview.get({ path: viewerPath }).then((res) => {
-      if (!alive) return
-      setLoading(false)
-      if (!res.ok || !res.value.mediaUrl) {
-        setError(res.ok ? 'No image preview available' : res.error.message)
+    void (async () => {
+      try {
+        const res = await api.preview.get({ path: viewerPath })
+        if (!alive) return
+        if (!res.ok || !res.value.mediaUrl) {
+          setLoading(false)
+          setError(res.ok ? 'No image preview available' : res.error.message)
+          setUrl(null)
+          return
+        }
+        let nextUrl = res.value.mediaUrl
+        if (drawCaption) {
+          const img = await decodeImageUrl(nextUrl)
+          if (!alive) return
+          if (img) {
+            const poster = await tryCaptionPosterUrl(viewerPath, img)
+            if (!alive) return
+            if (poster) nextUrl = poster
+          }
+        }
+        setLoading(false)
+        setUrl(nextUrl)
+      } catch (e) {
+        if (!alive) return
+        setLoading(false)
+        setError(e instanceof Error ? e.message : String(e))
         setUrl(null)
-        return
       }
-      setUrl(res.value.mediaUrl)
-    })
+    })()
     return () => {
       alive = false
     }
-  }, [viewerPath])
+  }, [viewerPath, drawCaption])
 
   useEffect(() => {
     if (!viewer) return

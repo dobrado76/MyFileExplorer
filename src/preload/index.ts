@@ -38,6 +38,7 @@ const api: MyFileExplorerApi = {
     setVolumeLabel: invoke(IPC.fsSetVolumeLabel),
     properties: invoke(IPC.fsProperties),
     measureFolder: invoke(IPC.fsMeasureFolder),
+    calculateFolderStatistics: invoke(IPC.fsCalculateFolderStatistics),
     setAttributes: invoke(IPC.fsSetAttributes),
     setFolderIcon: invoke(IPC.fsSetFolderIcon),
     saveEditedImage: invoke(IPC.fsSaveEditedImage),
@@ -47,6 +48,7 @@ const api: MyFileExplorerApi = {
     dropImageVersion: invoke(IPC.fsDropImageVersion),
     commitImageVersion: invoke(IPC.fsCommitImageVersion),
     readImageForEdit: invoke(IPC.fsReadImageForEdit),
+    cropSlideshowImage: invoke(IPC.fsCropSlideshowImage),
     saveEditedImageAs: invoke(IPC.fsSaveEditedImageAs),
     ensureLamaModel: invokeVoid(IPC.fsEnsureLamaModel)
   },

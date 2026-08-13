@@ -3,7 +3,7 @@
  * (`Keys.Back`, `Keys.OemMinus`, `Keys.Oemplus`, `Keys.O`, …).
  * Mapped to browser `KeyboardEvent.code` for capture / playback.
  *
- * Numpad codes stay reserved for Phase 6 crop — never categorize.
+ * Numpad codes are used for manual slideshow crop — never categorize.
  */
 
 /** Canonical Forms.Keys token → KeyboardEvent.code (US / OEM layout). */
@@ -235,9 +235,41 @@ export type SlideshowKeyLike = {
   metaKey?: boolean
 }
 
-/** Numpad — reserved for Phase 6 crop; never categorize. */
+/** Numpad crop edges (manual slideshow). */
+export type SlideshowCropEdge = 'top' | 'right' | 'bottom' | 'left'
+
+/** Numpad — crop tool during manual slideshow; never categorize. */
 export function isNumpadCode(code: string): boolean {
   return code.startsWith('Numpad')
+}
+
+export function numpadCropEdgeFromCode(code: string): SlideshowCropEdge | null {
+  switch (code) {
+    case 'Numpad2':
+      return 'bottom'
+    case 'Numpad8':
+      return 'top'
+    case 'Numpad4':
+      return 'left'
+    case 'Numpad6':
+      return 'right'
+    default:
+      return null
+  }
+}
+
+/** Numpad0 / Enter — save crop (crop mode) or resume autoplay (manual). */
+export function isSlideshowCropSaveKey(e: SlideshowKeyLike): boolean {
+  return e.code === 'Numpad0' || e.code === 'Enter' || e.key === 'Enter'
+}
+
+/** Numpad5 / Escape — abandon crop (crop mode only). */
+export function isSlideshowCropCancelKey(e: SlideshowKeyLike): boolean {
+  return e.code === 'Numpad5' || e.code === 'Escape' || e.key === 'Escape'
+}
+
+export function isSlideshowStopKey(e: SlideshowKeyLike): boolean {
+  return e.key === 'Escape' || e.key === ' '
 }
 
 /** Tab — open in-app image editor during slideshow. */
@@ -245,8 +277,9 @@ export function isEditImageSlideshowKey(e: SlideshowKeyLike): boolean {
   return e.key === 'Tab' || e.code === 'Tab'
 }
 
+/** @deprecated Prefer isSlideshowStopKey — Enter no longer stops (crop save / resume). */
 export function isStopSlideshowKey(e: SlideshowKeyLike): boolean {
-  return e.key === 'Escape' || e.key === 'Enter' || e.key === ' '
+  return isSlideshowStopKey(e)
 }
 
 export function isPipeUndoKey(e: SlideshowKeyLike): boolean {

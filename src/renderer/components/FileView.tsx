@@ -8,7 +8,8 @@ import {
   COLUMN_GROUP_ORDER,
   DETAILS_COLUMN_IDS,
   DETAILS_COLUMN_META,
-  isAsyncColumn,
+  filterMetaFetchColumns,
+  isDirectoryMetaColumn,
   type EntryColumnValues
 } from '@shared/schemas/columns'
 import { resolveFolderView } from '@shared/folderViews'
@@ -132,7 +133,12 @@ function detailCellValue(
     case 'type':
       return typeLabel(e.ext, e.kind === 'dir')
     case 'size':
-      return e.kind === 'dir' ? '' : formatBytes(e.size)
+      if (e.kind === 'dir') {
+        const raw = meta?.size
+        if (raw && /^\d+$/.test(raw)) return formatBytes(Number(raw))
+        return ''
+      }
+      return formatBytes(e.size)
     case 'ext':
       return e.ext
     default:
@@ -439,8 +445,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     },
     [viewFilterOn, compiledFilter]
   )
-  const asyncColumns = useMemo(
-    () => detailsColumns.map((c) => c.id).filter(isAsyncColumn),
+  const metaFetchColumns = useMemo(
+    () => filterMetaFetchColumns(detailsColumns.map((c) => c.id)),
     [detailsColumns]
   )
 
@@ -499,11 +505,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     listing.entries
   ])
 
-  // Reset / fetch async column metadata when the folder or enabled columns change.
+  // Reset / fetch column metadata when the folder or enabled columns change.
   useEffect(() => {
     setMetaByPath({})
-    if (asyncColumns.length === 0) return
-    const includeDirs = asyncColumns.includes('ads')
+    if (metaFetchColumns.length === 0) return
+    const includeDirs = metaFetchColumns.some(isDirectoryMetaColumn)
     const files = sourceEntries
       .filter((e) => {
         if (isExcluded(e)) return false
@@ -519,7 +525,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       for (let i = 0; i < files.length; i += chunkSize) {
         if (cancelled) return
         const chunk = files.slice(i, i + chunkSize)
-        const res = await api.meta.getMany({ paths: chunk, columns: asyncColumns })
+        const res = await api.meta.getMany({ paths: chunk, columns: metaFetchColumns })
         if (cancelled || !res.ok) continue
         setMetaByPath((prev) => ({ ...prev, ...res.value.values }))
       }
@@ -528,28 +534,36 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     return () => {
       cancelled = true
     }
-  }, [folderPath, sourceEntries, asyncColumns, isExcluded, searchMode, recycleMode])
+  }, [folderPath, sourceEntries, metaFetchColumns, isExcluded, searchMode, recycleMode])
 
-  // Re-fetch a single path after ADS manager mutations (main cache already invalidated).
+  // Re-fetch after ADS mutations (main cache already invalidated).
   useEffect(() => {
-    if (!columnMetaBump.path || asyncColumns.length === 0) return
+    if (!columnMetaBump.path || metaFetchColumns.length === 0) return
     const target = columnMetaBump.path
+    const includeDirs = metaFetchColumns.some(isDirectoryMetaColumn)
+    const refreshListing = includeDirs && samePath(target, folderPath)
+    const paths = refreshListing
+      ? sourceEntries.filter((e) => e.kind === 'dir').map((e) => e.path)
+      : [target]
+    if (paths.length === 0) return
     let cancelled = false
     void (async () => {
-      const res = await api.meta.getMany({ paths: [target], columns: asyncColumns })
+      const res = await api.meta.getMany({ paths, columns: metaFetchColumns })
       if (cancelled || !res.ok) return
       setMetaByPath((prev) => {
         const next = { ...prev }
-        const values = res.value.values[target]
-        if (values && Object.keys(values).length > 0) next[target] = values
-        else delete next[target]
+        for (const p of paths) {
+          const values = res.value.values[p]
+          if (values && Object.keys(values).length > 0) next[p] = values
+          else delete next[p]
+        }
         return next
       })
     })()
     return () => {
       cancelled = true
     }
-  }, [columnMetaBump.rev, columnMetaBump.path, asyncColumns])
+  }, [columnMetaBump.rev, columnMetaBump.path, metaFetchColumns, folderPath, sourceEntries])
 
   const entries = useMemo(() => {
     // Avoid copying 20k entries when the filter cannot hide anything.

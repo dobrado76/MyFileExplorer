@@ -56,12 +56,27 @@ Single module: `src/main/fs/adsWin32.ts` (koffi → `kernel32` `BackupRead` / `B
 | Exists / read / write / delete | Open `path:name:$DATA` |
 | Text read | UTF-8; trim trailing CR/LF/NUL; cut at first NUL (ADS.cs Load conventions) |
 | Text write | Empty value **deletes** the stream unless `writeEmpty` |
+| Host timestamps | ADS write/delete restores the host file/dir **atime** and **mtime** afterward so metadata streams do not bump “Date modified” (e.g. bulk **Calculate Statistics**) |
 | Bytes | Base64 over IPC for import/export |
 | Copy | `ads:copy` copies named streams file↔file or dir↔dir (`ignoreNames` optional) |
 
 Normal copy/move of the host file relies on Win32 preserving streams; `ads:copy` is explicit tooling when you need stream-only copy.
 
 Well-known streams such as `Zone.Identifier` appear in the list with **no** special UI. Image-edit history streams `VER_1`…`VER_4` and `VER_COUNT` (D27) are listed like any other stream (binary preview `[...]`); no special hide.
+
+**Caption** (UTF-8 JSON): optional array of `{ Caption, Descriptor, Sentence }`. When Settings → Slideshow → **Draw caption** is on, preview / slideshow / image viewer frame the photo in a poster using a random entry; border + titles are colored from a hash of the **entire stream text** (fixed per file, independent of which entry is picked). See [SLIDESHOW.md](SLIDESHOW.md).
+
+**Folder statistics** (UTF-8 decimal integers): optional streams written by folder context menu **Calculate Statistics** (local NTFS folders only). The walk is **depth-first**: every subfolder receives all five streams with immediate counts plus rolled-up totals from its subtree. Details columns **Files**, **Total Files**, **Folders**, **Total Folders** (opt-in) read these when present.
+
+| Stream | Meaning |
+| ------ | ------- |
+| `FileCount` | Files (not folders) in this folder only |
+| `FileTotCount` | Files in this folder and all subfolders |
+| `FolderCount` | Subfolders in this folder only |
+| `FolderTotCount` | Subfolders in this folder and all subfolders |
+| `TotalSize` | Total size in bytes of all files under this folder (recursive) |
+
+The standard **Size** column shows `TotalSize` for folders when that stream exists (same B / KB / MB / GB formatting as files).
 
 ## IPC summary
 

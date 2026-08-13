@@ -2,6 +2,7 @@
  * NTFS Alternate Data Streams — Trinet.Core.IO.Ntfs / ADS.cs parity (koffi).
  * Soft-fails on non-win32 / access denied / non-NTFS.
  */
+import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import koffi from 'koffi'
 import {
@@ -201,7 +202,69 @@ export function streamExists(filePath: string, streamName: string): boolean {
   return true
 }
 
-export function deleteStream(filePath: string, streamName: string): boolean {
+function readHostTimesSync(filePath: string): { atimeMs: number; mtimeMs: number } | null {
+  try {
+    const st = fs.statSync(filePath)
+    return { atimeMs: st.atimeMs, mtimeMs: st.mtimeMs }
+  } catch {
+    return null
+  }
+}
+
+function restoreHostTimesSync(filePath: string, atimeMs: number, mtimeMs: number): void {
+  try {
+    fs.utimesSync(filePath, new Date(atimeMs), new Date(mtimeMs))
+  } catch (e) {
+    logMain(
+      'warn',
+      `ADS restoreHostTimes failed: ${e instanceof Error ? e.message : String(e)} (${filePath})`
+    )
+  }
+}
+
+async function readHostTimes(
+  filePath: string
+): Promise<{ atimeMs: number; mtimeMs: number } | null> {
+  try {
+    const st = await fsp.stat(filePath)
+    return { atimeMs: st.atimeMs, mtimeMs: st.mtimeMs }
+  } catch {
+    return null
+  }
+}
+
+async function restoreHostTimes(
+  filePath: string,
+  atimeMs: number,
+  mtimeMs: number
+): Promise<void> {
+  try {
+    await fsp.utimes(filePath, new Date(atimeMs), new Date(mtimeMs))
+  } catch (e) {
+    logMain(
+      'warn',
+      `ADS restoreHostTimes failed: ${e instanceof Error ? e.message : String(e)} (${filePath})`
+    )
+  }
+}
+
+/**
+ * Run an ADS mutation without leaving the host file/dir mtime (or atime) at "now".
+ * NTFS ADS writes otherwise bump last-modified — undesirable for bulk statistics.
+ */
+export async function withPreservedHostTimes<T>(
+  filePath: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const saved = await readHostTimes(filePath)
+  try {
+    return await fn()
+  } finally {
+    if (saved) await restoreHostTimes(filePath, saved.atimeMs, saved.mtimeMs)
+  }
+}
+
+function deleteStreamUnchecked(filePath: string, streamName: string): boolean {
   const n = ensureApi()
   if (!n) return false
   validateStreamName(streamName)
@@ -216,6 +279,15 @@ export function deleteStream(filePath: string, streamName: string): boolean {
     return false
   }
   return true
+}
+
+export function deleteStream(filePath: string, streamName: string): boolean {
+  const saved = readHostTimesSync(filePath)
+  try {
+    return deleteStreamUnchecked(filePath, streamName)
+  } finally {
+    if (saved) restoreHostTimesSync(filePath, saved.atimeMs, saved.mtimeMs)
+  }
 }
 
 /** Trim ADS.cs Load conventions: trailing CR/LF/NUL, cut at first NUL. */
@@ -244,16 +316,18 @@ export async function writeStreamBytes(
   data: Buffer
 ): Promise<void> {
   validateStreamName(streamName)
-  const streamPath = buildStreamPath(filePath, streamName)
-  // Recreate like ADS.cs folder Save (delete then create)
-  if (streamExists(filePath, streamName)) {
-    try {
-      deleteStream(filePath, streamName)
-    } catch {
-      /* continue */
+  await withPreservedHostTimes(filePath, async () => {
+    const streamPath = buildStreamPath(filePath, streamName)
+    // Recreate like ADS.cs folder Save (delete then create)
+    if (streamExists(filePath, streamName)) {
+      try {
+        deleteStreamUnchecked(filePath, streamName)
+      } catch {
+        /* continue */
+      }
     }
-  }
-  await fsp.writeFile(streamPath, data)
+    await fsp.writeFile(streamPath, data)
+  })
 }
 
 export async function readStreamText(filePath: string, streamName: string): Promise<string> {

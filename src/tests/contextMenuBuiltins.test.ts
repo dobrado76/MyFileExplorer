@@ -52,19 +52,27 @@ describe('sanitizeBuiltinLayout', () => {
     expect(sanitizeBuiltinLayout([])).toEqual(DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT)
   })
 
-  it('keeps user order, seps, and appends missing ids', () => {
+  it('keeps user order, seps, and appends missing ids with properties last', () => {
     const layout = sanitizeBuiltinLayout([
       { type: 'item', id: 'properties' },
       { type: 'sep', id: 's1' },
       { type: 'item', id: 'open' },
       { type: 'item', id: 'nope' }
     ])
-    expect(layout[0]).toEqual({ type: 'item', id: 'properties' })
-    expect(layout[1]).toEqual({ type: 'sep', id: 's1' })
-    expect(layout[2]).toEqual({ type: 'item', id: 'open' })
+    expect(layout[0]).toEqual({ type: 'sep', id: 's1' })
+    expect(layout[1]).toEqual({ type: 'item', id: 'open' })
     const ids = layout.filter((e) => e.type === 'item').map((e) => e.id)
     expect(ids).toHaveLength(CONTEXT_MENU_BUILTIN_IDS.length)
     expect(new Set(ids).size).toBe(CONTEXT_MENU_BUILTIN_IDS.length)
+    expect(ids[ids.length - 1]).toBe('properties')
+  })
+
+  it('default layout places Calculate Statistics above Properties', () => {
+    const itemIds = DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT.filter((e) => e.type === 'item').map(
+      (e) => e.id
+    )
+    expect(itemIds[itemIds.length - 1]).toBe('properties')
+    expect(itemIds[itemIds.length - 2]).toBe('calculate-folder-statistics')
   })
 })
 
@@ -89,8 +97,8 @@ describe('applyBuiltinLayoutToMenu', () => {
       'sep',
       'Custom',
       'sep',
-      'properties',
-      'copy'
+      'copy',
+      'properties'
     ])
   })
 })

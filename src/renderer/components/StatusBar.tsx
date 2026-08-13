@@ -24,6 +24,8 @@ function fileOpTitle(kind: string, label?: string): string {
       return 'Compressing'
     case 'compile-lists':
       return 'Updating Lists'
+    case 'folder-stats':
+      return 'Folder statistics'
     default:
       return 'Working'
   }
@@ -94,8 +96,10 @@ export function StatusBar(): JSX.Element {
     fileOp == null
       ? ''
       : fileOp.total > 0
-        ? `${Math.min(fileOp.done, fileOp.total)} of ${fileOp.total}`
-        : '…'
+        ? `${Math.min(fileOp.done, fileOp.total).toLocaleString()} of ${fileOp.total.toLocaleString()}`
+        : fileOp.done > 0
+          ? `${fileOp.done.toLocaleString()} scanned`
+          : '…'
 
   let opCurrent = ''
   if (fileOp?.current) opCurrent = fileOp.current

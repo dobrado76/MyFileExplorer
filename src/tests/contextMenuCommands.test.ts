@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCommandMenuRows,
   commandMatches,
   expandArgsTemplate,
   normalizeExtensions,
+  parseCommandLabelSegments,
   type ContextMenuCommand
 } from '../shared/contextMenuCommands'
 
@@ -49,6 +51,47 @@ describe('commandMatches', () => {
       )
     ).toBe(false)
     expect(commandMatches(base, ['C:\\folder'], 'folder')).toBe(true)
+  })
+})
+
+describe('buildCommandMenuRows', () => {
+  it('groups commands sharing a label prefix into one submenu', () => {
+    const cmds: ContextMenuCommand[] = [
+      { ...base, id: 'a', label: 'My Custom Options \\ Option 1' },
+      { ...base, id: 'b', label: 'My Custom Options \\ Option 2' },
+      { ...base, id: 'c', label: 'Standalone' }
+    ]
+    const rows = buildCommandMenuRows(cmds, () => {})
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({ type: 'submenu', label: 'My Custom Options' })
+    expect(rows[0]?.type === 'submenu' && rows[0].items.map((i) => i.label)).toEqual([
+      'Option 1',
+      'Option 2'
+    ])
+    expect(rows[1]).toMatchObject({ type: 'item', label: 'Standalone' })
+  })
+
+  it('supports nested submenu paths', () => {
+    const cmds: ContextMenuCommand[] = [
+      { ...base, id: 'a', label: 'Tools \\ Editors \\ VS Code' }
+    ]
+    const rows = buildCommandMenuRows(cmds, () => {})
+    expect(rows[0]?.type).toBe('submenu')
+    if (rows[0]?.type === 'submenu') {
+      expect(rows[0].label).toBe('Tools')
+      expect(rows[0].items[0]?.label).toBe('Editors')
+      expect(rows[0].items[0]?.items?.[0]?.label).toBe('VS Code')
+    }
+  })
+})
+
+describe('parseCommandLabelSegments', () => {
+  it('splits on backslash and trims', () => {
+    expect(parseCommandLabelSegments('My Custom Options \\ Option 1')).toEqual([
+      'My Custom Options',
+      'Option 1'
+    ])
+    expect(parseCommandLabelSegments('Flat label')).toEqual(['Flat label'])
   })
 })
 

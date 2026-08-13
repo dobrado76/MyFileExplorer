@@ -145,3 +145,109 @@ export function expandArgsTemplate(template: string, paths: string[]): string[] 
 export function newContextMenuCommandId(): string {
   return `cmc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
 }
+
+/** Split a custom command label into submenu path segments (`\` delimiter). */
+export function parseCommandLabelSegments(label: string): string[] {
+  if (!label.includes('\\')) {
+    const t = label.trim()
+    return t ? [t] : []
+  }
+  const segs = label.split('\\').map((s) => s.trim()).filter(Boolean)
+  return segs.length > 0 ? segs : [label.trim()].filter(Boolean)
+}
+
+/** Leaf text shown on the menu row (last `\` segment). */
+export function commandMenuLeafLabel(label: string): string {
+  const segs = parseCommandLabelSegments(label)
+  return segs.length > 0 ? segs[segs.length - 1]! : label
+}
+
+type CommandMenuLeaf = { type: 'leaf'; cmd: ContextMenuCommand; label: string }
+type CommandMenuFolder = { type: 'folder'; label: string; tree: CommandMenuTree }
+
+export type CommandMenuTree = {
+  children: Array<CommandMenuLeaf | CommandMenuFolder>
+}
+
+export function emptyCommandMenuTree(): CommandMenuTree {
+  return { children: [] }
+}
+
+function findFolder(tree: CommandMenuTree, name: string): CommandMenuTree | null {
+  for (const ch of tree.children) {
+    if (ch.type === 'folder' && ch.label === name) return ch.tree
+  }
+  return null
+}
+
+function ensureFolder(tree: CommandMenuTree, name: string): CommandMenuTree {
+  const existing = findFolder(tree, name)
+  if (existing) return existing
+  const sub = emptyCommandMenuTree()
+  tree.children.push({ type: 'folder', label: name, tree: sub })
+  return sub
+}
+
+/** Group enabled custom commands by `\`-delimited label paths (stable command order). */
+export function buildCommandMenuTree(commands: readonly ContextMenuCommand[]): CommandMenuTree {
+  const root = emptyCommandMenuTree()
+  for (const cmd of commands) {
+    const segs = parseCommandLabelSegments(cmd.label)
+    if (segs.length === 0) continue
+    let tree = root
+    for (let i = 0; i < segs.length - 1; i++) {
+      tree = ensureFolder(tree, segs[i]!)
+    }
+    tree.children.push({
+      type: 'leaf',
+      cmd,
+      label: segs[segs.length - 1]!
+    })
+  }
+  return root
+}
+
+/** Minimal submenu row shape for custom-command trees (renderer maps to its SubEntry). */
+export type CommandMenuSubRow = {
+  label: string
+  action?: () => void
+  items?: CommandMenuSubRow[]
+}
+
+function treeToSubRows(
+  tree: CommandMenuTree,
+  run: (cmd: ContextMenuCommand) => void
+): CommandMenuSubRow[] {
+  const out: CommandMenuSubRow[] = []
+  for (const ch of tree.children) {
+    if (ch.type === 'leaf') {
+      out.push({ label: ch.label, action: () => run(ch.cmd) })
+      continue
+    }
+    const nested = treeToSubRows(ch.tree, run)
+    if (nested.length > 0) out.push({ label: ch.label, items: nested })
+  }
+  return out
+}
+
+export type CommandMenuBuiltRow =
+  | { type: 'item'; label: string; action: () => void }
+  | { type: 'submenu'; label: string; items: CommandMenuSubRow[] }
+
+/** Flatten a command tree into top-level menu rows (nested submenus in `items`). */
+export function buildCommandMenuRows(
+  commands: readonly ContextMenuCommand[],
+  run: (cmd: ContextMenuCommand) => void
+): CommandMenuBuiltRow[] {
+  const root = buildCommandMenuTree(commands)
+  const out: CommandMenuBuiltRow[] = []
+  for (const ch of root.children) {
+    if (ch.type === 'leaf') {
+      out.push({ type: 'item', label: ch.label, action: () => run(ch.cmd) })
+      continue
+    }
+    const items = treeToSubRows(ch.tree, run)
+    if (items.length > 0) out.push({ type: 'submenu', label: ch.label, items })
+  }
+  return out
+}

@@ -3,7 +3,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { app } from 'electron'
 import type { DetailsColumnId, EntryColumnValues } from '@shared/schemas/columns'
-import { isAsyncColumn } from '@shared/schemas/columns'
+import { filterMetaFetchColumns, isDirectoryMetaColumn } from '@shared/schemas/columns'
 import { requireAbsolute } from '../fs/list'
 import { extractColumnValues } from './extract'
 
@@ -24,7 +24,7 @@ function pathPrefix(file: string): string {
 }
 
 function cacheKey(file: string, mtimeMs: number, size: number, columns: DetailsColumnId[]): string {
-  const cols = [...columns].filter(isAsyncColumn).sort().join(',')
+  const cols = filterMetaFetchColumns(columns).sort().join(',')
   const body = crypto
     .createHash('sha1')
     .update(`v2|${file.toLowerCase()}|${mtimeMs}|${size}|${cols}`)
@@ -55,10 +55,10 @@ async function writeDisk(key: string, values: EntryColumnValues): Promise<void> 
 }
 
 async function loadOne(rawPath: string, columns: DetailsColumnId[]): Promise<EntryColumnValues> {
-  const file = requireAbsolute(rawPath)
-  const asyncCols = columns.filter(isAsyncColumn)
-  if (asyncCols.length === 0) return {}
+  const fetchCols = filterMetaFetchColumns(columns)
+  if (fetchCols.length === 0) return {}
 
+  const file = requireAbsolute(rawPath)
   let st
   try {
     st = await fsp.stat(file)
@@ -66,14 +66,13 @@ async function loadOne(rawPath: string, columns: DetailsColumnId[]): Promise<Ent
     return {}
   }
 
-  const wantsAds = asyncCols.includes('ads')
   if (st.isDirectory()) {
-    if (!wantsAds) return {}
+    if (!fetchCols.some(isDirectoryMetaColumn)) return {}
   } else if (!st.isFile()) {
     return {}
   }
 
-  const key = cacheKey(file, st.mtimeMs, st.size, asyncCols)
+  const key = cacheKey(file, st.mtimeMs, st.size, fetchCols)
   const pathKey = file.toLowerCase()
   const mem = memory.get(pathKey)
   if (mem && mem.key === key) return mem.values
@@ -90,7 +89,7 @@ async function loadOne(rawPath: string, columns: DetailsColumnId[]): Promise<Ent
 
   const job = (async (): Promise<EntryColumnValues> => {
     try {
-      const values = await extractColumnValues(file, asyncCols)
+      const values = await extractColumnValues(file, fetchCols)
       if (memory.size > MAX_MEMORY) memory.clear()
       memory.set(pathKey, { key, values })
       void writeDisk(key, values)
@@ -108,9 +107,9 @@ export async function getColumnMetaMany(
   paths: string[],
   columns: DetailsColumnId[]
 ): Promise<Record<string, EntryColumnValues>> {
-  const asyncCols = columns.filter(isAsyncColumn)
+  const fetchCols = filterMetaFetchColumns(columns)
   const out: Record<string, EntryColumnValues> = {}
-  if (asyncCols.length === 0 || paths.length === 0) return out
+  if (fetchCols.length === 0 || paths.length === 0) return out
 
   const concurrency = 4
   let i = 0
@@ -119,7 +118,7 @@ export async function getColumnMetaMany(
       const idx = i++
       const p = paths[idx]!
       try {
-        out[p] = await loadOne(p, asyncCols)
+        out[p] = await loadOne(p, fetchCols)
       } catch {
         out[p] = {}
       }
@@ -127,6 +126,15 @@ export async function getColumnMetaMany(
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, paths.length) }, () => worker()))
   return out
+}
+
+/** Drop in-memory column meta for one path (disk cache flushed separately). */
+export function dropColumnMetaMemoryPath(rawPath: string): void {
+  try {
+    memory.delete(requireAbsolute(rawPath).toLowerCase())
+  } catch {
+    /* skip invalid */
+  }
 }
 
 export async function clearColumnMetaCache(): Promise<void> {

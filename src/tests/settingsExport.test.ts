@@ -217,13 +217,10 @@ describe('settings export / import', () => {
     const ids = parsed.settings.contextMenu.builtinLayout
       .filter((e) => e.type === 'item')
       .map((e) => e.id)
-    expect(parsed.settings.contextMenu.builtinLayout[0]).toEqual({
-      type: 'item',
-      id: 'properties'
-    })
-    expect(parsed.settings.contextMenu.builtinLayout[1]).toEqual({ type: 'sep', id: 'my-sep' })
-    expect(ids[0]).toBe('properties')
-    expect(ids[1]).toBe('open')
+    expect(parsed.settings.contextMenu.builtinLayout[0]).toEqual({ type: 'sep', id: 'my-sep' })
+    expect(parsed.settings.contextMenu.builtinLayout[1]).toEqual({ type: 'item', id: 'open' })
+    expect(ids[ids.length - 1]).toBe('properties')
+    expect(ids).toContain('open')
     expect(ids).toContain('copy')
   })
 })
