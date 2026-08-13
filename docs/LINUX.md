@@ -131,3 +131,24 @@ npm run install:linux
 ```
 
 Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host (`scripts/dist.mjs` refuses non-Windows hosts).
+
+## Other Troubleshoot Steps
+
+If the electron doesn't want to start, you can also try the following steps.
+
+```sh
+# 1. Reset and clean the default system schema file to a stock version
+sudo apt install --reinstall gsettings-desktop-schemas
+
+# 2. Install the missing asset package containing the required GNOME enum files
+sudo apt install gnome-desktop3-data
+
+# 3. Pull down the related font mapping structures to satisfy additional checks
+sudo apt install gnome-settings-daemon-common
+
+# 4. Recompile the entire system schema folder so the OS registers the database layout
+sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+# 5. Clean up any broken, conflicting local schema directories created during testing
+rm -rf ~/.local/share/glib-2.0/schemas
+```
