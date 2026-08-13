@@ -13,7 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Settings → About** — version, Updates source / Check / Update, and Export / Import moved out of Advanced into their own nav section.
 - **Settings dialog** — footer button is **Close** (was Done); title bar has a standard **✕** close control (all shared modals).
-- **Tab bar** — tabs share width and shrink toward a minimum (~90px), then overflow with ◀ ▶ controls (Chrome-style); active tab scrolls into view; mouse wheel scrolls the strip horizontally.
+- **Tab bar** — tabs size to the widest label (instead of stretching to fill the bar), then equal-shrink toward a minimum (~90px) and overflow with ◀ ▶ controls; active tab scrolls into view; mouse wheel scrolls the strip horizontally.
 - **Scoped tabs** — tree no longer shows a section header that repeats the root folder name (e.g. “DROPBOX” above “Dropbox”).
 
 ### Fixed

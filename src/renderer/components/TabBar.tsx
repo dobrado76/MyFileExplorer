@@ -41,6 +41,7 @@ export function TabBar(): JSX.Element {
   const tabsStripRef = useRef<HTMLDivElement | null>(null)
   const edgeScrollRaf = useRef<number | null>(null)
   const fileDragActive = dragPaths.length > 0
+  const fontSizePx = useAppStore((s) => s.settings.fontSizePx)
 
   const updateScrollState = useCallback((): void => {
     const el = tabsStripRef.current
@@ -51,6 +52,38 @@ export function TabBar(): JSX.Element {
     setCanScrollLeft(overflow && el.scrollLeft > 1)
     setCanScrollRight(overflow && el.scrollLeft < max - 1)
   }, [])
+
+  /** Size every tab to the widest label when they fit; equal-shrink only when they don't. */
+  const layoutTabStrip = useCallback((): void => {
+    const el = tabsStripRef.current
+    if (!el) return
+    const tabEls = Array.from(el.querySelectorAll<HTMLElement>('[data-tab-id]'))
+    const cs = getComputedStyle(el)
+    const min = Number.parseFloat(cs.getPropertyValue('--tab-min')) || 90
+    const max = Number.parseFloat(cs.getPropertyValue('--tab-max')) || 220
+    const gap = Number.parseFloat(cs.columnGap || cs.gap) || 3
+
+    el.classList.add('is-measuring')
+    el.classList.remove('is-equal')
+    el.style.removeProperty('--tab-fit')
+    void el.offsetWidth
+
+    let naturalMax = 0
+    for (const tabEl of tabEls) {
+      naturalMax = Math.max(naturalMax, tabEl.getBoundingClientRect().width)
+    }
+    el.classList.remove('is-measuring')
+
+    const n = tabEls.length
+    const fit = Math.min(max, Math.max(min, Math.ceil(naturalMax)))
+    const needed = n === 0 ? 0 : n * fit + Math.max(0, n - 1) * gap
+    if (n > 0 && needed > el.clientWidth + 0.5) {
+      el.classList.add('is-equal')
+    } else if (n > 0) {
+      el.style.setProperty('--tab-fit', `${fit}px`)
+    }
+    updateScrollState()
+  }, [updateScrollState])
 
   const scrollByPage = (dir: -1 | 1): void => {
     const el = tabsStripRef.current
@@ -70,20 +103,20 @@ export function TabBar(): JSX.Element {
   }, [activeTabId, recycleBinActive, updateScrollState])
 
   useLayoutEffect(() => {
-    updateScrollState()
-  }, [tabs, updateScrollState])
+    layoutTabStrip()
+  }, [tabs, fontSizePx, editingId, editText, layoutTabStrip])
 
   useEffect(() => {
     const el = tabsStripRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => updateScrollState())
+    const ro = new ResizeObserver(() => layoutTabStrip())
     ro.observe(el)
     el.addEventListener('scroll', updateScrollState, { passive: true })
     return () => {
       ro.disconnect()
       el.removeEventListener('scroll', updateScrollState)
     }
-  }, [updateScrollState])
+  }, [layoutTabStrip, updateScrollState])
 
   useEffect(() => {
     scrollActiveIntoView()
