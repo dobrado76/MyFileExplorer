@@ -26,6 +26,19 @@ export function safeZipEntryPath(destRoot: string, entryName: string): string | 
   if (!rel) return path.resolve(destRoot)
   const segments = rel.split('/').filter((s) => s.length > 0 && s !== '.')
   if (segments.some((s) => s === '..')) return null
+  // Special-case Windows-style destRoot (e.g. 'C:/...') when running on POSIX
+  if (/^[a-zA-Z]:/.test(destRoot) || destRoot.startsWith('\\') || destRoot.startsWith('//')) {
+    const rootNorm = destRoot.replace(/\\/g, '/').replace(/\/+/, '/')
+    const rootNoSlash = rootNorm.replace(/\/+$/, '')
+    const target = segments.length === 0 ? rootNoSlash : `${rootNoSlash}/${segments.join('/')}`
+    const rootResolved = rootNoSlash
+    const prefix = rootResolved.endsWith('/') ? rootResolved : rootResolved + '/'
+    if (target !== rootResolved && !target.toLowerCase().startsWith(prefix.toLowerCase())) {
+      return null
+    }
+    return target
+  }
+
   const target = path.resolve(destRoot, ...segments)
   const rootResolved = path.resolve(destRoot)
   const prefix = rootResolved.endsWith(path.sep) ? rootResolved : rootResolved + path.sep

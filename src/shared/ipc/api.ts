@@ -247,7 +247,7 @@ export type MyFileExplorerApi = {
     expandPath(req: { path: string }): Promise<Result<{ path: string }>>
     pickFolder(): Promise<Result<{ path: string | null }>>
     /** Tell main the UI is ready for queued external-open requests. */
-    ready(): Promise<Result<{ ok: true }>>
+    ready(): Promise<Result<{ ok: true; platform: string }>>
     getVersion(): Promise<Result<{ version: string }>>
     checkUpdate(req: { source: string }): Promise<
       Result<{

@@ -37,6 +37,10 @@ function asAbsolute(raw: string): string | null {
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) && !/^[a-zA-Z]:[\\/]/.test(trimmed)) {
     return null
   }
+  // Accept Windows drive (C:\) and UNC (\\server\share) forms as absolute
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed) || /^[a-zA-Z]:$/.test(trimmed) || trimmed.startsWith('\\') || trimmed.startsWith('//')) {
+    return normalizeAbsolute(trimmed)
+  }
   try {
     const resolved = path.isAbsolute(trimmed) ? trimmed : path.resolve(trimmed)
     return normalizeAbsolute(resolved)

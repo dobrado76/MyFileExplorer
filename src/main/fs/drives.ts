@@ -1,4 +1,4 @@
-import koffi from 'koffi'
+import { createRequire } from 'node:module'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { BrowserWindow } from 'electron'
@@ -8,6 +8,12 @@ import { displayHostLabel, driveTypeFromWin32, DRIVE_REMOTE } from '@shared/netw
 import { logMain } from '../logging'
 
 const execFileAsync = promisify(execFile)
+
+const require = createRequire(import.meta.url)
+
+function loadKoffi(): typeof import('koffi').default {
+  return require('koffi') as typeof import('koffi').default
+}
 
 /** NTFS / FAT volume label max length. */
 export const VOLUME_NAME_MAX = 32
@@ -104,6 +110,7 @@ function ensureVolumeApi(): VolumeApi | null {
     volumeApi = null
     return null
   }
+  const koffi = loadKoffi()
   const kernel32 = koffi.load('kernel32.dll')
   volumeApi = {
     GetLogicalDriveStringsW: kernel32.func(
@@ -128,6 +135,7 @@ function ensureMprApi(): MprApi | null {
     return null
   }
   try {
+    const koffi = loadKoffi()
     const mpr = koffi.load('mpr.dll')
     // Struct must be registered before funcs that take it by pointer.
     koffi.struct('MfeNETRESOURCEW', {

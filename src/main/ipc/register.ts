@@ -597,7 +597,7 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.appReady, emptySchema, () => {
     markRendererReady()
-    return { ok: true as const }
+    return { ok: true as const, platform: process.platform }
   })
   handle(IPC.appGetVersion, emptySchema, () => ({ version: app.getVersion() }))
   handle(
@@ -849,13 +849,15 @@ export function registerIpcHandlers(): void {
     return { copied }
   })
 
-  handle(IPC.networkStartDiscovery, emptySchema, () => startNetworkDiscovery())
-  handle(IPC.networkCancelDiscovery, emptySchema, () => cancelNetworkDiscovery())
-  handle(IPC.networkListShares, networkListSharesRequestSchema, (req) => ({
-    shares: listNetworkShares(req.server)
+  handle(IPC.networkStartDiscovery, emptySchema, async () => startNetworkDiscovery())
+  handle(IPC.networkCancelDiscovery, emptySchema, async () => cancelNetworkDiscovery())
+  handle(IPC.networkListShares, networkListSharesRequestSchema, async (req) => ({
+    shares: await listNetworkShares(req.server)
   }))
-  handle(IPC.networkMapDriveDialog, emptySchema, () => openMapNetworkDriveDialog())
-  handle(IPC.networkDisconnectDriveDialog, emptySchema, () => openDisconnectNetworkDriveDialog())
+  handle(IPC.networkMapDriveDialog, emptySchema, async () => openMapNetworkDriveDialog())
+  handle(IPC.networkDisconnectDriveDialog, emptySchema, async () =>
+    openDisconnectNetworkDriveDialog()
+  )
   handle(
     IPC.networkDisconnectMappedDrive,
     z.object({
