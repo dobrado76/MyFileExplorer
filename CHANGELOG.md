@@ -9,17 +9,15 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
-### Fixed
-
-- **Basic file search** — plain queries (including names with dots like `report.pdf`) no longer return unrelated folders and files. Unknown `word:value` tokens are not treated as search operators; if parsing would apply no name filter, the raw query is used as a name substring match.
-
 ## [0.7.0] - 2026-08-14
 
-Seventh product release: Power Search, folder-statistics depth-first tagging, slideshow manual crop, nested custom context submenus, and search/tab/splitter polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+Seventh product release: Power Search, continue-then-review bulk file ops, per-tab search, PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, nested custom context submenus, and search/tab/splitter polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ### Added
 
 - **Power Search** — toolbar dialog with visual fields for scope, match, name/text, type, attributes, size, dates, location, and advanced options; builds an Everything-style query string synced with the search box.
+- **Continue-then-review bulk ops** — copy / move / trash / delete finish every auto-ok item, then one review groups similar issues (already exist, in use, access denied, …) with apply-to-similar, including **Keep most recent**. No mid-pass “do this for all” stall. Same-folder copy-paste still auto Keep both.
+- **PowerPoint slide preview** — `.pptx` shows approximate slide layout (text + images from the package, not the low-res Office thumbnail). `.ppt` stays best-effort text.
 - **Slideshow manual crop** — numpad 2/4/6/8 trims edges (Shift/Ctrl for finer steps); Enter/Numpad0 saves or resumes autoplay; Esc/Numpad5 cancels crop.
 - **Nested custom context submenus** — `\` in Settings → Context menu → Custom (files/folders) labels groups commands into nested flyouts (e.g. `My Tools \ Option 1`).
 - **Settings → About** tab — Updates source, Export/Import, and GitHub repository link for online help (moved from Advanced).
@@ -27,6 +25,11 @@ Seventh product release: Power Search, folder-statistics depth-first tagging, sl
 
 ### Changed
 
+- **Search is a tab location** — starting a search pushes the folder; opening a folder from results pushes the search; Back/Forward restore either. Each tab keeps its own query/results; switching tabs or focusing another pane does not clear. Session persists query + scope (not rows).
+- **Delete / move from search results** drops those hits (and children of a removed folder) immediately — no stale Explorer-style rows.
+- **Everything `!` NOT** applies after whitespace or as `!ext:`. A leading `!!` is a literal name (`!!Thumbs.db` finds that file).
+- **`.jfif`** is treated as JPEG everywhere (thumbs, preview, editor, slideshow, `pic:`).
+- **`git push`** runs `npm run check` locally (same as CI) via a hook installed on `npm install`. Skip only with `git push --no-verify`.
 - **Folder statistics columns** — Details column labels are now **Files**, **Total Files**, **Folders**, **Total Folders** (ADS stream names unchanged). **Calculate Statistics** now depth-first tags **every subfolder** with immediate + rolled-up ADS streams (not only the selected root). **Shift+click** skips subtrees that already have valid TotalSize ADS.
 - **Calculate Statistics** — no 250k entry cap; walks complete trees. Scan or ADS write failures show an explicit alert dialog with the path and error (same as other FS operations).
 - **Search (live walk / index)** — results stream during folder walks; status bar shows in-progress state; banner shows current folder and “N found so far”; index queries show “Querying index…”.
@@ -40,6 +43,9 @@ Seventh product release: Power Search, folder-statistics depth-first tagging, sl
 
 ### Fixed
 
+- **Basic file search** — plain queries (including names with dots like `report.pdf`) no longer return unrelated folders and files. Unknown `word:value` tokens are not treated as search operators; if parsing would apply no name filter, the raw query is used as a name substring match.
+- **Slideshow Stop** cancels an in-flight image-list build so a cancelled walk does not later replace the playlist.
+- **Image-edit thumbs** refresh after an ADS save (listing mtime is unchanged, so the thumb cache is invalidated explicitly).
 - **Multi-pane splitters** — 2- and 4-pane column/row dividers resize and persist again (flex equal-share and a stale drag ratio had made them feel stuck at 50%).
 - **Context menu submenus** — flyout stayed hidden after hovering away and back (placement `ready` reset without reopening).
 - **Custom context commands** — `.bat` / `.cmd` launch via `cmd.exe` (Node `spawn` on the script alone caused `EINVAL` on Windows). Arguments also accept `%1` / `%*` as aliases for `{path}` / `{paths}`.

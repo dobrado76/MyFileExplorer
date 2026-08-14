@@ -128,7 +128,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.5.0 release notes + README / ADVANTAGES / SLIDESHOW / ADS / docs alignment
 - [x] v0.6.0 Network (D44) + settings export (D45) + NETWORKS.md / docs alignment
 - [x] v0.6.3 remotes (D46) + context-menu Discover/layout (D41) + experimental Linux AppImage helpers; Windows remains primary; RELEASE_NOTES / docs tag-ready
-- [x] v0.7.0 Power Search + folder statistics depth-first + slideshow crop + search progress UX + tab/splitter polish; RELEASE_NOTES / docs aligned to **0.7.0** for tag `v0.7.0`
+- [x] v0.7.0 Power Search + continue-then-review bulk ops + per-tab search + PowerPoint slides + folder statistics depth-first + slideshow crop + search progress UX + tab/splitter polish; RELEASE_NOTES / docs aligned to **0.7.0** for tag `v0.7.0`
 
 ---
 
@@ -203,7 +203,7 @@ v0.6.0 plus: opt-in Remote repositories (D46); context-menu Discover + built-in 
 
 ## Definition of done (v0.7.0 product)
 
-v0.6.3 plus: Power Search visual builder; folder statistics depth-first subtree tagging + Shift+skip; slideshow manual crop + draw caption; nested custom context submenus; search live-walk progress/streaming; tab bar overflow scroll; multi-pane splitter fix; Settings About tab; README / CHANGELOG / RELEASE_NOTES / SEARCH / SLIDESHOW / docs aligned to **0.7.0** for tag `v0.7.0`. ✅
+v0.6.3 plus: Power Search visual builder; continue-then-review copy/move/trash/delete (D18); per-tab search + prune stale hits (D29); PowerPoint slide preview; folder statistics depth-first subtree tagging + Shift+skip; slideshow manual crop + draw caption; nested custom context submenus; search live-walk progress/streaming; tab bar overflow scroll; multi-pane splitter fix; Settings About tab; README / CHANGELOG / RELEASE_NOTES / SEARCH / SLIDESHOW / docs aligned to **0.7.0** for tag `v0.7.0`. ✅
 
 ---
 

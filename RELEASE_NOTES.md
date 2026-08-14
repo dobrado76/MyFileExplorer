@@ -4,7 +4,7 @@
 **Tag:** `v0.7.0` (package **0.7.0**)  
 **Previous product baseline:** [v0.6.3](CHANGELOG.md#063---2026-08-12) · earlier: [v0.6.0](CHANGELOG.md#060---2026-08-12)
 
-Seventh product release (**v0.7**): **Power Search**, deeper **folder statistics**, **slideshow crop**, richer **context-menu** nesting, and a large polish pass on search progress, tabs, splitters, and settings layout.
+Seventh product release (**v0.7**): **Power Search**, **continue-then-review** copy/move/delete, **per-tab search**, **PowerPoint slide preview**, deeper **folder statistics**, **slideshow crop**, richer **context-menu** nesting, and a large polish pass on search progress, tabs, splitters, and settings layout.
 
 Full detail: [CHANGELOG.md](CHANGELOG.md). Search: [docs/SEARCH.md](docs/SEARCH.md). Slideshow: [docs/SLIDESHOW.md](docs/SLIDESHOW.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
@@ -16,10 +16,22 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Search: [docs/SEARCH.md](docs/SEARCH.
 - Toolbar **Power Search…** opens a visual query builder that maps to the same Everything-style language as the search box (`ext:`, `size:`, `dm:`, macros, exclude extensions, …).
 - Live query preview; syncs with the toolbar search field; saved filters remain available from Settings → Search.
 
+### Bulk file ops (smarter than Explorer)
+- Copy / move / trash / delete **keep going** through every item that does not need a decision. Conflicts, locks, and other failures queue for **one review** at the end, grouped by similar kind, with apply-to-similar (Skip / Keep both / Replace / **Keep most recent** / Retry).
+- Same-folder copy-paste still auto Keep both (`name (2).ext`) with no dialog.
+- Disk full / destination gone stops remaining work to that destination but still opens review.
+
 ### Search progress & fixes
+- Search is a **location on that tab** (WFE-style): Back/Forward restore folder or search; switching tabs does not clear results.
+- Delete / move from results **drops those hits** immediately (including children of a deleted folder).
 - Large folder / drive searches stream results while walking; status bar and banner show folder progress and “N found so far” instead of a stuck `0 results`.
+- Plain name queries (including `report.pdf`) match names — they no longer dump the whole folder. `!` is NOT after a space or as `!ext:`; `!!Thumbs.db` is a literal filename.
 - **Exclude extension** in Power Search works via `!ext:` (not mistaken for a name/path negation).
 - Settings → Search **filters** and **bookmarks** Add UI works again.
+
+### Preview
+- **`.pptx`** shows approximate slides (text + images from the package). Not a full PowerPoint render; `.ppt` stays text-only.
+- **`.jfif`** is treated as JPEG (thumbs, preview, editor, slideshow).
 
 ### Folder statistics
 - **Calculate Statistics** (folder context menu) walks the **entire subtree** depth-first — every subfolder gets immediate + rolled-up NTFS ADS streams (not only the root).
@@ -51,6 +63,6 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Search: [docs/SEARCH.md](docs/SEARCH.
 
 ## Upgrade notes
 
-- Fully quit and relaunch after upgrade.
+- Fully quit and relaunch after upgrade (bulk-op review and PowerPoint preview are main-process — HMR is not enough).
 - Re-enter remote passwords after settings import if you use remotes.
 - If you relied on categorizer map **Import/Export** from Settings → Slideshow, use **Mapping Manager…** instead (global export still includes the map).

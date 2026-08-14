@@ -37,14 +37,15 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Portable **settings export/import** (theme, layouts, context menu, remotes metadata, Network hosts — everything except window position)
 
 **See what you’re looking at**
-- Rich preview pane: images, video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
+- Rich preview pane: images (incl. `.jfif`), video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, **PowerPoint slides** (`.pptx`), `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
 - **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete
-- Side-by-side conflict compare (thumbs, size, dates)
+- **Continue-then-review** — finish every auto-ok item, then one grouped review (Skip / Keep both / Replace / Keep most recent / Retry)
+- Side-by-side conflict compare (thumbs, size, dates) when a name already exists
 - In-app Recycle Bin (restore / empty) — never forced into system Explorer
 - Undo / redo for the ops you expect (Ctrl+Z / Ctrl+Y)
 - Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
@@ -52,6 +53,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 
 **Find things on purpose**
 - **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, content scan, filters/bookmarks
+- Search is a **tab location** (Back/Forward); each tab keeps its own results; delete/move drops stale hits
 - Search hits use the **same** file view as a normal folder
 - Built to stay smooth in folders with tens of thousands of files
 
@@ -89,10 +91,12 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 4. Select an AI-generated PNG — check the preview for prompt / model fields.
 5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
 6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
-7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box.
-8. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
-9. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
-10. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
+7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box. Start a search, switch tabs, then Back — the search is still there.
+8. Paste a large selection into a folder that already has some of those names — the rest copies; one review at the end.
+9. Select a `.pptx` — preview should show real slides, not a blank gray card.
+10. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
+11. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
+12. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 

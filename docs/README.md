@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.7.0**. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.7.0**. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46; D18 continue-then-review). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -51,6 +51,10 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Power Search | Visual query builder (toolbar) → Everything-style query string; exclude extensions via `!ext:` |
+| Per-tab search | Search is a tab history location (Back/Forward); switching tabs does not clear; delete/move prunes hits |
+| Query `!` / names | `!` is NOT after whitespace or `!ext:`; `!!name` is literal; plain queries match names only |
+| Bulk file ops | Continue-then-review (D18) — no mid-pass prompts; Keep most recent; same-folder paste auto-renames |
+| PowerPoint preview | `.pptx` approximate slides (text + package images); `.ppt` text-only — [PREVIEW.md](PREVIEW.md) |
 | Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
 | Folder statistics | Depth-first **Calculate Statistics** on full subtrees; Shift+skip tagged trees; columns Files / Total Files / Folders / Total Folders — [ADS.md](ADS.md) |
 | Slideshow crop | Numpad edge trim during slideshow; compiled-lists window relays crop keys |

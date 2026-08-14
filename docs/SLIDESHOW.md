@@ -8,7 +8,7 @@ When **on**:
 
 - Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder, **Compiled file lists folder** + Update Lists…
 - Toolbar: Start (folder/cache walk), optional **Compiled lists** button (when compiled folder is set), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
-- Folder context menu: **Start Slideshow**
+- Folder context menu: **Start Slideshow**. **Stop** cancels an in-flight image-list build so a cancelled walk cannot later replace the playlist.
 - **Categorizer map** — **Mapping Manager…** (Settings → Slideshow); Import/Export `.map` files there. Rows persist in `settings.slideshow.categorizerMap` (included in Settings → About → Export/Import). Deleting an exported file does not clear mappings.
 
 ## Compiled file lists (D39)

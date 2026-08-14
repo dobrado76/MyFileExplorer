@@ -49,7 +49,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **ACDSee-inspired slideshow** | Gated fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop), image-list cache, and compiled file lists for huge libraries — Explorer has no equivalent. |
 | **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
-| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/PPT/spreadsheet/RTF best-effort text; shortcuts show target + open shortcut or target. |
+| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/spreadsheet/RTF best-effort text; **`.pptx` approximate slides** (text + package images); `.ppt` text-only; shortcuts show target + open shortcut or target. |
 | **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
 | **Executable / archives / CHM / fonts** | PE VERSIONINFO + shell icon; ZIP / 7z / RAR / TAR(.GZ) / Unity / APK / MSI / ISO / IMG contents trees (+ APK/MSI metadata); `.ttf` sample preview; `.chm` TOC + sandboxed topic viewer. |
 | **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
@@ -63,7 +63,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Everything-inspired search (D34)** | Opt-in folder roots + optional **Index this drive** (NTFS USN when available). As-you-type, match toggles, operators (`size:`, `ext:`, `pic:`, `path:`, …), **Power Search…** dialog, saved filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
 | **Search progress honesty** | Live walks stream partial results; status bar and banner show folder progress while searching — not a stuck `0 results` during long crawls. |
 | **Honest unindexed / content search** | Live walk with progress + cancel; `content:` scans with an honesty banner — never pretends to be instant when it isn’t. |
-| **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. |
+| **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. Search is a **tab location** (Back/Forward); delete/move drops stale hits instead of leaving Explorer-style ghosts. |
 | **Large folders stay usable** | Virtualized lists, fast Win32 directory listing, and careful watch/scroll behavior — tens of thousands of files without the freezes Explorer often hits. |
 | **View filter** | Hide Hidden items and pattern matches (`*\name`, globs, absolute paths) from list, tree, and search — view-only declutter without deleting anything. |
 

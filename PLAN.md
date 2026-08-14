@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.7.0** — Phases 0–10 shipped; **Power Search**; folder statistics depth-first; slideshow crop + draw caption; nested custom context submenus; Network (D44/D3); settings export/import (D45); remotes (D46); context-menu Discover + layout (D41); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.7.0** — Phases 0–10 shipped; **Power Search**; **continue-then-review** bulk ops (D18); per-tab search; PowerPoint slide preview; folder statistics depth-first; slideshow crop + draw caption; nested custom context submenus; Network (D44/D3); settings export/import (D45); remotes (D46); context-menu Discover + layout (D41); slideshow / categorizer + compiled lists (D37/D39); NTFS ADS (D38); Everything-parity search (D34). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -60,7 +60,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 ## Immediate next work
 
 1. Tag **`v0.7.0`** and publish the GitHub Release (CI attaches Setup.exe) — see [docs/BUILD.md](docs/BUILD.md)
-2. Manual acceptance pass: Power Search, folder statistics Shift+skip, slideshow crop, search progress on large folders
+2. Manual acceptance pass: Power Search, continue-then-review copy into a half-full folder, per-tab search Back, `.pptx` slides, folder statistics Shift+skip, slideshow crop
 3. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
 4. Soak-test v0.7.0; gather friend feedback (Linux remains contributor-only)
 

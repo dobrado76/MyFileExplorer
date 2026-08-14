@@ -167,6 +167,7 @@ See [SEARCH.md](SEARCH.md).
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
 - Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
 - Results use Details with a temporary **Folder** column (sortable; search-only, not saved); context **Open File Path** / **Open File in new tab** open locations in-app.
+- Search is a **tab history location** (D29): Back/Forward restore folder or search; each tab keeps its own query/results; switching tabs does not clear. Delete / move prunes those hits (and children of a removed folder).
 - Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
 
 ---
