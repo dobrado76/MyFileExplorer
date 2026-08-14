@@ -574,6 +574,10 @@ type AppState = {
     tabId?: string
   ): void
   selectAll(tabId?: string): void
+  /** Select all visible items, or clear the selection when everything is already selected. */
+  toggleSelectAll(tabId?: string): void
+  /** True when every visible (non-filtered) item in the tab is selected. */
+  isAllSelected(tabId?: string): boolean
   /** Ask the file list to scroll so `path` is visible (after listing is ready). */
   requestFileListScrollTo(path: string): void
   clearFileListScrollRequest(): void
@@ -802,6 +806,29 @@ function sameExpandedSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false
   const set = new Set(a.map((p) => p.toLowerCase()))
   return b.every((p) => set.has(p.toLowerCase()))
+}
+
+function selectablePathsForTab(s: AppState, tabId: string): string[] {
+  const tabSearch = s.tabs.find((t) => t.id === tabId)?.search
+  const pool =
+    s.recycleBin.active && tabId === s.activeTabId
+      ? recycleBinItemsToEntries(s.recycleBin.items)
+      : tabSearch?.active
+        ? searchResultsToEntries(tabSearch.results)
+        : (s.listingsByTabId[tabId]?.entries ?? [])
+  return pool
+    .filter(
+      (e) =>
+        !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
+    )
+    .map((e) => e.path)
+}
+
+function tabHasAllSelected(s: AppState, tabId: string): boolean {
+  const paths = selectablePathsForTab(s, tabId)
+  if (paths.length === 0) return false
+  const selected = new Set(s.tabs.find((t) => t.id === tabId)?.selected ?? [])
+  return paths.every((p) => selected.has(p))
 }
 
 export const useAppStore = create<AppState>()((set, get) => {
@@ -3321,19 +3348,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     selectAll(tabId) {
       const s = get()
       const id = tabId ?? s.activeTabId
-      const tabSearch = s.tabs.find((t) => t.id === id)?.search
-      const pool =
-        s.recycleBin.active && id === s.activeTabId
-          ? recycleBinItemsToEntries(s.recycleBin.items)
-          : tabSearch?.active
-            ? searchResultsToEntries(tabSearch.results)
-            : (s.listingsByTabId[id]?.entries ?? [])
-      const selected = pool
-        .filter(
-          (e) =>
-            !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
-        )
-        .map((e) => e.path)
+      const selected = selectablePathsForTab(s, id)
       updateTab(id, { selected })
       if (id === s.activeTabId) {
         set({
@@ -3341,6 +3356,24 @@ export const useAppStore = create<AppState>()((set, get) => {
           focusedPath: selected[selected.length - 1] ?? null
         })
       }
+    },
+
+    isAllSelected(tabId) {
+      const s = get()
+      return tabHasAllSelected(s, tabId ?? s.activeTabId)
+    },
+
+    toggleSelectAll(tabId) {
+      const s = get()
+      const id = tabId ?? s.activeTabId
+      if (tabHasAllSelected(s, id)) {
+        updateTab(id, { selected: [] })
+        if (id === s.activeTabId) {
+          set({ selectionAnchor: null, focusedPath: null })
+        }
+        return
+      }
+      get().selectAll(id)
     },
 
     startRename(path, source = 'files') {

@@ -277,7 +277,7 @@ export type MyFileExplorerApi = {
       source: string
       downloadUrl?: string
       version?: string
-    }): Promise<Result<{ launched: true }>>>
+    }): Promise<Result<{ launched: true }>>
   }
   slideshow: {
     listImages(req: SlideshowListRequest): Promise<Result<{ paths: string[]; truncated?: boolean }>>

@@ -51,7 +51,8 @@ export function Toolbar(): JSX.Element {
   const cutSelection = useAppStore((s) => s.cutSelection)
   const paste = useAppStore((s) => s.paste)
   const deleteSelection = useAppStore((s) => s.deleteSelection)
-  const selectAll = useAppStore((s) => s.selectAll)
+  const toggleSelectAll = useAppStore((s) => s.toggleSelectAll)
+  const allSelected = useAppStore((s) => s.isAllSelected())
   const deleteFromRecycleBinView = useAppStore((s) => s.deleteFromRecycleBinView)
   const devGateActive = useAppStore((s) => s.devGateActive)
   const startSlideshow = useAppStore((s) => s.startSlideshow)
@@ -135,10 +136,11 @@ export function Toolbar(): JSX.Element {
         </button>
         <span className="toolbar-sep" aria-hidden />
         <button
-          className="icon-btn"
-          aria-label="Select all"
-          title="Select all (Ctrl+A)"
-          onClick={() => selectAll()}
+          className={`icon-btn${allSelected ? ' active' : ''}`}
+          aria-label={allSelected ? 'Deselect all' : 'Select all'}
+          aria-pressed={allSelected}
+          title={allSelected ? 'Deselect all' : 'Select all (Ctrl+A)'}
+          onClick={() => toggleSelectAll()}
         >
           <SelectAllIcon />
         </button>
