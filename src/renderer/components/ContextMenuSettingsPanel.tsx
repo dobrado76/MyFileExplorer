@@ -59,6 +59,7 @@ const PRESETS: Preset[] = [
         'mp4',
         'mkv',
         'avi',
+        'divx',
         'webm',
         'mov',
         'm4v',

@@ -645,9 +645,10 @@ export function registerIpcHandlers(): void {
     z.object({
       path: z.string().min(1),
       source: z.string().min(1),
-      downloadUrl: z.string().optional()
+      downloadUrl: z.string().optional(),
+      version: z.string().optional()
     }),
-    (req) => runUpdateInstaller(req.path, req.source, req.downloadUrl)
+    (req) => runUpdateInstaller(req.path, req.source, req.downloadUrl, req.version)
   )
 
   // slideshow (renderer gates on slideshowFeaturesEnabled; compiled lists also require dev gate)

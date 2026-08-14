@@ -98,7 +98,7 @@ export type PreviewModel = {
    */
   mediaMetaPending?: boolean
   /**
-   * `!VIDTHUMB_CACHE` strip frame URLs (e.g. `.avi` — no in-pane player; animate + Open).
+   * `!VIDTHUMB_CACHE` strip frame URLs (e.g. `.avi` / `.divx` — no in-pane player; animate + Open).
    */
   stripFrames?: string[]
   textSample?: string

@@ -22,9 +22,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **`.uvw` preview** — 3ds Max Unwrap UVW metadata (format / purpose, UV vertex/face counts when the layout checks out, UV range, OLE sniff, Unity `.meta` GUID). Float-as-text junk is omitted. Not a UV visualization.
 - **`.hdr` preview** — Radiance RGBE/XYZE (HDRI / skybox) tonemapped for thumbs, preview, and slideshow. Layout hint when 2:1 equirectangular. Non-Radiance `.hdr` shows metadata only.
 - **Subtitle preview** — `.srt` (SubRip) as highlighted text. `.sub` is the same when it sniffs as text (MicroDVD / SubViewer); CloneCD/VobSub binary `.sub` stays binary. `.smi` / `.sami` (SAMI, HTML-like) decode EUC-KR / charset= instead of assuming UTF-8.
+- **`.divx` video** — treated like `.avi` (strip-only preview + `video:` search / thumb cache).
 
 ### Fixed
 
+- **GitHub Check for update** — GitHub stores the NSIS installer as `MyFileExplorer.Setup.0.x.y.exe` (dots instead of spaces). Check could still see the release via the tag, then Update refused it as “no version in its name.” Both dotted and `Setup 0.x.y` names are accepted now.
 - **Search `.obj` floods then restarts** — a lone `.` is ignored (it matches every dotted name). Debounce is 500 ms so typing `.obj` is usually one walk; further letters narrow the current hits instead of starting over.
 - **Preview during search** — the live walk was starving `preview:get` (stat every file, push the full hit list on every match). It now yields the main thread often and streams progress at most every 250 ms.
 - **3D mesh preview 403** — Three.js stripped `?p=` from `mfe-media://local/?p=…`, so FBX/OBJ/3DS fetched `mfe-media://local/` and got Forbidden.

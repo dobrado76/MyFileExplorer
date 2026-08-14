@@ -195,12 +195,12 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 ## Audio / video
 
 - Inline Chromium `<video>` / `<audio>` via `mfe-media://` (`mediaUrl`) — protocol must answer **byte-range** requests (`206` + `Content-Range`); a plain full-body `200` is not enough for Chromium media
-- Video: `.mp4`, `.m4v`, `.webm`, `.mkv`, `.avi`, `.mov`, `.wmv`, `.mpg`, `.mpeg` — player/strip plus parsed tags/format when present (`group: 'video'`; empty fields omitted). Embedded artwork is not used as the video still (frame posters stay separate).
+- Video: `.mp4`, `.m4v`, `.webm`, `.mkv`, `.avi`, `.divx`, `.mov`, `.wmv`, `.mpg`, `.mpeg` — player/strip plus parsed tags/format when present (`group: 'video'`; empty fields omitted). Embedded artwork is not used as the video still (frame posters stay separate).
 - Audio: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac`, `.wma`, `.opus` — player plus parsed tags/format (`group: 'audio'`) and embedded cover when present (`posterUrl`, cached under `userData/audio-covers/`)
 - **Async tags:** `preview:get` returns `mediaUrl` / poster / remux hooks without waiting on `music-metadata` (duration scans can read the whole file). Tag fields arrive via `preview:getMediaMeta` in parallel while the player buffers (`mediaMetaPending`)
 - Playback depends on Chromium’s codecs (H.264/AAC MP4 and WebM usually work)
 - Containers Chromium can’t demux (`.mkv`, `.wmv`, …): still (`posterUrl`) then remux/transcode to MP4 under `userData/video-remux/` (`preview:ensurePlayable`) when practical. Settings → Behavior: **Autoplay media in preview** (`previewVideoAutoplay`, default off)
-- **`.avi`**: no in-pane player — animate `!VIDTHUMB_CACHE` strip frames when present, plus **Open with default app** (D33); tag metadata still listed when parseable
+- **`.avi` / `.divx`**: no in-pane player — animate `!VIDTHUMB_CACHE` strip frames when present, plus **Open with default app** (D33); tag metadata still listed when parseable. `.divx` is an AVI/RIFF file with a DivX codec.
 - On decode error for otherwise playable types: short message + open-with-default-app button (and poster if available)
 
 ### Icon-view video strips (`!VIDTHUMB_CACHE`, D26)

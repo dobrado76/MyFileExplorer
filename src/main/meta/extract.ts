@@ -37,6 +37,7 @@ const AV_EXTS = new Set([
   'webm',
   'mkv',
   'avi',
+  'divx',
   'mov',
   'wmv',
   'mpg',

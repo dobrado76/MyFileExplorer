@@ -2882,8 +2882,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <div className="settings-toggle-hint">
                     Current version: {appVersion || '…'}. Leave empty (or use the default GitHub
                     Releases URL), or point at a local folder of installers named like{' '}
-                    <code>MyFileExplorer Setup 0.x.y.exe</code>. Check finds the newest build;
-                    Update downloads (if URL) and runs it.
+                    <code>MyFileExplorer Setup 0.x.y.exe</code> or{' '}
+                    <code>MyFileExplorer-0.x.y.exe</code>. Check finds the newest build; Update
+                    downloads (if URL) and runs it.
                   </div>
                   <label className="settings-field" htmlFor="set-updates-folder">
                     <span>Updates source</span>
@@ -2974,7 +2975,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                               api.app.runUpdate({
                                 path: updateCandidate.path || updateCandidate.fileName,
                                 source,
-                                downloadUrl: updateCandidate.downloadUrl
+                                downloadUrl: updateCandidate.downloadUrl,
+                                version: updateCandidate.version ?? undefined
                               })
                             )
                             setUpdateStatus('Launching installer… the app will close.')

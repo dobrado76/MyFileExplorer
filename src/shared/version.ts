@@ -25,12 +25,20 @@ export function compareVersions(a: string, b: string): number {
   return 0
 }
 
-/** Match `MyFileExplorer Setup 0.1.0.exe` / `MyFileExplorer-0.1.0.exe`. */
-const SETUP_VERSION_RE = /^myfileexplorer(?:\s+setup)?[\s_-]*v?(\d+(?:\.\d+)*)\.exe$/i
+/**
+ * Match `MyFileExplorer Setup 0.1.0.exe`, `MyFileExplorer-0.1.0.exe`,
+ * and GitHub asset names that replace spaces with dots (`MyFileExplorer.Setup.0.7.1.exe`).
+ */
+const SETUP_VERSION_RE = /^myfileexplorer(?:[\s._-]+setup)?[\s._-]*v?(\d+(?:\.\d+)*)\.exe$/i
+const LOOSE_SETUP_VERSION_RE = /^myfileexplorer.+\.exe$/i
+const TRAILING_VERSION_RE = /(\d+\.\d+(?:\.\d+)*)\.exe$/i
 
 export function versionFromInstallerName(name: string): string | null {
-  const m = SETUP_VERSION_RE.exec(name)
-  return m?.[1] ?? null
+  const base = name.trim()
+  const m = SETUP_VERSION_RE.exec(base)
+  if (m?.[1]) return m[1]
+  if (!LOOSE_SETUP_VERSION_RE.test(base)) return null
+  return TRAILING_VERSION_RE.exec(base)?.[1] ?? null
 }
 
 export function isInstallerFileName(name: string): boolean {

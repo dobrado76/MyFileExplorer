@@ -38,6 +38,9 @@ protocols:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  # Hyphens survive GitHub asset upload (spaces become dots and older Check-for-update
+  # builds could not read a version from MyFileExplorer.Setup.0.x.y.exe).
+  artifactName: ${productName}-${version}.${ext}
   # Settings live in %APPDATA%\MyFileExplorer — never wipe on uninstall/reinstall.
   deleteAppDataOnUninstall: false
 electronLanguages:

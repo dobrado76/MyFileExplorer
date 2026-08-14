@@ -16,6 +16,7 @@ const VIDEO_EXTS = new Set([
   'mkv',
   'webm',
   'avi',
+  'divx',
   'mov',
   'wmv',
   'm4v',

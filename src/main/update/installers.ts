@@ -97,7 +97,12 @@ async function findFolderUpdate(rawFolder: string): Promise<UpdateCandidate | nu
   }
 }
 
-type GhReleaseAsset = { name?: string; browser_download_url?: string; updated_at?: string }
+type GhReleaseAsset = {
+  name?: string
+  label?: string
+  browser_download_url?: string
+  updated_at?: string
+}
 type GhRelease = {
   tag_name?: string
   published_at?: string
@@ -152,7 +157,9 @@ async function findGithubUpdate(rawUrl: string): Promise<UpdateCandidate | null>
   const tagVer = typeof release.tag_name === 'string' ? tagToVersion(release.tag_name) : null
   const scored = installers.map((a) => {
     const fileName = a.name!
-    const fromName = versionFromInstallerName(fileName)
+    const fromName =
+      versionFromInstallerName(fileName) ??
+      (typeof a.label === 'string' ? versionFromInstallerName(a.label) : null)
     return {
       fileName,
       downloadUrl: a.browser_download_url!,
@@ -287,7 +294,8 @@ async function downloadInstallerToTemp(
 export async function runUpdateInstaller(
   rawExe: string,
   updatesSource: string,
-  downloadUrl?: string
+  downloadUrl?: string,
+  knownVersion?: string | null
 ): Promise<{ launched: true }> {
   const source = resolveUpdatesSource(updatesSource)
   let exe: string
@@ -321,7 +329,9 @@ export async function runUpdateInstaller(
     throw new AppError('not-found', `Installer not found: ${exe}`)
   }
 
-  const candidateVer = versionFromInstallerName(path.basename(exe))
+  const fromName = versionFromInstallerName(path.basename(exe))
+  const known = knownVersion?.trim() || null
+  const candidateVer = fromName ?? (known && /^\d+(\.\d+)*$/.test(known) ? known : null)
   const currentVersion = app.getVersion()
   if (!isNewerVersion(candidateVer, currentVersion)) {
     throw new AppError(
