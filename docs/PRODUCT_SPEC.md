@@ -176,7 +176,7 @@ See [SEARCH.md](SEARCH.md).
 
 | Area         | Fields                                                                             |
 | ------------ | ---------------------------------------------------------------------------------- |
-| Appearance   | Theme dark / light / custom; font family; font size                                |
+| Appearance   | Theme dark / light / custom; font family; font size; icon size; **equal-width tabs** (`tabEqualWidth`, default off); **show tab icons** (`showTabIcons`, default on) — hide all tab icons without clearing assigned ones |
 | Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); **autoplay media in preview** (`previewVideoAutoplay`, default off); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
 | Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
 | Quick access | Manage tree shortcuts                                                              |

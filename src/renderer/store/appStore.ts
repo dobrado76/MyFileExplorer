@@ -18,6 +18,7 @@ import type {
   Splitters
 } from '@shared/schemas/session'
 import { issueKey } from '@shared/opIssues'
+import { defaultTabIcon } from '@shared/tabIcons'
 import type { HistoryEntry } from '@shared/tabHistory'
 import {
   folderHistory,
@@ -446,6 +447,8 @@ type AppState = {
 
   // lifecycle
   boot(): Promise<void>
+  /** Write session.json now (new tab / quit) so default icons are not lost. */
+  flushSession(): void
 
   // notices
   notify(text: string, isError?: boolean): void
@@ -748,7 +751,7 @@ function sessionTabToTab(t: TabState): Tab {
     id: t.id,
     path: t.path,
     title: t.title,
-    icon: t.icon,
+    icon: t.icon ?? defaultTabIcon(t.path, t.rootPath),
     viewMode: t.viewMode,
     sort: t.sort,
     back: t.historyBack,
@@ -784,24 +787,34 @@ function sameExpandedSet(a: string[], b: string[]): boolean {
 }
 
 export const useAppStore = create<AppState>()((set, get) => {
+  function persistSession(): void {
+    const s = get()
+    if (!s.booted) return
+    const session: SessionState = {
+      version: 1,
+      activeTabId: s.activeTabId,
+      tabs: s.tabs.map(tabToSessionTab),
+      splitters: s.splitters,
+      viewLayout: s.viewLayout,
+      paneTabIds: s.paneTabIds,
+      focusedPaneIndex: s.focusedPaneIndex,
+      paneSplitCols: s.paneSplitCols,
+      paneSplitRows: s.paneSplitRows
+    }
+    void api.session.set(session)
+  }
+
   function scheduleSessionSave(): void {
     if (sessionSaveTimer) clearTimeout(sessionSaveTimer)
-    sessionSaveTimer = setTimeout(() => {
-      const s = get()
-      if (!s.booted) return
-      const session: SessionState = {
-        version: 1,
-        activeTabId: s.activeTabId,
-        tabs: s.tabs.map(tabToSessionTab),
-        splitters: s.splitters,
-        viewLayout: s.viewLayout,
-        paneTabIds: s.paneTabIds,
-        focusedPaneIndex: s.focusedPaneIndex,
-        paneSplitCols: s.paneSplitCols,
-        paneSplitRows: s.paneSplitRows
-      }
-      void api.session.set(session)
-    }, 500)
+    sessionSaveTimer = setTimeout(() => persistSession(), 500)
+  }
+
+  function flushSessionSave(): void {
+    if (sessionSaveTimer) {
+      clearTimeout(sessionSaveTimer)
+      sessionSaveTimer = null
+    }
+    persistSession()
   }
 
   function syncActiveListing(listingsByTabId: Record<string, Listing>, activeTabId: string): Listing {
@@ -1955,6 +1968,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    flushSession() {
+      flushSessionSave()
+    },
+
     async boot() {
       const knownSpecs: { id: KnownFolderId; label: string }[] = [
         { id: 'desktop', label: 'Desktop' },
@@ -2004,7 +2021,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             id: newTabId(),
             path: defaultPath,
             title: null,
-            icon: null,
+            icon: defaultTabIcon(defaultPath, null),
             viewMode: 'largeIcons',
             sort: { key: 'name', dir: 'asc' },
             back: [],
@@ -2285,6 +2302,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           get().settings.slideshow.categorizerMapPath
         ).catch(() => {})
       }
+      scheduleSessionSave()
     },
 
     async openExternalTarget(targetPath, reveal) {
@@ -2643,7 +2661,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         id: newTabId(),
         path: target,
         title: null,
-        icon: null,
+        icon: defaultTabIcon(target, rootPath ?? null),
         viewMode: s.activeTab().viewMode,
         sort: { key: 'name', dir: 'asc' },
         back: [],
@@ -2667,7 +2685,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         selectionAnchor: null,
         focusedPath: null
       })
-      scheduleSessionSave()
+      flushSessionSave()
       await loadListing(target, { tabId: tab.id })
     },
 
@@ -2974,7 +2992,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setTabIcon(id, icon) {
       set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, icon } : t)) }))
-      scheduleSessionSave()
+      flushSessionSave()
     },
 
     reorderTab(fromIndex, toIndex) {
@@ -3195,7 +3213,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         id: newTabId(),
         path: t.path,
         title: t.title,
-        icon: t.icon ?? null,
+        icon: t.icon ?? defaultTabIcon(t.path, t.rootPath),
         viewMode: t.viewMode,
         sort: t.sort,
         rootPath: t.rootPath,

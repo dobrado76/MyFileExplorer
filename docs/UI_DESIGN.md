@@ -23,7 +23,7 @@ Custom theme = user-editable map of these tokens in settings.
 
 ## Chrome
 
-1. **Tab bar** — tabs share the width of the widest label (capped ~220px) and stay packed left when there is spare room; they equal-shrink toward a min (~90px) then overflow with ◀ ▶ scroll (active tab stays in view; mouse wheel scrolls the strip); drag reorder; optional colored Lucide icon + title; double-click title to rename; right-click for Duplicate / Rename / Set icon / Close; `×` close; `+` new tab; drag tab onto a view pane to assign/move it (**Ctrl+drag** duplicates so both panes can show the same path)
+1. **Tab bar** — default: each tab is only as wide as its title (capped ~220px, min ~90px). Settings → Appearance **Equal-width tabs** restores “all tabs match the widest label”. Overflow uses ◀ ▶ scroll (active tab stays in view; mouse wheel scrolls the strip); drag reorder; optional colored Lucide icon + title; double-click title to rename; right-click for Duplicate / Rename / Set icon / Close; `×` close; `+` new tab; drag tab onto a view pane to assign/move it (**Ctrl+drag** duplicates so both panes can show the same path)
 2. **Global bar** — **New** dropdown (folder / typed files / Other…) then Edit actions (Undo/Redo, Cut/Copy/Paste/Delete, Select all) on the left; trailing (right-aligned): layout 1/2/4, Search, view filter, preview, Layouts / Settings
 3. **Body** — pane grid (each pane: nav + tree | files) + shared Preview (splitter); focused-pane ring only when layout is 2 or 4
 4. **Status bar** — item count, selected count; during copy/move/rename/delete/trash/video-preview (and any FS wait >1 s) a progress bar (`op-progress`) — determinate when advancing, indeterminate otherwise — with current file name
@@ -77,7 +77,7 @@ Custom theme = user-editable map of these tokens in settings.
 ## Dialogs
 
 - Confirm permanent delete
-- Name conflict on paste
+- End-of-op issue review (grouped conflicts / locks / denials after copy, move, trash, delete)
 - New file type picker
 - Settings (modal or route)
 - Properties (detailed: drive capacity bar, folder size calc, file metadata)

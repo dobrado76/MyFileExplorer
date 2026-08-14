@@ -47,6 +47,8 @@ export function TabBar(): JSX.Element {
   const edgeScrollRaf = useRef<number | null>(null)
   const fileDragActive = dragPaths.length > 0
   const fontSizePx = useAppStore((s) => s.settings.fontSizePx)
+  const tabEqualWidth = useAppStore((s) => s.settings.tabEqualWidth)
+  const showTabIcons = useAppStore((s) => s.settings.showTabIcons)
 
   const updateScrollState = useCallback((): void => {
     const el = tabsStripRef.current
@@ -58,10 +60,20 @@ export function TabBar(): JSX.Element {
     setCanScrollRight(overflow && el.scrollLeft < max - 1)
   }, [])
 
-  /** Size every tab to the widest label when they fit; equal-shrink only when they don't. */
+  /** Equal-width: size every tab to the widest label, then equal-shrink if the strip overflows.
+   *  Fit: each tab is only as wide as its own label + icon. */
   const layoutTabStrip = useCallback((): void => {
     const el = tabsStripRef.current
     if (!el) return
+    el.classList.remove('is-equal', 'is-measuring', 'is-fit')
+    el.style.removeProperty('--tab-fit')
+
+    if (!tabEqualWidth) {
+      el.classList.add('is-fit')
+      updateScrollState()
+      return
+    }
+
     const tabEls = Array.from(el.querySelectorAll<HTMLElement>('[data-tab-id]'))
     const cs = getComputedStyle(el)
     const min = Number.parseFloat(cs.getPropertyValue('--tab-min')) || 90
@@ -69,8 +81,6 @@ export function TabBar(): JSX.Element {
     const gap = Number.parseFloat(cs.columnGap || cs.gap) || 3
 
     el.classList.add('is-measuring')
-    el.classList.remove('is-equal')
-    el.style.removeProperty('--tab-fit')
     void el.offsetWidth
 
     let naturalMax = 0
@@ -88,7 +98,7 @@ export function TabBar(): JSX.Element {
       el.style.setProperty('--tab-fit', `${fit}px`)
     }
     updateScrollState()
-  }, [updateScrollState])
+  }, [tabEqualWidth, updateScrollState])
 
   const scrollByPage = (dir: -1 | 1): void => {
     const el = tabsStripRef.current
@@ -109,7 +119,7 @@ export function TabBar(): JSX.Element {
 
   useLayoutEffect(() => {
     layoutTabStrip()
-  }, [tabs, fontSizePx, editingId, editText, layoutTabStrip])
+  }, [tabs, fontSizePx, tabEqualWidth, showTabIcons, editingId, editText, layoutTabStrip])
 
   useEffect(() => {
     const el = tabsStripRef.current
@@ -385,7 +395,7 @@ export function TabBar(): JSX.Element {
                 />
               ) : (
                 <>
-                  {tab.icon ? <TabLucideIcon icon={tab.icon} size={14} /> : null}
+                  {showTabIcons && tab.icon ? <TabLucideIcon icon={tab.icon} size={14} /> : null}
                   <span className="tab-title">{title}</span>
                   {offline ? <span className="tab-offline-badge">Offline</span> : null}
                 </>

@@ -50,6 +50,22 @@ describe('session schema migration', () => {
     expect(parsed.splitters.treeWidthPx).toBe(240)
   })
 
+  it('keeps default Computer tab icon (Monitor blue)', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\Users\\me',
+          icon: { name: 'Monitor', color: '#60a5fa' }
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.icon).toEqual({ name: 'Monitor', color: '#60a5fa' })
+  })
+
   it('keeps tab icon name and color', () => {
     const parsed = sessionSchema.parse({
       version: 1,

@@ -9,6 +9,12 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Default tab icons** — new tabs get a Lucide icon: Computer / unscoped (`Monitor`, blue), drive as root (`HardDrive`, gray), folder as root (`Folder`, yellow). Change or clear from the tab menu.
+- **Equal-width tabs** — Settings → Appearance toggle. Off (default): each tab is only as wide as its title. On: every tab matches the widest label (previous behavior).
+- **Show tab icons** — Settings → Appearance toggle (default on). Off hides every tab icon without clearing the ones you set.
+
 ## [0.7.0] - 2026-08-14
 
 Seventh product release: Power Search, continue-then-review bulk file ops, per-tab search, PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, nested custom context submenus, and search/tab/splitter polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

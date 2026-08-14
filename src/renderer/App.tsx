@@ -14,6 +14,16 @@ export function App(): JSX.Element {
     }
   }, [])
 
+  useEffect(() => {
+    const flush = (): void => useAppStore.getState().flushSession()
+    window.addEventListener('pagehide', flush)
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      window.removeEventListener('beforeunload', flush)
+    }
+  }, [])
+
   // Apply theme + font tokens live.
   useEffect(() => {
     if (!settings) return

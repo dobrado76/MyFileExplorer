@@ -228,6 +228,15 @@ textarea:focus {
   flex: 0 0 auto;
   overflow: visible;
 }
+.tabbar-tabs.is-fit .tab {
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: var(--tab-max);
+  min-width: var(--tab-min);
+}
+.tabbar-tabs.is-fit .tab .tab-title {
+  flex: 0 1 auto;
+}
 .tab-context-menu {
   z-index: 10000;
   min-width: 168px;

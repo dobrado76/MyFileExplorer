@@ -228,6 +228,13 @@ export const settingsSchema = z.object({
   fontFamily: z.string().catch('Segoe UI'),
   fontSizePx: z.number().min(FONT_SIZE_PX_MIN).max(FONT_SIZE_PX_MAX).catch(13),
   iconSizePx: z.number().min(ICON_SIZE_PX_MIN).max(ICON_SIZE_PX_MAX).catch(20),
+  /**
+   * When true, every tab is as wide as the widest label (then equal-shrink if the strip overflows).
+   * When false, each tab is only as wide as its own label + icon (capped by --tab-max).
+   */
+  tabEqualWidth: z.boolean().catch(false),
+  /** Paint Lucide icons on tabs. Assigned icons stay in the session when this is off. */
+  showTabIcons: z.boolean().catch(true),
   foldersFirst: z.boolean().catch(true),
   /**
    * Explorer-style item checkboxes in the file view (toggle selection without Ctrl).
@@ -450,6 +457,8 @@ export const defaultSettings: Settings = settingsSchema.parse({
   fontFamily: 'Segoe UI',
   fontSizePx: 13,
   iconSizePx: 20,
+  tabEqualWidth: false,
+  showTabIcons: true,
   foldersFirst: true,
   itemCheckboxes: false,
   defaultNewTabPath: '',

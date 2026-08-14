@@ -1656,6 +1656,20 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <span className="dim">px</span>
                 </div>
               </label>
+              <SettingsToggle
+                id="set-tab-equal-width"
+                label="Equal-width tabs"
+                hint="On: every tab matches the widest label. Off: each tab is only as wide as its title."
+                checked={settings.tabEqualWidth}
+                onChange={(v) => void applySettingsPatch({ tabEqualWidth: v })}
+              />
+              <SettingsToggle
+                id="set-show-tab-icons"
+                label="Show tab icons"
+                hint="Hide all tab icons without clearing the ones you set. New tabs still get a default icon stored."
+                checked={settings.showTabIcons}
+                onChange={(v) => void applySettingsPatch({ showTabIcons: v })}
+              />
               {settings.theme === 'custom' && (
                 <div className="settings-theme-tokens">
                   {THEME_TOKENS.map(({ key, label }) => (

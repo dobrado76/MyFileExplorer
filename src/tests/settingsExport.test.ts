@@ -63,6 +63,24 @@ describe('settings export / import', () => {
     })
   })
 
+  it('round-trips tabEqualWidth via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, tabEqualWidth: true },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.tabEqualWidth).toBe(true)
+  })
+
+  it('round-trips showTabIcons via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, showTabIcons: false },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.showTabIcons).toBe(false)
+  })
+
   it('round-trips remoteRepos.enabled via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: {
