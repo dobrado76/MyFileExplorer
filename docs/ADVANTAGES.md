@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.6.3
+**App:** MyFileExplorer · **Version:** 0.7.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -24,7 +24,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
+| **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
 | **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. |
 | **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
 | **Q-Dir-style multi-pane (1 / 2 / 4)** | Side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |
@@ -60,7 +60,8 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Everything-inspired search (D34)** | Opt-in folder roots + optional **Index this drive** (NTFS USN when available). As-you-type, match toggles, operators (`size:`, `ext:`, `pic:`, `path:`, …), saved filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
+| **Everything-inspired search (D34)** | Opt-in folder roots + optional **Index this drive** (NTFS USN when available). As-you-type, match toggles, operators (`size:`, `ext:`, `pic:`, `path:`, …), **Power Search…** dialog, saved filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
+| **Search progress honesty** | Live walks stream partial results; status bar and banner show folder progress while searching — not a stuck `0 results` during long crawls. |
 | **Honest unindexed / content search** | Live walk with progress + cancel; `content:` scans with an honesty banner — never pretends to be instant when it isn’t. |
 | **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. |
 | **Large folders stay usable** | Virtualized lists, fast Win32 directory listing, and careful watch/scroll behavior — tens of thousands of files without the freezes Explorer often hits. |

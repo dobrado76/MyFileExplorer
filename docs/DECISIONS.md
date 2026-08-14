@@ -1,8 +1,8 @@
 # Locked decisions
 
-**Version:** 0.6.3
+**Version:** 0.7.0
 
-All notable locked product/tech decisions. Through **D46** for the v0.6 product line (`v0.6.3`).
+All notable locked product/tech decisions. Through **D46** for the v0.6 product line; **v0.7.0** adds Power Search, folder-statistics depth-first tagging, slideshow crop, and nested custom context submenus (no new D-number yet).
 
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 

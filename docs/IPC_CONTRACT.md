@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.6.x
+**Version:** 0.7.x
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 

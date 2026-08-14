@@ -7,6 +7,8 @@ export type SearchProgressPayload = {
   total?: number
   message?: string
   items?: SearchResultItem[]
+  /** Matches the in-flight search generation; ignore events from a cancelled query. */
+  gen?: number
 }
 
 /** Human-readable search progress for status bar, banner, and empty state. */

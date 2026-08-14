@@ -194,6 +194,12 @@ export type SearchState = {
   /** Unindexed content: scan (D34 / D15). */
   contentSlow: boolean
   progress: string | null
+  /** Tab that started this search — results overlay that tab only. */
+  tabId: string | null
+  /** In-flight generation; ignore search-progress from a cancelled query. */
+  gen: number
+  /** Why search returned nothing (undecodable / exclude-only query). */
+  message: string | null
 }
 
 /** In-app Recycle Bin overlay (like search — FileView shows bin items). */
@@ -1659,7 +1665,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       partial: false,
       source: null,
       contentSlow: false,
-      progress: null
+      progress: null,
+      tabId: null,
+      gen: 0,
+      message: null
     },
     recycleBin: {
       active: false,
@@ -1919,6 +1928,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           const st = get().search
           if (!st.running) return
           const p = event.payload
+          if (p.gen != null && p.gen !== st.gen) return
           const patch: Partial<SearchState> = {}
           if (p.phase !== 'done') {
             const text = formatSearchProgress(p)
@@ -4529,7 +4539,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           partial: false,
           source: null,
           contentSlow: false,
-          progress: 'Starting search…'
+          progress: 'Starting search…',
+          tabId: get().activeTabId,
+          gen: seq,
+          message: null
         }
       })
       updateActiveTab({ selected: [] })
@@ -4552,7 +4565,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             matchPath: settings.searchMatchPath,
             matchCase: settings.searchMatchCase,
             wholeWord: settings.searchWholeWord,
-            regex: settings.searchRegex
+            regex: settings.searchRegex,
+            gen: seq
           })
         )
         if (seq !== searchSeq) return
@@ -4564,9 +4578,11 @@ export const useAppStore = create<AppState>()((set, get) => {
             partial: res.partial,
             source: res.source,
             contentSlow: Boolean(res.contentSlow),
-            progress: null
+            progress: null,
+            message: res.message ?? null
           }
         }))
+        if (res.message) get().notify(res.message, true)
       } catch (e) {
         if (seq !== searchSeq) return
         set((state) => ({ search: { ...state.search, running: false, progress: null } }))
@@ -4593,7 +4609,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           source: null,
           contentSlow: false,
           progress: null,
-          query: ''
+          query: '',
+          tabId: null,
+          message: null
         }
       }))
       // Folder sort only exists during search — drop it when leaving.

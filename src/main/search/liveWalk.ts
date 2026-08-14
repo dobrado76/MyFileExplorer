@@ -2,13 +2,14 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { SearchResultItem } from '@shared/schemas/search'
 import { broadcast } from '../ipc/events'
-import { nameMatches } from './queryBuilder'
 import {
+  isBasicNameQuery,
   parseEverythingQuery,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
+import { nameMatches } from './queryBuilder'
 
 export type CancelToken = { cancelled: boolean }
 
@@ -22,18 +23,17 @@ export async function liveWalkSearch(
   excludeDirNames: string[],
   limit: number,
   token: CancelToken,
-  parseOpts: ParseOptions = {}
+  parseOpts: ParseOptions = {},
+  gen = 0
 ): Promise<{ items: SearchResultItem[]; partial: boolean; contentSlow?: boolean }> {
-  const q = parseEverythingQuery(query, parseOpts)
+  const basic = isBasicNameQuery(query)
+  const q = basic ? null : parseEverythingQuery(query, parseOpts)
   const excludes = new Set(excludeDirNames.map((n) => n.toLowerCase()))
   const items: SearchResultItem[] = []
   const stack: string[] = [rootDir]
   let scanned = 0
   let partial = false
-  const effectiveLimit = q.countLimit != null ? Math.min(limit, q.countLimit) : limit
-
-  // Legacy fast path: plain substring tokens, no advanced operators
-  const legacy = !q.advanced && q.textGroups.length > 0 && !q.regex
+  const effectiveLimit = q?.countLimit != null ? Math.min(limit, q.countLimit) : limit
 
   let lastEmitMs = 0
   let lastEmitHits = 0
@@ -49,7 +49,8 @@ export async function liveWalkSearch(
         phase: 'walking',
         current: scanned,
         message: dir,
-        items: items.length ? [...items] : undefined
+        items: items.length ? [...items] : undefined,
+        gen
       }
     })
   }
@@ -87,11 +88,11 @@ export async function liveWalkSearch(
         /* zeros */
       }
 
-      const hit = legacy
+      const hit = basic
         ? nameMatches(d.name, query)
         : rowMatchesStructured(
             { path: full, name: d.name, size, mtimeMs, isDir, attrs: null },
-            q,
+            q!,
             { rootPrefix: rootDir, childCount: isDir ? dirents.length : undefined }
           )
 
@@ -106,11 +107,11 @@ export async function liveWalkSearch(
   }
   broadcast({
     type: 'search-progress',
-    payload: { phase: 'done', current: scanned, message: rootDir, items: [...items] }
+    payload: { phase: 'done', current: scanned, message: rootDir, items: [...items], gen }
   })
 
   let contentSlow = false
-  if (q.content && items.length) {
+  if (q?.content && items.length) {
     contentSlow = true
     // Light content filter in walk path
     const { queryIndexStructured } = await import('./executeQuery')

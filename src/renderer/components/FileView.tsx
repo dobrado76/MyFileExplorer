@@ -237,8 +237,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const focusPane = useAppStore((s) => s.focusPane)
   const paneTabIds = useAppStore((s) => s.paneTabIds)
   const viewLayout = useAppStore((s) => s.viewLayout)
-  /** Search / recycle overlays only on the focused pane. */
-  const searchMode = search.active && isFocusedSurface
+  /** Search overlay on the tab that started the query (not merely the focused pane). */
+  const searchMode = search.active && (search.tabId ? search.tabId === tabId : isFocusedSurface)
   const recycleMode = recycleBin.active && isFocusedSurface
   const overlayMode = searchMode || recycleMode
   const ensurePaneFocus = useCallback((): void => {
@@ -501,14 +501,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       return recycleBinItemsToEntries(recycleBin.items)
     }
     if (!searchMode) return listing.entries
-    if (search.running) return []
     return searchResultsToEntries(search.results)
   }, [
     recycleMode,
     recycleBin.loading,
     recycleBin.items,
     searchMode,
-    search.running,
     search.results,
     listing.entries
   ])
@@ -1667,7 +1665,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 : 'All items hidden by view filter'
               : searchMode
                 ? search.results.length === 0
-                  ? 'No results found'
+                  ? (search.message ?? 'No results found')
                   : 'All results hidden by view filter'
                 : 'This folder is empty'}
           </div>

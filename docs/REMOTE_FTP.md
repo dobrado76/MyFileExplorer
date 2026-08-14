@@ -1,6 +1,6 @@
 # Remote repositories (FTP / FTPS / SFTP)
 
-**Version:** 0.6.3 · Decision **D46** · **Status:** shipped (opt-in; not local-drive parity)
+**Version:** 0.7.0 · Decision **D46** · **Status:** shipped (opt-in; not local-drive parity)
 
 Canonical product + engineering reference for the opt-in **Remote repositories** feature.
 
@@ -164,4 +164,4 @@ This is the same class as “zip as navigable folder”: a second location kind,
 - [x] FTP ops serialized (no “Client is closed… still running” on normal browse)
 - [x] Settings export includes connection metadata; import restores list; passwords must be re-entered
 - [ ] Local-only verbs hidden/disabled on remote tabs (ongoing polish)
-
+

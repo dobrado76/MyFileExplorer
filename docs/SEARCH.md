@@ -1,6 +1,6 @@
 # Search & indexing
 
-**Version:** 0.6.x · Decision **D34** (Everything-parity hybrid index)
+**Version:** 0.7.x · Decision **D34** (Everything-parity hybrid index)
 
 Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 
@@ -109,8 +109,10 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 ## UI
 
 - **As-you-type** debounced search (cancel in-flight); Enter still searches immediately
+- Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced)
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
-- Results in normal **FileView** (D29); Folder column; banner with count / Clear / “Not indexed — slow” / “Content search — slow”
+- Results in normal **FileView** (D29); Folder column; banner with count / progress / Clear / “Not indexed — slow” / “Content search — slow”
+- Live folder walks **stream** partial results; status bar shows in-progress state (not `0 results` while still walking)
 - Settings → Search: roots (kind, monitor, status, file count), Add folder / Add drive, Reindex, excludes, saved **filters** & **bookmarks**
 - Optional **localhost HTTP** query API (Settings → Advanced; token; bind 127.0.0.1)
 

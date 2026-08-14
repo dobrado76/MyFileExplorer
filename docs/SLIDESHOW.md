@@ -6,10 +6,10 @@ When the gate is **off**, the app must not show slideshow toolbar buttons, folde
 
 When **on**:
 
-- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder, **Compiled file lists folder** + Update Lists…, Import/Export categorizer map
+- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder, **Compiled file lists folder** + Update Lists…
 - Toolbar: Start (folder/cache walk), optional **Compiled lists** button (when compiled folder is set), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
 - Folder context menu: **Start Slideshow**
-- **Categorizer map** rows persist in `settings.slideshow.categorizerMap` (source of truth). Import copies a file into settings; Export writes a copy out. Deleting the original file does not clear mappings.
+- **Categorizer map** — **Mapping Manager…** (Settings → Slideshow); Import/Export `.map` files there. Rows persist in `settings.slideshow.categorizerMap` (included in Settings → About → Export/Import). Deleting an exported file does not clear mappings.
 
 ## Compiled file lists (D39)
 

@@ -9,12 +9,30 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Basic file search** — plain queries (including names with dots like `report.pdf`) no longer return unrelated folders and files. Unknown `word:value` tokens are not treated as search operators; if parsing would apply no name filter, the raw query is used as a name substring match.
+
+## [0.7.0] - 2026-08-14
+
+Seventh product release: Power Search, folder-statistics depth-first tagging, slideshow manual crop, nested custom context submenus, and search/tab/splitter polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+### Added
+
+- **Power Search** — toolbar dialog with visual fields for scope, match, name/text, type, attributes, size, dates, location, and advanced options; builds an Everything-style query string synced with the search box.
+- **Slideshow manual crop** — numpad 2/4/6/8 trims edges (Shift/Ctrl for finer steps); Enter/Numpad0 saves or resumes autoplay; Esc/Numpad5 cancels crop.
+- **Nested custom context submenus** — `\` in Settings → Context menu → Custom (files/folders) labels groups commands into nested flyouts (e.g. `My Tools \ Option 1`).
+- **Settings → About** tab — Updates source, Export/Import, and GitHub repository link for online help (moved from Advanced).
+- **Checkbox multi-selection** in the file view (toggle rows without clearing the rest of the selection).
+
 ### Changed
 
-- **Folder statistics columns** — Details column labels are now **Files**, **Total Files**, **Folders**, **Total Folders** (ADS stream names unchanged). **Calculate Statistics** now depth-first tags **every subfolder** with immediate + rolled-up ADS streams (not only the selected root).
+- **Folder statistics columns** — Details column labels are now **Files**, **Total Files**, **Folders**, **Total Folders** (ADS stream names unchanged). **Calculate Statistics** now depth-first tags **every subfolder** with immediate + rolled-up ADS streams (not only the selected root). **Shift+click** skips subtrees that already have valid TotalSize ADS.
 - **Calculate Statistics** — no 250k entry cap; walks complete trees. Scan or ADS write failures show an explicit alert dialog with the path and error (same as other FS operations).
-- **Slideshow manual crop** — numpad 2/4/6/8 trims edges (Shift/Ctrl for finer steps); Enter/Numpad0 saves or resumes autoplay; Esc/Numpad5 cancels crop.
-- **Custom context menu labels** — use `\` in Settings → Context menu → Custom (files/folders) labels to group commands into nested submenus (e.g. `My Tools \ Option 1`).
+- **Search (live walk / index)** — results stream during folder walks; status bar shows in-progress state; banner shows current folder and “N found so far”; index queries show “Querying index…”.
+- **Power Search exclude extension** — maps to `!ext:` (not a mistaken name/path negation).
+- **Categorizer map Import/Export** — removed from Settings → Slideshow; file Import/Export remains in **Mapping Manager** (map still round-trips via Settings → About → Export/Import).
+- **Slideshow settings layout** — compact one-line Delay/Order rows; Ascending + Loop on the Order row; horizontal rule before Categorizer map.
 - **Settings dialog** — footer button is **Close** (was Done); title bar has a standard **✕** close control (all shared modals).
 - **Tab bar** — tabs size to the widest label (instead of stretching to fill the bar), then equal-shrink toward a minimum (~90px) and overflow with ◀ ▶ controls; active tab scrolls into view; mouse wheel scrolls the strip horizontally.
 - **Draw caption** — when enabled, images with an NTFS `Caption` ADS are framed as a poster (photo in the box; random JSON entry; border/titles hashed from the caption text) in slideshow, preview, and the image viewer; otherwise the filename overlay remains.
@@ -25,6 +43,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Multi-pane splitters** — 2- and 4-pane column/row dividers resize and persist again (flex equal-share and a stale drag ratio had made them feel stuck at 50%).
 - **Context menu submenus** — flyout stayed hidden after hovering away and back (placement `ready` reset without reopening).
 - **Custom context commands** — `.bat` / `.cmd` launch via `cmd.exe` (Node `spawn` on the script alone caused `EINVAL` on Windows). Arguments also accept `%1` / `%*` as aliases for `{path}` / `{paths}`.
+- **Search settings** — saved filters and bookmarks **Add** UI visible again.
+- **Breadcrumb** — middle segments no longer collapse with `…` when horizontal space is sufficient.
+- **Slideshow compiled-lists crop** — Ctrl+numpad crop keys work when the lists window has focus; modifier keys captured before async decode.
+- **Linux path normalization** — path helpers detect OS for separator handling (experimental Linux builds).
 
 ## [0.6.3] - 2026-08-12
 

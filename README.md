@@ -3,7 +3,7 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.6.3** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
+**v0.7.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
@@ -51,7 +51,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - **Open Command Line here** (Shift = Administrator)
 
 **Find things on purpose**
-- **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), content scan, filters/bookmarks
+- **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, content scan, filters/bookmarks
 - Search hits use the **same** file view as a normal folder
 - Built to stay smooth in folders with tens of thousands of files
 
@@ -59,8 +59,8 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Dark / light / custom theme, font size
 - **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
 - Per-folder view overrides, view filters, Details columns for media & generation fields
-- Optional gated **slideshow / categorizer** and **compiled file lists** for media libraries
-- NTFS **Alternate Data Streams** manager + optional Details column
+- Optional gated **slideshow / categorizer** (manual crop, draw caption) and **compiled file lists** for media libraries
+- NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts (depth-first subtree tagging)
 - Optional “disable hardware acceleration” when you need the GPU for training
 
 ---
@@ -116,7 +116,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.6.3 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.7.0 product-release summary |
 
 ---
 

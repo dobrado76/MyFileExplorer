@@ -126,12 +126,56 @@ describe('parseEverythingQuery', () => {
     expect(q.textGroups[0]?.[0]).toEqual({ kind: 'glob', value: '*.jpg' })
   })
 
+  it('routes plain file queries through basic name matching (not operators)', () => {
+    for (const term of ['annual-report.pdf', 'photo.jpg', 'readme']) {
+      const q = parseEverythingQuery(term)
+      expect(q.advanced).toBe(false)
+      expect(q.textGroups).toEqual([[{ kind: 'substr', value: term, wholeWord: false }]])
+    }
+    expect(parseEverythingQuery('My Document.docx').textGroups).toEqual([
+      [{ kind: 'substr', value: 'My', wholeWord: false }],
+      [{ kind: 'substr', value: 'Document.docx', wholeWord: false }]
+    ])
+    expect(parseEverythingQuery('.jpg').textGroups[0]?.[0]).toEqual({ kind: 'glob', value: '*.jpg' })
+  })
+
+  it('does not match every row when name predicates are missing', () => {
+    const q = parseEverythingQuery('readme.txt')
+    q.textGroups = []
+    expect(
+      rowMatchesStructured(row({ path: 'C:\\a\\photo.jpg', name: 'photo.jpg' }), q)
+    ).toBe(false)
+    expect(
+      rowMatchesStructured(row({ path: 'C:\\a\\readme.txt', name: 'readme.txt' }), q)
+    ).toBe(false)
+  })
+
+  it('still parses explicit operators as advanced', () => {
+    expect(parseEverythingQuery('ext:txt').advanced).toBe(true)
+    expect(parseEverythingQuery('size:>1mb').advanced).toBe(true)
+    expect(parseEverythingQuery('photo !tmp').advanced).toBe(true)
+  })
+
   it('honours parse option defaults for match toggles', () => {
-    const q = parseEverythingQuery('foo', { matchPath: true, matchCase: true, wholeWord: true, regex: true })
+    const q = parseEverythingQuery('ext:txt', { matchPath: true, matchCase: true, wholeWord: true, regex: true })
     expect(q.matchPath).toBe(true)
     expect(q.matchCase).toBe(true)
     expect(q.wholeWord).toBe(true)
     expect(q.regex).toBe(true)
+  })
+
+  it('basic filename queries ignore match-path and regex toggles', () => {
+    const q = parseEverythingQuery('report.pdf', {
+      matchPath: true,
+      matchCase: true,
+      wholeWord: true,
+      regex: true
+    })
+    expect(q.matchPath).toBe(false)
+    expect(q.regex).toBe(false)
+    expect(q.matchCase).toBe(true)
+    expect(q.wholeWord).toBe(true)
+    expect(q.textGroups).toEqual([[{ kind: 'substr', value: 'report.pdf', wholeWord: true }]])
   })
 })
 
@@ -159,12 +203,14 @@ describe('rowMatchesStructured', () => {
     expect(rowMatchesStructured(row({ path: 'C:\\a\\b.jpg', name: 'b.jpg', size: 200 }), q)).toBe(false)
   })
 
-  it('excludes extensions with !ext:', () => {
-    const q = parseEverythingQuery('!ext:tmp;bak')
+  it('excludes extensions with !ext: only when a name is also given', () => {
+    const excludeOnly = parseEverythingQuery('!ext:tmp;bak')
+    expect(rowMatchesStructured(row({ path: 'C:\\a\\x.jpg', name: 'x.jpg', size: 1 }), excludeOnly)).toBe(false)
+
+    const q = parseEverythingQuery('x !ext:tmp;bak')
     expect(rowMatchesStructured(row({ path: 'C:\\a\\x.jpg', name: 'x.jpg', size: 1 }), q)).toBe(true)
     expect(rowMatchesStructured(row({ path: 'C:\\a\\x.tmp', name: 'x.tmp', size: 1 }), q)).toBe(false)
     expect(rowMatchesStructured(row({ path: 'C:\\a\\x.bak', name: 'x.bak', size: 1 }), q)).toBe(false)
-    expect(rowMatchesStructured(row({ path: 'C:\\a\\dir', name: 'dir', isDir: true }), q)).toBe(true)
   })
 
   it('excludes name/path text with !token', () => {
@@ -173,12 +219,15 @@ describe('rowMatchesStructured', () => {
     expect(rowMatchesStructured(row({ path: 'C:\\a\\photo.tmp', name: 'photo.tmp', size: 1 }), q)).toBe(false)
   })
 
-  it('respects fileOnly and folderOnly', () => {
-    const files = parseEverythingQuery('file:')
-    const folders = parseEverythingQuery('folder:')
+  it('respects fileOnly and folderOnly when a name is also given', () => {
+    const files = parseEverythingQuery('f file:')
+    const folders = parseEverythingQuery('d folder:')
     expect(rowMatchesStructured(row({ path: 'C:\\a\\f.txt', name: 'f.txt' }), files)).toBe(true)
     expect(rowMatchesStructured(row({ path: 'C:\\a\\d', name: 'd', isDir: true }), files)).toBe(false)
     expect(rowMatchesStructured(row({ path: 'C:\\a\\d', name: 'd', isDir: true }), folders)).toBe(true)
+    expect(rowMatchesStructured(row({ path: 'C:\\a\\f.txt', name: 'f.txt' }), parseEverythingQuery('file:'))).toBe(
+      false
+    )
   })
 
   it('filters by path prefix, contains, and exclude contains', () => {
@@ -190,11 +239,14 @@ describe('rowMatchesStructured', () => {
     expect(rowMatchesStructured(row({ path: 'C:\\Data\\Vacation\\a.txt', name: 'a.txt' }), contains)).toBe(true)
     expect(rowMatchesStructured(row({ path: 'C:\\Data\\a.txt', name: 'a.txt' }), contains)).toBe(false)
 
-    const exclude = parseEverythingQuery('nopath:node_modules')
+    const exclude = parseEverythingQuery('x nopath:node_modules')
     expect(
       rowMatchesStructured(row({ path: 'C:\\Data\\node_modules\\x.js', name: 'x.js' }), exclude)
     ).toBe(false)
     expect(rowMatchesStructured(row({ path: 'C:\\Data\\x.js', name: 'x.js' }), exclude)).toBe(true)
+    expect(
+      rowMatchesStructured(row({ path: 'C:\\Data\\x.js', name: 'x.js' }), parseEverythingQuery('nopath:node_modules'))
+    ).toBe(false)
   })
 
   it('filters by infolder and parent', () => {
@@ -263,12 +315,41 @@ describe('fixture corpus — shared by indexed post-filter and folder walk', () 
   })
 
   it('excludes path segments via nopath:', () => {
-    const names = fixtureNames('!ext:js nopath:node_modules')
+    const names = fixtureNames('index nopath:node_modules')
     expect(names).not.toContain('index.js')
+  })
+
+  it('treats !!Thumbs.db as a file name, not “match everything except”', () => {
+    expect(fixtureNames('!!Thumbs.db')).toEqual(['!!Thumbs.db'])
+    expect(fixtureNames('!!Thumbs.db')).not.toContain('photo.jpg')
+    expect(fixtureNames('!!Thumbs.db')).not.toContain('Archive')
+  })
+
+  it('exclude-only queries match nothing', () => {
+    expect(fixtureNames('!tmp')).toEqual([])
+    expect(fixtureNames('!ext:jpg')).toEqual([])
+    expect(fixtureNames('nopath:Data')).toEqual([])
   })
 
   it('respects folder scope root prefix for depth', () => {
     expect(fixtureNames('depth:1', {}, 'C:\\Data\\Vacation')).toEqual(['clip.mp4', 'notes.txt'])
+  })
+
+  it('basic name queries match only names containing the term', () => {
+    expect(fixtureNames('something.txt')).toEqual(['something.txt'])
+    expect(fixtureNames('report.pdf')).toEqual(['report.pdf'])
+    expect(fixtureNames('readme.txt')).toEqual(['readme.txt'])
+    expect(fixtureNames('photo.jpg')).toEqual(['photo.jpg'])
+    expect(fixtureNames('readme.txt|notes.txt')).toEqual(['readme.txt', 'notes.txt'])
+    expect(fixtureNames('nothing-here.xyz')).toEqual([])
+    expect(fixtureNames('report')).toEqual(['report.pdf'])
+    // Negative: must not return unrelated decoys (the user-visible bug).
+    for (const q of ['something.txt', 'readme.txt', 'report.pdf']) {
+      const names = fixtureNames(q)
+      expect(names).not.toContain('photo.jpg')
+      expect(names).not.toContain('Archive')
+      expect(names).not.toContain('Vacation')
+    }
   })
 
   it('indexed scope without root prefix still matches path tokens globally', () => {

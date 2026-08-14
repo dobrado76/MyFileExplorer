@@ -1,6 +1,6 @@
 # Building & releases
 
-**Version:** 0.6.3 (tag `v0.6.3`)
+**Version:** 0.7.0 (tag `v0.7.0`)
 
 The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
@@ -48,7 +48,7 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | Trigger | What runs |
 | ------- | --------- |
 | Pull request / push to `main` | `npm run check` only |
-| Tag `v*` (e.g. `v0.6.3`) | Check + build **Windows** installer → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.7.0`) | Check + build **Windows** installer → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (same as a main push) |
 
 CI does not build Linux installers yet.
@@ -56,9 +56,9 @@ CI does not build Linux installers yet.
 ### Ship a build for friends
 
 ```bash
-# package.json version should match the tag (e.g. 0.6.3)
-git tag v0.6.3
-git push origin v0.6.3
+# package.json version should match the tag (e.g. 0.7.0)
+git tag v0.7.0
+git push origin v0.7.0
 ```
 
 When the workflow finishes, download from:

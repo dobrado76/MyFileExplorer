@@ -19,7 +19,9 @@ export const searchQueryRequestSchema = z.object({
   matchPath: z.boolean().optional(),
   matchCase: z.boolean().optional(),
   wholeWord: z.boolean().optional(),
-  regex: z.boolean().optional()
+  regex: z.boolean().optional(),
+  /** Renderer search generation — stale progress events must be ignored. */
+  gen: z.number().int().optional()
 })
 export type SearchQueryRequest = z.infer<typeof searchQueryRequestSchema>
 
@@ -38,6 +40,8 @@ export type SearchQueryResponse = {
   source: 'index' | 'walk'
   /** True when `content:` / utf8content: scanning ran (D15 honesty). */
   contentSlow?: boolean
+  /** Set when the query has no positive name/filter — never dump the whole folder. */
+  message?: string
 }
 
 export type IndexRootStatus = 'idle' | 'indexing' | 'ready' | 'error' | 'offline'

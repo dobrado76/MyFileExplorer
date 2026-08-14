@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.6.3
+**Version:** 0.7.0
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).
@@ -162,9 +162,10 @@ See [PREVIEW.md](PREVIEW.md).
 See [SEARCH.md](SEARCH.md).
 
 - Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
+- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators).
 - **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
-- Unindexed scope: best-effort walk with progress + cancel; never pretend to be instant (D15).
+- Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
 - Results use Details with a temporary **Folder** column (sortable; search-only, not saved); context **Open File Path** / **Open File in new tab** open locations in-app.
 - Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
 
@@ -176,7 +177,7 @@ See [SEARCH.md](SEARCH.md).
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size                                |
 | Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); **autoplay media in preview** (`previewVideoAutoplay`, default off); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
-| Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label, program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
+| Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
 | Quick access | Manage tree shortcuts                                                              |
 | Layouts      | Named workspaces: save current tabs/chrome, apply, update, rename, remove (D25)    |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
@@ -185,7 +186,7 @@ See [SEARCH.md](SEARCH.md).
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
-| About        | App version; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands) + remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
+| About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 
 ---
 

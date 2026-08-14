@@ -2,6 +2,7 @@
  * Everything-inspired query parser (D34).
  * Produces a StructuredQuery used by SQL and live-walk filters.
  */
+import { queryTokens, tokenHasWildcards } from './queryBuilder'
 
 export type TextPred =
   | { kind: 'substr'; value: string; wholeWord?: boolean }
@@ -64,6 +65,131 @@ const MACROS: Record<string, string[]> = {
   zip: ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'cab', 'iso']
 }
 
+/** Everything-style query functions/modifiers — not arbitrary `word:value` filenames. */
+const QUERY_FN_KEYS = new Set([
+  'size',
+  'dm',
+  'datemodified',
+  'dc',
+  'datecreated',
+  'ext',
+  'parent',
+  'infolder',
+  'startwith',
+  'endwith',
+  'len',
+  'empty',
+  'count',
+  'attrib',
+  'attributes',
+  'depth',
+  'child',
+  'childcount',
+  'dupe',
+  'sizedupe',
+  'namepartdupe',
+  'content',
+  'utf8content',
+  'path',
+  'nopath',
+  'regex',
+  'case',
+  'nocase',
+  'file',
+  'folder',
+  'ww',
+  'wholeword',
+  'noww',
+  ...Object.keys(MACROS)
+])
+
+function isKnownQueryFn(key: string, macros: Record<string, string[]>): boolean {
+  const k = key.toLowerCase()
+  return QUERY_FN_KEYS.has(k) || Object.prototype.hasOwnProperty.call(macros, k)
+}
+
+/**
+ * A search must include something to find — never “everything except X”.
+ * Exclusions (`!tmp`, `!ext:`, `nopath:`) and `file:` / `folder:` alone do not count.
+ */
+export function queryHasPositiveConstraint(q: StructuredQuery): boolean {
+  return (
+    q.textGroups.length > 0 ||
+    q.pathPrefixes.length > 0 ||
+    q.pathContains.length > 0 ||
+    q.exts.length > 0 ||
+    q.size != null ||
+    q.dates.length > 0 ||
+    q.empty != null ||
+    q.lenMin != null ||
+    q.lenMax != null ||
+    q.attrib != null ||
+    q.depthMin != null ||
+    q.depthMax != null ||
+    q.parentName != null ||
+    q.infolder != null ||
+    q.childName != null ||
+    q.childCountMin != null ||
+    q.childCountMax != null ||
+    q.dupe != null ||
+    q.content != null
+  )
+}
+
+export function searchDecodeMessage(query: string, q: StructuredQuery): string | null {
+  if (!query.trim()) return 'Type a file name to search.'
+  if (queryHasPositiveConstraint(q)) return null
+  if (q.notText.length > 0 || q.excludeExts.length > 0 || q.excludePathContains.length > 0) {
+    return 'That search only excludes names. Add a file name to find. A name starting with ! (like !!Thumbs.db) is a file name — put a space before ! to exclude (photo !tmp).'
+  }
+  if (q.fileOnly || q.folderOnly) {
+    return 'Add a file name or a filter (ext:jpg, pic:, size:>1mb). file: / folder: alone would list everything.'
+  }
+  return 'Could not search: no file name or filter to match.'
+}
+
+/** True when the query has non-name filters (ext, size, path, …). */
+function queryHasStructuredFilters(q: StructuredQuery): boolean {
+  return (
+    q.pathPrefixes.length > 0 ||
+    q.pathContains.length > 0 ||
+    q.excludePathContains.length > 0 ||
+    q.exts.length > 0 ||
+    q.excludeExts.length > 0 ||
+    q.fileOnly ||
+    q.folderOnly ||
+    q.size != null ||
+    q.dates.length > 0 ||
+    q.empty != null ||
+    q.lenMin != null ||
+    q.lenMax != null ||
+    q.attrib != null ||
+    q.depthMin != null ||
+    q.depthMax != null ||
+    q.parentName != null ||
+    q.infolder != null ||
+    q.childName != null ||
+    q.childCountMin != null ||
+    q.childCountMax != null ||
+    q.dupe != null ||
+    q.content != null ||
+    q.countLimit != null ||
+    q.notText.length > 0
+  )
+}
+
+/**
+ * Plain typing in the search box must always constrain names.
+ * If tokenization produced no name predicates (and no structured filters), treat
+ * the raw string as a basic filename / substring search.
+ */
+function finalizeBasicNameSearch(q: StructuredQuery, raw: string): void {
+  const trimmed = raw.trim()
+  if (!trimmed || q.textGroups.length > 0 || queryHasStructuredFilters(q)) return
+  q.textGroups.push([toTextPred(trimmed, q)])
+  q.advanced = false
+}
+
 const SIZE_NAMES: Record<string, [number, number]> = {
   empty: [0, 0],
   tiny: [0, 10 * 1024],
@@ -81,6 +207,43 @@ export type ParseOptions = {
   regex?: boolean
   /** User-defined macro → ext list (from saved filters). */
   customMacros?: Record<string, string[]>
+}
+
+function parseBasicNameQuery(raw: string, opts: ParseOptions): StructuredQuery {
+  // Filename search is always name-only and literal. Match path / regex toggles
+  // must not turn `report.pdf` into a path scan or a `.` = any-character regex.
+  const q = emptyQuery({
+    matchCase: opts.matchCase,
+    wholeWord: opts.wholeWord,
+    matchPath: false,
+    regex: false
+  })
+  for (const token of queryTokens(raw)) {
+    if (tokenHasWildcards(token)) {
+      q.textGroups.push([{ kind: 'glob', value: token }])
+    } else {
+      q.textGroups.push([{ kind: 'substr', value: token, wholeWord: q.wholeWord }])
+    }
+  }
+  return q
+}
+
+/** Plain toolbar search (file names) — skip the Everything operator parser entirely. */
+export function isBasicNameQuery(raw: string): boolean {
+  const t = raw.trim()
+  if (!t) return false
+  if (/[<|"]/.test(t)) return false
+  if (/^[a-zA-Z]:[\\/]?/i.test(t)) return false
+  if (
+    /(?:^|\s)(!?)(size|ext|dm|dc|datemodified|datecreated|path|nopath|file|folder|pic|video|audio|doc|exe|zip|content|utf8content|attrib|attributes|depth|parent|infolder|startwith|endwith|len|empty|count|dupe|sizedupe|namepartdupe|child|childcount|regex|case|nocase|ww|wholeword|noww):/i.test(
+      t
+    )
+  ) {
+    return false
+  }
+  // `!` is NOT only after whitespace (`photo !tmp`). A name like `!!Thumbs.db` is literal.
+  if (/\s![^\s]+/.test(t)) return false
+  return true
 }
 
 function emptyQuery(opts: ParseOptions): StructuredQuery {
@@ -412,9 +575,15 @@ function applyExcludeFunction(q: StructuredQuery, key: string, val: string, macr
 }
 
 export function parseEverythingQuery(input: string, opts: ParseOptions = {}): StructuredQuery {
+  const trimmed = input.trim()
+  if (!trimmed) return emptyQuery(opts)
+  if (isBasicNameQuery(trimmed)) {
+    return parseBasicNameQuery(trimmed, opts)
+  }
+
   const q = emptyQuery(opts)
   const macros = { ...MACROS, ...(opts.customMacros ?? {}) }
-  const tokens = tokenize(input.trim())
+  const tokens = tokenize(trimmed)
   if (tokens.length === 0) return q
 
   let orGroup: TextPred[] = []
@@ -511,9 +680,9 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
       continue
     }
 
-    // function: key:value
+    // function: key:value — only known Everything operators (not arbitrary name.ext tokens)
     const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(t)
-    if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase())) {
+    if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase()) && isKnownQueryFn(fn[1]!, macros)) {
       const key = fn[1]!
       const val = fn[2] ?? ''
       if (key.toLowerCase() === 'regex' && val) {
@@ -533,7 +702,7 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
       q.advanced = true
       const rest = t.slice(1)
       const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(rest)
-      if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase())) {
+      if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase()) && isKnownQueryFn(fn[1]!, macros)) {
         applyExcludeFunction(q, fn[1]!, fn[2] ?? '', macros)
       } else {
         q.notText.push(toTextPred(rest, q))
@@ -553,6 +722,7 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
     flushOr()
   }
   flushOr()
+  finalizeBasicNameSearch(q, trimmed)
   return q
 }
 
@@ -640,6 +810,11 @@ export function rowMatchesStructured(
   if (q.fileOnly && row.isDir) return false
   if (q.folderOnly && !row.isDir) return false
 
+  // Never match the whole corpus. Exclude-only / empty / file:-only → no hits.
+  if (!queryHasPositiveConstraint(q)) {
+    return false
+  }
+
   const ext = row.isDir
     ? ''
     : row.name.includes('.')
@@ -661,7 +836,9 @@ export function rowMatchesStructured(
     if (row.path.toLowerCase().includes(c.toLowerCase())) return false
   }
 
-  if (!matchTextGroups(q.textGroups, row.name, row.path, q.matchPath, q.matchCase)) return false
+  if (!matchTextGroups(q.textGroups, row.name, row.path, q.matchPath, q.matchCase)) {
+    return false
+  }
   for (const n of q.notText) {
     const targets = q.matchPath ? [row.name, row.path] : [row.name]
     if (targets.some((t) => matchTextPred(n, t, q.matchCase))) return false

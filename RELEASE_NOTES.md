@@ -1,63 +1,56 @@
-# MyFileExplorer v0.6.3 — release notes
+# MyFileExplorer v0.7.0 — release notes
 
-**Date:** 2026-08-12  
-**Tag:** `v0.6.3` (package **0.6.3**)  
-**Previous product baseline:** [v0.6.0](CHANGELOG.md#060---2026-08-12) · earlier: [v0.5.0](CHANGELOG.md#050---2026-08-11)
+**Date:** 2026-08-14  
+**Tag:** `v0.7.0` (package **0.7.0**)  
+**Previous product baseline:** [v0.6.3](CHANGELOG.md#063---2026-08-12) · earlier: [v0.6.0](CHANGELOG.md#060---2026-08-12)
 
-Sixth product line (**v0.6**). This tag ships the completed 0.6 series: Network & settings export from **0.6.0**, plus **opt-in remotes (D46)**, **context-menu Discover + layout (D41)**, and **experimental Linux packaging**.
+Seventh product release (**v0.7**): **Power Search**, deeper **folder statistics**, **slideshow crop**, richer **context-menu** nesting, and a large polish pass on search progress, tabs, splitters, and settings layout.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Network: [docs/NETWORKS.md](docs/NETWORKS.md). Remotes: [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md). Linux (experimental): [docs/LINUX.md](docs/LINUX.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Search: [docs/SEARCH.md](docs/SEARCH.md). Slideshow: [docs/SLIDESHOW.md](docs/SLIDESHOW.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Network neighborhood & mapped drives (D44 / D3) — since 0.6.0
-- Tree **Network** section: remembered hosts paint immediately; async discovery (~20s budget) without blocking browse.
-- Settings → **Network**: Automatic (default every **5** minutes) or Manual rediscovery; Discover now; Map / Disconnect.
-- Disconnected **mapped letters** stay under Drives; click reconnects in-app (no need to open Explorer first).
-- UNC `\\server` / shares; Map / Disconnect via native WNet dialogs.
+### Power Search
+- Toolbar **Power Search…** opens a visual query builder that maps to the same Everything-style language as the search box (`ext:`, `size:`, `dm:`, macros, exclude extensions, …).
+- Live query preview; syncs with the toolbar search field; saved filters remain available from Settings → Search.
 
-### Settings export / import (D45)
-Settings → About → **Export…** / **Import…** — portable JSON of **all** preferences, including:
-- Theme, named layouts, folder views, slideshow
-- **Full context-menu customization** (built-in hide/order/separators, Discover catalog + enabled verbs, Custom files/folders commands)
-- Network discovery prefs + remembered hosts
-- Remote connection **metadata** (no passwords)
+### Search progress & fixes
+- Large folder / drive searches stream results while walking; status bar and banner show folder progress and “N found so far” instead of a stuck `0 results`.
+- **Exclude extension** in Power Search works via `!ext:` (not mistaken for a name/path negation).
+- Settings → Search **filters** and **bookmarks** Add UI works again.
 
-Excludes main-window and dialog geometry. Open tabs unchanged (apply a named layout to restore a workspace). Re-enter remote passwords after import.
+### Folder statistics
+- **Calculate Statistics** (folder context menu) walks the **entire subtree** depth-first — every subfolder gets immediate + rolled-up NTFS ADS streams (not only the root).
+- Details columns renamed to **Files**, **Total Files**, **Folders**, **Total Folders**; no 250k cap; failures show an explicit alert with path + error.
+- **Shift+click** skips already-tagged subtrees for faster incremental passes.
 
-### Context menu Discover + layout (D41)
-- **Discover** — scan static HKCR shell verbs (no COM shell extensions); results persist; tick to enable.
-- Enabled Discover verbs appear on the live menu and as tinted, orderable rows under **Built-in** (enable/disable stays on Discover).
-- **Built-in** — one-line rows, whole-row drag reorder, add/remove separators; order applies to the right-click menu.
-- Hand-edited **Custom (files)** / **Custom (folders)** remain for Photoshop / VLC-style commands.
+### Slideshow
+- **Manual crop** during slideshow: numpad **2 / 4 / 6 / 8** trim edges (Shift/Ctrl for finer steps); **Enter** / Numpad **0** saves; **Esc** / Numpad **5** cancels.
+- **Draw caption** — NTFS `Caption` ADS poster framing in slideshow, preview, and image viewer (when enabled in Settings).
+- Compact Slideshow settings layout; categorizer **Import/Export** lives in **Mapping Manager** only (map still in global Settings export/import).
 
-### Opt-in remote repositories (D46)
-- Settings master switch (default **off**); FTP / FTPS / SFTP.
-- Toolbar + tree section; `mfe-remote://` browse; upload/download; Open/preview via local scratch.
-- FTP ops serialized per connection; Connect / Open busy dialogs.
-- Spec: [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md).
+### Context menu & workspace
+- Custom command labels use `\` to build **nested submenus** (e.g. `My Tools \ Option 1`).
+- Full context-menu customization from v0.6.x: Discover, built-in reorder/separators, custom file/folder commands (`.bat` / `.cmd` launch fixed).
+- **Tab bar** — Chrome-like width: tabs size to the widest label, equal-shrink to a minimum, then ◀ ▶ overflow scroll.
+- **Multi-pane splitters** — 2- and 4-pane dividers resize and persist again.
+- **Settings → About** — Updates source, Export/Import, and GitHub help link; modal **Close** + title-bar ✕.
 
-### Explorer-parity polish
-- **Open Command Line here** — Terminal / PowerShell / cmd; **Shift+click** = Administrator (UAC).
-- Context **Add** submenu uses the same shell type icons as toolbar **+ New**.
-- Breadcrumb collapses middle segments only when the trail overflows.
-
-### Experimental Linux packaging
-- AppImage + Wayland-oriented helpers — contributor convenience only; **Windows remains primary**. See [docs/LINUX.md](docs/LINUX.md).
+### Carried from late 0.6.x (if you skipped nightlies)
+- Opt-in **remote repositories** (FTP/FTPS/SFTP), **Network** neighborhood, portable settings export/import, experimental Linux AppImage helpers — see [v0.6.3 notes](CHANGELOG.md#063---2026-08-12).
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer Setup 0.6.3.exe` (or your Updates-folder / GitHub Release installer).
-2. Settings live in `%APPDATA%\MyFileExplorer` (unchanged — reinstall does not wipe them).
-3. Before a wipe / new PC: **Settings → About → Export…** so context menu, remotes metadata, and Network hosts come back with **Import…**.
+1. Run `MyFileExplorer Setup 0.7.0.exe` (GitHub Release or your Updates folder).
+2. Settings stay in `%APPDATA%\MyFileExplorer`.
+3. Before a PC swap: **Settings → About → Export…** (includes categorizer map, context menu, remotes metadata, Network hosts).
 
 ## Upgrade notes
 
 - Fully quit and relaunch after upgrade.
-- If you used Discover before the Program Files path fix, **Rescan** once so truncated executables refresh.
-- Remotes stay off until you enable them in Settings; re-enter passwords after import.
-- Mapped-drive reconnect no longer depends on `WNetRestoreConnectionW` (often absent on current Windows).
+- Re-enter remote passwords after settings import if you use remotes.
+- If you relied on categorizer map **Import/Export** from Settings → Slideshow, use **Mapping Manager…** instead (global export still includes the map).

@@ -132,7 +132,7 @@ describe('Power Search → query → match pipeline', () => {
       pathPrefix: 'C:\\Data'
     })
     expect(fixtureNames(built, {}, 'C:\\Data').sort()).toEqual(
-      ['backup.bak', 'clip.mp4', 'index.js', 'photo.jpg', 'hidden.dat'].sort()
+      ['!!Thumbs.db', 'annual-summary.pdf', 'backup.bak', 'clip.mp4', 'index.js', 'photo.jpg', 'hidden.dat', 'report.pdf'].sort()
     )
   })
 })

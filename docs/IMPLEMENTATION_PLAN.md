@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.6.3 (implemented)
+**Version:** 0.7.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -128,6 +128,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.5.0 release notes + README / ADVANTAGES / SLIDESHOW / ADS / docs alignment
 - [x] v0.6.0 Network (D44) + settings export (D45) + NETWORKS.md / docs alignment
 - [x] v0.6.3 remotes (D46) + context-menu Discover/layout (D41) + experimental Linux AppImage helpers; Windows remains primary; RELEASE_NOTES / docs tag-ready
+- [x] v0.7.0 Power Search + folder statistics depth-first + slideshow crop + search progress UX + tab/splitter polish; RELEASE_NOTES / docs aligned to **0.7.0** for tag `v0.7.0`
 
 ---
 
@@ -199,6 +200,10 @@ v0.5.0 plus: Network neighborhood & mapped-drive reconnect (D44/D3), Settings ex
 ## Definition of done (v0.6.3 / v0.6 line complete)
 
 v0.6.0 plus: opt-in Remote repositories (D46); context-menu Discover + built-in layout (D41); experimental Linux AppImage / Wayland helpers ([LINUX.md](LINUX.md)); lazy Win32 koffi loads; Windows `dist` host guard; settings export covers full context-menu customization; docs / RELEASE_NOTES aligned to **0.6.3** for tag `v0.6.3`. ✅
+
+## Definition of done (v0.7.0 product)
+
+v0.6.3 plus: Power Search visual builder; folder statistics depth-first subtree tagging + Shift+skip; slideshow manual crop + draw caption; nested custom context submenus; search live-walk progress/streaming; tab bar overflow scroll; multi-pane splitter fix; Settings About tab; README / CHANGELOG / RELEASE_NOTES / SEARCH / SLIDESHOW / docs aligned to **0.7.0** for tag `v0.7.0`. ✅
 
 ---
 

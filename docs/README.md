@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.6.3** (tag-ready). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.7.0**. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -45,6 +45,19 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 
 ---
+
+## Recent behavior (v0.7.x)
+
+| Area | Spec |
+| ---- | ---- |
+| Power Search | Visual query builder (toolbar) → Everything-style query string; exclude extensions via `!ext:` |
+| Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
+| Folder statistics | Depth-first **Calculate Statistics** on full subtrees; Shift+skip tagged trees; columns Files / Total Files / Folders / Total Folders — [ADS.md](ADS.md) |
+| Slideshow crop | Numpad edge trim during slideshow; compiled-lists window relays crop keys |
+| Draw caption | NTFS Caption ADS poster in slideshow / preview / viewer when enabled |
+| Nested custom context menus | `\` in custom command labels builds submenus |
+| Tab bar | Chrome-like shrink + overflow scroll |
+| Settings About | Updates + Export/Import + GitHub help link |
 
 ## Recent behavior (v0.6.x)
 

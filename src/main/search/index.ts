@@ -10,7 +10,8 @@ import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { broadcast } from '../ipc/events'
 import { settingsStore } from '../settings/store'
 import { searchDb } from './db'
-import { queryTokens } from './queryBuilder'
+import { nameMatches, queryTokens } from './queryBuilder'
+import { isBasicNameQuery, parseEverythingQuery, searchDecodeMessage } from './everythingQuery'
 import { liveWalkSearch, type CancelToken } from './liveWalk'
 import { queryIndexStructured } from './executeQuery'
 import {
@@ -59,11 +60,12 @@ function parseOptsFromReq(req: SearchQueryRequest) {
       if (exts.length) customMacros[f.macro.toLowerCase()] = exts
     }
   }
+  const basic = isBasicNameQuery(req.query)
   return {
-    matchPath: req.matchPath ?? s.searchMatchPath,
+    matchPath: basic ? false : (req.matchPath ?? s.searchMatchPath),
     matchCase: req.matchCase ?? s.searchMatchCase,
     wholeWord: req.wholeWord ?? s.searchWholeWord,
-    regex: req.regex ?? s.searchRegex,
+    regex: basic ? false : (req.regex ?? s.searchRegex),
     customMacros
   }
 }
@@ -94,7 +96,8 @@ async function runLiveWalk(
       excludes,
       limit,
       token,
-      parseOptsFromReq(req)
+      parseOptsFromReq(req),
+      req.gen ?? 0
     )
     return { items, partial, source: 'walk', contentSlow }
   } finally {
@@ -111,6 +114,11 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
   }
 
   const opts = parseOptsFromReq(req)
+  const decoded = parseEverythingQuery(query, opts)
+  const decodeMsg = searchDecodeMessage(query, decoded)
+  if (decodeMsg) {
+    return { items: [], partial: false, source: 'walk', message: decodeMsg }
+  }
 
   if (scope.type === 'indexed') {
     const ready = listIndexRoots().filter((r) => r.status === 'ready')
@@ -123,7 +131,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
     }
     broadcast({
       type: 'search-progress',
-      payload: { phase: 'querying', message: 'All indexed locations' }
+      payload: { phase: 'querying', message: 'All indexed locations', gen: req.gen }
     })
     const { items, partial, contentSlow } = await queryIndexStructured(
       query,
@@ -133,7 +141,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
     )
     broadcast({
       type: 'search-progress',
-      payload: { phase: 'done', current: items.length, items: [...items] }
+      payload: { phase: 'done', current: items.length, items: [...items], gen: req.gen }
     })
     return {
       items: items.slice(offset, offset + limit),
@@ -149,8 +157,9 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
   if (!scope.recursive) {
     const items: SearchResultItem[] = []
     const dirents = await fsp.readdir(dir, { withFileTypes: true })
+    const basic = isBasicNameQuery(query)
     const { parseEverythingQuery, rowMatchesStructured } = await import('./everythingQuery')
-    const q = parseEverythingQuery(query, opts)
+    const q = basic ? null : parseEverythingQuery(query, opts)
     for (const d of dirents) {
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
@@ -163,13 +172,14 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
       } catch {
         /* zeros */
       }
-      if (
-        rowMatchesStructured(
-          { path: full, name: d.name, size, mtimeMs, isDir },
-          q,
-          { rootPrefix: dir, childCount: isDir ? undefined : undefined }
-        )
-      ) {
+      const hit = basic
+        ? nameMatches(d.name, query)
+        : rowMatchesStructured(
+            { path: full, name: d.name, size, mtimeMs, isDir },
+            q!,
+            { rootPrefix: dir, childCount: isDir ? undefined : undefined }
+          )
+      if (hit) {
         items.push({ path: full, name: d.name, size, mtimeMs, isDir })
       }
       if (items.length >= limit) break
@@ -182,7 +192,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
     if (covered && covered.fileCount > 0) {
       broadcast({
         type: 'search-progress',
-        payload: { phase: 'querying', message: dir }
+        payload: { phase: 'querying', message: dir, gen: req.gen }
       })
       const { items, partial, contentSlow } = await queryIndexStructured(
         query,
@@ -192,7 +202,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
       )
       broadcast({
         type: 'search-progress',
-        payload: { phase: 'done', current: items.length, items: [...items] }
+        payload: { phase: 'done', current: items.length, items: [...items], gen: req.gen }
       })
       return {
         items: items.slice(offset, offset + limit),
