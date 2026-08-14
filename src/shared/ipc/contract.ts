@@ -1,4 +1,6 @@
 /** Stable IPC channel names. Renderer never uses raw strings; preload maps these. */
+import type { SearchProgressPayload } from '../searchProgress'
+
 export const IPC = {
   fsList: 'fs:list',
   fsStat: 'fs:stat',
@@ -102,6 +104,7 @@ export const IPC = {
   /** Renderer finished boot — main may flush queued external-open requests. */
   appReady: 'app:ready',
   appGetVersion: 'app:getVersion',
+  appDevGate: 'app:devGate',
   appCheckUpdate: 'app:checkUpdate',
   appRunUpdate: 'app:runUpdate',
 
@@ -173,7 +176,7 @@ export type MfeEvent =
   | { type: 'fs-watch-lost'; payload: { path: string } }
   | {
       type: 'search-progress'
-      payload: { phase: 'walking' | 'done'; current?: number; total?: number; message?: string }
+      payload: SearchProgressPayload
     }
   | {
       type: 'index-progress'

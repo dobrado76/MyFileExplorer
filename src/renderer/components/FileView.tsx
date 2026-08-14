@@ -1667,14 +1667,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 : 'All items hidden by view filter'
               : searchMode
                 ? search.results.length === 0
-                  ? 'No results'
+                  ? 'No results found'
                   : 'All results hidden by view filter'
                 : 'This folder is empty'}
           </div>
         )}
-        {(search.running || recycleBin.loading) && (
-          <div className="fileview-empty" data-bg="1">
-            {recycleBin.loading ? 'Loading Recycle Bin…' : 'Searching…'}
+        {(search.running || recycleBin.loading) && entries.length === 0 && (
+          <div className="fileview-empty fileview-empty-progress" data-bg="1">
+            {recycleBin.loading ? 'Loading Recycle Bin…' : search.progress ?? 'Searching…'}
           </div>
         )}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }} data-bg="1">

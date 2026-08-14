@@ -24,7 +24,10 @@ export function SearchBanner(): JSX.Element | null {
       {search.running ? (
         <>
           <SpinnerIcon size={14} className="spin" />
-          <span>Searching… {search.progress ?? ''}</span>
+          <span className="search-banner-progress" title={search.progress ?? undefined}>
+            {search.progress ?? 'Searching…'}
+            {visibleCount > 0 ? ` · ${visibleCount} found so far` : ''}
+          </span>
           <button type="button" onClick={clearSearch}>
             Cancel
           </button>

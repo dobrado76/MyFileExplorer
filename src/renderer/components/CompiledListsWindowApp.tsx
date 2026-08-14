@@ -12,6 +12,7 @@ import {
 } from '../lib/icons'
 import { api, call } from '../lib/ipc'
 import { useIdleCursorHide } from '../lib/useIdleCursorHide'
+import { isSlideshowCropNumpadKey } from '@shared/slideshow/keys'
 
 type DatRow = {
   path: string
@@ -161,7 +162,8 @@ export function CompiledListsWindowApp(): JSX.Element {
 
     const onKey = (e: KeyboardEvent): void => {
       if (isEditableTarget(e.target)) return
-      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const cropNumpad = isSlideshowCropNumpadKey(e)
+      if ((e.ctrlKey || e.metaKey || e.altKey) && !cropNumpad) return
       e.preventDefault()
       e.stopPropagation()
       void api.slideshow.relayKey({

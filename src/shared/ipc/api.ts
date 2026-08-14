@@ -252,6 +252,7 @@ export type MyFileExplorerApi = {
     /** Tell main the UI is ready for queued external-open requests. */
     ready(): Promise<Result<{ ok: true; platform: string }>>
     getVersion(): Promise<Result<{ version: string }>>
+    devGate(): Promise<Result<{ active: boolean }>>
     checkUpdate(req: { source: string }): Promise<
       Result<{
         candidate: {

@@ -268,6 +268,15 @@ export function isSlideshowCropCancelKey(e: SlideshowKeyLike): boolean {
   return e.code === 'Numpad5' || e.code === 'Escape' || e.key === 'Escape'
 }
 
+/** Numpad keys used for manual crop — relay even when Ctrl/Alt/Meta held (compiled lists window). */
+export function isSlideshowCropNumpadKey(e: SlideshowKeyLike): boolean {
+  return (
+    numpadCropEdgeFromCode(e.code) != null ||
+    isSlideshowCropSaveKey(e) ||
+    isSlideshowCropCancelKey(e)
+  )
+}
+
 export function isSlideshowStopKey(e: SlideshowKeyLike): boolean {
   return e.key === 'Escape' || e.key === ' '
 }

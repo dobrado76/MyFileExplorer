@@ -112,6 +112,7 @@ const api: MyFileExplorerApi = {
     pickFolder: invokeVoid(IPC.appPickFolder),
     ready: invokeVoid(IPC.appReady),
     getVersion: invokeVoid(IPC.appGetVersion),
+    devGate: invokeVoid(IPC.appDevGate),
     checkUpdate: invoke(IPC.appCheckUpdate),
     runUpdate: invoke(IPC.appRunUpdate)
   },

@@ -187,6 +187,22 @@ import {
 import { logMain } from '../logging'
 import { ensureLamaModel } from '../images/lamaModel'
 import { lamaModelFetchUrl } from '../media/modelProtocol'
+import { isDevGateActive } from '../devGate'
+
+function assertDevGate(): void {
+  if (!isDevGateActive()) throw new AppError('validation', 'Unavailable')
+}
+
+function handleDev<S extends ZodType, T>(
+  channel: string,
+  schema: S,
+  fn: (req: z.infer<S>, event: IpcMainInvokeEvent) => Promise<T> | T
+): void {
+  handle(channel, schema, (req, event) => {
+    assertDevGate()
+    return fn(req, event)
+  })
+}
 
 function handle<S extends ZodType, T>(
   channel: string,
@@ -611,6 +627,7 @@ export function registerIpcHandlers(): void {
     return { ok: true as const, platform: process.platform }
   })
   handle(IPC.appGetVersion, emptySchema, () => ({ version: app.getVersion() }))
+  handle(IPC.appDevGate, emptySchema, () => ({ active: isDevGateActive() }))
   handle(
     IPC.appCheckUpdate,
     z.object({ source: z.string() }),
@@ -626,7 +643,7 @@ export function registerIpcHandlers(): void {
     (req) => runUpdateInstaller(req.path, req.source, req.downloadUrl)
   )
 
-  // slideshow (renderer must gate on slideshowFeaturesEnabled)
+  // slideshow (renderer gates on slideshowFeaturesEnabled; compiled lists also require dev gate)
   handle(IPC.slideshowListImages, slideshowListRequestSchema, (req) => listSlideshowImages(req))
   handle(IPC.slideshowCancelList, emptySchema, () => {
     cancelSlideshowList()
@@ -693,44 +710,44 @@ export function registerIpcHandlers(): void {
   )
 
   // Compiled file lists
-  handle(IPC.slideshowUpdateCompiledLists, updateCompiledListsRequestSchema, async (req) =>
+  handleDev(IPC.slideshowUpdateCompiledLists, updateCompiledListsRequestSchema, async (req) =>
     updateCompiledLists(req.compiledRoot, req.entries)
   )
-  handle(IPC.slideshowValidateCompiledLists, validateCompiledListsRequestSchema, async (req) =>
+  handleDev(IPC.slideshowValidateCompiledLists, validateCompiledListsRequestSchema, async (req) =>
     validateCompiledLists(req.compiledRoot)
   )
-  handle(IPC.slideshowListCompiledDats, listCompiledDatsRequestSchema, async (req) => ({
+  handleDev(IPC.slideshowListCompiledDats, listCompiledDatsRequestSchema, async (req) => ({
     tabs: await listCompiledDats(req.compiledRoot, req.entries)
   }))
-  handle(IPC.slideshowReadDatIndex, z.object({ path: z.string().min(1) }), async (req) => ({
+  handleDev(IPC.slideshowReadDatIndex, z.object({ path: z.string().min(1) }), async (req) => ({
     paths: await readDatIndex(req.path)
   }))
-  handle(IPC.slideshowReadLastList, compiledRootSchema, async (req) => ({
+  handleDev(IPC.slideshowReadLastList, compiledRootSchema, async (req) => ({
     lines: await readLastList(req.compiledRoot)
   }))
-  handle(IPC.slideshowWriteLastList, writeLastListRequestSchema, async (req) => {
+  handleDev(IPC.slideshowWriteLastList, writeLastListRequestSchema, async (req) => {
     await writeLastList(req.compiledRoot, req.lines)
     return { ok: true as const }
   })
-  handle(IPC.slideshowReadCompositeList, compositeFileSchema, async (req) => ({
+  handleDev(IPC.slideshowReadCompositeList, compositeFileSchema, async (req) => ({
     lines: await readCompositeList(req.path)
   }))
-  handle(IPC.slideshowWriteCompositeList, writeCompositeListRequestSchema, async (req) => {
+  handleDev(IPC.slideshowWriteCompositeList, writeCompositeListRequestSchema, async (req) => {
     await writeCompositeList(req.path, req.lines)
     return { ok: true as const }
   })
-  handle(IPC.slideshowLastListUsable, compiledRootSchema, async (req) => ({
+  handleDev(IPC.slideshowLastListUsable, compiledRootSchema, async (req) => ({
     usable: await lastListIsUsable(req.compiledRoot)
   }))
-  handle(IPC.slideshowExpandComposite, expandCompositeRequestSchema, async (req) => ({
+  handleDev(IPC.slideshowExpandComposite, expandCompositeRequestSchema, async (req) => ({
     paths: await expandCompositePlaylist(
       req.lines,
       req.order ?? 'name',
       req.ascending ?? true
     )
   }))
-  handle(IPC.slideshowOpenCompiledListsWindow, emptySchema, () => openCompiledListsWindow())
-  handle(IPC.slideshowCloseCompiledListsWindow, emptySchema, () => {
+  handleDev(IPC.slideshowOpenCompiledListsWindow, emptySchema, () => openCompiledListsWindow())
+  handleDev(IPC.slideshowCloseCompiledListsWindow, emptySchema, () => {
     clearVirtualPlaylist()
     return closeCompiledListsWindow()
   })
@@ -741,7 +758,7 @@ export function registerIpcHandlers(): void {
     }
     return { ok: true as const }
   })
-  handle(
+  handleDev(
     IPC.slideshowApplyCompiledLines,
     applyCompiledLinesRequestSchema,
     async (req) => {
@@ -762,15 +779,15 @@ export function registerIpcHandlers(): void {
       return payload
     }
   )
-  handle(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => ({
+  handleDev(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => ({
     path: pathAtPlayIndex(req.index)
   }))
-  handle(IPC.slideshowClearVirtualPlaylist, emptySchema, () => {
+  handleDev(IPC.slideshowClearVirtualPlaylist, emptySchema, () => {
     clearVirtualPlaylist()
     return { ok: true as const }
   })
   // Legacy flat-path broadcast (small lists / tests only).
-  handle(
+  handleDev(
     IPC.slideshowApplyCompiledPlaylist,
     z.object({
       paths: z.array(z.string()),

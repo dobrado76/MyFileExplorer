@@ -45,7 +45,9 @@ export function SlideshowOverlay(): JSX.Element | null {
   const active = useAppStore((s) => s.slideshow.active)
   const map = useAppStore((s) => s.slideshow.categorizerMap)
   const imageRevision = useAppStore((s) => s.slideshow.imageRevision)
-  const drawCaption = useAppStore((s) => s.settings.slideshow.drawCaption)
+  const drawCaption = useAppStore(
+    (s) => s.devGateActive && s.settings.slideshow.drawCaption
+  )
   const delayMs = useAppStore((s) => s.settings.slideshow.delayMs)
   const stopSlideshow = useAppStore((s) => s.stopSlideshow)
   const slideshowInterrupt = useAppStore((s) => s.slideshowInterrupt)
@@ -74,6 +76,15 @@ export function SlideshowOverlay(): JSX.Element | null {
   const cropBitmapRef = useRef<CropOriginalBitmap | null>(null)
   const cropCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const cropSavingRef = useRef(false)
+  /** Live Shift/Ctrl state for numpad crop steps (read before async bitmap load). */
+  const cropModsRef = useRef({ shift: false, ctrl: false })
+
+  const syncCropMods = useCallback((e: SlideshowKeyLike): void => {
+    cropModsRef.current = {
+      shift: !!e.shiftKey,
+      ctrl: !!(e.ctrlKey || e.metaKey)
+    }
+  }, [])
 
   const setCropModeBoth = useCallback((on: boolean): void => {
     cropModeRef.current = on
@@ -336,6 +347,8 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
 
     const applyCropEdge = async (edge: SlideshowCropEdge, e: SlideshowKeyLike): Promise<void> => {
+      syncCropMods(e)
+      const step = numpadCropStepPct(cropModsRef.current.shift, cropModsRef.current.ctrl)
       const cur = slideshowCurrentPath(active)
       if (!cur || !isEditableImagePath(cur)) {
         notify('This image type cannot be cropped in-app', true)
@@ -343,7 +356,6 @@ export function SlideshowOverlay(): JSX.Element | null {
       }
       if (!(await ensureBitmap(cur))) return
       try {
-        const step = numpadCropStepPct(!!e.shiftKey, !!e.ctrlKey)
         syncCropAcc(applyCropStep(cropAccRef.current, edge, step))
         setCropModeBoth(true)
       } catch (err) {
@@ -380,6 +392,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
 
     const handleKey = (e: SlideshowKeyLike): void => {
+      syncCropMods(e)
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
 
       if (cropModeRef.current) {
@@ -499,10 +512,15 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
 
     const onKey = (e: KeyboardEvent): void => {
+      syncCropMods(e)
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
       e.preventDefault()
       e.stopPropagation()
       handleKey(e)
+    }
+
+    const onKeyUp = (e: KeyboardEvent): void => {
+      syncCropMods(e)
     }
 
     // Keys from the Compiled lists window (it keeps focus while the slideshow runs).
@@ -534,9 +552,11 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
 
     window.addEventListener('keydown', onKey, true)
+    window.addEventListener('keyup', onKeyUp, true)
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
     return () => {
       window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('keyup', onKeyUp, true)
       window.removeEventListener('wheel', onWheel, true)
       unsubRelay()
     }
@@ -558,6 +578,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     notify,
     resetCrop,
     syncCropAcc,
+    syncCropMods,
     setCropModeBoth
   ])
 
@@ -647,8 +668,8 @@ export function SlideshowOverlay(): JSX.Element | null {
         {caption && !showCropPreview && <div className="slideshow-caption">{caption}</div>}
         {cropMode && (
           <div className="slideshow-hint slideshow-crop-hint">
-            Crop — 2/4/6/8 trim · Enter/0 save · Esc/5 cancel · arrows/PgUp/PgDn/Home/End save &amp;
-            go · Backspace/Delete discard &amp; go
+            Crop — 2/4/6/8 trim (10%; Shift 5%; Ctrl 2%; Shift+Ctrl 1%) · Enter/0 save · Esc/5 cancel ·
+            arrows/PgUp/PgDn/Home/End save &amp; go · Backspace/Delete discard &amp; go
           </div>
         )}
         {!cropMode && map.length === 0 && active.status === 'manual' && (

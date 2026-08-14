@@ -45,6 +45,7 @@ export type SlideshowHost = {
   tabs: { id: string; path: string; selected: string[] }[]
   activeTabId: string
   listingsByTabId: Record<string, { entries: { path: string; kind: string }[] } | undefined>
+  devGateActive: boolean
   dialog: unknown
   notify(text: string, isError?: boolean): void
   applySettingsPatch(patch: {
@@ -59,6 +60,10 @@ export type SlideshowHost = {
 
 function gateOn(get: Get): boolean {
   return get().settings.slideshowFeaturesEnabled === true
+}
+
+function compiledGateOn(get: Get): boolean {
+  return get().devGateActive === true && gateOn(get)
 }
 
 function clearActive(set: Set, get: Get): void {
@@ -198,7 +203,6 @@ export function createSlideshowActions(get: Get, set: Set) {
             text: serializeCategorizerMap(rows)
           })
         )
-        // Path is only a dialog hint; map already lives in settings.
         await get().applySettingsPatch({ slideshow: { categorizerMapPath: filePath } })
         get().notify('Categorizer map exported')
       } catch (e) {
@@ -349,7 +353,7 @@ export function createSlideshowActions(get: Get, set: Set) {
      * (no flat path×count array).
      */
     async startCompiledSlideshow(opts?: { resume?: boolean }) {
-      if (!gateOn(get)) return
+      if (!compiledGateOn(get)) return
       const root = get().settings.slideshow.compiledFileListsFolder.trim()
       if (!root) {
         get().notify('Set Compiled file lists folder in Settings', true)
@@ -407,7 +411,7 @@ export function createSlideshowActions(get: Get, set: Set) {
      * (blank screen when last.txt has no counts / empty Index).
      */
     async compiledSlideshowToolbarClick() {
-      if (!gateOn(get)) return
+      if (!compiledGateOn(get)) return
       await actions.startCompiledSlideshow({ resume: true })
     },
 
@@ -422,7 +426,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       },
       rev?: number | null
     ) {
-      if (!gateOn(get)) return
+      if (!compiledGateOn(get)) return
       if (rev != null) {
         if (rev < compiledApplyRev) return
         compiledApplyRev = rev
@@ -462,7 +466,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       preferPath?: string | null,
       rev?: number | null
     ) {
-      if (!gateOn(get)) return
+      if (!compiledGateOn(get)) return
       // Legacy: treat as tiny flat list converted to virtual-shaped state.
       if (rev != null) {
         if (rev < compiledApplyRev) return
@@ -927,6 +931,7 @@ let warnedMissingInvalidDir = false
 
 /** Move an unloadable slideshow image into the configured review folder. */
 async function moveInvalidSlideshowImage(get: Get, badPath: string): Promise<void> {
+  if (!get().devGateActive) return
   const destRaw = get().settings.slideshow.invalidImagesDir?.trim() ?? ''
   if (!destRaw) {
     if (!warnedMissingInvalidDir) {

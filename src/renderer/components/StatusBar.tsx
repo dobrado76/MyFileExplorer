@@ -116,7 +116,9 @@ export function StatusBar(): JSX.Element {
       ? 'Loading Recycle Bin…'
       : `${recycleBin.items.length} item${recycleBin.items.length === 1 ? '' : 's'} in Recycle Bin`
     : search.active
-      ? `${search.results.length} search result${search.results.length === 1 ? '' : 's'}`
+      ? search.running
+        ? search.progress ?? 'Searching…'
+        : `${search.results.length} search result${search.results.length === 1 ? '' : 's'}`
       : listing.loading
         ? 'Loading…'
         : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}`

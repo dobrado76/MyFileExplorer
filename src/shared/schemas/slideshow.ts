@@ -27,8 +27,8 @@ export const slideshowSettingsSchema = z.object({
   loop: z.boolean().catch(true),
   drawCaption: z.boolean().catch(false),
   /**
-   * Last Import/Export dialog path (hint only). The live map is `categorizerMap`
-   * in settings — deleting the file must not clear mappings.
+   * Last Mapping Manager Import/Export path (hint only). The live map is `categorizerMap`
+   * in settings — also used for one-time migration from legacy path-only installs.
    */
   categorizerMapPath: z.string().catch(''),
   /** In-app categorizer map (source of truth). Import copies file → here. */

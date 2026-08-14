@@ -53,6 +53,7 @@ export function Toolbar(): JSX.Element {
   const deleteSelection = useAppStore((s) => s.deleteSelection)
   const selectAll = useAppStore((s) => s.selectAll)
   const deleteFromRecycleBinView = useAppStore((s) => s.deleteFromRecycleBinView)
+  const devGateActive = useAppStore((s) => s.devGateActive)
   const startSlideshow = useAppStore((s) => s.startSlideshow)
   const compiledSlideshowToolbarClick = useAppStore((s) => s.compiledSlideshowToolbarClick)
   const slideshowCacheActive = useAppStore((s) => s.slideshow.cacheActive)
@@ -154,7 +155,7 @@ export function Toolbar(): JSX.Element {
           >
             <PlayIcon />
           </button>
-          {settings.slideshow.compiledFileListsFolder.trim() !== '' && (
+          {devGateActive && settings.slideshow.compiledFileListsFolder.trim() !== '' && (
             <button
               className="icon-btn"
               aria-label="Compiled lists slideshow"

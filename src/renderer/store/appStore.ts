@@ -61,6 +61,7 @@ import {
 } from '../lib/quickAccess'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { searchResultsToEntries } from '../lib/searchEntries'
+import { formatSearchProgress } from '@shared/searchProgress'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
 import { nextSelectionAfterDelete } from '../lib/nextSelection'
@@ -350,6 +351,8 @@ type AppState = {
    */
   mediaHold: boolean
   contextMenu: ContextMenuState
+  /** Hidden local gate — slideshow and related IPC (main reads DEV.cfg). */
+  devGateActive: boolean
   search: SearchState
   recycleBin: RecycleBinState
   indexRoots: IndexRootInfo[]
@@ -1646,6 +1649,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     imageVersionPreview: null,
     mediaHold: false,
     contextMenu: null,
+    devGateActive: false,
     search: {
       active: false,
       query: '',
@@ -1749,11 +1753,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         { id: 'videos', label: 'Videos' },
         { id: 'home', label: 'User folder' }
       ]
-      const [settings, session, home, ready, ...knownPathResults] = await Promise.all([
+      const [settings, session, home, ready, devGateRes, ...knownPathResults] = await Promise.all([
         call(api.settings.get()),
         call(api.session.get()),
         call(api.app.getPath({ name: 'home' })),
         call(api.app.ready()),
+        call(api.app.devGate()),
         ...knownSpecs.map((k) =>
           call(api.app.getPath({ name: k.id })).catch(() => ({ path: '' as string }))
         )
@@ -1849,6 +1854,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         listingsByTabId: {},
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
+        devGateActive: devGateRes.active === true,
         search: {
           ...state.search,
           indexedOnly: settings.searchIndexedOnly
@@ -1910,14 +1916,17 @@ export const useAppStore = create<AppState>()((set, get) => {
             }
           }
         } else if (event.type === 'search-progress') {
-          if (s.search.running) {
-            set({
-              search: {
-                ...get().search,
-                progress:
-                  event.payload.phase === 'done' ? null : `Scanned ${event.payload.current ?? 0}…`
-              }
-            })
+          const st = get().search
+          if (!st.running) return
+          const p = event.payload
+          const patch: Partial<SearchState> = {}
+          if (p.phase !== 'done') {
+            const text = formatSearchProgress(p)
+            if (text) patch.progress = text
+          }
+          if (p.items) patch.results = p.items
+          if (Object.keys(patch).length > 0) {
+            set({ search: { ...st, ...patch } })
           }
         } else if (event.type === 'index-progress') {
           set((state) => ({
@@ -4520,7 +4529,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           partial: false,
           source: null,
           contentSlow: false,
-          progress: null
+          progress: 'Starting search…'
         }
       })
       updateActiveTab({ selected: [] })

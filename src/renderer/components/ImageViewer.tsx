@@ -16,7 +16,9 @@ export function ImageViewer(): JSX.Element | null {
   const imageViewerDelete = useAppStore((s) => s.imageViewerDelete)
   const openPath = useAppStore((s) => s.openPath)
   const dialogOpen = useAppStore((s) => s.dialog !== null)
-  const drawCaption = useAppStore((s) => s.settings.slideshow.drawCaption)
+  const drawCaption = useAppStore(
+    (s) => s.devGateActive && s.settings.slideshow.drawCaption
+  )
 
   const [url, setUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)

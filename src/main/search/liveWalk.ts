@@ -35,6 +35,27 @@ export async function liveWalkSearch(
   // Legacy fast path: plain substring tokens, no advanced operators
   const legacy = !q.advanced && q.textGroups.length > 0 && !q.regex
 
+  let lastEmitMs = 0
+  let lastEmitHits = 0
+  const emitProgress = (dir: string, force = false): void => {
+    const now = Date.now()
+    const newHits = items.length > lastEmitHits
+    if (!force && scanned % 100 !== 0 && !newHits && now - lastEmitMs < 250) return
+    lastEmitMs = now
+    lastEmitHits = items.length
+    broadcast({
+      type: 'search-progress',
+      payload: {
+        phase: 'walking',
+        current: scanned,
+        message: dir,
+        items: items.length ? [...items] : undefined
+      }
+    })
+  }
+
+  emitProgress(rootDir, true)
+
   while (stack.length > 0) {
     if (token.cancelled || items.length >= effectiveLimit) {
       partial = true
@@ -79,16 +100,14 @@ export async function liveWalkSearch(
       }
       if (isDir) stack.push(full)
       scanned++
-      if (scanned % 500 === 0) {
-        broadcast({
-          type: 'search-progress',
-          payload: { phase: 'walking', current: scanned, message: dir }
-        })
-        await new Promise((r) => setImmediate(r))
-      }
+      emitProgress(dir)
+      if (scanned % 500 === 0) await new Promise((r) => setImmediate(r))
     }
   }
-  broadcast({ type: 'search-progress', payload: { phase: 'done', current: scanned } })
+  broadcast({
+    type: 'search-progress',
+    payload: { phase: 'done', current: scanned, message: rootDir, items: [...items] }
+  })
 
   let contentSlow = false
   if (q.content && items.length) {

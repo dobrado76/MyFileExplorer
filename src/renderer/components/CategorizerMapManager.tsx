@@ -27,7 +27,7 @@ const emptyDraft = (): Draft => ({
 
 /**
  * Full-featured categorizer map editor (gated slideshow).
- * Edits in-memory rows; Load/Save in Settings (or here) persist the file format.
+ * Edits persist in app settings; Import/Export here writes the legacy map file format.
  */
 export function CategorizerMapManager({ returnSection }: Props): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)

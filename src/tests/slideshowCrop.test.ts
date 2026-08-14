@@ -5,6 +5,7 @@ import {
   EMPTY_SLIDESHOW_CROP,
   numpadCropStepPct
 } from '../shared/slideshow/crop'
+import { isSlideshowCropNumpadKey } from '../shared/slideshow/keys'
 
 describe('numpadCropStepPct', () => {
   it('returns 10/5/2/1 percent for modifiers', () => {
@@ -12,6 +13,15 @@ describe('numpadCropStepPct', () => {
     expect(numpadCropStepPct(true, false)).toBe(0.05)
     expect(numpadCropStepPct(false, true)).toBe(0.02)
     expect(numpadCropStepPct(true, true)).toBe(0.01)
+  })
+})
+
+describe('isSlideshowCropNumpadKey', () => {
+  it('matches crop numpad edges and save/cancel', () => {
+    expect(isSlideshowCropNumpadKey({ key: '2', code: 'Numpad2' })).toBe(true)
+    expect(isSlideshowCropNumpadKey({ key: '0', code: 'Numpad0' })).toBe(true)
+    expect(isSlideshowCropNumpadKey({ key: '5', code: 'Numpad5' })).toBe(true)
+    expect(isSlideshowCropNumpadKey({ key: 'a', code: 'KeyA' })).toBe(false)
   })
 })
 

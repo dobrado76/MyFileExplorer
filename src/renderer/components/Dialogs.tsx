@@ -150,6 +150,7 @@ function SettingsClampedNumber({
 
 export function Dialogs(): JSX.Element | null {
   const dialog = useAppStore((s) => s.dialog)
+  const devGateActive = useAppStore((s) => s.devGateActive)
   if (!dialog) return null
   switch (dialog.kind) {
     case 'confirm-permanent-delete':
@@ -169,7 +170,9 @@ export function Dialogs(): JSX.Element | null {
     case 'categorizer-map':
       return <CategorizerMapManager returnSection={dialog.returnSection} />
     case 'compiled-lists-config':
-      return <CompiledListsConfigDialog returnSection={dialog.returnSection} />
+      return devGateActive ? (
+        <CompiledListsConfigDialog returnSection={dialog.returnSection} />
+      ) : null
     case 'ads-manager':
       return <AdsManager path={dialog.path} />
     case 'layout-name':
@@ -1185,20 +1188,28 @@ function SettingsToggle({
   id,
   label,
   hint,
+  hintAsTooltip = false,
+  className,
   checked,
   onChange
 }: {
   id: string
   label: string
   hint?: string
+  hintAsTooltip?: boolean
+  className?: string
   checked: boolean
   onChange(v: boolean): void
 }): JSX.Element {
   return (
-    <label className="settings-toggle" htmlFor={id}>
+    <label
+      className={className ?? 'settings-toggle'}
+      htmlFor={id}
+      title={hintAsTooltip ? hint : undefined}
+    >
       <span className="settings-toggle-text">
         <span className="settings-toggle-label">{label}</span>
-        {hint && <span className="settings-toggle-hint">{hint}</span>}
+        {hint && !hintAsTooltip && <span className="settings-toggle-hint">{hint}</span>}
       </span>
       <input
         id={id}
@@ -1254,10 +1265,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     : 'appearance'
   const [section, setSection] = useState<SettingsSection>(startSection)
   const [localComputerName, setLocalComputerName] = useState('')
+  const devGateActive = useAppStore((s) => s.devGateActive)
   const navItems = SETTINGS_NAV
   const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
-  const loadCategorizerMapDialog = useAppStore((s) => s.loadCategorizerMapDialog)
-  const saveCategorizerMapDialog = useAppStore((s) => s.saveCategorizerMapDialog)
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
   const [excludeDraft, setExcludeDraft] = useState('')
   const [hideExtText, setHideExtText] = useState(settings.hideNameExtensions.join('\n'))
@@ -1573,8 +1583,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.slideshowFeaturesEnabled}
                 onChange={(v) => void applySettingsPatch({ slideshowFeaturesEnabled: v })}
               />
-              <label className="settings-field" htmlFor="set-ss-delay">
-                <span>Delay between images (ms)</span>
+              <label
+                className="settings-labeled-row"
+                htmlFor="set-ss-delay"
+                title="Delay between images (milliseconds)"
+              >
+                <span>Delay</span>
                 <input
                   id="set-ss-delay"
                   type="number"
@@ -1589,39 +1603,49 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   }}
                 />
               </label>
-              <label className="settings-field" htmlFor="set-ss-order">
-                <span>Order</span>
-                <select
-                  id="set-ss-order"
-                  value={settings.slideshow.order}
-                  onChange={(e) =>
-                    void applySettingsPatch({
-                      slideshow: {
-                        order: e.target.value as typeof settings.slideshow.order
-                      }
-                    })
-                  }
+              <div className="settings-slideshow-order-row">
+                <label
+                  className="settings-labeled-row"
+                  htmlFor="set-ss-order"
+                  title="Sort slideshow images by name, file size, image dimensions, or random order"
                 >
-                  <option value="name">Name</option>
-                  <option value="size">Size</option>
-                  <option value="dimensions">Image dimensions</option>
-                  <option value="random">Random</option>
-                </select>
-              </label>
-              <SettingsToggle
-                id="set-ss-asc"
-                label="Ascending order"
-                hint="Off = descending (ignored for random)"
-                checked={settings.slideshow.ascending}
-                onChange={(v) => void applySettingsPatch({ slideshow: { ascending: v } })}
-              />
-              <SettingsToggle
-                id="set-ss-loop"
-                label="Loop slideshow"
-                hint="Off = stop when reaching the end"
-                checked={settings.slideshow.loop}
-                onChange={(v) => void applySettingsPatch({ slideshow: { loop: v } })}
-              />
+                  <span>Order</span>
+                  <select
+                    id="set-ss-order"
+                    value={settings.slideshow.order}
+                    onChange={(e) =>
+                      void applySettingsPatch({
+                        slideshow: {
+                          order: e.target.value as typeof settings.slideshow.order
+                        }
+                      })
+                    }
+                  >
+                    <option value="name">Name</option>
+                    <option value="size">Size</option>
+                    <option value="dimensions">Image dimensions</option>
+                    <option value="random">Random</option>
+                  </select>
+                </label>
+                <SettingsToggle
+                  id="set-ss-asc"
+                  label="Ascending order"
+                  hint="Off = descending (ignored for random)"
+                  hintAsTooltip
+                  checked={settings.slideshow.ascending}
+                  onChange={(v) => void applySettingsPatch({ slideshow: { ascending: v } })}
+                />
+                <SettingsToggle
+                  id="set-ss-loop"
+                  label="Loop slideshow"
+                  hint="Off = stop when reaching the end"
+                  hintAsTooltip
+                  checked={settings.slideshow.loop}
+                  onChange={(v) => void applySettingsPatch({ slideshow: { loop: v } })}
+                />
+              </div>
+              {devGateActive && (
+              <>
               <SettingsToggle
                 id="set-ss-caption"
                 label="Draw caption"
@@ -1730,7 +1754,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   </button>
                 </div>
               </div>
-              <div className="settings-field">
+              </>
+              )}
+              <div className="settings-field settings-field-separator">
                 <span>Categorizer map</span>
                 <p className="dim" style={{ margin: '4px 0 8px' }}>
                   {categorizerMap.length > 0
@@ -1747,21 +1773,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   >
                     Mapping Manager…
                   </button>
-                  <button type="button" className="btn" onClick={() => void loadCategorizerMapDialog()}>
-                    Import…
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={categorizerMap.length === 0}
-                    onClick={() => void saveCategorizerMapDialog()}
-                  >
-                    Export…
-                  </button>
                 </div>
                 <p className="dim" style={{ marginTop: 8 }}>
-                  Import copies a map file into app settings (source of truth). Export writes a copy to
-                  disk. Mapping Manager edits are saved automatically.
+                  Mapping Manager edits are saved automatically.
                 </p>
               </div>
             </div>

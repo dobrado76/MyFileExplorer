@@ -1513,6 +1513,20 @@ body.right-dragging * {
   opacity: 0.45;
   cursor: default;
 }
+.search-banner-progress {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fileview-empty-progress {
+  max-width: min(90%, 720px);
+  margin-inline: auto;
+  text-align: center;
+  line-height: 1.4;
+  word-break: break-word;
+}
 
 /* ---------- preview ---------- */
 
@@ -4886,6 +4900,11 @@ html.idle-cursor-hidden * {
 .settings-field-narrow {
   max-width: 220px;
 }
+.settings-field-separator {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
 .settings-field-hint {
   color: var(--text-dim);
   font-size: 0.85em;
@@ -4901,6 +4920,43 @@ html.idle-cursor-hidden * {
   flex: 1;
   min-width: 0;
   user-select: text;
+}
+.settings-labeled-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.settings-labeled-row > span:first-child {
+  color: var(--text-dim);
+  font-size: 0.9em;
+  flex-shrink: 0;
+  min-width: 4.5em;
+}
+.settings-labeled-row input[type='number'],
+.settings-labeled-row select {
+  flex: 1;
+  min-width: 0;
+  max-width: 280px;
+  user-select: text;
+}
+.settings-slideshow-order-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+.settings-slideshow-order-row > .settings-labeled-row {
+  flex: 0 0 auto;
+}
+.settings-slideshow-order-row > .settings-labeled-row select {
+  width: 9.5rem;
+  max-width: none;
+  flex: 0 0 auto;
+}
+.settings-slideshow-order-row > .settings-toggle {
+  flex: 1 1 0;
+  min-width: 0;
 }
 .settings-help {
   margin: 0;

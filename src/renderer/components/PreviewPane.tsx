@@ -90,7 +90,9 @@ export function PreviewPane(): JSX.Element {
   const imageVersionPreview = useAppStore((s) => s.imageVersionPreview)
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
-  const drawCaption = useAppStore((s) => s.settings.slideshow.drawCaption)
+  const drawCaption = useAppStore(
+    (s) => s.devGateActive && s.settings.slideshow.drawCaption
+  )
   const [captionPosterUrl, setCaptionPosterUrl] = useState<string | null>(null)
 
   const entries = useMemo(

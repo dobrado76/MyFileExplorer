@@ -7,6 +7,7 @@ import type {
   SearchResultItem
 } from '@shared/schemas/search'
 import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
+import { broadcast } from '../ipc/events'
 import { settingsStore } from '../settings/store'
 import { searchDb } from './db'
 import { queryTokens } from './queryBuilder'
@@ -120,12 +121,20 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
         'Uncheck “indexed” to search the current folder (works without an index), or add a folder/drive under Settings → Search.'
       )
     }
+    broadcast({
+      type: 'search-progress',
+      payload: { phase: 'querying', message: 'All indexed locations' }
+    })
     const { items, partial, contentSlow } = await queryIndexStructured(
       query,
       null,
       limit,
       opts
     )
+    broadcast({
+      type: 'search-progress',
+      payload: { phase: 'done', current: items.length, items: [...items] }
+    })
     return {
       items: items.slice(offset, offset + limit),
       partial,
@@ -171,12 +180,20 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
   if (scope.useIndexIfCovered) {
     const covered = readyRootCovering(dir)
     if (covered && covered.fileCount > 0) {
+      broadcast({
+        type: 'search-progress',
+        payload: { phase: 'querying', message: dir }
+      })
       const { items, partial, contentSlow } = await queryIndexStructured(
         query,
         dir,
         limit,
         opts
       )
+      broadcast({
+        type: 'search-progress',
+        payload: { phase: 'done', current: items.length, items: [...items] }
+      })
       return {
         items: items.slice(offset, offset + limit),
         partial,
