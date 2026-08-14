@@ -402,14 +402,6 @@ function pct(n: number, total: number): number {
   return Math.max(0, Math.min(100, (n / total) * 100))
 }
 
-function boxStyle(box: Box, cx: number, cy: number): string {
-  const l = pct(box.x, cx)
-  const t = pct(box.y, cy)
-  const w = Math.max(2, pct(box.w, cx))
-  const h = Math.max(2, pct(box.h, cy))
-  return `left:${l.toFixed(2)}%;top:${t.toFixed(2)}%;width:${w.toFixed(2)}%;height:${h.toFixed(2)}%`
-}
-
 function toPctBox(box: Box, cx: number, cy: number): { l: number; t: number; w: number; h: number } {
   return {
     l: pct(box.x, cx),
@@ -429,14 +421,6 @@ function parseSolidBg(xml: string): string | null {
     'i'
   ).exec(xml)
   return m ? `#${m[1]}` : null
-}
-
-function isDarkHex(hex: string): boolean {
-  const n = parseInt(hex.slice(1), 16)
-  const r = (n >> 16) & 255
-  const g = (n >> 8) & 255
-  const b = n & 255
-  return (r * 299 + g * 587 + b * 114) / 1000 < 140
 }
 
 function textToHtml(text: string): string {
@@ -542,76 +526,6 @@ async function extractSlideImage(
   used.set(key, url)
   used.set(normZipName(actual), url)
   return url
-}
-
-function renderSlideHtml(
-  items: SlideItem[],
-  layoutBoxes: Map<string, Box>,
-  images: Map<string, string>,
-  cx: number,
-  cy: number,
-  bg: string | null,
-  index: number,
-  notes: string[]
-): string {
-  const dark = bg ? isDarkHex(bg) : false
-  const theme = dark ? ' ppt-stage-dark' : ''
-  const bgStyle = bg ? `background:${bg}` : ''
-  const ar = cy > 0 ? cx / cy : 16 / 9
-  const leftovers: string[] = []
-  const bits: string[] = []
-  let pics = 0
-
-  for (const item of items) {
-    const box = item.box ?? (item.kind === 'text' && item.ph ? layoutBoxes.get(item.ph) ?? null : null)
-    if (item.kind === 'pic') {
-      const url = images.get(item.embed)
-      if (!url || pics >= IMAGES_PER_SLIDE) continue
-      pics += 1
-      if (!box) {
-        bits.push(`<img class="ppt-loose-img" src="${escapeHtml(url)}" alt="" />`)
-        continue
-      }
-      bits.push(
-        `<div class="ppt-abs ppt-pic" style="${boxStyle(box, cx, cy)}"><img src="${escapeHtml(url)}" alt="" /></div>`
-      )
-      continue
-    }
-    const title = item.ph === 'title' || item.ph === 'ctrtitle'
-    const bodyHtml = item.paras
-      .map((p) => {
-        const cls = title ? 'ppt-t' : p.bold ? 'ppt-b' : ''
-        return `<p class="${cls}">${escapeHtml(p.text)}</p>`
-      })
-      .join('')
-    if (!box) {
-      leftovers.push(...item.paras.map((p) => p.text))
-      continue
-    }
-    const size = item.paras[0]?.sizePt
-    const fs =
-      title ? 'ppt-title' : size != null && size >= 24 ? 'ppt-big' : 'ppt-body'
-    bits.push(
-      `<div class="ppt-abs ${fs}" style="${boxStyle(box, cx, cy)}">${bodyHtml}</div>`
-    )
-  }
-
-  const notesHtml =
-    notes.length > 0
-      ? `<div class="ppt-notes"><span class="ppt-notes-label">Notes</span>${notes
-          .map((n) => `<p>${escapeHtml(n)}</p>`)
-          .join('')}</div>`
-      : ''
-  const extra =
-    leftovers.length > 0
-      ? `<div class="ppt-extra">${leftovers.map((t) => `<p>${escapeHtml(t)}</p>`).join('')}</div>`
-      : ''
-
-  return `<section class="ppt-slide">
-  <div class="ppt-slide-label">Slide ${index}</div>
-  <div class="ppt-stage${theme}" style="aspect-ratio:${ar.toFixed(4)};${bgStyle}">${bits.join('')}</div>
-  ${extra}${notesHtml}
-</section>`
 }
 
 async function resolveEmbedUrl(

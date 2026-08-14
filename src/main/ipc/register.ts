@@ -14,6 +14,7 @@ import {
   transferRequestSchema,
   relocateRequestSchema,
   checkConflictsRequestSchema,
+  resolveIssuesRequestSchema,
   setVolumeLabelRequestSchema
 } from '@shared/schemas/fs'
 import { sessionSchema } from '@shared/schemas/session'
@@ -83,7 +84,8 @@ import {
   relocateEntries,
   checkConflicts,
   trashEntries,
-  deletePermanently
+  deletePermanently,
+  resolveOpIssues
 } from '../fs/ops'
 import { createShortcuts } from '../fs/shortcuts'
 import { compressToZip, extractZips } from '../fs/zip'
@@ -301,6 +303,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsMove, transferRequestSchema, async (req) => {
     muteWatchers()
     return moveEntries(req.sources, req.destinationDir, req.conflictPolicy)
+  })
+  handle(IPC.fsResolveIssues, resolveIssuesRequestSchema, async (req) => {
+    muteWatchers()
+    return resolveOpIssues(req)
   })
   handle(IPC.fsRelocate, relocateRequestSchema, async (req) => {
     muteWatchers()

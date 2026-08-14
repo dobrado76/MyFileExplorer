@@ -40,6 +40,7 @@
     "src/renderer/lib/historyEntries.ts",
     "src/renderer/lib/doubleSingleClick.ts",
     "src/renderer/lib/iconRequestQueue.ts",
-    "src/renderer/lib/recycleBinEntries.ts"
+    "src/renderer/lib/recycleBinEntries.ts",
+    "src/renderer/lib/searchEntries.ts"
   ]
 }

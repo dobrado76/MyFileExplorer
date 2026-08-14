@@ -1,0 +1,6 @@
+#!/bin/sh
+# Same command as CI: .github/workflows/build-windows.yml job "Check"
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+echo "pre-push: npm run check (typecheck + lint + test)"
+npm run check

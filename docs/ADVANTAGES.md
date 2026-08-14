@@ -74,7 +74,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
 | **Status-bar progress + Cancel** | Copy / move / trash / delete / rename / video-preview generation show clear progress; Cancel stops between items (and mid large-file copy). |
-| **Side-by-side conflict dialog** | Incoming vs existing compared with size/dates (and image thumbs). Per-file or apply-to-all Skip / Keep both / Replace — not a thin name-only prompt. |
+| **Continue-then-review bulk ops** | Copy / move / trash / delete keep going through every auto-ok item. One review at the end groups similar issues (already exist, in use, access denied, …) with apply-to-similar — including **Keep most recent**. Name conflicts still get side-by-side compare (size/dates/thumbs). No mid-copy “do this for all” stall. |
 | **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
 | **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. |
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |

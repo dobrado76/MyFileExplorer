@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ErrCode } from '../result'
 
 export const entryKindSchema = z.enum(['file', 'dir', 'symlink'])
 export type EntryKind = z.infer<typeof entryKindSchema>
@@ -76,9 +77,50 @@ export const transferRequestSchema = z.object({
   conflictPolicy: conflictPolicySchema.default('fail')
 })
 export type TransferRequest = z.infer<typeof transferRequestSchema>
-export type CopyResponse = { copied: string[]; skipped: string[] }
 export type PathPair = { from: string; to: string }
-export type MoveResponse = { moved: string[]; moves: PathPair[]; skipped: string[] }
+
+export type OpIssueKind =
+  | 'name_conflict'
+  | 'busy'
+  | 'not_allowed'
+  | 'not_found'
+  | 'path_too_long'
+  | 'io'
+  | 'fatal'
+
+export type OpIssue = {
+  kind: OpIssueKind
+  code: ErrCode
+  source: string
+  dest?: string
+  message: string
+  sourceMtimeMs?: number
+  destMtimeMs?: number
+}
+
+export type CopyResponse = {
+  copied: string[]
+  skipped: string[]
+  issues: OpIssue[]
+  aborted?: 'cancelled' | 'fatal'
+}
+export type MoveResponse = {
+  moved: string[]
+  moves: PathPair[]
+  skipped: string[]
+  issues: OpIssue[]
+  aborted?: 'cancelled' | 'fatal'
+}
+export type TrashResponse = {
+  trashed: string[]
+  issues: OpIssue[]
+  aborted?: 'cancelled' | 'fatal'
+}
+export type DeletePermanentResponse = {
+  deleted: string[]
+  issues: OpIssue[]
+  aborted?: 'cancelled' | 'fatal'
+}
 
 export const relocateRequestSchema = z.object({
   pairs: z
@@ -123,7 +165,36 @@ export type CheckConflictsResponse = {
   items: ConflictItem[]
 }
 
-export type ConflictDecision = 'replace' | 'skip' | 'rename'
+export type ConflictDecision = 'replace' | 'skip' | 'rename' | 'keep_newer'
+
+export const issueDecisionSchema = z.enum(['replace', 'skip', 'rename', 'keep_newer', 'retry'])
+export type IssueDecision = z.infer<typeof issueDecisionSchema>
+
+export const resolveIssuesRequestSchema = z.object({
+  op: z.enum(['copy', 'move', 'trash', 'delete']),
+  destinationDir: z.string().min(1).optional(),
+  items: z
+    .array(
+      z.object({
+        source: z.string().min(1),
+        dest: z.string().optional(),
+        decision: issueDecisionSchema,
+        sourceMtimeMs: z.number().optional(),
+        destMtimeMs: z.number().optional()
+      })
+    )
+    .min(1)
+})
+export type ResolveIssuesRequest = z.infer<typeof resolveIssuesRequestSchema>
+export type ResolveIssuesResponse = {
+  copied: string[]
+  moved: string[]
+  moves: PathPair[]
+  trashed: string[]
+  deleted: string[]
+  skipped: number
+  issues: OpIssue[]
+}
 
 export const pathsRequestSchema = z.object({ paths: z.array(z.string().min(1)).min(1) })
 export type PathsRequest = z.infer<typeof pathsRequestSchema>

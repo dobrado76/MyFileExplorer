@@ -4,7 +4,9 @@ import type {
   ConflictPolicy,
   ConflictDecision,
   ConflictItem,
-  DriveInfo
+  DriveInfo,
+  IssueDecision,
+  OpIssue
 } from '@shared/schemas/fs'
 import type {
   SessionState,
@@ -15,6 +17,7 @@ import type {
   ViewLayout,
   Splitters
 } from '@shared/schemas/session'
+import { issueKey } from '@shared/opIssues'
 import type { HistoryEntry } from '@shared/tabHistory'
 import {
   folderHistory,
@@ -69,7 +72,7 @@ import {
   type QuickAccessEntry
 } from '../lib/quickAccess'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
-import { searchResultsToEntries } from '../lib/searchEntries'
+import { pruneSearchResultItems, searchResultsToEntries } from '../lib/searchEntries'
 import { formatSearchProgress } from '@shared/searchProgress'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
@@ -166,6 +169,14 @@ export type DialogState =
       conflicts: string[]
       items: ConflictItem[]
       clearCutAfter: boolean
+    }
+  | {
+      kind: 'op-issues'
+      op: 'copy' | 'move' | 'trash' | 'delete'
+      issues: OpIssue[]
+      destinationDir?: string
+      clearCutAfter?: boolean
+      doneCount: number
     }
   | { kind: 'new-file'; parent: string }
   | { kind: 'properties'; path: string }
@@ -314,7 +325,7 @@ function softReloadMinGapMs(n: number): number {
  * 20k rows every Del is a multi-hundred-ms hitch; prune updates this in place.
  */
 let viewOrderCache: {
-  listingRef: DirEntry[]
+  listingRef: readonly { path: string }[]
   sortKey: string
   sortDir: string
   foldersFirst: boolean
@@ -587,6 +598,10 @@ type AppState = {
    */
   resolveConflict(
     choice: null | ConflictDecision | Record<string, ConflictDecision>
+  ): Promise<void>
+  /** End-of-op review: apply per-item or skip remaining (null). */
+  resolveOpIssues(
+    items: null | { source: string; dest?: string; decision: IssueDecision; sourceMtimeMs?: number; destMtimeMs?: number }[]
   ): Promise<void>
   /** Delete file-view selection, or explicit `paths` (e.g. tree-focused folder). */
   deleteSelection(permanent: boolean, paths?: string[]): Promise<void>
@@ -940,6 +955,59 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
+  function openOpIssuesReview(opts: {
+    op: 'copy' | 'move' | 'trash' | 'delete'
+    issues: OpIssue[]
+    destinationDir?: string
+    clearCutAfter?: boolean
+    doneCount: number
+  }): void {
+    if (opts.issues.length === 0) return
+    set({
+      dialog: {
+        kind: 'op-issues',
+        op: opts.op,
+        issues: opts.issues,
+        destinationDir: opts.destinationDir,
+        clearCutAfter: opts.clearCutAfter,
+        doneCount: opts.doneCount
+      }
+    })
+  }
+
+  async function runPermanentDelete(toDelete: string[]): Promise<void> {
+    try {
+      selectAfterDelete(toDelete)
+      await releaseMediaLocks()
+      const res = await withBusyFeedback(
+        'delete',
+        'Deleting…',
+        toDelete.length === 1 ? basename(toDelete[0]!) : `${toDelete.length} items`,
+        () => call(api.fs.deletePermanent({ paths: toDelete }))
+      )
+      if (res.deleted.length > 0) {
+        await afterPathsRemoved(res.deleted)
+      }
+      if (res.issues.length > 0) {
+        get().notify(
+          `Deleted ${res.deleted.length.toLocaleString()} · ${res.issues.length.toLocaleString()} need review`
+        )
+        openOpIssuesReview({
+          op: 'delete',
+          issues: res.issues,
+          doneCount: res.deleted.length
+        })
+      } else {
+        get().notify(
+          `Permanently deleted ${res.deleted.length} item${res.deleted.length > 1 ? 's' : ''}`
+        )
+      }
+    } catch (e) {
+      clearMediaHold()
+      reportOperationError('Delete failed', e)
+    }
+  }
+
   async function executeTransfer(
     op2: 'copy' | 'move',
     src: string[],
@@ -959,7 +1027,20 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (r.copyPaths.length > 0) {
           recordUndo({ kind: 'copy', paths: r.copyPaths, label: basename(r.copyPaths[0]!) })
         }
-        get().notify(`Copied ${r.copied}, skipped ${r.skipped}`)
+        if (r.issues.length > 0) {
+          get().notify(
+            `Copied ${r.copied.toLocaleString()} · ${r.issues.length.toLocaleString()} need review`
+          )
+          openOpIssuesReview({
+            op: 'copy',
+            issues: r.issues,
+            destinationDir: dest,
+            clearCutAfter: clearCut,
+            doneCount: r.copied
+          })
+        } else {
+          get().notify(`Copied ${r.copied}, skipped ${r.skipped}`)
+        }
         notifyTreeReload([dest])
       } else {
         if (r.movePairs.length > 0) {
@@ -969,8 +1050,23 @@ export const useAppStore = create<AppState>()((set, get) => {
             label: basename(r.movePairs[0]!.to)
           })
         }
-        get().notify(`Moved ${r.moved}, skipped ${r.skipped}`)
-        notifyTreeMutation({ removed: src, reloadParents: [dest] })
+        const movedSrc = r.movePairs.map((p) => p.from)
+        if (movedSrc.length > 0) pruneListingRemoved(movedSrc)
+        if (r.issues.length > 0) {
+          get().notify(
+            `Moved ${r.moved.toLocaleString()} · ${r.issues.length.toLocaleString()} need review`
+          )
+          openOpIssuesReview({
+            op: 'move',
+            issues: r.issues,
+            destinationDir: dest,
+            clearCutAfter: clearCut,
+            doneCount: r.moved
+          })
+        } else {
+          get().notify(`Moved ${r.moved}, skipped ${r.skipped}`)
+        }
+        notifyTreeMutation({ removed: movedSrc, reloadParents: [dest] })
       }
       if (clearCut) set({ clipboard: null })
       if (get().mediaHold) set({ mediaHold: false })
@@ -997,9 +1093,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     skipped: number
     copyPaths: string[]
     movePairs: { from: string; to: string }[]
+    issues: OpIssue[]
   }> {
     if (src.length === 0) {
-      return { copied: 0, moved: 0, skipped: 0, copyPaths: [], movePairs: [] }
+      return { copied: 0, moved: 0, skipped: 0, copyPaths: [], movePairs: [], issues: [] }
     }
     if (op2 === 'copy') {
       const res = await call(
@@ -1010,7 +1107,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         moved: 0,
         skipped: res.skipped.length,
         copyPaths: res.copied,
-        movePairs: []
+        movePairs: [],
+        issues: res.issues ?? []
       }
     }
     const res = await call(
@@ -1021,7 +1119,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       moved: res.moved.length,
       skipped: res.skipped.length,
       copyPaths: [],
-      movePairs: res.moves
+      movePairs: res.moves,
+      issues: res.issues ?? []
     }
   }
 
@@ -1378,12 +1477,16 @@ export const useAppStore = create<AppState>()((set, get) => {
   function pathsInViewOrder(): string[] {
     const s = get()
     const tab = s.activeTab()
+    const sourceEntries = tab.search.active
+      ? searchResultsToEntries(tab.search.results)
+      : s.listing.entries
+    const listingRef = tab.search.active ? tab.search.results : s.listing.entries
     const owning = resolveFolderView(tab.path, s.settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const filterKey = viewOrderFilterKey(s)
     if (
       viewOrderCache &&
-      viewOrderCache.listingRef === s.listing.entries &&
+      viewOrderCache.listingRef === listingRef &&
       viewOrderCache.sortKey === sort.key &&
       viewOrderCache.sortDir === sort.dir &&
       viewOrderCache.foldersFirst === s.settings.foldersFirst &&
@@ -1392,7 +1495,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       return viewOrderCache.paths
     }
     const before = sortEntries(
-      s.listing.entries.filter(
+      sourceEntries.filter(
         (e) => !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
       ),
       sort,
@@ -1400,7 +1503,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     )
     const paths = before.map((e) => e.path)
     viewOrderCache = {
-      listingRef: s.listing.entries,
+      listingRef,
       sortKey: sort.key,
       sortDir: sort.dir,
       foldersFirst: s.settings.foldersFirst,
@@ -1419,28 +1522,41 @@ export const useAppStore = create<AppState>()((set, get) => {
   function pruneListingRemoved(removed: string[]): void {
     if (removed.length === 0) return
     const gone = new Set(removed.map((p) => p.toLowerCase()))
+    const pathGone = (p: string): boolean =>
+      gone.has(p.toLowerCase()) || removed.some((r) => isUnderPath(p, r))
     set((s) => {
       const listingsByTabId: Record<string, Listing> = {}
       for (const [tid, L] of Object.entries(s.listingsByTabId)) {
         listingsByTabId[tid] = {
           ...L,
-          entries: L.entries.filter((e) => !gone.has(e.path.toLowerCase()))
+          entries: L.entries.filter((e) => !pathGone(e.path))
         }
       }
       const activeListing = listingsByTabId[s.activeTabId] ?? {
         ...s.listing,
-        entries: s.listing.entries.filter((e) => !gone.has(e.path.toLowerCase()))
+        entries: s.listing.entries.filter((e) => !pathGone(e.path))
       }
-      if (viewOrderCache && viewOrderCache.listingRef === s.listing.entries) {
+      const tabs = s.tabs.map((t) => {
+        if (!t.search.active || t.search.results.length === 0) return t
+        const results = pruneSearchResultItems(t.search.results, removed)
+        if (results === t.search.results || results.length === t.search.results.length) return t
+        return { ...t, search: { ...t.search, results } }
+      })
+      const activeSearch = tabs.find((t) => t.id === s.activeTabId)?.search ?? s.search
+      if (
+        viewOrderCache &&
+        (viewOrderCache.listingRef === s.listing.entries ||
+          viewOrderCache.listingRef === s.search.results)
+      ) {
         viewOrderCache = {
           ...viewOrderCache,
-          listingRef: activeListing.entries,
-          paths: viewOrderCache.paths.filter((p) => !gone.has(p.toLowerCase()))
+          listingRef: activeSearch.active ? activeSearch.results : activeListing.entries,
+          paths: viewOrderCache.paths.filter((p) => !pathGone(p))
         }
       } else {
         viewOrderCache = null
       }
-      return { listingsByTabId, listing: activeListing }
+      return { listingsByTabId, listing: activeListing, tabs, search: activeSearch }
     })
     // Avoid the delete's own directory-watch event re-listing tens of thousands of files.
     suppressSoftReloadUntil = Math.max(suppressSoftReloadUntil, Date.now() + 8000)
@@ -3524,23 +3640,6 @@ export const useAppStore = create<AppState>()((set, get) => {
           return true
         }
 
-        const { conflicts, items } = await call(
-          api.fs.checkConflicts({ sources: effective, destinationDir })
-        )
-        if (conflicts.length > 0) {
-          set({
-            dialog: {
-              kind: 'conflict',
-              op,
-              sources: effective,
-              destinationDir,
-              conflicts,
-              items,
-              clearCutAfter
-            }
-          })
-          return false
-        }
         await executeTransfer(op, effective, destinationDir, 'fail', clearCutAfter)
         return true
       } catch (e) {
@@ -3737,6 +3836,110 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async resolveOpIssues(items) {
+      const dialog = get().dialog
+      if (!dialog || dialog.kind !== 'op-issues') return
+      set({ dialog: null })
+      if (items === null || items.length === 0) return
+
+      const decided = new Set(items.map((it) => issueKey(it)))
+      const leftover = dialog.issues.filter((it) => !decided.has(issueKey(it)))
+
+      try {
+        const busyKind =
+          dialog.op === 'copy' || dialog.op === 'move' ? dialog.op : dialog.op === 'trash' ? 'trash' : 'delete'
+        const busyLabel =
+          dialog.op === 'copy'
+            ? 'Copying…'
+            : dialog.op === 'move'
+              ? 'Moving…'
+              : dialog.op === 'trash'
+                ? 'Moving to Recycle Bin…'
+                : 'Deleting…'
+        const res = await withBusyFeedback(busyKind, busyLabel, `${items.length} items`, () =>
+          call(
+            api.fs.resolveIssues({
+              op: dialog.op,
+              destinationDir: dialog.destinationDir,
+              items
+            })
+          )
+        )
+
+        let done = dialog.doneCount
+        if (res.copied.length > 0) {
+          recordUndo({
+            kind: 'copy',
+            paths: res.copied,
+            label: basename(res.copied[0]!)
+          })
+          done += res.copied.length
+          notifyTreeReload(dialog.destinationDir ? [dialog.destinationDir] : [])
+        }
+        if (res.moves.length > 0) {
+          recordUndo({
+            kind: 'move',
+            pairs: res.moves,
+            label: basename(res.moves[0]!.to)
+          })
+          done += res.moves.length
+          const movedSrc = res.moves.map((p) => p.from)
+          pruneListingRemoved(movedSrc)
+          notifyTreeMutation({
+            removed: movedSrc,
+            reloadParents: dialog.destinationDir ? [dialog.destinationDir] : []
+          })
+        }
+        if (res.trashed.length > 0) {
+          recordUndo({
+            kind: 'trash',
+            paths: res.trashed,
+            label: basename(res.trashed[0]!)
+          })
+          done += res.trashed.length
+          await afterPathsRemoved(res.trashed)
+        }
+        if (res.deleted.length > 0) {
+          done += res.deleted.length
+          await afterPathsRemoved(res.deleted)
+        }
+
+        const remaining = [...leftover, ...(res.issues ?? [])]
+        if (remaining.length > 0) {
+          get().notify(
+            `${done.toLocaleString()} done · ${remaining.length.toLocaleString()} need review`
+          )
+          openOpIssuesReview({
+            op: dialog.op,
+            issues: remaining,
+            destinationDir: dialog.destinationDir,
+            clearCutAfter: dialog.clearCutAfter,
+            doneCount: done
+          })
+        } else {
+          const verb =
+            dialog.op === 'copy'
+              ? 'Copied'
+              : dialog.op === 'move'
+                ? 'Moved'
+                : dialog.op === 'trash'
+                  ? 'Moved to Recycle Bin'
+                  : 'Deleted'
+          get().notify(`${verb} ${done.toLocaleString()}`)
+        }
+        await get().refresh()
+      } catch (e) {
+        openOpIssuesReview({
+          op: dialog.op,
+          issues: leftover.length > 0 ? leftover : dialog.issues,
+          destinationDir: dialog.destinationDir,
+          clearCutAfter: dialog.clearCutAfter,
+          doneCount: dialog.doneCount
+        })
+        reportOperationError('Could not apply review decisions', e)
+      }
+    },
+
     async deleteSelection(permanent, paths) {
       const s = get()
       if (s.recycleBin.active) {
@@ -3751,19 +3954,34 @@ export const useAppStore = create<AppState>()((set, get) => {
           // Select the survivor first so the preview keeps painting while we trash.
           selectAfterDelete(target)
           await releaseMediaLocks()
-          await withBusyFeedback(
+          const res = await withBusyFeedback(
             'trash',
             'Moving to Recycle Bin…',
             target.length === 1 ? basename(target[0]!) : `${target.length} items`,
             () => call(api.fs.trash({ paths: target }))
           )
-          recordUndo({
-            kind: 'trash',
-            paths: [...target],
-            label: basename(target[0]!)
-          })
-          get().notify(`Moved ${target.length} item${target.length > 1 ? 's' : ''} to Recycle Bin`)
-          await afterPathsRemoved(target)
+          if (res.trashed.length > 0) {
+            recordUndo({
+              kind: 'trash',
+              paths: res.trashed,
+              label: basename(res.trashed[0]!)
+            })
+            await afterPathsRemoved(res.trashed)
+          }
+          if (res.issues.length > 0) {
+            get().notify(
+              `Moved ${res.trashed.length.toLocaleString()} · ${res.issues.length.toLocaleString()} need review`
+            )
+            openOpIssuesReview({
+              op: 'trash',
+              issues: res.issues,
+              doneCount: res.trashed.length
+            })
+          } else {
+            get().notify(
+              `Moved ${res.trashed.length} item${res.trashed.length > 1 ? 's' : ''} to Recycle Bin`
+            )
+          }
         } catch (e) {
           clearMediaHold()
           reportOperationError('Delete failed', e)
@@ -3783,21 +4001,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
 
       async function doPermanentDelete(toDelete: string[]): Promise<void> {
-        try {
-          selectAfterDelete(toDelete)
-          await releaseMediaLocks()
-          await withBusyFeedback(
-            'delete',
-            'Deleting…',
-            toDelete.length === 1 ? basename(toDelete[0]!) : `${toDelete.length} items`,
-            () => call(api.fs.deletePermanent({ paths: toDelete }))
-          )
-          get().notify(`Permanently deleted ${toDelete.length} item${toDelete.length > 1 ? 's' : ''}`)
-          await afterPathsRemoved(toDelete)
-        } catch (e) {
-          clearMediaHold()
-          reportOperationError('Delete failed', e)
-        }
+        await runPermanentDelete(toDelete)
       }
     },
 
@@ -3805,23 +4009,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const dialog = get().dialog
       set({ dialog: null })
       if (!dialog || dialog.kind !== 'confirm-permanent-delete' || !confirmed) return
-      try {
-        selectAfterDelete(dialog.paths)
-        await releaseMediaLocks()
-        await withBusyFeedback(
-          'delete',
-          'Deleting…',
-          dialog.paths.length === 1 ? basename(dialog.paths[0]!) : `${dialog.paths.length} items`,
-          () => call(api.fs.deletePermanent({ paths: dialog.paths }))
-        )
-        get().notify(
-          `Permanently deleted ${dialog.paths.length} item${dialog.paths.length > 1 ? 's' : ''}`
-        )
-        await afterPathsRemoved(dialog.paths)
-      } catch (e) {
-        clearMediaHold()
-        reportOperationError('Delete failed', e)
-      }
+      await runPermanentDelete(dialog.paths)
     },
 
     async openEntry(entry) {

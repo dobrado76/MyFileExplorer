@@ -4059,6 +4059,112 @@ html.idle-cursor-hidden * {
 .conflict-actions-grow {
   flex: 1;
 }
+.modal.modal-op-issues {
+  width: min(960px, 96vw);
+  min-width: min(720px, 96vw);
+  max-width: 96vw;
+  max-height: 90vh;
+}
+.modal-body.modal-body-op-issues {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.op-issues-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+}
+.op-issues-group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.op-issues-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.op-issues-group-toggle {
+  flex: 1;
+  min-width: 160px;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: var(--text);
+  padding: 0;
+  cursor: pointer;
+}
+.op-issues-group-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.op-issues-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.op-issues-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+.op-issues-rows > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.op-issues-row {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.op-issues-row:hover,
+.op-issues-row.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
+}
+.op-issues-row-name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.op-issues-row-msg {
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.op-issues-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
 .modal.modal-settings {
   width: min(1240px, 96vw);
   min-width: min(800px, 96vw);

@@ -9,6 +9,7 @@ export const IPC = {
   fsRename: 'fs:rename',
   fsCopy: 'fs:copy',
   fsMove: 'fs:move',
+  fsResolveIssues: 'fs:resolveIssues',
   fsRelocate: 'fs:relocate',
   fsCheckConflicts: 'fs:checkConflicts',
   /** Right-drag “Create shortcuts here” — write .lnk files in destination. */

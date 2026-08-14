@@ -100,15 +100,15 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
-| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
-| Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory                                                                       |
+| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
+| Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory. Same continue-then-review as trash when some items fail |
 | Compress / Extract | Context **Compress to ZIP file** (bundled 7za, streamed) / **Extract All…** — sibling `.zip` or folder (Explorer naming); progress + Cancel (D30) |
 | Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
 | Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
 | Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
 | Properties         | App dialog with useful detail: type, location, dates, attributes; files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar. **Windows Properties…** (bottom-left) opens Explorer’s own property sheet for Security / Sharing / etc. (not reimplemented in-app) |
 
-Conflicts (paste/name exists): side-by-side compare (thumbs for images; size/dates/type for all) then Replace / Skip / Keep both (rename), per file or apply to all. **Same-folder copy-paste** skips the dialog and auto Keep both (`name (2).ext`), selecting the new copies.
+Copy / move / trash / delete **continue** through every item that does not need a decision. Conflicts, locks, and other per-item failures queue for one **review** at the end, grouped by similar kind, with apply-to-similar (Skip / Keep both / Replace / **Keep most recent** / Retry). Name conflicts still use side-by-side compare (thumbs for images; size/dates/type). **Same-folder copy-paste** auto Keep both (`name (2).ext`) with no dialog, then selects the new copies. Disk-full / destination-gone stops remaining work to that destination but still opens review.
 
 ---
 

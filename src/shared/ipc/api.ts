@@ -3,10 +3,14 @@ import type {
   CheckConflictsRequest,
   CheckConflictsResponse,
   CopyResponse,
+  DeletePermanentResponse,
   DriveInfo,
   ListRequest,
   ListResponse,
   MoveResponse,
+  ResolveIssuesRequest,
+  ResolveIssuesResponse,
+  TrashResponse,
   NameInParentRequest,
   PathRequest,
   PathsRequest,
@@ -53,6 +57,7 @@ export type MyFileExplorerApi = {
     rename(req: RenameRequest): Promise<Result<{ path: string }>>
     copy(req: TransferRequest): Promise<Result<CopyResponse>>
     move(req: TransferRequest): Promise<Result<MoveResponse>>
+    resolveIssues(req: ResolveIssuesRequest): Promise<Result<ResolveIssuesResponse>>
     /** Move each path to an exact destination (undo/redo). */
     relocate(req: RelocateRequest): Promise<Result<{ moved: string[] }>>
     checkConflicts(req: CheckConflictsRequest): Promise<Result<CheckConflictsResponse>>
@@ -64,8 +69,8 @@ export type MyFileExplorerApi = {
     compressToZip(req: PathsRequest): Promise<Result<{ zipPath: string }>>
     /** Extract `.zip` paths into sibling folders named after each archive. */
     extractZip(req: PathsRequest): Promise<Result<{ extractedDirs: string[] }>>
-    trash(req: PathsRequest): Promise<Result<{ trashed: string[] }>>
-    deletePermanent(req: PathsRequest): Promise<Result<{ deleted: string[] }>>
+    trash(req: PathsRequest): Promise<Result<TrashResponse>>
+    deletePermanent(req: PathsRequest): Promise<Result<DeletePermanentResponse>>
     /** Restore trashed items by their original full paths (Windows Recycle Bin). */
     restoreFromTrash(req: PathsRequest): Promise<Result<{ restored: string[]; missing: string[] }>>
     /** List items currently in the Windows Recycle Bin. */

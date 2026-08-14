@@ -140,7 +140,7 @@ Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linu
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` | Electron + HMR |
-| `npm run check` | typecheck + lint + test |
+| `npm run check` | typecheck + lint + test — **same command CI runs**; also runs on `git push` |
 | `npm run test` | Vitest |
 | `npm run build` | Production electron-vite build |
 | `npm run dist` | Bump patch, prune old Setup*.exe, build Windows installer (Windows host only) |

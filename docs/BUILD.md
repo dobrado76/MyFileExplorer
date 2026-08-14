@@ -12,11 +12,13 @@ The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well ove
 
 ```bash
 npm ci
-npm run check
+npm run check          # typecheck + lint + test — same as the GitHub “Typecheck, lint, test” job
 npm run build:win      # electron-vite + electron-builder → dist/
 # or
 npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a local path is set
 ```
+
+`npm run check` is what the Actions job **Typecheck, lint, test** runs. A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command so a failing lint or test never leaves the machine. Skip only if you must: `git push --no-verify`.
 
 Output: `dist/MyFileExplorer Setup <version>.exe` (plus `.blockmap` / `latest.yml`).
 

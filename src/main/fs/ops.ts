@@ -10,9 +10,15 @@ import type {
   ConflictPolicy,
   ConflictSide,
   CopyResponse,
+  DeletePermanentResponse,
   EntryKind,
-  MoveResponse
+  MoveResponse,
+  OpIssue,
+  ResolveIssuesRequest,
+  ResolveIssuesResponse,
+  TrashResponse
 } from '@shared/schemas/fs'
+import { classifyOpIssue, resolveIssueDecision, shouldQueueNameConflict } from '@shared/opIssues'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { recyclePathWin32Robust } from './trashWin32'
@@ -214,7 +220,56 @@ function assertTransferLegal(source: string, dest: string): void {
   }
 }
 
-type TransferPlanItem = { source: string; target: string } | { skip: string }
+type TransferPlanItem =
+  | { source: string; target: string }
+  | { skip: string }
+  | { conflict: true; source: string; target: string }
+
+function nodeErrno(e: unknown): string | null {
+  if (e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string') {
+    return (e as { code: string }).code
+  }
+  return null
+}
+
+async function mtimeMsOf(p: string): Promise<number | undefined> {
+  try {
+    return (await fsp.stat(p)).mtimeMs
+  } catch {
+    return undefined
+  }
+}
+
+async function toIssue(
+  e: unknown,
+  action: 'copy' | 'move' | 'delete',
+  source: string,
+  dest?: string,
+  isDir?: boolean
+): Promise<OpIssue> {
+  const mapped =
+    e instanceof AppError ? e : await appErrorFromFsFailure(e, { action, path: source, isDir })
+  const kind = classifyOpIssue(mapped.code, nodeErrno(e))
+  let sourceMtimeMs: number | undefined
+  let destMtimeMs: number | undefined
+  if (kind === 'name_conflict') {
+    sourceMtimeMs = await mtimeMsOf(source)
+    if (dest) destMtimeMs = await mtimeMsOf(dest)
+  }
+  return {
+    kind,
+    code: mapped.code,
+    source,
+    dest,
+    message: mapped.message,
+    sourceMtimeMs,
+    destMtimeMs
+  }
+}
+
+function isCancelled(e: unknown): boolean {
+  return e instanceof AppError && e.code === 'cancelled'
+}
 
 async function planTransfer(
   sources: string[],
@@ -239,8 +294,9 @@ async function planTransfer(
       continue
     }
     if (await pathExists(target)) {
-      if (policy === 'fail') {
-        throw new AppError('conflict', `"${name}" already exists in destination`)
+      if (shouldQueueNameConflict(policy, true)) {
+        items.push({ conflict: true, source, target })
+        continue
       }
       if (policy === 'skip') {
         items.push({ skip: source })
@@ -459,6 +515,7 @@ async function copyWithRemotes(
 
   const copied: string[] = []
   const skipped: string[] = []
+  const issues: OpIssue[] = []
   const progress = beginOp('copy', sources.length, 'Transferring…')
   try {
     for (const source of sources) {
@@ -467,91 +524,115 @@ async function copyWithRemotes(
         ? remoteBasename(parseRemoteLocation(source)?.remotePath ?? '') || 'file'
         : path.basename(source)
       progress.pulse(name)
+      try {
+        const destIsRemote = destinationDir.toLowerCase().startsWith('mfe-remote://')
+        const srcIsRemote = source.toLowerCase().startsWith('mfe-remote://')
 
-      const destIsRemote = destinationDir.toLowerCase().startsWith('mfe-remote://')
-      const srcIsRemote = source.toLowerCase().startsWith('mfe-remote://')
+        if (destIsRemote) {
+          const destUri = remoteJoin(
+            parseRemoteLocation(destinationDir)?.remotePath ?? '/',
+            name
+          )
+          const destFull = formatRemoteLocation(
+            parseRemoteLocation(destinationDir)!.connectionId,
+            destUri!
+          )
+          const exists = (await remoteStatKind(destFull)) != null
+          if (exists && policy === 'skip') {
+            skipped.push(source)
+            progress.tick(name)
+            continue
+          }
+          if (exists && policy === 'fail') {
+            issues.push({
+              kind: 'name_conflict',
+              code: 'conflict',
+              source,
+              dest: destFull,
+              message: `"${name}" already exists on the remote`
+            })
+            progress.tick(name)
+            continue
+          }
+          if (exists && policy === 'replace') {
+            const { remoteDelete } = await import('../remote/sessionPool')
+            await remoteDelete(destFull)
+          }
 
-      if (destIsRemote) {
-        const destUri = remoteJoin(
-          parseRemoteLocation(destinationDir)?.remotePath ?? '/',
-          name
-        )
-        const destFull = formatRemoteLocation(
-          parseRemoteLocation(destinationDir)!.connectionId,
-          destUri!
-        )
-        const exists = (await remoteStatKind(destFull)) != null
-        if (exists && policy === 'skip') {
-          skipped.push(source)
-          continue
-        }
-        if (exists && policy === 'fail') {
-          throw new AppError('conflict', `"${name}" already exists on the remote`)
-        }
-        if (exists && policy === 'replace') {
-          const { remoteDelete } = await import('../remote/sessionPool')
-          await remoteDelete(destFull)
-        }
-
-        if (srcIsRemote) {
-          // Stage via local temp
-          const tmp = path.join(scratchRoot, `${Date.now()}-${name}`)
+          if (srcIsRemote) {
+            const tmp = path.join(scratchRoot, `${Date.now()}-${name}`)
+            const kind = await remoteStatKind(source)
+            if (kind === 'dir') {
+              throw new AppError(
+                'not-allowed',
+                'Folder transfer between remotes is not supported yet — download then upload'
+              )
+            }
+            await remoteDownloadFile(source, tmp)
+            try {
+              copied.push(await remoteUploadFile(tmp, destinationDir, name))
+            } finally {
+              await fsp.rm(tmp, { force: true }).catch(() => undefined)
+            }
+          } else {
+            const st = await fsp.stat(source)
+            if (st.isDirectory()) {
+              throw new AppError(
+                'not-allowed',
+                'Uploading folders is not supported yet — zip locally or upload files'
+              )
+            }
+            copied.push(await remoteUploadFile(source, destinationDir, name))
+          }
+        } else if (srcIsRemote) {
+          const target = path.join(destinationDir, name)
+          if (await pathExists(target)) {
+            if (policy === 'skip') {
+              skipped.push(source)
+              progress.tick(name)
+              continue
+            }
+            if (policy === 'fail') {
+              issues.push({
+                kind: 'name_conflict',
+                code: 'conflict',
+                source,
+                dest: target,
+                message: `"${name}" already exists`,
+                sourceMtimeMs: await mtimeMsOf(source),
+                destMtimeMs: await mtimeMsOf(target)
+              })
+              progress.tick(name)
+              continue
+            }
+            if (policy === 'replace') {
+              await fsp.rm(target, { recursive: true, force: true })
+            }
+          }
           const kind = await remoteStatKind(source)
           if (kind === 'dir') {
             throw new AppError(
               'not-allowed',
-              'Folder transfer between remotes is not supported yet — download then upload'
+              'Downloading remote folders is not supported yet — download files individually'
             )
           }
-          await remoteDownloadFile(source, tmp)
-          try {
-            copied.push(await remoteUploadFile(tmp, destinationDir, name))
-          } finally {
-            await fsp.rm(tmp, { force: true }).catch(() => undefined)
-          }
-        } else {
-          const st = await fsp.stat(source)
-          if (st.isDirectory()) {
-            throw new AppError(
-              'not-allowed',
-              'Uploading folders is not supported yet — zip locally or upload files'
-            )
-          }
-          copied.push(await remoteUploadFile(source, destinationDir, name))
+          await remoteDownloadFile(source, target)
+          copied.push(target)
         }
-      } else if (srcIsRemote) {
-        // Download to local destinationDir
-        const target = path.join(destinationDir, name)
-        if (await pathExists(target)) {
-          if (policy === 'skip') {
-            skipped.push(source)
-            continue
-          }
-          if (policy === 'fail') {
-            throw new AppError('conflict', `"${name}" already exists`)
-          }
-          if (policy === 'replace') {
-            await fsp.rm(target, { recursive: true, force: true })
-          }
-        }
-        const kind = await remoteStatKind(source)
-        if (kind === 'dir') {
-          throw new AppError(
-            'not-allowed',
-            'Downloading remote folders is not supported yet — download files individually'
-          )
-        }
-        await remoteDownloadFile(source, target)
-        copied.push(target)
+        progress.tick(name)
+      } catch (e) {
+        if (isCancelled(e)) throw e
+        issues.push(await toIssue(e, 'copy', source))
+        progress.tick(name)
       }
-      progress.tick(name)
     }
     progress.finish()
   } catch (e) {
     progress.fail()
+    if (isCancelled(e)) return { copied, skipped, issues, aborted: 'cancelled' }
     throw e
   }
-  return { copied, skipped }
+  return { copied, skipped, issues }
 }
 
 export async function copyEntries(
@@ -570,18 +651,44 @@ export async function copyEntries(
   const plan = await planTransfer(sources, destinationDir, policy)
   const copied: string[] = []
   const skipped: string[] = []
+  const issues: OpIssue[] = []
   const workSources: string[] = []
   for (const item of plan) {
     if ('skip' in item) skipped.push(item.skip)
-    else workSources.push(item.source)
+    else if (!('conflict' in item)) workSources.push(item.source)
   }
 
-  const total = workSources.length > 0 ? await countWorkUnits(workSources) : 0
-  const progress = beginOp('copy', total, 'Copying…')
+  const total = workSources.length > 0 ? await countWorkUnits(workSources) : plan.length
+  const progress = beginOp('copy', Math.max(total, 1), 'Copying…')
+  let fatal = false
   try {
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
+      if (fatal) {
+        const src = item.source
+        const dest = item.target
+        issues.push({
+          kind: 'fatal',
+          code: 'io',
+          source: src,
+          dest,
+          message: 'Stopped because the destination is full or missing'
+        })
+        continue
+      }
+      if ('conflict' in item) {
+        issues.push({
+          kind: 'name_conflict',
+          code: 'conflict',
+          source: item.source,
+          dest: item.target,
+          message: `"${path.basename(item.source)}" already exists in destination`,
+          sourceMtimeMs: await mtimeMsOf(item.source),
+          destMtimeMs: await mtimeMsOf(item.target)
+        })
+        continue
+      }
       let isDir = false
       try {
         isDir = (await fsp.stat(item.source)).isDirectory()
@@ -589,23 +696,25 @@ export async function copyEntries(
         /* ignore */
       }
       try {
-        // Replace: remove existing target first when present.
         if (policy === 'replace' && (await pathExists(item.target))) {
           await fsp.rm(item.target, { recursive: true, force: true })
         }
         await copyTree(item.source, item.target, progress)
         copied.push(item.target)
       } catch (e) {
-        if (e instanceof AppError) throw e
-        throw await appErrorFromFsFailure(e, { action: 'copy', path: item.source, isDir })
+        if (isCancelled(e)) throw e
+        const issue = await toIssue(e, 'copy', item.source, item.target, isDir)
+        issues.push(issue)
+        if (issue.kind === 'fatal') fatal = true
       }
     }
     progress.finish()
   } catch (e) {
     progress.fail()
+    if (isCancelled(e)) return { copied, skipped, issues, aborted: 'cancelled' }
     throw e
   }
-  return { copied, skipped }
+  return { copied, skipped, issues, aborted: fatal ? 'fatal' : undefined }
 }
 
 async function relocateOne(
@@ -708,133 +817,171 @@ export async function moveEntries(
 
   if (anyRemote) {
     // Cross-scheme move = copy then delete source (no native rename).
-    const { copied, skipped } = await copyWithRemotes(absSources, dest, policy)
+    const { copied, skipped, issues, aborted } = await copyWithRemotes(absSources, dest, policy)
     const { remoteDelete } = await import('../remote/sessionPool')
     const moves: { from: string; to: string }[] = []
     const moved: string[] = []
     let copyIdx = 0
     for (const source of absSources) {
       if (skipped.includes(source)) continue
+      if (issues.some((i) => i.source === source)) continue
       const target = copied[copyIdx++]
       if (!target) continue
       moved.push(target)
       moves.push({ from: source, to: target })
-      if (source.toLowerCase().startsWith('mfe-remote://')) {
-        await remoteDelete(source)
-      } else {
-        await fsp.rm(source, { recursive: true, force: true })
+      try {
+        if (source.toLowerCase().startsWith('mfe-remote://')) {
+          await remoteDelete(source)
+        } else {
+          await fsp.rm(source, { recursive: true, force: true })
+        }
+      } catch (e) {
+        issues.push(await toIssue(e, 'move', source, target))
       }
     }
-    return { moved, moves, skipped }
+    return { moved, moves, skipped, issues, aborted }
   }
 
   const plan = await planTransfer(sources, destinationDir, policy)
   const moved: string[] = []
   const moves: { from: string; to: string }[] = []
   const skipped: string[] = []
+  const issues: OpIssue[] = []
   let workCount = 0
   for (const item of plan) {
     if ('skip' in item) skipped.push(item.skip)
-    else workCount++
+    else if (!('conflict' in item)) workCount++
   }
 
-  // One progress unit per top-level item. Same-volume rename is atomic — walking
-  // every file first made big folder moves feel multi-second before anything moved.
   const progress = beginOp('move', Math.max(workCount, 1), 'Moving…')
   suspendWatching()
   muteWatchers(1500)
+  let fatal = false
   try {
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
-      if (policy === 'replace' && (await pathExists(item.target))) {
-        await fsp.rm(item.target, { recursive: true, force: true })
+      if (fatal) {
+        issues.push({
+          kind: 'fatal',
+          code: 'io',
+          source: item.source,
+          dest: item.target,
+          message: 'Stopped because the destination is full or missing'
+        })
+        continue
       }
-      await relocateOne(item.source, item.target, progress, 1)
-      moved.push(item.target)
-      moves.push({ from: item.source, to: item.target })
+      if ('conflict' in item) {
+        issues.push({
+          kind: 'name_conflict',
+          code: 'conflict',
+          source: item.source,
+          dest: item.target,
+          message: `"${path.basename(item.source)}" already exists in destination`,
+          sourceMtimeMs: await mtimeMsOf(item.source),
+          destMtimeMs: await mtimeMsOf(item.target)
+        })
+        continue
+      }
+      try {
+        if (policy === 'replace' && (await pathExists(item.target))) {
+          await fsp.rm(item.target, { recursive: true, force: true })
+        }
+        await relocateOne(item.source, item.target, progress, 1)
+        moved.push(item.target)
+        moves.push({ from: item.source, to: item.target })
+      } catch (e) {
+        if (isCancelled(e)) throw e
+        const issue = await toIssue(e, 'move', item.source, item.target)
+        issues.push(issue)
+        if (issue.kind === 'fatal') fatal = true
+      }
     }
     progress.finish()
   } catch (e) {
     progress.fail()
+    if (isCancelled(e)) return { moved, moves, skipped, issues, aborted: 'cancelled' }
     throw e
   } finally {
     resumeWatching()
   }
-  return { moved, moves, skipped }
+  return { moved, moves, skipped, issues, aborted: fatal ? 'fatal' : undefined }
 }
 
-export async function trashEntries(paths: string[]): Promise<{ trashed: string[] }> {
+export async function trashEntries(paths: string[]): Promise<TrashResponse> {
+  const issues: OpIssue[] = []
   const absolute: string[] = []
   for (const raw of paths) {
     const p = requireAbsolute(raw)
     if (p.toLowerCase().startsWith('mfe-remote://')) {
-      throw new AppError(
-        'not-allowed',
-        'Recycle Bin is not available on remote repositories — use permanent Delete'
-      )
+      issues.push({
+        kind: 'not_allowed',
+        code: 'not-allowed',
+        source: p,
+        message: 'Recycle Bin is not available on remote repositories — use permanent Delete'
+      })
+      continue
     }
-    if (!(await pathExists(p))) throw new AppError('not-found', `Not found: ${p}`)
+    if (!(await pathExists(p))) {
+      issues.push({
+        kind: 'not_found',
+        code: 'not-found',
+        source: p,
+        message: `Not found: ${p}`
+      })
+      continue
+    }
     absolute.push(p)
   }
 
-  // Suspend watching so loadListing cannot re-open ReadDirectoryChanges mid-recycle.
   suspendWatching()
-  // Long mute: large folders take seconds to re-list; UI prunes optimistically and
-  // must not get a full soft-refresh hitch from the delete's own watch event.
   muteWatchers(8000)
 
-  const progress = beginOp('trash', absolute.length, 'Moving to Recycle Bin…')
+  const trashed: string[] = []
+  const progress = beginOp('trash', Math.max(absolute.length, 1), 'Moving to Recycle Bin…')
   try {
-    if (process.platform === 'win32') {
-      for (const p of absolute) {
-        progress.throwIfCancelled()
-        const name = path.basename(p)
-        progress.pulse(name)
-        try {
-          await recyclePathWin32Robust(p)
-        } catch (e) {
-          if (e instanceof AppError && e.code === 'validation') throw e
-          // One quick retry only if the file is still there (no multi-second waits).
-          if (!fs.existsSync(p)) {
-            progress.tick(name)
-            continue
+    for (const p of absolute) {
+      progress.throwIfCancelled()
+      const name = path.basename(p)
+      progress.pulse(name)
+      try {
+        if (process.platform === 'win32') {
+          try {
+            await recyclePathWin32Robust(p)
+          } catch (e) {
+            if (e instanceof AppError && e.code === 'validation') throw e
+            if (!fs.existsSync(p)) {
+              trashed.push(p)
+              progress.tick(name)
+              continue
+            }
+            await new Promise<void>((r) => setTimeout(r, 40))
+            await recyclePathWin32Robust(p)
           }
-          await new Promise<void>((r) => setTimeout(r, 40))
-          await recyclePathWin32Robust(p)
+        } else {
+          await shell.trashItem(p)
         }
+        trashed.push(p)
         progress.tick(name)
-      }
-    } else {
-      for (const p of absolute) {
-        progress.throwIfCancelled()
-        const name = path.basename(p)
-        progress.pulse(name)
-        await shell.trashItem(p)
+      } catch (e) {
+        if (isCancelled(e)) throw e
+        issues.push(await toIssue(e, 'delete', p))
         progress.tick(name)
       }
     }
     progress.finish()
   } catch (e) {
     progress.fail()
-    if (e instanceof AppError && (e.code === 'cancelled' || e.code === 'validation')) throw e
-    const stuck = absolute.find((p) => fs.existsSync(p)) ?? absolute[0]!
-    let isDir = false
-    try {
-      isDir = (await fsp.stat(stuck)).isDirectory()
-    } catch {
-      /* ignore */
-    }
-    // appErrorFromFsFailure only claims “locked” when Restart Manager finds lockers.
-    throw await appErrorFromFsFailure(e, { action: 'delete', path: stuck, isDir })
+    if (isCancelled(e)) return { trashed, issues, aborted: 'cancelled' }
+    throw e
   } finally {
     muteWatchers(8000)
     resumeWatching()
   }
-  return { trashed: absolute }
+  return { trashed, issues }
 }
 
-export async function deletePermanently(paths: string[]): Promise<{ deleted: string[] }> {
+export async function deletePermanently(paths: string[]): Promise<DeletePermanentResponse> {
   const absolute: string[] = []
   for (const raw of paths) {
     absolute.push(requireAbsolute(raw))
@@ -842,6 +989,7 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
   const remotes = absolute.filter((p) => p.toLowerCase().startsWith('mfe-remote://'))
   const locals = absolute.filter((p) => !p.toLowerCase().startsWith('mfe-remote://'))
   const deleted: string[] = []
+  const issues: OpIssue[] = []
   if (remotes.length > 0) {
     const { remoteDelete } = await import('../remote/sessionPool')
     const progress = beginOp('delete', remotes.length, 'Deleting…')
@@ -849,20 +997,26 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
       for (const p of remotes) {
         progress.throwIfCancelled()
         progress.pulse(p)
-        await remoteDelete(p)
-        deleted.push(p)
+        try {
+          await remoteDelete(p)
+          deleted.push(p)
+        } catch (e) {
+          if (isCancelled(e)) throw e
+          issues.push(await toIssue(e, 'delete', p))
+        }
         progress.tick(p)
       }
       progress.finish()
     } catch (e) {
       progress.fail()
+      if (isCancelled(e)) return { deleted, issues, aborted: 'cancelled' }
       throw e
     }
   }
-  if (locals.length === 0) return { deleted }
+  if (locals.length === 0) return { deleted, issues }
 
   const total = locals.length > 0 ? await countWorkUnits(locals) : 0
-  const progress = beginOp('delete', total, 'Deleting…')
+  const progress = beginOp('delete', Math.max(total, 1), 'Deleting…')
   try {
     for (const p of locals) {
       progress.throwIfCancelled()
@@ -878,16 +1032,100 @@ export async function deletePermanently(paths: string[]): Promise<{ deleted: str
         await deleteTree(p, progress)
         deleted.push(p)
       } catch (e) {
-        if (e instanceof AppError) throw e
-        throw await appErrorFromFsFailure(e, { action: 'delete', path: p, isDir })
+        if (isCancelled(e)) throw e
+        issues.push(await toIssue(e, 'delete', p, undefined, isDir))
       }
     }
     progress.finish()
   } catch (e) {
     progress.fail()
+    if (isCancelled(e)) return { deleted, issues, aborted: 'cancelled' }
     throw e
   } finally {
     muteWatchers(8000)
   }
-  return { deleted }
+  return { deleted, issues }
+}
+
+export async function resolveOpIssues(req: ResolveIssuesRequest): Promise<ResolveIssuesResponse> {
+  const out: ResolveIssuesResponse = {
+    copied: [],
+    moved: [],
+    moves: [],
+    trashed: [],
+    deleted: [],
+    skipped: 0,
+    issues: []
+  }
+  const dest = req.destinationDir
+  const work = req.items.filter((it) => it.decision !== 'skip')
+  out.skipped = req.items.length - work.length
+
+  if (req.op === 'trash') {
+    const paths = work.map((it) => it.source)
+    if (paths.length === 0) return out
+    const res = await trashEntries(paths)
+    out.trashed = res.trashed
+    out.issues = res.issues
+    return out
+  }
+  if (req.op === 'delete') {
+    const paths = work.map((it) => it.source)
+    if (paths.length === 0) return out
+    const res = await deletePermanently(paths)
+    out.deleted = res.deleted
+    out.issues = res.issues
+    return out
+  }
+
+  if (!dest) {
+    throw new AppError('validation', 'Destination folder is required to resolve copy/move issues')
+  }
+
+  const replace: string[] = []
+  const rename: string[] = []
+  const retry: string[] = []
+  for (const it of work) {
+    const d = resolveIssueDecision(it.decision, it)
+    if (d === 'skip') {
+      out.skipped += 1
+      continue
+    }
+    if (d === 'rename') rename.push(it.source)
+    else if (d === 'replace') replace.push(it.source)
+    else retry.push(it.source)
+  }
+
+  const run = req.op === 'copy' ? copyEntries : moveEntries
+  if (replace.length > 0) {
+    const res = await run(replace, dest, 'replace')
+    if ('copied' in res && req.op === 'copy') out.copied.push(...res.copied)
+    if ('moved' in res && req.op === 'move') {
+      out.moved.push(...res.moved)
+      out.moves.push(...res.moves)
+    }
+    out.skipped += res.skipped.length
+    out.issues.push(...res.issues)
+  }
+  if (rename.length > 0) {
+    const res = await run(rename, dest, 'rename')
+    if ('copied' in res && req.op === 'copy') out.copied.push(...res.copied)
+    if ('moved' in res && req.op === 'move') {
+      out.moved.push(...res.moved)
+      out.moves.push(...res.moves)
+    }
+    out.skipped += res.skipped.length
+    out.issues.push(...res.issues)
+  }
+  if (retry.length > 0) {
+    const res = await run(retry, dest, 'fail')
+    if ('copied' in res && req.op === 'copy') out.copied.push(...res.copied)
+    if ('moved' in res && req.op === 'move') {
+      out.moved.push(...res.moved)
+      out.moves.push(...res.moves)
+    }
+    out.skipped += res.skipped.length
+    out.issues.push(...res.issues)
+  }
+  return out
 }

@@ -6,7 +6,19 @@ import {
   type JSX,
   type ReactNode
 } from 'react'
-import type { ConflictDecision, ConflictItem, ConflictSide } from '@shared/schemas/fs'
+import type {
+  ConflictDecision,
+  ConflictItem,
+  ConflictSide,
+  IssueDecision,
+  OpIssue
+} from '@shared/schemas/fs'
+import {
+  actionsForKind,
+  groupOpIssues,
+  issueKey,
+  type OpIssueKind
+} from '@shared/opIssues'
 import type { CustomTheme } from '@shared/schemas/settings'
 import {
   FONT_SIZE_PX_MAX,
@@ -161,6 +173,8 @@ export function Dialogs(): JSX.Element | null {
       return <ConfirmDeleteFromRecycleBin paths={dialog.paths} />
     case 'conflict':
       return <ConflictDialog />
+    case 'op-issues':
+      return <OpIssuesDialog />
     case 'new-file':
       return <NewFileDialog parent={dialog.parent} />
     case 'properties':
@@ -698,6 +712,208 @@ function ConflictDialog(): JSX.Element | null {
             </span>
           ) : null}
         </label>
+      )}
+    </Modal>
+  )
+}
+
+const EMPTY_OP_ISSUES: OpIssue[] = []
+
+function sideFromPath(path: string, mtimeMs?: number): ConflictSide {
+  const name = basename(path)
+  const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : ''
+  return {
+    path,
+    kind: 'file',
+    size: 0,
+    mtimeMs: mtimeMs ?? 0,
+    birthtimeMs: 0,
+    ext,
+    width: null,
+    height: null
+  }
+}
+
+function OpIssuesDialog(): JSX.Element | null {
+  const dialog = useAppStore((s) => s.dialog)
+  const resolveOpIssues = useAppStore((s) => s.resolveOpIssues)
+  const [expanded, setExpanded] = useState<Partial<Record<OpIssueKind, boolean>>>({})
+  const [focusKey, setFocusKey] = useState<string | null>(null)
+  const [compare, setCompare] = useState<ConflictItem | null>(null)
+
+  const issues = dialog?.kind === 'op-issues' ? dialog.issues : EMPTY_OP_ISSUES
+  const destDir = dialog?.kind === 'op-issues' ? dialog.destinationDir : undefined
+  const groups = useMemo(() => groupOpIssues(issues), [issues])
+
+  useEffect(() => {
+    const first = groups[0]
+    if (!first) return
+    setExpanded({ [first.kind]: true })
+    setFocusKey(issueKey(first.items[0]!))
+  }, [groups])
+
+  const focused = useMemo(
+    () => issues.find((it) => issueKey(it) === focusKey) ?? null,
+    [issues, focusKey]
+  )
+
+  useEffect(() => {
+    if (!focused || focused.kind !== 'name_conflict' || !destDir) {
+      setCompare(null)
+      return
+    }
+    let cancelled = false
+    void call(api.fs.checkConflicts({ sources: [focused.source], destinationDir: destDir }))
+      .then((r) => {
+        if (!cancelled) setCompare(r.items[0] ?? null)
+      })
+      .catch(() => {
+        if (!cancelled) setCompare(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [focused, destDir])
+
+  if (!dialog || dialog.kind !== 'op-issues') return null
+
+  const applyItems = (subset: OpIssue[], decision: IssueDecision): void => {
+    void resolveOpIssues(
+      subset.map((it) => ({
+        source: it.source,
+        dest: it.dest,
+        decision,
+        sourceMtimeMs: it.sourceMtimeMs,
+        destMtimeMs: it.destMtimeMs
+      }))
+    )
+  }
+
+  const opLabel =
+    dialog.op === 'copy'
+      ? 'Copy'
+      : dialog.op === 'move'
+        ? 'Move'
+        : dialog.op === 'trash'
+          ? 'Recycle'
+          : 'Delete'
+
+  const showCompare = focused?.kind === 'name_conflict'
+  const incoming = compare?.source ?? (focused ? sideFromPath(focused.source, focused.sourceMtimeMs) : null)
+  const existing =
+    compare?.destination ??
+    (focused?.dest ? sideFromPath(focused.dest, focused.destMtimeMs) : null)
+
+  return (
+    <Modal
+      title={`${opLabel} review — ${issues.length.toLocaleString()} need attention`}
+      wide
+      className="modal-op-issues"
+      bodyClassName="modal-body-op-issues"
+      onClose={() => void resolveOpIssues(null)}
+      actions={
+        <>
+          <button className="btn" onClick={() => void resolveOpIssues(null)}>
+            Skip remaining
+          </button>
+          <div className="conflict-actions-grow" />
+          <span className="dim">
+            {dialog.doneCount.toLocaleString()} completed
+            {dialog.destinationDir ? (
+              <>
+                {' '}
+                · <code>{dialog.destinationDir}</code>
+              </>
+            ) : null}
+          </span>
+        </>
+      }
+    >
+      <p className="conflict-lead">
+        Everything that could proceed already did. Decide what to do with the rest — apply to all
+        similar, or expand a group to choose per item.
+      </p>
+
+      <div className="op-issues-groups">
+        {groups.map((g) => {
+          const open = Boolean(expanded[g.kind])
+          const actions = actionsForKind(g.kind)
+          return (
+            <section key={g.kind} className="op-issues-group">
+              <header className="op-issues-group-head">
+                <button
+                  type="button"
+                  className="op-issues-group-toggle"
+                  aria-expanded={open}
+                  onClick={() => setExpanded((prev) => ({ ...prev, [g.kind]: !open }))}
+                >
+                  <span className="op-issues-group-title">
+                    {g.label} · {g.items.length.toLocaleString()}
+                  </span>
+                </button>
+                <div className="op-issues-group-actions">
+                  {actions.map((a) => (
+                    <button
+                      key={a.decision}
+                      type="button"
+                      className={`btn${a.decision === 'replace' || a.decision === 'retry' ? ' primary' : ''}`}
+                      title={`Apply “${a.label}” to all ${g.label.toLowerCase()}`}
+                      onClick={() => applyItems(g.items, a.decision)}
+                    >
+                      {a.label} all
+                    </button>
+                  ))}
+                </div>
+              </header>
+              {open && (
+                <ul className="op-issues-rows">
+                  {g.items.map((it) => {
+                    const key = issueKey(it)
+                    const active = key === focusKey
+                    return (
+                      <li key={key}>
+                        <button
+                          type="button"
+                          className={`op-issues-row${active ? ' active' : ''}`}
+                          onClick={() => setFocusKey(key)}
+                        >
+                          <span className="op-issues-row-name" title={it.source}>
+                            {basename(it.source)}
+                          </span>
+                          <span className="op-issues-row-msg" title={it.message}>
+                            {it.message}
+                          </span>
+                        </button>
+                        <div className="op-issues-row-actions">
+                          {actions.map((a) => (
+                            <button
+                              key={a.decision}
+                              type="button"
+                              className="btn"
+                              onClick={() => applyItems([it], a.decision)}
+                            >
+                              {a.label}
+                            </button>
+                          ))}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
+          )
+        })}
+      </div>
+
+      {showCompare && incoming && existing && (
+        <div className="conflict-compare">
+          <ConflictSideCard label="Incoming" side={incoming} peer={existing} />
+          <div className="conflict-vs" aria-hidden>
+            vs
+          </div>
+          <ConflictSideCard label="Existing in destination" side={existing} peer={incoming} />
+        </div>
       )}
     </Modal>
   )

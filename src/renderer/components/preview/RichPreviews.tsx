@@ -24,7 +24,7 @@ function sanitizePptHtml(html: string): string {
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick'],
     ALLOWED_URI_REGEXP:
-      /^(?:(?:(?:f|ht)tps?|mailto|tel|mfe-media):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|mfe-media):|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i
   })
 }
 
