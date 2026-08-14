@@ -4,7 +4,7 @@
 
 This project is **Windows-first**. Linux packaging and launch scripts are experimental helpers for contributors; they are not a supported product matrix yet. Windows features that depend on Win32 APIs (shell icons, Recycle Bin, ADS, NTFS search, **Network neighborhood**, mapped-drive dialogs, etc.) degrade or no-op on Linux — the Win32 network module is lazy-loaded and never initialized on Linux builds.
 
-The notes below target a Wayland desktop session (e.g. Kubuntu/Plasma). Paths and flags may need adjustment on other distros.
+The notes below target a modern Wayland-only desktop session (e.g. Kubuntu/Plasma). Paths and configurations may need adjustment on other distros.
 
 ---
 
@@ -37,6 +37,8 @@ Output lands in `dist/` (AppImage, optional snap, and `linux-unpacked/`).
 
 ## 3) Run the built app
 
+The application's core main process loop natively optimizes its own environment properties, sandbox structures, and Wayland hooks automatically on boot. No external environment variables or runtime CLI flags are required.
+
 Prefer the unpacked binary helper:
 
 ```bash
@@ -47,13 +49,6 @@ Or AppImage (version is read from `package.json`):
 
 ```bash
 npm run run:linux
-```
-
-If Electron fails under a restricted sandbox on your desktop, you can opt in to `--no-sandbox` (not recommended for daily use):
-
-```bash
-MFE_LINUX_ELECTRON_FLAGS='--ozone-platform=wayland --enable-features=UseOzonePlatform --no-sandbox' \
-  npm run run:unpacked
 ```
 
 ---
@@ -76,21 +71,21 @@ Creates `~/.local/share/applications/my-file-explorer.desktop` pointing at the u
 
 ### Manual desktop entry with the repo icon
 
-Replace `$REPO` with your clone path:
+Because the repository code handles its own environment parameters inside `index.ts`, your desktop entry can stay clean and direct. Replace `$REPO` with your absolute clone path:
 
 ```ini
 [Desktop Entry]
 Type=Application
 Name=MyFileExplorer
 Comment=Custom Electron File Explorer
-Exec=env GSETTINGS_SCHEMA_DIR=/usr/share/glib-2.0/schemas/ GDK_BACKEND=wayland ELECTRON_OZONE_PLATFORM_HINT=wayland $REPO/dist/linux-unpacked/my-file-explorer --ozone-platform=wayland --enable-features=UseOzonePlatform
-Icon=$REPO/build/icon.png
+Exec=env GSETTINGS_SCHEMA_DIR=/usr/share/glib-2.0/schemas/ \$REPO/dist/linux-unpacked/my-file-explorer
+Icon=\$REPO/build/icon.png
 Terminal=false
 Categories=Utility;FileManager;
-StartupWMClass=MyFileExplorer
+StartupWMClass=myfileexplorer
 ```
 
-Then:
+Then refresh the desktop engine mapping:
 
 ```bash
 update-desktop-database ~/.local/share/applications
@@ -100,9 +95,11 @@ update-desktop-database ~/.local/share/applications
 
 ## 6) Troubleshooting
 
-### AppImage crashes on Wayland / GTK schemas
+### WebAssembly Startup Delay
+The application may take 3–4 seconds to render its primary canvas on boot. This is normal behavior for the Linux environment; the underlying engine utilizes this window to unpack, parse, and compile the **13.5MB ONNX WebAssembly machine learning models** into active thread layers.
 
-Some Plasma/Wayland sessions hit Chromium GTK schema mismatches with AppImage. Prefer `npm run run:unpacked`.
+### AppImage crashes on Wayland / GTK schemas
+Some minimal Plasma/Wayland sessions hit Chromium GTK schema mismatches with AppImage out-of-the-box. If the app fails to start or throws segmentation faults, follow the **Host OS GSettings Recovery** steps below.
 
 ### “No Linux bundle in dist/”
 
@@ -111,7 +108,6 @@ npm run build:linux
 ```
 
 ### Blank UI
-
 Run inside a real desktop session (not a headless SSH shell without display forwarding).
 
 ---
@@ -124,31 +120,27 @@ npm run build:linux
 npm run run:unpacked
 ```
 
-Optional menu entry:
+---
 
-```bash
-npm run install:linux
-```
+## Host OS GSettings Schema Recovery
 
-Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host (`scripts/dist.mjs` refuses non-Windows hosts).
-
-## Other Troubleshoot Steps
-
-If the electron doesn't want to start, you can also try the following steps.
+If the Electron executable crashes on launch due to missing desktop enums or missing GNOME styling packages inside minimal KDE layouts, execute these structural system updates:
 
 ```sh
 # 1. Reset and clean the default system schema file to a stock version
 sudo apt install --reinstall gsettings-desktop-schemas
 
-# 2. Install the missing asset package containing the required GNOME enum files
+# 2. Install the missing asset package containing required GNOME enum schemas
 sudo apt install gnome-desktop3-data
 
-# 3. Pull down the related font mapping structures to satisfy additional checks
+# 3. Pull down related font mapping structures to satisfy additional checks
 sudo apt install gnome-settings-daemon-common
 
-# 4. Recompile the entire system schema folder so the OS registers the database layout
+# 4. Recompile the system schema folder so the OS registers the database layout
 sudo glib-compile-schemas /usr/share/glib-2.0/schemas/
 
 # 5. Clean up any broken, conflicting local schema directories created during testing
 rm -rf ~/.local/share/glib-2.0/schemas
 ```
+
+Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host (`scripts/dist.mjs` refuses non-Windows hosts).

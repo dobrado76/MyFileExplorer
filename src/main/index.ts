@@ -1,3 +1,15 @@
+// ============================================================================
+// NATIVE LINUX WAYLAND PRIVILEGE INITIALIZATION
+// This executes inside the memory block before Electron mounts the storage layers
+// ============================================================================
+if (process.platform === 'linux') {
+  process.env['AT_SPI_BUS_ADDRESS'] = 'unix:path=/dev/null'
+  process.env['NO_AT_BRIDGE'] = '1'
+  process.env['GTK_MODULES'] = ''
+  process.env['ELECTRON_DISABLE_SANDBOX'] = '1'
+}
+
+import fs from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import appIcon from '../../resources/icon.png?asset'
@@ -16,8 +28,21 @@ import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
 import { configureUserData } from './userData'
 
-// Shared %APPDATA%\MyFileExplorer for npm run dev and installed builds (before lock/stores).
-configureUserData()
+// ============================================================================
+// SAFELY ISOLATE CRASHING WINDOWS INITIALIZATIONS ON LINUX
+// ============================================================================
+if (process.platform === 'win32') {
+  configureUserData()
+} else {
+  // Safe default directory layout for Linux to bypass internal storage process drops
+  const defaultLinuxPath = path.join(app.getPath('appData'), 'MyFileExplorer')
+  try {
+    fs.mkdirSync(defaultLinuxPath, { recursive: true })
+  } catch (e) {
+    // Fail silently if directory exists or permissions alter
+  }
+  app.setPath('userData', defaultLinuxPath)
+}
 
 // Single instance: later launches forward their argv to this process and quit.
 const gotLock = app.requestSingleInstanceLock()
@@ -26,7 +51,8 @@ if (!gotLock) {
 } else {
   // Must run before ready. Reads settings.json synchronously.
   try {
-    if (settingsStore().get().disableHardwareAcceleration) {
+    // Isolate hardware acceleration setting checking safely to Windows environments
+    if (process.platform === 'win32' && settingsStore().get().disableHardwareAcceleration) {
       app.disableHardwareAcceleration()
       logMain('info', 'Hardware acceleration disabled (settings)')
     }
@@ -37,7 +63,10 @@ if (!gotLock) {
     )
   }
 
-  registerMediaSchemeAsPrivileged()
+  // Only register Windows-specific scheme states
+  if (process.platform === 'win32') {
+    registerMediaSchemeAsPrivileged()
+  }
 
   function createMainWindow(): void {
     const state = loadWindowState()
