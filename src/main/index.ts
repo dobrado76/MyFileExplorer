@@ -38,7 +38,7 @@ if (process.platform === 'win32') {
   const defaultLinuxPath = path.join(app.getPath('appData'), 'MyFileExplorer')
   try {
     fs.mkdirSync(defaultLinuxPath, { recursive: true })
-  } catch (e) {
+  } catch {
     // Fail silently if directory exists or permissions alter
   }
   app.setPath('userData', defaultLinuxPath)
