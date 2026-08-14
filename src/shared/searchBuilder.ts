@@ -11,6 +11,8 @@ export type PowerSearchState = {
   terms: string
   /** Exclude terms (mapped to !token). */
   exclude: string
+  /** Exclude extensions (mapped to !ext:). */
+  excludeExtensions: string
   itemKind: PowerSearchItemKind
   /** Macro ids: pic, video, audio, doc, exe, zip */
   types: string[]
@@ -80,6 +82,7 @@ export function defaultPowerSearchState(): PowerSearchState {
   return {
     terms: '',
     exclude: '',
+    excludeExtensions: '',
     itemKind: 'any',
     types: [],
     sizePreset: '',
@@ -141,6 +144,15 @@ export function buildSearchQuery(state: PowerSearchState): string {
       .filter(Boolean)
       .join(';')
     if (exts) out.push(`ext:${exts}`)
+  }
+
+  if (state.excludeExtensions.trim()) {
+    const exts = state.excludeExtensions
+      .split(/[;,]/)
+      .map((e) => e.replace(/^\./, '').trim())
+      .filter(Boolean)
+      .join(';')
+    if (exts) out.push(`!ext:${exts}`)
   }
 
   if (state.sizePreset === 'custom' && state.sizeCustom.trim()) {

@@ -27,6 +27,7 @@ export type StructuredQuery = {
   pathContains: string[]
   excludePathContains: string[]
   exts: string[]
+  excludeExts: string[]
   fileOnly: boolean
   folderOnly: boolean
   matchPath: boolean
@@ -90,6 +91,7 @@ function emptyQuery(opts: ParseOptions): StructuredQuery {
     pathContains: [],
     excludePathContains: [],
     exts: [],
+    excludeExts: [],
     fileOnly: false,
     folderOnly: false,
     matchPath: Boolean(opts.matchPath),
@@ -202,7 +204,10 @@ function tokenize(input: string): string[] {
     }
     let s = ''
     while (i < input.length && !/\s/.test(input[i]!) && input[i] !== '|') {
-      if (input[i] === '<' && !inGroup) break
+      if (input[i] === '<' && !inGroup) {
+        // Comparison ops inside function values (depth:<=2) — not group delimiters
+        if (s.length === 0 || s[s.length - 1] !== ':') break
+      }
       if (input[i] === '>' && inGroup) break
       s += input[i]
       i++
@@ -385,6 +390,27 @@ function applyFunction(q: StructuredQuery, key: string, val: string, macros: Rec
   }
 }
 
+function pushExcludeExts(q: StructuredQuery, raw: string): void {
+  const parts = raw
+    .split(/[;,]/)
+    .map((x) => x.replace(/^\./, '').trim().toLowerCase())
+    .filter(Boolean)
+  if (parts.length) q.excludeExts.push(...parts)
+}
+
+function applyExcludeFunction(q: StructuredQuery, key: string, val: string, macros: Record<string, string[]>): void {
+  q.advanced = true
+  const k = key.toLowerCase()
+  if (k === 'ext') {
+    pushExcludeExts(q, val)
+    return
+  }
+  const macroExts = macros[k] ?? MACROS[k]
+  if (macroExts) {
+    q.excludeExts.push(...macroExts)
+  }
+}
+
 export function parseEverythingQuery(input: string, opts: ParseOptions = {}): StructuredQuery {
   const q = emptyQuery(opts)
   const macros = { ...MACROS, ...(opts.customMacros ?? {}) }
@@ -433,9 +459,15 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
     // modifiers
     const mod = /^(case|nocase|path|nopath|file|folder|regex|ww|wholeword|noww):(.*)$/i.exec(t)
     if (mod) {
-      q.advanced = true
       const m = mod[1]!.toLowerCase()
       const rest = mod[2] ?? ''
+      if ((m === 'path' || m === 'nopath') && rest) {
+        applyFunction(q, m, rest, macros)
+        i++
+        if (tokens[i] !== '|') flushOr()
+        continue
+      }
+      q.advanced = true
       if (m === 'case') q.matchCase = true
       else if (m === 'nocase') q.matchCase = false
       else if (m === 'path') {
@@ -496,10 +528,16 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
       continue
     }
 
-    // NOT
+    // NOT — `!ext:jpg` / `!pic:` exclude extensions; other `!token` excludes name/path text
     if (t.startsWith('!') && t.length > 1) {
       q.advanced = true
-      q.notText.push(toTextPred(t.slice(1), q))
+      const rest = t.slice(1)
+      const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(rest)
+      if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase())) {
+        applyExcludeFunction(q, fn[1]!, fn[2] ?? '', macros)
+      } else {
+        q.notText.push(toTextPred(rest, q))
+      }
       i++
       flushOr()
       continue
@@ -602,12 +640,16 @@ export function rowMatchesStructured(
   if (q.fileOnly && row.isDir) return false
   if (q.folderOnly && !row.isDir) return false
 
-  if (q.exts.length) {
-    const ext = row.name.includes('.')
+  const ext = row.isDir
+    ? ''
+    : row.name.includes('.')
       ? row.name.slice(row.name.lastIndexOf('.') + 1).toLowerCase()
       : ''
+
+  if (q.exts.length) {
     if (row.isDir || !q.exts.includes(ext)) return false
   }
+  if (q.excludeExts.length && !row.isDir && q.excludeExts.includes(ext)) return false
 
   for (const p of q.pathPrefixes) {
     if (!row.path.toLowerCase().startsWith(p.toLowerCase())) return false

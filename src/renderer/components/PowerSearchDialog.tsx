@@ -265,7 +265,18 @@ export function PowerSearchDialog(): JSX.Element {
                 type="text"
                 value={builder.exclude}
                 onChange={(e) => patchBuilder({ exclude: e.target.value })}
-                placeholder="tmp backup — adds !term"
+                placeholder="name/path text — adds !term"
+              />
+            </label>
+          </div>
+          <div className="power-search-fields">
+            <label className="power-search-field">
+              <span>Exclude extensions</span>
+              <input
+                type="text"
+                value={builder.excludeExtensions}
+                onChange={(e) => patchBuilder({ excludeExtensions: e.target.value })}
+                placeholder="tmp;bak or .log — adds !ext:"
               />
             </label>
           </div>

@@ -67,6 +67,10 @@ function buildSql(q: StructuredQuery, pathPrefix: string | null): {
     clauses.push(`lower(ext) IN (${q.exts.map(() => '?').join(',')})`)
     params.push(...q.exts.map((e) => e.toLowerCase()))
   }
+  if (q.excludeExts.length) {
+    clauses.push(`(is_dir = 1 OR lower(ext) NOT IN (${q.excludeExts.map(() => '?').join(',')}))`)
+    params.push(...q.excludeExts.map((e) => e.toLowerCase()))
+  }
   if (q.size) {
     if (q.size.op === 'range') {
       clauses.push('size >= ? AND size <= ?')

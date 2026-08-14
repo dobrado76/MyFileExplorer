@@ -67,7 +67,7 @@ Versioned subset; grows over releases. Parser: `everythingQuery.ts`.
 
 | Feature | Examples |
 |---------|----------|
-| AND / OR / NOT | `foo bar`, `foo\|bar`, `!tmp` |
+| AND / OR / NOT | `foo bar`, `foo\|bar`, `!tmp`, `!ext:tmp;bak` |
 | Phrases / groups | `"my file"`, `<a\|b> c` |
 | Modifiers | `case:`, `path:` / `nopath:`, `file:` / `folder:`, `regex:`, `ww:` |
 | Functions | `size:>1mb`, `size:large`, `dm:today`, `dc:thisweek`, `ext:jpg;png`, `parent:`, `infolder:`, `startwith:`, `endwith:`, `len:`, `empty:`, `count:` |
