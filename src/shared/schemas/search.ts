@@ -83,3 +83,52 @@ export type SearchBookmark = z.infer<typeof searchBookmarkSchema>
 
 export const MAX_SEARCH_FILTERS = 50
 export const MAX_SEARCH_BOOKMARKS = 50
+export const MAX_POWER_SEARCH_SAVED = 80
+
+/** Visual Power Search builder fields (no target folder / indexed-only). */
+export const powerSearchStateSchema = z.object({
+  terms: z.string().catch(''),
+  exclude: z.string().catch(''),
+  excludeExtensions: z.string().catch(''),
+  itemKind: z.enum(['any', 'file', 'folder']).catch('any'),
+  types: z.array(z.string()).catch([]),
+  sizePreset: z
+    .enum(['', 'empty', 'tiny', 'small', 'medium', 'large', 'huge', 'custom'])
+    .catch(''),
+  sizeCustom: z.string().catch(''),
+  dateModified: z
+    .enum(['', 'today', 'yesterday', 'thisweek', 'thismonth', 'custom'])
+    .catch(''),
+  dateCustom: z.string().catch(''),
+  extensions: z.string().catch(''),
+  inFolder: z.string().catch(''),
+  parentName: z.string().catch(''),
+  pathContains: z.string().catch(''),
+  pathPrefix: z.string().catch(''),
+  startsWith: z.string().catch(''),
+  endsWith: z.string().catch(''),
+  attributes: z.array(z.enum(['h', 's', 'r', 'a'])).catch([]),
+  emptyOnly: z.boolean().catch(false),
+  content: z.string().catch(''),
+  dupe: z.enum(['', 'name', 'size', 'namepart']).catch(''),
+  childName: z.string().catch(''),
+  depth: z.string().catch('')
+})
+
+export const powerSearchSavedSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(80),
+  query: z.string(),
+  builder: powerSearchStateSchema,
+  matchPath: z.boolean().catch(false),
+  matchCase: z.boolean().catch(false),
+  wholeWord: z.boolean().catch(false),
+  regex: z.boolean().catch(false),
+  manualQuery: z.boolean().catch(false),
+  updatedAt: z.number().catch(0)
+})
+export type PowerSearchSaved = z.infer<typeof powerSearchSavedSchema>
+
+export function newPowerSearchSavedId(): string {
+  return `ps-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}

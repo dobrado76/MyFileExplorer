@@ -162,7 +162,7 @@ See [PREVIEW.md](PREVIEW.md).
 See [SEARCH.md](SEARCH.md).
 
 - Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
-- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators).
+- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
 - **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
 - Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).

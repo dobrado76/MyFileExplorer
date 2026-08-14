@@ -1,3 +1,5 @@
+import { powerSearchStateSchema } from './schemas/search'
+
 /** Visual power-search builder → Everything-style query string. */
 
 export type PowerSearchScope = 'indexed' | 'folder'
@@ -77,6 +79,11 @@ export const ATTRIBUTE_OPTIONS = [
   { id: 'r' as const, label: 'Read-only' },
   { id: 'a' as const, label: 'Archive' }
 ]
+
+export function sanitizePowerSearchState(raw: unknown): PowerSearchState {
+  const parsed = powerSearchStateSchema.safeParse(raw)
+  return parsed.success ? { ...defaultPowerSearchState(), ...parsed.data } : defaultPowerSearchState()
+}
 
 export function defaultPowerSearchState(): PowerSearchState {
   return {

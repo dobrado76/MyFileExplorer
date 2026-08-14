@@ -14,6 +14,7 @@ import {
   type PowerRenameOptions
 } from '@shared/powerRename'
 import type { Settings } from '@shared/schemas/settings'
+import { CloseIcon } from '../lib/icons'
 import { useAppStore } from '../store/appStore'
 import { basename } from '../lib/paths'
 import type { UndoPathPair } from '../lib/undoHistory'
@@ -284,6 +285,19 @@ function Modal({
                 <rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.2" />
               </svg>
             )}
+          </button>
+          <button
+            type="button"
+            className="modal-title-btn"
+            aria-label="Close"
+            title="Close"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onClose()
+            }}
+          >
+            <CloseIcon size={16} />
           </button>
         </div>
         <div className="modal-body modal-body-power-rename">{children}</div>

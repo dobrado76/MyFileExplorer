@@ -10,10 +10,13 @@ import {
 } from '../vidThumbCache'
 import { normalizeHideNameExtensions } from '../hideNameExtensions'
 import {
+  MAX_POWER_SEARCH_SAVED,
   MAX_SEARCH_BOOKMARKS,
   MAX_SEARCH_FILTERS,
+  powerSearchSavedSchema,
   searchBookmarkSchema,
   searchFilterSchema,
+  type PowerSearchSaved,
   type SearchBookmark,
   type SearchFilter
 } from './search'
@@ -290,6 +293,23 @@ export const settingsSchema = z.object({
     }
     return out
   }, z.array(searchBookmarkSchema).catch([])),
+  /**
+   * Named Power Search designs (builder + match flags + query).
+   * Target (current folder vs indexed) is not stored — chosen when you run.
+   */
+  powerSearchSaved: z.preprocess((raw) => {
+    if (!Array.isArray(raw)) return []
+    const out: PowerSearchSaved[] = []
+    const seen = new Set<string>()
+    for (const item of raw) {
+      const p = powerSearchSavedSchema.safeParse(item)
+      if (!p.success || seen.has(p.data.id)) continue
+      seen.add(p.data.id)
+      out.push(p.data)
+      if (out.length >= MAX_POWER_SEARCH_SAVED) break
+    }
+    return out
+  }, z.array(powerSearchSavedSchema).catch([])),
   /** Optional localhost HTTP search API (D34 phase 6). */
   searchHttpEnabled: z.boolean().catch(false),
   searchHttpPort: z.number().int().min(1024).max(65535).catch(8081),
@@ -475,6 +495,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   searchRegex: false,
   searchFilters: [],
   searchBookmarks: [],
+  powerSearchSaved: [],
   searchHttpEnabled: false,
   searchHttpPort: 8081,
   searchHttpToken: '',

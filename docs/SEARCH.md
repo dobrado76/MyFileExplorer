@@ -109,7 +109,7 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 ## UI
 
 - **As-you-type** debounced search (cancel in-flight); Enter still searches immediately
-- Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced)
+- Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced). **Saved searches** (named designs) store the builder + match flags + query — not the target. Run again against the current folder or indexed roots. Cap 80; included in Settings export (D45).
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
 - Results in normal **FileView** (D29); Folder column; banner with count / progress / Clear / “Not indexed — slow” / “Content search — slow”
 - **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results pushes the search onto Back; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.

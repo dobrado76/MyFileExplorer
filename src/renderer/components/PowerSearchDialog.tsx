@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
-import type { SearchBookmark, SearchFilter } from '@shared/schemas/search'
+import {
+  MAX_POWER_SEARCH_SAVED,
+  newPowerSearchSavedId,
+  type PowerSearchSaved,
+  type SearchBookmark,
+  type SearchFilter
+} from '@shared/schemas/search'
+import { CloseIcon } from '../lib/icons'
 import { useAppStore } from '../store/appStore'
 import {
   ATTRIBUTE_OPTIONS,
@@ -9,6 +16,7 @@ import {
   TYPE_MACRO_OPTIONS,
   buildSearchQuery,
   defaultPowerSearchState,
+  sanitizePowerSearchState,
   type PowerSearchScope,
   type PowerSearchState
 } from '@shared/searchBuilder'
@@ -38,7 +46,18 @@ function ModalShell({
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-wide modal-power-search" role="dialog" aria-label={title}>
-        <div className="modal-title">{title}</div>
+        <div className="modal-title modal-title-chrome">
+          <span className="modal-title-text">{title}</span>
+          <button
+            type="button"
+            className="modal-title-btn"
+            aria-label="Close"
+            title="Close"
+            onClick={onClose}
+          >
+            <CloseIcon size={16} />
+          </button>
+        </div>
         <div className="modal-body modal-body-power-search">{children}</div>
         <div className={`modal-actions${actionsClassName ? ` ${actionsClassName}` : ''}`}>
           {actions}
@@ -73,6 +92,12 @@ export function PowerSearchDialog(): JSX.Element {
   }))
   const [manualQuery, setManualQuery] = useState(false)
   const [queryText, setQueryText] = useState(() => search.query)
+  const [matchPath, setMatchPath] = useState(settings.searchMatchPath)
+  const [matchCase, setMatchCase] = useState(settings.searchMatchCase)
+  const [wholeWord, setWholeWord] = useState(settings.searchWholeWord)
+  const [regex, setRegex] = useState(settings.searchRegex)
+  const [saveName, setSaveName] = useState('')
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
 
   const builtQuery = useMemo(() => buildSearchQuery(builder), [builder])
 
@@ -114,13 +139,70 @@ export function PowerSearchDialog(): JSX.Element {
     closeDialog()
   }
 
-  const [matchPath, setMatchPath] = useState(settings.searchMatchPath)
-  const [matchCase, setMatchCase] = useState(settings.searchMatchCase)
-  const [wholeWord, setWholeWord] = useState(settings.searchWholeWord)
-  const [regex, setRegex] = useState(settings.searchRegex)
+  const runSaved = (entry: PowerSearchSaved): void => {
+    applySaved(entry)
+    const q = entry.query.trim()
+    if (!q) return
+    setSearchIndexedOnly(scope === 'indexed')
+    void applySettingsPatch({
+      searchMatchPath: entry.matchPath,
+      searchMatchCase: entry.matchCase,
+      searchWholeWord: entry.wholeWord,
+      searchRegex: entry.regex
+    })
+    setSearchQuery(q)
+    void runSearch()
+    closeDialog()
+  }
 
   const bookmarks = settings.searchBookmarks ?? []
   const filters = settings.searchFilters ?? []
+  const saved = useMemo(() => {
+    const list = settings.powerSearchSaved ?? []
+    return [...list].sort((a, b) => b.updatedAt - a.updatedAt)
+  }, [settings.powerSearchSaved])
+
+  const applySaved = (entry: PowerSearchSaved): void => {
+    setBuilder(sanitizePowerSearchState(entry.builder))
+    setMatchPath(entry.matchPath)
+    setMatchCase(entry.matchCase)
+    setWholeWord(entry.wholeWord)
+    setRegex(entry.regex)
+    setManualQuery(entry.manualQuery)
+    setQueryText(entry.query)
+    setSaveName(entry.name)
+    setSelectedSavedId(entry.id)
+  }
+
+  const persistSaved = (next: PowerSearchSaved[]): void => {
+    void applySettingsPatch({ powerSearchSaved: next.slice(0, MAX_POWER_SEARCH_SAVED) })
+  }
+
+  const saveCurrent = (replaceId: string | null): void => {
+    const name = saveName.trim()
+    const q = queryText.trim()
+    if (!name || !q) return
+    const entry: PowerSearchSaved = {
+      id: replaceId ?? newPowerSearchSavedId(),
+      name,
+      query: q,
+      builder: { ...builder },
+      matchPath,
+      matchCase,
+      wholeWord,
+      regex,
+      manualQuery,
+      updatedAt: Date.now()
+    }
+    const rest = (settings.powerSearchSaved ?? []).filter((s) => s.id !== entry.id)
+    persistSaved([entry, ...rest])
+    setSelectedSavedId(entry.id)
+  }
+
+  const deleteSaved = (id: string): void => {
+    persistSaved((settings.powerSearchSaved ?? []).filter((s) => s.id !== id))
+    if (selectedSavedId === id) setSelectedSavedId(null)
+  }
 
   return (
     <ModalShell
@@ -147,6 +229,23 @@ export function PowerSearchDialog(): JSX.Element {
           >
             Clear
           </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!saveName.trim() || !queryText.trim()}
+            title="Save the current design. Target (folder vs index) is chosen when you Search."
+            onClick={() => saveCurrent(null)}
+          >
+            Save as…
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!selectedSavedId || !saveName.trim() || !queryText.trim()}
+            onClick={() => saveCurrent(selectedSavedId)}
+          >
+            Update
+          </button>
           <button type="button" className="btn" onClick={closeDialog}>
             Cancel
           </button>
@@ -162,9 +261,69 @@ export function PowerSearchDialog(): JSX.Element {
       }
     >
       <p className="power-search-lead">
-        Build a search visually — click Search to run in the file list.
+        Build a search visually, save the design by name, and run it again later. Saved searches
+        store the query — not the target. Scope (current folder vs indexed) is chosen each time you
+        Search.
       </p>
 
+      <div className="power-search-layout">
+        <aside className="power-search-history" aria-label="Saved searches">
+          <div className="power-search-history-head">Saved searches</div>
+          <label className="power-search-field power-search-history-name">
+            <span>Name</span>
+            <input
+              type="text"
+              value={saveName}
+              maxLength={80}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="e.g. Large PNGs this week"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && saveName.trim() && queryText.trim()) {
+                  e.preventDefault()
+                  saveCurrent(selectedSavedId)
+                }
+              }}
+            />
+          </label>
+          {saved.length === 0 ? (
+            <p className="power-search-history-empty">
+              No saved designs yet. Set up a search, give it a name, then Save as…
+            </p>
+          ) : (
+            <ul className="power-search-history-list">
+              {saved.map((entry) => (
+                <li key={entry.id}>
+                  <button
+                    type="button"
+                    className={`power-search-history-item${
+                      entry.id === selectedSavedId ? ' active' : ''
+                    }`}
+                    title={entry.query}
+                    onClick={() => applySaved(entry)}
+                    onDoubleClick={() => runSaved(entry)}
+                  >
+                    <span className="power-search-history-item-name">{entry.name}</span>
+                    <span className="power-search-history-item-q">{entry.query}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn power-search-history-del"
+                    title="Remove saved search"
+                    onClick={() => deleteSaved(entry.id)}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="power-search-history-hint">
+            Click to load into the builder. Double-click to run with the scope selected on the
+            right.
+          </p>
+        </aside>
+
+        <div className="power-search-main">
       <label className="power-search-query-label" htmlFor="power-search-query">
         Query preview
       </label>
@@ -566,6 +725,8 @@ export function PowerSearchDialog(): JSX.Element {
             ) : null}
           </section>
         )}
+      </div>
+        </div>
       </div>
     </ModalShell>
   )
