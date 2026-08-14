@@ -6,7 +6,7 @@ import {
   parseFolderStatInt,
   rollupFolderStats
 } from '@shared/folderStats'
-import { columnNeedsDirectoryMeta, filterMetaFetchColumns, isDirectoryMetaColumn } from '@shared/schemas/columns'
+import { columnNeedsDirectoryMeta, isDirectoryMetaColumn } from '@shared/schemas/columns'
 import { AppError } from '@shared/result'
 
 vi.mock('../main/fs/winAttrs', () => ({

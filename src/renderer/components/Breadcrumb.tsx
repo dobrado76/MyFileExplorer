@@ -14,7 +14,9 @@ import { api, call } from '../lib/ipc'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { historyEntries } from '../lib/historyEntries'
 
-const isWindows = typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.platform === 'win32'
+const isWindows =
+  (globalThis as typeof globalThis & { process?: { platform?: string } }).process?.platform ===
+  'win32'
 
 type Props = {
   /** Bind to a specific tab (pane toolbar). Default: active tab + global address editing. */

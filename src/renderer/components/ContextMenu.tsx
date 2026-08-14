@@ -239,7 +239,6 @@ export function ContextMenu(): JSX.Element | null {
   const [focusIdx, setFocusIdx] = useState(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
   const openSubRef = useRef<number | null>(null)
-  openSubRef.current = openSub
   const [subFocusIdx, setSubFocusIdx] = useState(-1)
   /** Async Version Control state for a single editable image (omit submenu until ready). */
   const [imageVer, setImageVer] = useState<{ path: string; count: number } | null>(null)

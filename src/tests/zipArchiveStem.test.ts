@@ -41,9 +41,12 @@ describe('parse7zaPercent', () => {
 describe('safeZipEntryPath', () => {
   const root = path.join('C:', 'extract', 'out')
 
+  /** Windows drive roots are normalized to forward slashes in safeZipEntryPath. */
+  const expected = (...parts: string[]): string => path.join(root, ...parts).replace(/\\/g, '/')
+
   it('allows normal relative entries', () => {
-    expect(safeZipEntryPath(root, 'readme.txt')).toBe(path.join(root, 'readme.txt'))
-    expect(safeZipEntryPath(root, 'sub/a.txt')).toBe(path.join(root, 'sub', 'a.txt'))
+    expect(safeZipEntryPath(root, 'readme.txt')).toBe(expected('readme.txt'))
+    expect(safeZipEntryPath(root, 'sub/a.txt')).toBe(expected('sub', 'a.txt'))
   })
 
   it('blocks zip-slip paths', () => {
