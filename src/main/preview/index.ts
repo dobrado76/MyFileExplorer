@@ -22,6 +22,7 @@ import { needsWebRaster, rasterizeWebImage } from './rasterWebImage'
 import { buildSafetensorsPreviewFields } from './safetensors'
 import { buildUvwPreviewFields, parseUnityMetaGuid } from './uvw'
 import { hdrPreviewFields, parseHdrHeader, unknownHdrFields } from './hdr'
+import { decodeSamiBuffer } from './sami'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
 import { loadUnityPackageTree } from './unityPackage'
@@ -157,7 +158,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 19
+const PREVIEW_CACHE_REV = 20
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -349,6 +350,8 @@ export async function getPreview(
       model = await buildMarkdownPreview(file, st.size, fields, warnings)
     } else if (HTML_EXTS.has(ext)) {
       model = await buildHtmlPreview(file, st.size, fields, warnings)
+    } else if (ext === 'smi' || ext === 'sami') {
+      model = await buildSamiPreview(file, st.size, fields, warnings)
     } else if (SPREADSHEET_EXTS.has(ext) && ext !== 'csv') {
       model = await buildOfficeSpreadsheetPreview(file, fields, warnings)
     } else if (WORD_DOCX_EXTS.has(ext)) {
@@ -821,6 +824,48 @@ async function buildHtmlPreview(
   const textSample = await readTextSample(file, size, warnings, 'HTML')
   if (textSample === null) return { path: file, kind: 'binary', fields, warnings }
   return { path: file, kind: 'html', textSample, fields, warnings }
+}
+
+async function buildSamiPreview(
+  file: string,
+  size: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const maxBytes = settingsStore().get().textPreviewMaxBytes
+  const readBytes = Math.min(size, maxBytes)
+  let buf: Buffer
+  try {
+    const handle = await fsp.open(file, 'r')
+    try {
+      buf = Buffer.alloc(readBytes)
+      await handle.read(buf, 0, readBytes, 0)
+    } finally {
+      await handle.close()
+    }
+  } catch {
+    return { path: file, kind: 'binary', fields, warnings }
+  }
+  const { text, encoding } = decodeSamiBuffer(buf)
+  if (size > readBytes) warnings.push('Preview truncated')
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = { id: 'file.type', label: 'Type', value: 'SAMI subtitle', group: 'file' }
+  }
+  fields.push({
+    id: 'sami.encoding',
+    label: 'Encoding',
+    value: encoding,
+    group: 'other'
+  })
+  return {
+    path: file,
+    kind: 'html',
+    subtitle: 'SAMI subtitle',
+    textSample: capText(text, warnings, 'HTML'),
+    fields,
+    warnings
+  }
 }
 
 async function buildOfficeSpreadsheetPreview(

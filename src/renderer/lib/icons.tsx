@@ -299,6 +299,8 @@ const TEXT_EXTS = new Set([
   'log',
   'srt',
   'sub',
+  'smi',
+  'sami',
   'ini',
   'cfg',
   'toml'

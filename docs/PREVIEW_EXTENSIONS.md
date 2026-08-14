@@ -19,7 +19,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | [Video](#video) | `mp4` `m4v` `webm` `mkv` `mov` `wmv` `mpg` `mpeg` `avi` | `video` |
 | [PDF](#pdf) | `pdf` | `pdf` |
 | [Markdown](#markdown) | `md` `markdown` | `markdown` |
-| [HTML](#html) | `html` `htm` | `html` |
+| [HTML](#html) | `html` `htm` `smi` `sami` | `html` |
 | [Spreadsheets](#spreadsheets) | `xls` `xlsx` `xlsm` `xlsb` `ods` `csv` | `spreadsheet` |
 | [Word](#word) | `docx` `doc` | `document` |
 | [PowerPoint](#powerpoint) | `pptx` `ppt` | `document` |
@@ -128,6 +128,7 @@ Icon-view video strips (`!VIDTHUMB_CACHE`) are separate from the preview pane; s
 | Ext | Notes |
 | --- | ----- |
 | `html` / `htm` | Sanitized document preview (no scripts/iframes/forms). **Preview / Raw** toggle. Relative assets are best-effort only. |
+| `smi` / `sami` | SAMI subtitle (HTML-like). Decoded from `charset=` / `lang:kr-KR` / KRCC (typically **EUC-KR**), not assumed UTF-8. Same Preview / Raw toggle. Encoding shown in metadata. |
 
 ---
 
@@ -182,6 +183,7 @@ UTF-8 / UTF-16 LE sniff; capped sample (`textPreviewMaxBytes`). Syntax highlight
 | `txt` | Plaintext |
 | `srt` | SubRip subtitle (index / timestamps / tags) |
 | `sub` | Text subtitle (MicroDVD / SubViewer) when the file sniffs as UTF-8. CloneCD / VobSub `.sub` stays binary. |
+| `smi` / `sami` | See [HTML](#html) — SAMI is HTML-like; encoding is detected (often EUC-KR). |
 | `json` | JSON |
 | `yaml` / `yml` / `wlt` / `meta` / `mat` / `asset` / `terrainlayer` / `lighting` / `unity` / `prefab` / `controller` / `anim` | YAML (`wlt` treated as YAML; the rest = Unity). Binary `.asset` / `.unity` / `.prefab` / `.controller` / `.anim` still sniff as binary. |
 | `shadergraph` | JSON (Unity Shader Graph) |

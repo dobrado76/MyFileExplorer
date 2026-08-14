@@ -25,6 +25,8 @@ describe('languageFromPath', () => {
     expect(languageFromPath('D:\\App.sln')).toBe('sln')
     expect(languageFromPath('D:\\.vsconfig')).toBe('json')
     expect(languageFromPath('D:\\x.html')).toBe('html')
+    expect(languageFromPath('D:\\movie.smi')).toBe('html')
+    expect(languageFromPath('D:\\movie.sami')).toBe('html')
     expect(languageFromPath('D:\\x.xml')).toBe('xml')
     expect(languageFromPath('D:\\job.ffs_gui')).toBe('xml')
     expect(languageFromPath('D:\\run.bat')).toBe('dos')

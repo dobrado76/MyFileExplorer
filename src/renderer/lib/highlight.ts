@@ -78,6 +78,8 @@ export function languageFromPath(filePath: string): string | null {
   const map: Record<string, string> = {
     html: 'html',
     htm: 'html',
+    smi: 'html',
+    sami: 'html',
     xhtml: 'html',
     xml: 'xml',
     svg: 'xml',

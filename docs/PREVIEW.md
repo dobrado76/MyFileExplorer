@@ -153,12 +153,13 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ---
 
-## HTML (`.html`, `.htm`)
+## HTML (`.html`, `.htm`) / SAMI (`.smi`, `.sami`)
 
 - `kind: 'html'` with raw `textSample` (same text-preview byte cap as other text)
 - Renderer: sanitized HTML inject (DOMPurify; scripts/iframes/forms forbidden)
 - **Preview / Raw** toggle (default Preview); Raw shows syntax-highlighted source
 - Relative assets / external scripts are not loaded specially — best-effort document preview
+- **SAMI** (`.smi` / `.sami`): decode via `charset=` / `lang:kr-KR` / `KRCC` (typically EUC-KR). Do not assume UTF-8 — Korean rips mojibake otherwise. Encoding field on the metadata strip.
 
 ---
 
