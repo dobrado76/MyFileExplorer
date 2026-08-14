@@ -73,7 +73,11 @@ import {
   type QuickAccessEntry
 } from '../lib/quickAccess'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
-import { pruneSearchResultItems, searchResultsToEntries } from '../lib/searchEntries'
+import {
+  mergeDismissedPaths,
+  pruneSearchResultItems,
+  searchResultsToEntries
+} from '../lib/searchEntries'
 import { formatSearchProgress } from '@shared/searchProgress'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
@@ -102,6 +106,8 @@ export type SearchState = {
   progress: string | null
   gen: number
   message: string | null
+  /** Deleted/moved during this search — live progress must not put them back. */
+  dismissed: string[]
 }
 
 export function emptyTabSearch(indexedOnly = false): SearchState {
@@ -116,7 +122,8 @@ export function emptyTabSearch(indexedOnly = false): SearchState {
     contentSlow: false,
     progress: null,
     gen: 0,
-    message: null
+    message: null,
+    dismissed: []
   }
 }
 
@@ -1550,10 +1557,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         entries: s.listing.entries.filter((e) => !pathGone(e.path))
       }
       const tabs = s.tabs.map((t) => {
-        if (!t.search.active || t.search.results.length === 0) return t
-        const results = pruneSearchResultItems(t.search.results, removed)
-        if (results === t.search.results || results.length === t.search.results.length) return t
-        return { ...t, search: { ...t.search, results } }
+        if (!t.search.active) return t
+        const dismissed = mergeDismissedPaths(t.search.dismissed ?? [], removed)
+        const results = pruneSearchResultItems(t.search.results, dismissed)
+        if (dismissed === t.search.dismissed && results === t.search.results) return t
+        return { ...t, search: { ...t.search, results, dismissed } }
       })
       const activeSearch = tabs.find((t) => t.id === s.activeTabId)?.search ?? s.search
       if (
@@ -1883,7 +1891,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       progress: null,
       tabId: null,
       gen: 0,
-      message: null
+      message: null,
+      dismissed: []
     },
     recycleBin: {
       active: false,
@@ -2154,7 +2163,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             const text = formatSearchProgress(p)
             if (text) patch.progress = text
           }
-          if (p.items) patch.results = p.items
+          if (p.items) patch.results = pruneSearchResultItems(p.items, st.dismissed ?? [])
           if (Object.keys(patch).length > 0) {
             updateTab(owner.id, { search: { ...st, ...patch } })
           }
@@ -4896,7 +4905,8 @@ export const useAppStore = create<AppState>()((set, get) => {
                 contentSlow: false,
                 progress: 'Starting search…',
                 gen: seq,
-                message: null
+                message: null,
+                dismissed: []
               }
             }
           }
@@ -4937,7 +4947,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           search: {
             ...owner.search,
             running: false,
-            results: res.items,
+            results: pruneSearchResultItems(res.items, owner.search.dismissed ?? []),
             partial: res.partial,
             source: res.source,
             contentSlow: Boolean(res.contentSlow),

@@ -42,6 +42,7 @@ export function StatusBar(): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const fileOp = useAppStore((s) => s.fileOp)
   const notify = useAppStore((s) => s.notify)
+  const clearSearch = useAppStore((s) => s.clearSearch)
 
   const hiddenCount = useMemo(() => {
     let hidden = 0
@@ -116,9 +117,7 @@ export function StatusBar(): JSX.Element {
       ? 'Loading Recycle Bin…'
       : `${recycleBin.items.length} item${recycleBin.items.length === 1 ? '' : 's'} in Recycle Bin`
     : search.active
-      ? search.running
-        ? search.progress ?? 'Searching…'
-        : `${search.results.length} search result${search.results.length === 1 ? '' : 's'}`
+      ? `${search.results.length} search result${search.results.length === 1 ? '' : 's'}`
       : listing.loading
         ? 'Loading…'
         : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}`
@@ -159,10 +158,25 @@ export function StatusBar(): JSX.Element {
             </span>
           ) : null}
         </div>
+      ) : search.active && search.running ? (
+        <div className="status-op" role="status" aria-live="polite">
+          <button type="button" className="status-op-cancel" onClick={() => clearSearch()}>
+            Cancel
+          </button>
+          <div className="status-op-track" role="progressbar" aria-label="Searching">
+            <div className="status-op-fill indeterminate" />
+          </div>
+          <span className="status-op-title">Searching</span>
+          {search.progress ? (
+            <span className="status-op-current" title={search.progress}>
+              {search.progress}
+            </span>
+          ) : null}
+        </div>
       ) : (
         <span>{itemCountLabel}</span>
       )}
-      {!fileOp && selected.length > 0 && (
+      {!fileOp && !(search.active && search.running) && selected.length > 0 && (
         <span>
           {selected.length} selected{selectionSize > 0 ? ` · ${formatBytes(selectionSize)}` : ''}
         </span>

@@ -111,9 +111,9 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 - **As-you-type** debounced search (cancel in-flight); Enter still searches immediately
 - Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced). **Saved searches** (named designs) store the builder + match flags + query — not the target. Run again against the current folder or indexed roots. Cap 80; included in Settings export (D45).
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
-- Results in normal **FileView** (D29); Folder column; banner with count / progress / Clear / “Not indexed — slow” / “Content search — slow”
+- Results in normal **FileView** (D29); Folder column; banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
 - **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results pushes the search onto Back; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.
-- **Delete / move from results** drops those hits (and children of a deleted folder) from the list immediately — unlike Explorer, which leaves stale rows until you search again.
+- **Delete / move from results** drops those hits (and children of a deleted folder) from the list immediately — unlike Explorer, which leaves stale rows until you search again. A still-running walk will not put them back.
 - Live folder walks **stream** partial results; status bar shows in-progress state (not `0 results` while still walking)
 - Settings → Search: roots (kind, monitor, status, file count), Add folder / Add drive, Reindex, excludes, saved **filters** & **bookmarks**
 - Optional **localhost HTTP** query API (Settings → Advanced; token; bind 127.0.0.1)

@@ -16,6 +16,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Show tab icons** — Settings → Appearance toggle (default on). Off hides every tab icon without clearing the ones you set.
 - **Power Search saved designs** — name a complex search and load/run it later. Params (builder + match flags) are stored; target (current folder vs indexed) is chosen each run.
 
+### Fixed
+
+- **Search results stay gone after delete** — deleting a hit during an in-progress scan no longer lets the next progress snapshot put it back.
+
 ## [0.7.0] - 2026-08-14
 
 Seventh product release: Power Search, continue-then-review bulk file ops, per-tab search, PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, nested custom context submenus, and search/tab/splitter polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

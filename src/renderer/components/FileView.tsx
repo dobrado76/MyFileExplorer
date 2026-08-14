@@ -1672,7 +1672,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         )}
         {(search.running || recycleBin.loading) && entries.length === 0 && (
           <div className="fileview-empty fileview-empty-progress" data-bg="1">
-            {recycleBin.loading ? 'Loading Recycle Bin…' : search.progress ?? 'Searching…'}
+            {recycleBin.loading ? 'Loading Recycle Bin…' : 'Searching…'}
           </div>
         )}
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }} data-bg="1">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pruneSearchResultItems } from '../renderer/lib/searchEntries'
+import { mergeDismissedPaths, pruneSearchResultItems } from '../renderer/lib/searchEntries'
 import type { SearchResultItem } from '../shared/schemas/search'
 
 function hit(path: string): SearchResultItem {
@@ -23,5 +23,22 @@ describe('pruneSearchResultItems', () => {
     const items = [hit('C:\\a.txt')]
     expect(pruneSearchResultItems(items, [])).toBe(items)
     expect(pruneSearchResultItems(items, ['C:\\other.txt'])).toEqual(items)
+  })
+})
+
+describe('mergeDismissedPaths', () => {
+  it('records new paths and skips ones already covered by a parent', () => {
+    const first = mergeDismissedPaths([], ['C:\\pics\\cat.jpg', 'C:\\pics\\album'])
+    expect(first).toEqual(['C:\\pics\\cat.jpg', 'C:\\pics\\album'])
+    const again = mergeDismissedPaths(first, ['C:\\pics\\cat.jpg', 'C:\\pics\\album\\a.jpg'])
+    expect(again).toBe(first)
+  })
+
+  it('keeps later progress from resurrecting a dismissed hit', () => {
+    const dismissed = mergeDismissedPaths([], ['C:\\pics\\cat.jpg'])
+    const streamed = [hit('C:\\pics\\cat.jpg'), hit('C:\\pics\\dog.jpg')]
+    expect(pruneSearchResultItems(streamed, dismissed).map((r) => r.path)).toEqual([
+      'C:\\pics\\dog.jpg'
+    ])
   })
 })

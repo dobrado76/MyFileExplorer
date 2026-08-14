@@ -36,3 +36,16 @@ export function pruneSearchResultItems(
     (item) => !removed.some((r) => samePath(item.path, r) || isUnderPath(item.path, r))
   )
 }
+
+/** Remember deleted/moved paths so a still-running scan cannot re-add them. */
+export function mergeDismissedPaths(existing: string[], removed: string[]): string[] {
+  if (removed.length === 0) return existing
+  const next = [...existing]
+  let added = false
+  for (const r of removed) {
+    if (next.some((p) => samePath(p, r) || isUnderPath(r, p))) continue
+    next.push(r)
+    added = true
+  }
+  return added ? next : existing
+}
