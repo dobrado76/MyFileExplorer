@@ -2,7 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } f
 import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
-import { findDropDirAt, isValidDropDest } from '../lib/rightDrag'
+import {
+  findDropDirAt,
+  getLiveRightDragSession,
+  isValidDropDest,
+  shouldSuppressContextMenu
+} from '../lib/rightDrag'
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
@@ -351,6 +356,15 @@ export function TabBar(): JSX.Element {
               onContextMenu={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
+                // Right-drag of files onto a tab owns this mouseup — Copy/Move menu,
+                // not Duplicate/Rename/Close.
+                if (
+                  fileDragActive ||
+                  shouldSuppressContextMenu() ||
+                  getLiveRightDragSession()
+                ) {
+                  return
+                }
                 setMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
               }}
             >

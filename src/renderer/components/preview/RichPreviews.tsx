@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import type { SpreadsheetSheet } from '@shared/schemas/preview'
+import type { PptSlidePreview, SpreadsheetSheet } from '@shared/schemas/preview'
 import { pdfPreviewSrc } from '../../lib/pdfPreview'
 import { useAppStore } from '../../store/appStore'
 import { CodePreview } from './CodePreview'
@@ -13,6 +13,18 @@ function sanitizeHtml(html: string): string {
     USE_PROFILES: { html: true },
     FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
     FORBID_ATTR: ['onerror', 'onload', 'onclick', 'style']
+  })
+}
+
+/** PowerPoint layout preview — allow positioned boxes + mfe-media images. */
+function sanitizePptHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ['style', 'class'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick'],
+    ALLOWED_URI_REGEXP:
+      /^(?:(?:(?:f|ht)tps?|mailto|tel|mfe-media):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
   })
 }
 
@@ -101,8 +113,114 @@ export function HtmlSourcePreview({
 }
 
 export function HtmlDocumentPreview({ html }: { html: string }): JSX.Element {
-  const safe = useMemo(() => sanitizeHtml(html), [html])
-  return <div className="preview-rich doc" dangerouslySetInnerHTML={{ __html: safe }} />
+  const ppt = html.includes('ppt-deck')
+  const safe = useMemo(() => (ppt ? sanitizePptHtml(html) : sanitizeHtml(html)), [html, ppt])
+  return (
+    <div
+      className={`preview-rich doc${ppt ? ' ppt' : ''}`}
+      dangerouslySetInnerHTML={{ __html: safe }}
+    />
+  )
+}
+
+function isDarkHex(hex: string): boolean {
+  const n = parseInt(hex.slice(1), 16)
+  if (!Number.isFinite(n)) return false
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return (r * 299 + g * 587 + b * 114) / 1000 < 140
+}
+
+function PptSlideCard({ slide }: { slide: PptSlidePreview }): JSX.Element {
+  const hasText = slide.items.some((it) => it.kind === 'text')
+  const hasVisual =
+    Boolean(slide.bgImageUrl) || slide.items.length > 0 || slide.fallbackLines.length > 0
+  const dark = slide.bg ? isDarkHex(slide.bg) : false
+  const showInnerFallback = slide.fallbackLines.length > 0 && !hasText
+  const showExtraFallback = slide.fallbackLines.length > 0 && hasText
+
+  return (
+    <section className="ppt-slide">
+      <div className="ppt-slide-label">Slide {slide.index}</div>
+      {hasVisual ? (
+        <div
+          className={`ppt-stage${dark ? ' ppt-stage-dark' : ''}`}
+          style={{
+            aspectRatio: String(slide.aspect),
+            background: slide.bg ?? undefined
+          }}
+        >
+          {slide.bgImageUrl ? (
+            <img className="ppt-bg" src={slide.bgImageUrl} alt="" draggable={false} />
+          ) : null}
+          {slide.items.map((it, i) => {
+            const box = {
+              left: `${it.box.l}%`,
+              top: `${it.box.t}%`,
+              width: `${it.box.w}%`,
+              height: `${it.box.h}%`
+            }
+            if (it.kind === 'pic') {
+              return (
+                <div key={i} className="ppt-abs ppt-pic" style={box}>
+                  <img src={it.url} alt="" draggable={false} />
+                </div>
+              )
+            }
+            return (
+              <div key={i} className={`ppt-abs ${it.title ? 'ppt-title' : 'ppt-body'}`} style={box}>
+                {it.lines.map((line, j) => (
+                  <p key={j} className={it.title ? 'ppt-t' : undefined}>
+                    {line}
+                  </p>
+                ))}
+              </div>
+            )
+          })}
+          {showInnerFallback ? (
+            <div className="ppt-fallback">
+              {slide.fallbackLines.map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <p className="ppt-empty">No previewable content on this slide</p>
+      )}
+      {showExtraFallback ? (
+        <div className="ppt-extra">
+          {slide.fallbackLines.map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+        </div>
+      ) : null}
+      {slide.notes.length > 0 ? (
+        <div className="ppt-notes">
+          <span className="ppt-notes-label">Notes</span>
+          {slide.notes.map((n, i) => (
+            <p key={i}>{n}</p>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+export function PowerPointPreview({ slides }: { slides: PptSlidePreview[] }): JSX.Element {
+  if (slides.length === 0) {
+    return <div className="preview-empty">No slides</div>
+  }
+  return (
+    <div className="preview-rich doc ppt">
+      <div className="ppt-deck">
+        {slides.map((slide) => (
+          <PptSlideCard key={slide.index} slide={slide} />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export function PdfPreview({ url }: { url: string }): JSX.Element {

@@ -6,13 +6,12 @@ import {
   looksAbsolute,
   normalizeSlashes,
   stripTrailingSep,
-  isUnderPath,
-  basename,
-  samePath
+  isUnderPath
 } from '../lib/paths'
 import { api, call } from '../lib/ipc'
 import { ChevronDown, ChevronRight } from '../lib/icons'
-import { historyEntries } from '../lib/historyEntries'
+import { historyEntries, type RecentLocation } from '../lib/historyEntries'
+import { folderHistory, searchHistory } from '@shared/tabHistory'
 
 const isWindows =
   (globalThis as typeof globalThis & { process?: { platform?: string } }).process?.platform ===
@@ -34,6 +33,7 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   const addressEditing = useAppStore((s) => s.addressEditing)
   const setAddressEditing = useAppStore((s) => s.setAddressEditing)
   const navigate = useAppStore((s) => s.navigate)
+  const goToHistoryEntry = useAppStore((s) => s.goToHistoryEntry)
   const notify = useAppStore((s) => s.notify)
 
   const [localEditing, setLocalEditing] = useState(false)
@@ -57,10 +57,14 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
   /** Middle segment indices [start, end) hidden behind … — only when the full trail overflows. */
   const [hiddenRange, setHiddenRange] = useState<{ start: number; end: number } | null>(null)
 
-  const history = useMemo(
-    () => historyEntries(back ?? [], path, forward ?? []),
-    [back, path, forward]
-  )
+  const searching = Boolean(tab?.search.active && tab.search.query.trim())
+  const history = useMemo(() => {
+    const current =
+      searching && tab
+        ? searchHistory(tab.search.query.trim(), path, tab.search.indexedOnly)
+        : folderHistory(path)
+    return historyEntries(back ?? [], current, forward ?? [])
+  }, [back, path, forward, searching, tab])
 
   useEffect(() => {
     if (editing) {
@@ -251,10 +255,11 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
             width={menuPos.width}
             items={history}
             canClear={canClearHistory}
-            onPick={(p) => {
+            onPick={(item) => {
               setHistoryOpen(false)
               setEditing(false)
-              if (!samePath(p, path)) go(p)
+              if (item.current) return
+              void goToHistoryEntry(item.entry, tabId)
             }}
             onClear={() => {
               setHistoryOpen(false)
@@ -391,13 +396,18 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
             <button type="button" className="crumb" onClick={() => go(seg.path)}>
               {seg.label}
             </button>
-            {i < visible.length - 1 && (
+            {(i < visible.length - 1 || searching) && (
               <span className="crumb-sep">
                 <ChevronRight size={12} />
               </span>
             )}
           </span>
         ))}
+        {searching && tab && (
+          <span className="crumb crumb-search" title={`Search: ${tab.search.query.trim()}`}>
+            Search: {tab.search.query.trim()}
+          </span>
+        )}
       </div>
       <button
         type="button"
@@ -429,9 +439,9 @@ function HistoryMenu({
   top: number
   left: number
   width: number
-  items: { path: string; current: boolean }[]
+  items: RecentLocation[]
   canClear: boolean
-  onPick: (path: string) => void
+  onPick: (item: RecentLocation) => void
   onClear: () => void
 }): JSX.Element {
   return (
@@ -449,17 +459,19 @@ function HistoryMenu({
       ) : (
         items.map((item) => (
           <button
-            key={item.path}
+            key={item.key}
             type="button"
             role="option"
             aria-selected={item.current}
             className={`menu-item${item.current ? ' current' : ''}`}
-            title={isWindows ? item.path : item.path.replace(/\\\\/g, '/')}
-            onClick={() => onPick(item.path)}
+            title={item.label}
+            onClick={() => onPick(item)}
           >
             <span className="menu-check">{item.current ? '✓' : ''}</span>
-            <span className="crumb-history-label">{basename(item.path)}</span>
-            <span className="crumb-history-path">{isWindows ? item.path : item.path.replace(/\\\\/g, '/')}</span>
+            <span className="crumb-history-label">{item.label}</span>
+            <span className="crumb-history-path">
+              {isWindows ? item.path : item.path.replace(/\\\\/g, '/')}
+            </span>
           </button>
         ))
       )}

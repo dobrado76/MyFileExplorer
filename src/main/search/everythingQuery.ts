@@ -57,7 +57,7 @@ export type StructuredQuery = {
 }
 
 const MACROS: Record<string, string[]> = {
-  pic: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico', 'svg', 'heic', 'avif'],
+  pic: ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico', 'svg', 'heic', 'avif'],
   video: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm', 'm4v', 'mpg', 'mpeg', 'ts'],
   audio: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'wma', 'opus'],
   doc: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'csv', 'md'],

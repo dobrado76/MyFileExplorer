@@ -38,13 +38,14 @@ const EXTRA_FILE_HINTS: Array<{ shellPath: string; hint: string; extensions: str
   { shellPath: 'SystemFileAssociations\\.png\\shell', hint: '.png', extensions: ['png'] },
   { shellPath: 'SystemFileAssociations\\.jpg\\shell', hint: '.jpg', extensions: ['jpg', 'jpeg'] },
   { shellPath: 'SystemFileAssociations\\.jpeg\\shell', hint: '.jpeg', extensions: ['jpeg', 'jpg'] },
+  { shellPath: 'SystemFileAssociations\\.jfif\\shell', hint: '.jfif', extensions: ['jfif'] },
   { shellPath: 'SystemFileAssociations\\.pdf\\shell', hint: '.pdf', extensions: ['pdf'] },
   { shellPath: 'SystemFileAssociations\\.mp4\\shell', hint: '.mp4', extensions: ['mp4'] },
   { shellPath: 'SystemFileAssociations\\.mp3\\shell', hint: '.mp3', extensions: ['mp3'] },
   { shellPath: 'SystemFileAssociations\\.docx\\shell', hint: '.docx', extensions: ['docx'] },
   { shellPath: 'SystemFileAssociations\\.zip\\shell', hint: '.zip', extensions: ['zip'] },
   { shellPath: 'txtfile\\shell', hint: 'txtfile', extensions: ['txt'] },
-  { shellPath: 'jpegfile\\shell', hint: 'jpegfile', extensions: ['jpg', 'jpeg'] },
+  { shellPath: 'jpegfile\\shell', hint: 'jpegfile', extensions: ['jpg', 'jpeg', 'jfif'] },
   { shellPath: 'pngfile\\shell', hint: 'pngfile', extensions: ['png'] }
 ]
 

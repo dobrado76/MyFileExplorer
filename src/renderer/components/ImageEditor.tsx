@@ -261,7 +261,7 @@ const REMOVE_TAB_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" 
 
 function extToSavedType(filePath: string): 'png' | 'jpeg' | 'jpg' | 'webp' {
   const ext = filePath.split('.').pop()?.toLowerCase() ?? 'png'
-  if (ext === 'jpg' || ext === 'jpeg' || ext === 'bmp') return 'jpeg'
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'jfif' || ext === 'bmp') return 'jpeg'
   if (ext === 'webp') return 'webp'
   return 'png'
 }

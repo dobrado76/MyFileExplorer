@@ -48,6 +48,22 @@ export type SpreadsheetSheet = {
   rows: string[][]
 }
 
+export type PptSlideBox = { l: number; t: number; w: number; h: number }
+
+export type PptSlideItem =
+  | { kind: 'text'; box: PptSlideBox; title?: boolean; lines: string[] }
+  | { kind: 'pic'; box: PptSlideBox; url: string }
+
+export type PptSlidePreview = {
+  index: number
+  aspect: number
+  bg?: string
+  bgImageUrl?: string
+  items: PptSlideItem[]
+  fallbackLines: string[]
+  notes: string[]
+}
+
 /** Nested listing of entries inside a `.zip` (preview only — not a navigable folder). */
 export type ArchiveTreeNode = {
   name: string
@@ -87,6 +103,8 @@ export type PreviewModel = {
   textSample?: string
   /** HTML fragment for Word / RTF (renderer sanitizes before inject). */
   htmlBody?: string
+  /** Structured PowerPoint slides (React layout — not sanitized HTML). */
+  pptSlides?: PptSlidePreview[]
   sheets?: SpreadsheetSheet[]
   /** ZIP / Unity package contents tree when `kind === 'archive'`; CHM TOC when `kind === 'chm'`. */
   archiveTree?: ArchiveTreeNode[]

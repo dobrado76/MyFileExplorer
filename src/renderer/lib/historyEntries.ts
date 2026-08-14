@@ -1,4 +1,18 @@
-import { samePath } from './paths'
+import {
+  historyEntryKey,
+  historyEntryLabel,
+  historyLocationPath,
+  sameHistoryEntry,
+  type HistoryEntry
+} from '@shared/tabHistory'
+
+export type RecentLocation = {
+  key: string
+  path: string
+  label: string
+  entry: HistoryEntry
+  current: boolean
+}
 
 /**
  * Recent Locations: same order as repeated Back from here.
@@ -6,24 +20,24 @@ import { samePath } from './paths'
  * (only present after Back; not part of the Back chain). Deduped, first wins.
  */
 export function historyEntries(
-  back: string[],
-  current: string,
-  forward: string[] = []
-): { path: string; current: boolean }[] {
-  // tab.back is oldest→newest; reverse so newest previous is right under current.
-  const ordered = [
-    ...(current ? [current] : []),
-    ...[...back].reverse(),
-    ...forward
-  ]
+  back: HistoryEntry[],
+  current: HistoryEntry,
+  forward: HistoryEntry[] = []
+): RecentLocation[] {
+  const ordered = [current, ...[...back].reverse(), ...forward]
   const seen = new Set<string>()
-  const out: { path: string; current: boolean }[] = []
-  for (const p of ordered) {
-    if (!p) continue
-    const key = p.toLowerCase()
+  const out: RecentLocation[] = []
+  for (const entry of ordered) {
+    const key = historyEntryKey(entry)
     if (seen.has(key)) continue
     seen.add(key)
-    out.push({ path: p, current: current ? samePath(p, current) : false })
+    out.push({
+      key,
+      path: historyLocationPath(entry),
+      label: historyEntryLabel(entry),
+      entry,
+      current: sameHistoryEntry(entry, current)
+    })
   }
   return out
 }

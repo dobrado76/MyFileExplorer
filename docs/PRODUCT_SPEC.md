@@ -30,7 +30,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 └─ Status: selection count, free space optional ──────────────────┘
 ```
 
-- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Search, keyboard nav, and **one shared preview** follow the **focused** pane.
+- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Toolbar search, keyboard nav, and **one shared preview** follow the **focused** pane; each tab keeps its own search results so you can drag hits onto another pane.
 - Preview pane **collapsible**; collapsed state + widths persisted.
 - Pane split ratios persisted in session.
 - **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.
@@ -148,7 +148,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
 - Inline video/audio playback in-pane for common containers (see PREVIEW.md); MKV remuxed via ffmpeg when practical; **`.avi`** uses thumb-strip + open with default app (no in-pane player).
-- Office docs: Word, PowerPoint (`.pptx` slide text; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
+- Office docs: Word, PowerPoint (`.pptx` approximate slide layout + images; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 - Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 - ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
 - Other archives (`.7z`, `.rar`, `.tar`, `.tar.gz`, `.tgz`): same contents tree, list-only (no Extract All).

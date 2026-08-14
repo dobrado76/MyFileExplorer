@@ -1,14 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { api } from '../lib/ipc'
 import { useAppStore } from '../store/appStore'
-
-type CacheEntry = { url: string; frames?: string[] }
-
-const memoryCache = new Map<string, CacheEntry>()
-const MAX_CACHE = 2000
-
-/** Media URLs that have successfully decoded at least once this session. */
-const decodedUrls = new Set<string>()
+import {
+  getThumbMemory,
+  isThumbDecoded,
+  markThumbDecoded,
+  setThumbMemory,
+  thumbMemoryKey,
+  type ThumbMemoryEntry
+} from '../lib/thumbMemory'
 
 type Props = {
   path: string
@@ -33,11 +33,11 @@ function findScrollRoot(el: HTMLElement | null): Element | null {
 }
 
 function preload(url: string): Promise<boolean> {
-  if (decodedUrls.has(url)) return Promise.resolve(true)
+  if (isThumbDecoded(url)) return Promise.resolve(true)
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
-      decodedUrls.add(url)
+      markThumbDecoded(url)
       resolve(true)
     }
     img.onerror = () => resolve(false)
@@ -51,13 +51,14 @@ function preload(url: string): Promise<boolean> {
  */
 export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Props): JSX.Element {
   const videoThumbRev = useAppStore((s) => s.videoThumbRev)
-  const key = `${path.toLowerCase()}|${mtimeMs}|${size}|${videoThumbRev}`
+  const imageThumbRev = useAppStore((s) => s.thumbRevByPath[path.toLowerCase()] ?? 0)
+  const key = thumbMemoryKey(path, mtimeMs, size, videoThumbRev, imageThumbRev)
   const frameMs = useAppStore((s) => s.settings.vidThumbFrameMs)
   const wrapRef = useRef<HTMLSpanElement>(null)
   const [nearView, setNearView] = useState(true)
-  const [entry, setEntry] = useState<CacheEntry | null>(() => memoryCache.get(key) ?? null)
+  const [entry, setEntry] = useState<ThumbMemoryEntry | null>(() => getThumbMemory(key) ?? null)
   const [displaySrc, setDisplaySrc] = useState<string | null>(() => {
-    const hit = memoryCache.get(key)
+    const hit = getThumbMemory(key)
     return hit?.url ?? null
   })
   const [failed, setFailed] = useState(false)
@@ -88,7 +89,7 @@ export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Prop
 
   // Resolve thumb URLs when near view (memory cache skips IPC).
   useEffect(() => {
-    const hit = memoryCache.get(key)
+    const hit = getThumbMemory(key)
     if (hit) {
       setEntry(hit)
       setFailed(false)
@@ -102,15 +103,11 @@ export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Prop
     void api.thumbs.get({ path, size }).then((res) => {
       if (reqId !== reqIdRef.current) return
       if (res.ok && res.value.url) {
-        const next: CacheEntry = {
+        const next: ThumbMemoryEntry = {
           url: res.value.url,
           frames: res.value.frames && res.value.frames.length > 1 ? res.value.frames : undefined
         }
-        if (memoryCache.size > MAX_CACHE) {
-          memoryCache.clear()
-          decodedUrls.clear()
-        }
-        memoryCache.set(key, next)
+        setThumbMemory(key, next)
         setEntry(next)
         setDisplaySrc(next.url)
       } else {
@@ -139,7 +136,7 @@ export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Prop
       const next = (frameIdxRef.current + 1) % frames.length
       const url = frames[next]
       if (!url) return
-      if (!decodedUrls.has(url)) {
+      if (!isThumbDecoded(url)) {
         void preload(url)
         return
       }

@@ -15,7 +15,7 @@ import {
 import { listIndexRoots } from '../search'
 import { buildSpreadsheetSheets } from './spreadsheet'
 import { docxToHtml, docToHtml } from './office'
-import { pptxToHtml, pptToHtml } from './powerpoint'
+import { pptxToPreviewSlides, pptToHtml } from './powerpoint'
 import { rtfToHtml } from './rtf'
 import { rasterizePsd } from './psd'
 import { buildSafetensorsPreviewFields } from './safetensors'
@@ -57,6 +57,7 @@ const IMAGE_EXTS = new Set([
   'png',
   'jpg',
   'jpeg',
+  'jfif',
   'webp',
   'gif',
   'bmp',
@@ -669,7 +670,26 @@ async function buildPowerPointPreview(
   warnings: string[]
 ): Promise<PreviewModel> {
   try {
-    const htmlBody = format === 'pptx' ? await pptxToHtml(file, warnings) : await pptToHtml(file, warnings)
+    if (format === 'pptx') {
+      const pptSlides = await pptxToPreviewSlides(file, warnings)
+      if (pptSlides.length > 0) {
+        fields.push({
+          id: 'ppt.slides',
+          label: 'Slides',
+          value: String(pptSlides.length),
+          group: 'file'
+        })
+      }
+      return {
+        path: file,
+        kind: 'document',
+        subtitle: 'PowerPoint',
+        pptSlides,
+        fields,
+        warnings
+      }
+    }
+    const htmlBody = await pptToHtml(file, warnings)
     return {
       path: file,
       kind: 'document',

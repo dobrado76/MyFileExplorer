@@ -12,14 +12,30 @@ const LIST_CAP = SLIDESHOW_IMAGE_LIST_CAP
 
 type ImageEntry = { path: string; name: string; size: number; width: number; height: number }
 
-let listCancelled = false
+/** Bumped on cancel and on each new list so a stale walk cannot finish as “success”. */
+let listGen = 0
 
 export function cancelSlideshowList(): void {
-  listCancelled = true
+  listGen += 1
 }
 
-async function walkImages(root: string, out: ImageEntry[]): Promise<void> {
-  if (listCancelled || out.length >= LIST_CAP) return
+export function beginSlideshowListGen(): number {
+  listGen += 1
+  return listGen
+}
+
+export function isSlideshowListStale(gen: number): boolean {
+  return gen !== listGen
+}
+
+function throwIfListStale(gen: number): void {
+  if (isSlideshowListStale(gen)) {
+    throw new AppError('cancelled', 'Slideshow list cancelled')
+  }
+}
+
+async function walkImages(root: string, out: ImageEntry[], gen: number): Promise<void> {
+  if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
   let dirents
   try {
     dirents = await fsp.readdir(root, { withFileTypes: true })
@@ -27,10 +43,10 @@ async function walkImages(root: string, out: ImageEntry[]): Promise<void> {
     return
   }
   for (const d of dirents) {
-    if (listCancelled || out.length >= LIST_CAP) return
+    if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
     const full = path.join(root, d.name)
     if (d.isDirectory()) {
-      await walkImages(full, out)
+      await walkImages(full, out, gen)
       continue
     }
     if (!d.isFile() || !isSlideshowImagePath(full)) continue
@@ -50,10 +66,10 @@ async function walkImages(root: string, out: ImageEntry[]): Promise<void> {
   }
 }
 
-async function fillDimensions(entries: ImageEntry[]): Promise<void> {
+async function fillDimensions(entries: ImageEntry[], gen: number): Promise<void> {
   const CONCURRENCY = 8
   for (let i = 0; i < entries.length; i += CONCURRENCY) {
-    if (listCancelled) return
+    if (isSlideshowListStale(gen)) return
     const batch = entries.slice(i, i + CONCURRENCY)
     await Promise.all(
       batch.map(async (e) => {
@@ -123,6 +139,7 @@ export async function sortSlideshowImagePaths(
 ): Promise<string[]> {
   if (paths.length <= 1) return [...paths]
 
+  const gen = listGen
   const entries: ImageEntry[] = paths.map((p) => ({
     path: p,
     name: path.basename(p),
@@ -134,6 +151,7 @@ export async function sortSlideshowImagePaths(
   if (order === 'size' || order === 'dimensions') {
     await Promise.all(
       entries.map(async (e) => {
+        if (isSlideshowListStale(gen)) return
         try {
           e.size = (await fsp.stat(e.path)).size
         } catch {
@@ -143,9 +161,10 @@ export async function sortSlideshowImagePaths(
     )
   }
   if (order === 'dimensions') {
-    await fillDimensions(entries)
+    await fillDimensions(entries, gen)
   }
 
+  throwIfListStale(gen)
   sortImageEntries(entries, order, ascending)
   return entries.map((e) => e.path)
 }
@@ -153,9 +172,10 @@ export async function sortSlideshowImagePaths(
 export async function listSlideshowImages(
   req: SlideshowListRequest
 ): Promise<{ paths: string[]; truncated: boolean }> {
-  listCancelled = false
+  const gen = beginSlideshowListGen()
   const roots = req.roots.map((r) => requireAbsolute(r))
   for (const r of roots) {
+    throwIfListStale(gen)
     if (!(await pathExists(r))) {
       throw new AppError('not-found', `Folder not found: ${r}`)
     }
@@ -163,17 +183,16 @@ export async function listSlideshowImages(
 
   const entries: ImageEntry[] = []
   for (const root of roots) {
-    await walkImages(root, entries)
+    throwIfListStale(gen)
+    await walkImages(root, entries, gen)
   }
   const truncated = entries.length >= LIST_CAP
 
   if (req.order === 'dimensions') {
-    await fillDimensions(entries)
+    await fillDimensions(entries, gen)
   }
 
-  if (listCancelled) {
-    throw new AppError('cancelled', 'Slideshow list cancelled')
-  }
+  throwIfListStale(gen)
 
   sortImageEntries(entries, req.order, req.ascending)
 

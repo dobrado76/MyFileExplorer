@@ -178,9 +178,9 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ## PowerPoint (`.pptx`, `.ppt`)
 
-- `.pptx` → slide text HTML via JSZip + DrawingML `<a:t>` extract (`subtitle: PowerPoint`); images/charts omitted
+- `.pptx` → approximate **slide layout** in the renderer (`pptSlides`: positioned text + rasters from `ppt/media` via slide/layout/master rels). Does not use the low-res `docProps/thumbnail`. Not a full PowerPoint render (charts/SmartArt/WMF/EMF/animations omitted). Cached images under `userData/pptx-preview/`
 - `.ppt` (legacy OLE) → best-effort UTF-16LE text scrape; incomplete vs native PowerPoint
-- Same `kind: 'document'` / HTML preview surface as Word; truncated at ~200 KB of HTML
+- `.pptx` uses structured slides (not sanitized HTML). `.ppt` still uses the document HTML surface; truncated at ~500 KB
 
 ---
 

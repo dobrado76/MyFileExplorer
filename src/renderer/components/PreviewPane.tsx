@@ -26,6 +26,7 @@ import {
   HtmlSourcePreview,
   MarkdownPreview,
   PdfPreview,
+  PowerPointPreview,
   SpreadsheetPreview,
   VideoPreview,
   VideoStripPreview
@@ -439,9 +440,12 @@ export function PreviewPane(): JSX.Element {
         {model.kind === 'html' && model.textSample !== undefined && (
           <HtmlSourcePreview source={model.textSample} path={model.path} />
         )}
-        {(model.kind === 'document' || model.kind === 'rtf') && model.htmlBody !== undefined && (
-          <HtmlDocumentPreview html={model.htmlBody} />
+        {model.pptSlides && model.pptSlides.length > 0 && (
+          <PowerPointPreview slides={model.pptSlides} />
         )}
+        {(model.kind === 'document' || model.kind === 'rtf') &&
+          model.htmlBody !== undefined &&
+          !model.pptSlides?.length && <HtmlDocumentPreview html={model.htmlBody} />}
         {model.kind === 'spreadsheet' && model.sheets && <SpreadsheetPreview sheets={model.sheets} />}
         {model.kind === 'pdf' && model.mediaUrl && !mediaHold && (
           <PdfPreview url={model.mediaUrl} />

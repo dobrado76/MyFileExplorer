@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { DETAILS_COLUMN_IDS } from './columns'
+import { coerceHistoryList, persistHistoryEntry } from '../tabHistory'
 
 export const viewModeSchema = z.enum([
   'extraLargeIconsNoName',
@@ -37,6 +38,30 @@ export const tabIconSchema = z
   .catch(null)
 export type TabIcon = z.infer<typeof tabIconSchema>
 
+const historyEntrySchema = z.union([
+  z.object({ kind: z.literal('folder'), path: z.string().min(1) }),
+  z.object({
+    kind: z.literal('search'),
+    query: z.string(),
+    scopePath: z.string().min(1),
+    indexedOnly: z.boolean()
+  })
+])
+
+const historyListSchema = z.preprocess(
+  (raw) => coerceHistoryList(raw).map(persistHistoryEntry),
+  z.array(historyEntrySchema)
+)
+
+export const tabSearchPersistSchema = z
+  .object({
+    active: z.boolean().catch(false),
+    query: z.string().catch(''),
+    indexedOnly: z.boolean().catch(false)
+  })
+  .catch({ active: false, query: '', indexedOnly: false })
+export type TabSearchPersist = z.infer<typeof tabSearchPersistSchema>
+
 export const tabStateSchema = z.object({
   id: z.string().min(1),
   path: z.string().min(1),
@@ -44,8 +69,9 @@ export const tabStateSchema = z.object({
   icon: tabIconSchema,
   viewMode: viewModeSchema.catch('largeIcons'),
   sort: sortSchema.catch({ key: 'name', dir: 'asc' }),
-  historyBack: z.array(z.string()).catch([]),
-  historyForward: z.array(z.string()).catch([]),
+  historyBack: historyListSchema.catch([]),
+  historyForward: historyListSchema.catch([]),
+  search: tabSearchPersistSchema,
   selectedPaths: z.array(z.string()).catch([]),
   scrollOffset: z.number().catch(0),
   /** When set, the tab is scoped: this folder is the tree root and navigation stays inside it. */

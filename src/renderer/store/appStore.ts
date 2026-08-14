@@ -15,6 +15,15 @@ import type {
   ViewLayout,
   Splitters
 } from '@shared/schemas/session'
+import type { HistoryEntry } from '@shared/tabHistory'
+import {
+  folderHistory,
+  historyLocationPath,
+  persistHistoryEntry,
+  rewriteHistoryEntry,
+  searchHistory,
+  sameHistoryEntry
+} from '@shared/tabHistory'
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
@@ -64,6 +73,7 @@ import { searchResultsToEntries } from '../lib/searchEntries'
 import { formatSearchProgress } from '@shared/searchProgress'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
+import { invalidateThumbMemory } from '../lib/thumbMemory'
 import { nextSelectionAfterDelete } from '../lib/nextSelection'
 import { dedupeDirEntries } from '@shared/dirEntries'
 import {
@@ -76,6 +86,36 @@ import {
   type UndoPathPair
 } from '../lib/undoHistory'
 
+export type SearchState = {
+  active: boolean
+  query: string
+  running: boolean
+  indexedOnly: boolean
+  results: SearchResultItem[]
+  partial: boolean
+  source: 'index' | 'walk' | null
+  contentSlow: boolean
+  progress: string | null
+  gen: number
+  message: string | null
+}
+
+export function emptyTabSearch(indexedOnly = false): SearchState {
+  return {
+    active: false,
+    query: '',
+    running: false,
+    indexedOnly,
+    results: [],
+    partial: false,
+    source: null,
+    contentSlow: false,
+    progress: null,
+    gen: 0,
+    message: null
+  }
+}
+
 export type Tab = {
   id: string
   path: string
@@ -84,14 +124,23 @@ export type Tab = {
   icon: TabIcon
   viewMode: ViewMode
   sort: SortSpec
-  back: string[]
-  forward: string[]
+  back: HistoryEntry[]
+  forward: HistoryEntry[]
   selected: string[]
   scrollOffset: number
   /** Scoped tab: this folder is the tree root; navigation stays inside it. */
   rootPath: string | null
   /** Expanded folder-tree directories for this tab (persisted in session). */
   treeExpanded: string[]
+  /** Search is a location on this tab (WFE). Other tabs keep their own results. */
+  search: SearchState
+}
+
+function currentLocation(tab: Tab): HistoryEntry {
+  if (tab.search.active && tab.search.query.trim()) {
+    return searchHistory(tab.search.query.trim(), tab.path, tab.search.indexedOnly)
+  }
+  return folderHistory(tab.path)
 }
 
 export type Listing = {
@@ -181,25 +230,6 @@ export type NetworkNeighborhoodState = {
   >
   generation: number
   message?: string
-}
-
-export type SearchState = {
-  active: boolean
-  query: string
-  running: boolean
-  indexedOnly: boolean
-  results: SearchResultItem[]
-  partial: boolean
-  source: 'index' | 'walk' | null
-  /** Unindexed content: scan (D34 / D15). */
-  contentSlow: boolean
-  progress: string | null
-  /** Tab that started this search — results overlay that tab only. */
-  tabId: string | null
-  /** In-flight generation; ignore search-progress from a cancelled query. */
-  gen: number
-  /** Why search returned nothing (undecodable / exclude-only query). */
-  message: string | null
 }
 
 /** In-app Recycle Bin overlay (like search — FileView shows bin items). */
@@ -370,6 +400,10 @@ type AppState = {
    */
   videoThumbRev: number
   /**
+   * Per-file thumb invalidation (ADS tip save). Listing mtime often unchanged.
+   */
+  thumbRevByPath: Record<string, number>
+  /**
    * Bumped after ADS edits so Details column meta refetches for `path`.
    */
   columnMetaBump: { rev: number; path: string | null }
@@ -426,6 +460,8 @@ type AppState = {
   setAddressEditing(v: boolean): void
   /** Clear Back/Forward stacks for a tab (address-bar Recent locations). */
   clearHistory(tabId?: string): void
+  /** Jump to a Recent Locations entry (folder or search). */
+  goToHistoryEntry(entry: HistoryEntry, tabId?: string): Promise<void>
 
   /** Start / restart LAN host discovery (async; does not block listings). */
   startNetworkDiscovery(): Promise<void>
@@ -641,8 +677,8 @@ type AppState = {
   // search
   setSearchQuery(q: string): void
   setSearchIndexedOnly(v: boolean): void
-  runSearch(): Promise<void>
-  clearSearch(): void
+  runSearch(tabId?: string): Promise<void>
+  clearSearch(tabId?: string): void
   addIndexRootAction(path: string): Promise<void>
   addVolumeRootAction(path: string): Promise<void>
   removeIndexRootAction(path: string): Promise<void>
@@ -679,8 +715,13 @@ function tabToSessionTab(t: Tab): TabState {
     viewMode: t.viewMode,
     sort: t.sort,
     rootPath: t.rootPath,
-    historyBack: t.back,
-    historyForward: t.forward,
+    historyBack: t.back.map(persistHistoryEntry),
+    historyForward: t.forward.map(persistHistoryEntry),
+    search: {
+      active: t.search.active,
+      query: t.search.query,
+      indexedOnly: t.search.indexedOnly
+    },
     selectedPaths: t.selected,
     scrollOffset: t.scrollOffset,
     treeExpanded: t.treeExpanded
@@ -700,7 +741,13 @@ function sessionTabToTab(t: TabState): Tab {
     selected: t.selectedPaths,
     scrollOffset: t.scrollOffset,
     rootPath: t.rootPath,
-    treeExpanded: t.treeExpanded
+    treeExpanded: t.treeExpanded,
+    search: {
+      ...emptyTabSearch(t.search?.indexedOnly ?? false),
+      active: t.search?.active === true && Boolean(t.search.query?.trim()),
+      query: t.search?.query ?? '',
+      indexedOnly: t.search?.indexedOnly ?? false
+    }
   }
 }
 
@@ -1150,14 +1197,53 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function updateTab(tabId: string, patch: Partial<Tab>): void {
-    set((s) => ({
-      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t))
-    }))
+    set((s) => {
+      const tabs = s.tabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t))
+      const active = tabs.find((t) => t.id === s.activeTabId)
+      return { tabs, search: active?.search ?? s.search }
+    })
     scheduleSessionSave()
   }
 
   function updateActiveTab(patch: Partial<Tab>): void {
     updateTab(get().activeTabId, patch)
+  }
+
+  async function applyTabHistoryEntry(
+    tabId: string,
+    entry: HistoryEntry,
+    stacks: { back: HistoryEntry[]; forward: HistoryEntry[] }
+  ): Promise<void> {
+    const tab = get().tabs.find((t) => t.id === tabId)
+    if (!tab) return
+    const path = historyLocationPath(entry)
+    if (entry.kind === 'search') {
+      updateTab(tabId, {
+        path,
+        back: stacks.back,
+        forward: stacks.forward,
+        selected: [],
+        search: {
+          ...emptyTabSearch(entry.indexedOnly),
+          active: true,
+          query: entry.query,
+          indexedOnly: entry.indexedOnly,
+          running: true,
+          progress: 'Starting search…'
+        }
+      })
+      await loadListing(path, { tabId })
+      await get().runSearch(tabId)
+      return
+    }
+    updateTab(tabId, {
+      path,
+      back: stacks.back,
+      forward: stacks.forward,
+      selected: [],
+      search: emptyTabSearch(tab.search.indexedOnly)
+    })
+    await loadListing(path, { tabId })
   }
 
   /** Always surface FS failures in a modal — never status-bar-only. */
@@ -1451,8 +1537,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       removed.some((r) => samePath(p, r) || isUnderPath(p, r))
     const t = get().activeTab()
     updateActiveTab({
-      back: t.back.filter((p) => !gone(p)),
-      forward: t.forward.filter((p) => !gone(p)),
+      back: t.back.filter((e) => !gone(historyLocationPath(e))),
+      forward: t.forward.filter((e) => !gone(historyLocationPath(e))),
       selected: []
     })
     clearMediaHold()
@@ -1680,6 +1766,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     indexProgress: {},
     fileOp: null,
     videoThumbRev: 0,
+    thumbRevByPath: {},
     columnMetaBump: { rev: 0, path: null },
     notice: null,
     remoteBusyDialog: null,
@@ -1809,7 +1896,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             selected: [],
             scrollOffset: 0,
             rootPath: null,
-            treeExpanded: []
+            treeExpanded: [],
+            search: emptyTabSearch()
           }
         ]
       }
@@ -1845,7 +1933,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       }
 
-      set((state) => ({
+      set({
         booted: true,
         platform: ready.platform,
         settings,
@@ -1864,17 +1952,14 @@ export const useAppStore = create<AppState>()((set, get) => {
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         devGateActive: devGateRes.active === true,
-        search: {
-          ...state.search,
-          indexedOnly: settings.searchIndexedOnly
-        },
+        search: activeTab.search,
         slideshow: {
           ...emptySlideshowSession(),
           cacheActive: settings.slideshow.cacheActive === true,
           imageListCache: [...(settings.slideshow.imageListCache ?? [])],
           categorizerMap: [...(settings.slideshow.categorizerMap ?? [])]
         }
-      }))
+      })
 
       api.onEvent((event: MfeEvent) => {
         const s = get()
@@ -1925,10 +2010,12 @@ export const useAppStore = create<AppState>()((set, get) => {
             }
           }
         } else if (event.type === 'search-progress') {
-          const st = get().search
-          if (!st.running) return
           const p = event.payload
-          if (p.gen != null && p.gen !== st.gen) return
+          const owner = get().tabs.find((t) =>
+            t.search.running && (p.gen == null || p.gen === t.search.gen)
+          )
+          if (!owner) return
+          const st = owner.search
           const patch: Partial<SearchState> = {}
           if (p.phase !== 'done') {
             const text = formatSearchProgress(p)
@@ -1936,7 +2023,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
           if (p.items) patch.results = p.items
           if (Object.keys(patch).length > 0) {
-            set({ search: { ...st, ...patch } })
+            updateTab(owner.id, { search: { ...st, ...patch } })
           }
         } else if (event.type === 'index-progress') {
           set((state) => ({
@@ -2059,6 +2146,10 @@ export const useAppStore = create<AppState>()((set, get) => {
         } catch {
           /* listings soft-fail per pane */
         }
+        const active = get().activeTab()
+        if (active.search.active && active.search.query.trim()) {
+          void get().runSearch()
+        }
         if (get().platform !== 'win32') return
         // Defer discovery so PowerShell/ARP does not compete with first folder lists / icons.
         window.setTimeout(() => {
@@ -2123,8 +2214,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     bumpColumnMeta(path) {
+      invalidateThumbMemory(path)
+      const key = path.toLowerCase()
       set((s) => ({
-        columnMetaBump: { rev: s.columnMetaBump.rev + 1, path }
+        columnMetaBump: { rev: s.columnMetaBump.rev + 1, path },
+        thumbRevByPath: {
+          ...s.thumbRevByPath,
+          [key]: (s.thumbRevByPath[key] ?? 0) + 1
+        }
       }))
     },
 
@@ -2139,20 +2236,29 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       if (tabId === s.activeTabId) {
-        if (get().search.active) get().clearSearch()
         if (get().recycleBin.active) get().closeRecycleBinView()
       }
       flushPendingRename()
-      if (push && !samePath(old, path)) {
+      const leavingSearch = tab.search.active
+      if (push && (!samePath(old, path) || leavingSearch)) {
+        const here = currentLocation(tab)
+        const last = tab.back[tab.back.length - 1]
+        const back =
+          last && sameHistoryEntry(last, here) ? tab.back : [...tab.back, here]
         updateTab(tabId, {
           path,
-          back: [...tab.back, old],
+          back,
           forward: [],
           selected: [],
-          scrollOffset: 0
+          scrollOffset: 0,
+          search: emptyTabSearch(tab.search.indexedOnly)
         })
       } else {
-        updateTab(tabId, { path, selected: [] })
+        updateTab(tabId, {
+          path,
+          selected: [],
+          search: leavingSearch ? emptyTabSearch(tab.search.indexedOnly) : tab.search
+        })
       }
       if (tabId === get().activeTabId) {
         set({
@@ -2182,30 +2288,28 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tab = get().activeTab()
       const prev = tab.back[tab.back.length - 1]
       if (!prev) return
-      updateActiveTab({
-        path: prev,
+      await applyTabHistoryEntry(tab.id, prev, {
         back: tab.back.slice(0, -1),
-        forward: [tab.path, ...tab.forward],
-        selected: []
+        forward: [currentLocation(tab), ...tab.forward]
       })
-      await loadListing(prev, { tabId: tab.id })
     },
 
     async goForward() {
       const tab = get().activeTab()
       const next = tab.forward[0]
       if (!next) return
-      updateActiveTab({
-        path: next,
-        back: [...tab.back, tab.path],
-        forward: tab.forward.slice(1),
-        selected: []
+      await applyTabHistoryEntry(tab.id, next, {
+        back: [...tab.back, currentLocation(tab)],
+        forward: tab.forward.slice(1)
       })
-      await loadListing(next, { tabId: tab.id })
     },
 
     async goUp() {
       const tab = get().activeTab()
+      if (tab.search.active) {
+        get().clearSearch()
+        return
+      }
       const parent = parentOf(tab.path)
       if (!parent) return
       if (tab.rootPath && !isUnderPath(parent, tab.rootPath)) return
@@ -2401,6 +2505,21 @@ export const useAppStore = create<AppState>()((set, get) => {
       updateTab(id, { back: [], forward: [] })
     },
 
+    async goToHistoryEntry(entry, tabId) {
+      const id = tabId ?? get().activeTabId
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab) return
+      if (sameHistoryEntry(entry, currentLocation(tab))) return
+      if (entry.kind === 'folder') {
+        await get().navigate(entry.path, { tabId: id })
+        return
+      }
+      await applyTabHistoryEntry(id, entry, {
+        back: [...tab.back, currentLocation(tab)],
+        forward: []
+      })
+    },
+
     async newTab(path, rootPath) {
       const s = get()
       const target = path ?? s.activeTab().path ?? s.settings.defaultNewTabPath ?? s.homePath
@@ -2416,7 +2535,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         selected: [],
         scrollOffset: 0,
         rootPath: rootPath ?? null,
-        treeExpanded: []
+        treeExpanded: [],
+        search: emptyTabSearch(s.settings.searchIndexedOnly)
       }
       const focusIdx = s.focusedPaneIndex
       const nextPanes = [...s.paneTabIds]
@@ -2425,6 +2545,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         tabs: [...s.tabs, tab],
         activeTabId: tab.id,
+        search: tab.search,
         paneTabIds: nextPanes.slice(0, s.viewLayout),
         focusedPaneIndex: focusIdx,
         selectionAnchor: null,
@@ -2450,7 +2571,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         selected: [],
         scrollOffset: 0,
         rootPath: src.rootPath,
-        treeExpanded: [...src.treeExpanded]
+        treeExpanded: [...src.treeExpanded],
+        search: {
+          ...src.search,
+          running: false,
+          progress: null,
+          gen: 0
+        }
       }
       const idx = s.tabs.findIndex((t) => t.id === id)
       const tabs = [...s.tabs]
@@ -2462,6 +2589,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         tabs,
         activeTabId: tab.id,
+        search: tab.search,
         paneTabIds: nextPanes.slice(0, s.viewLayout),
         focusedPaneIndex: focusIdx,
         selectionAnchor: null,
@@ -2497,6 +2625,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         tabs,
         activeTabId,
+        search: tabs.find((t) => t.id === activeTabId)?.search ?? emptyTabSearch(),
         paneTabIds,
         focusedPaneIndex,
         listingsByTabId,
@@ -2509,7 +2638,6 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async activateTab(id) {
-      if (get().search.active) get().clearSearch()
       if (get().recycleBin.active) get().closeRecycleBinView()
       flushPendingRename()
       const s = get()
@@ -2525,6 +2653,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         const listing = s.listingsByTabId[id]
         set({
           activeTabId: id,
+          search: tab.search,
           focusedPaneIndex: existingPane,
           selectionAnchor: focus.selectionAnchor,
           focusedPath: focus.focusedPath,
@@ -2564,6 +2693,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         paneTabIds,
         focusedPaneIndex,
         activeTabId: activeTabId || s.activeTabId,
+        search: tab?.search ?? s.search,
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         listing: syncActiveListing(s.listingsByTabId, activeTabId || s.activeTabId)
@@ -2582,7 +2712,6 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       if (s.focusedPaneIndex === index && s.activeTabId === tabId) return
-      if (s.search.active && s.activeTabId !== tabId) get().clearSearch()
       if (s.recycleBin.active && s.activeTabId !== tabId) get().closeRecycleBinView()
       const tab = s.tabs.find((t) => t.id === tabId)
       if (!tab) return
@@ -2591,6 +2720,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         focusedPaneIndex: index,
         activeTabId: tabId,
+        search: tab.search,
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         listing: listing ?? s.listing
@@ -2619,13 +2749,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       const tab = s.tabs.find((t) => t.id === tabId)
       if (!tab) return
-      if (s.search.active) get().clearSearch()
       if (s.recycleBin.active) get().closeRecycleBinView()
       const focus = focusFromSelection(tab.selected)
       set({
         paneTabIds,
         focusedPaneIndex: paneIndex,
         activeTabId: tabId,
+        search: tab.search,
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         renamingPath: null,
@@ -2649,7 +2779,6 @@ export const useAppStore = create<AppState>()((set, get) => {
         await get().assignTabToPane(paneIndex, sourceTabId)
         return
       }
-      if (s.search.active) get().clearSearch()
       if (s.recycleBin.active) get().closeRecycleBinView()
 
       const tab: Tab = {
@@ -2664,7 +2793,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         selected: [],
         scrollOffset: 0,
         rootPath: src.rootPath,
-        treeExpanded: [...src.treeExpanded]
+        treeExpanded: [...src.treeExpanded],
+        search: {
+          ...src.search,
+          running: false,
+          progress: null,
+          gen: 0
+        }
       }
       const srcIdx = s.tabs.findIndex((t) => t.id === sourceTabId)
       const tabs = [...s.tabs]
@@ -2677,6 +2812,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         tabs,
         activeTabId: tab.id,
+        search: tab.search,
         paneTabIds: nextPanes.slice(0, s.viewLayout),
         focusedPaneIndex: paneIndex,
         selectionAnchor: null,
@@ -2951,7 +3087,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         back: [],
         forward: [],
         selected: [],
-        scrollOffset: 0
+        scrollOffset: 0,
+        search: emptyTabSearch()
       }))
       const idx = Math.min(Math.max(0, layout.activeTabIndex), tabs.length - 1)
       const active = tabs[idx]!
@@ -2970,12 +3107,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       )
       let focusedPaneIndex = paneTabIds.indexOf(active.id)
       if (focusedPaneIndex < 0) focusedPaneIndex = 0
-      get().clearSearch()
       get().closeRecycleBinView()
       flushPendingRename()
       set({
         tabs,
         activeTabId: active.id,
+        search: active.search,
         splitters: { ...layout.splitters },
         viewLayout,
         paneTabIds,
@@ -3040,11 +3177,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     selectAll(tabId) {
       const s = get()
       const id = tabId ?? s.activeTabId
+      const tabSearch = s.tabs.find((t) => t.id === id)?.search
       const pool =
         s.recycleBin.active && id === s.activeTabId
           ? recycleBinItemsToEntries(s.recycleBin.items)
-          : s.search.active && id === s.activeTabId
-            ? searchResultsToEntries(s.search.results)
+          : tabSearch?.active
+            ? searchResultsToEntries(tabSearch.results)
             : (s.listingsByTabId[id]?.entries ?? [])
       const selected = pool
         .filter(
@@ -3136,8 +3274,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             ...t,
             path: rewrite(t.path),
             rootPath: t.rootPath ? rewrite(t.rootPath) : null,
-            back: t.back.map(rewrite),
-            forward: t.forward.map(rewrite),
+            back: t.back.map((e) => rewriteHistoryEntry(e, rewrite)),
+            forward: t.forward.map((e) => rewriteHistoryEntry(e, rewrite)),
             selected: t.selected.map(rewrite),
             treeExpanded: t.treeExpanded.map(rewrite)
           }))
@@ -3222,8 +3360,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             ...t,
             path: rewriteOne(t.path),
             rootPath: t.rootPath ? rewriteOne(t.rootPath) : null,
-            back: t.back.map(rewriteOne),
-            forward: t.forward.map(rewriteOne),
+            back: t.back.map((e) => rewriteHistoryEntry(e, rewriteOne)),
+            forward: t.forward.map((e) => rewriteHistoryEntry(e, rewriteOne)),
             selected: t.selected.map(rewriteOne),
             treeExpanded: t.treeExpanded.map(rewriteOne)
           }))
@@ -3264,8 +3402,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             ...t,
             path: rewriteOne(t.path),
             rootPath: t.rootPath ? rewriteOne(t.rootPath) : null,
-            back: t.back.map(rewriteOne),
-            forward: t.forward.map(rewriteOne),
+            back: t.back.map((e) => rewriteHistoryEntry(e, rewriteOne)),
+            forward: t.forward.map((e) => rewriteHistoryEntry(e, rewriteOne)),
             selected: t.selected.map(rewriteOne),
             treeExpanded: t.treeExpanded.map(rewriteOne)
           }))
@@ -3765,7 +3903,6 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch {
         // fall through — treat as file if under a parent
       }
-      if (get().search.active) get().clearSearch()
       if (get().recycleBin.active) get().closeRecycleBinView()
       if (isDir) {
         await get().navigate(filePath)
@@ -3789,7 +3926,6 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch {
         /* treat as file */
       }
-      if (get().search.active) get().clearSearch()
       if (get().recycleBin.active) get().closeRecycleBinView()
       if (isDir) {
         await get().newTab(filePath)
@@ -4488,11 +4624,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     setSearchQuery(q) {
-      set((s) => ({ search: { ...s.search, query: q } }))
+      const tab = get().activeTab()
+      updateTab(tab.id, { search: { ...tab.search, query: q } })
       if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
       const trimmed = q.trim()
       if (!trimmed) {
-        if (get().search.active) get().clearSearch()
+        if (get().activeTab().search.active) get().clearSearch()
         return
       }
       searchDebounceTimer = setTimeout(() => {
@@ -4502,61 +4639,80 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     setSearchIndexedOnly(v) {
-      set((s) => ({ search: { ...s.search, indexedOnly: v } }))
+      const tab = get().activeTab()
+      updateTab(tab.id, { search: { ...tab.search, indexedOnly: v } })
       void get().applySettingsPatch({ searchIndexedOnly: v })
-      // Re-run with the new scope when a search session is already open
-      // (indexed = all ready roots; unchecked = current folder).
-      const s = get()
-      if (s.search.active && s.search.query.trim()) {
+      if (tab.search.active && tab.search.query.trim()) {
         void get().runSearch()
       }
     },
 
-    async runSearch() {
+    async runSearch(tabId) {
       if (searchDebounceTimer) {
         clearTimeout(searchDebounceTimer)
         searchDebounceTimer = null
       }
-      const s = get()
-      const query = s.search.query.trim()
+      const id = tabId ?? get().activeTabId
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab) return
+      const query = tab.search.query.trim()
       if (!query) return
-      if (s.recycleBin.active) get().closeRecycleBinView()
-      // Drop any in-flight walk/query before starting a new scope.
+      if (id === get().activeTabId && get().recycleBin.active) get().closeRecycleBinView()
       void api.search.cancel()
       const seq = ++searchSeq
-      // Use live toggle state (settings patch may still be in flight).
-      const indexedOnly = get().search.indexedOnly
+      const indexedOnly = tab.search.indexedOnly
       const settings = get().settings
-      // Details view — Folder column is injected by FileView for search only (not saved).
-      get().setViewMode('details')
-      set({
-        search: {
-          ...get().search,
-          indexedOnly,
-          active: true,
-          running: true,
-          results: [],
-          partial: false,
-          source: null,
-          contentSlow: false,
-          progress: 'Starting search…',
-          tabId: get().activeTabId,
-          gen: seq,
-          message: null
-        }
-      })
-      updateActiveTab({ selected: [] })
-      set({ selectionAnchor: null, focusedPath: null })
+      get().setViewMode('details', id)
+      const entering = !tab.search.active
+      const last = tab.back[tab.back.length - 1]
+      const folderHere = folderHistory(tab.path)
+      const back =
+        entering && !(last && sameHistoryEntry(last, folderHere))
+          ? [...tab.back, folderHere]
+          : tab.back
+      set((s) => ({
+        tabs: s.tabs.map((t) => {
+          if (t.id === tab.id) {
+            return {
+              ...t,
+              back: entering ? back : t.back,
+              forward: entering ? [] : t.forward,
+              selected: [],
+              search: {
+                ...t.search,
+                query,
+                indexedOnly,
+                active: true,
+                running: true,
+                results: [],
+                partial: false,
+                source: null,
+                contentSlow: false,
+                progress: 'Starting search…',
+                gen: seq,
+                message: null
+              }
+            }
+          }
+          if (t.search.running) {
+            return { ...t, search: { ...t.search, running: false, progress: null } }
+          }
+          return t
+        })
+      }))
+      updateTab(tab.id, {})
+      if (id === get().activeTabId) {
+        set({ selectionAnchor: null, focusedPath: null })
+      }
       try {
         const res = await call(
           api.search.query({
             query,
-            // indexed → every ready indexed root; otherwise current folder (+ index as accelerator).
             scope: indexedOnly
               ? { type: 'indexed' }
               : {
                   type: 'folder',
-                  path: get().activeTab().path,
+                  path: get().tabs.find((t) => t.id === tab.id)?.path ?? tab.path,
                   recursive: true,
                   useIndexIfCovered: true
                 },
@@ -4569,10 +4725,11 @@ export const useAppStore = create<AppState>()((set, get) => {
             gen: seq
           })
         )
-        if (seq !== searchSeq) return
-        set((state) => ({
+        const owner = get().tabs.find((t) => t.id === tab.id)
+        if (!owner || owner.search.gen !== seq) return
+        updateTab(tab.id, {
           search: {
-            ...state.search,
+            ...owner.search,
             running: false,
             results: res.items,
             partial: res.partial,
@@ -4581,42 +4738,41 @@ export const useAppStore = create<AppState>()((set, get) => {
             progress: null,
             message: res.message ?? null
           }
-        }))
+        })
         if (res.message) get().notify(res.message, true)
       } catch (e) {
-        if (seq !== searchSeq) return
-        set((state) => ({ search: { ...state.search, running: false, progress: null } }))
+        const owner = get().tabs.find((t) => t.id === tab.id)
+        if (!owner || owner.search.gen !== seq) return
+        updateTab(tab.id, { search: { ...owner.search, running: false, progress: null } })
         if (!(e instanceof IpcError && e.code === 'cancelled')) {
           get().notify(e instanceof IpcError ? e.message : String(e), true)
         }
       }
     },
 
-    clearSearch() {
+    clearSearch(tabId) {
       if (searchDebounceTimer) {
         clearTimeout(searchDebounceTimer)
         searchDebounceTimer = null
       }
-      searchSeq++
-      void api.search.cancel()
-      set((s) => ({
-        search: {
-          ...s.search,
-          active: false,
-          running: false,
-          results: [],
-          partial: false,
-          source: null,
-          contentSlow: false,
-          progress: null,
-          query: '',
-          tabId: null,
-          message: null
-        }
-      }))
-      // Folder sort only exists during search — drop it when leaving.
-      const sort = get().activeTab().sort
-      if (sort.key === 'folder') get().setSort({ key: 'name', dir: sort.dir })
+      const id = tabId ?? get().activeTabId
+      const tab = get().tabs.find((t) => t.id === id)
+      if (!tab) return
+      if (tab.search.running) {
+        searchSeq++
+        void api.search.cancel()
+      }
+      const last = tab.back[tab.back.length - 1]
+      const back =
+        last?.kind === 'folder' && samePath(last.path, tab.path) ? tab.back.slice(0, -1) : tab.back
+      updateTab(id, {
+        back,
+        search: { ...emptyTabSearch(tab.search.indexedOnly), query: '' }
+      })
+      if (id === get().activeTabId) {
+        const sort = get().activeTab().sort
+        if (sort.key === 'folder') get().setSort({ key: 'name', dir: sort.dir })
+      }
     },
 
     async openRecycleBinView() {

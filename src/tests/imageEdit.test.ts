@@ -14,6 +14,7 @@ import {
 describe('imageEdit helpers', () => {
   it('allows common raster formats', () => {
     expect(isEditableImagePath('C:\\a\\photo.jpg')).toBe(true)
+    expect(isEditableImagePath('C:\\a\\photo.jfif')).toBe(true)
     expect(isEditableImagePath('C:\\a\\photo.PNG')).toBe(true)
     expect(isEditableImagePath('C:\\a\\photo.webp')).toBe(true)
   })
@@ -26,6 +27,7 @@ describe('imageEdit helpers', () => {
 
   it('maps extensions to sharp formats', () => {
     expect(sharpFormatForExt('jpg')).toBe('jpeg')
+    expect(sharpFormatForExt('jfif')).toBe('jpeg')
     expect(sharpFormatForExt('bmp')).toBe('jpeg')
     expect(sharpFormatForExt('png')).toBe('png')
     expect(sharpFormatForExt('svg')).toBe(null)

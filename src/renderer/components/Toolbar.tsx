@@ -244,7 +244,7 @@ export function Toolbar(): JSX.Element {
                 type="button"
                 className="icon-btn searchbox-clear"
                 aria-label="Clear search"
-                onClick={clearSearch}
+                onClick={() => clearSearch()}
               >
                 <CloseIcon size={12} />
               </button>

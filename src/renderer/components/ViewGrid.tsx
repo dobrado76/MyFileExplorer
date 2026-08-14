@@ -44,12 +44,8 @@ export function ViewGrid(): JSX.Element {
     return (
       <div className="view-grid layout-1" ref={gridRef}>
         <div className="view-grid-cell">
-          {focusedPaneIndex === 0 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 0 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={0} />
           <ExplorerPane paneIndex={0} />
         </div>
       </div>
@@ -61,22 +57,14 @@ export function ViewGrid(): JSX.Element {
     return (
       <div className="view-grid layout-2" ref={gridRef}>
         <div className="view-grid-cell" style={{ flex: `0 0 ${leftPct}%` }}>
-          {focusedPaneIndex === 0 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 0 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={0} />
           <ExplorerPane paneIndex={0} />
         </div>
         <Splitter onDrag={onColDrag} />
         <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
-          {focusedPaneIndex === 1 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 1 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={1} />
           <ExplorerPane paneIndex={1} />
         </div>
       </div>
@@ -90,44 +78,28 @@ export function ViewGrid(): JSX.Element {
     <div className="view-grid layout-4" ref={gridRef}>
       <div className="view-grid-row" style={{ flex: `0 0 ${rowPct}%` }}>
         <div className="view-grid-cell" style={{ flex: `0 0 ${colPct}%` }}>
-          {focusedPaneIndex === 0 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 0 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={0} />
           <ExplorerPane paneIndex={0} />
         </div>
         <Splitter onDrag={onColDrag} />
         <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
-          {focusedPaneIndex === 1 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 1 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={1} />
           <ExplorerPane paneIndex={1} />
         </div>
       </div>
       <Splitter orientation="horizontal" onDrag={onRowDrag} />
       <div className="view-grid-row" style={{ flex: '1 1 0', minHeight: 0 }}>
         <div className="view-grid-cell" style={{ flex: `0 0 ${colPct}%` }}>
-          {focusedPaneIndex === 2 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 2 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={2} />
           <ExplorerPane paneIndex={2} />
         </div>
         <Splitter onDrag={onColDrag} />
         <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
-          {focusedPaneIndex === 3 && (
-            <>
-              <RecycleBinBanner />
-              <SearchBanner />
-            </>
-          )}
+          {focusedPaneIndex === 3 && <RecycleBinBanner />}
+          <SearchBanner paneIndex={3} />
           <ExplorerPane paneIndex={3} />
         </div>
       </div>

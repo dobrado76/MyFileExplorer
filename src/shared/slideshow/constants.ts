@@ -1,6 +1,7 @@
 export const SLIDESHOW_IMAGE_EXTS = new Set([
   'jpg',
   'jpeg',
+  'jfif',
   'png',
   'gif',
   'webp',

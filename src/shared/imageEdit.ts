@@ -3,6 +3,7 @@ const EDITABLE_IMAGE_EXTS = new Set([
   'png',
   'jpg',
   'jpeg',
+  'jfif',
   'webp',
   'gif',
   'bmp',
@@ -39,6 +40,7 @@ export function sharpFormatForExt(
       return 'png'
     case 'jpg':
     case 'jpeg':
+    case 'jfif':
     case 'bmp':
       return 'jpeg'
     case 'webp':

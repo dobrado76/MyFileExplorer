@@ -435,14 +435,14 @@ export function registerIpcHandlers(): void {
         title: 'Save image as',
         defaultPath: req.defaultPath,
         filters: [
-          { name: 'JPEG', extensions: ['jpg', 'jpeg'] },
+          { name: 'JPEG', extensions: ['jpg', 'jpeg', 'jfif'] },
           { name: 'PNG', extensions: ['png'] },
           { name: 'WebP', extensions: ['webp'] },
           { name: 'GIF', extensions: ['gif'] },
           { name: 'TIFF', extensions: ['tif', 'tiff'] },
           {
             name: 'All supported',
-            extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'tif', 'tiff', 'bmp']
+            extensions: ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'gif', 'tif', 'tiff', 'bmp']
           }
         ]
       }

@@ -58,7 +58,7 @@ function stripDataUrl(dataBase64: string): { mime: string | null; bytes: Buffer 
 
 function mimeForImagePath(file: string): string {
   const ext = imageExt(file)
-  if (ext === 'jpg' || ext === 'jpeg' || ext === 'bmp') return 'image/jpeg'
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'jfif' || ext === 'bmp') return 'image/jpeg'
   if (ext === 'png') return 'image/png'
   if (ext === 'webp') return 'image/webp'
   if (ext === 'gif') return 'image/gif'

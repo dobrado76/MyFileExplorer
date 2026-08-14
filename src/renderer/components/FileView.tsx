@@ -231,14 +231,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [setScrollOffsetRaw, tabId]
   )
   const patchDetailsLayout = useAppStore((s) => s.patchDetailsLayout)
-  const search = useAppStore((s) => s.search)
+  const search = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.search ?? s.search)
   const recycleBin = useAppStore((s) => s.recycleBin)
   const restoreFromRecycleBinView = useAppStore((s) => s.restoreFromRecycleBinView)
   const focusPane = useAppStore((s) => s.focusPane)
   const paneTabIds = useAppStore((s) => s.paneTabIds)
   const viewLayout = useAppStore((s) => s.viewLayout)
-  /** Search overlay on the tab that started the query (not merely the focused pane). */
-  const searchMode = search.active && (search.tabId ? search.tabId === tabId : isFocusedSurface)
+  /** This pane’s tab owns its search — stays visible while you work in another pane (drag). */
+  const searchMode = Boolean(search.active)
   const recycleMode = recycleBin.active && isFocusedSurface
   const overlayMode = searchMode || recycleMode
   const ensurePaneFocus = useCallback((): void => {

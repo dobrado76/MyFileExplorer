@@ -48,6 +48,7 @@ export type SlideshowHost = {
   devGateActive: boolean
   dialog: unknown
   notify(text: string, isError?: boolean): void
+  bumpColumnMeta(path: string): void
   applySettingsPatch(patch: {
     slideshowFeaturesEnabled?: boolean
     slideshow?: Partial<SlideshowHost['settings']['slideshow']>
@@ -87,6 +88,15 @@ let compiledApplyRev = 0
 function nextCompiledApplyRev(): number {
   compiledApplyRev += 1
   return compiledApplyRev
+}
+
+/** Folder-list build generation — Esc/stop must not apply a walk that is still running. */
+let slideshowBuildSeq = 0
+
+function invalidateSlideshowBuild(): void {
+  slideshowBuildSeq += 1
+  compiledApplyRev += 1
+  void api.slideshow.cancelList().catch(() => {})
 }
 
 /** Restore cache toggle, image list, and categorizer map from persisted settings. */
@@ -284,6 +294,7 @@ export function createSlideshowActions(get: Get, set: Set) {
           return
         }
         const ss = get().settings.slideshow
+        const seq = ++slideshowBuildSeq
         set({
           slideshow: {
             ...get().slideshow,
@@ -306,6 +317,9 @@ export function createSlideshowActions(get: Get, set: Set) {
               ascending: ss.ascending
             })
           )
+          if (seq !== slideshowBuildSeq) return
+          const stillBuilding = get().slideshow.active?.status === 'building'
+          if (!stillBuilding) return
           paths = res.paths
           if (get().slideshow.cacheActive) {
             const capped = clampImageList(paths)
@@ -322,7 +336,9 @@ export function createSlideshowActions(get: Get, set: Set) {
             get().notify('Image list truncated at cap', true)
           }
         } catch (e) {
+          if (seq !== slideshowBuildSeq) return
           clearActive(set, get)
+          if (e instanceof IpcError && e.code === 'cancelled') return
           get().notify(e instanceof IpcError ? e.message : String(e), true)
           return
         }
@@ -333,6 +349,9 @@ export function createSlideshowActions(get: Get, set: Set) {
         get().notify('No images found', true)
         return
       }
+
+      const a = get().slideshow.active
+      if (!builtFromCache && (!a || a.status !== 'building')) return
 
       const active: SlideshowState = {
         status: 'playing',
@@ -563,6 +582,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       try {
         await call(api.fs.cropSlideshowImage({ path: imagePath, crop }))
         actions.slideshowInvalidateImage(imagePath)
+        get().bumpColumnMeta(imagePath)
         get().notify('Crop saved')
         return true
       } catch (e) {
@@ -843,6 +863,7 @@ export function createSlideshowActions(get: Get, set: Set) {
     },
 
     async stopSlideshow() {
+      invalidateSlideshowBuild()
       const a = get().slideshow.active
       if (!a) return
       if (a.compiledMode) {
@@ -884,7 +905,7 @@ export function createSlideshowActions(get: Get, set: Set) {
     },
 
     resetSlideshowForGateOff() {
-      void api.slideshow.cancelList().catch(() => {})
+      invalidateSlideshowBuild()
       void api.slideshow.clearVirtualPlaylist().catch(() => {})
       void api.slideshow.closeCompiledListsWindow().catch(() => {})
       set({ slideshow: emptySlideshowSession() })

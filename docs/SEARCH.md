@@ -112,6 +112,7 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 - Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced)
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
 - Results in normal **FileView** (D29); Folder column; banner with count / progress / Clear / “Not indexed — slow” / “Content search — slow”
+- **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results pushes the search onto Back; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.
 - Live folder walks **stream** partial results; status bar shows in-progress state (not `0 results` while still walking)
 - Settings → Search: roots (kind, monitor, status, file count), Add folder / Add drive, Reindex, excludes, saved **filters** & **bookmarks**
 - Optional **localhost HTTP** query API (Settings → Advanced; token; bind 127.0.0.1)

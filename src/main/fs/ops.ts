@@ -23,6 +23,7 @@ import { beginOp, type OpReporter } from './opProgress'
 const IMAGE_DIM_EXTS = new Set([
   'jpg',
   'jpeg',
+  'jfif',
   'png',
   'gif',
   'webp',

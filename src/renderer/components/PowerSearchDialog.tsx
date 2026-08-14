@@ -59,6 +59,7 @@ export function PowerSearchDialog(): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const setSearchIndexedOnly = useAppStore((s) => s.setSearchIndexedOnly)
+  const setSearchQuery = useAppStore((s) => s.setSearchQuery)
   const runSearch = useAppStore((s) => s.runSearch)
   const openDialog = useAppStore((s) => s.openDialog)
   const activePath = useAppStore((s) => s.activeTab().path)
@@ -108,9 +109,7 @@ export function PowerSearchDialog(): JSX.Element {
       searchWholeWord: wholeWord,
       searchRegex: regex
     })
-    useAppStore.setState((s) => ({
-      search: { ...s.search, query: q, indexedOnly: scope === 'indexed' }
-    }))
+    setSearchQuery(q)
     void runSearch()
     closeDialog()
   }

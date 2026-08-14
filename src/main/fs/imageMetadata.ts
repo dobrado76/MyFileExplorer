@@ -22,7 +22,7 @@ export async function readPreservableImageMetadata(
     if (chunks.length > 0) out.pngTextChunks = chunks
   }
 
-  if (['jpg', 'jpeg', 'webp', 'avif', 'tif', 'tiff'].includes(normalized)) {
+  if (['jpg', 'jpeg', 'jfif', 'webp', 'avif', 'tif', 'tiff'].includes(normalized)) {
     try {
       const { default: sharp } = await import('sharp')
       const meta = await sharp(bytes).metadata()

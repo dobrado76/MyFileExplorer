@@ -13,7 +13,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 
 | Category | Extensions | Preview kind |
 | -------- | ---------- | ------------ |
-| [Images](#images) | `png` `jpg` `jpeg` `webp` `gif` `bmp` `avif` `tiff` `tif` `svg` `ico` | `image` |
+| [Images](#images) | `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` `svg` `ico` | `image` |
 | [Photoshop](#photoshop) | `psd` | `image` (rasterized) |
 | [Audio](#audio) | `mp3` `wav` `flac` `ogg` `m4a` `aac` `wma` `opus` | `audio` |
 | [Video](#video) | `mp4` `m4v` `webm` `mkv` `mov` `wmv` `mpg` `mpeg` `avi` | `video` |
@@ -44,7 +44,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | Ext | Notes |
 | --- | ----- |
 | `png` | Display via `mfe-media://`. A1111 / ComfyUI generation metadata when embedded. |
-| `jpg` / `jpeg` | Same; EXIF orientation when feasible; A1111-style comments when present. |
+| `jpg` / `jpeg` / `jfif` | Same; EXIF orientation when feasible; A1111-style comments when present. |
 | `webp` | Same as JPEG for metadata sniff. |
 | `gif` | Animated GIF plays in the image preview. |
 | `bmp` | Raster preview. |
@@ -53,7 +53,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | `svg` | Displayed as image; **not** in-app editable. |
 | `ico` | Displayed as image; **not** in-app editable. |
 
-**In-app image editor** (Filerobot; Save → `VER_*` ADS / Version Control / Save as…): `png` `jpg` `jpeg` `webp` `gif` `bmp` `avif` `tiff` `tif` — not `svg` / `ico` / `psd`.
+**In-app image editor** (Filerobot; Save → `VER_*` ADS / Version Control / Save as…): `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` — not `svg` / `ico` / `psd`.
 
 ---
 
@@ -154,10 +154,10 @@ Parsed with SheetJS; rows/cols/sheets capped for UI. Sheet tabs + HTML table.
 
 | Ext | Notes |
 | --- | ----- |
-| `pptx` | Slide text extract (DrawingML); images/charts omitted. |
+| `pptx` | Approximate slide layout (text + package/master images); notes when present. Charts/SmartArt omitted. |
 | `ppt` | Legacy OLE — best-effort text scrape; incomplete vs PowerPoint. |
 
-Same HTML document surface as Word; HTML truncated (~200 KB).
+Same HTML document surface as Word; HTML truncated (~500 KB).
 
 ---
 

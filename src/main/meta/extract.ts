@@ -11,6 +11,7 @@ const IMAGE_EXTS = new Set([
   'png',
   'jpg',
   'jpeg',
+  'jfif',
   'webp',
   'gif',
   'bmp',
@@ -198,7 +199,7 @@ async function extractImage(
     }
   }
 
-  if (needGen && (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'webp')) {
+  if (needGen && (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'jfif' || ext === 'webp')) {
     try {
       const buf = await fsp.readFile(file)
       let exifBuf: Buffer | null = null

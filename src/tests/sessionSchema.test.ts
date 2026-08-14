@@ -46,6 +46,7 @@ describe('session schema migration', () => {
     expect(tab.treeExpanded).toEqual([])
     expect(tab.rootPath).toBeNull()
     expect(tab.icon).toBeNull()
+    expect(tab.search).toEqual({ active: false, query: '', indexedOnly: false })
     expect(parsed.splitters.treeWidthPx).toBe(240)
   })
 
@@ -104,6 +105,60 @@ describe('session schema migration', () => {
     expect(parsed.paneTabIds).toEqual(['tab_a'])
     expect(parsed.focusedPaneIndex).toBe(0)
     expect(parsed.paneSplitCols).toBe(0.5)
+  })
+
+  it('migrates legacy historyBack path strings to folder entries', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\Data\\Photos',
+          historyBack: ['C:\\Data', 'C:\\'],
+          historyForward: ['C:\\Data\\Photos\\2024']
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.historyBack).toEqual([
+      { kind: 'folder', path: 'C:\\Data' },
+      { kind: 'folder', path: 'C:\\' }
+    ])
+    expect(parsed.tabs[0]!.historyForward).toEqual([
+      { kind: 'folder', path: 'C:\\Data\\Photos\\2024' }
+    ])
+    expect(parsed.tabs[0]!.search).toEqual({ active: false, query: '', indexedOnly: false })
+  })
+
+  it('keeps a persisted search location on the tab', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\Data',
+          historyBack: [
+            { kind: 'folder', path: 'C:\\Data' },
+            { kind: 'search', query: '!!Thumbs.db', scopePath: 'C:\\Data', indexedOnly: false }
+          ],
+          search: { active: true, query: '!!Thumbs.db', indexedOnly: false }
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.search).toEqual({
+      active: true,
+      query: '!!Thumbs.db',
+      indexedOnly: false
+    })
+    expect(parsed.tabs[0]!.historyBack[1]).toEqual({
+      kind: 'search',
+      query: '!!Thumbs.db',
+      scopePath: 'C:\\Data',
+      indexedOnly: false
+    })
   })
 
   it('keeps 2-pane layout assignments', () => {

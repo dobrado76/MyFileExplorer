@@ -256,6 +256,7 @@ const IMAGE_EXTS = new Set([
   'png',
   'jpg',
   'jpeg',
+  'jfif',
   'webp',
   'gif',
   'bmp',

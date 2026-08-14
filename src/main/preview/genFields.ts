@@ -60,7 +60,7 @@ export function collectGenerationParameterCandidates(
     }
   }
 
-  if (ext === 'jpg' || ext === 'jpeg') {
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'jfif') {
     for (const c of extractJpegComComments(buf)) push(c)
   }
 
