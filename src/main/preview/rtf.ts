@@ -3,7 +3,7 @@
  * Not a full RTF engine — good enough to show readable document content.
  */
 
-const DISPLAY_CAP = 64 * 1024
+const DISPLAY_CAP = 1024 * 1024
 
 export function rtfToPlainText(rtf: string): string {
   let s = rtf.replace(/\r\n?/g, '\n')

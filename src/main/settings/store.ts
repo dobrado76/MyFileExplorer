@@ -34,7 +34,8 @@ export function replaceSettings(raw: unknown): Settings {
     adsManagerBounds: null,
     powerRenameBounds: null,
     remoteConnectionBounds: null,
-    compiledListsWindowBounds: null
+    compiledListsWindowBounds: null,
+    previewWindowBounds: null
   })
   settingsStore().replace(next)
   settingsStore().flush()

@@ -135,7 +135,7 @@ Icon-view video strips (`!VIDTHUMB_CACHE`) are separate from the preview pane; s
 
 ## Spreadsheets
 
-Parsed with SheetJS; rows/cols/sheets capped for UI. Sheet tabs + HTML table.
+Parsed with SheetJS; preview shows up to 2000 rows × 80 columns × 32 sheets. Sheet tabs + HTML table.
 
 | Ext | Notes |
 | --- | ----- |
@@ -163,7 +163,7 @@ Parsed with SheetJS; rows/cols/sheets capped for UI. Sheet tabs + HTML table.
 | `pptx` | Approximate slide layout (text + package/master images); notes when present. Charts/SmartArt omitted. |
 | `ppt` | Legacy OLE — best-effort text scrape; incomplete vs PowerPoint. |
 
-Same HTML document surface as Word; HTML truncated (~500 KB).
+Same HTML document surface as Word; HTML truncated (~1 MiB).
 
 ---
 

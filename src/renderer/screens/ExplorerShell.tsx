@@ -10,10 +10,11 @@ import { Dialogs } from '../components/Dialogs'
 import { ImageViewer } from '../components/ImageViewer'
 import { SlideshowOverlay } from '../components/SlideshowOverlay'
 import { Splitter } from '../components/Splitter'
-import { basename } from '../lib/paths'
+import { basename, samePath } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { api, call } from '../lib/ipc'
+import { usePreviewTarget } from '../lib/usePreviewTarget'
 import {
   FONT_SIZE_PX_MAX,
   FONT_SIZE_PX_MIN,
@@ -65,6 +66,28 @@ export function ExplorerShell(): JSX.Element {
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
   const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
   const [appVersion, setAppVersion] = useState<string | null>(null)
+  const previewTarget = usePreviewTarget()
+
+  // Keep the detached preview window in sync even when the docked pane is collapsed.
+  useEffect(() => {
+    void api.preview.setTarget({
+      path: previewTarget.previewPath,
+      ads: previewTarget.versionOverrideAds,
+      stamp: previewTarget.selectedStamp
+    })
+  }, [previewTarget.previewPath, previewTarget.versionOverrideAds, previewTarget.selectedStamp])
+
+  const imageVersionPreview = useAppStore((s) => s.imageVersionPreview)
+  const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
+  useEffect(() => {
+    if (!imageVersionPreview) return
+    if (
+      !previewTarget.previewPath ||
+      !samePath(previewTarget.previewPath, imageVersionPreview.path)
+    ) {
+      setImageVersionPreview(null)
+    }
+  }, [previewTarget.previewPath, imageVersionPreview, setImageVersionPreview])
 
   useEffect(() => {
     void call(api.app.getVersion())

@@ -35,7 +35,8 @@ import type {
   PreviewMediaMetaRequest,
   PreviewMediaMetaResponse,
   PreviewModel,
-  PreviewRequest
+  PreviewRequest,
+  PreviewWindowTarget
 } from '../schemas/preview'
 import type { MetaGetManyRequest, MetaGetManyResponse } from '../schemas/meta'
 import type {
@@ -192,6 +193,9 @@ export type MyFileExplorerApi = {
     getMediaMeta(req: PreviewMediaMetaRequest): Promise<Result<PreviewMediaMetaResponse>>
     /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
     chmTopic(req: PreviewChmTopicRequest): Promise<Result<{ mediaUrl: string }>>
+    openWindow(): Promise<Result<{ opened: true }>>
+    setTarget(req: PreviewWindowTarget): Promise<Result<{ ok: true }>>
+    getTarget(): Promise<Result<PreviewWindowTarget>>
   }
   search: {
     query(req: SearchQueryRequest): Promise<Result<SearchQueryResponse>>

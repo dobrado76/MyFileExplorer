@@ -21,7 +21,8 @@ const WINDOW_LIKE_KEYS = [
   'adsManagerBounds',
   'powerRenameBounds',
   'remoteConnectionBounds',
-  'compiledListsWindowBounds'
+  'compiledListsWindowBounds',
+  'previewWindowBounds'
 ] as const
 
 /**
@@ -35,7 +36,8 @@ export function settingsForPortableExport(settings: Settings): Settings {
     adsManagerBounds: null,
     powerRenameBounds: null,
     remoteConnectionBounds: null,
-    compiledListsWindowBounds: null
+    compiledListsWindowBounds: null,
+    previewWindowBounds: null
   })
 }
 

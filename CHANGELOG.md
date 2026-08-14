@@ -11,6 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Detached preview window** — preview pane header **Open preview window** opens a peer window with the same live preview. It follows the selection independently of collapsing the docked pane; position/size/maximized are remembered (stripped on settings export).
 - **Search exclude patterns** — Settings → Search index uses the same pattern language as View filter (folders, file names, extensions, wildcards, or a path), not folder names only.
 - **Update download progress** — Settings → About shows a determinate bar (bytes + percent) while the GitHub installer downloads.
 - **Default tab icons** — new tabs get a Lucide icon: Computer / unscoped (`Monitor`, blue), drive as root (`HardDrive`, gray), folder as root (`Folder`, yellow). Change or clear from the tab menu.
@@ -25,6 +26,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **`.hdr` preview** — Radiance RGBE/XYZE (HDRI / skybox) tonemapped for thumbs, preview, and slideshow. Layout hint when 2:1 equirectangular. Non-Radiance `.hdr` shows metadata only.
 - **Subtitle preview** — `.srt` (SubRip) as highlighted text. `.sub` is the same when it sniffs as text (MicroDVD / SubViewer); CloneCD/VobSub binary `.sub` stays binary. `.smi` / `.sami` (SAMI, HTML-like) decode EUC-KR / charset= instead of assuming UTF-8.
 - **`.divx` video** — treated like `.avi` (strip-only preview + `video:` search / thumb cache).
+
+### Changed
+
+- **Larger in-pane previews** — text/code/Markdown/HTML honor Settings → Preview max bytes (default 2 MiB; the old extra 64 KiB display cut is gone). Spreadsheets show 2000×80×32; Word/RTF ~1 MiB; PowerPoint up to 80 slides.
 
 ### Fixed
 

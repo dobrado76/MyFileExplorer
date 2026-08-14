@@ -1,9 +1,9 @@
 import fsp from 'node:fs/promises'
 import type { SpreadsheetSheet } from '@shared/schemas/preview'
 
-const MAX_SHEETS = 20
-const MAX_ROWS = 200
-const MAX_COLS = 40
+const MAX_SHEETS = 32
+const MAX_ROWS = 2000
+const MAX_COLS = 80
 const CELL_CAP = 200
 /** Soft cap so huge workbooks don't blow main-process memory. */
 const MAX_BYTES = 32 * 1024 * 1024

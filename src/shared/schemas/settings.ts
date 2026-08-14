@@ -247,7 +247,7 @@ export const settingsSchema = z.object({
   defaultNewTabPath: z.string().catch(''),
   confirmPermanentDeleteAlways: z.boolean().catch(false),
   previewVisibleDefault: z.boolean().catch(true),
-  textPreviewMaxBytes: z.number().min(1024).catch(1048576),
+  textPreviewMaxBytes: z.number().min(1024).catch(2 * 1024 * 1024),
   /** Delay between `!VIDTHUMB_CACHE` strip frames in icon views (ms). */
   vidThumbFrameMs: z
     .number()
@@ -449,6 +449,17 @@ export const settingsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Detached preview window geometry (not auto-reopened on launch). */
+  previewWindowBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(320).max(10000),
+      height: z.number().min(240).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
   /**
    * User-defined external context-menu commands + optional hidden built-ins (D41).
    */
@@ -488,7 +499,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   defaultNewTabPath: '',
   confirmPermanentDeleteAlways: false,
   previewVisibleDefault: true,
-  textPreviewMaxBytes: 1048576,
+  textPreviewMaxBytes: 2 * 1024 * 1024,
   vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
   previewVideoAutoplay: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
@@ -523,6 +534,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   powerRenameBounds: null,
   remoteConnectionBounds: null,
   compiledListsWindowBounds: null,
+  previewWindowBounds: null,
   contextMenu: defaultContextMenuSettings
 })
 

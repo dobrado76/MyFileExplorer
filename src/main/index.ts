@@ -26,6 +26,7 @@ import { shellIconCacheDir } from './icons/shell'
 import { logMain } from './logging'
 import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen'
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
+import { closePreviewWindow } from './preview/previewWindow'
 import { configureUserData } from './userData'
 
 // ============================================================================
@@ -94,6 +95,7 @@ if (!gotLock) {
     // Compiled lists is a child of the shell — closing main must not leave it dangling.
     win.on('close', () => {
       closeCompiledListsWindow()
+      closePreviewWindow()
     })
 
     // Font size is app-controlled (Ctrl+wheel / Settings); block Chromium page zoom.

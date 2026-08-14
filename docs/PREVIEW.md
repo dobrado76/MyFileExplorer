@@ -6,6 +6,14 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 **Extension catalog:** [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) — every extension routed by the preview pane, with notes per type.
 
+### Detached preview window
+
+The docked pane header always shows **Open preview window** (right side). That opens a peer `BrowserWindow` with the same live preview (focused/selected file and image-version ADS override). A second click focuses the existing window.
+
+Hiding the docked pane (toolbar Panel / Ctrl+Shift+P, `splitters.previewCollapsed`) does not close or freeze the window. Image editor and version Drop stay in the docked pane; the pop-out is visualization, metadata, and copy.
+
+Geometry (`x` / `y` / `width` / `height` / `maximized`) is remembered in `settings.previewWindowBounds` and is **not** auto-reopened on launch. Settings export/import strips that key with the other window-like geometry. Closing the main app closes the preview window with it.
+
 ---
 
 ## PreviewModel (IPC)
@@ -139,7 +147,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 ## Text
 
 - UTF-8 / UTF-16 LE sniff; if binary → `kind: 'binary'`
-- Show first `textPreviewMaxBytes` chars
+- Show first `textPreviewMaxBytes` bytes (default 2 MiB; Settings → Preview)
 - **Syntax highlighting** in the renderer (`highlight.js`, selective grammars) for common types: HTML/XML, JSON, TS/JS, YAML, CSS/SCSS, Python, shell/PowerShell (`.ps1` / `.ps`), batch (`.bat` / `.cmd`), VBScript (`.vbs`), INI/TOML-ish, SQL, C-family, Rust, Go, PHP, Ruby, Lua, Unity ShaderLab/HLSL (`.shader`), etc. Unknown extensions stay monospace plaintext.
 - Extensions: `.txt`, `.json`, `.yaml`, `.yml`, `.wlt` (YAML), `.ffs_gui` (XML), `.log`, `.css`, `.js`, `.ts`, … (`.md` / office formats use dedicated kinds below)
 
@@ -165,7 +173,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ## Spreadsheet (`.xls`, `.xlsx`, `.xlsm`, `.xlsb`, `.ods`; `.csv` best-effort)
 
-- Parsed in main with SheetJS (`xlsx`); capped rows/cols/sheets for UI
+- Parsed in main with SheetJS (`xlsx`); preview shows up to 2000 rows × 80 columns × 32 sheets
 - Renderer: sheet tabs + scrollable HTML table
 
 ---
@@ -181,7 +189,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - `.pptx` → approximate **slide layout** in the renderer (`pptSlides`: positioned text + rasters from `ppt/media` via slide/layout/master rels). Does not use the low-res `docProps/thumbnail`. Not a full PowerPoint render (charts/SmartArt/WMF/EMF/animations omitted). Cached images under `userData/pptx-preview/`
 - `.ppt` (legacy OLE) → best-effort UTF-16LE text scrape; incomplete vs native PowerPoint
-- `.pptx` uses structured slides (not sanitized HTML). `.ppt` still uses the document HTML surface; truncated at ~500 KB
+- `.pptx` uses structured slides (not sanitized HTML), up to 80 slides. `.ppt` still uses the document HTML surface; truncated at ~1 MiB
 
 ---
 

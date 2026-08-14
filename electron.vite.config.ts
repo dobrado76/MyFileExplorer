@@ -47,7 +47,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),
-          compiledLists: resolve(__dirname, 'src/renderer/compiledLists.html')
+          compiledLists: resolve(__dirname, 'src/renderer/compiledLists.html'),
+          previewWindow: resolve(__dirname, 'src/renderer/previewWindow.html')
         },
         output: {
           manualChunks(id) {

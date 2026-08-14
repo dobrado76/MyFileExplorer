@@ -1573,7 +1573,14 @@ body.right-dragging * {
   overflow-wrap: anywhere;
   white-space: normal;
 }
-.preview-edit-btn {
+.preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.preview-edit-btn,
+.preview-popout-btn {
   flex-shrink: 0;
 }
 .preview-version-banner {

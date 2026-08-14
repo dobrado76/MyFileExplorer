@@ -152,13 +152,11 @@ const RTF_EXTS = new Set(['rtf'])
 const PSD_EXTS = new Set(['psd'])
 const SAFETENSORS_EXTS = new Set(['safetensors'])
 
-const DISPLAY_CAP = 64 * 1024 // cap long prompt/JSON display text
-
 type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 20
+const PREVIEW_CACHE_REV = 21
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -174,14 +172,6 @@ function bytesHuman(n: number): string {
 
 function dateHuman(ms: number): string {
   return ms > 0 ? new Date(ms).toLocaleString() : ''
-}
-
-function capText(s: string, warnings: string[], label: string): string {
-  if (s.length > DISPLAY_CAP) {
-    warnings.push(`${label} truncated for display`)
-    return s.slice(0, DISPLAY_CAP)
-  }
-  return s
 }
 
 export async function getPreview(
@@ -778,8 +768,7 @@ async function buildSafetensorsPreview(
 async function readTextSample(
   file: string,
   size: number,
-  warnings: string[],
-  label: string
+  warnings: string[]
 ): Promise<string | null> {
   const maxBytes = settingsStore().get().textPreviewMaxBytes
   const readBytes = Math.min(size, maxBytes)
@@ -798,7 +787,7 @@ async function readTextSample(
         : buf.toString('utf8')
     if (sample.charCodeAt(0) === 0xfeff) sample = sample.slice(1)
     if (size > readBytes) warnings.push('Preview truncated')
-    return capText(sample, warnings, label)
+    return sample
   } catch {
     return null
   }
@@ -810,7 +799,7 @@ async function buildMarkdownPreview(
   fields: PreviewField[],
   warnings: string[]
 ): Promise<PreviewModel> {
-  const textSample = await readTextSample(file, size, warnings, 'Markdown')
+  const textSample = await readTextSample(file, size, warnings)
   if (textSample === null) return { path: file, kind: 'binary', fields, warnings }
   return { path: file, kind: 'markdown', textSample, fields, warnings }
 }
@@ -821,7 +810,7 @@ async function buildHtmlPreview(
   fields: PreviewField[],
   warnings: string[]
 ): Promise<PreviewModel> {
-  const textSample = await readTextSample(file, size, warnings, 'HTML')
+  const textSample = await readTextSample(file, size, warnings)
   if (textSample === null) return { path: file, kind: 'binary', fields, warnings }
   return { path: file, kind: 'html', textSample, fields, warnings }
 }
@@ -862,7 +851,7 @@ async function buildSamiPreview(
     path: file,
     kind: 'html',
     subtitle: 'SAMI subtitle',
-    textSample: capText(text, warnings, 'HTML'),
+    textSample: text,
     fields,
     warnings
   }
@@ -1709,7 +1698,7 @@ async function buildTextOrBinaryPreview(
   return {
     path: file,
     kind: 'text',
-    textSample: capText(sample, warnings, 'Text'),
+    textSample: sample,
     fields,
     warnings,
     ...(subtitle ? { subtitle } : {})

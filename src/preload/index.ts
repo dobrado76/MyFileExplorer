@@ -85,7 +85,10 @@ const api: MyFileExplorerApi = {
     get: invoke(IPC.previewGet),
     ensurePlayable: invoke(IPC.previewEnsurePlayable),
     getMediaMeta: invoke(IPC.previewGetMediaMeta),
-    chmTopic: invoke(IPC.previewChmTopic)
+    chmTopic: invoke(IPC.previewChmTopic),
+    openWindow: invokeVoid(IPC.previewOpenWindow),
+    setTarget: invoke(IPC.previewSetTarget),
+    getTarget: invokeVoid(IPC.previewGetTarget)
   },
   search: {
     query: invoke(IPC.searchQuery),

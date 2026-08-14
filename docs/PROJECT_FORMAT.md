@@ -63,7 +63,7 @@ Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow
   "defaultNewTabPath": "",
   "confirmPermanentDeleteAlways": false,
   "previewVisibleDefault": true,
-  "textPreviewMaxBytes": 1048576,
+  "textPreviewMaxBytes": 2097152,
   "vidThumbFrameMs": 300,
   "hideNameExtensions": ["lnk"],
   "searchExcludeDirNames": ["node_modules", ".git", ".hg", ".svn", "Thumbs.db"],

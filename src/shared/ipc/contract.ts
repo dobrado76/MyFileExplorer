@@ -1,5 +1,6 @@
 /** Stable IPC channel names. Renderer never uses raw strings; preload maps these. */
 import type { SearchProgressPayload } from '../searchProgress'
+import type { PreviewWindowTarget } from '../schemas/preview'
 
 export const IPC = {
   fsList: 'fs:list',
@@ -82,6 +83,9 @@ export const IPC = {
   previewGetMediaMeta: 'preview:getMediaMeta',
   /** Resolve a `.chm` TOC topic to an mfe-media://chm/ URL for the preview iframe. */
   previewChmTopic: 'preview:chmTopic',
+  previewOpenWindow: 'preview:openWindow',
+  previewSetTarget: 'preview:setTarget',
+  previewGetTarget: 'preview:getTarget',
 
   searchQuery: 'search:query',
   searchAddRoot: 'search:addRoot',
@@ -282,4 +286,8 @@ export type MfeEvent =
         phase: 'running' | 'done' | 'error'
         fileName?: string
       }
+    }
+  | {
+      type: 'preview-target'
+      payload: PreviewWindowTarget
     }

@@ -1,4 +1,4 @@
-const DISPLAY_CAP = 200 * 1024
+const DISPLAY_CAP = 1024 * 1024
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

@@ -164,3 +164,11 @@ export const previewChmTopicSchema = z.object({
   topic: z.string().min(1)
 })
 export type PreviewChmTopicRequest = z.infer<typeof previewChmTopicSchema>
+
+/** Live target for the detached preview window. */
+export const previewWindowTargetSchema = z.object({
+  path: z.string().nullable(),
+  ads: z.string().nullable().optional(),
+  stamp: z.string().nullable().optional()
+})
+export type PreviewWindowTarget = z.infer<typeof previewWindowTargetSchema>

@@ -28,7 +28,8 @@ import {
   previewChmTopicSchema,
   previewEnsurePlayableSchema,
   previewMediaMetaSchema,
-  previewRequestSchema
+  previewRequestSchema,
+  previewWindowTargetSchema
 } from '@shared/schemas/preview'
 import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/search'
 import { slideshowListRequestSchema } from '@shared/schemas/slideshow'
@@ -172,6 +173,11 @@ function assertRemoteReposEnabled(): void {
   }
 }
 import { ensurePlayablePreview, getChmTopicPreview, getMediaPreviewMeta, getPreview } from '../preview'
+import {
+  getPreviewTarget,
+  openPreviewWindow,
+  setPreviewTarget
+} from '../preview/previewWindow'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
@@ -591,6 +597,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewChmTopic, previewChmTopicSchema, (req) =>
     getChmTopicPreview(req.path, req.topic)
   )
+  handle(IPC.previewOpenWindow, emptySchema, () => openPreviewWindow())
+  handle(IPC.previewSetTarget, previewWindowTargetSchema, (req) => setPreviewTarget(req))
+  handle(IPC.previewGetTarget, emptySchema, () => getPreviewTarget())
 
   // search
   handle(IPC.searchQuery, searchQueryRequestSchema, (req) => runSearchQuery(req))

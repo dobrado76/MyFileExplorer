@@ -7,8 +7,8 @@ import type { PptSlideItem, PptSlidePreview } from '@shared/schemas/preview'
 import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 
-const DISPLAY_CAP = 500 * 1024
-const SLIDE_CAP = 40
+const DISPLAY_CAP = 1024 * 1024
+const SLIDE_CAP = 80
 const IMAGES_PER_SLIDE = 12
 const MAX_IMAGE_BYTES = 40 * 1024 * 1024
 const RAW_WRITE_MAX = 2 * 1024 * 1024

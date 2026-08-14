@@ -16,7 +16,8 @@ describe('settings export / import', () => {
       adsManagerBounds: { x: 1, y: 2, width: 800, height: 600 },
       powerRenameBounds: { x: 3, y: 4, width: 900, height: 700, maximized: true },
       remoteConnectionBounds: { x: 7, y: 8, width: 640, height: 520, maximized: false },
-      compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 }
+      compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 },
+      previewWindowBounds: { x: 9, y: 10, width: 480, height: 720, maximized: true }
     }
     const portable = settingsForPortableExport(withBounds)
     for (const key of windowLikeSettingsKeys()) {

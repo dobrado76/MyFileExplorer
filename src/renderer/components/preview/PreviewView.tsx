@@ -1,0 +1,616 @@
+import { useMemo, type JSX, type ReactNode } from 'react'
+import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
+import { highlightLanguage } from '../../lib/highlight'
+import { basename } from '../../lib/paths'
+import {
+  CopyIcon,
+  FileIcon,
+  FolderIcon,
+  AudioFileIcon,
+  VideoFileIcon,
+  PdfFileIcon,
+  SpinnerIcon
+} from '../../lib/icons'
+import {
+  AudioPreview,
+  HtmlDocumentPreview,
+  HtmlSourcePreview,
+  MarkdownPreview,
+  PdfPreview,
+  PowerPointPreview,
+  SpreadsheetPreview,
+  VideoPreview,
+  VideoStripPreview
+} from './RichPreviews'
+import { CodePreview } from './CodePreview'
+import { ZipArchivePreview } from './ZipArchivePreview'
+import { ChmPreview } from './ChmPreview'
+import { FontPreview } from './FontPreview'
+import { Model3dPreview } from './Model3dPreview'
+
+function archiveContentsLabel(format: PreviewModel['archiveFormat']): string {
+  switch (format) {
+    case 'unitypackage':
+      return 'Unity package contents'
+    case '7z':
+      return '7z contents'
+    case 'rar':
+      return 'RAR contents'
+    case 'tar':
+      return 'TAR contents'
+    case 'targz':
+      return 'TAR.GZ contents'
+    case 'apk':
+      return 'APK contents'
+    case 'msi':
+      return 'MSI contents'
+    case 'iso':
+      return 'ISO contents'
+    case 'img':
+      return 'IMG contents'
+    case 'zip':
+    default:
+      return 'ZIP contents'
+  }
+}
+
+/* The "file" group is rendered separately as the compact details strip
+   pinned to the bottom of the pane. Weights/summary ("other") before training. */
+const CONTENT_GROUPS: { key: string; label: string }[] = [
+  { key: 'audio', label: 'Audio' },
+  { key: 'video', label: 'Video' },
+  { key: 'executable', label: 'Details' },
+  { key: 'shortcut', label: 'Shortcut' },
+  { key: 'other', label: 'Other' },
+  { key: 'generation', label: 'Generation' },
+  { key: 'image', label: 'Image' }
+]
+
+export function kindLabel(kind: PreviewModel['kind']): string {
+  switch (kind) {
+    case 'image':
+      return 'Image'
+    case 'text':
+      return 'Text'
+    case 'markdown':
+      return 'Markdown'
+    case 'html':
+      return 'HTML'
+    case 'spreadsheet':
+      return 'Spreadsheet'
+    case 'document':
+      return 'Word document'
+    case 'rtf':
+      return 'Rich text'
+    case 'audio':
+      return 'Audio'
+    case 'video':
+      return 'Video'
+    case 'pdf':
+      return 'PDF'
+    case 'directory':
+      return 'Folder'
+    case 'shortcut':
+      return 'Shortcut'
+    case 'archive':
+      return 'Archive'
+    case 'chm':
+      return 'HTML Help'
+    case 'executable':
+      return 'Application'
+    case 'model3d':
+      return '3D model'
+    case 'missing':
+      return 'Missing'
+    default:
+      return 'File'
+  }
+}
+
+export type PreviewViewProps = {
+  model: PreviewModel | null
+  loading: boolean
+  previewPath: string | null
+  multiCount?: number
+  mediaHold?: boolean
+  previewVideoAutoplay?: boolean
+  captionPosterUrl?: string | null
+  headerActions?: ReactNode
+  banner?: ReactNode
+  onOpenPath: (path: string) => void
+  onExtractZip?: (paths: string[]) => void
+  onNotify?: (text: string) => void
+  onRetryPlayableForce: () => void
+}
+
+export function PreviewView({
+  model,
+  loading,
+  previewPath,
+  multiCount = 0,
+  mediaHold = false,
+  previewVideoAutoplay = false,
+  captionPosterUrl = null,
+  headerActions,
+  banner,
+  onOpenPath,
+  onExtractZip,
+  onNotify,
+  onRetryPlayableForce
+}: PreviewViewProps): JSX.Element {
+  const headerSub = model ? (model.subtitle ?? kindLabel(model.kind)) : null
+  const multiHint = multiCount > 1 ? `${multiCount} selected` : null
+
+  const copyValue = async (value: string): Promise<void> => {
+    await navigator.clipboard.writeText(value)
+    onNotify?.('Copied')
+  }
+
+  const kindClass =
+    model?.kind === 'image'
+      ? ' preview-kind-image'
+      : model?.kind === 'archive'
+        ? ' preview-kind-archive'
+        : model?.kind === 'chm'
+          ? ' preview-kind-chm'
+          : model?.kind === 'model3d'
+            ? ' preview-kind-model3d'
+            : ''
+
+  return (
+    <div className={`preview${kindClass}`}>
+      <div className="preview-header preview-header-compact">
+        <div className="preview-sub">
+          {multiHint ? (
+            <>
+              <span className="preview-multi-badge">{multiHint}</span>
+              {headerSub ? <span className="preview-multi-sep">·</span> : null}
+            </>
+          ) : null}
+          {headerSub}
+        </div>
+        {headerActions ? <div className="preview-header-actions">{headerActions}</div> : null}
+      </div>
+
+      {banner}
+
+      {!previewPath ? (
+        <div className="preview-empty">Select a file to preview</div>
+      ) : loading && !model ? (
+        <div className="preview-empty">
+          <SpinnerIcon size={20} className="spin" />
+        </div>
+      ) : !model ? (
+        <div className="preview-empty">No preview available</div>
+      ) : (
+        <PreviewBody
+          model={model}
+          mediaHold={mediaHold}
+          previewVideoAutoplay={previewVideoAutoplay}
+          captionPosterUrl={captionPosterUrl}
+          onOpenPath={onOpenPath}
+          onExtractZip={onExtractZip}
+          onCopy={copyValue}
+          onRetryPlayableForce={onRetryPlayableForce}
+        />
+      )}
+    </div>
+  )
+}
+
+function PreviewBody({
+  model,
+  mediaHold,
+  previewVideoAutoplay,
+  captionPosterUrl,
+  onOpenPath,
+  onExtractZip,
+  onCopy,
+  onRetryPlayableForce
+}: {
+  model: PreviewModel
+  mediaHold: boolean
+  previewVideoAutoplay: boolean
+  captionPosterUrl: string | null
+  onOpenPath: (path: string) => void
+  onExtractZip?: (paths: string[]) => void
+  onCopy: (value: string) => Promise<void>
+  onRetryPlayableForce: () => void
+}): JSX.Element {
+  const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
+  const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
+  const hasRichFields = contentFields.length > 0
+
+  return (
+    <>
+      <div className="preview-content">
+        {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
+        {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
+          <div className="preview-media preview-media-fill">
+            <img
+              src={captionPosterUrl || model.mediaUrl}
+              alt={basename(model.path)}
+              draggable={false}
+            />
+          </div>
+        )}
+        {model.kind === 'text' && model.textSample !== undefined && (
+          <CodePreview source={model.textSample} path={model.path} />
+        )}
+        {model.kind === 'markdown' && model.textSample !== undefined && (
+          <MarkdownPreview source={model.textSample} path={model.path} />
+        )}
+        {model.kind === 'html' && model.textSample !== undefined && (
+          <HtmlSourcePreview source={model.textSample} path={model.path} />
+        )}
+        {model.pptSlides && model.pptSlides.length > 0 && (
+          <PowerPointPreview slides={model.pptSlides} />
+        )}
+        {(model.kind === 'document' || model.kind === 'rtf') &&
+          model.htmlBody !== undefined &&
+          !model.pptSlides?.length && <HtmlDocumentPreview html={model.htmlBody} />}
+        {model.kind === 'spreadsheet' && model.sheets && <SpreadsheetPreview sheets={model.sheets} />}
+        {model.kind === 'pdf' && model.mediaUrl && !mediaHold && (
+          <PdfPreview url={model.mediaUrl} />
+        )}
+        {model.kind === 'video' &&
+          model.stripFrames &&
+          model.stripFrames.length > 0 &&
+          !mediaHold && (
+            <VideoStripPreview
+              frames={model.stripFrames}
+              onOpenExternal={() => onOpenPath(model.path)}
+            />
+          )}
+        {model.kind === 'video' &&
+          !model.stripFrames?.length &&
+          (model.mediaUrl || model.posterUrl || model.needsPlayable) &&
+          !mediaHold && (
+            <VideoPreview
+              url={model.mediaUrl}
+              posterUrl={model.posterUrl}
+              preparing={Boolean(model.needsPlayable && !model.mediaUrl)}
+              autoplay={previewVideoAutoplay}
+              onOpenExternal={() => onOpenPath(model.path)}
+              onAudioOnly={onRetryPlayableForce}
+            />
+          )}
+        {model.kind === 'audio' && model.mediaUrl && !mediaHold && (
+          <AudioPreview
+            url={model.mediaUrl}
+            coverUrl={model.posterUrl}
+            autoplay={previewVideoAutoplay}
+            onOpenExternal={() => onOpenPath(model.path)}
+          />
+        )}
+        {model.kind === 'binary' && !hasRichFields && (
+          <div className="preview-icon">
+            <FileIcon size={56} />
+          </div>
+        )}
+        {model.kind === 'executable' && (
+          <div className="preview-exe">
+            <div className="preview-icon preview-exe-icon">
+              {model.mediaUrl ? (
+                <img src={model.mediaUrl} alt="" width={64} height={64} draggable={false} />
+              ) : (
+                <FileIcon size={56} />
+              )}
+            </div>
+          </div>
+        )}
+        {model.kind === 'font' && model.mediaUrl && !mediaHold && (
+          <FontPreview url={model.mediaUrl} />
+        )}
+        {model.kind === 'font' && !model.mediaUrl && (
+          <div className="preview-font preview-font-error">Font preview unavailable</div>
+        )}
+        {model.kind === 'model3d' && model.mediaUrl && !mediaHold && (
+          <Model3dPreview
+            url={model.mediaUrl}
+            filePath={model.path}
+            ext={(() => {
+              const base = model.path.replace(/^.*[/\\]/, '')
+              const i = base.lastIndexOf('.')
+              return i >= 0 ? base.slice(i + 1) : ''
+            })()}
+          />
+        )}
+        {model.kind === 'model3d' && !model.mediaUrl && (
+          <div className="preview-model3d-status">3D preview skipped (file too large or unreadable)</div>
+        )}
+        {((model.kind === 'video' &&
+          !model.mediaUrl &&
+          !model.posterUrl &&
+          !model.needsPlayable &&
+          !model.stripFrames?.length) ||
+          (model.kind === 'audio' && !model.mediaUrl)) && (
+          <>
+            <div className="preview-icon">
+              {model.kind === 'audio' ? <AudioFileIcon size={56} /> : <VideoFileIcon size={56} />}
+            </div>
+            <div style={{ textAlign: 'center', paddingBottom: 8 }}>
+              <button className="btn" onClick={() => onOpenPath(model.path)}>
+                Open with default app
+              </button>
+            </div>
+          </>
+        )}
+        {model.kind === 'directory' && (
+          <div className="preview-icon">
+            <FolderIcon size={56} />
+          </div>
+        )}
+        {model.kind === 'archive' && (
+          <>
+            {model.mediaUrl && (
+              <div className="preview-exe">
+                <div className="preview-icon preview-exe-icon">
+                  <img src={model.mediaUrl} alt="" width={64} height={64} draggable={false} />
+                </div>
+              </div>
+            )}
+            <ZipArchivePreview
+              tree={model.archiveTree ?? []}
+              treeLabel={archiveContentsLabel(model.archiveFormat)}
+              onExtract={
+                model.archiveFormat === 'zip' && onExtractZip
+                  ? () => onExtractZip([model.path])
+                  : undefined
+              }
+            />
+          </>
+        )}
+        {model.kind === 'chm' && (
+          <ChmPreview
+            chmPath={model.path}
+            tree={model.archiveTree ?? []}
+            initialMediaUrl={model.mediaUrl}
+          />
+        )}
+        {model.kind === 'shortcut' && (
+          <div className="preview-shortcut">
+            <div className="preview-icon">
+              <FileIcon size={56} />
+            </div>
+            <div className="preview-shortcut-caption">Windows shortcut</div>
+            {(() => {
+              const target = model.fields.find((f) => f.id === 'lnk.target')?.value
+              if (!target) return null
+              return <div className="preview-shortcut-target mono">{target}</div>
+            })()}
+            <div className="preview-shortcut-actions">
+              <button className="btn" onClick={() => onOpenPath(model.path)}>
+                Open shortcut
+              </button>
+              {(() => {
+                const target = model.fields.find((f) => f.id === 'lnk.target')?.value
+                const kind = model.fields.find((f) => f.id === 'lnk.targetKind')?.value ?? ''
+                if (!target || kind.includes('URL') || kind.includes('Missing')) return null
+                return (
+                  <button className="btn" onClick={() => onOpenPath(target)}>
+                    Open target
+                  </button>
+                )
+              })()}
+            </div>
+          </div>
+        )}
+        {model.kind === 'pdf' && !model.mediaUrl && (
+          <>
+            <div className="preview-icon">
+              <PdfFileIcon size={56} />
+            </div>
+            <div style={{ textAlign: 'center', paddingBottom: 8 }}>
+              <button className="btn" onClick={() => onOpenPath(model.path)}>
+                Open with default app
+              </button>
+            </div>
+          </>
+        )}
+        {model.kind === 'missing' && <div className="preview-empty">File no longer exists</div>}
+
+        {model.warnings && model.warnings.length > 0 && (
+          <div className="preview-warnings">{model.warnings.join(' · ')}</div>
+        )}
+
+        {hasRichFields && (
+          <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
+            {CONTENT_GROUPS.map(({ key, label }) => {
+              const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
+              if (fields.length === 0) return null
+              const groupLabel =
+                key === 'generation' && model.subtitle?.startsWith('SafeTensors')
+                  ? 'Training'
+                  : key === 'other' && model.subtitle?.startsWith('SafeTensors')
+                    ? 'Weights'
+                    : key === 'other' && model.subtitle === '3ds Max UVW map'
+                      ? 'UVW map'
+                      : key === 'other' && model.subtitle === 'Radiance HDR'
+                        ? 'HDR'
+                        : label
+              return (
+                <div key={key}>
+                  <div className="preview-group-title">{groupLabel}</div>
+                  {key === 'generation' ? (
+                    <GenerationFields fields={fields} onCopy={onCopy} />
+                  ) : (
+                    fields.map((f) => <Field key={f.id} field={f} onCopy={onCopy} />)
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
+    </>
+  )
+}
+
+const DETAILS_LEAD = ['file.name', 'image.dimensions'] as const
+
+function DetailsStrip({
+  fields,
+  onCopy
+}: {
+  fields: PreviewField[]
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  const byId = new Map(fields.map((f) => [f.id, f]))
+  const used = new Set<string>()
+
+  const take = (id: string): PreviewField | undefined => {
+    const f = byId.get(id)
+    if (f) used.add(id)
+    return f
+  }
+
+  const lead = DETAILS_LEAD.map((id) => take(id)).filter(Boolean) as PreviewField[]
+  const left = (['file.type', 'file.size'] as const).map((id) => take(id)).filter(Boolean) as PreviewField[]
+  const right = (['file.modified', 'file.created'] as const)
+    .map((id) => take(id))
+    .filter(Boolean) as PreviewField[]
+  const rest = fields.filter((f) => !used.has(f.id) && f.id !== 'file.path')
+
+  const hasPair = left.length > 0 || right.length > 0
+
+  return (
+    <div className="preview-details">
+      {lead.map((f) => (
+        <DetailRow key={f.id} field={f} onCopy={onCopy} />
+      ))}
+      {hasPair && (
+        <div className="preview-details-pair">
+          <div className="preview-details-col">
+            {left.map((f) => (
+              <DetailRow key={f.id} field={f} onCopy={onCopy} />
+            ))}
+          </div>
+          <div className="preview-details-col">
+            {right.map((f) => (
+              <DetailRow key={f.id} field={f} onCopy={onCopy} />
+            ))}
+          </div>
+        </div>
+      )}
+      {rest.map((f) => (
+        <DetailRow key={f.id} field={f} onCopy={onCopy} />
+      ))}
+    </div>
+  )
+}
+
+function DetailRow({
+  field,
+  onCopy
+}: {
+  field: PreviewField
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  return (
+    <div className="d-row">
+      <div className="d-label">
+        {field.label}
+        {field.copyable && (
+          <button
+            className="field-copy"
+            aria-label={`Copy ${field.label}`}
+            onClick={() => void onCopy(field.value)}
+          >
+            <CopyIcon size={12} />
+          </button>
+        )}
+      </div>
+      <div className={`d-value${field.mono ? ' mono' : ''}`}>{field.value}</div>
+    </div>
+  )
+}
+
+function isCompactGenField(f: PreviewField): boolean {
+  if (
+    f.id === 'gen.prompt' ||
+    f.id === 'gen.negative' ||
+    f.id.startsWith('gen.raw') ||
+    f.id.toLowerCase().includes('json')
+  ) {
+    return false
+  }
+  if (f.value.includes('\n')) return false
+  // Long model names / hashes still chip-wrap; very long blobs stay block.
+  if (f.value.length > 120) return false
+  return true
+}
+
+function GenerationFields({
+  fields,
+  onCopy
+}: {
+  fields: PreviewField[]
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  const compact: PreviewField[] = []
+  const blocks: PreviewField[] = []
+  for (const f of fields) {
+    if (isCompactGenField(f)) compact.push(f)
+    else blocks.push(f)
+  }
+  return (
+    <>
+      {compact.length > 0 ? (
+        <div className="preview-gen-flow">
+          {compact.map((f) => (
+            <Field key={f.id} field={f} onCopy={onCopy} compact />
+          ))}
+        </div>
+      ) : null}
+      {blocks.map((f) => (
+        <Field key={f.id} field={f} onCopy={onCopy} />
+      ))}
+    </>
+  )
+}
+
+function Field({
+  field,
+  onCopy,
+  compact = false
+}: {
+  field: PreviewField
+  onCopy(v: string): Promise<void>
+  compact?: boolean
+}): JSX.Element {
+  const highlighted = useMemo(() => {
+    if (field.syntax !== 'json') return null
+    return highlightLanguage(field.value, 'json').html
+  }, [field.syntax, field.value])
+  const multiline =
+    !compact && (highlighted !== null || !!field.mono || field.value.includes('\n'))
+
+  return (
+    <div
+      className={`preview-field${multiline ? ' is-multiline' : ''}${compact ? ' is-compact' : ''}`}
+    >
+      <div className="field-label">
+        <span className="field-label-text">{field.label}</span>
+        {field.copyable && (
+          <button
+            className="field-copy"
+            aria-label={`Copy ${field.label}`}
+            onClick={() => void onCopy(field.value)}
+          >
+            <CopyIcon size={12} />
+          </button>
+        )}
+      </div>
+      {highlighted !== null ? (
+        <pre className="field-value mono preview-code field-code">
+          <code dangerouslySetInnerHTML={{ __html: highlighted }} />
+        </pre>
+      ) : (
+        <div className={`field-value${field.mono || multiline ? ' mono' : ''}`}>{field.value}</div>
+      )}
+    </div>
+  )
+}
