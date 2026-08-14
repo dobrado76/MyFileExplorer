@@ -11,6 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Search exclude patterns** — Settings → Search index uses the same pattern language as View filter (folders, file names, extensions, wildcards, or a path), not folder names only.
 - **Update download progress** — Settings → About shows a determinate bar (bytes + percent) while the GitHub installer downloads.
 - **Default tab icons** — new tabs get a Lucide icon: Computer / unscoped (`Monitor`, blue), drive as root (`HardDrive`, gray), folder as root (`Folder`, yellow). Change or clear from the tab menu.
 - **Equal-width tabs** — Settings → Appearance toggle. Off (default): each tab is only as wide as its title. On: every tab matches the widest label (previous behavior).

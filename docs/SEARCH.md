@@ -23,7 +23,7 @@ Unchecking **indexed** in the toolbar searches the **current folder recursively*
 
 Nested roots: **parent-covers-child** (same as before). Volume root `D:\` absorbs folder roots under `D:\`.
 
-Exclude directory **names** from crawl (settings): default `node_modules`, `.git`, `.hg`, `.svn`.
+Exclude from crawl (Settings → Search index): view-filter patterns — folder names, file names, extensions (`.tmp` / `*.log`), wildcards, or an absolute path. Defaults: `node_modules`, `.git`, `.hg`, `.svn`, `Thumbs.db`. Indexed hits already stored are hidden immediately; Reindex drops them from the database.
 
 Offline volumes: keep rows; mark root `offline` until the volume returns (aligns with D3 tab offline).
 

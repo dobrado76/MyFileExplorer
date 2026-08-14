@@ -18,6 +18,7 @@ describe('liveWalkSearch', () => {
     await fsp.writeFile(path.join(root, 'readme.txt'), 'readme')
     await fsp.writeFile(path.join(root, 'random.jpg'), 'jpg decoy')
     await fsp.writeFile(path.join(root, '!!Thumbs.db'), 'thumbs')
+    await fsp.writeFile(path.join(root, 'Thumbs.db'), 'thumbs-sys')
     await fsp.writeFile(path.join(root, 'sub', 'MyPhoto.png'), 'b')
     await fsp.writeFile(path.join(root, 'sub', 'deep', 'gamma-trip-2024.bin'), 'c')
     await fsp.mkdir(path.join(root, 'node_modules', 'pkg'), { recursive: true })
@@ -45,6 +46,21 @@ describe('liveWalkSearch', () => {
       cancelled: false
     })
     expect(items.map((i) => i.name)).toEqual(['MyPhoto.png'])
+  })
+
+  it('skips excluded extensions', async () => {
+    const { items } = await liveWalkSearch(root, 'photo', ['*.js'], 100, {
+      cancelled: false
+    })
+    expect(items.map((i) => i.name)).toEqual(['MyPhoto.png'])
+  })
+
+  it('skips excluded file names', async () => {
+    const { items } = await liveWalkSearch(root, 'thumbs', ['Thumbs.db'], 100, {
+      cancelled: false
+    })
+    expect(items.map((i) => i.name)).toEqual(['!!Thumbs.db'])
+    expect(items.map((i) => i.name)).not.toContain('Thumbs.db')
   })
 
   it('matches multi-token queries in deep paths', async () => {

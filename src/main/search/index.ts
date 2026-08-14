@@ -6,6 +6,7 @@ import type {
   SearchQueryResponse,
   SearchResultItem
 } from '@shared/schemas/search'
+import { compilePathPatterns } from '@shared/pathPatterns'
 import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { broadcast } from '../ipc/events'
 import { settingsStore } from '../settings/store'
@@ -160,8 +161,10 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
     const basic = isBasicNameQuery(query)
     const { parseEverythingQuery, rowMatchesStructured } = await import('./everythingQuery')
     const q = basic ? null : parseEverythingQuery(query, opts)
+    const excluded = compilePathPatterns(settingsStore().get().searchExcludeDirNames)
     for (const d of dirents) {
       const full = path.join(dir, d.name)
+      if (excluded(full)) continue
       const isDir = d.isDirectory()
       let size = 0
       let mtimeMs = 0

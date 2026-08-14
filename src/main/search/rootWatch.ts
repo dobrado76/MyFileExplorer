@@ -5,6 +5,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { watch } from 'node:fs'
 import type { FSWatcher } from 'node:fs'
+import { compilePathPatterns } from '@shared/pathPatterns'
 import { logMain } from '../logging'
 import { settingsStore } from '../settings/store'
 import { searchDb, type RootDbRow } from './db'
@@ -14,8 +15,8 @@ const DEBOUNCE_MS = 400
 const watchers = new Map<string, FSWatcher>()
 const pending = new Map<string, Map<string, ReturnType<typeof setTimeout>>>()
 
-function excludes(): Set<string> {
-  return new Set(settingsStore().get().searchExcludeDirNames.map((n) => n.toLowerCase()))
+function isSearchExcluded(fullPath: string): boolean {
+  return compilePathPatterns(settingsStore().get().searchExcludeDirNames)(fullPath)
 }
 
 function rootForPath(filePath: string): RootDbRow | null {
@@ -35,8 +36,10 @@ function rootForPath(filePath: string): RootDbRow | null {
 }
 
 async function applyChange(root: RootDbRow, fullPath: string): Promise<void> {
-  const base = path.basename(fullPath)
-  if (excludes().has(base.toLowerCase())) return
+  if (isSearchExcluded(fullPath)) {
+    deletePathTree(fullPath)
+    return
+  }
   try {
     const st = await fsp.stat(fullPath)
     const isDir = st.isDirectory()

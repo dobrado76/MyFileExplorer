@@ -13,6 +13,8 @@ import {
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
+import { compilePathPatterns } from '@shared/pathPatterns'
+import { settingsStore } from '../settings/store'
 import { nameMatches } from './queryBuilder'
 import { buildSearchSql } from './searchSql'
 
@@ -114,8 +116,10 @@ export async function queryIndexStructured(
   const db = searchDb()
   const rows = db.prepare(sql).all(...params, pull) as unknown as FileRow[]
 
-  let items = rowsToItems(rows).filter((it) =>
-    basic
+  const excluded = compilePathPatterns(settingsStore().get().searchExcludeDirNames)
+  let items = rowsToItems(rows).filter((it) => {
+    if (excluded(it.path)) return false
+    return basic
       ? nameMatches(it.name, query)
       : rowMatchesStructured(
           {
@@ -129,7 +133,7 @@ export async function queryIndexStructured(
           q,
           { rootPrefix: pathPrefix }
         )
-  )
+  })
 
   // notText already in rowMatchesStructured
 

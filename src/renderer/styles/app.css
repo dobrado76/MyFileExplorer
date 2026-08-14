@@ -5493,21 +5493,6 @@ html.idle-cursor-hidden * {
   min-height: 160px;
   max-height: min(320px, 38vh);
 }
-/* Exclude blacklist is secondary — keep it short. */
-.settings-index-list.exclude {
-  min-height: 0;
-  max-height: min(110px, 14vh);
-}
-.settings-exclude-input {
-  width: 140px;
-  min-width: 100px;
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-}
 .settings-add-form {
   display: flex;
   flex-direction: column;

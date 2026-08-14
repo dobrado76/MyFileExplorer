@@ -9,6 +9,7 @@ import {
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
+import { compilePathPatterns } from '@shared/pathPatterns'
 import { nameMatches } from './queryBuilder'
 
 export type CancelToken = { cancelled: boolean }
@@ -25,7 +26,7 @@ function yieldMain(): Promise<void> {
 export async function liveWalkSearch(
   rootDir: string,
   query: string,
-  excludeDirNames: string[],
+  excludePatterns: string[],
   limit: number,
   token: CancelToken,
   parseOpts: ParseOptions = {},
@@ -33,7 +34,7 @@ export async function liveWalkSearch(
 ): Promise<{ items: SearchResultItem[]; partial: boolean; contentSlow?: boolean }> {
   const basic = isBasicNameQuery(query)
   const q = basic ? null : parseEverythingQuery(query, parseOpts)
-  const excludes = new Set(excludeDirNames.map((n) => n.toLowerCase()))
+  const excluded = compilePathPatterns(excludePatterns)
   const items: SearchResultItem[] = []
   const stack: string[] = [rootDir]
   let scanned = 0
@@ -80,7 +81,7 @@ export async function liveWalkSearch(
       }
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
-      if (isDir && excludes.has(d.name.toLowerCase())) continue
+      if (excluded(full)) continue
 
       const nameHit = basic ? nameMatches(d.name, query) : null
       // Basic name search: skip stat on misses so the walk does not monopolize main.

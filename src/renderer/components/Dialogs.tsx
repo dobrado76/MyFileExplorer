@@ -1521,7 +1521,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const navItems = SETTINGS_NAV
   const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
-  const [excludeDraft, setExcludeDraft] = useState('')
+  const [excludeText, setExcludeText] = useState(settings.searchExcludeDirNames.join('\n'))
   const [hideExtText, setHideExtText] = useState(settings.hideNameExtensions.join('\n'))
   const [addingFilter, setAddingFilter] = useState(false)
   const [filterName, setFilterName] = useState('')
@@ -1591,6 +1591,15 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const commitFilterPatterns = (): void => {
     void applySettingsPatch({
       viewFilterPatterns: filterText
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    })
+  }
+
+  const commitSearchExcludePatterns = (): void => {
+    void applySettingsPatch({
+      searchExcludeDirNames: excludeText
         .split('\n')
         .map((s) => s.trim())
         .filter(Boolean)
@@ -2499,84 +2508,25 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   ))
                 )}
               </div>
-              <div className="form-section">Exclude folder names</div>
-              <div className="settings-index-head">
-                <p className="settings-help">
-                  Blacklist: folder names skipped while indexing (e.g. <code>node_modules</code>,{' '}
-                  <code>.git</code>). Case-insensitive match on the directory name only.
-                </p>
-                <div className="settings-inline">
-                  <input
-                    id="set-exclude-add"
-                    type="text"
-                    className="settings-exclude-input"
-                    placeholder="Folder name"
-                    value={excludeDraft}
-                    spellCheck={false}
-                    onChange={(e) => setExcludeDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return
-                      e.preventDefault()
-                      const name = excludeDraft.trim()
-                      if (!name) return
-                      const key = name.toLowerCase()
-                      if (settings.searchExcludeDirNames.some((n) => n.toLowerCase() === key)) {
-                        setExcludeDraft('')
-                        return
-                      }
-                      void applySettingsPatch({
-                        searchExcludeDirNames: [...settings.searchExcludeDirNames, name]
-                      })
-                      setExcludeDraft('')
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      const name = excludeDraft.trim()
-                      if (!name) return
-                      const key = name.toLowerCase()
-                      if (settings.searchExcludeDirNames.some((n) => n.toLowerCase() === key)) {
-                        setExcludeDraft('')
-                        return
-                      }
-                      void applySettingsPatch({
-                        searchExcludeDirNames: [...settings.searchExcludeDirNames, name]
-                      })
-                      setExcludeDraft('')
-                    }}
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-              <div className="settings-index-list exclude">
-                {settings.searchExcludeDirNames.length === 0 ? (
-                  <div className="settings-help">No excluded names — all folders are crawled.</div>
-                ) : (
-                  settings.searchExcludeDirNames.map((name) => (
-                    <div className="index-root-row" key={name.toLowerCase()}>
-                      <span className="root-path" title={name}>
-                        {name}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() =>
-                          void applySettingsPatch({
-                            searchExcludeDirNames: settings.searchExcludeDirNames.filter(
-                              (n) => n.toLowerCase() !== name.toLowerCase()
-                            )
-                          })
-                        }
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
+              <div className="form-section">Exclude from search</div>
+              <p className="settings-help">
+                Skipped while indexing and live-folder search (same pattern language as View
+                filter). One pattern per line. Examples: <code>node_modules</code> (folder name
+                anywhere), <code>.git</code> or <code>*.log</code> (extension),{' '}
+                <code>Thumbs.db</code> (file name), <code>D:\Art\WIP</code> (this folder).
+                Indexed hits already stored are hidden immediately; Reindex a root to drop them
+                from the database.
+              </p>
+              <textarea
+                className="filter-textarea"
+                aria-label="Search exclude patterns"
+                placeholder={'node_modules\n.git\n*.log\nThumbs.db\nD:\\folder\\skip'}
+                spellCheck={false}
+                rows={8}
+                value={excludeText}
+                onChange={(e) => setExcludeText(e.target.value)}
+                onBlur={commitSearchExcludePatterns}
+              />
 
               <div className="form-section">Saved filters</div>
               <p className="settings-help">

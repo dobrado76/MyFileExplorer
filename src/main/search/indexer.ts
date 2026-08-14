@@ -12,6 +12,7 @@ import { settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
 import { searchDb, type RootDbRow } from './db'
+import { compilePathPatterns } from '@shared/pathPatterns'
 import { fileRowFromPath, upsertFileRows } from './upsert'
 import { syncRootWatches, stopRootWatch } from './rootWatch'
 import {
@@ -200,11 +201,7 @@ async function walkIndex(
   rootPath: string,
   onProgress: (n: number) => void
 ): Promise<number> {
-  const excludes = new Set(
-    settingsStore()
-      .get()
-      .searchExcludeDirNames.map((n) => n.toLowerCase())
-  )
+  const excluded = compilePathPatterns(settingsStore().get().searchExcludeDirNames)
   let processed = 0
   let batch: ReturnType<typeof fileRowFromPath>[] = []
   const flush = (): void => {
@@ -229,7 +226,7 @@ async function walkIndex(
     for (const d of dirents) {
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
-      if (isDir && excludes.has(d.name.toLowerCase())) continue
+      if (excluded(full)) continue
       let size = 0
       let mtime = 0
       if (!isDir) {

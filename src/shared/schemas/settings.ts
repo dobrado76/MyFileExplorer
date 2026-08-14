@@ -257,6 +257,10 @@ export const settingsSchema = z.object({
     .catch(DEFAULT_VID_THUMB_FRAME_MS),
   /** Auto-start preview `<video>` / `<audio>` when a media file is selected. */
   previewVideoAutoplay: z.boolean().catch(false),
+  /**
+   * Search / index exclude patterns (view-filter language): folder names, file
+   * names, extensions (`.tmp` / `*.log`), wildcards, or absolute paths.
+   */
   searchExcludeDirNames: z
     .array(z.string())
     .catch(['node_modules', '.git', '.hg', '.svn', 'Thumbs.db']),
