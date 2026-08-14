@@ -137,7 +137,8 @@ const TEXT_EXTS = new Set([
   'prettierrc',
   'lua',
   'vue',
-  'svelte'
+  'svelte',
+  'srt'
 ])
 const MARKDOWN_EXTS = new Set(['md', 'markdown'])
 const HTML_EXTS = new Set(['html', 'htm'])
@@ -1652,12 +1653,21 @@ async function buildTextOrBinaryPreview(
     return { path: file, kind: 'binary', fields, warnings }
   }
   if (size > readBytes) warnings.push('Preview truncated')
+  const subtitle =
+    ext === 'srt' ? 'SubRip subtitle' : ext === 'sub' ? 'Subtitle' : undefined
+  if (subtitle) {
+    const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+    if (typeIdx >= 0) {
+      fields[typeIdx] = { id: 'file.type', label: 'Type', value: subtitle, group: 'file' }
+    }
+  }
   return {
     path: file,
     kind: 'text',
     textSample: capText(sample, warnings, 'Text'),
     fields,
-    warnings
+    warnings,
+    ...(subtitle ? { subtitle } : {})
   }
 }
 

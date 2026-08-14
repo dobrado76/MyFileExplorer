@@ -297,6 +297,8 @@ const TEXT_EXTS = new Set([
   'csv',
   'tsv',
   'log',
+  'srt',
+  'sub',
   'ini',
   'cfg',
   'toml'

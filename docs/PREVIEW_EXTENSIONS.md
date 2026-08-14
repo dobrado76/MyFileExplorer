@@ -180,6 +180,8 @@ UTF-8 / UTF-16 LE sniff; capped sample (`textPreviewMaxBytes`). Syntax highlight
 | Ext | Typical highlighting |
 | --- | -------------------- |
 | `txt` | Plaintext |
+| `srt` | SubRip subtitle (index / timestamps / tags) |
+| `sub` | Text subtitle (MicroDVD / SubViewer) when the file sniffs as UTF-8. CloneCD / VobSub `.sub` stays binary. |
 | `json` | JSON |
 | `yaml` / `yml` / `wlt` / `meta` / `mat` / `asset` / `terrainlayer` / `lighting` / `unity` / `prefab` / `controller` / `anim` | YAML (`wlt` treated as YAML; the rest = Unity). Binary `.asset` / `.unity` / `.prefab` / `.controller` / `.anim` still sniff as binary. |
 | `shadergraph` | JSON (Unity Shader Graph) |
@@ -253,7 +255,7 @@ Same contents-tree UI (**list-only** — no Extract All). In-app walker (not `7z
 | `iso` | UDF when present (needed for Windows ISOs); else ISO9660 + Joliet. |
 | `img` | Best-effort UDF / ISO9660 (cooked 2048 or raw Mode-1 2352). Non-ISO dumps may show an empty tree + warning. |
 
-Companion `.cue` / `.ccd` already preview as text; `.sub` stays binary.
+Companion `.cue` / `.ccd` already preview as text. A `.sub` next to a disc image is usually CloneCD/VobSub **binary** (icon only). A text MicroDVD/SubViewer `.sub` sniffs as [subtitle text](#text--code).
 
 ---
 
@@ -344,7 +346,8 @@ Examples that fall through to text sniff or binary icon unless listed above:
 - Font formats beyond `ttf` (e.g. `otf`, `woff`, `woff2`)
 - `psb` (Photoshop Big)
 - Office formats beyond the Word / PowerPoint / spreadsheet / RTF sets (e.g. `odt`, `pages`)
-- CloneCD `.sub` / email / databases, etc.
+- CloneCD / VobSub binary `.sub` (text MicroDVD `.sub` is listed under [Text / code](#text--code))
+- email / databases, etc.
 
 Use **Open with default app** (or the system help viewer for oversized CHMs) when the in-pane preview is limited.
 

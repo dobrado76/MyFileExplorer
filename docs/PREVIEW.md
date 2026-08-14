@@ -287,7 +287,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - `kind: 'archive'` — contents tree via random-access listing (list-only; **no Extract All**). Bundled `7za` does **not** support ISO/UDF.
 - Prefers **UDF** when an Anchor Volume Descriptor is present (Windows install ISOs — ISO9660 is often only a stub `README.TXT`)
 - Falls back to **ISO 9660 / Joliet** (2048-byte cooked sectors; `.img` also tries raw Mode-1 2352)
-- Companion `.cue` / `.ccd` stay text previews; `.sub` stays binary
+- Companion `.cue` / `.ccd` stay text previews. Binary CloneCD/VobSub `.sub` stays binary; text MicroDVD/SubViewer `.sub` and `.srt` use the subtitle text preview.
 
 ---
 

@@ -154,7 +154,9 @@ export function languageFromPath(filePath: string): string | null {
     rb: 'ruby',
     lua: 'lua',
     vue: 'xml',
-    svelte: 'xml'
+    svelte: 'xml',
+    srt: 'srt',
+    sub: 'srt'
   }
   return map[ext] ?? null
 }
@@ -173,6 +175,9 @@ export function highlightLanguage(source: string, language: string): HighlightRe
   }
   if (language === 'shader') {
     return { language: 'shader', html: highlightUnityShader(source) }
+  }
+  if (language === 'srt') {
+    return { language: 'srt', html: highlightSubtitle(source) }
   }
   if (!language || language === 'plaintext') {
     return { language: language || null, html: highlightHashComments(source) }
@@ -196,6 +201,9 @@ export function highlightCode(source: string, filePath: string): HighlightResult
   }
   if (lang === 'shader') {
     return { language: 'shader', html: highlightUnityShader(source) }
+  }
+  if (lang === 'srt') {
+    return { language: 'srt', html: highlightSubtitle(source) }
   }
   if (!lang || lang === 'plaintext') {
     return { language: lang, html: highlightHashComments(source) }
@@ -306,6 +314,53 @@ function highlightUnityShader(source: string): string {
     }
     return out
   }).join('\n')
+}
+
+/** SubRip (`.srt`) + MicroDVD / SubViewer (`.sub` when text). */
+function highlightSubtitle(source: string): string {
+  return source.split('\n').map((line) => {
+    if (/^\s*\d+\s*$/.test(line)) {
+      return `<span class="hljs-number">${escapeHtml(line)}</span>`
+    }
+    if (line.includes('-->') && /\d{1,2}:\d{2}:\d{2}[,.]\d/.test(line)) {
+      return highlightSrtTiming(line)
+    }
+    const micro = /^(\{\d+\})(\{\d+\})(.*)$/.exec(line)
+    if (micro) {
+      return `<span class="hljs-number">${escapeHtml(micro[1]!)}</span><span class="hljs-number">${escapeHtml(micro[2]!)}</span>${highlightDialogue(micro[3]!)}`
+    }
+    if (/^\s*\d{1,2}:\d{2}:\d{2}[.,]\d+,\s*\d{1,2}:\d{2}:\d{2}[.,]\d+\s*$/.test(line)) {
+      return `<span class="hljs-number">${escapeHtml(line)}</span>`
+    }
+    return highlightDialogue(line)
+  }).join('\n')
+}
+
+function highlightSrtTiming(line: string): string {
+  const re = /(\d{1,2}:\d{2}:\d{2}[,.]\d{1,3})|(-->)/g
+  let out = ''
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(line))) {
+    out += escapeHtml(line.slice(last, m.index))
+    if (m[1]) out += `<span class="hljs-number">${escapeHtml(m[1])}</span>`
+    else out += `<span class="hljs-keyword">${escapeHtml(m[2]!)}</span>`
+    last = m.index + m[0].length
+  }
+  return out + escapeHtml(line.slice(last))
+}
+
+function highlightDialogue(line: string): string {
+  const re = /(<[^>\n]+>|\{[^}\n]+\})/g
+  let out = ''
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(line))) {
+    out += escapeHtml(line.slice(last, m.index))
+    out += `<span class="hljs-meta">${escapeHtml(m[0])}</span>`
+    last = m.index + m[0].length
+  }
+  return out + escapeHtml(line.slice(last))
 }
 
 function highlightHashComments(source: string): string {

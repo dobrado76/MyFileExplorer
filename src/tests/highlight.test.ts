@@ -34,6 +34,8 @@ describe('languageFromPath', () => {
     expect(languageFromPath('D:\\tool.ps')).toBe('powershell')
     expect(languageFromPath('D:\\types.pyi')).toBe('python')
     expect(languageFromPath('D:\\mod.py')).toBe('python')
+    expect(languageFromPath('D:\\movie.srt')).toBe('srt')
+    expect(languageFromPath('D:\\movie.sub')).toBe('srt')
   })
 
   it('returns null for unknown extensions', () => {
@@ -74,6 +76,26 @@ describe('highlightCode', () => {
     expect(html).toContain('CGPROGRAM')
     expect(html).toContain('hljs-string')
     expect(html).toContain('hljs-comment')
+  })
+
+  it('highlights SubRip index, timing, and tags', () => {
+    const src = '1\n00:00:01,000 --> 00:00:04,000\nHello <i>world</i>'
+    const { html, language } = highlightCode(src, 'C:\\a.srt')
+    expect(language).toBe('srt')
+    expect(html).toContain('hljs-number')
+    expect(html).toContain('00:00:01,000')
+    expect(html).toContain('hljs-keyword')
+    expect(html).toContain('--&gt;')
+    expect(html).toContain('hljs-meta')
+    expect(html).toContain('&lt;i&gt;')
+  })
+
+  it('highlights MicroDVD frame ranges', () => {
+    const { html, language } = highlightCode('{100}{200}Hi|there', 'C:\\a.sub')
+    expect(language).toBe('srt')
+    expect(html).toContain('hljs-number')
+    expect(html).toContain('{100}')
+    expect(html).toContain('Hi|there')
   })
 
   it('marks # lines as comments for unknown / extensionless files', () => {

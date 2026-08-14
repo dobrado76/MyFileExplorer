@@ -21,6 +21,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Visual Studio preview** — `.csproj` as XML, `.sln` as solution text, `.vsconfig` as JSON.
 - **`.uvw` preview** — 3ds Max Unwrap UVW metadata (format / purpose, UV vertex/face counts when the layout checks out, UV range, OLE sniff, Unity `.meta` GUID). Float-as-text junk is omitted. Not a UV visualization.
 - **`.hdr` preview** — Radiance RGBE/XYZE (HDRI / skybox) tonemapped for thumbs, preview, and slideshow. Layout hint when 2:1 equirectangular. Non-Radiance `.hdr` shows metadata only.
+- **Subtitle preview** — `.srt` (SubRip) as highlighted text. `.sub` is the same when it sniffs as text (MicroDVD / SubViewer); CloneCD/VobSub binary `.sub` stays binary.
 
 ### Fixed
 
