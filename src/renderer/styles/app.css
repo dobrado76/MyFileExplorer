@@ -5566,6 +5566,29 @@ html.idle-cursor-hidden * {
 .settings-updates-status {
   margin: 0;
 }
+.settings-update-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.settings-update-dl-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.settings-update-dl-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 80ms linear;
+}
+.settings-update-dl-fill.indeterminate {
+  width: 40%;
+  animation: status-op-indeterminate 1.1s ease-in-out infinite;
+}
 .settings-stack .filter-textarea {
   flex: 1;
   min-height: 180px;

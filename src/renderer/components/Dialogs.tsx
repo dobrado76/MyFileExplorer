@@ -1437,6 +1437,42 @@ function SettingsToggle({
   )
 }
 
+function UpdateDownloadBar({
+  bytesDone,
+  bytesTotal,
+  fileName
+}: {
+  bytesDone: number
+  bytesTotal: number
+  fileName?: string
+}): JSX.Element {
+  const known = bytesTotal > 0
+  const pct = known ? Math.min(100, Math.round((bytesDone / bytesTotal) * 100)) : 0
+  const name = fileName || 'installer'
+  return (
+    <div className="settings-update-dl">
+      <div
+        className="settings-update-dl-track"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={known ? pct : undefined}
+        aria-label="Downloading update"
+      >
+        <div
+          className={`settings-update-dl-fill${known ? '' : ' indeterminate'}`}
+          style={known ? { width: `${pct}%` } : undefined}
+        />
+      </div>
+      <p className="settings-help settings-updates-status">
+        {known
+          ? `Downloading ${name}… ${formatBytes(bytesDone)} / ${formatBytes(bytesTotal)} (${pct}%)`
+          : `Downloading ${name}… ${formatBytes(bytesDone)}`}
+      </p>
+    </div>
+  )
+}
+
 function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
@@ -1506,6 +1542,27 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     sourceKind: 'folder' | 'url'
   } | null>(null)
   const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateDownload, setUpdateDownload] = useState<{
+    bytesDone: number
+    bytesTotal: number
+    fileName?: string
+  } | null>(null)
+
+  useEffect(() => {
+    return api.onEvent((event) => {
+      if (event.type !== 'update-download-progress') return
+      const p = event.payload
+      if (p.phase === 'error') {
+        setUpdateDownload(null)
+        return
+      }
+      setUpdateDownload({
+        bytesDone: p.bytesDone,
+        bytesTotal: p.bytesTotal,
+        fileName: p.fileName
+      })
+    })
+  }, [])
 
   useEffect(() => {
     void call(api.app.getVersion())
@@ -2916,7 +2973,17 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       </button>
                     </div>
                   </label>
-                  {updateStatus && <p className="settings-help settings-updates-status">{updateStatus}</p>}
+                  {updateDownload && updateBusy ? (
+                    <UpdateDownloadBar
+                      bytesDone={updateDownload.bytesDone}
+                      bytesTotal={updateDownload.bytesTotal}
+                      fileName={updateDownload.fileName}
+                    />
+                  ) : (
+                    updateStatus && (
+                      <p className="settings-help settings-updates-status">{updateStatus}</p>
+                    )
+                  )}
                 </div>
                 <div className="settings-btn-stack">
                   <button
@@ -2928,6 +2995,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                         setUpdateBusy(true)
                         setUpdateStatus(null)
                         setUpdateCandidate(null)
+                        setUpdateDownload(null)
                         const source = resolveUpdatesSource(settings.updatesFolder)
                         try {
                           const res = await call(api.app.checkUpdate({ source }))
@@ -2966,6 +3034,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                         if (!updateCandidate?.newer) return
                         void (async () => {
                           setUpdateBusy(true)
+                          setUpdateDownload(null)
                           const source = resolveUpdatesSource(settings.updatesFolder)
                           try {
                             if (updateCandidate.downloadUrl) {
@@ -2981,6 +3050,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                             )
                             setUpdateStatus('Launching installer… the app will close.')
                           } catch (e) {
+                            setUpdateDownload(null)
                             setUpdateStatus(e instanceof Error ? e.message : String(e))
                             setUpdateBusy(false)
                           }

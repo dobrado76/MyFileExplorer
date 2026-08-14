@@ -1,8 +1,12 @@
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
+import { createWriteStream } from 'node:fs'
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { Readable, Transform } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+import type { ReadableStream as NodeWebReadableStream } from 'node:stream/web'
 import { app } from 'electron'
 import { AppError } from '@shared/result'
 import { isUnderPath, normalizeSlashes, samePath, stripTrailingSep } from '@shared/paths'
@@ -18,6 +22,7 @@ import {
   resolveUpdatesSource
 } from '@shared/updatesSource'
 import { requireAbsolute } from '../fs/list'
+import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
 
 export type UpdateCandidate = {
@@ -256,6 +261,18 @@ function scheduleTempDirCleanup(tempDir: string): void {
   child.unref()
 }
 
+function emitUpdateDownload(
+  bytesDone: number,
+  bytesTotal: number,
+  phase: 'running' | 'done' | 'error',
+  fileName: string
+): void {
+  broadcast({
+    type: 'update-download-progress',
+    payload: { bytesDone, bytesTotal, phase, fileName }
+  })
+}
+
 async function downloadInstallerToTemp(
   url: string,
   fileName: string
@@ -267,6 +284,8 @@ async function downloadInstallerToTemp(
   await fsp.mkdir(tempDir, { recursive: true })
   const dest = path.join(tempDir, fileName)
   logMain('info', `Downloading update to temp: ${dest}`)
+  let received = 0
+  let knownTotal = 0
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'MyFileExplorer' },
@@ -275,13 +294,38 @@ async function downloadInstallerToTemp(
     if (!res.ok) {
       throw new AppError('io', `Download failed (${res.status})`)
     }
-    const buf = Buffer.from(await res.arrayBuffer())
-    if (buf.length < 1024) {
+    const body = res.body
+    if (!body) {
+      throw new AppError('io', 'Download failed (empty body)')
+    }
+    const parsed = Number.parseInt(res.headers.get('content-length') ?? '', 10)
+    knownTotal = Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+    emitUpdateDownload(0, knownTotal, 'running', fileName)
+
+    let lastEmit = 0
+    const counter = new Transform({
+      transform(chunk: Buffer, _enc, cb) {
+        received += chunk.length
+        const now = Date.now()
+        if (now - lastEmit >= 80) {
+          lastEmit = now
+          emitUpdateDownload(received, knownTotal, 'running', fileName)
+        }
+        cb(null, chunk)
+      }
+    })
+    await pipeline(
+      Readable.fromWeb(body as NodeWebReadableStream),
+      counter,
+      createWriteStream(dest)
+    )
+    if (received < 1024) {
       throw new AppError('io', 'Downloaded file looks too small to be an installer')
     }
-    await fsp.writeFile(dest, buf)
+    emitUpdateDownload(received, knownTotal || received, 'done', fileName)
     return { exe: dest, tempDir }
   } catch (e) {
+    emitUpdateDownload(received, knownTotal, 'error', fileName)
     try {
       await fsp.rm(tempDir, { recursive: true, force: true })
     } catch {

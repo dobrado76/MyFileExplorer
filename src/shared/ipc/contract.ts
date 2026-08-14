@@ -273,3 +273,13 @@ export type MfeEvent =
         message?: string
       }
     }
+  | {
+      type: 'update-download-progress'
+      payload: {
+        bytesDone: number
+        /** 0 when the server omitted Content-Length. */
+        bytesTotal: number
+        phase: 'running' | 'done' | 'error'
+        fileName?: string
+      }
+    }
