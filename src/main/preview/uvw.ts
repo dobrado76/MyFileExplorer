@@ -35,7 +35,7 @@ export type UvwTopology = {
 
 export function parseUnityMetaGuid(text: string): string | null {
   const m = text.match(/^\s*guid:\s*([0-9a-f]{32})\s*$/im)
-  return m ? m[1] : null
+  return m?.[1] ?? null
 }
 
 export function isOleCompound(buf: Buffer): boolean {

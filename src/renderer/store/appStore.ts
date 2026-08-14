@@ -1890,21 +1890,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     mediaHold: false,
     contextMenu: null,
     devGateActive: false,
-    search: {
-      active: false,
-      query: '',
-      running: false,
-      indexedOnly: false,
-      results: [],
-      partial: false,
-      source: null,
-      contentSlow: false,
-      progress: null,
-      tabId: null,
-      gen: 0,
-      message: null,
-      dismissed: []
-    },
+    search: emptyTabSearch(),
     recycleBin: {
       active: false,
       loading: false,

@@ -36,7 +36,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | [Shortcuts](#windows-shortcuts) | `lnk` | `shortcut` |
 | [SafeTensors](#safetensors) | `safetensors` | `binary` + rich fields |
 | [UVW maps](#uvw-maps) | `uvw` | `binary` + metadata fields |
-| [3D meshes](#3d-meshes) | `obj` `fbx` `3ds` | `model3d` |
+| [3D meshes](#3d-meshes) | `obj` `fbx` `3ds` | `model3d` (WebGL; fills pane) |
 | [Folders](#folders) | *(directories)* | `directory` |
 
 ---
@@ -318,11 +318,15 @@ Companion `.cue` / `.ccd` already preview as text; `.sub` stays binary.
 
 ## 3D meshes
 
+WebGL orbit view (`kind: 'model3d'`, D48): drag to rotate, scroll to zoom. The canvas **fills leftover preview-pane height** above the metadata strip (no splitter). Served over `mfe-media` (D7). Files over **96 MiB** skip WebGL and keep metadata only. No animation player.
+
 | Ext | Notes |
 | --- | ----- |
-| `obj` | WebGL orbit preview (three.js). Sibling `.mtl` + maps in the same folder or one subfolder via `mfe-media`. Vertex/triangle counts from a text scan. |
-| `fbx` | Same viewer (ASCII or binary Autodesk FBX). Encoding sniffed from the header. |
-| `3ds` | Same viewer (3D Studio mesh). Files over 96 MiB skip WebGL and keep metadata. Drag to orbit, scroll to zoom. Not a Unity scene player. |
+| `obj` | Wavefront mesh. Sibling `.mtl` + maps from the model folder or one immediate subfolder. Vertex/triangle counts from a text scan (first 4 MiB) when parseable. |
+| `fbx` | Autodesk FBX. Encoding sniffed (ASCII / binary) and shown as a field. |
+| `3ds` | 3D Studio mesh. |
+
+Metadata (when present): Format, Preview (`Orbit WebGL view (drag to rotate, scroll to zoom).`), OBJ counts / `mtllib`, FBX encoding. `.mtl` next to an OBJ is a [text](#text--code) preview, not this viewer.
 
 ---
 

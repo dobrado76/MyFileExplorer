@@ -88,7 +88,7 @@ export function parseHdrHeader(buf: Buffer): HdrHeader | null {
   if (width * height > MAX_SOURCE_PIXELS) return null
 
   const fmtRaw = (vars.FORMAT ?? '').toLowerCase()
-  let format: HdrFormat = 'rgbe'
+  let format: HdrFormat
   if (fmtRaw.includes('xyze')) format = 'xyze'
   else if (fmtRaw.includes('rgbe') || fmtRaw === '') format = 'rgbe'
   else return null
