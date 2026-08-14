@@ -100,6 +100,21 @@ export function languageFromPath(filePath: string): string | null {
     yml: 'yaml',
     yaml: 'yaml',
     wlt: 'yaml',
+    meta: 'yaml',
+    mat: 'yaml',
+    asset: 'yaml',
+    terrainlayer: 'yaml',
+    lighting: 'yaml',
+    unity: 'yaml',
+    prefab: 'yaml',
+    controller: 'yaml',
+    anim: 'yaml',
+    shadergraph: 'json',
+    shader: 'shader',
+    mtl: 'ini',
+    csproj: 'xml',
+    sln: 'sln',
+    vsconfig: 'json',
     css: 'css',
     scss: 'scss',
     less: 'css',
@@ -153,6 +168,12 @@ export type HighlightResult = {
 /** Highlight source with an explicit language id (e.g. preview JSON fields). */
 export function highlightLanguage(source: string, language: string): HighlightResult {
   ensureRegistered()
+  if (language === 'sln') {
+    return { language: 'sln', html: highlightSln(source) }
+  }
+  if (language === 'shader') {
+    return { language: 'shader', html: highlightUnityShader(source) }
+  }
   if (!language || language === 'plaintext') {
     return { language: language || null, html: highlightHashComments(source) }
   }
@@ -170,6 +191,12 @@ export function highlightLanguage(source: string, language: string): HighlightRe
 /** Highlight source; falls back to escaped plaintext on failure / unknown lang. */
 export function highlightCode(source: string, filePath: string): HighlightResult {
   const lang = languageFromPath(filePath)
+  if (lang === 'sln') {
+    return { language: 'sln', html: highlightSln(source) }
+  }
+  if (lang === 'shader') {
+    return { language: 'shader', html: highlightUnityShader(source) }
+  }
   if (!lang || lang === 'plaintext') {
     return { language: lang, html: highlightHashComments(source) }
   }
@@ -180,6 +207,107 @@ export function highlightCode(source: string, filePath: string): HighlightResult
  * For unknown / plaintext: treat lines that are only optional whitespace + `#…`
  * as comments (same `hljs-comment` styling as Python).
  */
+/** Visual Studio `.sln` — not XML; keyword / string / GUID / `#` comment. */
+function highlightSln(source: string): string {
+  const token =
+    /("[^"]*")|(\{[\dA-Fa-f-]+\})|\b(Project|EndProject|GlobalSection|EndGlobalSection|Global|EndGlobal)\b/g
+  return source.split('\n').map((line) => {
+    const comment = /^(\s*)(#.*)$/.exec(line)
+    if (comment) {
+      return `${escapeHtml(comment[1]!)}<span class="hljs-comment">${escapeHtml(comment[2]!)}</span>`
+    }
+    let out = ''
+    let last = 0
+    token.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = token.exec(line))) {
+      out += escapeHtml(line.slice(last, m.index))
+      if (m[1]) out += `<span class="hljs-string">${escapeHtml(m[1])}</span>`
+      else if (m[2]) out += `<span class="hljs-number">${escapeHtml(m[2])}</span>`
+      else out += `<span class="hljs-keyword">${escapeHtml(m[3]!)}</span>`
+      last = m.index + m[0].length
+    }
+    return out + escapeHtml(line.slice(last))
+  }).join('\n')
+}
+
+/** Unity ShaderLab + HLSL (highlight.js has no hlsl grammar in this build). */
+const SHADER_KEYWORD =
+  /\b(?:Shader|Properties|SubShader|Pass|Tags|Fallback|CustomEditor|Category|GrabPass|UsePass|Name|LOD|Blend|ZWrite|ZTest|Cull|Offset|Stencil|ColorMask|AlphaToMask|Lighting|Material|SetTexture|Fog|BindChannels|CGPROGRAM|ENDCG|CGINCLUDE|HLSLPROGRAM|ENDHLSL|HLSLINCLUDE|float2|float3|float4|float|half2|half3|half4|half|fixed2|fixed3|fixed4|fixed|int2|int3|int4|int|uint|bool|void|sampler2D|samplerCUBE|Texture2D|SamplerState|StructuredBuffer|RWTexture2D|cbuffer|struct|return|else|if|for|while|out|inout|in|uniform|static|const|inline|break|continue|discard|clip|lerp|saturate|normalize|cross|tex2D|dot|mul)\b/g
+
+function highlightUnityShader(source: string): string {
+  let inBlock = false
+  return source.split('\n').map((line) => {
+    let out = ''
+    let i = 0
+    const pushComment = (s: string): void => {
+      out += `<span class="hljs-comment">${escapeHtml(s)}</span>`
+    }
+    if (inBlock) {
+      const end = line.indexOf('*/')
+      if (end < 0) {
+        pushComment(line)
+        return out
+      }
+      pushComment(line.slice(0, end + 2))
+      inBlock = false
+      i = end + 2
+    }
+    while (i < line.length) {
+      if (line.startsWith('/*', i)) {
+        const end = line.indexOf('*/', i + 2)
+        if (end < 0) {
+          pushComment(line.slice(i))
+          inBlock = true
+          return out
+        }
+        pushComment(line.slice(i, end + 2))
+        i = end + 2
+        continue
+      }
+      if (line.startsWith('//', i)) {
+        pushComment(line.slice(i))
+        return out
+      }
+      if (line[i] === '"') {
+        let j = i + 1
+        while (j < line.length && line[j] !== '"') {
+          if (line[j] === '\\') j++
+          j++
+        }
+        if (j < line.length) j++
+        out += `<span class="hljs-string">${escapeHtml(line.slice(i, j))}</span>`
+        i = j
+        continue
+      }
+      if (line[i] === '#') {
+        const rest = line.slice(i)
+        const m = /^(#(?:pragma|include|define|if|ifdef|ifndef|else|elif|endif|undef)\b.*)$/.exec(rest)
+        if (m) {
+          out += `<span class="hljs-meta">${escapeHtml(m[1]!)}</span>`
+          return out
+        }
+      }
+      SHADER_KEYWORD.lastIndex = i
+      const kw = SHADER_KEYWORD.exec(line)
+      if (kw && kw.index === i) {
+        out += `<span class="hljs-keyword">${escapeHtml(kw[0])}</span>`
+        i += kw[0].length
+        continue
+      }
+      const num = /^(\d+\.?\d*f?)/.exec(line.slice(i))
+      if (num && /(?:^|[^\w.])/.test(line[i - 1] ?? '')) {
+        out += `<span class="hljs-number">${escapeHtml(num[1]!)}</span>`
+        i += num[1]!.length
+        continue
+      }
+      out += escapeHtml(line[i]!)
+      i++
+    }
+    return out
+  }).join('\n')
+}
+
 function highlightHashComments(source: string): string {
   const parts = source.split('\n')
   return parts

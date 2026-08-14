@@ -37,6 +37,8 @@ const MIME_BY_EXT: Record<string, string> = {
   avif: 'image/avif',
   tif: 'image/tiff',
   tiff: 'image/tiff',
+  tga: 'image/x-tga',
+  hdr: 'image/vnd.radiance',
   ico: 'image/x-icon',
   svg: 'image/svg+xml',
   pdf: 'application/pdf',
@@ -66,7 +68,11 @@ const MIME_BY_EXT: Record<string, string> = {
   css: 'text/css',
   js: 'text/javascript',
   json: 'application/json',
-  ttf: 'font/ttf'
+  ttf: 'font/ttf',
+  obj: 'text/plain',
+  mtl: 'text/plain',
+  fbx: 'application/octet-stream',
+  '3ds': 'application/x-3ds'
 }
 
 /** Types Chromium fetches with Range requests. */

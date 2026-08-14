@@ -7,7 +7,9 @@ export const SLIDESHOW_IMAGE_EXTS = new Set([
   'webp',
   'bmp',
   'tif',
-  'tiff'
+  'tiff',
+  'tga',
+  'hdr'
 ])
 
 export function isSlideshowImagePath(filePath: string): boolean {

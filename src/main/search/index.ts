@@ -10,7 +10,7 @@ import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { broadcast } from '../ipc/events'
 import { settingsStore } from '../settings/store'
 import { searchDb } from './db'
-import { nameMatches, queryTokens } from './queryBuilder'
+import { isIncompleteSearchQuery, nameMatches, queryTokens } from './queryBuilder'
 import { isBasicNameQuery, parseEverythingQuery, searchDecodeMessage } from './everythingQuery'
 import { liveWalkSearch, type CancelToken } from './liveWalk'
 import { queryIndexStructured } from './executeQuery'
@@ -109,7 +109,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
   const { query, scope, limit, offset } = req
   // Allow operator-only queries like `size:>1mb` / `pic:` with no bare tokens
   const hasTokens = queryTokens(query).length > 0 || /[a-z]+:/i.test(query)
-  if (!hasTokens) {
+  if (!hasTokens || isIncompleteSearchQuery(query)) {
     return { items: [], partial: false, source: 'walk' }
   }
 

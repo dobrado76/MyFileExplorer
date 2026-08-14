@@ -52,6 +52,7 @@ export default defineConfig({
         output: {
           manualChunks(id) {
             if (id.includes('onnxruntime-web')) return 'ort'
+            if (id.includes('node_modules/three')) return 'three'
           }
         }
       }

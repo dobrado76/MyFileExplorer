@@ -6,6 +6,7 @@ import {
   parentOf,
   basename,
   samePath,
+  isUnderPath,
   isRootPath,
   rootOf,
   looksAbsolute
@@ -79,6 +80,17 @@ describe('parentOf / basename / roots', () => {
   })
   it('samePath tolerates separator noise and case', () => {
     expect(samePath('C:\\\\Users', 'c:/users/')).toBe(true)
+  })
+  it('treats C:\\ and C: as the same drive root', () => {
+    expect(samePath('Z:\\', 'Z:')).toBe(true)
+    expect(samePath('z:\\', 'Z:')).toBe(true)
+  })
+  it('scopes a drive-as-root tab to the whole volume', () => {
+    expect(isUnderPath('Z:\\Games', 'Z:\\')).toBe(true)
+    expect(isUnderPath('Z:\\Games\\mod', 'Z:')).toBe(true)
+    expect(isUnderPath('Z:\\', 'Z:\\')).toBe(true)
+    expect(isUnderPath('C:\\Games', 'Z:\\')).toBe(false)
+    expect(isUnderPath('Z:\\Games\\a', 'Z:\\Games')).toBe(true)
   })
   it('looksAbsolute accepts drive and UNC forms', () => {
     expect(looksAbsolute('C:\\x')).toBe(true)

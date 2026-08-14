@@ -181,6 +181,13 @@ export function segmentsOf(p: string): Segment[] {
   return segments
 }
 
+/** `C:\` and `C:` are the same volume root for compare / scope checks. */
+function winPathKey(p: string): string {
+  const n = stripTrailingSep(normalizeSlashes(p))
+  if (/^[a-zA-Z]:\\$/.test(n)) return n.slice(0, 2).toLowerCase()
+  return n.toLowerCase()
+}
+
 export function samePath(a: string, b: string): boolean {
   if (isRemoteLocation(a) || isRemoteLocation(b)) {
     const la = parseRemoteLocation(a)
@@ -192,7 +199,7 @@ export function samePath(a: string, b: string): boolean {
   const nb = stripTrailingSep(normalizeSlashes(b))
   // POSIX: case-sensitive
   if (na.startsWith('/') || nb.startsWith('/')) return na === nb
-  return na.toLowerCase() === nb.toLowerCase()
+  return winPathKey(a) === winPathKey(b)
 }
 
 export function isUnderPath(child: string, parent: string): boolean {
@@ -209,8 +216,8 @@ export function isUnderPath(child: string, parent: string): boolean {
   if (ca.startsWith('/') && pa.startsWith('/')) {
     return ca === pa || ca.startsWith(pa + '/')
   }
-  const c = ca.toLowerCase()
-  const p = pa.toLowerCase()
+  const c = winPathKey(child)
+  const p = winPathKey(parent)
   return c === p || c.startsWith(p + '\\')
 }
 

@@ -36,6 +36,7 @@ const IMAGE_DIM_EXTS = new Set([
   'bmp',
   'tif',
   'tiff',
+  'tga',
   'avif',
   'heic',
   'heif'
@@ -149,7 +150,25 @@ async function readConflictSide(filePath: string): Promise<ConflictSide> {
 
   let width: number | null = null
   let height: number | null = null
-  if (kind === 'file' && IMAGE_DIM_EXTS.has(ext)) {
+  if (kind === 'file' && ext === 'hdr') {
+    try {
+      const handle = await fsp.open(p, 'r')
+      let buf: Buffer
+      try {
+        buf = Buffer.alloc(16 * 1024)
+        const { bytesRead } = await handle.read(buf, 0, buf.length, 0)
+        buf = buf.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+      const { parseHdrHeader } = await import('../preview/hdr')
+      const header = parseHdrHeader(buf)
+      width = header?.width ?? null
+      height = header?.height ?? null
+    } catch {
+      // ignore probe failures
+    }
+  } else if (kind === 'file' && IMAGE_DIM_EXTS.has(ext)) {
     try {
       const { default: sharp } = await import('sharp')
       const bytes = await fsp.readFile(p)

@@ -79,6 +79,11 @@ import {
   searchResultsToEntries
 } from '../lib/searchEntries'
 import { formatSearchProgress } from '@shared/searchProgress'
+import {
+  isIncompleteSearchQuery,
+  isSearchNarrowing,
+  narrowSearchItems
+} from '@shared/searchQuery'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
 import { invalidateThumbMemory } from '../lib/thumbMemory'
@@ -108,6 +113,10 @@ export type SearchState = {
   message: string | null
   /** Deleted/moved during this search — live progress must not put them back. */
   dismissed: string[]
+  /** Query the current walk/index is actually scanning. */
+  walkQuery: string
+  /** Unfiltered hits from that walk — display may narrow these as you type. */
+  walkItems: SearchResultItem[]
 }
 
 export function emptyTabSearch(indexedOnly = false): SearchState {
@@ -123,7 +132,9 @@ export function emptyTabSearch(indexedOnly = false): SearchState {
     progress: null,
     gen: 0,
     message: null,
-    dismissed: []
+    dismissed: [],
+    walkQuery: '',
+    walkItems: []
   }
 }
 
@@ -285,8 +296,8 @@ export type FileOpProgress = {
 /** Show status-bar busy if an awaited FS op is still running after this delay. */
 const BUSY_FEEDBACK_MS = 1000
 let busyFeedbackSeq = 0
-/** As-you-type search debounce (D34). */
-const SEARCH_DEBOUNCE_MS = 280
+/** As-you-type search debounce (D34). Long enough that `.obj` is usually one walk. */
+const SEARCH_DEBOUNCE_MS = 500
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let searchSeq = 0
 
@@ -2163,7 +2174,11 @@ export const useAppStore = create<AppState>()((set, get) => {
             const text = formatSearchProgress(p)
             if (text) patch.progress = text
           }
-          if (p.items) patch.results = pruneSearchResultItems(p.items, st.dismissed ?? [])
+          if (p.items) {
+            const walkItems = pruneSearchResultItems(p.items, st.dismissed ?? [])
+            patch.walkItems = walkItems
+            patch.results = narrowSearchItems(walkItems, st.walkQuery, st.query)
+          }
           if (Object.keys(patch).length > 0) {
             updateTab(owner.id, { search: { ...st, ...patch } })
           }
@@ -4840,13 +4855,44 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setSearchQuery(q) {
       const tab = get().activeTab()
-      updateTab(tab.id, { search: { ...tab.search, query: q } })
       if (searchDebounceTimer) clearTimeout(searchDebounceTimer)
       const trimmed = q.trim()
       if (!trimmed) {
+        updateTab(tab.id, { search: { ...tab.search, query: q } })
         if (get().activeTab().search.active) get().clearSearch()
         return
       }
+
+      const walkQuery = tab.search.walkQuery.trim()
+      const narrowing =
+        (tab.search.running || tab.search.walkItems.length > 0) &&
+        isSearchNarrowing(walkQuery || tab.search.query, trimmed)
+
+      if (narrowing) {
+        const source = tab.search.walkItems.length > 0 ? tab.search.walkItems : tab.search.results
+        updateTab(tab.id, {
+          search: {
+            ...tab.search,
+            query: q,
+            results: narrowSearchItems(source, walkQuery || tab.search.query, trimmed)
+          }
+        })
+        // Still walking the broader query — keep it; just show the subset.
+        if (tab.search.partial && !tab.search.running && source.length > 0) {
+          const next = narrowSearchItems(source, walkQuery || tab.search.query, trimmed)
+          if (next.length === 0) {
+            searchDebounceTimer = setTimeout(() => {
+              searchDebounceTimer = null
+              void get().runSearch()
+            }, SEARCH_DEBOUNCE_MS)
+          }
+        }
+        return
+      }
+
+      updateTab(tab.id, { search: { ...tab.search, query: q } })
+      if (isIncompleteSearchQuery(trimmed)) return
+
       searchDebounceTimer = setTimeout(() => {
         searchDebounceTimer = null
         void get().runSearch()
@@ -4871,7 +4917,22 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tab = get().tabs.find((t) => t.id === id)
       if (!tab) return
       const query = tab.search.query.trim()
-      if (!query) return
+      if (!query || isIncompleteSearchQuery(query)) return
+      const walkQ = tab.search.walkQuery.trim()
+      if (
+        walkQ &&
+        isSearchNarrowing(walkQ, query) &&
+        (tab.search.running || (!tab.search.partial && tab.search.walkItems.length > 0))
+      ) {
+        updateTab(id, {
+          search: {
+            ...tab.search,
+            query,
+            results: narrowSearchItems(tab.search.walkItems, walkQ, query)
+          }
+        })
+        return
+      }
       if (id === get().activeTabId && get().recycleBin.active) get().closeRecycleBinView()
       void api.search.cancel()
       const seq = ++searchSeq
@@ -4906,7 +4967,9 @@ export const useAppStore = create<AppState>()((set, get) => {
                 progress: 'Starting search…',
                 gen: seq,
                 message: null,
-                dismissed: []
+                dismissed: [],
+                walkQuery: query,
+                walkItems: []
               }
             }
           }
@@ -4943,11 +5006,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         )
         const owner = get().tabs.find((t) => t.id === tab.id)
         if (!owner || owner.search.gen !== seq) return
+        const walkItems = pruneSearchResultItems(res.items, owner.search.dismissed ?? [])
         updateTab(tab.id, {
           search: {
             ...owner.search,
             running: false,
-            results: pruneSearchResultItems(res.items, owner.search.dismissed ?? []),
+            walkItems,
+            results: narrowSearchItems(walkItems, owner.search.walkQuery, owner.search.query),
             partial: res.partial,
             source: res.source,
             contentSlow: Boolean(res.contentSlow),

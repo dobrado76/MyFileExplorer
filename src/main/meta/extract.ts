@@ -18,6 +18,8 @@ const IMAGE_EXTS = new Set([
   'avif',
   'tiff',
   'tif',
+  'tga',
+  'hdr',
   'psd'
 ])
 
@@ -155,6 +157,31 @@ async function extractImage(
   const needImage = [...IMAGE_KEYS].some((k) => wanted.has(k))
   const needGen = [...GEN_PARAM_KEYS].some((k) => wanted.has(k))
   if (!needImage && !needGen) return out
+
+  if (needImage && ext === 'hdr') {
+    try {
+      const handle = await fsp.open(file, 'r')
+      let buf: Buffer
+      try {
+        buf = Buffer.alloc(16 * 1024)
+        const { bytesRead } = await handle.read(buf, 0, buf.length, 0)
+        buf = buf.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+      const { parseHdrHeader } = await import('../preview/hdr')
+      const header = parseHdrHeader(buf)
+      if (header) {
+        pick(wanted, 'dimensions', `${header.width} × ${header.height}`, out)
+        pick(wanted, 'width', header.width, out)
+        pick(wanted, 'height', header.height, out)
+        pick(wanted, 'imageFormat', `Radiance ${header.format.toUpperCase()}`, out)
+      }
+    } catch {
+      // ignore
+    }
+    return out
+  }
 
   if (needImage && ext !== 'psd') {
     try {

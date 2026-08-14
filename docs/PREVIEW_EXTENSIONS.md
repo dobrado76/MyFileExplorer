@@ -13,7 +13,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 
 | Category | Extensions | Preview kind |
 | -------- | ---------- | ------------ |
-| [Images](#images) | `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` `svg` `ico` | `image` |
+| [Images](#images) | `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` `tga` `hdr` `svg` `ico` | `image` |
 | [Photoshop](#photoshop) | `psd` | `image` (rasterized) |
 | [Audio](#audio) | `mp3` `wav` `flac` `ogg` `m4a` `aac` `wma` `opus` | `audio` |
 | [Video](#video) | `mp4` `m4v` `webm` `mkv` `mov` `wmv` `mpg` `mpeg` `avi` | `video` |
@@ -35,6 +35,8 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | [Executables](#executables--libraries) | `exe` `com` `dll` `scr` `ocx` `cpl` `sys` | `executable` |
 | [Shortcuts](#windows-shortcuts) | `lnk` | `shortcut` |
 | [SafeTensors](#safetensors) | `safetensors` | `binary` + rich fields |
+| [UVW maps](#uvw-maps) | `uvw` | `binary` + metadata fields |
+| [3D meshes](#3d-meshes) | `obj` `fbx` `3ds` | `model3d` |
 | [Folders](#folders) | *(directories)* | `directory` |
 
 ---
@@ -49,11 +51,13 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | `gif` | Animated GIF plays in the image preview. |
 | `bmp` | Raster preview. |
 | `avif` | Raster preview (Chromium/Sharp support). |
-| `tiff` / `tif` | Raster preview. |
+| `tiff` / `tif` | Rasterized to WebP for preview/thumbs/slideshow (Chromium cannot paint TIFF). Cached under `userData/raster-preview/`. |
+| `tga` | Decoded in-app (Sharp/libvips cannot sniff TGA), then cached WebP for thumbs/preview/slideshow. |
+| `hdr` | Radiance RGBE/XYZE (typical HDRI / skybox). Tonemapped WebP for thumbs/preview/slideshow. Metadata includes layout hint (2:1 → equirectangular). Non-Radiance `.hdr` (e.g. Analyze 7.5) is a metadata card, not an image. **Not** in-app editable. |
 | `svg` | Displayed as image; **not** in-app editable. |
 | `ico` | Displayed as image; **not** in-app editable. |
 
-**In-app image editor** (Filerobot; Save → `VER_*` ADS / Version Control / Save as…): `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` — not `svg` / `ico` / `psd`.
+**In-app image editor** (Filerobot; Save → `VER_*` ADS / Version Control / Save as…): `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` — not `svg` / `ico` / `psd` / `hdr`.
 
 ---
 
@@ -177,8 +181,13 @@ UTF-8 / UTF-16 LE sniff; capped sample (`textPreviewMaxBytes`). Syntax highlight
 | --- | -------------------- |
 | `txt` | Plaintext |
 | `json` | JSON |
-| `yaml` / `yml` / `wlt` | YAML (`wlt` treated as YAML) |
-| `xml` / `ffs_gui` | XML (`ffs_gui` FreeFileSync GUI) |
+| `yaml` / `yml` / `wlt` / `meta` / `mat` / `asset` / `terrainlayer` / `lighting` / `unity` / `prefab` / `controller` / `anim` | YAML (`wlt` treated as YAML; the rest = Unity). Binary `.asset` / `.unity` / `.prefab` / `.controller` / `.anim` still sniff as binary. |
+| `shadergraph` | JSON (Unity Shader Graph) |
+| `shader` | Unity ShaderLab + HLSL |
+| `mtl` | Wavefront material (INI-ish) |
+| `xml` / `ffs_gui` / `csproj` | XML (`ffs_gui` FreeFileSync GUI; `csproj` MSBuild) |
+| `sln` | Visual Studio solution (custom text: keywords / strings / GUIDs / `#` comments) |
+| `vsconfig` | JSON (Visual Studio installer config) |
 | `csv` / `tsv` | Plain / tabular text (`csv` prefers spreadsheet — see above) |
 | `log` | Plaintext |
 | `ini` / `cfg` / `conf` / `toml` | INI / TOML-ish |
@@ -252,7 +261,7 @@ Companion `.cue` / `.ccd` already preview as text; `.sub` stays binary.
 
 | Ext | Notes |
 | --- | ----- |
-| `ttf` | Pangram / alphabet sample via `@font-face` (`mfe-media`, `font/ttf`). Name-table Family / Full name / Version / Copyright. Does not install the font. (D36) |
+| `ttf` | Pangram / alphabet sample via `FontFace` (bytes over `mfe-media`, `font/ttf`). Name-table Family / Full name / Version / Copyright. Does not install the font. (D36) |
 
 ---
 
@@ -299,6 +308,24 @@ Companion `.cue` / `.ccd` already preview as text; `.sub` stays binary.
 
 ---
 
+## UVW maps
+
+| Ext | Notes |
+| --- | ----- |
+| `uvw` | Autodesk 3ds Max Unwrap UVW save (texture-space verts/faces only — no 3D mesh or texture). Metadata card: format, purpose, UV vertex/face counts when the dump or ISave-chunk layout matches file size, UV range, OLE sniff, real labels only (no float-as-text junk), Unity GUID from a sibling `.uvw.meta`. No UV visualization. |
+
+---
+
+## 3D meshes
+
+| Ext | Notes |
+| --- | ----- |
+| `obj` | WebGL orbit preview (three.js). Sibling `.mtl` + maps in the same folder or one subfolder via `mfe-media`. Vertex/triangle counts from a text scan. |
+| `fbx` | Same viewer (ASCII or binary Autodesk FBX). Encoding sniffed from the header. |
+| `3ds` | Same viewer (3D Studio mesh). Files over 96 MiB skip WebGL and keep metadata. Drag to orbit, scroll to zoom. Not a Unity scene player. |
+
+---
+
 ## Folders
 
 Directories use `kind: 'directory'` (folder icon + file fields such as child counts when available). Not an “extension,” but part of the preview pane.
@@ -323,4 +350,4 @@ Use **Open with default app** (or the system help viewer for oversized CHMs) whe
 
 - [PREVIEW.md](PREVIEW.md) — PreviewModel, generation metadata, video strips, performance
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — UX requirements for the preview pane
-- [DECISIONS.md](DECISIONS.md) — D7 media protocol, D26 strips, D27 image editor, D30 archives, D33 video, D35 CHM, D36 TTF
+- [DECISIONS.md](DECISIONS.md) — D7 media protocol, D26 strips, D27 image editor, D30 archives, D33 video, D35 CHM, D36 TTF, D48 3D meshes

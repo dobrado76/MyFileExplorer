@@ -15,10 +15,22 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Equal-width tabs** — Settings → Appearance toggle. Off (default): each tab is only as wide as its title. On: every tab matches the widest label (previous behavior).
 - **Show tab icons** — Settings → Appearance toggle (default on). Off hides every tab icon without clearing the ones you set.
 - **Power Search saved designs** — name a complex search and load/run it later. Params (builder + match flags) are stored; target (current folder vs indexed) is chosen each run.
+- **Unity `.meta` / `.mat` / `.asset` preview** — treated as YAML (text `.asset`; binary still shows as binary).
+- **Unity text preview** — `.terrainlayer` / `.lighting` / `.unity` / `.prefab` / `.controller` / `.anim` as YAML, `.shadergraph` as JSON, `.shader` as ShaderLab + HLSL, `.mtl` as material text. Binary `.unity` / `.prefab` / `.controller` / `.anim` still sniff as binary.
+- **3D mesh preview** — `.obj` / `.fbx` / `.3ds` orbit in WebGL (drag / scroll). Canvas fills leftover pane height above metadata. OBJ vertex counts; FBX ASCII/binary sniff. Files over 96 MiB skip the viewer.
+- **Visual Studio preview** — `.csproj` as XML, `.sln` as solution text, `.vsconfig` as JSON.
+- **`.uvw` preview** — 3ds Max Unwrap UVW metadata (format / purpose, UV vertex/face counts when the layout checks out, UV range, OLE sniff, Unity `.meta` GUID). Float-as-text junk is omitted. Not a UV visualization.
+- **`.hdr` preview** — Radiance RGBE/XYZE (HDRI / skybox) tonemapped for thumbs, preview, and slideshow. Layout hint when 2:1 equirectangular. Non-Radiance `.hdr` shows metadata only.
 
 ### Fixed
 
+- **Search `.obj` floods then restarts** — a lone `.` is ignored (it matches every dotted name). Debounce is 500 ms so typing `.obj` is usually one walk; further letters narrow the current hits instead of starting over.
+- **Preview during search** — the live walk was starving `preview:get` (stat every file, push the full hit list on every match). It now yields the main thread often and streams progress at most every 250 ms.
+- **3D mesh preview 403** — Three.js stripped `?p=` from `mfe-media://local/?p=…`, so FBX/OBJ/3DS fetched `mfe-media://local/` and got Forbidden.
+- **TrueType preview sample** — `.ttf` pangram failed for every file because CSP `font-src` blocked `mfe-media:`. Fonts now load as fetched bytes into `FontFace`.
 - **Search results stay gone after delete** — deleting a hit during an in-progress scan no longer lets the next progress snapshot put it back.
+- **Drive as root** — opening a volume (`Z:\`) as a tab root no longer blocks navigating into folders on that drive.
+- **TIFF / TGA preview** — Chromium cannot display raw `.tif`/`.tiff`/`.tga`; they are rasterized for thumbs, preview, and slideshow so valid files are not sent to the Invalid images folder.
 
 ## [0.7.0] - 2026-08-14
 

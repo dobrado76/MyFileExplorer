@@ -9,6 +9,21 @@ describe('languageFromPath', () => {
     expect(languageFromPath('D:\\x.yml')).toBe('yaml')
     expect(languageFromPath('D:\\x.yaml')).toBe('yaml')
     expect(languageFromPath('D:\\x.wlt')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Foo.png.meta')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Lit.mat')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Foo.asset')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Dirt.terrainlayer')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Scene.lighting')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Main.unity')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Enemy.prefab')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Hero.controller')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Walk.anim')).toBe('yaml')
+    expect(languageFromPath('D:\\Assets\\Lit.shadergraph')).toBe('json')
+    expect(languageFromPath('D:\\Assets\\Lit.shader')).toBe('shader')
+    expect(languageFromPath('D:\\Assets\\Box.mtl')).toBe('ini')
+    expect(languageFromPath('D:\\App.csproj')).toBe('xml')
+    expect(languageFromPath('D:\\App.sln')).toBe('sln')
+    expect(languageFromPath('D:\\.vsconfig')).toBe('json')
     expect(languageFromPath('D:\\x.html')).toBe('html')
     expect(languageFromPath('D:\\x.xml')).toBe('xml')
     expect(languageFromPath('D:\\job.ffs_gui')).toBe('xml')
@@ -38,6 +53,27 @@ describe('highlightCode', () => {
   it('escapes plaintext for unknown types', () => {
     const { html } = highlightCode('<script>', 'C:\\t.unknownext')
     expect(html).toBe('&lt;script&gt;')
+  })
+
+  it('highlights Visual Studio solution keywords', () => {
+    const src = 'Project("{FAE04EC0-301F-11D3-BF4B-00C04F79FBC1}") = "App", "App.csproj", "{AABB}"\n# Visual Studio Version 17\nEndProject'
+    const { html, language } = highlightCode(src, 'C:\\App.sln')
+    expect(language).toBe('sln')
+    expect(html).toContain('hljs-keyword')
+    expect(html).toContain('EndProject')
+    expect(html).toContain('hljs-comment')
+    expect(html).toContain('hljs-string')
+  })
+
+  it('highlights Unity ShaderLab / HLSL keywords', () => {
+    const src = 'Shader "Lit" {\n  SubShader {\n    CGPROGRAM\n    float4 col;\n    // note\n    ENDCG\n  }\n}'
+    const { html, language } = highlightCode(src, 'C:\\Lit.shader')
+    expect(language).toBe('shader')
+    expect(html).toContain('hljs-keyword')
+    expect(html).toContain('Shader')
+    expect(html).toContain('CGPROGRAM')
+    expect(html).toContain('hljs-string')
+    expect(html).toContain('hljs-comment')
   })
 
   it('marks # lines as comments for unknown / extensionless files', () => {

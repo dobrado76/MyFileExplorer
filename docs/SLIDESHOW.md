@@ -48,7 +48,7 @@ Double-buffered display with V-Sync swaps (not a setting):
 2. Decode the next image into the back buffer (`Image.decode`).
 3. Swap front/back on a double `requestAnimationFrame` tick so the change aligns with the display refresh — no black flash / tearing.
 4. Prefetch/warm-decode the following image while the current one is shown.
-5. Preview/decode failures: **remove** the path from the active list and the persisted image-list cache, and **move** the file into Settings → Slideshow → **Invalid images folder** (rename on conflict). Autoplay continues with the rest. If that folder is unset, the path is still dropped from the list/cache and a notice asks you to set the folder. If nothing displayable remains, the slideshow stops.
+5. Preview/decode failures: **remove** the path from the active list and the persisted image-list cache, and **move** the file into Settings → Slideshow → **Invalid images folder** (rename on conflict). Autoplay continues with the rest. If that folder is unset, the path is still dropped from the list/cache and a notice asks you to set the folder. If nothing displayable remains, the slideshow stops. `.tif` / `.tiff` / `.tga` / `.hdr` (Radiance) are rasterized before display so Chromium can paint them — do not treat a successful raster as invalid. Non-Radiance `.hdr` cannot be painted and is treated as unloadable.
 
 ## Categorizer map file format
 

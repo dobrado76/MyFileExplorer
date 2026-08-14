@@ -35,6 +35,7 @@ import { CodePreview } from './preview/CodePreview'
 import { ZipArchivePreview } from './preview/ZipArchivePreview'
 import { ChmPreview } from './preview/ChmPreview'
 import { FontPreview } from './preview/FontPreview'
+import { Model3dPreview } from './preview/Model3dPreview'
 
 function archiveContentsLabel(format: PreviewModel['archiveFormat']): string {
   switch (format) {
@@ -345,7 +346,9 @@ export function PreviewPane(): JSX.Element {
             ? ' preview-kind-archive'
             : model.kind === 'chm'
               ? ' preview-kind-chm'
-              : ''
+              : model.kind === 'model3d'
+                ? ' preview-kind-model3d'
+                : ''
       }`}
     >
       {headerSub || multiHint || (model.kind === 'image' && model.mediaUrl) ? (
@@ -502,6 +505,20 @@ export function PreviewPane(): JSX.Element {
         {model.kind === 'font' && !model.mediaUrl && (
           <div className="preview-font preview-font-error">Font preview unavailable</div>
         )}
+        {model.kind === 'model3d' && model.mediaUrl && !mediaHold && (
+          <Model3dPreview
+            url={model.mediaUrl}
+            filePath={model.path}
+            ext={(() => {
+              const base = model.path.replace(/^.*[/\\]/, '')
+              const i = base.lastIndexOf('.')
+              return i >= 0 ? base.slice(i + 1) : ''
+            })()}
+          />
+        )}
+        {model.kind === 'model3d' && !model.mediaUrl && (
+          <div className="preview-model3d-status">3D preview skipped (file too large or unreadable)</div>
+        )}
         {((model.kind === 'video' &&
           !model.mediaUrl &&
           !model.posterUrl &&
@@ -605,7 +622,11 @@ export function PreviewPane(): JSX.Element {
                   ? 'Training'
                   : key === 'other' && model.subtitle?.startsWith('SafeTensors')
                     ? 'Weights'
-                    : label
+                    : key === 'other' && model.subtitle === '3ds Max UVW map'
+                      ? 'UVW map'
+                      : key === 'other' && model.subtitle === 'Radiance HDR'
+                        ? 'HDR'
+                        : label
               return (
                 <div key={key}>
                   <div className="preview-group-title">{groupLabel}</div>
@@ -824,6 +845,8 @@ function kindLabel(kind: PreviewModel['kind']): string {
       return 'HTML Help'
     case 'executable':
       return 'Application'
+    case 'model3d':
+      return '3D model'
     case 'missing':
       return 'Missing'
     default:

@@ -9,6 +9,19 @@ type Props = {
   url: string
 }
 
+async function loadFontFace(family: string, url: string): Promise<FontFace> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) throw new Error(`font fetch ${res.status}`)
+    const buf = await res.arrayBuffer()
+    const face = new FontFace(family, buf)
+    return await face.load()
+  } catch {
+    const face = new FontFace(family, `url(${JSON.stringify(url)}) format("truetype")`)
+    return await face.load()
+  }
+}
+
 export function FontPreview({ url }: Props): JSX.Element {
   const reactId = useId().replace(/:/g, '')
   const family = `MfePreviewFont_${reactId}`
@@ -16,13 +29,13 @@ export function FontPreview({ url }: Props): JSX.Element {
 
   useEffect(() => {
     let cancelled = false
+    let added: FontFace | null = null
     setStatus('loading')
-    const face = new FontFace(family, `url(${JSON.stringify(url)})`)
-    void face
-      .load()
+    void loadFontFace(family, url)
       .then((loaded) => {
         if (cancelled) return
         document.fonts.add(loaded)
+        added = loaded
         setStatus('ready')
       })
       .catch(() => {
@@ -30,10 +43,12 @@ export function FontPreview({ url }: Props): JSX.Element {
       })
     return () => {
       cancelled = true
-      try {
-        document.fonts.delete(face)
-      } catch {
-        // FontFace may not be in the set yet
+      if (added) {
+        try {
+          document.fonts.delete(added)
+        } catch {
+          /* already gone */
+        }
       }
     }
   }, [url, family])

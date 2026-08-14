@@ -36,6 +36,8 @@ describe('liveWalkSearch', () => {
     const names = items.map((i) => i.name).sort()
     expect(names).toContain('MyPhoto.png')
     expect(names).toContain('secret-photo.js')
+    const photo = items.find((i) => i.name === 'MyPhoto.png')
+    expect(photo?.size).toBeGreaterThan(0)
   })
 
   it('skips excluded directory names entirely', async () => {

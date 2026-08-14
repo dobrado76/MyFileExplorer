@@ -18,6 +18,7 @@ export const previewKindSchema = z.enum([
   'archive',
   'chm',
   'font',
+  'model3d',
   'missing'
 ])
 export type PreviewKind = z.infer<typeof previewKindSchema>

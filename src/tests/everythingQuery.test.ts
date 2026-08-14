@@ -121,9 +121,9 @@ describe('parseEverythingQuery', () => {
     })
   })
 
-  it('maps bare .ext tokens to globs', () => {
+  it('maps bare .ext tokens to name substrings (so .o includes .obj)', () => {
     const q = parseEverythingQuery('.jpg')
-    expect(q.textGroups[0]?.[0]).toEqual({ kind: 'glob', value: '*.jpg' })
+    expect(q.textGroups[0]?.[0]).toEqual({ kind: 'substr', value: '.jpg', wholeWord: false })
   })
 
   it('routes plain file queries through basic name matching (not operators)', () => {
@@ -136,7 +136,11 @@ describe('parseEverythingQuery', () => {
       [{ kind: 'substr', value: 'My', wholeWord: false }],
       [{ kind: 'substr', value: 'Document.docx', wholeWord: false }]
     ])
-    expect(parseEverythingQuery('.jpg').textGroups[0]?.[0]).toEqual({ kind: 'glob', value: '*.jpg' })
+    expect(parseEverythingQuery('.jpg').textGroups[0]?.[0]).toEqual({
+      kind: 'substr',
+      value: '.jpg',
+      wholeWord: false
+    })
   })
 
   it('does not match every row when name predicates are missing', () => {

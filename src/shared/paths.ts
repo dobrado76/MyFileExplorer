@@ -11,22 +11,26 @@ export function stripTrailingSep(p: string): string {
   return p.replace(/[\\/]+$/, '')
 }
 
+/** `C:\` and `C:` are the same volume root for compare / scope checks. */
+function winPathKey(p: string): string {
+  const n = stripTrailingSep(normalizeSlashes(p))
+  if (/^[a-zA-Z]:\\$/.test(n)) return n.slice(0, 2).toLowerCase()
+  return n.toLowerCase()
+}
+
 export function samePath(a: string, b: string): boolean {
-  return (
-    stripTrailingSep(normalizeSlashes(a)).toLowerCase() ===
-    stripTrailingSep(normalizeSlashes(b)).toLowerCase()
-  )
+  return winPathKey(a) === winPathKey(b)
 }
 
 /** True if child is parent or a descendant. */
 export function isUnderPath(child: string, parent: string): boolean {
-  const c = stripTrailingSep(normalizeSlashes(child)).toLowerCase()
-  const p = stripTrailingSep(normalizeSlashes(parent)).toLowerCase()
+  const c = winPathKey(child)
+  const p = winPathKey(parent)
   return c === p || c.startsWith(p + '\\')
 }
 
 export function pathKey(p: string): string {
-  return stripTrailingSep(normalizeSlashes(p)).toLowerCase()
+  return winPathKey(p)
 }
 
 /** Longer path wins for specificity (by segment count / string length after normalize). */

@@ -18,7 +18,10 @@ import { docxToHtml, docToHtml } from './office'
 import { pptxToPreviewSlides, pptToHtml } from './powerpoint'
 import { rtfToHtml } from './rtf'
 import { rasterizePsd } from './psd'
+import { needsWebRaster, rasterizeWebImage } from './rasterWebImage'
 import { buildSafetensorsPreviewFields } from './safetensors'
+import { buildUvwPreviewFields, parseUnityMetaGuid } from './uvw'
+import { hdrPreviewFields, parseHdrHeader, unknownHdrFields } from './hdr'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
 import { loadUnityPackageTree } from './unityPackage'
@@ -33,6 +36,7 @@ import {
 } from './archiveFormat'
 import { readApkManifestInfo } from './apkManifest'
 import { readTtfNames } from './ttfNames'
+import { sniff3ds, sniffFbx, summarizeObj } from './objMesh'
 import { loadAudioPreviewMeta, loadMediaPreviewMeta } from './audioMeta'
 import {
   chmTopicMediaUrl,
@@ -52,6 +56,8 @@ import { resolveVidThumbFrames } from '../thumbs/vidCache'
 
 const EXE_PREVIEW_EXTS = new Set(['exe', 'dll', 'scr', 'ocx', 'cpl', 'sys', 'com'])
 const FONT_EXTS = new Set(['ttf'])
+const MODEL3D_EXTS = new Set(['obj', 'fbx', '3ds'])
+const MODEL3D_MAX_BYTES = 96 * 1024 * 1024
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -64,6 +70,7 @@ const IMAGE_EXTS = new Set([
   'avif',
   'tiff',
   'tif',
+  'tga',
   'svg',
   'ico'
 ])
@@ -75,6 +82,16 @@ const TEXT_EXTS = new Set([
   'yaml',
   'yml',
   'wlt',
+  'meta',
+  'mat',
+  'terrainlayer',
+  'lighting',
+  'shadergraph',
+  'shader',
+  'mtl',
+  'csproj',
+  'sln',
+  'vsconfig',
   'csv',
   'tsv',
   'log',
@@ -139,7 +156,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 15
+const PREVIEW_CACHE_REV = 19
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -349,8 +366,14 @@ export async function getPreview(
       model = await buildSafetensorsPreview(file, fields, warnings)
     } else if (ext === 'lnk') {
       model = await buildShortcutPreview(file, fields, warnings)
+    } else if (ext === 'uvw') {
+      model = await buildUvwPreview(file, st.size, fields, warnings)
+    } else if (ext === 'hdr') {
+      model = await buildHdrPreview(file, st.size, fields, warnings)
     } else if (FONT_EXTS.has(ext)) {
       model = await buildFontPreview(file, fields, warnings, mediaCacheKey)
+    } else if (MODEL3D_EXTS.has(ext)) {
+      model = await buildModel3dPreview(file, ext, st.size, fields, warnings, mediaCacheKey)
     } else if (archiveFmt) {
       model = await buildArchivePreview(file, archiveFmt, fields, warnings)
     } else if (ext === 'chm') {
@@ -371,7 +394,7 @@ export async function getPreview(
     }
   }
 
-  cache.set(file.toLowerCase(), { mtimeMs: st.mtimeMs, size: st.size, model })
+  cache.set(cacheKey, { mtimeMs: st.mtimeMs, size: st.size, model })
   if (cache.size > CACHE_MAX) {
     const oldest = cache.keys().next().value
     if (oldest !== undefined) cache.delete(oldest)
@@ -404,22 +427,45 @@ async function buildImagePreview(
 
   let bytes: Buffer | null = null
   let exifBuf: Buffer | null = null
-  try {
-    bytes = await fsp.readFile(openPath)
-    const { default: sharp } = await import('sharp')
-    // Read then close — sharp(path) can keep a Win32 handle on some builds.
-    const meta = await sharp(bytes).metadata()
-    if (meta.width && meta.height) {
-      fields.push({
-        id: 'image.dimensions',
-        label: 'Dimensions',
-        value: `${meta.width} × ${meta.height}`,
-        group: 'file'
-      })
+  let mediaUrl = mediaUrlFor(
+    file,
+    effectiveCacheKey,
+    mediaAds !== undefined ? { ads: mediaAds } : undefined
+  )
+
+  if (needsWebRaster(ext)) {
+    const raster = await rasterizeWebImage(openPath)
+    if (raster) {
+      mediaUrl = raster.mediaUrl
+      if (raster.width && raster.height) {
+        fields.push({
+          id: 'image.dimensions',
+          label: 'Dimensions',
+          value: `${raster.width} × ${raster.height}`,
+          group: 'file'
+        })
+      }
+    } else {
+      warnings.push('Could not decode image for preview (TIFF/TGA)')
     }
-    if (meta.exif) exifBuf = Buffer.from(meta.exif)
-  } catch {
-    warnings.push('Could not read image metadata')
+  } else {
+    try {
+      bytes = await fsp.readFile(openPath)
+      const { default: sharp } = await import('sharp')
+      // Read then close — sharp(path) can keep a Win32 handle on some builds.
+      const meta = await sharp(bytes).metadata()
+      if (meta.width && meta.height) {
+        fields.push({
+          id: 'image.dimensions',
+          label: 'Dimensions',
+          value: `${meta.width} × ${meta.height}`,
+          group: 'file'
+        })
+      }
+      if (meta.exif) exifBuf = Buffer.from(meta.exif)
+    } catch {
+      warnings.push('Could not read image metadata')
+    }
   }
 
   if (bytes) {
@@ -433,11 +479,7 @@ async function buildImagePreview(
   return {
     path: file,
     kind: 'image',
-    mediaUrl: mediaUrlFor(
-      file,
-      effectiveCacheKey,
-      mediaAds !== undefined ? { ads: mediaAds } : undefined
-    ),
+    mediaUrl,
     fields,
     warnings
   }
@@ -555,6 +597,160 @@ async function buildPsdPreview(
     }
   }
   return { path: file, kind: 'binary', fields, warnings }
+}
+
+async function buildHdrPreview(
+  file: string,
+  fileSize: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: 'Radiance HDR',
+      group: 'file'
+    }
+  }
+
+  let unityGuid: string | null = null
+  let unityMetaName: string | null = null
+  try {
+    const metaPath = `${file}.meta`
+    const text = await fsp.readFile(metaPath, 'utf8')
+    unityGuid = parseUnityMetaGuid(text)
+    unityMetaName = path.basename(metaPath)
+  } catch {
+    /* no sibling .meta */
+  }
+
+  let header = null as ReturnType<typeof parseHdrHeader>
+  try {
+    const n = Math.min(16 * 1024, Math.max(0, fileSize))
+    if (n > 0) {
+      const handle = await fsp.open(file, 'r')
+      try {
+        const buf = Buffer.alloc(n)
+        const { bytesRead } = await handle.read(buf, 0, n, 0)
+        header = parseHdrHeader(buf.subarray(0, bytesRead))
+      } finally {
+        await handle.close()
+      }
+    }
+  } catch {
+    warnings.push('Could not read HDR header')
+  }
+
+  if (!header) {
+    if (typeIdx >= 0) {
+      fields[typeIdx] = {
+        id: 'file.type',
+        label: 'Type',
+        value: 'HDR file',
+        group: 'file'
+      }
+    }
+    fields.push(...unknownHdrFields())
+    if (unityGuid) {
+      fields.push({
+        id: 'hdr.unityGuid',
+        label: 'Unity GUID',
+        value: unityGuid,
+        group: 'other',
+        copyable: true
+      })
+    }
+    if (unityMetaName) {
+      fields.push({
+        id: 'hdr.unityMeta',
+        label: 'Unity sidecar',
+        value: unityMetaName,
+        group: 'other',
+        copyable: true
+      })
+    }
+    return {
+      path: file,
+      kind: 'binary',
+      subtitle: 'HDR file',
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  }
+
+  fields.push({
+    id: 'image.dimensions',
+    label: 'Dimensions',
+    value: `${header.width} × ${header.height}`,
+    group: 'file'
+  })
+
+  protocolAllowlist.allowDir(path.dirname(file))
+  const raster = await rasterizeWebImage(file)
+  const scale =
+    raster && raster.width > 0
+      ? Math.max(1, Math.round(header.width / raster.width))
+      : 1
+  fields.push(...hdrPreviewFields(header, { unityGuid, unityMetaName, scale }))
+
+  if (!raster) {
+    warnings.push('Could not decode Radiance HDR for preview')
+    return {
+      path: file,
+      kind: 'binary',
+      subtitle: 'Radiance HDR',
+      fields,
+      warnings
+    }
+  }
+
+  return {
+    path: file,
+    kind: 'image',
+    subtitle: 'Radiance HDR',
+    mediaUrl: raster.mediaUrl,
+    fields,
+    warnings: warnings.length ? warnings : undefined
+  }
+}
+
+async function buildUvwPreview(
+  file: string,
+  fileSize: number,
+  fields: PreviewField[],
+  warnings: string[]
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  if (typeIdx >= 0) {
+    fields[typeIdx] = {
+      id: 'file.type',
+      label: 'Type',
+      value: '3ds Max UVW map',
+      group: 'file'
+    }
+  }
+  try {
+    const built = await buildUvwPreviewFields(file, fileSize)
+    fields.push(...built.fields)
+    return {
+      path: file,
+      kind: 'binary',
+      subtitle: built.subtitle,
+      fields,
+      warnings: warnings.length ? warnings : undefined
+    }
+  } catch {
+    warnings.push('Could not read UVW file')
+    return {
+      path: file,
+      kind: 'binary',
+      subtitle: '3ds Max UVW map',
+      fields,
+      warnings
+    }
+  }
 }
 
 async function buildSafetensorsPreview(
@@ -881,6 +1077,154 @@ async function buildAudioPreview(
     kind: 'audio',
     mediaUrl: mediaUrlFor(file, mediaCacheKey),
     mediaMetaPending: true,
+    fields,
+    warnings: warnings.length ? warnings : undefined
+  }
+}
+
+async function allowModelSidecars(file: string): Promise<void> {
+  const dir = path.dirname(file)
+  protocolAllowlist.allowDir(dir)
+  try {
+    const ents = await fsp.readdir(dir, { withFileTypes: true })
+    let n = 0
+    for (const e of ents) {
+      if (!e.isDirectory()) continue
+      protocolAllowlist.allowDir(path.join(dir, e.name))
+      if (++n >= 32) break
+    }
+  } catch {
+    /* listing optional */
+  }
+}
+
+async function buildModel3dPreview(
+  file: string,
+  ext: string,
+  fileSize: number,
+  fields: PreviewField[],
+  warnings: string[],
+  mediaCacheKey: string
+): Promise<PreviewModel> {
+  const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+  const labels: Record<string, string> = {
+    obj: 'Wavefront OBJ',
+    fbx: 'Autodesk FBX',
+    '3ds': '3ds Max mesh'
+  }
+  const typeLabel = labels[ext] ?? '3D model'
+  if (typeIdx >= 0) {
+    fields[typeIdx] = { id: 'file.type', label: 'Type', value: typeLabel, group: 'file' }
+  }
+
+  fields.push({
+    id: 'model3d.format',
+    label: 'Format',
+    value: typeLabel,
+    group: 'other'
+  })
+  fields.push({
+    id: 'model3d.note',
+    label: 'Preview',
+    value: 'Orbit WebGL view (drag to rotate, scroll to zoom).',
+    group: 'other'
+  })
+
+  if (ext === 'obj') {
+    try {
+      const n = Math.min(fileSize, 4 * 1024 * 1024)
+      const handle = await fsp.open(file, 'r')
+      let buf: Buffer
+      try {
+        buf = Buffer.alloc(n)
+        const { bytesRead } = await handle.read(buf, 0, n, 0)
+        buf = buf.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+      const sum = summarizeObj(buf.toString('utf8'))
+      if (sum.vertices) {
+        fields.push({
+          id: 'model3d.vertices',
+          label: 'Vertices',
+          value: sum.vertices.toLocaleString('en-US'),
+          group: 'other'
+        })
+      }
+      if (sum.triangles) {
+        fields.push({
+          id: 'model3d.triangles',
+          label: 'Triangles',
+          value:
+            sum.triangles.toLocaleString('en-US') +
+            (sum.faces !== sum.triangles ? ` (${sum.faces.toLocaleString('en-US')} faces)` : ''),
+          group: 'other'
+        })
+      }
+      if (sum.mtllib) {
+        fields.push({
+          id: 'model3d.mtllib',
+          label: 'Material library',
+          value: sum.mtllib,
+          group: 'other',
+          copyable: true
+        })
+      }
+      if (fileSize > n) warnings.push('OBJ counts from the first 4 MiB')
+    } catch {
+      warnings.push('Could not summarize OBJ')
+    }
+  } else if (ext === 'fbx') {
+    try {
+      const handle = await fsp.open(file, 'r')
+      let buf: Buffer
+      try {
+        buf = Buffer.alloc(Math.min(256, fileSize))
+        const { bytesRead } = await handle.read(buf, 0, buf.length, 0)
+        buf = buf.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+      const kind = sniffFbx(buf)
+      if (kind) {
+        fields.push({
+          id: 'model3d.fbxKind',
+          label: 'FBX encoding',
+          value: kind === 'binary' ? 'Binary' : 'ASCII',
+          group: 'other'
+        })
+      }
+    } catch {
+      /* optional */
+    }
+  } else if (ext === '3ds') {
+    try {
+      const handle = await fsp.open(file, 'r')
+      let buf: Buffer
+      try {
+        buf = Buffer.alloc(Math.min(8, fileSize))
+        const { bytesRead } = await handle.read(buf, 0, buf.length, 0)
+        buf = buf.subarray(0, bytesRead)
+      } finally {
+        await handle.close()
+      }
+      if (!sniff3ds(buf)) warnings.push('File does not start with a 3DS main chunk')
+    } catch {
+      /* optional */
+    }
+  }
+
+  await allowModelSidecars(file)
+  const tooBig = fileSize > MODEL3D_MAX_BYTES
+  if (tooBig) {
+    warnings.push(`Larger than ${Math.round(MODEL3D_MAX_BYTES / (1024 * 1024))} MiB — WebGL preview skipped`)
+  }
+
+  return {
+    path: file,
+    kind: 'model3d',
+    subtitle: typeLabel,
+    mediaUrl: tooBig ? undefined : mediaUrlFor(file, mediaCacheKey),
     fields,
     warnings: warnings.length ? warnings : undefined
   }

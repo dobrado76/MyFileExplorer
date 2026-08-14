@@ -19,6 +19,8 @@ const THUMB_EXTS = new Set([
   'avif',
   'tiff',
   'tif',
+  'tga',
+  'hdr',
   'psd'
 ])
 const VALID_SIZES = [64, 96, 128, 192, 256, 512]
@@ -133,11 +135,16 @@ export async function getThumbUrl(
         const raster = await rasterizePsd(file, [])
         if (!raster) return null
         input = await fsp.readFile(raster.cachePath)
+      } else if (ext === 'tif' || ext === 'tiff' || ext === 'tga' || ext === 'hdr') {
+        const { rasterizeWebImage } = await import('../preview/rasterWebImage')
+        const raster = await rasterizeWebImage(tipOpenPath)
+        if (!raster) return null
+        input = await fsp.readFile(raster.cachePath)
       } else {
         // Buffer so sharp does not hold the browsed file open on Windows.
         input = await fsp.readFile(tipOpenPath)
       }
-      await sharp(input, { failOn: 'truncated', limitInputPixels: 512 * 1024 * 1024 })
+      await sharp(input, { failOn: 'none', limitInputPixels: 512 * 1024 * 1024 })
         .rotate()
         .resize(target, target, { fit: 'inside', withoutEnlargement: true })
         .webp({ quality: 80 })

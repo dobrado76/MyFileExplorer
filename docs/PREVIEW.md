@@ -16,7 +16,7 @@ type PreviewModel = {
   kind:
     | 'image' | 'text' | 'markdown' | 'html' | 'spreadsheet' | 'document' | 'rtf'
     | 'audio' | 'video' | 'pdf' | 'binary' | 'executable' | 'directory' | 'shortcut'
-    | 'archive' | 'chm' | 'font' | 'missing'
+    | 'archive' | 'chm' | 'font' | 'model3d' | 'missing'
   mediaUrl?: string // protocol URL for display (images, PDF, fonts, CHM topic, MSI icon)
   textSample?: string // utf-8 sniff / markdown source, truncated
   htmlBody?: string // Word / RTF HTML fragment (renderer sanitizes)
@@ -64,7 +64,7 @@ Details strip layout: Name (+ Dimensions when present), then a responsive pair �
 
 ## Images
 
-**Display:** image via protocol URL (respect EXIF orientation when feasible). Uses as much vertical space as possible above the details strip (`object-fit: contain`).
+**Display:** image via protocol URL (respect EXIF orientation when feasible). Uses as much vertical space as possible above the details strip (`object-fit: contain`). `.tif` / `.tiff` / `.tga` / `.hdr` (Radiance RGBE) are rasterized to cached WebP (Chromium cannot paint those formats); thumbs and slideshow use the same path. HDR is Reinhard-tonemapped for display (not a linear light viewer).
 
 **Edit:** pencil button in the preview header, context menu **Edit image…**, or **Ctrl+E** (single editable image selected; otherwise ignored) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). **On NTFS:** **Save** writes tip ADS `VER_n` (max 4; default stream stays pristine). Context menu **Version Control** (when history exists): Commit / Revert, then **Original** / **Version k** to preview that stream (D27). While previewing a version, the dim banner has **Show current** and **Drop** (tooltips). Slideshow always uses the tip. **On non-NTFS:** Save overwrites the file in place (no version streams — FAT/exFAT have no ADS). **Copy/move to a non-ADS volume:** destination gets the tip edit as the file body (edits kept; original/history dropped). **Save as…** writes a new file via the system save dialog with no version history. Not for SVG/PSD.
 
@@ -140,7 +140,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - UTF-8 / UTF-16 LE sniff; if binary → `kind: 'binary'`
 - Show first `textPreviewMaxBytes` chars
-- **Syntax highlighting** in the renderer (`highlight.js`, selective grammars) for common types: HTML/XML, JSON, TS/JS, YAML, CSS/SCSS, Python, shell/PowerShell (`.ps1` / `.ps`), batch (`.bat` / `.cmd`), VBScript (`.vbs`), INI/TOML-ish, SQL, C-family, Rust, Go, PHP, Ruby, Lua, etc. Unknown extensions stay monospace plaintext.
+- **Syntax highlighting** in the renderer (`highlight.js`, selective grammars) for common types: HTML/XML, JSON, TS/JS, YAML, CSS/SCSS, Python, shell/PowerShell (`.ps1` / `.ps`), batch (`.bat` / `.cmd`), VBScript (`.vbs`), INI/TOML-ish, SQL, C-family, Rust, Go, PHP, Ruby, Lua, Unity ShaderLab/HLSL (`.shader`), etc. Unknown extensions stay monospace plaintext.
 - Extensions: `.txt`, `.json`, `.yaml`, `.yml`, `.wlt` (YAML), `.ffs_gui` (XML), `.log`, `.css`, `.js`, `.ts`, … (`.md` / office formats use dedicated kinds below)
 
 ---
@@ -293,9 +293,18 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ## TrueType fonts (`.ttf`)
 
-- `kind: 'font'` — sample pangram / alphabet via `@font-face` over `mfe-media` (`font/ttf`)
+- `kind: 'font'` — sample pangram / alphabet via `FontFace` (fetch `mfe-media` bytes; CSP `font-src` includes `mfe-media:`)
 - Name-table fields when present: Family, Full name, Version, Copyright
 - Does not install the font into Windows; OTF / WOFF not in this pass (D36)
+
+---
+
+## 3D meshes (`.obj` / `.fbx` / `.3ds`) — D48
+
+- `kind: 'model3d'` — WebGL orbit preview in the renderer (`three.js`, code-split). Drag to rotate, scroll to zoom. The canvas fills leftover pane height above the metadata strip.
+- Served over `mfe-media` (D7). Sibling `.mtl` / textures allowed from the model folder and one level of subfolders.
+- OBJ: vertex/triangle counts from a text scan (first 4 MiB). FBX: ASCII vs binary sniff.
+- Skip WebGL above 96 MiB (metadata only). Not a Unity scene / animation player.
 
 ---
 
@@ -327,6 +336,19 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Fields (`group: shortcut`): Target, Target type (file/folder/URL/missing), Arguments, Start in, Comment, Icon location, Shortcut key, Run (if not Normal)
 - Preview body shows the target path plus **Open shortcut** / **Open target** (when the target exists on disk)
 - Missing or unreadable links still show file details with a warning
+
+---
+
+## Unwrap UVW (`.uvw`)
+
+Autodesk 3ds Max Save/Load UVs — texture coordinates only. Proprietary binary; **no public spec**. Preview is a metadata card (`kind: 'binary'` + extra fields), not a UV island drawing.
+
+- Type / subtitle: **3ds Max UVW map**
+- Always: format, contents, used-by, topology note
+- **UV vertices / UV faces** when a count+float dump or ISave-chunk layout matches file size and values look like UVs / indices (not guessed otherwise)
+- UV range from sampled verts when counts parse
+- Labels only when a real identifier is present (Unwrap / Max / …) — float-as-text junk is omitted
+- OLE compound sniff; sibling `*.uvw.meta` (Unity): GUID + sidecar name when present
 
 ---
 

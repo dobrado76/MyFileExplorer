@@ -2,7 +2,9 @@
  * Everything-inspired query parser (D34).
  * Produces a StructuredQuery used by SQL and live-walk filters.
  */
+import { isBasicNameQuery } from '@shared/searchQuery'
 import { queryTokens, tokenHasWildcards } from './queryBuilder'
+export { isBasicNameQuery } from '@shared/searchQuery'
 
 export type TextPred =
   | { kind: 'substr'; value: string; wholeWord?: boolean }
@@ -57,7 +59,7 @@ export type StructuredQuery = {
 }
 
 const MACROS: Record<string, string[]> = {
-  pic: ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'ico', 'svg', 'heic', 'avif'],
+  pic: ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'tga', 'hdr', 'ico', 'svg', 'heic', 'avif'],
   video: ['mp4', 'mkv', 'avi', 'mov', 'wmv', 'webm', 'm4v', 'mpg', 'mpeg', 'ts'],
   audio: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'wma', 'opus'],
   doc: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'csv', 'md'],
@@ -226,24 +228,6 @@ function parseBasicNameQuery(raw: string, opts: ParseOptions): StructuredQuery {
     }
   }
   return q
-}
-
-/** Plain toolbar search (file names) — skip the Everything operator parser entirely. */
-export function isBasicNameQuery(raw: string): boolean {
-  const t = raw.trim()
-  if (!t) return false
-  if (/[<|"]/.test(t)) return false
-  if (/^[a-zA-Z]:[\\/]?/i.test(t)) return false
-  if (
-    /(?:^|\s)(!?)(size|ext|dm|dc|datemodified|datecreated|path|nopath|file|folder|pic|video|audio|doc|exe|zip|content|utf8content|attrib|attributes|depth|parent|infolder|startwith|endwith|len|empty|count|dupe|sizedupe|namepartdupe|child|childcount|regex|case|nocase|ww|wholeword|noww):/i.test(
-      t
-    )
-  ) {
-    return false
-  }
-  // `!` is NOT only after whitespace (`photo !tmp`). A name like `!!Thumbs.db` is literal.
-  if (/\s![^\s]+/.test(t)) return false
-  return true
 }
 
 function emptyQuery(opts: ParseOptions): StructuredQuery {

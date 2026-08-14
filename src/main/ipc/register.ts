@@ -446,9 +446,10 @@ export function registerIpcHandlers(): void {
           { name: 'WebP', extensions: ['webp'] },
           { name: 'GIF', extensions: ['gif'] },
           { name: 'TIFF', extensions: ['tif', 'tiff'] },
+          { name: 'Targa', extensions: ['tga'] },
           {
             name: 'All supported',
-            extensions: ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'gif', 'tif', 'tiff', 'bmp']
+            extensions: ['jpg', 'jpeg', 'jfif', 'png', 'webp', 'gif', 'tif', 'tiff', 'tga', 'bmp']
           }
         ]
       }

@@ -231,6 +231,7 @@ const CODE_EXTS = new Set([
   'cpp',
   'hpp',
   'cs',
+  'shader',
   'php',
   'sh',
   'ps1',
@@ -263,6 +264,8 @@ const IMAGE_EXTS = new Set([
   'avif',
   'tiff',
   'tif',
+  'tga',
+  'hdr',
   'svg',
   'ico',
   'psd'
@@ -277,6 +280,20 @@ const TEXT_EXTS = new Set([
   'yaml',
   'yml',
   'wlt',
+  'meta',
+  'mat',
+  'asset',
+  'terrainlayer',
+  'lighting',
+  'unity',
+  'prefab',
+  'controller',
+  'anim',
+  'shadergraph',
+  'mtl',
+  'csproj',
+  'sln',
+  'vsconfig',
   'csv',
   'tsv',
   'log',
@@ -318,8 +335,18 @@ export const EraserIcon = svg(
   </>
 )
 
+const MODEL3D_EXTS = new Set(['obj', 'fbx', '3ds'])
+
+export const Model3dFileIcon = svg(
+  <>
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
+    <path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" />
+  </>
+)
+
 export function iconForEntry(ext: string, isDir: boolean): (props: IconProps) => JSX.Element {
   if (isDir) return FolderIcon
+  if (MODEL3D_EXTS.has(ext)) return Model3dFileIcon
   if (IMAGE_EXTS.has(ext)) return ImageFileIcon
   if (AUDIO_EXTS.has(ext)) return AudioFileIcon
   if (VIDEO_EXTS.has(ext)) return VideoFileIcon

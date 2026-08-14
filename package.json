@@ -54,6 +54,7 @@
     "ssh2": "1.17.0",
     "styled-components": "^6.4.4",
     "tar-stream": "^3.2.0",
+    "three": "^0.185.1",
     "word-extractor": "^1.0.4",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yauzl": "^3.4.0"
@@ -67,6 +68,7 @@
     "@types/react-dom": "^19.2.4",
     "@types/ssh2": "1.15.5",
     "@types/tar-stream": "^3.1.4",
+    "@types/three": "^0.185.4",
     "@types/yauzl": "^3.4.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^41.7.1",

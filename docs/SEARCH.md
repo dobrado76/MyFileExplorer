@@ -7,7 +7,7 @@ Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 1. **Folder roots** — mark a directory; recursive walk + **debounced FS watch** for incremental upserts
 2. **Volume roots** — **Index this drive** on a fixed NTFS volume: MFT/USN bootstrap (`FSCTL_ENUM_USN_DATA`) + **USN journal** monitor when available; otherwise fall back to a full walk (`monitor: walk`)
 
-**Live walk** remains the default when no ready root covers the folder (D15: progress + cancel; never claim indexed speed).
+**Live walk** remains the default when no ready root covers the folder (D15: progress + cancel; never claim indexed speed). The walk yields the main thread every ~12 ms and streams progress at most every 250 ms so preview/icon IPC stays responsive. Basic name queries `stat` hits only.
 
 Unchecking **indexed** in the toolbar searches the **current folder recursively** (index accelerates only when covered).
 
@@ -108,7 +108,7 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 
 ## UI
 
-- **As-you-type** debounced search (cancel in-flight); Enter still searches immediately
+- **As-you-type** search (500 ms debounce — typing `.obj` is usually one walk). A lone `.` does not search. Extra characters **narrow** the current hits (`.o` ⊃ `.ob` ⊃ `.obj`) instead of restarting. Enter searches immediately. Use `*.jpg` when you need “ends with this extension.”
 - Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced). **Saved searches** (named designs) store the builder + match flags + query — not the target. Run again against the current folder or indexed roots. Cap 80; included in Settings export (D45).
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
 - Results in normal **FileView** (D29); Folder column; banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).

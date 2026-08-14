@@ -13,9 +13,14 @@ import { nameMatches } from './queryBuilder'
 
 export type CancelToken = { cancelled: boolean }
 
+function yieldMain(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve))
+}
+
 /**
  * Best-effort recursive walk (D15: progress + cancel, never pretend indexed
  * speed). Emits `search-progress` events while scanning.
+ * Yields the main thread often so preview/icon IPC is not starved.
  */
 export async function liveWalkSearch(
   rootDir: string,
@@ -36,13 +41,12 @@ export async function liveWalkSearch(
   const effectiveLimit = q?.countLimit != null ? Math.min(limit, q.countLimit) : limit
 
   let lastEmitMs = 0
-  let lastEmitHits = 0
+  let lastYieldMs = Date.now()
   const emitProgress = (dir: string, force = false): void => {
     const now = Date.now()
-    const newHits = items.length > lastEmitHits
-    if (!force && scanned % 100 !== 0 && !newHits && now - lastEmitMs < 250) return
+    // Never stream on every hit — that floods IPC and delays preview:get.
+    if (!force && now - lastEmitMs < 250) return
     lastEmitMs = now
-    lastEmitHits = items.length
     broadcast({
       type: 'search-progress',
       payload: {
@@ -78,18 +82,23 @@ export async function liveWalkSearch(
       const isDir = d.isDirectory()
       if (isDir && excludes.has(d.name.toLowerCase())) continue
 
+      const nameHit = basic ? nameMatches(d.name, query) : null
+      // Basic name search: skip stat on misses so the walk does not monopolize main.
       let size = 0
       let mtimeMs = 0
-      try {
-        const st = await fsp.stat(full)
-        size = isDir ? 0 : st.size
-        mtimeMs = st.mtimeMs
-      } catch {
-        /* zeros */
+      const needStat = !basic || nameHit
+      if (needStat) {
+        try {
+          const st = await fsp.stat(full)
+          size = isDir ? 0 : st.size
+          mtimeMs = st.mtimeMs
+        } catch {
+          /* zeros */
+        }
       }
 
       const hit = basic
-        ? nameMatches(d.name, query)
+        ? Boolean(nameHit)
         : rowMatchesStructured(
             { path: full, name: d.name, size, mtimeMs, isDir, attrs: null },
             q!,
@@ -102,7 +111,11 @@ export async function liveWalkSearch(
       if (isDir) stack.push(full)
       scanned++
       emitProgress(dir)
-      if (scanned % 500 === 0) await new Promise((r) => setImmediate(r))
+      const now = Date.now()
+      if (now - lastYieldMs >= 12) {
+        lastYieldMs = now
+        await yieldMain()
+      }
     }
   }
   broadcast({
