@@ -10,9 +10,18 @@ import { columnNeedsDirectoryMeta, isDirectoryMetaColumn } from '@shared/schemas
 import { AppError } from '@shared/result'
 
 vi.mock('../main/fs/winAttrs', () => ({
-  pathIsReadOnly: vi.fn(() => false)
+  pathIsReadOnly: vi.fn(() => false),
+  pathIsHidden: vi.fn(() => false),
+  getWinAttributeFlags: vi.fn(() => null)
 }))
 
+vi.mock('../main/settings/store', () => ({
+  settingsStore: () => ({
+    get: () => ({ viewFilterEnabled: true, viewFilterPatterns: [] })
+  })
+}))
+
+import { isProtectedStatsDirName, shouldSkipFolderForStats } from '../shared/folderStatsSkip'
 import { folderStatWriteError } from '../main/fs/folderStats'
 import { pathIsReadOnly } from '../main/fs/winAttrs'
 
@@ -59,6 +68,50 @@ describe('folderStats streams', () => {
     expect(columnNeedsDirectoryMeta('ads')).toBe(true)
     expect(isDirectoryMetaColumn('size')).toBe(true)
     expect(columnNeedsDirectoryMeta('mtime')).toBe(false)
+  })
+})
+
+describe('shouldSkipFolderForStats', () => {
+  it('skips $RECYCLE.BIN and System Volume Information by name', () => {
+    expect(isProtectedStatsDirName('$RECYCLE.BIN')).toBe(true)
+    expect(isProtectedStatsDirName('System Volume Information')).toBe(true)
+    expect(isProtectedStatsDirName('Music')).toBe(false)
+  })
+
+  it('always skips the System attribute', () => {
+    expect(
+      shouldSkipFolderForStats({
+        name: 'Windows',
+        system: true,
+        hidden: false,
+        hideHidden: false,
+        filterMatch: false
+      })
+    ).toBe(true)
+  })
+
+  it('skips Hidden only when the view filter is on', () => {
+    const hidden = {
+      name: 'secret',
+      system: false,
+      hidden: true,
+      hideHidden: false,
+      filterMatch: false
+    }
+    expect(shouldSkipFolderForStats(hidden)).toBe(false)
+    expect(shouldSkipFolderForStats({ ...hidden, hideHidden: true })).toBe(true)
+  })
+
+  it('skips view-filter matches', () => {
+    expect(
+      shouldSkipFolderForStats({
+        name: 'node_modules',
+        system: false,
+        hidden: false,
+        hideHidden: true,
+        filterMatch: true
+      })
+    ).toBe(true)
   })
 })
 

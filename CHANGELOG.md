@@ -35,6 +35,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Calculate Statistics** — skips Windows system folders (`$RECYCLE.BIN`, System attribute, …) and, when the view filter is on, Hidden folders and view-filter matches, so a permission denied on Recycle Bin no longer aborts the walk.
 - **Detached preview window + video** — playing a video no longer blanks the pop-out for later files. While that window is open, `<video>` / `<audio>` play only there (the docked pane keeps metadata / poster).
 - **GitHub Check for update** — GitHub stores the NSIS installer as `MyFileExplorer.Setup.0.x.y.exe` (dots instead of spaces). Check could still see the release via the tag, then Update refused it as “no version in its name.” Both dotted and `Setup 0.x.y` names are accepted now.
 - **Search `.obj` floods then restarts** — a lone `.` is ignored (it matches every dotted name). Debounce is 500 ms so typing `.obj` is usually one walk; further letters narrow the current hits instead of starting over.

@@ -55,7 +55,7 @@ export type FolderStatisticsResult = FolderStatCounts & {
   path: string
   /** Folders that received ADS streams (includes the root). */
   foldersTagged: number
-  /** Folders skipped because TotalSize ADS already existed (skipTagged runs only). */
+  /** Folders not entered: already tagged (Shift+click), or system / hidden / view-filter. */
   foldersSkipped?: number
   truncated?: boolean
 }

@@ -11,13 +11,16 @@ import {
   type FolderStatCounts,
   type FolderStatisticsResult
 } from '@shared/folderStats'
+import { shouldSkipFolderForStats } from '@shared/folderStatsSkip'
+import { compilePathPatterns, type PathPatternPredicate } from '@shared/pathPatterns'
 import { AppError } from '@shared/result'
 import { requireAbsolute } from './list'
 import { readStreamText, writeStreamText } from './adsWin32'
 import { beginOp, type OpReporter } from './opProgress'
 import { muteWatchers } from './watch'
 import { dropColumnMetaMemoryPath, invalidateColumnMetaPaths } from '../meta/columns'
-import { pathIsReadOnly } from './winAttrs'
+import { getWinAttributeFlags, pathIsHidden, pathIsReadOnly } from './winAttrs'
+import { settingsStore } from '../settings/store'
 
 const STAT_CONCURRENCY = 32
 /** Throttle status-bar updates during large tree walks. */
@@ -55,6 +58,8 @@ type WalkState = {
   lastDir: string
   pendingInvalidate: string[]
   skipTagged: boolean
+  hideHidden: boolean
+  filterMatch: PathPatternPredicate
 }
 
 type TagResult = {
@@ -66,9 +71,7 @@ type TagResult = {
 function formatWalkProgress(state: WalkState, stats: FolderStatCounts): string {
   const name = path.basename(state.lastDir) || state.lastDir
   const skip =
-    state.skipTagged && state.foldersSkipped > 0
-      ? ` · ${state.foldersSkipped.toLocaleString()} skipped`
-      : ''
+    state.foldersSkipped > 0 ? ` · ${state.foldersSkipped.toLocaleString()} skipped` : ''
   return `${state.entriesScanned.toLocaleString()} scanned · ${state.foldersTagged.toLocaleString()} tagged${skip} · ${stats.fileTotCount.toLocaleString()} files · ${stats.folderTotCount.toLocaleString()} folders · ${formatBytesBrief(stats.totalSize)} — ${name}`
 }
 
@@ -226,6 +229,17 @@ async function flushMetaInvalidation(state: WalkState, force = false): Promise<v
   state.pendingInvalidate = []
 }
 
+function skipStatsChild(absPath: string, state: WalkState): boolean {
+  const flags = getWinAttributeFlags(absPath)
+  return shouldSkipFolderForStats({
+    name: path.basename(absPath),
+    system: flags?.system === true,
+    hidden: flags ? flags.hidden : pathIsHidden(absPath),
+    hideHidden: state.hideHidden,
+    filterMatch: state.filterMatch(absPath)
+  })
+}
+
 async function scanImmediate(
   dir: string,
   state: WalkState
@@ -245,8 +259,13 @@ async function scanImmediate(
   for (const e of ents) {
     if (e.isSymbolicLink()) continue
     if (e.isDirectory()) {
+      const full = path.join(dir, e.name)
+      if (skipStatsChild(full, state)) {
+        state.foldersSkipped++
+        continue
+      }
       folders++
-      subdirs.push(path.join(dir, e.name))
+      subdirs.push(full)
     } else if (e.isFile()) {
       files++
       state.entriesScanned++
@@ -341,6 +360,9 @@ export async function calculateFolderStatistics(
   }
 
   const skipTagged = opts.skipTagged === true
+  const settings = settingsStore().get()
+  const hideHidden = settings.viewFilterEnabled === true
+  const filterMatch = compilePathPatterns(hideHidden ? settings.viewFilterPatterns : [])
   const rootLabel = path.basename(root) || root
   const label = skipTagged
     ? `Calculating statistics (skip tagged) — ${rootLabel}`
@@ -353,7 +375,9 @@ export async function calculateFolderStatistics(
     foldersSkipped: 0,
     lastDir: root,
     pendingInvalidate: [],
-    skipTagged
+    skipTagged,
+    hideHidden,
+    filterMatch
   }
 
   try {
@@ -367,7 +391,7 @@ export async function calculateFolderStatistics(
       path: root,
       ...stats,
       foldersTagged: state.foldersTagged,
-      ...(skipTagged ? { foldersSkipped: state.foldersSkipped } : {})
+      ...(state.foldersSkipped > 0 ? { foldersSkipped: state.foldersSkipped } : {})
     }
   } catch (e) {
     progress.fail()
