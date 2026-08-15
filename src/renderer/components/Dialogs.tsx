@@ -2457,7 +2457,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 />
               </label>
               <p className="settings-help">
-                How much of a text, code, Markdown, or HTML file to show (default 2 MiB). Larger
+                How much of a text, code, Markdown, or HTML file to show (default 2 MiB). Larger
                 files are truncated with a warning.
               </p>
             </div>
