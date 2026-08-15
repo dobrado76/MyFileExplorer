@@ -22,6 +22,7 @@ import {
   VideoPreview,
   VideoStripPreview
 } from './RichPreviews'
+import { allowDockedAvPlayer } from '@shared/previewAv'
 import { CodePreview } from './CodePreview'
 import { ZipArchivePreview } from './ZipArchivePreview'
 import { ChmPreview } from './ChmPreview'
@@ -113,8 +114,12 @@ export type PreviewViewProps = {
   previewPath: string | null
   multiCount?: number
   mediaHold?: boolean
+  /** When the pop-out is open, the docked pane must not mount `<video>`/`<audio>`. */
+  previewWindowOpen?: boolean
   previewVideoAutoplay?: boolean
   captionPosterUrl?: string | null
+  /** Pop-out only: hide metadata / details and fill with the visualization. */
+  zen?: boolean
   headerActions?: ReactNode
   banner?: ReactNode
   onOpenPath: (path: string) => void
@@ -129,8 +134,10 @@ export function PreviewView({
   previewPath,
   multiCount = 0,
   mediaHold = false,
+  previewWindowOpen = false,
   previewVideoAutoplay = false,
   captionPosterUrl = null,
+  zen = false,
   headerActions,
   banner,
   onOpenPath,
@@ -158,21 +165,23 @@ export function PreviewView({
             : ''
 
   return (
-    <div className={`preview${kindClass}`}>
+    <div className={`preview${kindClass}${zen ? ' preview-zen' : ''}`}>
       <div className="preview-header preview-header-compact">
-        <div className="preview-sub">
-          {multiHint ? (
-            <>
-              <span className="preview-multi-badge">{multiHint}</span>
-              {headerSub ? <span className="preview-multi-sep">·</span> : null}
-            </>
-          ) : null}
-          {headerSub}
-        </div>
+        {!zen ? (
+          <div className="preview-sub">
+            {multiHint ? (
+              <>
+                <span className="preview-multi-badge">{multiHint}</span>
+                {headerSub ? <span className="preview-multi-sep">·</span> : null}
+              </>
+            ) : null}
+            {headerSub}
+          </div>
+        ) : null}
         {headerActions ? <div className="preview-header-actions">{headerActions}</div> : null}
       </div>
 
-      {banner}
+      {!zen ? banner : null}
 
       {!previewPath ? (
         <div className="preview-empty">Select a file to preview</div>
@@ -186,8 +195,10 @@ export function PreviewView({
         <PreviewBody
           model={model}
           mediaHold={mediaHold}
+          previewWindowOpen={previewWindowOpen}
           previewVideoAutoplay={previewVideoAutoplay}
           captionPosterUrl={captionPosterUrl}
+          zen={zen}
           onOpenPath={onOpenPath}
           onExtractZip={onExtractZip}
           onCopy={copyValue}
@@ -201,8 +212,10 @@ export function PreviewView({
 function PreviewBody({
   model,
   mediaHold,
+  previewWindowOpen,
   previewVideoAutoplay,
   captionPosterUrl,
+  zen,
   onOpenPath,
   onExtractZip,
   onCopy,
@@ -210,8 +223,10 @@ function PreviewBody({
 }: {
   model: PreviewModel
   mediaHold: boolean
+  previewWindowOpen: boolean
   previewVideoAutoplay: boolean
   captionPosterUrl: string | null
+  zen: boolean
   onOpenPath: (path: string) => void
   onExtractZip?: (paths: string[]) => void
   onCopy: (value: string) => Promise<void>
@@ -220,6 +235,7 @@ function PreviewBody({
   const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
+  const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
 
   return (
     <>
@@ -260,6 +276,7 @@ function PreviewBody({
             <VideoStripPreview
               frames={model.stripFrames}
               onOpenExternal={() => onOpenPath(model.path)}
+              chrome={!zen}
             />
           )}
         {model.kind === 'video' &&
@@ -271,6 +288,7 @@ function PreviewBody({
               posterUrl={model.posterUrl}
               preparing={Boolean(model.needsPlayable && !model.mediaUrl)}
               autoplay={previewVideoAutoplay}
+              active={playAv}
               onOpenExternal={() => onOpenPath(model.path)}
               onAudioOnly={onRetryPlayableForce}
             />
@@ -280,6 +298,7 @@ function PreviewBody({
             url={model.mediaUrl}
             coverUrl={model.posterUrl}
             autoplay={previewVideoAutoplay}
+            active={playAv}
             onOpenExternal={() => onOpenPath(model.path)}
           />
         )}
@@ -329,11 +348,13 @@ function PreviewBody({
             <div className="preview-icon">
               {model.kind === 'audio' ? <AudioFileIcon size={56} /> : <VideoFileIcon size={56} />}
             </div>
-            <div style={{ textAlign: 'center', paddingBottom: 8 }}>
-              <button className="btn" onClick={() => onOpenPath(model.path)}>
-                Open with default app
-              </button>
-            </div>
+            {!zen ? (
+              <div style={{ textAlign: 'center', paddingBottom: 8 }}>
+                <button className="btn" onClick={() => onOpenPath(model.path)}>
+                  Open with default app
+                </button>
+              </div>
+            ) : null}
           </>
         )}
         {model.kind === 'directory' && (
@@ -343,7 +364,7 @@ function PreviewBody({
         )}
         {model.kind === 'archive' && (
           <>
-            {model.mediaUrl && (
+            {!zen && model.mediaUrl && (
               <div className="preview-exe">
                 <div className="preview-icon preview-exe-icon">
                   <img src={model.mediaUrl} alt="" width={64} height={64} draggable={false} />
@@ -354,7 +375,7 @@ function PreviewBody({
               tree={model.archiveTree ?? []}
               treeLabel={archiveContentsLabel(model.archiveFormat)}
               onExtract={
-                model.archiveFormat === 'zip' && onExtractZip
+                !zen && model.archiveFormat === 'zip' && onExtractZip
                   ? () => onExtractZip([model.path])
                   : undefined
               }
@@ -373,27 +394,29 @@ function PreviewBody({
             <div className="preview-icon">
               <FileIcon size={56} />
             </div>
-            <div className="preview-shortcut-caption">Windows shortcut</div>
+            {!zen ? <div className="preview-shortcut-caption">Windows shortcut</div> : null}
             {(() => {
               const target = model.fields.find((f) => f.id === 'lnk.target')?.value
               if (!target) return null
               return <div className="preview-shortcut-target mono">{target}</div>
             })()}
-            <div className="preview-shortcut-actions">
-              <button className="btn" onClick={() => onOpenPath(model.path)}>
-                Open shortcut
-              </button>
-              {(() => {
-                const target = model.fields.find((f) => f.id === 'lnk.target')?.value
-                const kind = model.fields.find((f) => f.id === 'lnk.targetKind')?.value ?? ''
-                if (!target || kind.includes('URL') || kind.includes('Missing')) return null
-                return (
-                  <button className="btn" onClick={() => onOpenPath(target)}>
-                    Open target
-                  </button>
-                )
-              })()}
-            </div>
+            {!zen ? (
+              <div className="preview-shortcut-actions">
+                <button className="btn" onClick={() => onOpenPath(model.path)}>
+                  Open shortcut
+                </button>
+                {(() => {
+                  const target = model.fields.find((f) => f.id === 'lnk.target')?.value
+                  const kind = model.fields.find((f) => f.id === 'lnk.targetKind')?.value ?? ''
+                  if (!target || kind.includes('URL') || kind.includes('Missing')) return null
+                  return (
+                    <button className="btn" onClick={() => onOpenPath(target)}>
+                      Open target
+                    </button>
+                  )
+                })()}
+              </div>
+            ) : null}
           </div>
         )}
         {model.kind === 'pdf' && !model.mediaUrl && (
@@ -401,20 +424,22 @@ function PreviewBody({
             <div className="preview-icon">
               <PdfFileIcon size={56} />
             </div>
-            <div style={{ textAlign: 'center', paddingBottom: 8 }}>
-              <button className="btn" onClick={() => onOpenPath(model.path)}>
-                Open with default app
-              </button>
-            </div>
+            {!zen ? (
+              <div style={{ textAlign: 'center', paddingBottom: 8 }}>
+                <button className="btn" onClick={() => onOpenPath(model.path)}>
+                  Open with default app
+                </button>
+              </div>
+            ) : null}
           </>
         )}
         {model.kind === 'missing' && <div className="preview-empty">File no longer exists</div>}
 
-        {model.warnings && model.warnings.length > 0 && (
+        {!zen && model.warnings && model.warnings.length > 0 && (
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
         )}
 
-        {hasRichFields && (
+        {!zen && hasRichFields && (
           <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
             {CONTENT_GROUPS.map(({ key, label }) => {
               const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
@@ -444,7 +469,7 @@ function PreviewBody({
         )}
       </div>
 
-      {fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
+      {!zen && fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
     </>
   )
 }

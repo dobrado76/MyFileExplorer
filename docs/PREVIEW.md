@@ -10,9 +10,13 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 The docked pane header always shows **Open preview window** (right side). That opens a peer `BrowserWindow` with the same live preview (focused/selected file and image-version ADS override). A second click focuses the existing window.
 
+While the pop-out is open, **video and audio play only there**. The docked pane keeps metadata (and a poster if one exists) and does not mount a second `<video>` / `<audio>` — two Chromium players on the same `mfe-media` URL can starve range requests and leave the pop-out blank for later files.
+
+**Zen mode** (header button, remembered in `settings.previewWindowZen`): hides the kind label, file details strip, metadata fields, warnings, and extra actions. The OS title bar and a slim header with the Zen toggle stay; the rest is just the visualization (image / text / player / …).
+
 Hiding the docked pane (toolbar Panel / Ctrl+Shift+P, `splitters.previewCollapsed`) does not close or freeze the window. Image editor and version Drop stay in the docked pane; the pop-out is visualization, metadata, and copy.
 
-Geometry (`x` / `y` / `width` / `height` / `maximized`) is remembered in `settings.previewWindowBounds` and is **not** auto-reopened on launch. Settings export/import strips that key with the other window-like geometry. Closing the main app closes the preview window with it.
+Geometry (`x` / `y` / `width` / `height` / `maximized`) is remembered in `settings.previewWindowBounds` and is **not** auto-reopened on launch. First ever open (bounds still `null`) is **90% of the primary work area**, centered. Settings export/import strips that key with the other window-like geometry. Closing the main app closes the preview window with it.
 
 ---
 

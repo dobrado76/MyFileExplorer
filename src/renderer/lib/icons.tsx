@@ -338,6 +338,24 @@ export const EraserIcon = svg(
     <path d="M22 21H7" />
   </>
 )
+/** Enter Zen mode (preview only). */
+export const ExpandIcon = svg(
+  <>
+    <path d="M15 3h6v6" />
+    <path d="M9 21H3v-6" />
+    <path d="M21 3l-7 7" />
+    <path d="M3 21l7-7" />
+  </>
+)
+/** Exit Zen mode. */
+export const CompressIcon = svg(
+  <>
+    <path d="M4 14h6v6" />
+    <path d="M20 10h-6V4" />
+    <path d="M14 10l7-7" />
+    <path d="M3 21l7-7" />
+  </>
+)
 /** Detach the preview pane into a peer window. */
 export const PopOutIcon = svg(
   <>

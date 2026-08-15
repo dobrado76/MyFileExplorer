@@ -5,6 +5,11 @@ import path from 'node:path'
 import { BrowserWindow, screen } from 'electron'
 import appIcon from '../../../resources/icon.png?asset'
 import type { PreviewWindowTarget } from '@shared/schemas/preview'
+import {
+  PREVIEW_WINDOW_MIN_HEIGHT,
+  PREVIEW_WINDOW_MIN_WIDTH,
+  previewWindowDefaultBounds
+} from '@shared/previewWindowBounds'
 import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
@@ -14,15 +19,7 @@ let previewWin: BrowserWindow | null = null
 let lastTarget: PreviewWindowTarget = { path: null, ads: undefined, stamp: null }
 
 function defaultBounds(): { x: number; y: number; width: number; height: number } {
-  const wa = screen.getPrimaryDisplay().workArea
-  const width = Math.min(480, wa.width)
-  const height = Math.min(720, wa.height)
-  return {
-    x: wa.x + Math.max(0, Math.floor((wa.width - width) / 2)),
-    y: wa.y + Math.max(0, Math.floor((wa.height - height) / 2)),
-    width,
-    height
-  }
+  return previewWindowDefaultBounds(screen.getPrimaryDisplay().workArea)
 }
 
 function clampOntoDisplay(saved: {
@@ -31,8 +28,8 @@ function clampOntoDisplay(saved: {
   width: number
   height: number
 }): { x: number; y: number; width: number; height: number } {
-  const width = Math.max(360, saved.width)
-  const height = Math.max(280, saved.height)
+  const width = Math.max(PREVIEW_WINDOW_MIN_WIDTH, saved.width)
+  const height = Math.max(PREVIEW_WINDOW_MIN_HEIGHT, saved.height)
   const onScreen = screen.getAllDisplays().some((d) => {
     const b = d.workArea
     return (
@@ -72,6 +69,40 @@ function sameTarget(a: PreviewWindowTarget, b: PreviewWindowTarget): boolean {
   return a.path === b.path && a.ads === b.ads && a.stamp === b.stamp
 }
 
+function isPreviewWindowPageUrl(url: string): boolean {
+  const dev = process.env['ELECTRON_RENDERER_URL']
+  if (dev) {
+    const page = `${dev.replace(/\/$/, '')}/previewWindow.html`
+    return url === page || url.startsWith(`${page}?`) || url.startsWith(`${page}#`)
+  }
+  return /previewWindow\.html(?:[?#]|$)/i.test(url)
+}
+
+function loadPreviewWindowPage(win: BrowserWindow): void {
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/previewWindow.html`)
+  } else {
+    void win.loadFile(path.join(__dirname, '../renderer/previewWindow.html'))
+  }
+}
+
+function attachPreviewWindowGuards(win: BrowserWindow): void {
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  win.webContents.on('will-navigate', (e, url) => {
+    if (isPreviewWindowPageUrl(url)) return
+    e.preventDefault()
+  })
+  win.webContents.on('did-navigate', (_e, url) => {
+    if (win.isDestroyed() || isPreviewWindowPageUrl(url)) return
+    logMain('warn', `preview window navigated away (${url}); reloading`)
+    loadPreviewWindowPage(win)
+  })
+  win.webContents.on('render-process-gone', (_e, details) => {
+    logMain('warn', `preview window renderer gone: ${details.reason}`)
+    if (!win.isDestroyed()) loadPreviewWindowPage(win)
+  })
+}
+
 export function setPreviewTarget(next: PreviewWindowTarget): { ok: true } {
   if (sameTarget(lastTarget, next)) return { ok: true }
   lastTarget = next
@@ -89,6 +120,9 @@ export function openPreviewWindow(): { opened: true } {
     return { opened: true }
   }
 
+  // Unmount the docked <video> before this window starts the same media URL.
+  broadcast({ type: 'preview-window', payload: { open: true } })
+
   const saved = settingsStore().get().previewWindowBounds
   const bounds = saved ? clampOntoDisplay(saved) : defaultBounds()
 
@@ -97,8 +131,8 @@ export function openPreviewWindow(): { opened: true } {
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    minWidth: 360,
-    minHeight: 280,
+    minWidth: PREVIEW_WINDOW_MIN_WIDTH,
+    minHeight: PREVIEW_WINDOW_MIN_HEIGHT,
     show: false,
     icon: appIcon,
     autoHideMenuBar: true,
@@ -125,15 +159,15 @@ export function openPreviewWindow(): { opened: true } {
   win.on('close', () => persistBounds(win))
   win.on('closed', () => {
     if (previewWin === win) previewWin = null
+    // Skip if a newer pop-out already owns `previewWin` (close-then-reopen).
+    if (previewWin == null) {
+      broadcast({ type: 'preview-window', payload: { open: false } })
+    }
   })
 
   void win.webContents.setVisualZoomLevelLimits(1, 1)
-
-  if (process.env['ELECTRON_RENDERER_URL']) {
-    void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/previewWindow.html`)
-  } else {
-    void win.loadFile(path.join(__dirname, '../renderer/previewWindow.html'))
-  }
+  attachPreviewWindowGuards(win)
+  loadPreviewWindowPage(win)
 
   return { opened: true }
 }

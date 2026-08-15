@@ -3,8 +3,16 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import type { PptSlidePreview, SpreadsheetSheet } from '@shared/schemas/preview'
 import { pdfPreviewSrc } from '../../lib/pdfPreview'
+import { DEFAULT_VID_THUMB_FRAME_MS } from '@shared/vidThumbCache'
 import { useAppStore } from '../../store/appStore'
 import { CodePreview } from './CodePreview'
+
+function releaseHtmlMedia(el: HTMLMediaElement | null): void {
+  if (!el) return
+  el.pause()
+  el.removeAttribute('src')
+  el.load()
+}
 
 marked.setOptions({ gfm: true, breaks: false })
 
@@ -278,12 +286,15 @@ export function SpreadsheetPreview({ sheets }: { sheets: SpreadsheetSheet[] }): 
 /** Animated `!VIDTHUMB_CACHE` strip + Open (used for `.avi` — no in-pane player). */
 export function VideoStripPreview({
   frames,
-  onOpenExternal
+  onOpenExternal,
+  chrome = true
 }: {
   frames: string[]
   onOpenExternal(): void
+  /** False: frames only (Zen mode). */
+  chrome?: boolean
 }): JSX.Element {
-  const frameMs = useAppStore((s) => s.settings.vidThumbFrameMs)
+  const frameMs = useAppStore((s) => s.settings?.vidThumbFrameMs) ?? DEFAULT_VID_THUMB_FRAME_MS
   const [src, setSrc] = useState(frames[0] ?? '')
   const idxRef = useRef(0)
   const decoded = useRef(new Set<string>())
@@ -318,10 +329,14 @@ export function VideoStripPreview({
       {src ? (
         <img className="preview-video-poster" src={src} alt="" draggable={false} />
       ) : null}
-      <p>Open with the default app to play this video.</p>
-      <button type="button" className="btn" onClick={onOpenExternal}>
-        Open with default app
-      </button>
+      {chrome ? (
+        <>
+          <p>Open with the default app to play this video.</p>
+          <button type="button" className="btn" onClick={onOpenExternal}>
+            Open with default app
+          </button>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -331,6 +346,7 @@ export function VideoPreview({
   posterUrl,
   preparing,
   autoplay,
+  active = true,
   onOpenExternal,
   onAudioOnly
 }: {
@@ -339,24 +355,42 @@ export function VideoPreview({
   /** Remux/transcode in progress. */
   preparing?: boolean
   autoplay?: boolean
+  /** False: poster only (pop-out owns the live player). */
+  active?: boolean
   onOpenExternal(): void
   /** Chromium decoded audio but no video — bad remux; request force transcode. */
   onAudioOnly?(): void
-}): JSX.Element {
+}): JSX.Element | null {
   const [failed, setFailed] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     setFailed(false)
-  }, [url, posterUrl])
+    const el = videoRef.current
+    return () => releaseHtmlMedia(el)
+  }, [url, posterUrl, active])
+
+  if (!active) {
+    if (!posterUrl) return null
+    return (
+      <div className="preview-av-fallback preview-av-poster">
+        <img className="preview-video-poster" src={posterUrl} alt="" draggable={false} />
+      </div>
+    )
+  }
 
   if (url && !failed) {
     return (
       <div className="preview-media preview-av">
         <video
           key={url}
+          ref={videoRef}
           className="preview-video"
           src={url}
           poster={posterUrl}
           controls
+          playsInline
+          disablePictureInPicture
+          controlsList="nofullscreen nodownload noremoteplayback"
           preload="auto"
           autoPlay={Boolean(autoplay)}
           onError={() => setFailed(true)}
@@ -409,17 +443,33 @@ export function AudioPreview({
   url,
   coverUrl,
   autoplay,
+  active = true,
   onOpenExternal
 }: {
   url: string
   coverUrl?: string
   autoplay?: boolean
+  /** False: cover only (pop-out owns the live player). */
+  active?: boolean
   onOpenExternal(): void
-}): JSX.Element {
+}): JSX.Element | null {
   const [failed, setFailed] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
   useEffect(() => {
     setFailed(false)
-  }, [url])
+    const el = audioRef.current
+    return () => releaseHtmlMedia(el)
+  }, [url, active])
+  if (!active) {
+    if (!coverUrl) return null
+    return (
+      <div className="preview-media preview-av preview-av-audio">
+        <div className="preview-audio-cover">
+          <img src={coverUrl} alt="" draggable={false} />
+        </div>
+      </div>
+    )
+  }
   if (failed) {
     return (
       <div className="preview-av-fallback">
@@ -439,6 +489,7 @@ export function AudioPreview({
       ) : null}
       <audio
         key={url}
+        ref={audioRef}
         className="preview-audio"
         src={url}
         controls

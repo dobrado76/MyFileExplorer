@@ -257,6 +257,8 @@ export const settingsSchema = z.object({
     .catch(DEFAULT_VID_THUMB_FRAME_MS),
   /** Auto-start preview `<video>` / `<audio>` when a media file is selected. */
   previewVideoAutoplay: z.boolean().catch(false),
+  /** Detached preview window: hide metadata / details and show only the visualization. */
+  previewWindowZen: z.boolean().catch(false),
   /**
    * Search / index exclude patterns (view-filter language): folder names, file
    * names, extensions (`.tmp` / `*.log`), wildcards, or absolute paths.
@@ -502,6 +504,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   textPreviewMaxBytes: 2 * 1024 * 1024,
   vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
   previewVideoAutoplay: false,
+  previewWindowZen: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   searchIndexedOnly: false,
   searchMatchPath: false,

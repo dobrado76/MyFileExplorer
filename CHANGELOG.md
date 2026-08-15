@@ -29,10 +29,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
+- **Detached preview window Zen mode** — header toggle hides metadata / details and fills the window with the visualization (image, text, player, …). State is remembered (`previewWindowZen`).
+- **Detached preview window first size** — if no saved bounds exist yet, the pop-out opens at 90% of the primary work area (centered). Later opens still restore the last size/position.
 - **Larger in-pane previews** — text/code/Markdown/HTML honor Settings → Preview max bytes (default 2 MiB; the old extra 64 KiB display cut is gone). Spreadsheets show 2000×80×32; Word/RTF ~1 MiB; PowerPoint up to 80 slides.
 
 ### Fixed
 
+- **Detached preview window + video** — playing a video no longer blanks the pop-out for later files. While that window is open, `<video>` / `<audio>` play only there (the docked pane keeps metadata / poster).
 - **GitHub Check for update** — GitHub stores the NSIS installer as `MyFileExplorer.Setup.0.x.y.exe` (dots instead of spaces). Check could still see the release via the tag, then Update refused it as “no version in its name.” Both dotted and `Setup 0.x.y` names are accepted now.
 - **Search `.obj` floods then restarts** — a lone `.` is ignored (it matches every dotted name). Debounce is 500 ms so typing `.obj` is usually one walk; further letters narrow the current hits instead of starting over.
 - **Preview during search** — the live walk was starving `preview:get` (stat every file, push the full hit list on every match). It now yields the main thread often and streams progress at most every 250 ms.

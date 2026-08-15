@@ -291,3 +291,7 @@ export type MfeEvent =
       type: 'preview-target'
       payload: PreviewWindowTarget
     }
+  | {
+      type: 'preview-window'
+      payload: { open: boolean }
+    }

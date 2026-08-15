@@ -14,6 +14,7 @@ export function PreviewPane(): JSX.Element {
   const openImageEditor = useAppStore((s) => s.openImageEditor)
   const extractZip = useAppStore((s) => s.extractZip)
   const mediaHold = useAppStore((s) => s.mediaHold)
+  const previewWindowOpen = useAppStore((s) => s.previewWindowOpen)
   const previewVideoAutoplay = useAppStore((s) => s.settings.previewVideoAutoplay)
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
@@ -121,6 +122,7 @@ export function PreviewPane(): JSX.Element {
       previewPath={previewPath}
       multiCount={selected.length}
       mediaHold={mediaHold}
+      previewWindowOpen={previewWindowOpen}
       previewVideoAutoplay={previewVideoAutoplay}
       captionPosterUrl={captionPosterUrl}
       banner={versionBanner}

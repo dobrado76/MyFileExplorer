@@ -416,6 +416,8 @@ type AppState = {
    * (D7) and stay painted to avoid a black flash on delete.
    */
   mediaHold: boolean
+  /** Detached preview window is open — docked pane must not mount `<video>`/`<audio>`. */
+  previewWindowOpen: boolean
   contextMenu: ContextMenuState
   /** Hidden local gate — slideshow and related IPC (main reads DEV.cfg). */
   devGateActive: boolean
@@ -1915,6 +1917,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     imageEditor: null,
     imageVersionPreview: null,
     mediaHold: false,
+    previewWindowOpen: false,
     contextMenu: null,
     devGateActive: false,
     search: emptyTabSearch(),
@@ -2255,6 +2258,8 @@ export const useAppStore = create<AppState>()((set, get) => {
           } else if (p.paths) {
             get().applyCompiledPlaylist(p.paths, p.preferPath, p.rev)
           }
+        } else if (event.type === 'preview-window') {
+          set({ previewWindowOpen: event.payload.open })
         } else if (event.type === 'compiled-lists-window-closed') {
           const a = get().slideshow.active
           if (a?.compiledMode) void get().stopSlideshow()
