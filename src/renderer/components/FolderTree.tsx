@@ -87,6 +87,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const activeTabIdStore = useAppStore((s) => s.activeTabId)
   const tabId = tabIdProp ?? activeTabIdStore
   const drives = useAppStore((s) => s.drives)
+  const drivesOverview = useAppStore((s) => s.drivesOverview)
+  const showDrivesOverview = useAppStore((s) => s.showDrivesOverview)
   const network = useAppStore((s) => s.network)
   const loadNetworkShares = useAppStore((s) => s.loadNetworkShares)
   const tabs = useAppStore((s) => s.tabs)
@@ -960,7 +962,21 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       ) : (
         quickAccess.map((entry) => renderNode(entry.path, entry.label, 0, 'qa'))
       )}
-      <div className="tree-section"
+      <div
+        className={`tree-section tree-section-clickable${drivesOverview ? ' selected' : ''}`}
+        role="button"
+        tabIndex={0}
+        title="Show free space for every drive"
+        onClick={(e) => {
+          e.preventDefault()
+          showDrivesOverview()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            showDrivesOverview()
+          }
+        }}
         onContextMenu={(e) => {
           e.preventDefault()
           e.stopPropagation()

@@ -427,6 +427,8 @@ type AppState = {
   renameSource: 'tree' | 'files' | null
   /** Last folder clicked/focused in the tree (for F2 rename). */
   treeFocusPath: string | null
+  /** Tree **Drives** header selected — status bar + preview show every volume. */
+  drivesOverview: boolean
   clipboard: ClipboardState
   dragPaths: string[]
   /** Global drop-target folder while dragging (multi-pane highlight). */
@@ -629,6 +631,8 @@ type AppState = {
   /** Dialog Undo: relocate pairs back; pop matching power-rename undo if still on top. */
   undoPowerRenameApply(pairs: UndoPathPair[]): Promise<void>
   setTreeFocusPath(path: string | null): void
+  /** Select the tree Drives header (all-volumes status + preview pies). */
+  showDrivesOverview(): void
   createFolder(parent?: string): Promise<void>
   createNewFile(parent: string, name: string): Promise<void>
   /** Create “New …ext” with a unique name and start inline rename. */
@@ -2006,6 +2010,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     renamingPath: null,
     renameSource: null,
     treeFocusPath: null,
+    drivesOverview: false,
     clipboard: null,
     dragPaths: [],
     dropHighlightPath: null,
@@ -2501,6 +2506,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async navigate(path, opts) {
       const push = opts?.push ?? true
+      if (get().drivesOverview) set({ drivesOverview: false })
       const s = get()
       const tabId = opts?.tabId ?? s.activeTabId
       const tab = s.tabs.find((t) => t.id === tabId) ?? s.activeTab()
@@ -3435,7 +3441,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (id === get().activeTabId) {
         set({
           selectionAnchor: anchor === undefined ? get().selectionAnchor : anchor,
-          focusedPath: focused === undefined ? get().focusedPath : focused
+          focusedPath: focused === undefined ? get().focusedPath : focused,
+          ...(paths.length > 0 ? { drivesOverview: false } : {})
         })
       }
     },
@@ -3461,7 +3468,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (id === s.activeTabId) {
         set({
           selectionAnchor: selected[0] ?? null,
-          focusedPath: selected[selected.length - 1] ?? null
+          focusedPath: selected[selected.length - 1] ?? null,
+          ...(selected.length > 0 ? { drivesOverview: false } : {})
         })
       }
     },
@@ -3497,7 +3505,19 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     setTreeFocusPath(path) {
-      set({ treeFocusPath: path })
+      set({ treeFocusPath: path, ...(path ? { drivesOverview: false } : {}) })
+    },
+
+    showDrivesOverview() {
+      const tabId = get().activeTabId
+      set((s) => ({
+        drivesOverview: true,
+        treeFocusPath: null,
+        selectionAnchor: null,
+        focusedPath: null,
+        tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, selected: [] } : t))
+      }))
+      void get().refreshDrivesNow()
     },
 
     async submitRename(newName) {

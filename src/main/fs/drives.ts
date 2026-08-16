@@ -1,10 +1,12 @@
 import { createRequire } from 'node:module'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import fsp from 'node:fs/promises'
 import { BrowserWindow } from 'electron'
 import type { DriveInfo } from '@shared/schemas/fs'
 import { AppError } from '@shared/result'
 import { displayHostLabel, driveTypeFromWin32, DRIVE_REMOTE } from '@shared/networkPaths'
+import { driveSpaceIsSafe } from '@shared/driveSpace'
 import { logMain } from '../logging'
 
 const execFileAsync = promisify(execFile)
@@ -609,7 +611,10 @@ export function getDriveTypeWin32(rootPath: string): number {
  */
 export async function listDrives(): Promise<DriveInfo[]> {
   if (process.platform !== 'win32') {
-    return [{ path: '/', label: '/', volumeName: '' }]
+    const root: DriveInfo = { path: '/', label: '/', volumeName: '' }
+    const list = [root]
+    await attachDriveSpace(list)
+    return list
   }
   const api = ensureVolumeApi()
   if (!api) return []
@@ -663,7 +668,36 @@ export async function listDrives(): Promise<DriveInfo[]> {
 
   const out = [...byLetter.values()]
   out.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: 'base' }))
+  await attachDriveSpace(out)
   return out
+}
+
+async function readDriveSpaceBytes(
+  root: string
+): Promise<{ totalBytes: number; freeBytes: number } | null> {
+  try {
+    const s = await fsp.statfs(root)
+    const totalBytes = Number(s.blocks) * Number(s.bsize)
+    const freeBytes = Number(s.bavail) * Number(s.bsize)
+    if (!(totalBytes > 0) || !Number.isFinite(totalBytes)) return null
+    return {
+      totalBytes,
+      freeBytes: Math.min(Math.max(0, Number.isFinite(freeBytes) ? freeBytes : 0), totalBytes)
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Local letters only — `statfs` on a dead mapped Z: can block for many seconds. */
+async function attachDriveSpace(drives: DriveInfo[]): Promise<void> {
+  await Promise.all(
+    drives.map(async (d, i) => {
+      if (!driveSpaceIsSafe(d)) return
+      const sp = await readDriveSpaceBytes(d.path)
+      if (sp) drives[i] = { ...d, ...sp }
+    })
+  )
 }
 
 /** Set or clear (empty string) the Windows volume label for a drive root. */

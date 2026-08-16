@@ -23,6 +23,8 @@ import { buildSafetensorsPreviewFields } from './safetensors'
 import { buildUvwPreviewFields, parseUnityMetaGuid } from './uvw'
 import { hdrPreviewFields, parseHdrHeader, unknownHdrFields } from './hdr'
 import { decodeSamiBuffer } from './sami'
+import { icsDateRangeLabel, parseIcs } from '@shared/ics'
+import { parseEml } from '@shared/eml'
 import { lnkDetailsToFields, readLnkDetails } from './lnk'
 import { loadZipArchiveTree } from './zipArchive'
 import { loadUnityPackageTree } from './unityPackage'
@@ -139,7 +141,10 @@ const TEXT_EXTS = new Set([
   'lua',
   'vue',
   'svelte',
-  'srt'
+  'srt',
+  'ics',
+  'ical',
+  'eml'
 ])
 const MARKDOWN_EXTS = new Set(['md', 'markdown'])
 const HTML_EXTS = new Set(['html', 'htm'])
@@ -156,7 +161,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 21
+const PREVIEW_CACHE_REV = 23
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -1688,11 +1693,84 @@ async function buildTextOrBinaryPreview(
   }
   if (size > readBytes) warnings.push('Preview truncated')
   const subtitle =
-    ext === 'srt' ? 'SubRip subtitle' : ext === 'sub' ? 'Subtitle' : undefined
+    ext === 'srt'
+      ? 'SubRip subtitle'
+      : ext === 'sub'
+        ? 'Subtitle'
+        : ext === 'ics' || ext === 'ical'
+          ? 'iCalendar'
+          : ext === 'eml'
+            ? 'Email'
+            : undefined
   if (subtitle) {
     const typeIdx = fields.findIndex((f) => f.id === 'file.type')
     if (typeIdx >= 0) {
       fields[typeIdx] = { id: 'file.type', label: 'Type', value: subtitle, group: 'file' }
+    }
+  }
+  if (ext === 'ics' || ext === 'ical') {
+    const cal = parseIcs(sample)
+    if (cal) {
+      if (cal.calendarName) {
+        fields.push({
+          id: 'ics.calendar',
+          label: 'Calendar',
+          value: cal.calendarName,
+          group: 'other'
+        })
+      }
+      if (cal.method && cal.method !== 'PUBLISH') {
+        fields.push({ id: 'ics.method', label: 'Method', value: cal.method, group: 'other' })
+      }
+      if (cal.timezone) {
+        fields.push({ id: 'ics.timezone', label: 'Timezone', value: cal.timezone, group: 'other' })
+      }
+      if (cal.eventCount) {
+        fields.push({
+          id: 'ics.events',
+          label: 'Events',
+          value: String(cal.eventCount),
+          group: 'other'
+        })
+      }
+      if (cal.todoCount) {
+        fields.push({
+          id: 'ics.todos',
+          label: 'To-dos',
+          value: String(cal.todoCount),
+          group: 'other'
+        })
+      }
+      const range = icsDateRangeLabel(cal)
+      if (range) {
+        fields.push({ id: 'ics.range', label: 'Date range', value: range, group: 'other' })
+      }
+      if (cal.truncated) warnings.push('Agenda truncated')
+    }
+  }
+  if (ext === 'eml') {
+    const mail = parseEml(sample)
+    if (mail) {
+      if (mail.from) {
+        fields.push({ id: 'eml.from', label: 'From', value: mail.from, group: 'other' })
+      }
+      if (mail.to) {
+        fields.push({ id: 'eml.to', label: 'To', value: mail.to, group: 'other' })
+      }
+      if (mail.subject) {
+        fields.push({ id: 'eml.subject', label: 'Subject', value: mail.subject, group: 'other' })
+      }
+      if (mail.date) {
+        fields.push({ id: 'eml.date', label: 'Sent', value: mail.date, group: 'other' })
+      }
+      if (mail.attachments.length) {
+        fields.push({
+          id: 'eml.attachments',
+          label: 'Attachments',
+          value: mail.attachments.map((a) => a.filename).join(', '),
+          group: 'other'
+        })
+      }
     }
   }
   return {

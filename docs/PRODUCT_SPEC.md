@@ -34,7 +34,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 - Preview pane **collapsible**; collapsed state + widths persisted.
 - Pane split ratios persisted in session.
 - **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.
-- **Drives** — live mounted letters (incl. mapped network drives). Right-click the section header for **Map / Disconnect network drive** (native Windows dialogs).
+- **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Map / Disconnect network drive** (native Windows dialogs).
 - **Network** (D44) — below Drives when LAN discovery is running or hosts were found. Expand a computer → SMB shares (async; does not block folder listing). Open UNC like Explorer; Map / Disconnect / Refresh on the Network header. Tunables in **Settings → Network** (auto vs manual rediscovery + interval). Full detail: [NETWORKS.md](NETWORKS.md).
 
 ---

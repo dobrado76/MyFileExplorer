@@ -38,6 +38,9 @@ describe('languageFromPath', () => {
     expect(languageFromPath('D:\\mod.py')).toBe('python')
     expect(languageFromPath('D:\\movie.srt')).toBe('srt')
     expect(languageFromPath('D:\\movie.sub')).toBe('srt')
+    expect(languageFromPath('D:\\meet.ics')).toBe('ics')
+    expect(languageFromPath('D:\\meet.ical')).toBe('ics')
+    expect(languageFromPath('D:\\note.eml')).toBe('eml')
   })
 
   it('returns null for unknown extensions', () => {
@@ -90,6 +93,30 @@ describe('highlightCode', () => {
     expect(html).toContain('--&gt;')
     expect(html).toContain('hljs-meta')
     expect(html).toContain('&lt;i&gt;')
+  })
+
+  it('highlights email headers', () => {
+    const src = 'From: a@b.test\nSubject: Hi\n\nBody'
+    const { html, language } = highlightCode(src, 'C:\\note.eml')
+    expect(language).toBe('eml')
+    expect(html).toContain('hljs-keyword')
+    expect(html).toContain('From')
+    expect(html).toContain('hljs-string')
+    expect(html).toContain('a@b.test')
+    expect(html).toContain('Body')
+  })
+
+  it('highlights iCalendar properties and dates', () => {
+    const src = 'BEGIN:VCALENDAR\nDTSTART:20260816T100000Z\nSUMMARY:Standup\nEND:VCALENDAR'
+    const { html, language } = highlightCode(src, 'C:\\meet.ics')
+    expect(language).toBe('ics')
+    expect(html).toContain('hljs-keyword')
+    expect(html).toContain('BEGIN')
+    expect(html).toContain('VCALENDAR')
+    expect(html).toContain('hljs-number')
+    expect(html).toContain('20260816T100000Z')
+    expect(html).toContain('hljs-string')
+    expect(html).toContain('Standup')
   })
 
   it('highlights MicroDVD frame ranges', () => {

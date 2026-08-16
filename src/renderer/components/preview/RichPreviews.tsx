@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from '
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import type { PptSlidePreview, SpreadsheetSheet } from '@shared/schemas/preview'
+import { formatIcsAgenda, parseIcs } from '@shared/ics'
+import { formatEmlHeaders, parseEml } from '@shared/eml'
 import { pdfPreviewSrc } from '../../lib/pdfPreview'
 import { DEFAULT_VID_THUMB_FRAME_MS } from '@shared/vidThumbCache'
 import { useAppStore } from '../../store/appStore'
@@ -100,6 +102,71 @@ export function MarkdownPreview({
   return (
     <SourceModeShell path={path} source={source}>
       <div className="preview-rich md" dangerouslySetInnerHTML={{ __html: html }} />
+    </SourceModeShell>
+  )
+}
+
+/** iCalendar — agenda by default, raw `.ics` on toggle. */
+export function IcsPreview({
+  source,
+  path
+}: {
+  source: string
+  path: string
+}): JSX.Element {
+  const agenda = useMemo(() => {
+    const cal = parseIcs(source)
+    return cal ? formatIcsAgenda(cal) : null
+  }, [source])
+  if (!agenda) {
+    return <CodePreview source={source} path={path} />
+  }
+  return (
+    <SourceModeShell path={path} source={source}>
+      <pre className="preview-text preview-code" tabIndex={0}>
+        <code>{agenda}</code>
+      </pre>
+    </SourceModeShell>
+  )
+}
+
+function sanitizeEmlHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'img', 'picture', 'video', 'audio', 'source'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'style'],
+    ALLOWED_URI_REGEXP: /^(?:mailto:|#)/i
+  })
+}
+
+/** Saved email — headers + body; remote images are not loaded. */
+export function EmlPreview({
+  source,
+  path
+}: {
+  source: string
+  path: string
+}): JSX.Element {
+  const msg = useMemo(() => parseEml(source), [source])
+  const headers = msg ? formatEmlHeaders(msg) : ''
+  const html = useMemo(() => (msg?.html ? sanitizeEmlHtml(msg.html) : ''), [msg])
+  if (!msg || !headers) {
+    return <CodePreview source={source} path={path} />
+  }
+  return (
+    <SourceModeShell path={path} source={source}>
+      <div className="preview-eml">
+        <pre className="preview-text preview-code" tabIndex={0}>
+          <code>{headers}</code>
+        </pre>
+        {html ? (
+          <div className="preview-rich html" dangerouslySetInnerHTML={{ __html: html }} />
+        ) : msg.text ? (
+          <pre className="preview-text preview-code" tabIndex={0}>
+            <code>{msg.text}</code>
+          </pre>
+        ) : null}
+      </div>
     </SourceModeShell>
   )
 }

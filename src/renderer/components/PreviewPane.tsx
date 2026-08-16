@@ -7,6 +7,7 @@ import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
 import { PreviewView } from './preview/PreviewView'
+import { isVolumeRootPath } from '../lib/rightDrag'
 
 export function PreviewPane(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
@@ -21,7 +22,18 @@ export function PreviewPane(): JSX.Element {
   const drawCaption = useAppStore((s) => s.devGateActive && s.settings.slideshow.drawCaption)
   const [captionPosterUrl, setCaptionPosterUrl] = useState<string | null>(null)
 
+  const drives = useAppStore((s) => s.drives)
+  const drivesOverview = useAppStore((s) => s.drivesOverview)
+  const listingPath = useAppStore((s) => s.listing.path)
   const { previewPath, selectedStamp, versionOverrideAds, selected } = usePreviewTarget()
+  const driveSpace =
+    drivesOverview && selected.length === 0
+      ? { drives, focusPath: null as string | null }
+      : selected.length <= 1 && previewPath && isVolumeRootPath(previewPath)
+        ? { drives, focusPath: previewPath }
+        : selected.length === 0 && isVolumeRootPath(listingPath)
+          ? { drives, focusPath: listingPath }
+          : null
   const { model, loading, retryPlayableForce } = usePreviewFetch(
     previewPath,
     versionOverrideAds,
@@ -120,6 +132,7 @@ export function PreviewPane(): JSX.Element {
       model={model}
       loading={loading}
       previewPath={previewPath}
+      driveSpace={driveSpace}
       multiCount={selected.length}
       mediaHold={mediaHold}
       previewWindowOpen={previewWindowOpen}

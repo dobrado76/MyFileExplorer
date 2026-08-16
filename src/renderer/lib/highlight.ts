@@ -158,7 +158,10 @@ export function languageFromPath(filePath: string): string | null {
     vue: 'xml',
     svelte: 'xml',
     srt: 'srt',
-    sub: 'srt'
+    sub: 'srt',
+    ics: 'ics',
+    ical: 'ics',
+    eml: 'eml'
   }
   return map[ext] ?? null
 }
@@ -180,6 +183,12 @@ export function highlightLanguage(source: string, language: string): HighlightRe
   }
   if (language === 'srt') {
     return { language: 'srt', html: highlightSubtitle(source) }
+  }
+  if (language === 'ics') {
+    return { language: 'ics', html: highlightIcs(source) }
+  }
+  if (language === 'eml') {
+    return { language: 'eml', html: highlightEml(source) }
   }
   if (!language || language === 'plaintext') {
     return { language: language || null, html: highlightHashComments(source) }
@@ -206,6 +215,12 @@ export function highlightCode(source: string, filePath: string): HighlightResult
   }
   if (lang === 'srt') {
     return { language: 'srt', html: highlightSubtitle(source) }
+  }
+  if (lang === 'ics') {
+    return { language: 'ics', html: highlightIcs(source) }
+  }
+  if (lang === 'eml') {
+    return { language: 'eml', html: highlightEml(source) }
   }
   if (!lang || lang === 'plaintext') {
     return { language: lang, html: highlightHashComments(source) }
@@ -315,6 +330,45 @@ function highlightUnityShader(source: string): string {
       i++
     }
     return out
+  }).join('\n')
+}
+
+/** Email (`.eml`) — highlight headers; leave the MIME body escaped. */
+function highlightEml(source: string): string {
+  const m = /\r?\n\r?\n/.exec(source)
+  const head = m ? source.slice(0, m.index) : source
+  const body = m ? source.slice(m.index) : ''
+  const headHtml = head.split('\n').map((line) => {
+    if (/^[ \t]/.test(line)) return escapeHtml(line)
+    const hm = /^([A-Za-z0-9-]+)(:)(.*)$/.exec(line)
+    if (!hm) return escapeHtml(line)
+    return `<span class="hljs-keyword">${escapeHtml(hm[1]!)}</span>${escapeHtml(hm[2]!)}<span class="hljs-string">${escapeHtml(hm[3]!)}</span>`
+  }).join('\n')
+  return headHtml + escapeHtml(body)
+}
+
+/** iCalendar (`.ics` / `.ical`) — property names, BEGIN/END, dates. */
+function highlightIcs(source: string): string {
+  return source.split('\n').map((line) => {
+    if (/^[ \t]/.test(line)) return escapeHtml(line)
+    const m = /^([A-Za-z0-9-]+)((?:;[^:]*)?)(:)(.*)$/.exec(line)
+    if (!m) return escapeHtml(line)
+    const name = m[1]!
+    const params = m[2]!
+    const colon = m[3]!
+    const value = m[4]!
+    const nameHtml = /^(BEGIN|END)$/i.test(name)
+      ? `<span class="hljs-keyword">${escapeHtml(name)}</span>`
+      : `<span class="hljs-meta">${escapeHtml(name)}</span>`
+    let valueHtml = escapeHtml(value)
+    if (/^(BEGIN|END)$/i.test(name)) {
+      valueHtml = `<span class="hljs-keyword">${escapeHtml(value)}</span>`
+    } else if (/^\d{8}(?:T\d{6}Z?)?$/i.test(value)) {
+      valueHtml = `<span class="hljs-number">${escapeHtml(value)}</span>`
+    } else if (value.length > 0) {
+      valueHtml = `<span class="hljs-string">${escapeHtml(value)}</span>`
+    }
+    return `${nameHtml}${params ? `<span class="hljs-meta">${escapeHtml(params)}</span>` : ''}${escapeHtml(colon)}${valueHtml}`
   }).join('\n')
 }
 

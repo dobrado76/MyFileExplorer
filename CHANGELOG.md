@@ -11,6 +11,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **`.ics` / `.ical` preview** — iCalendar files show an event / to-do agenda (Preview) and highlighted source (Raw), plus calendar name, timezone, counts, and date range.
+- **`.eml` preview** — saved email shows From / To / Subject / Date, attachment names, and the body (plain text or sanitized HTML). Raw is the highlighted source. Remote images are not loaded. Outlook `.msg` is not supported.
+- **Drive free space** — opening a drive shows `N GB free of M GB` in the status bar. Click the tree **Drives** header for every volume in the status bar and pie charts in the preview pane (local disks only; mapped/offline letters are skipped so a dead Z: cannot freeze the UI).
 - **Show folder statistics** — Settings → Behavior toggle (on by default). Off hides calculated folder sizes in the Size column and the Files / Folders columns, and skips those ADS reads so you can compare listing performance. Calculate Statistics still works.
 - **Detached preview window** — preview pane header **Open preview window** opens a peer window with the same live preview. It follows the selection independently of collapsing the docked pane; position/size/maximized are remembered (stripped on settings export).
 - **Search exclude patterns** — Settings → Search index uses the same pattern language as View filter (folders, file names, extensions, wildcards, or a path), not folder names only.

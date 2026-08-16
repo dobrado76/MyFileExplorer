@@ -153,7 +153,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - UTF-8 / UTF-16 LE sniff; if binary → `kind: 'binary'`
 - Show first `textPreviewMaxBytes` bytes (default 2 MiB; Settings → Preview)
 - **Syntax highlighting** in the renderer (`highlight.js`, selective grammars) for common types: HTML/XML, JSON, TS/JS, YAML, CSS/SCSS, Python, shell/PowerShell (`.ps1` / `.ps`), batch (`.bat` / `.cmd`), VBScript (`.vbs`), INI/TOML-ish, SQL, C-family, Rust, Go, PHP, Ruby, Lua, Unity ShaderLab/HLSL (`.shader`), etc. Unknown extensions stay monospace plaintext.
-- Extensions: `.txt`, `.json`, `.yaml`, `.yml`, `.wlt` (YAML), `.ffs_gui` (XML), `.log`, `.css`, `.js`, `.ts`, … (`.md` / office formats use dedicated kinds below)
+- Extensions: `.txt`, `.json`, `.yaml`, `.yml`, `.wlt` (YAML), `.ffs_gui` (XML), `.log`, `.css`, `.js`, `.ts`, `.ics` / `.ical` (iCalendar agenda + Raw source), `.eml` (email headers + body; remote images blocked), … (`.md` / office formats use dedicated kinds below)
 
 ---
 

@@ -216,6 +216,10 @@ export type DriveInfo = {
   offline?: boolean
   /** UNC target for mapped letters when known (`\\server\share`). */
   remotePath?: string
+  /** Capacity from `statfs` / GetDiskFreeSpaceEx — omitted for offline / remote. */
+  totalBytes?: number
+  /** Bytes available to the current user. */
+  freeBytes?: number
 }
 
 export const setVolumeLabelRequestSchema = z.object({

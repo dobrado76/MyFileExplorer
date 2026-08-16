@@ -15,6 +15,8 @@ import {
   AudioPreview,
   HtmlDocumentPreview,
   HtmlSourcePreview,
+  EmlPreview,
+  IcsPreview,
   MarkdownPreview,
   PdfPreview,
   PowerPointPreview,
@@ -28,6 +30,8 @@ import { ZipArchivePreview } from './ZipArchivePreview'
 import { ChmPreview } from './ChmPreview'
 import { FontPreview } from './FontPreview'
 import { Model3dPreview } from './Model3dPreview'
+import { DriveSpacePreview } from './DriveSpacePreview'
+import type { DriveInfo } from '@shared/schemas/fs'
 
 function archiveContentsLabel(format: PreviewModel['archiveFormat']): string {
   switch (format) {
@@ -126,6 +130,8 @@ export type PreviewViewProps = {
   onExtractZip?: (paths: string[]) => void
   onNotify?: (text: string) => void
   onRetryPlayableForce: () => void
+  /** Volume pies — all drives, or one drive when `focusPath` is set. */
+  driveSpace?: { drives: DriveInfo[]; focusPath?: string | null } | null
 }
 
 export function PreviewView({
@@ -143,9 +149,16 @@ export function PreviewView({
   onOpenPath,
   onExtractZip,
   onNotify,
-  onRetryPlayableForce
+  onRetryPlayableForce,
+  driveSpace = null
 }: PreviewViewProps): JSX.Element {
-  const headerSub = model ? (model.subtitle ?? kindLabel(model.kind)) : null
+  const headerSub = driveSpace
+    ? driveSpace.focusPath
+      ? 'Local disk'
+      : 'Drives'
+    : model
+      ? (model.subtitle ?? kindLabel(model.kind))
+      : null
   const multiHint = multiCount > 1 ? `${multiCount} selected` : null
 
   const copyValue = async (value: string): Promise<void> => {
@@ -183,7 +196,9 @@ export function PreviewView({
 
       {!zen ? banner : null}
 
-      {!previewPath ? (
+      {driveSpace ? (
+        <DriveSpacePreview drives={driveSpace.drives} focusPath={driveSpace.focusPath} />
+      ) : !previewPath ? (
         <div className="preview-empty">Select a file to preview</div>
       ) : loading && !model ? (
         <div className="preview-empty">
@@ -251,7 +266,13 @@ function PreviewBody({
           </div>
         )}
         {model.kind === 'text' && model.textSample !== undefined && (
-          <CodePreview source={model.textSample} path={model.path} />
+          /\.(ics|ical)$/i.test(model.path) ? (
+            <IcsPreview source={model.textSample} path={model.path} />
+          ) : /\.eml$/i.test(model.path) ? (
+            <EmlPreview source={model.textSample} path={model.path} />
+          ) : (
+            <CodePreview source={model.textSample} path={model.path} />
+          )
         )}
         {model.kind === 'markdown' && model.textSample !== undefined && (
           <MarkdownPreview source={model.textSample} path={model.path} />

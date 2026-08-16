@@ -301,6 +301,9 @@ const TEXT_EXTS = new Set([
   'sub',
   'smi',
   'sami',
+  'ics',
+  'ical',
+  'eml',
   'ini',
   'cfg',
   'toml'

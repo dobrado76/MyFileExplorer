@@ -1,6 +1,8 @@
 import { useMemo, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { formatBytes } from '../lib/format'
+import { driveInfoForPath, formatAllDrivesSpace, formatDriveSpaceLine } from '@shared/driveSpace'
+import { isVolumeRootPath } from '../lib/rightDrag'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
@@ -43,6 +45,8 @@ export function StatusBar(): JSX.Element {
   const fileOp = useAppStore((s) => s.fileOp)
   const notify = useAppStore((s) => s.notify)
   const clearSearch = useAppStore((s) => s.clearSearch)
+  const drives = useAppStore((s) => s.drives)
+  const drivesOverview = useAppStore((s) => s.drivesOverview)
 
   const hiddenCount = useMemo(() => {
     let hidden = 0
@@ -111,6 +115,15 @@ export function StatusBar(): JSX.Element {
       (opCurrent ? `${opCurrent} · ` : '') +
       `${formatBytes(fileOp.bytesDone!)} / ${formatBytes(fileOp.bytesTotal!)}`
   }
+
+  const driveSpaceLabel = useMemo(() => {
+    if (drivesOverview) return formatAllDrivesSpace(drives)
+    const one =
+      selected.length === 1 && isVolumeRootPath(selected[0]!)
+        ? driveInfoForPath(selected[0]!, drives)
+        : driveInfoForPath(listing.path, drives)
+    return one ? formatDriveSpaceLine(one) : ''
+  }, [drives, drivesOverview, listing.path, selected])
 
   const itemCountLabel = recycleBin.active
     ? recycleBin.loading
@@ -181,6 +194,11 @@ export function StatusBar(): JSX.Element {
           {selected.length} selected{selectionSize > 0 ? ` · ${formatBytes(selectionSize)}` : ''}
         </span>
       )}
+      {!fileOp && driveSpaceLabel ? (
+        <span className="status-drive" title={driveSpaceLabel}>
+          {driveSpaceLabel}
+        </span>
+      ) : null}
       {!fileOp && indexingRoot && (
         <span>
           Indexing {indexingRoot.path}… {indexProgress[indexingRoot.path] ?? 0} entries

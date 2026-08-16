@@ -183,6 +183,8 @@ UTF-8 / UTF-16 LE sniff; capped sample (`textPreviewMaxBytes`). Syntax highlight
 | --- | -------------------- |
 | `txt` | Plaintext |
 | `srt` | SubRip subtitle (index / timestamps / tags) |
+| `ics` / `ical` | iCalendar. **Preview** is an event / to-do agenda (name, times, location, repeats); **Raw** is highlighted source. Metadata: calendar name, method, timezone, counts, date range. All-day `DTEND` is exclusive (RFC 5545). |
+| `eml` | Saved email (RFC 5322 / MIME). **Preview** shows From / To / Subject / Date, attachment names, and the body (plain text, or sanitized HTML). **Raw** is highlighted source. Remote images / tracking pixels are not loaded. Outlook `.msg` is not this format. |
 | `sub` | Text subtitle (MicroDVD / SubViewer) when the file sniffs as UTF-8. CloneCD / VobSub `.sub` stays binary. |
 | `smi` / `sami` | See [HTML](#html) — SAMI is HTML-like; encoding is detected (often EUC-KR). |
 | `json` | JSON |
@@ -350,7 +352,7 @@ Examples that fall through to text sniff or binary icon unless listed above:
 - `psb` (Photoshop Big)
 - Office formats beyond the Word / PowerPoint / spreadsheet / RTF sets (e.g. `odt`, `pages`)
 - CloneCD / VobSub binary `.sub` (text MicroDVD `.sub` is listed under [Text / code](#text--code))
-- email / databases, etc.
+- Outlook `.msg` (OLE, not `.eml`), databases, etc.
 
 Use **Open with default app** (or the system help viewer for oversized CHMs) when the in-pane preview is limited.
 
