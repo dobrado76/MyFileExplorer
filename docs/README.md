@@ -34,7 +34,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D46               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
-| [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions    |
+| [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
 | [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
 | [NETWORKS.md](NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |

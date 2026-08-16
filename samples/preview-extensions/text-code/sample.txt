@@ -1,0 +1,2 @@
+Plain text sample.
+Second line.

@@ -25,6 +25,7 @@
     "check": "npm run typecheck && npm run lint && npm run test",
     "prepare": "node scripts/install-git-hooks.mjs",
     "icons": "node scripts/make-icons.mjs",
+    "samples:preview": "node scripts/generate-preview-samples.mjs",
     "postinstall": "node scripts/patch-filerobot-crop.mjs",
     "build:win": "electron-vite build && electron-builder --win --config electron-builder.yml --publish never",
     "dist": "node scripts/dist.mjs",

@@ -88,6 +88,10 @@ export function DriveSpacePreview({
     : undefined
   const list = focused ? [focused] : drives
 
+  if (list.length === 0) {
+    return <div className="preview-empty">No drives listed</div>
+  }
+
   return (
     <div className={`drive-space-preview${focused ? ' single' : ''}`}>
       {list.map((d) => (

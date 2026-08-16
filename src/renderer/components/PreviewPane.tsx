@@ -27,7 +27,7 @@ export function PreviewPane(): JSX.Element {
   const listingPath = useAppStore((s) => s.listing.path)
   const { previewPath, selectedStamp, versionOverrideAds, selected } = usePreviewTarget()
   const driveSpace =
-    drivesOverview && selected.length === 0
+    drivesOverview
       ? { drives, focusPath: null as string | null }
       : selected.length <= 1 && previewPath && isVolumeRootPath(previewPath)
         ? { drives, focusPath: previewPath }

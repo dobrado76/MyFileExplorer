@@ -1,0 +1,2 @@
+' Encoded VBScript sample (plain for preview)
+WScript.Echo "vbe"

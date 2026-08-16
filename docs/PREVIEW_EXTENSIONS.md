@@ -3,6 +3,8 @@
 **Version:** 0.7.x  
 **Source of truth:** extension sets in [`src/main/preview/index.ts`](../src/main/preview/index.ts) (plus CHM / video helpers). Behavior detail: [PREVIEW.md](PREVIEW.md).
 
+**Click-through fixtures:** [`samples/preview-extensions/`](../samples/preview-extensions/) — one small file per supported extension (`npm run samples:preview` to regenerate).
+
 Selecting a file shows a type-appropriate preview above the file details strip. Extensions are matched case-insensitively on the final path segment (no leading dot in the tables below).
 
 Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE) and shows a syntax-highlighted text sample when possible; otherwise `kind: 'binary'` (icon + file fields only).

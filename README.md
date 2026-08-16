@@ -117,6 +117,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
+| **[samples/preview-extensions/](samples/preview-extensions/)** | One small file per preview extension (`npm run samples:preview`) |
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |

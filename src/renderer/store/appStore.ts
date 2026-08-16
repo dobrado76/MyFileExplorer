@@ -945,7 +945,12 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function drivesKey(list: DriveInfo[]): string {
-    return list.map((d) => `${d.path.toLowerCase()}|${d.label}|${d.driveType ?? ''}|${d.offline ? 1 : 0}|${d.remotePath ?? ''}`).join('\n')
+    return list
+      .map(
+        (d) =>
+          `${d.path.toLowerCase()}|${d.label}|${d.driveType ?? ''}|${d.offline ? 1 : 0}|${d.remotePath ?? ''}|${d.totalBytes ?? ''}|${d.freeBytes ?? ''}`
+      )
+      .join('\n')
   }
 
   function startDrivePoll(): void {

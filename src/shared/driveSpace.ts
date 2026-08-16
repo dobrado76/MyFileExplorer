@@ -4,6 +4,7 @@ import type { DriveInfo } from './schemas/fs'
 export function driveSpaceIsSafe(d: Pick<DriveInfo, 'driveType' | 'offline'>): boolean {
   if (d.offline) return false
   const t = d.driveType
+  if (t === 'remote' || t === 'unknown') return false
   return t === 'fixed' || t === 'removable' || t === 'cdrom' || t === 'ramdisk' || t === undefined
 }
 
@@ -20,11 +21,18 @@ export function formatBytesBinary(n: number): string {
   return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[u]}`
 }
 
-/** Explorer-style: `123 GB free of 456 GB`. */
+/** Whole-number free percent, 0–100. */
+export function freePercent(freeBytes: number, totalBytes: number): number {
+  if (!(totalBytes > 0)) return 0
+  const free = Math.min(Math.max(0, freeBytes), totalBytes)
+  return Math.round((100 * free) / totalBytes)
+}
+
+/** Explorer-style: `123 GB free of 456 GB (27%)`. */
 export function formatFreeOfTotal(freeBytes: number, totalBytes: number): string {
   if (!(totalBytes > 0)) return ''
   const free = Math.min(Math.max(0, freeBytes), totalBytes)
-  return `${formatBytesBinary(free)} free of ${formatBytesBinary(totalBytes)}`
+  return `${formatBytesBinary(free)} free of ${formatBytesBinary(totalBytes)} (${freePercent(free, totalBytes)}%)`
 }
 
 export function driveHasSpace(d: Pick<DriveInfo, 'totalBytes' | 'freeBytes'>): boolean {
@@ -32,8 +40,11 @@ export function driveHasSpace(d: Pick<DriveInfo, 'totalBytes' | 'freeBytes'>): b
 }
 
 export function formatDriveSpaceLine(d: DriveInfo): string | null {
-  if (!driveHasSpace(d)) return null
   const letter = /^([a-zA-Z]):/.exec(d.path)?.[1]?.toUpperCase()
+  if (d.offline) {
+    return letter ? `${letter}: Disconnected` : 'Disconnected'
+  }
+  if (!driveHasSpace(d)) return null
   const body = formatFreeOfTotal(d.freeBytes!, d.totalBytes!)
   return letter ? `${letter}: ${body}` : body
 }

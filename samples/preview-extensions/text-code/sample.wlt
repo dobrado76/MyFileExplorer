@@ -1,0 +1,2 @@
+kind: layout
+name: sample

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   driveInfoForPath,
   driveSpaceIsLow,
+  driveSpaceIsSafe,
   formatAllDrivesSpace,
   formatDriveSpaceLine,
   formatFreeOfTotal,
+  freePercent,
   usedBytesOf
 } from '../shared/driveSpace'
 import type { DriveInfo } from '../shared/schemas/fs'
@@ -28,26 +30,49 @@ const d: DriveInfo = {
 }
 
 describe('formatFreeOfTotal', () => {
-  it('matches Explorer wording', () => {
-    expect(formatFreeOfTotal(c.freeBytes!, c.totalBytes!)).toBe('120 GB free of 500 GB')
+  it('includes free percent', () => {
+    expect(formatFreeOfTotal(c.freeBytes!, c.totalBytes!)).toBe('120 GB free of 500 GB (24%)')
+    expect(freePercent(0, 100)).toBe(0)
+    expect(freePercent(100, 100)).toBe(100)
   })
 })
 
 describe('formatDriveSpaceLine', () => {
   it('prefixes the letter', () => {
-    expect(formatDriveSpaceLine(c)).toBe('C: 120 GB free of 500 GB')
+    expect(formatDriveSpaceLine(c)).toBe('C: 120 GB free of 500 GB (24%)')
   })
 
-  it('skips drives without sizes', () => {
-    expect(formatDriveSpaceLine({ path: 'Z:\\', label: 'Z:', volumeName: '', offline: true })).toBeNull()
+  it('labels offline letters instead of hiding them', () => {
+    expect(formatDriveSpaceLine({ path: 'Z:\\', label: 'Z:', volumeName: '', offline: true })).toBe(
+      'Z: Disconnected'
+    )
+  })
+
+  it('skips online drives without sizes', () => {
+    expect(
+      formatDriveSpaceLine({ path: 'Z:\\', label: 'Z:', volumeName: '', driveType: 'remote' })
+    ).toBeNull()
   })
 })
 
 describe('formatAllDrivesSpace', () => {
-  it('joins online volumes', () => {
-    expect(formatAllDrivesSpace([c, d, { path: 'Z:\\', label: 'Z:', volumeName: '' }])).toBe(
-      'C: 120 GB free of 500 GB  ·  D: 8.0 GB free of 100 GB'
-    )
+  it('joins online volumes and disconnected letters', () => {
+    expect(
+      formatAllDrivesSpace([
+        c,
+        d,
+        { path: 'Z:\\', label: 'Z:', volumeName: '', offline: true, driveType: 'remote' }
+      ])
+    ).toBe('C: 120 GB free of 500 GB (24%)  ·  D: 8.0 GB free of 100 GB (8%)  ·  Z: Disconnected')
+  })
+})
+
+describe('driveSpaceIsSafe', () => {
+  it('skips offline and remote so a dead map cannot block the list', () => {
+    expect(driveSpaceIsSafe({ driveType: 'fixed' })).toBe(true)
+    expect(driveSpaceIsSafe({ driveType: 'remote' })).toBe(false)
+    expect(driveSpaceIsSafe({ driveType: 'fixed', offline: true })).toBe(false)
+    expect(driveSpaceIsSafe({ driveType: 'unknown' })).toBe(false)
   })
 })
 

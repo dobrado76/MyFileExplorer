@@ -1,0 +1,9 @@
+<SAMI>
+<HEAD><STYLE TYPE="text/css">
+P { font-family: sans-serif; }
+.ENCC { Name: English; lang: en-US; }
+</STYLE></HEAD>
+<BODY>
+<SYNC Start=0><P Class=ENCC>Hello from SAMI
+<SYNC Start=1000><P Class=ENCC>Second cue
+</BODY></SAMI>

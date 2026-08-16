@@ -1,0 +1,3 @@
+newmtl red
+Kd 1 0 0
+map_Kd sample.png

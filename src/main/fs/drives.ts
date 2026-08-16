@@ -613,7 +613,11 @@ export async function listDrives(): Promise<DriveInfo[]> {
   if (process.platform !== 'win32') {
     const root: DriveInfo = { path: '/', label: '/', volumeName: '' }
     const list = [root]
-    await attachDriveSpace(list)
+    try {
+      await attachDriveSpace(list)
+    } catch (e) {
+      logMain(`attachDriveSpace: ${e instanceof Error ? e.message : e}`)
+    }
     return list
   }
   const api = ensureVolumeApi()
@@ -668,7 +672,11 @@ export async function listDrives(): Promise<DriveInfo[]> {
 
   const out = [...byLetter.values()]
   out.sort((a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: 'base' }))
-  await attachDriveSpace(out)
+  try {
+    await attachDriveSpace(out)
+  } catch (e) {
+    logMain(`attachDriveSpace: ${e instanceof Error ? e.message : e}`)
+  }
   return out
 }
 
@@ -689,15 +697,57 @@ async function readDriveSpaceBytes(
   }
 }
 
-/** Local letters only — `statfs` on a dead mapped Z: can block for many seconds. */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      p,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms)
+      })
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/** GetVolumeInformationW is false (quickly) when a CD/card slot has no media. */
+function volumeInformationOk(rootPath: string): boolean {
+  if (process.platform !== 'win32') return true
+  const api = ensureVolumeApi()
+  if (!api) return false
+  try {
+    return api.GetVolumeInformationW(normalizeDriveRoot(rootPath), null, 0, null, null, null, null, 0) !== 0
+  } catch {
+    return false
+  }
+}
+
+const SPACE_PER_DRIVE_MS = 800
+const SPACE_ALL_MS = 1500
+
+/** Local letters only — one empty CD / dead letter must not block the whole list. */
 async function attachDriveSpace(drives: DriveInfo[]): Promise<void> {
-  await Promise.all(
-    drives.map(async (d, i) => {
+  const tasks = drives.map(async (d, i) => {
+    try {
       if (!driveSpaceIsSafe(d)) return
-      const sp = await readDriveSpaceBytes(d.path)
-      if (sp) drives[i] = { ...d, ...sp }
-    })
-  )
+      if (
+        (d.driveType === 'cdrom' || d.driveType === 'removable') &&
+        !volumeInformationOk(d.path)
+      ) {
+        return
+      }
+      const sp = await withTimeout(readDriveSpaceBytes(d.path), SPACE_PER_DRIVE_MS)
+      if (sp) drives[i] = { ...drives[i]!, ...sp }
+    } catch {
+      /* keep the letter; omit sizes */
+    }
+  })
+  await Promise.race([Promise.all(tasks), delay(SPACE_ALL_MS)])
 }
 
 /** Set or clear (empty string) the Windows volume label for a drive root. */
