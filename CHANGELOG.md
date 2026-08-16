@@ -30,6 +30,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
+- **NAS / UNC / mapped / remote folders reopen instantly** — the last listing is kept in memory for the session (about 24 folders; huge listings are skipped). Navigating back paints it immediately, then the folder revalidates in the background. F5, your own file ops, and a watch event on that folder drop the snapshot. Local disks are unchanged; nothing is written to disk.
 - **Detached preview window Zen mode** — header toggle hides metadata / details and fills the window with the visualization (image, text, player, …). State is remembered (`previewWindowZen`).
 - **Detached preview window first size** — if no saved bounds exist yet, the pop-out opens at 90% of the primary work area (centered). Later opens still restore the last size/position.
 - **Larger in-pane previews** — text/code/Markdown/HTML honor Settings → Preview max bytes (default 2 MiB; the old extra 64 KiB display cut is gone). Spreadsheets show 2000×80×32; Word/RTF ~1 MiB; PowerPoint up to 80 slides.

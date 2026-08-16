@@ -87,6 +87,8 @@ Main watches **visible pane directories** (and usually their **parents**) via `f
 
 Trash/move **suspend** closes all `ReadDirectoryChanges` handles; the renderer **re-arms** visible panes afterward (including in-folder deletes that prune without a full re-list). Watcher `error` emits `fs-watch-lost` so the renderer can re-arm. **Refresh (F5)** always reloads the listing and every tree folder already loaded for the tab.
 
+**Remote listing memory (D49):** the renderer keeps a session-only LRU of the last listing for **UNC**, **mapped remote letters**, and **`mfe-remote://`** (about 24 folders; listings over 20 000 entries are not stored). Navigating back paints that snapshot immediately, then `fs:list` revalidates in the background. Local NTFS is never cached. The snapshot is dropped on F5, in-app mutations, and `fs-changed` for that folder. Nothing is written to disk.
+
 ---
 
 ## Error model

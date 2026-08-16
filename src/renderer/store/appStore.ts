@@ -55,6 +55,11 @@ import { formatBytes } from '../lib/format'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
 import { isNetworkHostUnc } from '@shared/networkPaths'
+import {
+  ListingLru,
+  driveTypeForPath,
+  isListingCacheEligible
+} from '@shared/listingCache'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
 import {
@@ -328,6 +333,24 @@ const lastSoftReloadAtByPath = new Map<string, number>()
 
 function emptyListing(path = ''): Listing {
   return { path, entries: [], loading: false, error: null, offline: false }
+}
+
+/** Session-only last listing for UNC / mapped / `mfe-remote://` (D49). */
+const remoteListingCache = new ListingLru<DirEntry>()
+
+function listingCacheOk(path: string, drives: DriveInfo[]): boolean {
+  return isListingCacheEligible(path, { driveType: driveTypeForPath(path, drives) })
+}
+
+function rememberRemoteListing(path: string, entries: DirEntry[], drives: DriveInfo[]): void {
+  if (!listingCacheOk(path, drives)) return
+  remoteListingCache.set(path, entries)
+}
+
+function dropRemoteListingCaches(paths: Iterable<string>): void {
+  for (const p of paths) {
+    if (p) remoteListingCache.invalidate(p)
+  }
 }
 
 /** Soft-reload / watch tiers — full re-lists are expensive; fs.watch itself is cheap. */
@@ -887,6 +910,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   async function loadVisiblePaneListings(opts?: {
     preserveSelection?: boolean
     soft?: boolean
+    force?: boolean
   }): Promise<void> {
     const s = get()
     const ids = [...new Set(s.paneTabIds.filter((id): id is string => id != null))]
@@ -1237,22 +1261,97 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
+  function commitListing(
+    tabId: string,
+    listedPath: string,
+    entries: DirEntry[],
+    opts?: { preserveSelection?: boolean; clearRemoteBusy?: boolean }
+  ): DirEntry[] {
+    const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
+    const owning = resolveFolderView(tab.path, get().settings.folderViews)
+    const sort = owning?.sort ?? tab.sort
+    const sortedEntries = dedupeDirEntries(
+      sortEntries(entries, sort, get().settings.foldersFirst)
+    )
+    const nextListing: Listing = {
+      path: listedPath,
+      entries: sortedEntries,
+      loading: false,
+      error: null,
+      offline: false
+    }
+    set((s) => {
+      const valid = new Set(sortedEntries.map((e) => e.path.toLowerCase()))
+      const tabs = s.tabs.map((t) =>
+        t.id === tabId
+          ? {
+              ...t,
+              selected: opts?.preserveSelection
+                ? t.selected.filter((p) => valid.has(p.toLowerCase()))
+                : t.selected
+            }
+          : t
+      )
+      const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
+      return {
+        listingsByTabId,
+        listing: tabId === s.activeTabId ? nextListing : syncActiveListing(listingsByTabId, s.activeTabId),
+        tabs,
+        ...(opts?.clearRemoteBusy && s.remoteBusyDialog?.status === 'working'
+          ? { remoteBusyDialog: null }
+          : {})
+      }
+    })
+    return sortedEntries
+  }
+
+  function afterListingPainted(tabId: string, path: string, sortedEntries: DirEntry[]): void {
+    if (get().activeTabId === tabId) stopOfflinePoll()
+    armWatchesForPath(path, sortedEntries.length)
+    if (tabId === get().activeTabId) {
+      viewOrderCache = null
+      // Re-sorting 200k rows on the next tick freezes the UI; delete-next builds this lazily.
+      if (sortedEntries.length < WATCH_THROTTLED_MAX) {
+        queueMicrotask(() => {
+          try {
+            pathsInViewOrder()
+          } catch {
+            /* ignore */
+          }
+        })
+      }
+    }
+  }
+
   async function loadListing(
     path: string,
-    opts?: { preserveSelection?: boolean; soft?: boolean; tabId?: string }
+    opts?: { preserveSelection?: boolean; soft?: boolean; tabId?: string; force?: boolean }
   ): Promise<void> {
     const tabId = opts?.tabId ?? get().activeTabId
     if (!tabId) return
     const seq = nextListSeq(tabId)
+    const cached =
+      !opts?.soft && !opts?.force && listingCacheOk(path, get().drives)
+        ? remoteListingCache.get(path)
+        : undefined
+    const paintFromCache = cached != null
     const showRemoteBusy =
-      isRemoteLocation(path) && !opts?.soft && tabId === get().activeTabId
+      isRemoteLocation(path) &&
+      !opts?.soft &&
+      !paintFromCache &&
+      tabId === get().activeTabId
     const remoteLabel = (() => {
       const loc = parseRemoteLocation(path)
       if (!loc) return 'folder'
       if (loc.remotePath === '/') return 'remote folder'
       return remoteBasename(loc.remotePath) || 'folder'
     })()
-    if (!opts?.soft) {
+    if (paintFromCache) {
+      const painted = commitListing(tabId, path, cached, {
+        preserveSelection: opts?.preserveSelection
+      })
+      afterListingPainted(tabId, path, painted)
+    } else if (!opts?.soft) {
       set((s) => {
         const prev = s.listingsByTabId[tabId] ?? emptyListing(path)
         const nextListing: Listing = {
@@ -1282,43 +1381,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       const res = await call(api.fs.list({ path, includeHidden: true }))
       if (seq !== listRequestSeqByTab.get(tabId)) return // superseded
       if (opts?.soft) lastSoftReloadAtByPath.set(path.toLowerCase(), Date.now())
-      const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
-      const owning = resolveFolderView(tab.path, get().settings.folderViews)
-      const sort = owning?.sort ?? tab.sort
-      const sortedEntries = dedupeDirEntries(
-        sortEntries(res.entries, sort, get().settings.foldersFirst)
-      )
-      const nextListing: Listing = {
-        path: res.path,
-        entries: sortedEntries,
-        loading: false,
-        error: null,
-        offline: false
-      }
-      set((s) => {
-        const valid = new Set(sortedEntries.map((e) => e.path.toLowerCase()))
-        const tabs = s.tabs.map((t) =>
-          t.id === tabId
-            ? {
-                ...t,
-                selected: opts?.preserveSelection
-                  ? t.selected.filter((p) => valid.has(p.toLowerCase()))
-                  : t.selected
-              }
-            : t
-        )
-        const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
-        return {
-          listingsByTabId,
-          listing: tabId === s.activeTabId ? nextListing : syncActiveListing(listingsByTabId, s.activeTabId),
-          tabs,
-          ...(showRemoteBusy && s.remoteBusyDialog?.status === 'working'
-            ? { remoteBusyDialog: null }
-            : {})
-        }
+      const sortedEntries = commitListing(tabId, res.path, res.entries, {
+        preserveSelection: opts?.preserveSelection,
+        clearRemoteBusy: showRemoteBusy
       })
-      if (get().activeTabId === tabId) stopOfflinePoll()
-      armWatchesForPath(path, sortedEntries.length)
+      rememberRemoteListing(res.path, sortedEntries, get().drives)
+      afterListingPainted(tabId, path, sortedEntries)
       // Clear “(Disconnected)” in the tree as soon as a mapped letter is reachable again.
       const driveRoot = /^([a-zA-Z]:)\\/i.exec(path)
       if (driveRoot) {
@@ -1327,21 +1395,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           void get().refreshDrivesNow()
         }
       }
-      if (tabId === get().activeTabId) {
-        viewOrderCache = null
-        // Re-sorting 200k rows on the next tick freezes the UI; delete-next builds this lazily.
-        if (sortedEntries.length < WATCH_THROTTLED_MAX) {
-          queueMicrotask(() => {
-            try {
-              pathsInViewOrder()
-            } catch {
-              /* ignore */
-            }
-          })
-        }
-      }
     } catch (e) {
       if (seq !== listRequestSeqByTab.get(tabId)) return
+      if (paintFromCache) {
+        // Keep the snapshot; a brief NAS blip should not blank the pane.
+        return
+      }
       const offline = isOfflineFailure(e)
       const message = e instanceof IpcError ? e.message : String(e)
       const nextListing: Listing = {
@@ -1450,6 +1509,8 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function notifyTreeMutation(opts: { removed?: string[]; reloadParents?: string[] }): void {
+    dropRemoteListingCaches(opts.removed ?? [])
+    dropRemoteListingCaches(opts.reloadParents ?? [])
     set((s) => ({
       treeMutation: {
         rev: s.treeMutation.rev + 1,
@@ -1651,6 +1712,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       return { listingsByTabId, listing: activeListing, tabs, search: activeSearch }
     })
+    const after = get()
+    for (const L of Object.values(after.listingsByTabId)) {
+      rememberRemoteListing(L.path, L.entries, after.drives)
+    }
     // Avoid the delete's own directory-watch event re-listing tens of thousands of files.
     suppressSoftReloadUntil = Math.max(suppressSoftReloadUntil, Date.now() + 8000)
   }
@@ -2166,6 +2231,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         const s = get()
         if (event.type === 'fs-changed') {
           const changed = event.payload.path
+          dropRemoteListingCaches([changed])
           // Soft-reload any visible pane whose folder matches.
           const paneTabs = s.tabs.filter((t) => s.paneTabIds.includes(t.id))
           let matchedListing = false
@@ -2564,7 +2630,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         }))
         void get().startNetworkDiscovery()
       }
-      await loadVisiblePaneListings({ preserveSelection: true })
+      dropRemoteListingCaches(
+        get()
+          .tabs.filter((t) => get().paneTabIds.includes(t.id))
+          .map((t) => t.path)
+      )
+      await loadVisiblePaneListings({ preserveSelection: true, force: true })
       // File list and tree keep separate caches — always refresh both.
       set((s) => ({ treeRefreshRev: s.treeRefreshRev + 1 }))
     },

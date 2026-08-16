@@ -102,6 +102,19 @@ Prefs live in `settings.networkDiscovery`: `{ enabled, mode, intervalMinutes, sh
 
 ---
 
+## Listing memory cache (D49)
+
+Re-opening a NAS / UNC / mapped / `mfe-remote://` folder used to wait on a full `fs:list` every time (often ~2 s). Explorer feels faster on the second visit because the shell already has the directory in memory.
+
+MyFileExplorer does the same **in the renderer only**, session-scoped:
+
+- Paint the last listing immediately, then refresh from the network in the background.
+- Cap ~24 folders; skip listings larger than 20 000 entries.
+- Drop the snapshot on **F5**, our own create/rename/delete/move, and `fs-changed` when that folder is watched.
+- **Not** local NTFS. **Not** written to disk. **Not** used to skip the background revalidate.
+
+---
+
 ## UNC path rules (main)
 
 - Paths are validated/normalized in main before IO. UNC-aware normalize must **not** turn `\\server` into `\server` (Node `path.normalize` pitfall).
