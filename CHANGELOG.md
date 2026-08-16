@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-16
+
+Eighth product release: drive free space, detached preview, calendar/email preview, session listing cache for NAS, and a large preview-type + polish pass. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
 - **Preview extension samples** — `samples/preview-extensions/` has one small file per preview-supported extension (including `.ics` / `.ical` / `.eml`). Regenerate with `npm run samples:preview`.

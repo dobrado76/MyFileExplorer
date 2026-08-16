@@ -1,8 +1,8 @@
 # Locked decisions
 
-**Version:** 0.7.0
+**Version:** 0.8.0
 
-All notable locked product/tech decisions. Through **D46** for the v0.6 product line; **v0.7.0** adds Power Search, continue-then-review bulk ops (D18 amended), per-tab search (D29), PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, and nested custom context submenus (no new D-number). **D49** is the session-only remote listing memory cache.
+All notable locked product/tech decisions. Through **D46** for the v0.6 product line; **v0.7.0** added Power Search, continue-then-review bulk ops (D18 amended), per-tab search (D29), PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, and nested custom context submenus (no new D-number). **v0.8.0** adds drive free space, detached preview, `.ics`/`.eml` preview, and **D49** (session-only remote listing memory cache).
 
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 

@@ -3,7 +3,7 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.7.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
+**v0.8.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
@@ -32,15 +32,18 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Multi-pane layouts (1 / 2 / 4) and named layouts you can switch in one click
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
+- **NAS / UNC folders reopen instantly** (session listing cache) — **[docs/NETWORKS.md](docs/NETWORKS.md)**
 - **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/NETWORKS.md](docs/NETWORKS.md)**
 - Opt-in **FTP / FTPS / SFTP** remotes (deploy/sync) — **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)**
 - Portable **settings export/import** (theme, layouts, context menu, remotes metadata, Network hosts — everything except window position)
 
 **See what you’re looking at**
-- Rich preview pane: images (incl. `.jfif`), video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, **PowerPoint slides** (`.pptx`), `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
+- Rich preview pane: images (incl. `.jfif` / `.hdr`), video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, **PowerPoint slides** (`.pptx`), **calendar / email** (`.ics` / `.eml`), 3D meshes, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](docs/PREVIEW_EXTENSIONS.md)**
+- **Detached preview window** (Zen mode) — same live preview in a pop-out
 - **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
+- **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete
@@ -95,8 +98,10 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 8. Paste a large selection into a folder that already has some of those names — the rest copies; one review at the end.
 9. Select a `.pptx` — preview should show real slides, not a blank gray card.
 10. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
-11. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
-12. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
+11. Click the tree **Drives** header — pies and free-space % for every volume (including mapped letters).
+12. Select a `.ics` or `.eml` — agenda / email preview. Optional: **Open preview window** and try Zen.
+13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
+14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
@@ -112,7 +117,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D46 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D49 |
 | **[docs/NETWORKS.md](docs/NETWORKS.md)** | Network neighborhood & mapped drives |
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
@@ -121,7 +126,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.7.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.8.0 product-release summary |
 
 ---
 

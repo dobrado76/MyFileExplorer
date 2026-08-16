@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.7.0**. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46; D18 continue-then-review). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.8.0**. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through D46; D18 continue-then-review; D49 listing cache). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -31,7 +31,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D46               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D49               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
@@ -45,6 +45,20 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 
 ---
+
+## Recent behavior (v0.8.x)
+
+| Area | Spec |
+| ---- | ---- |
+| Drive free space | Status bar `N GB free of M GB (P%)`; tree **Drives** header → pies for every volume; mapped letters included; offline / empty media do not stall the list |
+| Detached preview | **Open preview window** peer window; Zen mode; bounds remembered (stripped on settings export) — [PREVIEW.md](PREVIEW.md) |
+| Calendar / email | `.ics` / `.ical` agenda; `.eml` headers + body (no remote images) — [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
+| NAS listing cache | D49 — session-only last listing for UNC / mapped / remotes; paint then revalidate — [NETWORKS.md](NETWORKS.md) |
+| More previews | 3D (`.obj` / `.fbx` / `.3ds`), `.hdr`, Unity / VS text, `.uvw`, subtitles, `.divx`; fixtures in [`samples/preview-extensions/`](../samples/preview-extensions/) |
+| Power Search designs | Name and reload a complex search (params stored; target chosen each run) |
+| Tab chrome | Default Lucide tab icons; Settings → Appearance show icons / equal-width tabs |
+| Folder statistics toggle | Settings → Behavior — hide calculated Size / Files / Folders columns |
+| Large folders | Details meta only for on-screen rows; Select All no longer rescans 200k listings |
 
 ## Recent behavior (v0.7.x)
 

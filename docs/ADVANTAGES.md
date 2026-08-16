@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.7.0
+**App:** MyFileExplorer · **Version:** 0.8.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -31,6 +31,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
 | **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |
 | **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](NETWORKS.md). |
+| **NAS folders reopen instantly** | Last listing for UNC / mapped / remotes is kept in memory for the session — paint immediately, then revalidate (D49). Explorer re-walks every time. |
 | **Opt-in FTP / FTPS / SFTP remotes** | Bookmark hosts, browse, upload/download, and open/preview via local scratch — without leaving the file manager. Not Explorer parity over the wire. Details: [REMOTE_FTP.md](REMOTE_FTP.md). |
 | **Portable settings backup** | Export / import full preferences — theme, named layouts, **context-menu customization**, network hosts, remote connection metadata, … — without window position. Move to a new PC or survive an OS reinstall in one file. |
 | **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
@@ -43,7 +44,9 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted). Explorer’s preview is weaker and often disabled or pane-starved. |
+| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detached preview window** (Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
+| **Drive free space at a glance** | Status bar `N GB free of M GB (P%)`; click **Drives** for pies on every volume, including mapped letters. Offline / empty media do not hide the rest. |
+| **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |
 | **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
 | **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. Saves tip ADS on NTFS (`VER_*`); `$DATA` stays original. **Version Control** submenu: commit / revert / preview versions; Drop from the preview banner. Entry: preview button, context menu, **Ctrl+E**. |
 | **ACDSee-inspired slideshow** | Gated fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop), image-list cache, and compiled file lists for huge libraries — Explorer has no equivalent. |
