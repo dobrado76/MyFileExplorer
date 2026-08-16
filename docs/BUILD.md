@@ -2,7 +2,7 @@
 
 **Version:** 0.8.0 (tag `v0.8.0`)
 
-The Windows installer (`MyFileExplorer Setup x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
+The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
 **Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](LINUX.md) (`npm run build:linux`). `npm run dist` / `dist:nobump` are **Windows-host only**.
 
@@ -20,7 +20,7 @@ npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a 
 
 `npm run check` is what the Actions job **Typecheck, lint, test** runs. A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command so a failing lint or test never leaves the machine. Skip only if you must: `git push --no-verify`.
 
-Output: `dist/MyFileExplorer Setup <version>.exe` (plus `.blockmap` / `latest.yml`).
+Output: `dist/MyFileExplorer-<version>.exe` (plus `.blockmap` / `latest.yml`). Older docs may say `MyFileExplorer Setup x.y.z.exe` — both names are accepted by Check for update.
 
 In-app **Settings → About → Updates source** accepts a local installer folder **or** a GitHub Releases URL (new installs default to https://github.com/dobrado76/MyFileExplorer/releases).
 

@@ -89,7 +89,7 @@ Settings live in `%APPDATA%\MyFileExplorer` for both `npm run dev` and installed
 The installer is too large to keep in git (>100 MB). Get it from a **GitHub Release** (CI attaches the Setup.exe when a `v*` tag is pushed — no Actions artifacts):
 
 1. Open [Releases](https://github.com/dobrado76/MyFileExplorer/releases/latest) (or the download badge above).
-2. Run `MyFileExplorer Setup x.y.z.exe`.
+2. Run `MyFileExplorer-x.y.z.exe`.
 3. Open a few folders as tabs. Rename a tab. Save a layout.
 4. Select an AI-generated PNG — check the preview for prompt / model fields.
 5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.

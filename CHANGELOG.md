@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- **GitHub Release attach** — CI looked for `MyFileExplorer Setup *.exe` after the installer was renamed to `MyFileExplorer-x.y.z.exe`, so the tag build produced an installer and then failed to attach it.
+
 ## [0.8.0] - 2026-08-16
 
 Eighth product release: drive free space, detached preview, calendar/email preview, session listing cache for NAS, and a large preview-type + polish pass. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

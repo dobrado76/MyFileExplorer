@@ -56,7 +56,7 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Preview types: [docs/PREVIEW_EXTENSIO
 
 ## Install
 
-1. Run `MyFileExplorer Setup 0.8.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.8.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
 3. Before a PC swap: **Settings → About → Export…**.
 

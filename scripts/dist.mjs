@@ -190,7 +190,7 @@ execSync('npm run build:win', { stdio: 'inherit' })
 const version = readPkgVersion()
 const setup = findNewestSetup(distDir)
 if (!setup) {
-  console.warn('Warning: no MyFileExplorer Setup *.exe found in dist/ after build')
+  console.warn('Warning: no MyFileExplorer-*.exe found in dist/ after build')
 } else if (!noClean) {
   cleanInstallersInDir(distDir, { keepName: setup.name })
   const updatesFolder = readUpdatesFolderFromSettings()
