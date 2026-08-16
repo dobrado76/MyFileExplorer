@@ -616,7 +616,7 @@ export async function listDrives(): Promise<DriveInfo[]> {
     try {
       await attachDriveSpace(list)
     } catch (e) {
-      logMain(`attachDriveSpace: ${e instanceof Error ? e.message : e}`)
+      logMain('warn', `attachDriveSpace: ${e instanceof Error ? e.message : e}`)
     }
     return list
   }
@@ -675,7 +675,7 @@ export async function listDrives(): Promise<DriveInfo[]> {
   try {
     await attachDriveSpace(out)
   } catch (e) {
-    logMain(`attachDriveSpace: ${e instanceof Error ? e.message : e}`)
+    logMain('warn', `attachDriveSpace: ${e instanceof Error ? e.message : e}`)
   }
   return out
 }
