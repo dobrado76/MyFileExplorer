@@ -33,7 +33,9 @@ export type PathRequest = z.infer<typeof pathRequestSchema>
 export const calculateFolderStatisticsRequestSchema = z.object({
   path: z.string().min(1),
   /** When true, skip folders that already have a valid TotalSize ADS stream. */
-  skipTagged: z.boolean().optional()
+  skipTagged: z.boolean().optional(),
+  /** When true, omit folders that fail and keep walking. */
+  skipOnError: z.boolean().optional()
 })
 export type CalculateFolderStatisticsRequest = z.infer<
   typeof calculateFolderStatisticsRequestSchema

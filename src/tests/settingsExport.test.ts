@@ -64,6 +64,18 @@ describe('settings export / import', () => {
     })
   })
 
+  it('round-trips folderStatsSkipPaths via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        folderStatsSkipPaths: ['D:\\envs\\conda-meta', 'd:/envs/conda-meta/']
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.folderStatsSkipPaths).toEqual(['D:\\envs\\conda-meta'])
+  })
+
   it('round-trips tabEqualWidth via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: { ...defaultSettings, tabEqualWidth: true },

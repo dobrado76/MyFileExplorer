@@ -5073,6 +5073,7 @@ html.idle-cursor-hidden * {
   white-space: pre-wrap;
   line-height: 1.45;
   user-select: text;
+  overflow-wrap: anywhere;
 }
 .alert-detail {
   margin-top: 10px;

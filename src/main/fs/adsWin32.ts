@@ -313,10 +313,11 @@ export async function readStreamBytes(filePath: string, streamName: string): Pro
 export async function writeStreamBytes(
   filePath: string,
   streamName: string,
-  data: Buffer
+  data: Buffer,
+  opts?: { preserveHostTimes?: boolean }
 ): Promise<void> {
   validateStreamName(streamName)
-  await withPreservedHostTimes(filePath, async () => {
+  const write = async (): Promise<void> => {
     const streamPath = buildStreamPath(filePath, streamName)
     // Recreate like ADS.cs folder Save (delete then create)
     if (streamExists(filePath, streamName)) {
@@ -327,7 +328,12 @@ export async function writeStreamBytes(
       }
     }
     await fsp.writeFile(streamPath, data)
-  })
+  }
+  if (opts?.preserveHostTimes === false) {
+    await write()
+    return
+  }
+  await withPreservedHostTimes(filePath, write)
 }
 
 export async function readStreamText(filePath: string, streamName: string): Promise<string> {
@@ -340,7 +346,8 @@ export async function writeStreamText(
   filePath: string,
   streamName: string,
   value: string,
-  writeEmpty = false
+  writeEmpty = false,
+  opts?: { preserveHostTimes?: boolean }
 ): Promise<void> {
   validateStreamName(streamName)
   if (value === '' && !writeEmpty) {
@@ -349,7 +356,7 @@ export async function writeStreamText(
   }
   // ADS.cs file Save writes value + '\0' via WriteLine(value+'\0') → value\0\r\n
   const payload = Buffer.from(`${value}\0\r\n`, 'utf8')
-  await writeStreamBytes(filePath, streamName, payload)
+  await writeStreamBytes(filePath, streamName, payload, opts)
 }
 
 export async function copyStreams(

@@ -4,6 +4,7 @@ import {
   FOLDER_STATS_COLUMN_IDS,
   FOLDER_STATS_STREAM_BY_COLUMN,
   parseFolderStatInt,
+  completeTaggedChildStats,
   rollupFolderStats
 } from '@shared/folderStats'
 import { columnNeedsDirectoryMeta, isDirectoryMetaColumn } from '@shared/schemas/columns'
@@ -17,12 +18,21 @@ vi.mock('../main/fs/winAttrs', () => ({
 
 vi.mock('../main/settings/store', () => ({
   settingsStore: () => ({
-    get: () => ({ viewFilterEnabled: true, viewFilterPatterns: [] })
-  })
+    get: () => ({ viewFilterEnabled: true, viewFilterPatterns: [], folderStatsSkipPaths: [] })
+  }),
+  patchSettings: vi.fn()
 }))
 
-import { isProtectedStatsDirName, shouldSkipFolderForStats } from '../shared/folderStatsSkip'
-import { folderStatWriteError } from '../main/fs/folderStats'
+import {
+  addFolderStatsSkipPath,
+  folderStatsSkipPathKeys,
+  isProtectedStatsDirName,
+  isSkippedStatsPath,
+  normalizeFolderStatsSkipPaths,
+  removeFolderStatsSkipPath,
+  shouldSkipFolderForStats
+} from '../shared/folderStatsSkip'
+import { folderStatWriteError, isFolderStatsCancelled } from '../main/fs/folderStats'
 import { pathIsReadOnly } from '../main/fs/winAttrs'
 
 describe('folderStats streams', () => {
@@ -42,6 +52,18 @@ describe('folderStats streams', () => {
     expect(parseFolderStatInt('-1')).toBe(null)
     expect(parseFolderStatInt('abc')).toBe(null)
     expect(parseFolderStatInt(null)).toBe(null)
+  })
+
+  it('completeTaggedChildStats fails closed on a missing child record', () => {
+    const ok = {
+      fileCount: 1,
+      fileTotCount: 1,
+      folderCount: 0,
+      folderTotCount: 0,
+      totalSize: 10
+    }
+    expect(completeTaggedChildStats([ok, ok])).toEqual([ok, ok])
+    expect(completeTaggedChildStats([ok, null])).toBeNull()
   })
 
   it('rollupFolderStats adds immediate counts to child subtree totals', () => {
@@ -115,6 +137,41 @@ describe('shouldSkipFolderForStats', () => {
   })
 })
 
+describe('folderStatsSkipPaths', () => {
+  it('normalizes case, slashes, and duplicates', () => {
+    expect(
+      normalizeFolderStatsSkipPaths([
+        'D:\\envs\\conda-meta',
+        'd:/envs/conda-meta/',
+        '  ',
+        'E:\\other'
+      ])
+    ).toEqual(['D:\\envs\\conda-meta', 'E:\\other'])
+  })
+
+  it('matches skip keys case-insensitively', () => {
+    const keys = folderStatsSkipPathKeys(['D:\\envs\\conda-meta'])
+    expect(isSkippedStatsPath('d:/envs/conda-meta', keys)).toBe(true)
+    expect(isSkippedStatsPath('D:\\envs\\other', keys)).toBe(false)
+  })
+
+  it('adds and removes a path', () => {
+    const added = addFolderStatsSkipPath([], 'D:\\envs\\conda-meta')
+    expect(added).toEqual(['D:\\envs\\conda-meta'])
+    expect(removeFolderStatsSkipPath(added, 'd:\\envs\\conda-meta')).toEqual([])
+  })
+})
+
+describe('isFolderStatsCancelled', () => {
+  it('treats only cancelled AppErrors as abort-always', () => {
+    expect(isFolderStatsCancelled(new AppError('cancelled', 'Cancelled'))).toBe(true)
+    expect(isFolderStatsCancelled(new AppError('io', 'denied', undefined, 'C:\\locked'))).toBe(
+      false
+    )
+    expect(isFolderStatsCancelled(new Error('nope'))).toBe(false)
+  })
+})
+
 describe('folderStatWriteError', () => {
   it('maps EPERM on a read-only folder to a clear message', () => {
     vi.mocked(pathIsReadOnly).mockReturnValueOnce(true)
@@ -123,14 +180,30 @@ describe('folderStatWriteError', () => {
       message: "EPERM: operation not permitted, open 'Z:\\\\Music\\\\Stories:FileCount:$DATA'"
     })
     expect(err).toBeInstanceOf(AppError)
+    expect(err.message).toContain('Z:\\Music\\Stories')
     expect(err.message).toContain('Read-only')
     expect(err.message).not.toContain('EPERM')
+    expect(err.path).toBe('Z:\\Music\\Stories')
+  })
+
+  it('maps EMFILE to a short retry hint', () => {
+    vi.mocked(pathIsReadOnly).mockReturnValueOnce(false)
+    const err = folderStatWriteError('C:\\mods\\config', 'FileCount', {
+      code: 'EMFILE',
+      message: 'EMFILE: too many open files'
+    })
+    expect(err.message).toContain('C:\\mods\\config')
+    expect(err.message).toContain('too many files open')
+    expect(err.message).not.toContain('EMFILE')
+    expect(err.path).toBe('C:\\mods\\config')
   })
 
   it('maps EPERM without read-only to a permission hint', () => {
     vi.mocked(pathIsReadOnly).mockReturnValueOnce(false)
     const err = folderStatWriteError('C:\\locked', 'FileCount', { code: 'EPERM', message: 'nope' })
+    expect(err.message).toContain('C:\\locked')
     expect(err.message).toContain('denied permission')
     expect(err.message).not.toContain('EPERM')
+    expect(err.path).toBe('C:\\locked')
   })
 })

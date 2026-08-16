@@ -365,7 +365,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsProperties, propertiesRequestSchema, (req) => getProperties(req.path))
   handle(IPC.fsMeasureFolder, propertiesRequestSchema, (req) => measureFolder(req.path))
   handle(IPC.fsCalculateFolderStatistics, calculateFolderStatisticsRequestSchema, (req) =>
-    calculateFolderStatistics(req.path, { skipTagged: req.skipTagged === true })
+    calculateFolderStatistics(req.path, {
+      skipTagged: req.skipTagged === true,
+      skipOnError: req.skipOnError === true
+    })
   )
   handle(IPC.fsSetAttributes, setAttributesRequestSchema, (req) =>
     setPathAttributes(req.path, {

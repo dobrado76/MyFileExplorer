@@ -212,7 +212,15 @@ export type DialogState =
       returnSection?: string
     }
   | { kind: 'tab-icon'; tabId: string }
-  | { kind: 'alert'; title: string; message: string; detail?: string }
+  | {
+      kind: 'alert'
+      title: string
+      message: string
+      detail?: string
+      path?: string
+      /** Re-run Calculate Statistics (skips folders already tagged). */
+      retryFolderStats?: { path: string }
+    }
   | {
       kind: 'confirm'
       title: string
@@ -706,7 +714,7 @@ type AppState = {
   /** Count files/folders and attach FileCount / FolderCount ADS streams on a local folder. */
   calculateFolderStatistics(
     folderPath: string,
-    opts?: { skipTagged?: boolean }
+    opts?: { skipTagged?: boolean; skipOnError?: boolean }
   ): Promise<void>
 
   // Quick access
@@ -1406,14 +1414,28 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   /** Always surface FS failures in a modal — never status-bar-only. */
-  function reportOperationError(title: string, e: unknown): void {
+  function reportOperationError(
+    title: string,
+    e: unknown,
+    extra?: { retryFolderStats?: { path: string } }
+  ): void {
     if (e instanceof IpcError && e.code === 'cancelled') {
       get().notify('Cancelled')
       return
     }
     const message = e instanceof IpcError ? e.message : String(e)
     const detail = e instanceof IpcError ? e.envelope.remediation : undefined
-    set({ dialog: { kind: 'alert', title, message, detail } })
+    const path = e instanceof IpcError ? e.envelope.path : undefined
+    set({
+      dialog: {
+        kind: 'alert',
+        title,
+        message,
+        detail,
+        path,
+        ...(extra?.retryFolderStats ? { retryFolderStats: extra.retryFolderStats } : {})
+      }
+    })
     get().notify(message.split('\n')[0] ?? message, true)
   }
 
@@ -4861,10 +4883,19 @@ export const useAppStore = create<AppState>()((set, get) => {
         const res = await call(
           api.fs.calculateFolderStatistics({
             path: folderPath,
-            ...(opts?.skipTagged ? { skipTagged: true } : {})
+            ...(opts?.skipTagged ? { skipTagged: true } : {}),
+            ...(opts?.skipOnError ? { skipOnError: true } : {})
           })
         )
         get().bumpColumnMeta(res.path)
+        if (opts?.skipOnError) {
+          try {
+            const settings = await call(api.settings.get())
+            set({ settings })
+          } catch {
+            /* keep the in-memory skip list from Skip all */
+          }
+        }
         const skipped =
           res.foldersSkipped != null && res.foldersSkipped > 0
             ? ` · ${res.foldersSkipped.toLocaleString()} skipped`
@@ -4873,7 +4904,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           `Statistics saved — ${res.foldersTagged.toLocaleString()} folders tagged${skipped} · ${res.fileTotCount.toLocaleString()} files · ${res.folderTotCount.toLocaleString()} folders · ${formatBytes(res.totalSize)}`
         )
       } catch (e) {
-        reportOperationError('Calculate Statistics failed', e)
+        reportOperationError('Calculate Statistics failed', e, {
+          retryFolderStats: { path: folderPath }
+        })
       }
     },
 

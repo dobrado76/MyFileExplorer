@@ -8,6 +8,7 @@ import koffi from 'koffi'
 import type { DirEntry } from '@shared/schemas/fs'
 
 const FILE_ATTRIBUTE_HIDDEN = 0x2
+const FILE_ATTRIBUTE_SYSTEM = 0x4
 const FILE_ATTRIBUTE_DIRECTORY = 0x10
 const FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 /** sizeof(WIN32_FIND_DATAW) */
@@ -120,6 +121,57 @@ export function listDirectoryWin32(dirPath: string, includeHidden: boolean): Dir
             isHidden
           })
         }
+      }
+      if (!apis.FindNextFileW(handle, buf)) break
+    }
+  } finally {
+    apis.FindClose(handle)
+  }
+  return entries
+}
+
+/** One FindFirstFile pass: name, size, Hidden/System — does not open file contents. */
+export type StatsScanEntry = {
+  name: string
+  path: string
+  isDir: boolean
+  isReparse: boolean
+  size: number
+  hidden: boolean
+  system: boolean
+}
+
+/**
+ * Directory listing for Calculate Statistics. Size comes from WIN32_FIND_DATA
+ * (no per-file CreateFile / stat). Returns null if the API fails.
+ */
+export function listDirectoryForStats(dirPath: string): StatsScanEntry[] | null {
+  const apis = ensureWinFindApis()
+  if (!apis) return null
+
+  const pattern = dirPath.endsWith('\\') || dirPath.endsWith('/') ? `${dirPath}*` : `${dirPath}\\*`
+  const buf = Buffer.alloc(FIND_DATA_SIZE)
+  const handle = apis.FindFirstFileW(pattern, buf)
+  if (isInvalidHandle(handle)) return null
+
+  const entries: StatsScanEntry[] = []
+  try {
+    for (;;) {
+      const name = readName(buf)
+      if (name !== '.' && name !== '..') {
+        const attrs = readU32(buf, 0)
+        const isDir = (attrs & FILE_ATTRIBUTE_DIRECTORY) !== 0
+        const sizeHigh = readU32(buf, 28)
+        const sizeLow = readU32(buf, 32)
+        entries.push({
+          name,
+          path: joinUnder(dirPath, name),
+          isDir,
+          isReparse: (attrs & FILE_ATTRIBUTE_REPARSE_POINT) !== 0,
+          size: isDir ? 0 : sizeHigh * 0x1_0000_0000 + sizeLow,
+          hidden: (attrs & FILE_ATTRIBUTE_HIDDEN) !== 0,
+          system: (attrs & FILE_ATTRIBUTE_SYSTEM) !== 0
+        })
       }
       if (!apis.FindNextFileW(handle, buf)) break
     }

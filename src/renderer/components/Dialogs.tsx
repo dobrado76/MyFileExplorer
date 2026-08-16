@@ -33,6 +33,8 @@ import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { formatBytes, formatDate } from '../lib/format'
 import { folderViewSummary } from '@shared/folderViews'
+import { addFolderStatsSkipPath, removeFolderStatsSkipPath } from '@shared/folderStatsSkip'
+import { samePath } from '@shared/paths'
 import { formatLayoutUpdatedAt, layoutSummary } from '@shared/layouts'
 import { VID_THUMB_FRAME_MS_MAX, VID_THUMB_FRAME_MS_MIN } from '@shared/vidThumbCache'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
@@ -202,7 +204,13 @@ export function Dialogs(): JSX.Element | null {
       return <TabIconPickerDialog tabId={dialog.tabId} />
     case 'alert':
       return (
-        <AlertDialog title={dialog.title} message={dialog.message} detail={dialog.detail} />
+        <AlertDialog
+          title={dialog.title}
+          message={dialog.message}
+          detail={dialog.detail}
+          path={dialog.path}
+          retryFolderStats={dialog.retryFolderStats}
+        />
       )
     case 'confirm':
       return (
@@ -298,25 +306,116 @@ function LayoutNameDialog({
 function AlertDialog({
   title,
   message,
-  detail
+  detail,
+  path,
+  retryFolderStats
 }: {
   title: string
   message: string
   detail?: string
+  path?: string
+  retryFolderStats?: { path: string }
 }): JSX.Element {
   const close = (): void => useAppStore.setState({ dialog: null })
+  const [propsBusy, setPropsBusy] = useState(false)
+  const [propsError, setPropsError] = useState<string | null>(null)
+  const openWindowsProperties = async (): Promise<void> => {
+    if (!path || propsBusy) return
+    setPropsBusy(true)
+    setPropsError(null)
+    try {
+      await call(api.shell.showProperties({ path }))
+    } catch (e: unknown) {
+      setPropsError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setPropsBusy(false)
+    }
+  }
+  const retry = (): void => {
+    if (!retryFolderStats) return
+    close()
+    // Skip folders already tagged so a long walk does not start over.
+    void useAppStore.getState().calculateFolderStatistics(retryFolderStats.path, {
+      skipTagged: true
+    })
+  }
+  const [skipBusy, setSkipBusy] = useState(false)
+  const skipAndContinue = async (skipOnError: boolean): Promise<void> => {
+    if (!retryFolderStats || skipBusy) return
+    if (!skipOnError && !path) return
+    setSkipBusy(true)
+    const store = useAppStore.getState()
+    if (path) {
+      await store.applySettingsPatch({
+        folderStatsSkipPaths: addFolderStatsSkipPath(store.settings.folderStatsSkipPaths, path)
+      })
+      const saved = useAppStore.getState().settings.folderStatsSkipPaths
+      if (!saved.some((p) => samePath(p, path))) {
+        setSkipBusy(false)
+        return
+      }
+      if (samePath(path, retryFolderStats.path)) {
+        close()
+        store.notify('Folder added to the Calculate Statistics skip list')
+        return
+      }
+    }
+    close()
+    void store.calculateFolderStatistics(retryFolderStats.path, {
+      skipTagged: true,
+      ...(skipOnError ? { skipOnError: true } : {})
+    })
+  }
   return (
     <Modal
       title={title}
       onClose={close}
       actions={
-        <button className="btn primary" onClick={close} autoFocus>
-          OK
-        </button>
+        <>
+          {path ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={propsBusy}
+              onClick={() => void openWindowsProperties()}
+            >
+              Windows Properties
+            </button>
+          ) : null}
+          {retryFolderStats ? (
+            <button type="button" className="btn" onClick={retry}>
+              Retry
+            </button>
+          ) : null}
+          {retryFolderStats && path ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={skipBusy}
+              onClick={() => void skipAndContinue(false)}
+            >
+              Skip folder
+            </button>
+          ) : null}
+          {retryFolderStats ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={skipBusy}
+              onClick={() => void skipAndContinue(true)}
+            >
+              Skip all
+            </button>
+          ) : null}
+          <button type="button" className="btn primary" onClick={close} autoFocus>
+            OK
+          </button>
+        </>
       }
     >
       <div className="alert-message">{message}</div>
       {detail ? <div className="alert-detail">{detail}</div> : null}
+      {propsError ? <div className="alert-detail">{propsError}</div> : null}
     </Modal>
   )
 }
@@ -2163,6 +2262,41 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   search — files stay listed. Rename still uses the full name. Default: lnk
                 </span>
               </label>
+              <div className="settings-field settings-field-separator">
+                <span>Calculate Statistics skip list</span>
+                <p className="settings-help">
+                  Folders omitted from Calculate Statistics (Skip folder or Skip all on a
+                  permission error). They stay visible in the file list. Remove a path here to tag
+                  it again.
+                </p>
+                {settings.folderStatsSkipPaths.length === 0 ? (
+                  <p className="settings-help">No skipped folders.</p>
+                ) : (
+                  <div className="settings-index-list roots">
+                    {settings.folderStatsSkipPaths.map((skipPath) => (
+                      <div className="index-root-row" key={skipPath}>
+                        <span className="root-path" title={skipPath}>
+                          {skipPath}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() =>
+                            void applySettingsPatch({
+                              folderStatsSkipPaths: removeFolderStatsSkipPath(
+                                settings.folderStatsSkipPaths,
+                                skipPath
+                              )
+                            })
+                          }
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

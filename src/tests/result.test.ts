@@ -47,6 +47,13 @@ describe('Result envelope', () => {
     })
   })
 
+  it('passes AppError path through', () => {
+    const envelope = errFromUnknown(
+      new AppError('io', 'denied', undefined, 'C:\\conda-meta')
+    )
+    expect(envelope.error.path).toBe('C:\\conda-meta')
+  })
+
   it('handles non-error throwables', () => {
     expect(errFromUnknown('oops').error.code).toBe('unknown')
   })

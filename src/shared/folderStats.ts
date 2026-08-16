@@ -29,6 +29,21 @@ export type FolderStatCounts = {
   totalSize: number
 }
 
+/**
+ * Shift+click fast path: every child must have a complete 5-stream record.
+ * Any gap → null (caller retags; do not abort the walk).
+ */
+export function completeTaggedChildStats(
+  rows: readonly (FolderStatCounts | null)[]
+): FolderStatCounts[] | null {
+  const out: FolderStatCounts[] = []
+  for (const s of rows) {
+    if (!s) return null
+    out.push(s)
+  }
+  return out
+}
+
 /** Roll immediate counts + child subtree totals into this folder's statistics. */
 export function rollupFolderStats(
   immediate: { files: number; folders: number; fileBytes: number },
@@ -55,7 +70,7 @@ export type FolderStatisticsResult = FolderStatCounts & {
   path: string
   /** Folders that received ADS streams (includes the root). */
   foldersTagged: number
-  /** Folders not entered: already tagged (Shift+click), or system / hidden / view-filter. */
+  /** Folders not entered: already tagged, system / hidden / view-filter, skip list, or Skip all. */
   foldersSkipped?: number
   truncated?: boolean
 }

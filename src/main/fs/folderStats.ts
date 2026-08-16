@@ -6,23 +6,32 @@ import {
   FOLDER_STAT_FOLDER_COUNT,
   FOLDER_STAT_FOLDER_TOT_COUNT,
   FOLDER_STAT_TOTAL_SIZE,
+  completeTaggedChildStats,
   parseFolderStatInt,
   rollupFolderStats,
   type FolderStatCounts,
   type FolderStatisticsResult
 } from '@shared/folderStats'
-import { shouldSkipFolderForStats } from '@shared/folderStatsSkip'
+import {
+  folderStatsSkipPathKeys,
+  isSkippedStatsPath,
+  normalizeFolderStatsSkipPaths,
+  shouldSkipFolderForStats
+} from '@shared/folderStatsSkip'
 import { compilePathPatterns, type PathPatternPredicate } from '@shared/pathPatterns'
+import { pathKey, samePath } from '@shared/paths'
 import { AppError } from '@shared/result'
 import { requireAbsolute } from './list'
-import { readStreamText, writeStreamText } from './adsWin32'
+import { readStreamText, withPreservedHostTimes, writeStreamText } from './adsWin32'
+import { listDirectoryForStats, type StatsScanEntry } from './listWin32'
 import { beginOp, type OpReporter } from './opProgress'
 import { muteWatchers } from './watch'
 import { dropColumnMetaMemoryPath, invalidateColumnMetaPaths } from '../meta/columns'
 import { getWinAttributeFlags, pathIsHidden, pathIsReadOnly } from './winAttrs'
-import { settingsStore } from '../settings/store'
+import { patchSettings, settingsStore } from '../settings/store'
 
-const STAT_CONCURRENCY = 32
+/** Folder trees in flight — keep low so ADS writes do not exhaust process handles. */
+const STAT_CONCURRENCY = 6
 /** Throttle status-bar updates during large tree walks. */
 const PROGRESS_EVERY = 500
 /** Batch disk meta-cache invalidation for tagged folders. */
@@ -31,6 +40,8 @@ const INVALIDATE_EVERY = 256
 export type CalculateFolderStatisticsOptions = {
   /** Skip folders that already have a valid TotalSize ADS stream (Shift+click). */
   skipTagged?: boolean
+  /** Keep walking when a folder cannot be read or tagged; persist those paths. */
+  skipOnError?: boolean
 }
 
 function errMsg(e: unknown): string {
@@ -52,20 +63,51 @@ function formatBytesBrief(n: number): string {
 }
 
 type WalkState = {
+  root: string
   entriesScanned: number
   foldersTagged: number
   foldersSkipped: number
   lastDir: string
   pendingInvalidate: string[]
   skipTagged: boolean
+  skipOnError: boolean
   hideHidden: boolean
   filterMatch: PathPatternPredicate
+  skipPathKeys: Set<string>
+  errorSkipPaths: string[]
 }
 
-type TagResult = {
+type TaggedResult = {
   stats: FolderStatCounts
   /** This folder or a descendant was written this run. */
   dirty: boolean
+  skipped?: false
+}
+
+type TagResult = TaggedResult | { skipped: true }
+
+export function isFolderStatsCancelled(e: unknown): boolean {
+  return e instanceof AppError && e.code === 'cancelled'
+}
+
+function wrapFolderStatsError(e: unknown): AppError {
+  return e instanceof AppError ? e : new AppError('io', errMsg(e))
+}
+
+function rememberErrorSkip(state: WalkState, absPath: string): void {
+  state.foldersSkipped++
+  const key = pathKey(absPath)
+  if (state.skipPathKeys.has(key)) return
+  state.skipPathKeys.add(key)
+  state.errorSkipPaths.push(absPath)
+}
+
+function persistErrorSkips(state: WalkState): void {
+  if (state.errorSkipPaths.length === 0) return
+  const cur = settingsStore().get().folderStatsSkipPaths ?? []
+  patchSettings({
+    folderStatsSkipPaths: normalizeFolderStatsSkipPaths([...cur, ...state.errorSkipPaths])
+  })
 }
 
 function formatWalkProgress(state: WalkState, stats: FolderStatCounts): string {
@@ -89,18 +131,12 @@ async function readStatStreamInt(dir: string, streamName: string): Promise<numbe
   }
 }
 
-async function hasValidTotalSizeStream(dir: string): Promise<boolean> {
-  return (await readStatStreamInt(dir, FOLDER_STAT_TOTAL_SIZE)) != null
-}
-
 async function readFolderStatsFromAds(dir: string): Promise<FolderStatCounts | null> {
-  const [fileCount, fileTotCount, folderCount, folderTotCount, totalSize] = await Promise.all([
-    readStatStreamInt(dir, FOLDER_STAT_FILE_COUNT),
-    readStatStreamInt(dir, FOLDER_STAT_FILE_TOT_COUNT),
-    readStatStreamInt(dir, FOLDER_STAT_FOLDER_COUNT),
-    readStatStreamInt(dir, FOLDER_STAT_FOLDER_TOT_COUNT),
-    readStatStreamInt(dir, FOLDER_STAT_TOTAL_SIZE)
-  ])
+  const fileCount = await readStatStreamInt(dir, FOLDER_STAT_FILE_COUNT)
+  const fileTotCount = await readStatStreamInt(dir, FOLDER_STAT_FILE_TOT_COUNT)
+  const folderCount = await readStatStreamInt(dir, FOLDER_STAT_FOLDER_COUNT)
+  const folderTotCount = await readStatStreamInt(dir, FOLDER_STAT_FOLDER_TOT_COUNT)
+  const totalSize = await readStatStreamInt(dir, FOLDER_STAT_TOTAL_SIZE)
   if (
     fileCount == null ||
     fileTotCount == null ||
@@ -117,9 +153,8 @@ async function trySkipTaggedFolder(
   dir: string,
   state: WalkState,
   op: OpReporter
-): Promise<TagResult | null> {
+): Promise<TaggedResult | null> {
   if (!state.skipTagged) return null
-  if (!(await hasValidTotalSizeStream(dir))) return null
   const existing = await readFolderStatsFromAds(dir)
   if (!existing) return null
   state.foldersSkipped++
@@ -127,34 +162,21 @@ async function trySkipTaggedFolder(
   return { stats: existing, dirty: false }
 }
 
-async function allSubdirsTagged(subdirs: readonly string[]): Promise<boolean> {
-  if (subdirs.length === 0) return false
-  for (let i = 0; i < subdirs.length; i += STAT_CONCURRENCY) {
-    const batch = subdirs.slice(i, i + STAT_CONCURRENCY)
-    const tagged = await Promise.all(batch.map((sub) => hasValidTotalSizeStream(sub)))
-    if (tagged.some((t) => !t)) return false
-  }
-  return true
-}
-
-async function readTaggedSubtreeStats(
+/** Shift+click: use ADS for every child only when all five streams are present. */
+async function tryReadAllTaggedChildren(
   subdirs: readonly string[],
   state: WalkState
-): Promise<FolderStatCounts[]> {
-  const out: FolderStatCounts[] = []
+): Promise<FolderStatCounts[] | null> {
+  if (!state.skipTagged || subdirs.length === 0) return null
+  const rows: (FolderStatCounts | null)[] = []
   for (let i = 0; i < subdirs.length; i += STAT_CONCURRENCY) {
     const batch = subdirs.slice(i, i + STAT_CONCURRENCY)
-    const stats = await Promise.all(batch.map((sub) => readFolderStatsFromAds(sub)))
-    for (let j = 0; j < stats.length; j++) {
-      const s = stats[j]!
-      if (!s) {
-        throw new AppError('io', `Incomplete statistics on tagged folder “${batch[j]}”`)
-      }
-      state.foldersSkipped++
-      out.push(s)
-    }
+    rows.push(...(await Promise.all(batch.map((sub) => readFolderStatsFromAds(sub)))))
   }
-  return out
+  const complete = completeTaggedChildStats(rows)
+  if (!complete) return null
+  state.foldersSkipped += complete.length
+  return complete
 }
 
 function errCode(e: unknown): string | null {
@@ -164,30 +186,38 @@ function errCode(e: unknown): string | null {
   return null
 }
 
-function folderDisplayName(dir: string): string {
-  return path.basename(dir) || dir
-}
-
 /** User-facing error when ADS statistics cannot be written on a folder. */
 export function folderStatWriteError(dir: string, streamName: string, e: unknown): AppError {
   if (pathIsReadOnly(dir)) {
-    const name = folderDisplayName(dir)
     return new AppError(
       'io',
-      `Could not save statistics on “${name}”: the folder is Read-only. Open Properties, clear Read-only (apply to this folder only), then try again.`
+      `Could not save statistics on “${dir}”: the folder is Read-only. Open Properties, clear Read-only (apply to this folder only), then try again.`,
+      undefined,
+      dir
     )
   }
   const code = errCode(e)
-  if (code === 'EPERM' || code === 'EACCES') {
-    const name = folderDisplayName(dir)
+  if (code === 'EMFILE') {
     return new AppError(
       'io',
-      `Could not save statistics on “${name}”: Windows denied permission. Check Properties → Security for this folder.`
+      `Could not save statistics on “${dir}”: too many files open at once. Try again.`,
+      undefined,
+      dir
+    )
+  }
+  if (code === 'EPERM' || code === 'EACCES') {
+    return new AppError(
+      'io',
+      `Could not save statistics on “${dir}”: Windows denied permission. Check Properties → Security for this folder.`,
+      undefined,
+      dir
     )
   }
   return new AppError(
     'io',
-    `Could not write statistics stream “${streamName}” on “${dir}”: ${errMsg(e)}`
+    `Could not write statistics stream “${streamName}” on “${dir}”: ${errMsg(e)}`,
+    undefined,
+    dir
   )
 }
 
@@ -199,21 +229,36 @@ async function assertFolderWritableForStats(dir: string): Promise<void> {
 
 async function writeStatStream(dir: string, streamName: string, value: string): Promise<void> {
   try {
-    await writeStreamText(dir, streamName, value)
+    await writeStreamText(dir, streamName, value, false, { preserveHostTimes: false })
   } catch (e) {
+    if (errCode(e) === 'EMFILE') {
+      await new Promise((r) => setTimeout(r, 40))
+      try {
+        await writeStreamText(dir, streamName, value, false, { preserveHostTimes: false })
+        return
+      } catch (e2) {
+        throw folderStatWriteError(dir, streamName, e2)
+      }
+    }
     throw folderStatWriteError(dir, streamName, e)
   }
 }
 
 async function writeFolderStatStreams(dir: string, stats: FolderStatCounts): Promise<void> {
   await assertFolderWritableForStats(dir)
-  await Promise.all([
-    writeStatStream(dir, FOLDER_STAT_FILE_COUNT, String(stats.fileCount)),
-    writeStatStream(dir, FOLDER_STAT_FILE_TOT_COUNT, String(stats.fileTotCount)),
-    writeStatStream(dir, FOLDER_STAT_FOLDER_COUNT, String(stats.folderCount)),
-    writeStatStream(dir, FOLDER_STAT_FOLDER_TOT_COUNT, String(stats.folderTotCount)),
-    writeStatStream(dir, FOLDER_STAT_TOTAL_SIZE, String(stats.totalSize))
-  ])
+  const rows: [string, string][] = [
+    [FOLDER_STAT_FILE_COUNT, String(stats.fileCount)],
+    [FOLDER_STAT_FILE_TOT_COUNT, String(stats.fileTotCount)],
+    [FOLDER_STAT_FOLDER_COUNT, String(stats.folderCount)],
+    [FOLDER_STAT_FOLDER_TOT_COUNT, String(stats.folderTotCount)],
+    [FOLDER_STAT_TOTAL_SIZE, String(stats.totalSize)]
+  ]
+  // One host-time snapshot for all five streams — do not open them in parallel.
+  await withPreservedHostTimes(dir, async () => {
+    for (const [name, value] of rows) {
+      await writeStatStream(dir, name, value)
+    }
+  })
 }
 
 function trackFolderTagged(dir: string, state: WalkState): void {
@@ -229,8 +274,13 @@ async function flushMetaInvalidation(state: WalkState, force = false): Promise<v
   state.pendingInvalidate = []
 }
 
-function skipStatsChild(absPath: string, state: WalkState): boolean {
-  const flags = getWinAttributeFlags(absPath)
+function skipStatsChild(
+  absPath: string,
+  state: WalkState,
+  attrs?: { hidden: boolean; system: boolean }
+): boolean {
+  if (isSkippedStatsPath(absPath, state.skipPathKeys)) return true
+  const flags = attrs ?? getWinAttributeFlags(absPath)
   return shouldSkipFolderForStats({
     name: path.basename(absPath),
     system: flags?.system === true,
@@ -240,22 +290,49 @@ function skipStatsChild(absPath: string, state: WalkState): boolean {
   })
 }
 
-async function scanImmediate(
-  dir: string,
+function foldStatsListing(
+  listed: readonly StatsScanEntry[],
   state: WalkState
-): Promise<{ files: number; folders: number; fileBytes: number; subdirs: string[] }> {
-  let ents
-  try {
-    ents = await fsp.readdir(dir, { withFileTypes: true })
-  } catch (e) {
-    throw new AppError('io', `Cannot read folder “${dir}”: ${errMsg(e)}`)
-  }
-
+): { files: number; folders: number; fileBytes: number; subdirs: string[] } {
   let files = 0
   let folders = 0
   let fileBytes = 0
   const subdirs: string[] = []
+  for (const e of listed) {
+    if (e.isReparse) continue
+    if (e.isDir) {
+      if (skipStatsChild(e.path, state, { hidden: e.hidden, system: e.system })) {
+        state.foldersSkipped++
+        continue
+      }
+      folders++
+      subdirs.push(e.path)
+    } else {
+      files++
+      state.entriesScanned++
+      fileBytes += e.size
+    }
+  }
+  return { files, folders, fileBytes, subdirs }
+}
 
+async function scanImmediate(
+  dir: string,
+  state: WalkState
+): Promise<{ files: number; folders: number; fileBytes: number; subdirs: string[] }> {
+  const listed = listDirectoryForStats(dir)
+  if (listed) return foldStatsListing(listed, state)
+
+  let ents
+  try {
+    ents = await fsp.readdir(dir, { withFileTypes: true })
+  } catch (e) {
+    throw new AppError('io', `Cannot read folder “${dir}”: ${errMsg(e)}`, undefined, dir)
+  }
+
+  let files = 0
+  let folders = 0
+  const subdirs: string[] = []
   for (const e of ents) {
     if (e.isSymbolicLink()) continue
     if (e.isDirectory()) {
@@ -269,24 +346,17 @@ async function scanImmediate(
     } else if (e.isFile()) {
       files++
       state.entriesScanned++
-      try {
-        const fst = await fsp.stat(path.join(dir, e.name))
-        fileBytes += fst.size
-      } catch {
-        /* unreadable file — count it, skip size */
-      }
     }
   }
-
-  return { files, folders, fileBytes, subdirs }
+  return { files, folders, fileBytes: 0, subdirs }
 }
 
 async function loadChildStats(
   sub: string,
   op: OpReporter,
   state: WalkState
-): Promise<FolderStatCounts> {
-  if (state.skipTagged && (await hasValidTotalSizeStream(sub))) {
+): Promise<FolderStatCounts | null> {
+  if (state.skipTagged) {
     const existing = await readFolderStatsFromAds(sub)
     if (existing) {
       state.foldersSkipped++
@@ -294,7 +364,7 @@ async function loadChildStats(
     }
   }
   const child = await tagFolderTree(sub, op, state)
-  return child.stats
+  return child.skipped ? null : child.stats
 }
 
 /** Depth-first walk: tag folders with immediate + rolled-up statistics. */
@@ -303,15 +373,25 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
   state.lastDir = dir
   muteWatchers(2500)
 
-  const skipped = await trySkipTaggedFolder(dir, state, op)
-  if (skipped) return skipped
+  const already = await trySkipTaggedFolder(dir, state, op)
+  if (already) return already
 
-  const { files, folders, fileBytes, subdirs } = await scanImmediate(dir, state)
+  let files: number
+  let folders: number
+  let fileBytes: number
+  let subdirs: string[]
+  try {
+    ;({ files, folders, fileBytes, subdirs } = await scanImmediate(dir, state))
+  } catch (e) {
+    if (isFolderStatsCancelled(e) || !state.skipOnError || samePath(dir, state.root)) {
+      throw wrapFolderStatsError(e)
+    }
+    rememberErrorSkip(state, e instanceof AppError && e.path ? e.path : dir)
+    return { skipped: true }
+  }
 
-  let childStats: FolderStatCounts[]
-  if (state.skipTagged && subdirs.length > 0 && (await allSubdirsTagged(subdirs))) {
-    // Every direct subfolder is tagged — read ADS only, never open those subtrees.
-    childStats = await readTaggedSubtreeStats(subdirs, state)
+  let childStats = await tryReadAllTaggedChildren(subdirs, state)
+  if (childStats) {
     const done = await trySkipTaggedFolder(dir, state, op)
     if (done) return done
   } else {
@@ -323,15 +403,33 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
       for (let j = 0; j < settled.length; j++) {
         const s = settled[j]!
         if (s.status === 'rejected') {
-          throw s.reason instanceof AppError ? s.reason : new AppError('io', errMsg(s.reason))
+          const reason = s.reason
+          if (isFolderStatsCancelled(reason) || !state.skipOnError) {
+            throw wrapFolderStatsError(reason)
+          }
+          rememberErrorSkip(state, reason instanceof AppError && reason.path ? reason.path : batch[j]!)
+          continue
         }
-        childStats.push(s.value)
+        if (s.value) childStats.push(s.value)
       }
     }
+    folders = childStats.length
   }
 
   const stats = rollupFolderStats({ files, folders, fileBytes }, childStats)
-  await writeFolderStatStreams(dir, stats)
+  try {
+    await writeFolderStatStreams(dir, stats)
+  } catch (e) {
+    if (isFolderStatsCancelled(e) || !state.skipOnError) {
+      throw wrapFolderStatsError(e)
+    }
+    if (samePath(dir, state.root)) {
+      reportProgress(state, op, stats)
+      return { stats, dirty: false }
+    }
+    rememberErrorSkip(state, dir)
+    return { skipped: true }
+  }
   trackFolderTagged(dir, state)
   await flushMetaInvalidation(state)
   reportProgress(state, op, stats)
@@ -360,40 +458,67 @@ export async function calculateFolderStatistics(
   }
 
   const skipTagged = opts.skipTagged === true
+  const skipOnError = opts.skipOnError === true
   const settings = settingsStore().get()
   const hideHidden = settings.viewFilterEnabled === true
   const filterMatch = compilePathPatterns(hideHidden ? settings.viewFilterPatterns : [])
+  const skipPathKeys = folderStatsSkipPathKeys(settings.folderStatsSkipPaths ?? [])
+  if (isSkippedStatsPath(root, skipPathKeys)) {
+    throw new AppError(
+      'validation',
+      `“${root}” is on the Calculate Statistics skip list. Remove it in Settings → Behavior to tag it.`,
+      undefined,
+      root
+    )
+  }
   const rootLabel = path.basename(root) || root
-  const label = skipTagged
-    ? `Calculating statistics (skip tagged) — ${rootLabel}`
-    : `Calculating statistics — ${rootLabel}`
+  const label = skipOnError
+    ? `Calculating statistics (skip errors) — ${rootLabel}`
+    : skipTagged
+      ? `Calculating statistics (skip tagged) — ${rootLabel}`
+      : `Calculating statistics — ${rootLabel}`
   const progress = beginOp('folder-stats', 0, label)
   muteWatchers(120_000)
   const state: WalkState = {
+    root,
     entriesScanned: 0,
     foldersTagged: 0,
     foldersSkipped: 0,
     lastDir: root,
     pendingInvalidate: [],
     skipTagged,
+    skipOnError,
     hideHidden,
-    filterMatch
+    filterMatch,
+    skipPathKeys,
+    errorSkipPaths: []
   }
 
   try {
-    progress.pulse(skipTagged ? 'Scanning untagged folders…' : 'Scanning and tagging folders…')
-    const { stats } = await tagFolderTree(root, progress, state)
+    progress.pulse(
+      skipOnError
+        ? 'Scanning — skipping folders that fail…'
+        : skipTagged
+          ? 'Scanning untagged folders…'
+          : 'Scanning and tagging folders…'
+    )
+    const tagged = await tagFolderTree(root, progress, state)
+    if (tagged.skipped) {
+      throw new AppError('io', `Could not calculate statistics for “${root}”`, undefined, root)
+    }
+    persistErrorSkips(state)
     await flushMetaInvalidation(state, true)
-    reportProgress(state, progress, stats, true)
+    reportProgress(state, progress, tagged.stats, true)
     progress.finish()
     muteWatchers(800)
     return {
       path: root,
-      ...stats,
+      ...tagged.stats,
       foldersTagged: state.foldersTagged,
       ...(state.foldersSkipped > 0 ? { foldersSkipped: state.foldersSkipped } : {})
     }
   } catch (e) {
+    persistErrorSkips(state)
     progress.fail()
     muteWatchers(800)
     throw e

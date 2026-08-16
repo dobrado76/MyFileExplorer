@@ -50,6 +50,7 @@ import {
   type ContextMenuDiscoveredSettings
 } from './shellVerbs'
 import { DEFAULT_UPDATES_SOURCE } from '../updatesSource'
+import { normalizeFolderStatsSkipPaths } from '../folderStatsSkip'
 
 /** Settings → Appearance font size (px). */
 export const FONT_SIZE_PX_MIN = 9
@@ -323,6 +324,14 @@ export const settingsSchema = z.object({
   viewFilterEnabled: z.boolean().catch(true),
   viewFilterPatterns: z.array(z.string()).catch([]),
   /**
+   * Absolute folders omitted from Calculate Statistics (Skip on a write/permission error).
+   * Does not hide them in the file list.
+   */
+  folderStatsSkipPaths: z.preprocess(
+    normalizeFolderStatsSkipPaths,
+    z.array(z.string()).catch([])
+  ),
+  /**
    * Extensions whose “.ext” is omitted from file-view / search labels (display only).
    * Values without a leading dot, e.g. `lnk`. Default includes `lnk`.
    */
@@ -519,6 +528,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   searchHttpToken: '',
   viewFilterEnabled: true,
   viewFilterPatterns: [],
+  folderStatsSkipPaths: [],
   hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,
