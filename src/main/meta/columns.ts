@@ -67,7 +67,7 @@ async function loadOne(rawPath: string, columns: DetailsColumnId[]): Promise<Ent
   }
 
   if (st.isDirectory()) {
-    if (!fetchCols.some(isDirectoryMetaColumn)) return {}
+    if (!fetchCols.some((id) => isDirectoryMetaColumn(id))) return {}
   } else if (!st.isFile()) {
     return {}
   }

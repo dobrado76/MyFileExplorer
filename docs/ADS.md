@@ -76,7 +76,7 @@ Well-known streams such as `Zone.Identifier` appear in the list with **no** spec
 | `FolderTotCount` | Subfolders in this folder and all subfolders |
 | `TotalSize` | Total size in bytes of all files under this folder (recursive) |
 
-The standard **Size** column shows `TotalSize` for folders when that stream exists (same B / KB / MB / GB formatting as files).
+The standard **Size** column shows `TotalSize` for folders when that stream exists (same B / KB / MB / GB formatting as files). Those ADS reads run only for **visible** folder rows (not the whole listing). Settings → Behavior → **Show folder statistics** (on by default) controls that display and the Files / Folders columns. Off skips those ADS reads so folders show no size; **Calculate Statistics** still writes streams.
 
 ## IPC summary
 

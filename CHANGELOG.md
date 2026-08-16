@@ -11,6 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Show folder statistics** — Settings → Behavior toggle (on by default). Off hides calculated folder sizes in the Size column and the Files / Folders columns, and skips those ADS reads so you can compare listing performance. Calculate Statistics still works.
 - **Detached preview window** — preview pane header **Open preview window** opens a peer window with the same live preview. It follows the selection independently of collapsing the docked pane; position/size/maximized are remembered (stripped on settings export).
 - **Search exclude patterns** — Settings → Search index uses the same pattern language as View filter (folders, file names, extensions, wildcards, or a path), not folder names only.
 - **Update download progress** — Settings → About shows a determinate bar (bytes + percent) while the GitHub installer downloads.
@@ -35,6 +36,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Large folders stay interactive** — Details no longer requests column metadata for every file because Size is visible. Meta (folder totals, image/media columns) loads only for on-screen rows. The Size column still uses each file’s listing size.
+- **200k-file folders no longer freeze the UI** — the Aug 15 Select All toggle re-scanned the entire listing on every store update (thumbs, progress, notices). Detection is now `selected.length === listing.length`. Huge listings also skip a second full sort after load.
 - **Calculate Statistics** — skips Windows system folders (`$RECYCLE.BIN`, System attribute, …) and, when the view filter is on, Hidden folders and view-filter matches, so a permission denied on Recycle Bin no longer aborts the walk. File sizes come from `FindFirstFile` (no per-file open); ADS streams are written one at a time so a large tree no longer hits “too many open files.” A half-written tagged folder (e.g. after a previous abort) is retagged instead of failing the whole run with “Incomplete statistics.” Permission/write errors show the **full path**, **Windows Properties** (Explorer’s sheet), **Retry** (resumes the same root, skipping folders already tagged), **Skip folder** (omit that path and resume), and **Skip all** (keep going: tag what works, skip and remember the rest; Settings → Behavior).
 - **Detached preview window + video** — playing a video no longer blanks the pop-out for later files. While that window is open, `<video>` / `<audio>` play only there (the docked pane keeps metadata / poster).
 - **GitHub Check for update** — GitHub stores the NSIS installer as `MyFileExplorer.Setup.0.x.y.exe` (dots instead of spaces). Check could still see the release via the tag, then Update refused it as “no version in its name.” Both dotted and `Setup 0.x.y` names are accepted now.

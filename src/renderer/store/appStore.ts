@@ -72,7 +72,7 @@ import {
   type KnownFolderId,
   type QuickAccessEntry
 } from '../lib/quickAccess'
-import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { isExcludedByViewFilter, listingHasAllSelected } from '../lib/viewFilter'
 import {
   mergeDismissedPaths,
   pruneSearchResultItems,
@@ -818,15 +818,24 @@ function sameExpandedSet(a: string[], b: string[]): boolean {
   return b.every((p) => set.has(p.toLowerCase()))
 }
 
-function selectablePathsForTab(s: AppState, tabId: string): string[] {
+function poolEntriesForTab(s: AppState, tabId: string): { path: string; isHidden: boolean }[] {
   const tabSearch = s.tabs.find((t) => t.id === tabId)?.search
-  const pool =
-    s.recycleBin.active && tabId === s.activeTabId
-      ? recycleBinItemsToEntries(s.recycleBin.items)
-      : tabSearch?.active
-        ? searchResultsToEntries(tabSearch.results)
-        : (s.listingsByTabId[tabId]?.entries ?? [])
-  return pool
+  if (s.recycleBin.active && tabId === s.activeTabId) {
+    return recycleBinItemsToEntries(s.recycleBin.items)
+  }
+  if (tabSearch?.active) return searchResultsToEntries(tabSearch.results)
+  return s.listingsByTabId[tabId]?.entries ?? []
+}
+
+function poolLengthForTab(s: AppState, tabId: string): number {
+  const tabSearch = s.tabs.find((t) => t.id === tabId)?.search
+  if (s.recycleBin.active && tabId === s.activeTabId) return s.recycleBin.items.length
+  if (tabSearch?.active) return tabSearch.results.length
+  return s.listingsByTabId[tabId]?.entries.length ?? 0
+}
+
+function selectablePathsForTab(s: AppState, tabId: string): string[] {
+  return poolEntriesForTab(s, tabId)
     .filter(
       (e) =>
         !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
@@ -835,10 +844,8 @@ function selectablePathsForTab(s: AppState, tabId: string): string[] {
 }
 
 function tabHasAllSelected(s: AppState, tabId: string): boolean {
-  const paths = selectablePathsForTab(s, tabId)
-  if (paths.length === 0) return false
-  const selected = new Set(s.tabs.find((t) => t.id === tabId)?.selected ?? [])
-  return paths.every((p) => selected.has(p))
+  const selectedCount = s.tabs.find((t) => t.id === tabId)?.selected.length ?? 0
+  return listingHasAllSelected(selectedCount, poolLengthForTab(s, tabId))
 }
 
 export const useAppStore = create<AppState>()((set, get) => {
@@ -1322,13 +1329,16 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       if (tabId === get().activeTabId) {
         viewOrderCache = null
-        queueMicrotask(() => {
-          try {
-            pathsInViewOrder()
-          } catch {
-            /* ignore */
-          }
-        })
+        // Re-sorting 200k rows on the next tick freezes the UI; delete-next builds this lazily.
+        if (sortedEntries.length < WATCH_THROTTLED_MAX) {
+          queueMicrotask(() => {
+            try {
+              pathsInViewOrder()
+            } catch {
+              /* ignore */
+            }
+          })
+        }
       }
     } catch (e) {
       if (seq !== listRequestSeqByTab.get(tabId)) return

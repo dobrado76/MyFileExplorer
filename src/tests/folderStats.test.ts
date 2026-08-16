@@ -7,7 +7,13 @@ import {
   completeTaggedChildStats,
   rollupFolderStats
 } from '@shared/folderStats'
-import { columnNeedsDirectoryMeta, isDirectoryMetaColumn } from '@shared/schemas/columns'
+import {
+  columnNeedsDirectoryMeta,
+  filterDirectoryMetaFetchColumns,
+  filterFileMetaFetchColumns,
+  filterMetaFetchColumns,
+  isDirectoryMetaColumn
+} from '@shared/schemas/columns'
 import { AppError } from '@shared/result'
 
 vi.mock('../main/fs/winAttrs', () => ({
@@ -90,6 +96,21 @@ describe('folderStats streams', () => {
     expect(columnNeedsDirectoryMeta('ads')).toBe(true)
     expect(isDirectoryMetaColumn('size')).toBe(true)
     expect(columnNeedsDirectoryMeta('mtime')).toBe(false)
+    expect(isDirectoryMetaColumn('size', { showFolderStatistics: false })).toBe(false)
+    expect(isDirectoryMetaColumn('fsFileCount', { showFolderStatistics: false })).toBe(false)
+    expect(isDirectoryMetaColumn('ads', { showFolderStatistics: false })).toBe(true)
+    expect(filterMetaFetchColumns(['size', 'ads', 'fsFileCount'], { showFolderStatistics: false })).toEqual(
+      ['ads']
+    )
+    expect(filterFileMetaFetchColumns(['size', 'ads', 'dimensions', 'fsFileCount'])).toEqual([
+      'ads',
+      'dimensions'
+    ])
+    expect(filterDirectoryMetaFetchColumns(['size', 'mtime', 'fsFileCount', 'ads'])).toEqual([
+      'size',
+      'fsFileCount',
+      'ads'
+    ])
   })
 })
 

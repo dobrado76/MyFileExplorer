@@ -2262,6 +2262,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   search — files stay listed. Rename still uses the full name. Default: lnk
                 </span>
               </label>
+              <SettingsToggle
+                id="set-show-folder-stats"
+                label="Show folder statistics"
+                hint="Size column and Files / Folders columns read Calculate Statistics streams. Off skips those reads so folders show no size — use this to compare listing performance. Calculate Statistics still works."
+                checked={settings.showFolderStatistics !== false}
+                onChange={(v) => void applySettingsPatch({ showFolderStatistics: v })}
+              />
               <div className="settings-field settings-field-separator">
                 <span>Calculate Statistics skip list</span>
                 <p className="settings-help">

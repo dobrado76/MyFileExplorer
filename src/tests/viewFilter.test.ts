@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { compileViewFilter, isExcludedByViewFilter } from '../renderer/lib/viewFilter'
+import {
+  compileViewFilter,
+  countVisibleEntries,
+  isExcludedByViewFilter,
+  listingHasAllSelected
+} from '../renderer/lib/viewFilter'
 
 describe('compileViewFilter', () => {
   it('returns a no-op when disabled or empty', () => {
@@ -115,5 +120,27 @@ describe('isExcludedByViewFilter', () => {
         true
       )
     ).toBe(true)
+  })
+})
+
+describe('countVisibleEntries / listingHasAllSelected', () => {
+  const rows = [
+    { path: 'C:\\a', isHidden: false },
+    { path: 'C:\\b', isHidden: true },
+    { path: 'C:\\c', isHidden: false }
+  ]
+
+  it('counts all rows when the view filter is off', () => {
+    expect(countVisibleEntries(rows, [], false)).toBe(3)
+  })
+
+  it('omits Hidden when the view filter is on', () => {
+    expect(countVisibleEntries(rows, [], true)).toBe(2)
+  })
+
+  it('treats equal selected and visible counts as select-all', () => {
+    expect(listingHasAllSelected(0, 2)).toBe(false)
+    expect(listingHasAllSelected(2, 2)).toBe(true)
+    expect(listingHasAllSelected(1, 2)).toBe(false)
   })
 })

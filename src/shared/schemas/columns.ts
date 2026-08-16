@@ -348,18 +348,60 @@ export const COLUMN_GROUP_ORDER: ColumnGroup[] = [
   'generation'
 ]
 
+export type MetaFetchOptions = {
+  /** When false, do not fetch or treat Size / Files / Folders as directory meta. */
+  showFolderStatistics?: boolean
+}
+
+export function isFolderStatsColumnId(id: string): boolean {
+  return (FOLDER_STATS_COLUMN_IDS as readonly string[]).includes(id)
+}
+
 /** Columns fetched via meta.getMany for directory rows (includes sync Size when TotalSize ADS exists). */
-export function isDirectoryMetaColumn(id: DetailsColumnId): boolean {
+export function isDirectoryMetaColumn(
+  id: DetailsColumnId,
+  opts?: MetaFetchOptions
+): boolean {
+  if (id === 'ads') return true
+  if (opts?.showFolderStatistics === false) return false
   return columnNeedsDirectoryMeta(id) || id === 'size'
 }
 
-export function filterMetaFetchColumns(columns: DetailsColumnId[]): DetailsColumnId[] {
-  return columns.filter((id) => isAsyncColumn(id) || id === 'size')
+export function filterMetaFetchColumns(
+  columns: DetailsColumnId[],
+  opts?: MetaFetchOptions
+): DetailsColumnId[] {
+  const showStats = opts?.showFolderStatistics !== false
+  return columns.filter((id) => {
+    if (!showStats && (id === 'size' || isFolderStatsColumnId(id))) return false
+    return isAsyncColumn(id) || id === 'size'
+  })
+}
+
+/**
+ * File-row meta only. `size` is already on `DirEntry`; folder TotalSize / stats
+ * are directory-only and must not enqueue every file in a large listing.
+ */
+export function filterFileMetaFetchColumns(
+  columns: DetailsColumnId[],
+  opts?: MetaFetchOptions
+): DetailsColumnId[] {
+  return filterMetaFetchColumns(columns, opts).filter(
+    (id) => id !== 'size' && !isFolderStatsColumnId(id)
+  )
+}
+
+/** Directory-row meta (ADS, folder Size / Files / Folders). */
+export function filterDirectoryMetaFetchColumns(
+  columns: DetailsColumnId[],
+  opts?: MetaFetchOptions
+): DetailsColumnId[] {
+  return columns.filter((id) => isDirectoryMetaColumn(id, opts))
 }
 
 /** Columns that need directory rows in async metadata fetch (ADS, folder stats). */
 export function columnNeedsDirectoryMeta(id: DetailsColumnId): boolean {
-  return id === 'ads' || (FOLDER_STATS_COLUMN_IDS as readonly string[]).includes(id)
+  return id === 'ads' || isFolderStatsColumnId(id)
 }
 
 /** Columns that need main-process metadata extraction. */

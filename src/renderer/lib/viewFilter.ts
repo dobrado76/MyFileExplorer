@@ -42,3 +42,22 @@ export function isExcludedByViewFilter(
   if (patterns.length === 0) return false
   return predicateFor(patterns)(entry.path)
 }
+
+/** Visible row count — do not allocate a filtered copy of a 200k listing. */
+export function countVisibleEntries(
+  entries: readonly { path: string; isHidden: boolean }[],
+  patterns: string[],
+  enabled: boolean
+): number {
+  if (!enabled) return entries.length
+  let n = 0
+  for (const e of entries) {
+    if (!isExcludedByViewFilter(e, patterns, enabled)) n++
+  }
+  return n
+}
+
+/** Select-all is a count compare — never walk items. */
+export function listingHasAllSelected(selectedCount: number, listingCount: number): boolean {
+  return listingCount > 0 && selectedCount === listingCount
+}

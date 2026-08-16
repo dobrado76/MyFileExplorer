@@ -64,6 +64,15 @@ describe('settings export / import', () => {
     })
   })
 
+  it('round-trips showFolderStatistics via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, showFolderStatistics: false },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.showFolderStatistics).toBe(false)
+  })
+
   it('round-trips folderStatsSkipPaths via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: {

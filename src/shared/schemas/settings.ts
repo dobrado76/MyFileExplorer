@@ -332,6 +332,11 @@ export const settingsSchema = z.object({
     z.array(z.string()).catch([])
   ),
   /**
+   * When false, Details does not show or fetch Calculate Statistics
+   * (folder Size / Files / Folders columns). Calculate Statistics still works.
+   */
+  showFolderStatistics: z.boolean().catch(true),
+  /**
    * Extensions whose “.ext” is omitted from file-view / search labels (display only).
    * Values without a leading dot, e.g. `lnk`. Default includes `lnk`.
    */
@@ -529,6 +534,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   viewFilterEnabled: true,
   viewFilterPatterns: [],
   folderStatsSkipPaths: [],
+  showFolderStatistics: true,
   hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,

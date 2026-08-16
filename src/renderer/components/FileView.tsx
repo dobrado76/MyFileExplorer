@@ -8,8 +8,9 @@ import {
   COLUMN_GROUP_ORDER,
   DETAILS_COLUMN_IDS,
   DETAILS_COLUMN_META,
-  filterMetaFetchColumns,
-  isDirectoryMetaColumn,
+  filterDirectoryMetaFetchColumns,
+  filterFileMetaFetchColumns,
+  isFolderStatsColumnId,
   type EntryColumnValues
 } from '@shared/schemas/columns'
 import { resolveFolderView } from '@shared/folderViews'
@@ -68,6 +69,8 @@ const GRID_SPECS = {
 
 type GridMode = keyof typeof GRID_SPECS
 
+const EMPTY_META_BY_PATH: Record<string, EntryColumnValues> = {}
+
 const SYNC_SORT_KEYS = new Set<SortKey>([
   'name',
   'folder',
@@ -122,7 +125,8 @@ function recycleDetailCellValue(
 function detailCellValue(
   id: DetailsColumnId,
   e: DirEntry,
-  meta: EntryColumnValues | undefined
+  meta: EntryColumnValues | undefined,
+  showFolderStatistics = true
 ): string {
   switch (id) {
     case 'folder':
@@ -135,6 +139,7 @@ function detailCellValue(
       return typeLabel(e.ext, e.kind === 'dir')
     case 'size':
       if (e.kind === 'dir') {
+        if (!showFolderStatistics) return ''
         const raw = meta?.size
         if (raw && /^\d+$/.test(raw)) return formatBytes(Number(raw))
         return ''
@@ -146,6 +151,7 @@ function detailCellValue(
       const raw = meta?.[id] ?? ''
       if (!raw) return ''
       if (id in FOLDER_STATS_STREAM_BY_COLUMN) {
+        if (!showFolderStatistics) return ''
         const n = Number(raw)
         return Number.isFinite(n) ? n.toLocaleString() : raw
       }
@@ -302,11 +308,16 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
    * Folder column is search-only. Strip any legacy persisted `folder` entry from
    * normal browsing; inject Folder only while search is active.
    */
+  const showFolderStatistics = settings.showFolderStatistics !== false
   const detailsColumns = useMemo(() => {
-    const base = detailsColumnsBase.filter((c) => c.id !== 'folder')
+    const base = detailsColumnsBase.filter((c) => {
+      if (c.id === 'folder') return false
+      if (!showFolderStatistics && isFolderStatsColumnId(c.id)) return false
+      return true
+    })
     if (!searchMode) return base
     return [{ id: 'folder' as const, width: searchFolderWidth }, ...base]
-  }, [searchMode, detailsColumnsBase, searchFolderWidth])
+  }, [searchMode, detailsColumnsBase, searchFolderWidth, showFolderStatistics])
   const detailsNameWidth = owningView?.detailsNameWidth ?? settings.detailsNameWidth
   const effectiveSort = useMemo(
     () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
@@ -453,10 +464,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     },
     [viewFilterOn, compiledFilter]
   )
-  const metaFetchColumns = useMemo(
-    () => filterMetaFetchColumns(detailsColumns.map((c) => c.id)),
-    [detailsColumns]
+  const fileMetaColumns = useMemo(
+    () =>
+      filterFileMetaFetchColumns(
+        detailsColumns.map((c) => c.id),
+        { showFolderStatistics }
+      ),
+    [detailsColumns, showFolderStatistics]
   )
+  const dirMetaColumns = useMemo(
+    () =>
+      filterDirectoryMetaFetchColumns(
+        detailsColumns.map((c) => c.id),
+        { showFolderStatistics }
+      ),
+    [detailsColumns, showFolderStatistics]
+  )
+  const metaFetchColumns = useMemo(
+    () => [...new Set([...fileMetaColumns, ...dirMetaColumns])],
+    [fileMetaColumns, dirMetaColumns]
+  )
+  const requestedMetaRef = useRef(new Set<string>())
 
   const recycleByPath = useMemo(() => {
     const m = new Map<string, RecycleBinItem>()
@@ -511,66 +539,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     listing.entries
   ])
 
-  // Reset / fetch column metadata when the folder or enabled columns change.
   useEffect(() => {
     setMetaByPath({})
-    if (metaFetchColumns.length === 0) return
-    const includeDirs = metaFetchColumns.some(isDirectoryMetaColumn)
-    const files = sourceEntries
-      .filter((e) => {
-        if (isExcluded(e)) return false
-        if (e.kind === 'file') return true
-        if (includeDirs && e.kind === 'dir') return true
-        return false
-      })
-      .map((e) => e.path)
-    if (files.length === 0) return
-    let cancelled = false
-    const run = async (): Promise<void> => {
-      const chunkSize = 40
-      for (let i = 0; i < files.length; i += chunkSize) {
-        if (cancelled) return
-        const chunk = files.slice(i, i + chunkSize)
-        const res = await api.meta.getMany({ paths: chunk, columns: metaFetchColumns })
-        if (cancelled || !res.ok) continue
-        setMetaByPath((prev) => ({ ...prev, ...res.value.values }))
-      }
-    }
-    void run()
-    return () => {
-      cancelled = true
-    }
-  }, [folderPath, sourceEntries, metaFetchColumns, isExcluded, searchMode, recycleMode])
+    requestedMetaRef.current.clear()
+  }, [folderPath, searchMode, recycleMode, metaFetchColumns])
 
-  // Re-fetch after ADS mutations (main cache already invalidated).
-  useEffect(() => {
-    if (!columnMetaBump.path || metaFetchColumns.length === 0) return
-    const target = columnMetaBump.path
-    const includeDirs = metaFetchColumns.some(isDirectoryMetaColumn)
-    const refreshListing = includeDirs && samePath(target, folderPath)
-    const paths = refreshListing
-      ? sourceEntries.filter((e) => e.kind === 'dir').map((e) => e.path)
-      : [target]
-    if (paths.length === 0) return
-    let cancelled = false
-    void (async () => {
-      const res = await api.meta.getMany({ paths, columns: metaFetchColumns })
-      if (cancelled || !res.ok) return
-      setMetaByPath((prev) => {
-        const next = { ...prev }
-        for (const p of paths) {
-          const values = res.value.values[p]
-          if (values && Object.keys(values).length > 0) next[p] = values
-          else delete next[p]
-        }
-        return next
-      })
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [columnMetaBump.rev, columnMetaBump.path, metaFetchColumns, folderPath, sourceEntries])
-
+  const metaForSort =
+    !recycleMode && !SYNC_SORT_KEYS.has(effectiveSort.key) ? metaByPath : EMPTY_META_BY_PATH
   const entries = useMemo(() => {
     // Avoid copying 20k entries when the filter cannot hide anything.
     let filtered = sourceEntries
@@ -628,8 +603,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         const bd = b.kind === 'dir' ? 0 : 1
         if (ad !== bd) return ad - bd
       }
-      const av = detailCellValue(colId, a, metaByPath[a.path])
-      const bv = detailCellValue(colId, b, metaByPath[b.path])
+      const av = detailCellValue(colId, a, metaForSort[a.path], showFolderStatistics)
+      const bv = detailCellValue(colId, b, metaForSort[b.path], showFolderStatistics)
       let cmp = compareColumnValues(colId, av, bv)
       if (cmp === 0) {
         cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
@@ -643,11 +618,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     isExcluded,
     viewFilterOn,
     viewPatterns.length,
-    metaByPath,
+    metaForSort,
     recycleMode,
     recycleSort,
     recycleByPath,
-    searchMode
+    searchMode,
+    showFolderStatistics
   ])
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
@@ -683,7 +659,74 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   // estimateSize changes (e.g. switching view modes / leaving Recycle Bin).
   useLayoutEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, columns, rowCount, overlayMode, viewMode, virtualizer])
+  }, [rowHeight, columns, overlayMode, viewMode, virtualizer])
+
+  // Only the virtual rows — never the whole listing (Size used to enqueue every file).
+  const visibleRangeStart = virtualizer.range?.startIndex ?? 0
+  const visibleRangeEnd = virtualizer.range?.endIndex ?? -1
+  useEffect(() => {
+    if (metaFetchColumns.length === 0 || visibleRangeEnd < visibleRangeStart) return
+    const needed: string[] = []
+    for (let row = visibleRangeStart; row <= visibleRangeEnd; row++) {
+      if (spec) {
+        const start = row * columns
+        for (let i = 0; i < columns; i++) {
+          const e = entries[start + i]
+          if (!e || requestedMetaRef.current.has(e.path)) continue
+          const want =
+            e.kind === 'dir' ? dirMetaColumns.length > 0 : fileMetaColumns.length > 0
+          if (!want) continue
+          requestedMetaRef.current.add(e.path)
+          needed.push(e.path)
+        }
+      } else {
+        const e = entries[row]
+        if (!e || requestedMetaRef.current.has(e.path)) continue
+        const want = e.kind === 'dir' ? dirMetaColumns.length > 0 : fileMetaColumns.length > 0
+        if (!want) continue
+        requestedMetaRef.current.add(e.path)
+        needed.push(e.path)
+      }
+    }
+    if (needed.length === 0) return
+    let cancelled = false
+    void (async () => {
+      const res = await api.meta.getMany({ paths: needed, columns: metaFetchColumns })
+      if (cancelled || !res.ok) {
+        for (const p of needed) requestedMetaRef.current.delete(p)
+        return
+      }
+      setMetaByPath((prev) => ({ ...prev, ...res.value.values }))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    visibleRangeStart,
+    visibleRangeEnd,
+    entries,
+    spec,
+    columns,
+    metaFetchColumns,
+    fileMetaColumns,
+    dirMetaColumns
+  ])
+
+  useEffect(() => {
+    if (!columnMetaBump.path || metaFetchColumns.length === 0) return
+    const target = columnMetaBump.path
+    if (samePath(target, folderPath)) {
+      setMetaByPath({})
+      requestedMetaRef.current.clear()
+      return
+    }
+    setMetaByPath((prev) => {
+      const next = { ...prev }
+      delete next[target]
+      return next
+    })
+    requestedMetaRef.current.delete(target)
+  }, [columnMetaBump.rev, columnMetaBump.path, folderPath, metaFetchColumns])
 
   // Search / Recycle overlays must not rewrite the tab's folder scrollOffset.
   // Otherwise Close leaves you scrolled past the end of the real listing (gaps /
@@ -1592,6 +1635,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             <span className="menu-check">✓</span>Name
           </button>
           {COLUMN_GROUP_ORDER.map((group) => {
+            if (group === 'folderStats' && !showFolderStatistics) return null
             const ids = DETAILS_COLUMN_IDS.filter(
               (id) => id !== 'folder' && DETAILS_COLUMN_META[id].group === group
             )
@@ -1853,9 +1897,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       key={c.id}
                       className={`col${DETAILS_COLUMN_META[c.id].numeric ? ' col-num' : ''}`}
                       style={{ width: colWidth(c.id) }}
-                      title={detailCellValue(c.id, entry, metaByPath[entry.path]) || undefined}
+                      title={
+                        detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics) ||
+                        undefined
+                      }
                     >
-                      {detailCellValue(c.id, entry, metaByPath[entry.path])}
+                      {detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics)}
                     </span>
                   ))}
               </div>
