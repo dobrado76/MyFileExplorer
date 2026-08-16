@@ -5453,11 +5453,25 @@ html.idle-cursor-hidden * {
   min-width: 4.5em;
 }
 .settings-labeled-row input[type='number'],
+.settings-labeled-row input[type='text'],
 .settings-labeled-row select {
   flex: 1;
   min-width: 0;
   max-width: 280px;
   user-select: text;
+}
+.settings-updates-source {
+  flex-wrap: nowrap;
+}
+.settings-updates-source > span:first-child {
+  min-width: 0;
+  white-space: nowrap;
+}
+.settings-updates-source input[type='text'] {
+  max-width: none;
+}
+.settings-updates-source .btn {
+  flex-shrink: 0;
 }
 .settings-slideshow-order-row {
   display: flex;
@@ -5530,6 +5544,14 @@ html.idle-cursor-hidden * {
 }
 .settings-toggle-label {
   font-weight: 500;
+}
+.settings-action-card .settings-toggle-label {
+  margin-bottom: 10px;
+}
+.settings-version-value {
+  font-size: 1.15em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 .settings-toggle-hint {
   color: var(--text-dim);
@@ -5636,7 +5658,11 @@ html.idle-cursor-hidden * {
   gap: 10px;
   min-width: 0;
 }
-.settings-updates-body .settings-field {
+.settings-updates-body .settings-toggle-label {
+  margin-bottom: 0;
+}
+.settings-updates-body .settings-field,
+.settings-updates-body .settings-updates-source {
   margin: 0;
 }
 .settings-updates-status {

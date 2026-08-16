@@ -3012,6 +3012,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
             <div className="settings-stack">
               <div className="settings-action-card">
                 <div>
+                  <div className="settings-toggle-label">Current version</div>
+                  <div className="settings-version-value">{appVersion || '…'}</div>
+                </div>
+              </div>
+
+              <div className="settings-action-card">
+                <div>
                   <div className="settings-toggle-label">Help & documentation</div>
                   <div className="settings-toggle-hint">
                     README, feature guides, and issue tracker on the project GitHub page.
@@ -3032,41 +3039,36 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <div className="settings-updates-body">
                   <div className="settings-toggle-label">Updates</div>
                   <div className="settings-toggle-hint">
-                    Current version: {appVersion || '…'}. Leave empty (or use the default GitHub
-                    Releases URL), or point at a local folder of installers named like{' '}
-                    <code>MyFileExplorer Setup 0.x.y.exe</code> or{' '}
-                    <code>MyFileExplorer-0.x.y.exe</code>. Check finds the newest build; Update
-                    downloads (if URL) and runs it.
+                    Leave empty (or use the default GitHub Releases URL), or point at a local folder
+                    of installers.
                   </div>
-                  <label className="settings-field" htmlFor="set-updates-folder">
-                    <span>Updates source</span>
-                    <div className="settings-inline">
-                      <input
-                        id="set-updates-folder"
-                        type="text"
-                        spellCheck={false}
-                        value={settings.updatesFolder}
-                        placeholder={DEFAULT_UPDATES_SOURCE}
-                        onChange={(e) => void applySettingsPatch({ updatesFolder: e.target.value })}
-                      />
-                      <button
-                        type="button"
-                        className="btn"
-                        title="Browse for a local updates folder"
-                        onClick={() => {
-                          void (async () => {
-                            const res = await call(api.app.pickFolder())
-                            if (res.path) {
-                              void applySettingsPatch({ updatesFolder: res.path })
-                              setUpdateStatus(null)
-                              setUpdateCandidate(null)
-                            }
-                          })()
-                        }}
-                      >
-                        Browse…
-                      </button>
-                    </div>
+                  <label className="settings-labeled-row settings-updates-source" htmlFor="set-updates-folder">
+                    <span>Folder or URL</span>
+                    <input
+                      id="set-updates-folder"
+                      type="text"
+                      spellCheck={false}
+                      value={settings.updatesFolder}
+                      placeholder={DEFAULT_UPDATES_SOURCE}
+                      onChange={(e) => void applySettingsPatch({ updatesFolder: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="btn"
+                      title="Browse for a local updates folder"
+                      onClick={() => {
+                        void (async () => {
+                          const res = await call(api.app.pickFolder())
+                          if (res.path) {
+                            void applySettingsPatch({ updatesFolder: res.path })
+                            setUpdateStatus(null)
+                            setUpdateCandidate(null)
+                          }
+                        })()
+                      }}
+                    >
+                      Browse…
+                    </button>
                   </label>
                   {updateDownload && updateBusy ? (
                     <UpdateDownloadBar
