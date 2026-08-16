@@ -1,11 +1,22 @@
 import type { DriveInfo } from './schemas/fs'
 
-/** Local volumes we can query without hanging on a dead network map. */
+/**
+ * Volumes we can query for free space. Offline maps are skipped (a dead Z:
+ * must not stall the list). Online mapped letters are included — same `statfs`
+ * path Properties uses. Unknown types are skipped.
+ */
 export function driveSpaceIsSafe(d: Pick<DriveInfo, 'driveType' | 'offline'>): boolean {
   if (d.offline) return false
   const t = d.driveType
-  if (t === 'remote' || t === 'unknown') return false
-  return t === 'fixed' || t === 'removable' || t === 'cdrom' || t === 'ramdisk' || t === undefined
+  if (t === 'unknown') return false
+  return (
+    t === 'fixed' ||
+    t === 'removable' ||
+    t === 'cdrom' ||
+    t === 'ramdisk' ||
+    t === 'remote' ||
+    t === undefined
+  )
 }
 
 export function formatBytesBinary(n: number): string {

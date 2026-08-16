@@ -52,23 +52,22 @@ function DriveSpaceCard({
   large?: boolean
 }): JSX.Element {
   const letter = /^([a-zA-Z]):/.exec(drive.path)?.[1]?.toUpperCase() ?? drive.label
+  const name = drive.volumeName || (drive.driveType === 'remote' ? drive.remotePath : undefined)
   const space = driveHasSpace(drive)
     ? formatFreeOfTotal(drive.freeBytes!, drive.totalBytes!)
     : drive.offline
       ? 'Disconnected'
-      : drive.driveType === 'remote'
-        ? drive.remotePath || 'Network drive'
-        : 'Size unknown'
+      : 'Size unknown'
   return (
     <div className={`drive-space-card${large ? ' large' : ''}`}>
-      {space && driveHasSpace(drive) ? (
+      {driveHasSpace(drive) ? (
         <DrivePie drive={drive} size={large ? 88 : 56} />
       ) : (
         <div className="drive-pie drive-pie-empty" style={{ width: large ? 88 : 56, height: large ? 88 : 56 }} />
       )}
       <div className="drive-space-meta">
         <div className="drive-space-letter">{letter}</div>
-        {drive.volumeName ? <div className="drive-space-name">{drive.volumeName}</div> : null}
+        {name ? <div className="drive-space-name">{name}</div> : null}
         <div className="drive-space-line">{space}</div>
       </div>
     </div>

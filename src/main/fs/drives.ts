@@ -727,10 +727,46 @@ function volumeInformationOk(rootPath: string): boolean {
   }
 }
 
-const SPACE_PER_DRIVE_MS = 800
-const SPACE_ALL_MS = 1500
+const SPACE_LOCAL_MS = 800
+const SPACE_REMOTE_MS = 2500
+const SPACE_ALL_MS = 2800
 
-/** Local letters only — one empty CD / dead letter must not block the whole list. */
+/** One PowerShell for leftover online maps when `statfs` returned nothing (Properties fallback). */
+async function readRemoteSpaceViaCim(
+  letters: string[]
+): Promise<Map<string, { totalBytes: number; freeBytes: number }>> {
+  const out = new Map<string, { totalBytes: number; freeBytes: number }>()
+  if (process.platform !== 'win32' || letters.length === 0) return out
+  const filter = letters.map((l) => `DeviceID='${l}:'`).join(' OR ')
+  const cmd = `Get-CimInstance Win32_LogicalDisk -Filter "${filter}" | Select-Object DeviceID,Size,FreeSpace | ConvertTo-Json -Compress`
+  try {
+    const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-Command', cmd], {
+      windowsHide: true,
+      timeout: 8000
+    })
+    const raw = stdout.trim()
+    if (!raw) return out
+    const parsed = JSON.parse(raw) as
+      | { DeviceID?: string; Size?: number; FreeSpace?: number }
+      | Array<{ DeviceID?: string; Size?: number; FreeSpace?: number }>
+    const rows = Array.isArray(parsed) ? parsed : [parsed]
+    for (const row of rows) {
+      const letter = /^([a-zA-Z]):/.exec(row.DeviceID ?? '')?.[1]?.toUpperCase()
+      const totalBytes = Number(row.Size)
+      const freeBytes = Number(row.FreeSpace)
+      if (!letter || !(totalBytes > 0) || !Number.isFinite(totalBytes)) continue
+      out.set(letter, {
+        totalBytes,
+        freeBytes: Math.min(Math.max(0, Number.isFinite(freeBytes) ? freeBytes : 0), totalBytes)
+      })
+    }
+  } catch {
+    /* omit — cards stay “Size unknown” */
+  }
+  return out
+}
+
+/** Per-letter `statfs` with a timeout — one empty CD / dead map must not block the list. */
 async function attachDriveSpace(drives: DriveInfo[]): Promise<void> {
   const tasks = drives.map(async (d, i) => {
     try {
@@ -741,13 +777,31 @@ async function attachDriveSpace(drives: DriveInfo[]): Promise<void> {
       ) {
         return
       }
-      const sp = await withTimeout(readDriveSpaceBytes(d.path), SPACE_PER_DRIVE_MS)
+      const ms = d.driveType === 'remote' ? SPACE_REMOTE_MS : SPACE_LOCAL_MS
+      const sp = await withTimeout(readDriveSpaceBytes(d.path), ms)
       if (sp) drives[i] = { ...drives[i]!, ...sp }
     } catch {
       /* keep the letter; omit sizes */
     }
   })
   await Promise.race([Promise.all(tasks), delay(SPACE_ALL_MS)])
+
+  const missingRemote = drives
+    .map((d, i) => ({ d, i }))
+    .filter(
+      ({ d }) =>
+        d.driveType === 'remote' && !d.offline && typeof d.totalBytes !== 'number'
+    )
+  if (missingRemote.length === 0) return
+  const letters = missingRemote
+    .map(({ d }) => /^([a-zA-Z]):/.exec(d.path)?.[1]?.toUpperCase())
+    .filter((l): l is string => !!l)
+  const cim = await readRemoteSpaceViaCim(letters)
+  for (const { d, i } of missingRemote) {
+    const letter = /^([a-zA-Z]):/.exec(d.path)?.[1]?.toUpperCase()
+    const sp = letter ? cim.get(letter) : undefined
+    if (sp) drives[i] = { ...drives[i]!, ...sp }
+  }
 }
 
 /** Set or clear (empty string) the Windows volume label for a drive root. */

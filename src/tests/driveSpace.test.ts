@@ -68,9 +68,10 @@ describe('formatAllDrivesSpace', () => {
 })
 
 describe('driveSpaceIsSafe', () => {
-  it('skips offline and remote so a dead map cannot block the list', () => {
+  it('allows online maps and skips offline / unknown', () => {
     expect(driveSpaceIsSafe({ driveType: 'fixed' })).toBe(true)
-    expect(driveSpaceIsSafe({ driveType: 'remote' })).toBe(false)
+    expect(driveSpaceIsSafe({ driveType: 'remote' })).toBe(true)
+    expect(driveSpaceIsSafe({ driveType: 'remote', offline: true })).toBe(false)
     expect(driveSpaceIsSafe({ driveType: 'fixed', offline: true })).toBe(false)
     expect(driveSpaceIsSafe({ driveType: 'unknown' })).toBe(false)
   })
