@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.8.0** — Phases 0–10 shipped; **drive free space**; **detached preview**; **`.ics` / `.eml`**; **D49** remote listing cache; Power Search; continue-then-review bulk ops (D18); per-tab search; Network (D44/D3); settings export/import (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.8.0** shipped; **v0.8.1** development adds **D50** opt-in media metadata ([docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)). Phases 0–10 shipped; **drive free space**; **detached preview**; **`.ics` / `.eml`**; **D49** remote listing cache; Power Search; continue-then-review bulk ops (D18); per-tab search; Network (D44/D3); settings export/import (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -41,7 +41,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/BUILD.md](docs/BUILD.md)                             | Local build + tagged GitHub Releases |
 | [docs/LINUX.md](docs/LINUX.md)                             | Experimental Linux AppImage / Wayland |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
-| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D49) |
+| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D50) |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
 | [docs/PROJECT_FORMAT.md](docs/PROJECT_FORMAT.md)           | On-disk `userData` layout     |
 | [docs/UI_DESIGN.md](docs/UI_DESIGN.md)                     | Chrome & themes               |
@@ -54,15 +54,16 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/SLIDESHOW.md](docs/SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [docs/NETWORKS.md](docs/NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
+| [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
 ## Immediate next work
 
-1. Tag **`v0.8.0`** and publish the GitHub Release (CI attaches Setup.exe) — see [docs/BUILD.md](docs/BUILD.md)
-2. Manual acceptance pass: Drives pies (local + mapped + offline), detached preview + Zen, `.ics` / `.eml`, NAS folder back-navigation, large Details folder scroll
-3. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
-4. Soak-test v0.8.0; gather friend feedback (Linux remains contributor-only)
+1. Soak-test **D50** media metadata (Plex extract without PMS running, TMDB limit dialog, Change cover, watched/genre toolbar) — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
+2. Confirm Details horizontal scroll (header + rows, scrollbar at pane bottom) on a narrow window
+3. Confirm deleting a scoped tab root always prompts and closes those tabs
+4. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
 
 ## Agent rules
 

@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.8.0
+**App:** MyFileExplorer · **Version:** 0.8.1 (development)
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -56,7 +56,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
 | **Executable / archives / CHM / fonts** | PE VERSIONINFO + shell icon; ZIP / 7z / RAR / TAR(.GZ) / Unity / APK / MSI / ISO / IMG contents trees (+ APK/MSI metadata); `.ttf` sample preview; `.chm` TOC + sandboxed topic viewer. |
 | **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
-| **Movie / TV metadata + covers** | Opt-in (off by default). Pull title, year, genres, cast, synopsis, and a poster from a local **Plex** library or **TMDB / OMDb**, store them on the file as NTFS streams, and show cover + title in preview and icon views. One folder command walks every episode. |
+| **Movie / TV metadata + covers** | Opt-in (off by default). Pull title, year, genres, cast, synopsis, and a poster from a local **Plex** library or **TMDB / OMDb**, store them on the file as NTFS streams, and show cover + title in preview and icon views. Change cover (largest poster first). Mark watched. Toolbar Watched / Genre filters on library folders. One folder command walks every episode. Details: [MEDIA_METADATA.md](MEDIA_METADATA.md). |
 
 ---
 
@@ -127,11 +127,12 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D46)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D50)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
 - [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  
 - [REMOTE_FTP.md](REMOTE_FTP.md) — opt-in FTP/FTPS/SFTP remotes  
+- [MEDIA_METADATA.md](MEDIA_METADATA.md) — opt-in movie/TV metadata (D50)  
 - [SLIDESHOW.md](SLIDESHOW.md) — ACDSee-inspired slideshow / categorizer  
 - [ADS.md](ADS.md) — NTFS Alternate Data Streams  
 - [../README.md](../README.md) — product overview  

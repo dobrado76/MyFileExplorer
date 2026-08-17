@@ -6,6 +6,8 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 **Extension catalog:** [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) — every extension routed by the preview pane, with notes per type.
 
+**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a poster + title sit above the player and the remaining fields below. Click the poster for the stored full-size cover. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+
 ### Detached preview window
 
 The docked pane header always shows **Open preview window** (right side). That opens a peer `BrowserWindow` with the same live preview (focused/selected file and image-version ADS override). A second click focuses the existing window.

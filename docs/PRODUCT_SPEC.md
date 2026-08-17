@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.8.0
+**Version:** 0.8.1 (development; last product release 0.8.0)
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).
@@ -67,7 +67,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 - Address bar **Recent locations** dropdown from the tab’s history: **current on top**, then prior folders in Back order (newest previous first — same sequence as Back, Back, …); Forward entries follow when present
 - **Back / Forward / Up**
 - Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
-- Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred)
+- Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred). Toolbar **Collapse all** (next to Select all) collapses every opened branch on the **current tab** only — same as a fresh This PC / Computer tree. Does not change the file list or other tabs.
 
 ---
 
@@ -100,7 +100,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
-| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer |
+| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer. Deleting a folder that is the **scoped root of any open tab** always confirms (Cancel / Delete) and warns those tabs will close; after a successful delete the affected tabs close (a replacement tab opens if that would leave none) |
 | Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory. Same continue-then-review as trash when some items fail |
 | Compress / Extract | Context **Compress to ZIP file** (bundled 7za, streamed) / **Extract All…** — sibling `.zip` or folder (Explorer naming); progress + Cancel (D30) |
 | Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
@@ -131,7 +131,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
-- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Change cover / Mark as Watched (toggles to Unwatched). Folders include every video inside. Extract/Download skip items that already have metadata. Change cover (single item) shows available Plex and TMDB posters, largest resolution first. Writing metadata sets a `media_metadata_container` stream on the containing folder; that folder’s toolbar then shows Watched and Genre filters. Preview shows Mark as Watched when the item has stored metadata.
+- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
@@ -156,7 +156,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
-- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + cover above the video and the rest of the fields below. Click the cover for a fullscreen view of the stored full-size image.
+- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + cover above the video and the rest of the fields below. Click the cover for a fullscreen view of the stored full-size image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ---
 
@@ -189,7 +189,7 @@ See [SEARCH.md](SEARCH.md).
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
-| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50) |
+| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
 | About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 

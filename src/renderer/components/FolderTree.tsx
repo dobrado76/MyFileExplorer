@@ -104,6 +104,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const openContextMenu = useAppStore((s) => s.openContextMenu)
   const treeMutation = useAppStore((s) => s.treeMutation)
   const treeRefreshRev = useAppStore((s) => s.treeRefreshRev)
+  const treeCollapseRequest = useAppStore((s) => s.treeCollapseRequest)
   const pinQuickAccess = useAppStore((s) => s.pinQuickAccess)
   const renamingPath = useAppStore((s) => s.renamingPath)
   const renameSource = useAppStore((s) => s.renameSource)
@@ -134,6 +135,9 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   /** Tab id whose session `treeExpanded` has been applied (avoids wiping on tab switch). */
   const [expandReadyTabId, setExpandReadyTabId] = useState<string | null>(null)
+  /** After Collapse all, skip auto-expand of the current folder until the user navigates. */
+  const skipAutoExpandPathRef = useRef<string | null>(null)
+  const lastCollapseRevRef = useRef(0)
   const settings = useAppStore((s) => s.settings)
   const notify = useAppStore((s) => s.notify)
   const [remoteConnections, setRemoteConnections] = useState<
@@ -187,12 +191,17 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       opts?: { preserveExpanded?: boolean }
     ): Promise<string[]> => {
       const preserve = opts?.preserveExpanded === true
+      const collapseRevAtStart = lastCollapseRevRef.current
+      const nextExpanded = (prevExpanded: boolean | undefined): boolean => {
+        if (lastCollapseRevRef.current !== collapseRevAtStart) return false
+        return preserve ? (prevExpanded ?? false) : true
+      }
       setNodes((n) => {
         const prev = n[path]
         return {
           ...n,
           [path]: {
-            expanded: preserve ? (prev?.expanded ?? false) : true,
+            expanded: nextExpanded(prev?.expanded),
             children: prev?.children ?? null,
             loading: true,
             childHidden: prev?.childHidden
@@ -217,7 +226,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             return {
               ...n,
               [path]: {
-                expanded: preserve ? (prev?.expanded ?? false) : true,
+                expanded: nextExpanded(prev?.expanded),
                 children: dirs,
                 loading: false,
                 childHidden
@@ -234,7 +243,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             return {
               ...n,
               [path]: {
-                expanded: preserve ? (prev?.expanded ?? false) : true,
+                expanded: nextExpanded(prev?.expanded),
                 children: [],
                 loading: false,
                 childHidden: {}
@@ -252,12 +261,14 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const loadNetworkHostChildren = useCallback(
     async (hostPath: string, tabId = activeTabId): Promise<string[]> => {
       const server = normalizeServerName(hostPath)
+      const collapseRevAtStart = lastCollapseRevRef.current
+      const stillExpand = (): boolean => lastCollapseRevRef.current === collapseRevAtStart
       setNodes((n) => {
         const prev = n[hostPath]
         return {
           ...n,
           [hostPath]: {
-            expanded: true,
+            expanded: stillExpand(),
             children: prev?.children ?? null,
             loading: true,
             childHidden: prev?.childHidden
@@ -273,7 +284,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           (n) => ({
             ...n,
             [hostPath]: {
-              expanded: true,
+              expanded: stillExpand(),
               children: dirs,
               loading: false,
               childHidden: {}
@@ -287,7 +298,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           (n) => ({
             ...n,
             [hostPath]: {
-              expanded: true,
+              expanded: stillExpand(),
               children: [],
               loading: false,
               childHidden: {}
@@ -421,14 +432,28 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     activeTabIdRef.current = activeTabId
   }, [activeTabId])
 
+  useEffect(() => {
+    if (skipAutoExpandPathRef.current && skipAutoExpandPathRef.current !== activePath) {
+      skipAutoExpandPathRef.current = null
+    }
+  }, [activePath])
+
   // Restore persisted expand/collapse for the active tab, then allow saves.
   useEffect(() => {
     const tabId = activeTabId
     const persisted = [...treeExpanded].sort((a, b) => pathDepth(a) - pathDepth(b))
+    const startRev = useAppStore.getState().treeCollapseRequest.rev
     let cancelled = false
     const run = async (): Promise<void> => {
+      const abortedByCollapse = (): boolean => {
+        const req = useAppStore.getState().treeCollapseRequest
+        return req.tabId === tabId && req.rev !== startRev
+      }
       for (const path of persisted) {
-        if (cancelled || activeTabIdRef.current !== tabId) return
+        if (cancelled || activeTabIdRef.current !== tabId || abortedByCollapse()) {
+          if (!cancelled && activeTabIdRef.current === tabId) setExpandReadyTabId(tabId)
+          return
+        }
         // Never auto-list mapped/offline letters on restore — listing/reconnect on a
         // dead Z: freezes the whole UI. User can expand them manually.
         const drive = /^([a-zA-Z]:)(?:\\|\/|$)/i.exec(path.replace(/\//g, '\\'))
@@ -519,6 +544,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
 
   useEffect(() => {
     if (!activePath || inQuickAccess) return
+    if (skipAutoExpandPathRef.current === activePath) return
     const tabId = activeTabId
     let cancelled = false
     const run = async (): Promise<void> => {
@@ -527,12 +553,14 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       let key = segs[0]
       for (let i = 0; i < segs.length - 1 && key; i++) {
         if (cancelled || activeTabIdRef.current !== tabId) return
+        if (skipAutoExpandPathRef.current === activePath) return
         const map = nodesRef.current
         const node = map[key]
         let children = node?.children
         if (!children) {
           children = await loadChildren(key, tabId)
           if (cancelled || activeTabIdRef.current !== tabId) return
+          if (skipAutoExpandPathRef.current === activePath) return
         } else if (!node?.expanded) {
           const k = key
           setNodes((n) => (n[k] ? { ...n, [k]: { ...n[k]!, expanded: true } } : n), tabId)
@@ -547,6 +575,26 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       cancelled = true
     }
   }, [activePath, activeTabId, inQuickAccess, loadChildren, setNodes])
+
+  // Collapse all opened branches on this tab (toolbar). Leaves the file list as-is.
+  useEffect(() => {
+    if (treeCollapseRequest.rev === 0) return
+    if (treeCollapseRequest.tabId !== activeTabId) return
+    if (treeCollapseRequest.rev === lastCollapseRevRef.current) return
+    lastCollapseRevRef.current = treeCollapseRequest.rev
+    skipAutoExpandPathRef.current = activePath || null
+    setNodes((map) => {
+      let changed = false
+      const next: NodesMap = { ...map }
+      for (const [key, node] of Object.entries(next)) {
+        if (node.expanded) {
+          next[key] = { ...node, expanded: false }
+          changed = true
+        }
+      }
+      return changed ? next : map
+    }, treeCollapseRequest.tabId)
+  }, [treeCollapseRequest, activeTabId, activePath, setNodes])
 
   // Scroll the selected node into view once per navigation (per tab).
   const treeRef = useRef<HTMLDivElement>(null)

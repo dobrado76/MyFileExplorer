@@ -179,6 +179,13 @@ export const SelectAllIcon = svg(
     <path d="M8 12l2.5 2.5L16 9" />
   </>
 )
+/** Double chevron-up — collapse every expanded folder-tree branch. */
+export const CollapseAllIcon = svg(
+  <>
+    <path d="M7 11l5-5 5 5" />
+    <path d="M7 18l5-5 5 5" />
+  </>
+)
 export const SettingsIcon = svg(
   <>
     <circle cx="12" cy="12" r="3" />

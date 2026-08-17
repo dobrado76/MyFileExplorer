@@ -513,6 +513,8 @@ type AppState = {
    * listed — listing alone does not update the tree cache.
    */
   treeRefreshRev: number
+  /** Bumped to collapse every expanded tree branch on one tab. */
+  treeCollapseRequest: { tabId: string; rev: number }
   /** In-memory Explorer-style undo stack (not persisted). */
   undoStack: UndoEntry[]
   redoStack: UndoEntry[]
@@ -606,6 +608,8 @@ type AppState = {
   setScrollOffset(offset: number, tabId?: string): void
   /** Persist folder-tree expansion for a tab (default: active). */
   setTreeExpanded(paths: string[], tabId?: string): void
+  /** Collapse every expanded tree branch on the current tab (This PC default). */
+  collapseAllTree(): void
   setSplitters(patch: Partial<Splitters>): void
   /** Owning folder-view override for a path (exact or recursive ancestor). */
   owningFolderView(path?: string): FolderView | null
@@ -2190,6 +2194,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     addressEditing: false,
     treeMutation: { rev: 0, removed: [], reloadParents: [] },
     treeRefreshRev: 0,
+    treeCollapseRequest: { tabId: '', rev: 0 },
     undoStack: [],
     redoStack: [],
     slideshow: emptySlideshowSession(),
@@ -3278,6 +3283,15 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (!tab) return
       if (sameExpandedSet(tab.treeExpanded, capped)) return
       updateTab(id, { treeExpanded: capped })
+    },
+
+    collapseAllTree() {
+      const id = get().activeTabId
+      if (!id) return
+      updateTab(id, { treeExpanded: [] })
+      set((s) => ({
+        treeCollapseRequest: { tabId: id, rev: s.treeCollapseRequest.rev + 1 }
+      }))
     },
 
     async nextTab() {

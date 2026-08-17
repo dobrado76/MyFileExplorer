@@ -11,7 +11,7 @@ Standalone Electron + React desktop app. Clear process boundaries; **no Node API
 ```
 Renderer (React + Zustand)
         │  typed preload (contextIsolation + sandbox)
-Main (fs, shell, session, settings, preview, search, thumbs)
+Main (fs, shell, session, settings, preview, search, thumbs, mediaMetadata)
         │
    Real filesystem  +  Electron userData (app state, index, thumb cache)
 ```
@@ -24,6 +24,7 @@ Main (fs, shell, session, settings, preview, search, thumbs)
 | Settings / theme                                 | Main `settings`                                             |
 | Thumbnail generation & cache                     | Main `thumbs`                                               |
 | Preview metadata parse                           | Main `preview`                                              |
+| Movie/TV metadata + covers (D50)                 | Main `mediaMetadata` — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | Search index & queries                           | Main `search`                                               |
 | OS open / trash / clipboard files                | Main `shell`                                                |
 
@@ -42,6 +43,7 @@ src/
 │  ├─ preview/       metadata extractors
 │  ├─ search/        indexer + FTS query
 │  ├─ thumbs/        sharp cache + `!VIDTHUMB_CACHE` resolve/generate (ffmpeg)
+│  ├─ mediaMetadata/ Plex / TMDB / OMDb + NTFS streams (D50)
 │  ├─ media/         custom protocol
 │  ├─ security/      path guards
 │  └─ logging/

@@ -170,6 +170,25 @@ Discovery runs in a worker thread; results arrive on `mfe-event` `network-discov
 | `slideshow:openCompiledListsWindow` / `close…` | — | detached BrowserWindow |
 | `slideshow:applyCompiledPlaylist` | `{ paths, preferPath? }` | legacy flat broadcast (prefer `applyCompiledLines`) |
 
+### `mediaMetadata.*`
+
+Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `mediaMetadata:extractPlex` | `{ paths[] }` | `{ done, failed[], updated[], stoppedReason? }` — skip items that already have streams |
+| `mediaMetadata:download` | `{ paths[] }` | same — TMDB / OMDb |
+| `mediaMetadata:refresh` | `{ paths[] }` | same — refresh from stored source; missing from Plex |
+| `mediaMetadata:clear` | `{ paths[] }` | same |
+| `mediaMetadata:get` | `{ path }` | `{ metadata, thumbnailBase64 }` |
+| `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — largest pixel size first |
+| `mediaMetadata:setCover` | `{ path, coverId }` | `{ ok: true }` |
+| `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
+| `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[] }[] }` |
+| `mediaMetadata:probePlex` | — | `{ installed, running, dataDir, tokenFound, url }` |
+
+`stoppedReason` is set when a TMDB/OMDb quota stops the batch. Progress uses `op-progress` kind `media-metadata`.
+
 ### `app.*`
 
 | Channel          | Purpose                                 |
@@ -190,7 +209,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `fs-watch-lost`           | `{ path }` — watcher closed; renderer may re-arm |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
-| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/compile-lists; byte fields for large streaming copies |
+| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/compile-lists/media-metadata; byte fields for large streaming copies |
 | `compiled-playlist-apply` | `{ paths, preferPath? }` — detached lists window → main slideshow |
 | `session-external-change` | rare: multi-window later                      |
 
@@ -209,6 +228,7 @@ window.myFileExplorer = {
   thumbs: { get, generateVidCache },
   meta: { getMany, invalidate },
   ads: { list, exists, readText, writeText, delete, readBytes, writeBytes, copy },
+  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, probePlex },
   slideshow: { listImages, updateCompiledLists, openCompiledListsWindow, … },
   app: { getPath, pickFolder, ready, … },
   onEvent: (handler) => unsubscribe

@@ -44,7 +44,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
-- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); cover + title in preview; stored as NTFS streams on the file
+- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); cover + title in preview; watched / genre filters on library folders — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete
@@ -103,8 +103,9 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 12. Select a `.ics` or `.eml` — agenda / email preview. Optional: **Open preview window** and try Zen.
 13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
 14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
+15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover and Mark as Watched.
 
-Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
+Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ---
 
@@ -118,7 +119,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D49 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D50 |
 | **[docs/NETWORKS.md](docs/NETWORKS.md)** | Network neighborhood & mapped drives |
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
@@ -126,6 +127,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[samples/preview-extensions/](samples/preview-extensions/)** | One small file per preview extension (`npm run samples:preview`) |
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
+| **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)** | Opt-in movie/TV metadata (D50) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
 | **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.8.0 product-release summary |
 

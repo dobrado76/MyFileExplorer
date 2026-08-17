@@ -15,6 +15,7 @@ import {
   PasteIcon,
   TrashIcon,
   SelectAllIcon,
+  CollapseAllIcon,
   PlayIcon,
   CompiledListsPlayIcon,
   ListPlusIcon,
@@ -54,6 +55,8 @@ export function Toolbar(): JSX.Element {
   const deleteSelection = useAppStore((s) => s.deleteSelection)
   const toggleSelectAll = useAppStore((s) => s.toggleSelectAll)
   const allSelected = useAppStore((s) => s.isAllSelected())
+  const collapseAllTree = useAppStore((s) => s.collapseAllTree)
+  const treeHasExpanded = useAppStore((s) => s.activeTab().treeExpanded.length > 0)
   const deleteFromRecycleBinView = useAppStore((s) => s.deleteFromRecycleBinView)
   const devGateActive = useAppStore((s) => s.devGateActive)
   const startSlideshow = useAppStore((s) => s.startSlideshow)
@@ -144,6 +147,15 @@ export function Toolbar(): JSX.Element {
           onClick={() => toggleSelectAll()}
         >
           <SelectAllIcon />
+        </button>
+        <button
+          className="icon-btn"
+          aria-label="Collapse all"
+          title="Collapse all folders in this tab's tree"
+          disabled={!treeHasExpanded}
+          onClick={() => collapseAllTree()}
+        >
+          <CollapseAllIcon />
         </button>
       </div>
 
