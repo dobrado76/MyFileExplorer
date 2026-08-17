@@ -9,8 +9,10 @@ import {
   isMediaTitleFolder,
   isMoviePartVideoName,
   isMultipartMovieFolder,
+  isMediaNameMissError,
   isNeedsMediaPickError,
   isSeasonFolderName,
+  mediaSearchStem,
   normalizeEpisodeFields,
   parseMediaFileName,
   pickIdFromStored,
@@ -42,6 +44,7 @@ export type MediaMetadataOpResult = {
   stoppedReason?: string
   needsKind?: { path: string; title: string }[]
   needsPick?: { path: string; title: string; candidates: MediaPickCandidate[] }[]
+  needsName?: { path: string; suggested: string; message: string }[]
 }
 
 export { probePlex }
@@ -299,17 +302,31 @@ async function firstVideoQuick(dir: string): Promise<string | null> {
   return null
 }
 
-async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promise<void> {
+function nameHintOf(
+  target: string,
+  hints?: Record<string, string>
+): string | undefined {
+  const raw = hints?.[target] ?? hints?.[target.toLowerCase()]
+  const t = raw?.trim()
+  return t || undefined
+}
+
+async function extractOnePlex(
+  target: string,
+  queryKind: MediaQueryKind,
+  nameHint?: string
+): Promise<void> {
   const st = await fsp.stat(target)
+  const plexOpts = { prefer: queryKind }
   if (st.isFile()) {
-    const hit = await extractFromPlex(target)
+    const hit = await extractFromPlex(target, nameHint, plexOpts)
     await applyHit(target, hit, downloadPlexThumb)
     return
   }
-  const hint = parseMediaFileName(folderSearchName(target)).title
+  const hint = nameHint || parseMediaFileName(folderSearchName(target)).title
   if (queryKind === 'show') {
     try {
-      const hit = await extractFromPlex(target, hint)
+      const hit = await extractFromPlex(target, hint, plexOpts)
       hit.meta = asShowFolderMeta(hit.meta, hint)
       await applyHit(target, hit, downloadPlexThumb)
       return
@@ -320,7 +337,7 @@ async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promis
   const first = await firstVideoQuick(target)
   if (first) {
     try {
-      const hit = await extractFromPlex(first, hint)
+      const hit = await extractFromPlex(first, hint, plexOpts)
       if (queryKind === 'show') hit.meta = asShowFolderMeta(hit.meta, hint)
       await applyHit(target, hit, downloadPlexThumb)
       return
@@ -328,7 +345,7 @@ async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promis
       /* title search */
     }
   }
-  const hit = await extractFromPlex(target, hint)
+  const hit = await extractFromPlex(target, hint, plexOpts)
   if (queryKind === 'show') hit.meta = asShowFolderMeta(hit.meta, hint)
   await applyHit(target, hit, downloadPlexThumb)
 }
@@ -336,10 +353,11 @@ async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promis
 async function downloadOneInternet(
   target: string,
   queryKind: MediaQueryKind,
-  pickId?: string
+  pickId?: string,
+  nameHint?: string
 ): Promise<void> {
   const st = await fsp.stat(target)
-  const name = st.isDirectory() ? folderSearchName(target) : path.basename(target)
+  const name = nameHint || (st.isDirectory() ? folderSearchName(target) : path.basename(target))
   const parsed = parseMediaFileName(name)
   const hit = await downloadFromInternet(parsed, queryKind, pickId)
   if (st.isDirectory() && queryKind === 'show') {
@@ -351,11 +369,17 @@ async function downloadOneInternet(
 async function runOnTargets(
   label: string,
   rawPaths: string[],
-  each: (target: string, kind: MediaQueryKind, pickId?: string) => Promise<boolean>,
+  each: (
+    target: string,
+    kind: MediaQueryKind,
+    pickId?: string,
+    nameHint?: string
+  ) => Promise<boolean>,
   opts?: {
     onlyMissing?: boolean
     kindHints?: Record<string, MediaQueryKind>
     pickHints?: Record<string, string>
+    nameHints?: Record<string, string>
     skipClassify?: boolean
     concurrency?: number
   }
@@ -366,6 +390,7 @@ async function runOnTargets(
   const updated: string[] = []
   const needsKind: { path: string; title: string }[] = []
   const needsPick: { path: string; title: string; candidates: MediaPickCandidate[] }[] = []
+  const needsName: { path: string; suggested: string; message: string }[] = []
   let stoppedReason: string | undefined
   const op = beginOp('media-metadata', unique.length, label)
   const concurrency = Math.max(1, Math.min(opts?.concurrency ?? 1, 8))
@@ -403,7 +428,8 @@ async function runOnTargets(
             kind = classified
           }
           const pickId = opts?.pickHints?.[target] ?? opts?.pickHints?.[target.toLowerCase()]
-          if (await each(target, kind, pickId)) updated.push(target)
+          const nameHint = nameHintOf(target, opts?.nameHints)
+          if (await each(target, kind, pickId, nameHint)) updated.push(target)
         } catch (e) {
           if (e instanceof AppError && e.code === 'cancelled') throw e
           if (isNeedsMediaPickError(e)) {
@@ -416,6 +442,15 @@ async function runOnTargets(
             continue
           }
           const message = e instanceof Error ? e.message : String(e)
+          if (isMediaNameMissError(message)) {
+            needsName.push({
+              path: target,
+              suggested: nameHintOf(target, opts?.nameHints) || mediaSearchStem(path.basename(target)),
+              message
+            })
+            op.tick(path.basename(target))
+            continue
+          }
           failed.push({ path: target, message })
           if (isMediaApiLimitError(e)) {
             stoppedReason = message
@@ -435,7 +470,8 @@ async function runOnTargets(
     updated.length === 0 &&
     failed.length > 0 &&
     needsKind.length === 0 &&
-    needsPick.length === 0
+    needsPick.length === 0 &&
+    needsName.length === 0
   ) {
     throw new AppError(
       stoppedReason ? 'busy' : 'io',
@@ -450,56 +486,60 @@ async function runOnTargets(
     updated,
     ...(stoppedReason ? { stoppedReason } : {}),
     ...(needsKind.length > 0 ? { needsKind } : {}),
-    ...(needsPick.length > 0 ? { needsPick } : {})
+    ...(needsPick.length > 0 ? { needsPick } : {}),
+    ...(needsName.length > 0 ? { needsName } : {})
   }
 }
 
 export async function extractPlexMany(
   paths: string[],
-  kindHints?: Record<string, MediaQueryKind>
+  kindHints?: Record<string, MediaQueryKind>,
+  nameHints?: Record<string, string>
 ): Promise<MediaMetadataOpResult> {
   return runOnTargets(
     'Extracting media metadata…',
     paths,
-    async (target, kind) => {
-      await extractOnePlex(target, kind)
+    async (target, kind, _pickId, nameHint) => {
+      await extractOnePlex(target, kind, nameHint)
       return true
     },
-    { onlyMissing: true, kindHints, concurrency: 6 }
+    { onlyMissing: true, kindHints, nameHints, concurrency: 6 }
   )
 }
 
 export async function downloadInternetMany(
   paths: string[],
   kindHints?: Record<string, MediaQueryKind>,
-  pickHints?: Record<string, string>
+  pickHints?: Record<string, string>,
+  nameHints?: Record<string, string>
 ): Promise<MediaMetadataOpResult> {
   return runOnTargets(
     'Downloading media metadata…',
     paths,
-    async (target, kind, pickId) => {
-      await downloadOneInternet(target, kind, pickId)
+    async (target, kind, pickId, nameHint) => {
+      await downloadOneInternet(target, kind, pickId, nameHint)
       return true
     },
-    { onlyMissing: true, kindHints, pickHints }
+    { onlyMissing: true, kindHints, pickHints, nameHints }
   )
 }
 
 export async function refreshMany(
   paths: string[],
   kindHints?: Record<string, MediaQueryKind>,
-  pickHints?: Record<string, string>
+  pickHints?: Record<string, string>,
+  nameHints?: Record<string, string>
 ): Promise<MediaMetadataOpResult> {
   return runOnTargets(
     'Updating media metadata…',
     paths,
-    async (target, kind, pickId) => {
+    async (target, kind, pickId, nameHint) => {
       const existing = await readMediaMetadata(target)
-      if (!existing || existing.source === 'plex') await extractOnePlex(target, kind)
-      else await downloadOneInternet(target, kind, pickId ?? pickIdFromStored(existing))
+      if (!existing || existing.source === 'plex') await extractOnePlex(target, kind, nameHint)
+      else await downloadOneInternet(target, kind, pickId ?? pickIdFromStored(existing), nameHint)
       return true
     },
-    { kindHints, pickHints, concurrency: 4 }
+    { kindHints, pickHints, nameHints, concurrency: 4 }
   )
 }
 

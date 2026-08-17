@@ -244,6 +244,15 @@ export function Dialogs(): JSX.Element | null {
           candidates={dialog.candidates}
         />
       )
+    case 'media-name':
+      return (
+        <MediaNameDialog
+          title={dialog.title}
+          message={dialog.message}
+          fileName={dialog.fileName}
+          suggested={dialog.suggested}
+        />
+      )
   }
 }
 
@@ -268,6 +277,66 @@ function MediaKindDialog({ title, message }: { title: string; message: string })
       }
     >
       <div className="alert-message">{message}</div>
+    </Modal>
+  )
+}
+
+function MediaNameDialog({
+  title,
+  message,
+  fileName,
+  suggested
+}: {
+  title: string
+  message: string
+  fileName: string
+  suggested: string
+}): JSX.Element {
+  const resolveMediaName = useAppStore((s) => s.resolveMediaName)
+  const [name, setName] = useState(suggested)
+  const submit = (): void => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    resolveMediaName(trimmed)
+  }
+  return (
+    <Modal
+      title={title}
+      wide
+      onClose={() => resolveMediaName(null)}
+      actions={
+        <>
+          <button type="button" className="btn" onClick={() => resolveMediaName(null)}>
+            Cancel
+          </button>
+          <button type="button" className="btn primary" disabled={!name.trim()} onClick={submit}>
+            Search
+          </button>
+        </>
+      }
+    >
+      <div className="alert-message">{message}</div>
+      <p className="dim media-name-file" title={fileName}>
+        File: {fileName}
+      </p>
+      <p className="settings-help">
+        Edit the name (drop extra sort numbers, put the year in parentheses) and search again.
+      </p>
+      <div className="form-row">
+        <label htmlFor="media-search-name">Search as</label>
+        <input
+          id="media-search-name"
+          type="text"
+          autoFocus
+          value={name}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+            e.stopPropagation()
+          }}
+        />
+      </div>
     </Modal>
   )
 }

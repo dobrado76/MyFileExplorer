@@ -62,6 +62,8 @@ Shown only on **folders** and **video files**. Remotes (`mfe-remote://`) are ski
 
 Status-bar progress shows while a batch runs; **Cancel** stops between items.
 
+If Plex or the internet finds **no title**, a dialog opens with the filename (no extension) in a **Search as** box. Edit it — drop a sort-only number (`Babylon 5 - 5 - A Call to Arms` → `Babylon 5 - A Call to Arms`), put the year in parentheses — and **Search** again. **Cancel** skips that item; other misses still get their own dialog.
+
 ---
 
 ## How a library is walked

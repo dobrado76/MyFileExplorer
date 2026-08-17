@@ -107,6 +107,26 @@ export function stripVideoExtension(name: string): string {
   return name.replace(VIDEO_EXT_RE, '')
 }
 
+/** Filename/folder stem shown in the “search as” box (no video extension). */
+export function mediaSearchStem(rawName: string): string {
+  return stripVideoExtension(rawName.trim())
+}
+
+/** Lookup failed because the parsed title missed — user can edit the name and retry. */
+export function isMediaNameMissError(message: string): boolean {
+  const m = message.trim()
+  if (/Plex Media Server was not found/i.test(m)) return false
+  if (/Add a TMDB or OMDb API key/i.test(m)) return false
+  return (
+    /no plex match/i.test(m) ||
+    /no match for/i.test(m) ||
+    /no TV show matching/i.test(m) ||
+    /movie not found/i.test(m) ||
+    /series not found/i.test(m) ||
+    /not found!/i.test(m)
+  )
+}
+
 function hasJunkTags(s: string): boolean {
   JUNK_RE.lastIndex = 0
   const hit = JUNK_RE.test(s)

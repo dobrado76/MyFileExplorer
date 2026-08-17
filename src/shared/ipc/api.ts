@@ -287,6 +287,7 @@ export type MyFileExplorerApi = {
     extractPlex(req: {
       paths: string[]
       kindHints?: Record<string, 'movie' | 'show' | 'episode'>
+      nameHints?: Record<string, string>
     }): Promise<
       Result<{
         done: number
@@ -294,12 +295,14 @@ export type MyFileExplorerApi = {
         updated: string[]
         stoppedReason?: string
         needsKind?: { path: string; title: string }[]
+        needsName?: { path: string; suggested: string; message: string }[]
       }>
     >
     download(req: {
       paths: string[]
       kindHints?: Record<string, 'movie' | 'show' | 'episode'>
       pickHints?: Record<string, string>
+      nameHints?: Record<string, string>
     }): Promise<
       Result<{
         done: number
@@ -312,12 +315,14 @@ export type MyFileExplorerApi = {
           title: string
           candidates: { id: string; title: string; year?: number; subtitle?: string }[]
         }[]
+        needsName?: { path: string; suggested: string; message: string }[]
       }>
     >
     refresh(req: {
       paths: string[]
       kindHints?: Record<string, 'movie' | 'show' | 'episode'>
       pickHints?: Record<string, string>
+      nameHints?: Record<string, string>
     }): Promise<
       Result<{
         done: number
@@ -330,6 +335,7 @@ export type MyFileExplorerApi = {
           title: string
           candidates: { id: string; title: string; year?: number; subtitle?: string }[]
         }[]
+        needsName?: { path: string; suggested: string; message: string }[]
       }>
     >
     clear(req: { paths: string[] }): Promise<

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseMediaFileName,
+  mediaSearchStem,
+  isMediaNameMissError,
   parseMediaMetadataJson,
   decideNamedMatches,
   normalizeMediaTitle,
@@ -97,6 +99,28 @@ describe('parseMediaFileName', () => {
     const p = parseMediaFileName('The Office')
     expect(p.title).toBe('The Office')
     expect(p.kind).toBe('unknown')
+  })
+
+  it('keeps a sort-order number in the search stem so the user can edit it', () => {
+    expect(mediaSearchStem('Babylon 5 - 5 - A Call to Arms.avi')).toBe(
+      'Babylon 5 - 5 - A Call to Arms'
+    )
+    expect(parseMediaFileName('Babylon 5 - A Call to Arms').title).toBe('Babylon 5 - A Call to Arms')
+  })
+})
+
+describe('isMediaNameMissError', () => {
+  it('treats Plex/TMDB/OMDb title misses as editable', () => {
+    expect(isMediaNameMissError('No Plex match for Babylon 5 - 5 - A Call to Arms.avi')).toBe(true)
+    expect(isMediaNameMissError('TMDB: no match for “Babylon 5”')).toBe(true)
+    expect(isMediaNameMissError('Movie not found!')).toBe(true)
+  })
+
+  it('does not treat server or key problems as a name miss', () => {
+    expect(isMediaNameMissError('Plex Media Server was not found on this PC')).toBe(false)
+    expect(isMediaNameMissError('Add a TMDB or OMDb API key in Settings → Media Metadata')).toBe(
+      false
+    )
   })
 })
 

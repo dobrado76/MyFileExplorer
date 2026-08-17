@@ -40,7 +40,9 @@ export const mediaMetadataPathsSchema = z.object({
   paths: z.array(z.string().min(1)).min(1).max(200),
   kindHints: z.record(z.string(), z.enum(['movie', 'show', 'episode'])).optional(),
   /** Internet download only — `tmdb:movie:123` / `tmdb:tv:456` / `omdb:tt…`. */
-  pickHints: z.record(z.string(), z.string()).optional()
+  pickHints: z.record(z.string(), z.string()).optional(),
+  /** Edited search name after a miss (`Babylon 5 - A Call to Arms`). */
+  nameHints: z.record(z.string(), z.string()).optional()
 })
 
 export const mediaMetadataPathSchema = z.object({

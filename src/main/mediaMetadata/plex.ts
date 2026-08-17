@@ -2,7 +2,12 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
-import type { MediaMetadata, MediaMetadataRating } from '@shared/mediaMetadata'
+import {
+  parseMediaFileName,
+  type MediaMetadata,
+  type MediaMetadataRating,
+  type MediaQueryKind
+} from '@shared/mediaMetadata'
 import { logMain } from '../logging'
 import { getSettings } from '../settings/store'
 import {
@@ -338,17 +343,33 @@ async function lookupByFile(resolved: PlexResolved, filePath: string): Promise<P
   return tryFileLookups(resolved, pathnames)
 }
 
-async function lookupShowByTitle(resolved: PlexResolved, title: string): Promise<PlexHit | null> {
+async function lookupShowByTitle(
+  resolved: PlexResolved,
+  title: string,
+  prefer?: MediaQueryKind
+): Promise<PlexHit | null> {
   try {
+    const parsed = parseMediaFileName(title)
+    const query = parsed.title || title
     const payload = await plexGet(
       resolved.url,
       resolved.token,
-      `/search?query=${encodeURIComponent(title)}`
+      `/search?query=${encodeURIComponent(query)}`
     )
     const list = metadataList(payload)
-    const show = list.find((x) => String(x.type) === 'show') ?? list.find((x) => String(x.type) === 'movie')
-    if (!show) return null
-    return hitFromItem(resolved, show)
+    const movies = list.filter((x) => String(x.type) === 'movie')
+    const shows = list.filter((x) => String(x.type) === 'show')
+    const pool = prefer === 'movie' ? [...movies, ...shows] : [...shows, ...movies]
+    const want = query.toLowerCase()
+    const exact = pool.find((x) => String(x.title ?? '').trim().toLowerCase() === want)
+    if (exact) return hitFromItem(resolved, exact)
+    if (parsed.year != null) {
+      const yearHit = pool.find((x) => Number(x.year) === parsed.year)
+      if (yearHit) return hitFromItem(resolved, yearHit)
+    }
+    const hit = pool[0]
+    if (!hit) return null
+    return hitFromItem(resolved, hit)
   } catch {
     return null
   }
@@ -926,7 +947,7 @@ async function hitFromSqliteRow(resolved: PlexResolved, row: SqliteMetaRow): Pro
 export async function extractFromPlex(
   filePath: string,
   hintTitle?: string,
-  opts?: { skipPoster?: boolean }
+  opts?: { skipPoster?: boolean; prefer?: MediaQueryKind }
 ): Promise<PlexHit> {
   const resolved = await resolvePlex()
   if (!plexLooksInstalled(resolved.dataDir) && !resolved.token) {
@@ -943,7 +964,7 @@ export async function extractFromPlex(
   }
   if (isDir) {
     if (hintTitle) {
-      const showHit = await lookupShowByTitle(resolved, hintTitle)
+      const showHit = await lookupShowByTitle(resolved, hintTitle, opts?.prefer)
       if (showHit) return finish(showHit)
     }
     throw new Error(
@@ -964,7 +985,7 @@ export async function extractFromPlex(
   if (httpHit) return finish(httpHit)
 
   if (hintTitle) {
-    const showHit = await lookupShowByTitle(resolved, hintTitle)
+    const showHit = await lookupShowByTitle(resolved, hintTitle, opts?.prefer)
     if (showHit) return finish(showHit)
   }
 

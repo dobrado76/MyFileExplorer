@@ -81,6 +81,7 @@ import {
   type QuickAccessEntry
 } from '../lib/quickAccess'
 import { isMediaApiLimitError } from '@shared/mediaApiLimit'
+import { isMediaNameMissError } from '@shared/mediaMetadata'
 import { type MediaLibraryItemFlags, type MediaWatchedFilter } from '@shared/mediaMetadata'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { isExcludedByViewFilter, listingHasAllSelected } from '../lib/viewFilter'
@@ -249,6 +250,13 @@ export type DialogState =
       title: string
       message: string
       candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+    }
+  | {
+      kind: 'media-name'
+      title: string
+      message: string
+      fileName: string
+      suggested: string
     }
   | null
 
@@ -421,6 +429,7 @@ let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
 let mediaKindResolve: ((choice: 'movie' | 'show' | null) => void) | null = null
 let mediaPickResolve: ((choice: string | null) => void) | null = null
+let mediaNameResolve: ((name: string | null) => void) | null = null
 
 type AppState = {
   booted: boolean
@@ -757,6 +766,13 @@ type AppState = {
     candidates: { id: string; title: string; year?: number; subtitle?: string }[]
   }): Promise<string | null>
   resolveMediaPick(choice: string | null): void
+  askMediaName(opts: {
+    title: string
+    message: string
+    fileName: string
+    suggested: string
+  }): Promise<string | null>
+  resolveMediaName(name: string | null): void
   imageViewerNavigate(delta: number | 'first' | 'last'): void
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
@@ -1151,7 +1167,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     paths: string[],
     work: (
       kindHints?: Record<string, 'movie' | 'show' | 'episode'>,
-      pickHints?: Record<string, string>
+      pickHints?: Record<string, string>,
+      nameHints?: Record<string, string>,
+      retryPaths?: string[]
     ) => Promise<{
       done: number
       failed: { path: string; message: string }[]
@@ -1163,6 +1181,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         title: string
         candidates: { id: string; title: string; year?: number; subtitle?: string }[]
       }[]
+      needsName?: { path: string; suggested: string; message: string }[]
     }>
   ): Promise<void> {
     if (!get().settings.mediaMetadata.enabled) return
@@ -1193,7 +1212,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             failed: [...res.failed, ...again.failed],
             updated: [...res.updated, ...again.updated],
             stoppedReason: again.stoppedReason ?? res.stoppedReason,
-            needsPick: [...(pendingPick ?? []), ...(again.needsPick ?? [])]
+            needsPick: [...(pendingPick ?? []), ...(again.needsPick ?? [])],
+            needsName: again.needsName ?? res.needsName
           }
         }
       }
@@ -1217,7 +1237,73 @@ export const useAppStore = create<AppState>()((set, get) => {
             done: res.done + again.done,
             failed: [...res.failed, ...again.failed],
             updated: [...res.updated, ...again.updated],
-            stoppedReason: again.stoppedReason ?? res.stoppedReason
+            stoppedReason: again.stoppedReason ?? res.stoppedReason,
+            needsName: again.needsName ?? res.needsName
+          }
+        }
+      }
+      if (res.needsName && res.needsName.length > 0) {
+        let nameHints: Record<string, string> | undefined
+        for (const item of res.needsName) {
+          let suggested = item.suggested
+          let message = item.message
+          let askName = true
+          let resolved = false
+          while (!res.stoppedReason) {
+            if (askName) {
+              const typed = await get().askMediaName({
+                title: 'No match',
+                message,
+                fileName: basename(item.path),
+                suggested
+              })
+              if (!typed) break
+              suggested = typed
+              nameHints = { ...nameHints, [item.path]: typed }
+            }
+            askName = true
+            const again = await withBusyFeedback('media-metadata', label, undefined, () =>
+              work(hints, pickHints, nameHints, [item.path])
+            )
+            res.done += again.done
+            res.updated.push(...again.updated)
+            res.stoppedReason = again.stoppedReason ?? res.stoppedReason
+            if (again.stoppedReason) break
+            if (again.needsKind?.[0]) {
+              const choice = await get().askMediaKind({
+                title: 'Movie or TV show?',
+                message: `“${again.needsKind[0].title}” could be a movie or a TV show. Which should we look up?`
+              })
+              if (!choice) break
+              hints = { ...hints, [item.path]: choice }
+              askName = false
+              continue
+            }
+            if (again.needsPick?.[0]) {
+              const choice = await get().askMediaPick({
+                title: 'Which title?',
+                message: `Several titles match “${again.needsPick[0].title}”. Pick the one that fits.`,
+                candidates: again.needsPick[0].candidates
+              })
+              if (!choice) break
+              pickHints = { ...pickHints, [item.path]: choice }
+              askName = false
+              continue
+            }
+            const miss =
+              again.needsName?.[0] ??
+              again.failed.find((f) => isMediaNameMissError(f.message))
+            if (miss && again.updated.length === 0) {
+              message = miss.message
+              if (again.needsName?.[0]?.suggested) suggested = again.needsName[0].suggested
+              continue
+            }
+            if (again.failed.length > 0) res.failed.push(...again.failed)
+            resolved = again.updated.length > 0 || again.failed.length > 0
+            break
+          }
+          if (!resolved) {
+            res.failed.push({ path: item.path, message })
           }
         }
       }
@@ -4881,6 +4967,32 @@ export const useAppStore = create<AppState>()((set, get) => {
       r?.(choice)
     },
 
+    async askMediaName(opts) {
+      if (mediaNameResolve) {
+        mediaNameResolve(null)
+        mediaNameResolve = null
+      }
+      return await new Promise<string | null>((resolve) => {
+        mediaNameResolve = resolve
+        set({
+          dialog: {
+            kind: 'media-name',
+            title: opts.title,
+            message: opts.message,
+            fileName: opts.fileName,
+            suggested: opts.suggested
+          }
+        })
+      })
+    },
+
+    resolveMediaName(name) {
+      set({ dialog: null })
+      const r = mediaNameResolve
+      mediaNameResolve = null
+      r?.(name)
+    },
+
     setImageVersionPreview(preview) {
       set({ imageVersionPreview: preview })
     },
@@ -5466,20 +5578,49 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async mediaMetadataExtractPlex(paths) {
-      await runMediaMetadataOp('Extracting media metadata…', paths, (kindHints) =>
-        call(api.mediaMetadata.extractPlex({ paths, kindHints }))
+      await runMediaMetadataOp(
+        'Extracting media metadata…',
+        paths,
+        (kindHints, _pickHints, nameHints, retryPaths) =>
+          call(
+            api.mediaMetadata.extractPlex({
+              paths: retryPaths ?? paths,
+              kindHints,
+              nameHints
+            })
+          )
       )
     },
 
     async mediaMetadataDownload(paths) {
-      await runMediaMetadataOp('Downloading media metadata…', paths, (kindHints, pickHints) =>
-        call(api.mediaMetadata.download({ paths, kindHints, pickHints }))
+      await runMediaMetadataOp(
+        'Downloading media metadata…',
+        paths,
+        (kindHints, pickHints, nameHints, retryPaths) =>
+          call(
+            api.mediaMetadata.download({
+              paths: retryPaths ?? paths,
+              kindHints,
+              pickHints,
+              nameHints
+            })
+          )
       )
     },
 
     async mediaMetadataRefresh(paths) {
-      await runMediaMetadataOp('Refreshing media metadata…', paths, (kindHints, pickHints) =>
-        call(api.mediaMetadata.refresh({ paths, kindHints, pickHints }))
+      await runMediaMetadataOp(
+        'Refreshing media metadata…',
+        paths,
+        (kindHints, pickHints, nameHints, retryPaths) =>
+          call(
+            api.mediaMetadata.refresh({
+              paths: retryPaths ?? paths,
+              kindHints,
+              pickHints,
+              nameHints
+            })
+          )
       )
     },
 

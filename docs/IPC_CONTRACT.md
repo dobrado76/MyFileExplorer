@@ -176,9 +176,9 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 
 | Channel | Request | Response |
 | ------- | ------- | -------- |
-| `mediaMetadata:extractPlex` | `{ paths[], kindHints? }` | `{ done, failed[], updated[], stoppedReason?, needsKind? }` — skip items that already have streams |
-| `mediaMetadata:download` | `{ paths[], kindHints?, pickHints? }` | same + `needsPick?` — TMDB / OMDb; `pickHints` is `tmdb:movie:id` / `tmdb:tv:id` / `omdb:tt…` after the title picker |
-| `mediaMetadata:refresh` | `{ paths[], kindHints?, pickHints? }` | same — refresh from stored source; missing from Plex |
+| `mediaMetadata:extractPlex` | `{ paths[], kindHints?, nameHints? }` | `{ done, failed[], updated[], stoppedReason?, needsKind?, needsName? }` — skip items that already have streams |
+| `mediaMetadata:download` | `{ paths[], kindHints?, pickHints?, nameHints? }` | same + `needsPick?` — TMDB / OMDb; `pickHints` is `tmdb:movie:id` / `tmdb:tv:id` / `omdb:tt…` after the title picker |
+| `mediaMetadata:refresh` | `{ paths[], kindHints?, pickHints?, nameHints? }` | same — refresh from stored source; missing from Plex |
 | `mediaMetadata:clear` | `{ paths[] }` | same |
 | `mediaMetadata:get` | `{ path }` | `{ metadata, thumbnailBase64 }` |
 | `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — largest pixel size first |
@@ -188,7 +188,7 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `mediaMetadata:consolidateSubtitles` | `{ paths[] }` | `{ copied, skipped, recycled, failed[] }` — flatten Subs / Subtitles next to videos; Recycle Bin |
 | `mediaMetadata:probePlex` | — | `{ installed, running, dataDir, tokenFound, url }` |
 
-`stoppedReason` is set when a TMDB/OMDb quota stops the batch. `needsKind` is a yearless movie-or-show ask. `needsPick` (download / internet refresh only) is a same-title remake list; the renderer retries with `pickHints`. Progress uses `op-progress` kind `media-metadata`.
+`stoppedReason` is set when a TMDB/OMDb quota stops the batch. `needsKind` is a yearless movie-or-show ask. `needsPick` (download / internet refresh only) is a same-title remake list; the renderer retries with `pickHints`. `needsName` is a title miss; the renderer asks for an edited search string and retries with `nameHints`. Progress uses `op-progress` kind `media-metadata`.
 
 ### `app.*`
 
