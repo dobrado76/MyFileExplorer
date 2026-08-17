@@ -283,6 +283,35 @@ export type MyFileExplorerApi = {
       version?: string
     }): Promise<Result<{ launched: true }>>
   }
+  mediaMetadata: {
+    extractPlex(req: { paths: string[] }): Promise<
+      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+    >
+    download(req: { paths: string[] }): Promise<
+      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+    >
+    refresh(req: { paths: string[] }): Promise<
+      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+    >
+    clear(req: { paths: string[] }): Promise<
+      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+    >
+    get(req: { path: string }): Promise<
+      Result<{
+        metadata: import('../mediaMetadata').MediaMetadata | null
+        thumbnailBase64: string | null
+      }>
+    >
+    probePlex(): Promise<
+      Result<{
+        installed: boolean
+        running: boolean
+        dataDir: string | null
+        tokenFound: boolean
+        url: string
+      }>
+    >
+  }
   slideshow: {
     listImages(req: SlideshowListRequest): Promise<Result<{ paths: string[]; truncated?: boolean }>>
     cancelList(): Promise<Result<{ cancelled: true }>>

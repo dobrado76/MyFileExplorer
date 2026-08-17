@@ -196,9 +196,27 @@ import { logMain } from '../logging'
 import { ensureLamaModel } from '../images/lamaModel'
 import { lamaModelFetchUrl } from '../media/modelProtocol'
 import { isDevGateActive } from '../devGate'
+import {
+  clearMany,
+  downloadInternetMany,
+  extractPlexMany,
+  getMediaMetadataView,
+  probePlex,
+  refreshMany
+} from '../mediaMetadata'
+import {
+  mediaMetadataPathSchema,
+  mediaMetadataPathsSchema
+} from '@shared/schemas/mediaMetadata'
 
 function assertDevGate(): void {
   if (!isDevGateActive()) throw new AppError('validation', 'Unavailable')
+}
+
+function assertMediaMetadataEnabled(): void {
+  if (!getSettings().mediaMetadata.enabled) {
+    throw new AppError('validation', 'Media metadata is disabled')
+  }
 }
 
 function handleDev<S extends ZodType, T>(
@@ -647,6 +665,24 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.appGetVersion, emptySchema, () => ({ version: app.getVersion() }))
   handle(IPC.appDevGate, emptySchema, () => ({ active: isDevGateActive() }))
+  handle(IPC.mediaMetadataExtractPlex, mediaMetadataPathsSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return extractPlexMany(req.paths)
+  })
+  handle(IPC.mediaMetadataDownload, mediaMetadataPathsSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return downloadInternetMany(req.paths)
+  })
+  handle(IPC.mediaMetadataRefresh, mediaMetadataPathsSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return refreshMany(req.paths)
+  })
+  handle(IPC.mediaMetadataClear, mediaMetadataPathsSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return clearMany(req.paths)
+  })
+  handle(IPC.mediaMetadataGet, mediaMetadataPathSchema, (req) => getMediaMetadataView(req.path))
+  handle(IPC.mediaMetadataProbePlex, emptySchema, () => probePlex())
   handle(
     IPC.appCheckUpdate,
     z.object({ source: z.string() }),

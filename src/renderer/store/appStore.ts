@@ -53,6 +53,7 @@ import {
 import { api, call, IpcError } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { tabRootDeletePrompt, tabsWhoseRootIsDeleted } from '../lib/tabRootDelete'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
 import { isNetworkHostUnc } from '@shared/networkPaths'
 import {
@@ -298,6 +299,7 @@ export type FileOpProgress = {
     | 'folder-stats'
     | 'zip'
     | 'compile-lists'
+    | 'media-metadata'
   done: number
   total: number
   current?: string
@@ -743,6 +745,10 @@ type AppState = {
     folderPath: string,
     opts?: { skipTagged?: boolean; skipOnError?: boolean }
   ): Promise<void>
+  mediaMetadataExtractPlex(paths: string[]): Promise<void>
+  mediaMetadataDownload(paths: string[]): Promise<void>
+  mediaMetadataRefresh(paths: string[]): Promise<void>
+  mediaMetadataClear(paths: string[]): Promise<void>
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
@@ -1031,6 +1037,39 @@ export const useAppStore = create<AppState>()((set, get) => {
    * After BUSY_FEEDBACK_MS, show an indeterminate status-bar busy state if main
    * has not already pushed real `op-progress`. Clears local busy when `work` ends.
    */
+  async function runMediaMetadataOp(
+    label: string,
+    paths: string[],
+    work: () => Promise<{
+      done: number
+      failed: { path: string; message: string }[]
+      updated: string[]
+    }>
+  ): Promise<void> {
+    if (!get().settings.mediaMetadata.enabled) return
+    try {
+      const res = await withBusyFeedback('media-metadata', label, undefined, work)
+      for (const p of res.updated.length > 0 ? res.updated : paths) get().bumpColumnMeta(p)
+      const failN = res.failed.length
+      if (failN > 0) {
+        get().notify(
+          `${res.done} updated · ${failN} failed${res.failed[0] ? ` (${res.failed[0].message})` : ''}`,
+          true
+        )
+      } else if (res.done === 0) {
+        get().notify(
+          label.startsWith('Extract') || label.startsWith('Download')
+            ? 'All items already have media metadata'
+            : 'No media metadata to update'
+        )
+      } else {
+        get().notify(res.done === 1 ? 'Media metadata saved' : `Media metadata saved for ${res.done} items`)
+      }
+    } catch (e) {
+      get().notify(e instanceof IpcError ? e.message : String(e), true)
+    }
+  }
+
   async function withBusyFeedback<T>(
     kind: FileOpProgress['kind'],
     label: string,
@@ -1748,9 +1787,32 @@ export const useAppStore = create<AppState>()((set, get) => {
     return nextPath
   }
 
+  async function closeTabsWhoseRootWasDeleted(removed: string[]): Promise<void> {
+    const doomed = tabsWhoseRootIsDeleted(get().tabs, removed)
+    if (doomed.length === 0) return
+    const fallback = get().homePath || get().settings.defaultNewTabPath
+    if (doomed.length >= get().tabs.length && fallback) {
+      await get().newTab(fallback)
+    }
+    for (const tab of tabsWhoseRootIsDeleted(get().tabs, removed)) {
+      if (get().tabs.length <= 1) break
+      await get().closeTab(tab.id)
+    }
+  }
+
   async function afterPathsRemoved(removed: string[]): Promise<void> {
     syncImageViewerAfterDelete(removed)
     notifyTreeRemoved(removed)
+    const activeDoomed = tabsWhoseRootIsDeleted(get().tabs, removed).some(
+      (t) => t.id === get().activeTabId
+    )
+    if (activeDoomed) {
+      pruneListingRemoved(removed)
+      clearMediaHold()
+      await closeTabsWhoseRootWasDeleted(removed)
+      return
+    }
+
     const tab = get().activeTab()
     const current = tab.path
     const primary =
@@ -1775,6 +1837,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       clearMediaHold()
       // Trash/move suspend closes ReadDirectoryChanges handles — re-arm without re-list.
       armWatchesForVisiblePanes()
+      await closeTabsWhoseRootWasDeleted(removed)
       return
     }
 
@@ -1782,6 +1845,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!parent) {
       const fallback = get().homePath || get().settings.defaultNewTabPath
       if (fallback) await get().navigate(fallback)
+      await closeTabsWhoseRootWasDeleted(removed)
       return
     }
 
@@ -1806,14 +1870,6 @@ export const useAppStore = create<AppState>()((set, get) => {
       // parent list failed — still try to open parent
     }
 
-    // Scoped tab whose root was deleted: drop the scope so we can leave it.
-    if (
-      tab.rootPath &&
-      (samePath(tab.rootPath, primary) || isUnderPath(tab.rootPath, primary))
-    ) {
-      updateActiveTab({ rootPath: null })
-    }
-
     await get().navigate(nextPath)
     // Don't leave deleted folders in back/forward history.
     const gone = (p: string): boolean =>
@@ -1825,6 +1881,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       selected: []
     })
     clearMediaHold()
+    await closeTabsWhoseRootWasDeleted(removed)
   }
 
   let historyBusy = false
@@ -4143,6 +4200,17 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       const target = paths ?? s.activeTab().selected
       if (target.length === 0) return
+      const rootHits = tabsWhoseRootIsDeleted(s.tabs, target)
+      if (rootHits.length > 0) {
+        const prompt = tabRootDeletePrompt(rootHits, permanent)
+        const ok = await get().askConfirm({
+          title: prompt.title,
+          message: prompt.message,
+          confirmLabel: 'Delete',
+          danger: true
+        })
+        if (!ok) return
+      }
       if (!permanent) {
         try {
           // Select the survivor first so the preview keeps painting while we trash.
@@ -4188,7 +4256,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return e ? e.kind === 'dir' : true
       })
       const needsConfirm = target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
-      if (needsConfirm) {
+      if (needsConfirm && rootHits.length === 0) {
         set({ dialog: { kind: 'confirm-permanent-delete', paths: target } })
       } else {
         await doPermanentDelete(target)
@@ -4657,6 +4725,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.remoteRepos
         }
       }
+      if (patch.mediaMetadata) {
+        mergedPatch.mediaMetadata = {
+          ...prev.mediaMetadata,
+          ...patch.mediaMetadata
+        }
+      }
       if (patch.contextMenu) {
         mergedPatch.contextMenu = {
           ...prev.contextMenu,
@@ -4682,6 +4756,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           remoteRepos: mergedPatch.remoteRepos
             ? { ...s.settings.remoteRepos, ...mergedPatch.remoteRepos }
             : s.settings.remoteRepos,
+          mediaMetadata: mergedPatch.mediaMetadata
+            ? { ...s.settings.mediaMetadata, ...mergedPatch.mediaMetadata }
+            : s.settings.mediaMetadata,
           contextMenu: mergedPatch.contextMenu
             ? {
                 ...s.settings.contextMenu,
@@ -4982,6 +5059,30 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
+    },
+
+    async mediaMetadataExtractPlex(paths) {
+      await runMediaMetadataOp('Extracting media metadata…', paths, () =>
+        call(api.mediaMetadata.extractPlex({ paths }))
+      )
+    },
+
+    async mediaMetadataDownload(paths) {
+      await runMediaMetadataOp('Downloading media metadata…', paths, () =>
+        call(api.mediaMetadata.download({ paths }))
+      )
+    },
+
+    async mediaMetadataRefresh(paths) {
+      await runMediaMetadataOp('Refreshing media metadata…', paths, () =>
+        call(api.mediaMetadata.refresh({ paths }))
+      )
+    },
+
+    async mediaMetadataClear(paths) {
+      await runMediaMetadataOp('Clearing media metadata…', paths, () =>
+        call(api.mediaMetadata.clear({ paths }))
+      )
     },
 
     async calculateFolderStatistics(folderPath, opts) {

@@ -115,6 +115,28 @@ describe('settings export / import', () => {
     expect(parsed.settings.remoteRepos).toEqual({ enabled: true })
   })
 
+  it('round-trips mediaMetadata nested prefs via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        mediaMetadata: {
+          ...defaultSettings.mediaMetadata,
+          enabled: true,
+          tmdbApiKey: 'tmdb-test',
+          omdbApiKey: 'omdb-test',
+          internetSource: 'omdb',
+          plexUrl: 'http://127.0.0.1:32400'
+        }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.mediaMetadata.enabled).toBe(true)
+    expect(parsed.settings.mediaMetadata.tmdbApiKey).toBe('tmdb-test')
+    expect(parsed.settings.mediaMetadata.omdbApiKey).toBe('omdb-test')
+    expect(parsed.settings.mediaMetadata.internetSource).toBe('omdb')
+  })
+
   it('round-trips remote connection metadata and strips hasPassword', () => {
     const doc = buildSettingsExportDocument({
       settings: { ...defaultSettings, remoteRepos: { enabled: true } },

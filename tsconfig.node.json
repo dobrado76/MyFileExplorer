@@ -42,6 +42,7 @@
     "src/renderer/lib/iconRequestQueue.ts",
     "src/renderer/lib/recycleBinEntries.ts",
     "src/renderer/lib/searchEntries.ts",
-    "src/renderer/lib/model3dUrl.ts"
+    "src/renderer/lib/model3dUrl.ts",
+    "src/renderer/lib/tabRootDelete.ts"
   ]
 }

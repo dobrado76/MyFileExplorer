@@ -63,6 +63,56 @@ type MenuItem =
       items: SubEntry[]
     }
 
+function mediaMetadataMenu(
+  paths: string[],
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>
+): MenuItem[] {
+  if (!s.settings.mediaMetadata.enabled) return []
+  const local = paths.filter((p) => p && !p.toLowerCase().startsWith('mfe-remote://'))
+  if (local.length === 0) return []
+  return [
+    {
+      type: 'submenu',
+      label: 'Media Metadata',
+      items: [
+        {
+          label: 'Extract from Plex Media Server',
+          title: 'Only items that do not already have metadata. Folders include every video inside.',
+          action: () => {
+            close()
+            void s.mediaMetadataExtractPlex(local)
+          }
+        },
+        {
+          label: 'Download from Internet',
+          title: 'Only items that do not already have metadata. Folders include every video inside.',
+          action: () => {
+            close()
+            void s.mediaMetadataDownload(local)
+          }
+        },
+        {
+          label: 'Update',
+          title: 'Refresh existing from their source; missing items are extracted from Plex. Folders include every video inside.',
+          action: () => {
+            close()
+            void s.mediaMetadataRefresh(local)
+          }
+        },
+        {
+          label: 'Clear',
+          title: 'Folders include every video inside',
+          action: () => {
+            close()
+            void s.mediaMetadataClear(local)
+          }
+        }
+      ]
+    }
+  ]
+}
+
 function mapCommandSubRows(rows: CommandMenuSubRow[]): SubEntry[] {
   return rows.map((r) =>
     r.items?.length
@@ -770,6 +820,7 @@ export function ContextMenu(): JSX.Element | null {
             }
           ]
         },
+        ...mediaMetadataMenu([folderPath], close, s),
         {
           type: 'item',
           label: 'Alternate streams…',
@@ -1560,6 +1611,7 @@ export function ContextMenu(): JSX.Element | null {
     }
     result.push(
       { type: 'sep' },
+      ...mediaMetadataMenu(paths.length > 0 ? paths : single ? [single] : [], close, s),
       {
         type: 'item',
         label: 'Alternate streams…',

@@ -325,6 +325,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   )
   const viewMode = owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons'
   const noFilenameView = viewMode === 'extraLargeIconsNoName'
+  const mediaMetadataEnabled = useAppStore((s) => s.settings.mediaMetadata.enabled)
 
   useEffect(() => {
     contentThumbPaths.current.clear()
@@ -1767,9 +1768,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   >
                     {itemCheck(entry, isSel)}
                     <div className="cell-thumb">
-                      {entry.kind === 'file' &&
-                      !recycleMode &&
-                      (isImageExt(entry.ext) || isVideoExt(entry.ext)) ? (
+                      {((entry.kind === 'file' &&
+                        !recycleMode &&
+                        (isImageExt(entry.ext) || isVideoExt(entry.ext))) ||
+                        (mediaMetadataEnabled && !recycleMode && entry.kind === 'dir')) ? (
                         <ThumbImage
                           path={entry.path}
                           mtimeMs={entry.mtimeMs}

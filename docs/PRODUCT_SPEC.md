@@ -118,7 +118,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 
 - Open
 - Open in new tab
-- Open as root in new tab (scoped tab: folder becomes the tree root, navigation stays inside)
+- Open as root in new tab (scoped tab: folder becomes the tree root, navigation stays inside). Deleting that folder from any tab always confirms first and closes the tabs that used it as root.
 - Pin to Quick access / Unpin from Quick access (folders)
 - Cut / Copy / Paste
 - Rename
@@ -131,6 +131,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
+- Media Metadata (only when Settings → Media Metadata is enabled) → Extract from Plex / Download from Internet / Update / Clear. Folders include every video inside. Extract/Download skip items that already have metadata.
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
@@ -155,6 +156,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
+- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + cover above the video and the rest of the fields below. Click the cover for a fullscreen view of the stored full-size image.
 
 ---
 
@@ -187,6 +189,7 @@ See [SEARCH.md](SEARCH.md).
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
+| Media Metadata | **Enable** (off by default). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
 | About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 

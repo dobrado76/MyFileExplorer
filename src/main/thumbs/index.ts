@@ -58,11 +58,42 @@ export function isThumbable(filePath: string): boolean {
   return THUMB_EXTS.has(ext)
 }
 
+async function mediaCoverThumbUrl(file: string): Promise<string | null> {
+  try {
+    const { getSettings } = await import('../settings/store')
+    if (!getSettings().mediaMetadata.enabled || process.platform !== 'win32') return null
+    const { MEDIA_METADATA_THUMB_ADS } = await import('@shared/mediaMetadata')
+    const { streamExists, readStreamBytes } = await import('../fs/adsWin32')
+    if (!streamExists(file, MEDIA_METADATA_THUMB_ADS)) return null
+    const buf = await readStreamBytes(file, MEDIA_METADATA_THUMB_ADS)
+    if (!buf || buf.length < 32) return null
+    const key = crypto.createHash('sha1').update(buf).digest('hex')
+    const ext =
+      buf[0] === 0x89 && buf[1] === 0x50
+        ? '.png'
+        : buf[0] === 0x52 && buf[1] === 0x49
+          ? '.webp'
+          : '.jpg'
+    const cacheFile = path.join(thumbCacheDir(), `mm-${key}${ext}`)
+    try {
+      await fsp.access(cacheFile)
+    } catch {
+      await fsp.writeFile(cacheFile, buf)
+    }
+    return mediaUrlFor(cacheFile)
+  } catch {
+    return null
+  }
+}
+
 export async function getThumbUrl(
   rawPath: string,
   size: number
 ): Promise<{ url: string | null; frames?: string[] }> {
   const file = requireAbsolute(rawPath)
+
+  const cover = await mediaCoverThumbUrl(file)
+  if (cover) return { url: cover }
 
   const frames = await resolveVidThumbFrames(file)
   if (frames.length > 0) {

@@ -9,8 +9,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside.
+
+### Changed
+
+- **Deleting a tab root** — a folder that is the scoped root of any open tab now always asks for confirmation (Cancel / Delete) and warns that those tabs will be closed. After a successful delete, the affected tabs close (a replacement tab opens if that would leave none).
+
 ### Fixed
 
+- **Plex media covers** — extract uses Plex’s own thumb URL (and photo transcode), does not send the Plex token to CDN hosts, maps `localhost` to `127.0.0.1`, and reads the poster from the on-disk Metadata bundle when HTTP fails. Re-run **Update** on items that already have text metadata but an empty poster.
 - **GitHub Release attach** — CI looked for `MyFileExplorer Setup *.exe` after the installer was renamed to `MyFileExplorer-x.y.z.exe`, so the tag build produced an installer and then failed to attach it.
 
 ## [0.8.0] - 2026-08-16

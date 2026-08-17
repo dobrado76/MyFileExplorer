@@ -59,6 +59,13 @@ export function patchSettings(patch: unknown): Settings {
           ...parsed.networkDiscovery
         }
       : (cur.networkDiscovery ?? defaultSettings.networkDiscovery),
+    mediaMetadata: parsed.mediaMetadata
+      ? {
+          ...defaultSettings.mediaMetadata,
+          ...cur.mediaMetadata,
+          ...parsed.mediaMetadata
+        }
+      : (cur.mediaMetadata ?? defaultSettings.mediaMetadata),
     contextMenu: parsed.contextMenu
       ? {
           ...defaultSettings.contextMenu,

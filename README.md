@@ -44,6 +44,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
+- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); cover + title in preview; stored as NTFS streams on the file
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete

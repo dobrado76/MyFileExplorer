@@ -33,6 +33,10 @@ import {
   remoteReposSettingsSchema
 } from './remoteRepos'
 import {
+  defaultMediaMetadataSettings,
+  mediaMetadataSettingsSchema
+} from './mediaMetadata'
+import {
   MAX_CONTEXT_MENU_COMMANDS,
   type ContextMenuCommand
 } from '../contextMenuCommands'
@@ -423,6 +427,10 @@ export const settingsSchema = z.object({
     if (!raw || typeof raw !== 'object') return defaultRemoteReposSettings
     return { ...defaultRemoteReposSettings, ...(raw as object) }
   }, remoteReposSettingsSchema),
+  mediaMetadata: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultMediaMetadataSettings
+    return { ...defaultMediaMetadataSettings, ...(raw as object) }
+  }, mediaMetadataSettingsSchema),
   /** Last ADS Manager dialog geometry (null = centered defaults). */
   adsManagerBounds: z
     .object({
@@ -549,6 +557,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   slideshow: defaultSlideshowSettings,
   networkDiscovery: defaultNetworkDiscoverySettings,
   remoteRepos: defaultRemoteReposSettings,
+  mediaMetadata: defaultMediaMetadataSettings,
   adsManagerBounds: null,
   powerRenameBounds: null,
   remoteConnectionBounds: null,
@@ -564,6 +573,7 @@ export const settingsPatchSchema = settingsSchema
     slideshow: slideshowSettingsSchema.partial().optional(),
     networkDiscovery: networkDiscoverySettingsSchema.partial().optional(),
     remoteRepos: remoteReposSettingsSchema.partial().optional(),
+    mediaMetadata: mediaMetadataSettingsSchema.partial().optional(),
     contextMenu: contextMenuSettingsSchema.partial().optional()
   })
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

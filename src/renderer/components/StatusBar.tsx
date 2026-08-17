@@ -28,6 +28,8 @@ function fileOpTitle(kind: string, label?: string): string {
       return 'Updating Lists'
     case 'folder-stats':
       return 'Folder statistics'
+    case 'media-metadata':
+      return 'Media metadata'
     default:
       return 'Working'
   }

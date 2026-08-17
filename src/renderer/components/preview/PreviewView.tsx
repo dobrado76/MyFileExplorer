@@ -31,6 +31,12 @@ import { ChmPreview } from './ChmPreview'
 import { FontPreview } from './FontPreview'
 import { Model3dPreview } from './Model3dPreview'
 import { DriveSpacePreview } from './DriveSpacePreview'
+import {
+  MediaMetadataDetails,
+  MediaMetadataHero,
+  MediaMetadataPreview,
+  MediaMetadataProvider
+} from '../MediaMetadataPreview'
 import type { DriveInfo } from '@shared/schemas/fs'
 
 function archiveContentsLabel(format: PreviewModel['archiveFormat']): string {
@@ -205,10 +211,18 @@ export function PreviewView({
           <SpinnerIcon size={20} className="spin" />
         </div>
       ) : !model ? (
-        <div className="preview-empty">No preview available</div>
+        <div className="preview-content">
+          {previewPath && !zen ? (
+            <MediaMetadataProvider path={previewPath}>
+              <MediaMetadataPreview />
+            </MediaMetadataProvider>
+          ) : null}
+          <div className="preview-empty">No preview available</div>
+        </div>
       ) : (
         <PreviewBody
           model={model}
+          previewPath={previewPath}
           mediaHold={mediaHold}
           previewWindowOpen={previewWindowOpen}
           previewVideoAutoplay={previewVideoAutoplay}
@@ -226,6 +240,7 @@ export function PreviewView({
 
 function PreviewBody({
   model,
+  previewPath,
   mediaHold,
   previewWindowOpen,
   previewVideoAutoplay,
@@ -237,6 +252,7 @@ function PreviewBody({
   onRetryPlayableForce
 }: {
   model: PreviewModel
+  previewPath: string
   mediaHold: boolean
   previewWindowOpen: boolean
   previewVideoAutoplay: boolean
@@ -253,8 +269,9 @@ function PreviewBody({
   const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
 
   return (
-    <>
+    <MediaMetadataProvider path={previewPath}>
       <div className="preview-content">
+        {!zen ? <MediaMetadataHero /> : null}
         {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
         {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
           <div className="preview-media preview-media-fill">
@@ -456,6 +473,8 @@ function PreviewBody({
         )}
         {model.kind === 'missing' && <div className="preview-empty">File no longer exists</div>}
 
+        {!zen ? <MediaMetadataDetails /> : null}
+
         {!zen && model.warnings && model.warnings.length > 0 && (
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
         )}
@@ -491,7 +510,7 @@ function PreviewBody({
       </div>
 
       {!zen && fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
-    </>
+    </MediaMetadataProvider>
   )
 }
 

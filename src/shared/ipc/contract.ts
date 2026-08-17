@@ -110,6 +110,12 @@ export const IPC = {
   appReady: 'app:ready',
   appGetVersion: 'app:getVersion',
   appDevGate: 'app:devGate',
+  mediaMetadataExtractPlex: 'mediaMetadata:extractPlex',
+  mediaMetadataDownload: 'mediaMetadata:download',
+  mediaMetadataRefresh: 'mediaMetadata:refresh',
+  mediaMetadataClear: 'mediaMetadata:clear',
+  mediaMetadataGet: 'mediaMetadata:get',
+  mediaMetadataProbePlex: 'mediaMetadata:probePlex',
   appCheckUpdate: 'app:checkUpdate',
   appRunUpdate: 'app:runUpdate',
 
@@ -207,6 +213,7 @@ export type MfeEvent =
           | 'zip'
           | 'compile-lists'
           | 'folder-stats'
+          | 'media-metadata'
         done: number
         total: number
         /** Basename (or short path) of the item currently being processed. */

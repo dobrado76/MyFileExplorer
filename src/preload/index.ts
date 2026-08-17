@@ -120,6 +120,14 @@ const api: MyFileExplorerApi = {
     checkUpdate: invoke(IPC.appCheckUpdate),
     runUpdate: invoke(IPC.appRunUpdate)
   },
+  mediaMetadata: {
+    extractPlex: invoke(IPC.mediaMetadataExtractPlex),
+    download: invoke(IPC.mediaMetadataDownload),
+    refresh: invoke(IPC.mediaMetadataRefresh),
+    clear: invoke(IPC.mediaMetadataClear),
+    get: invoke(IPC.mediaMetadataGet),
+    probePlex: invokeVoid(IPC.mediaMetadataProbePlex)
+  },
   slideshow: {
     listImages: invoke(IPC.slideshowListImages),
     cancelList: invokeVoid(IPC.slideshowCancelList),

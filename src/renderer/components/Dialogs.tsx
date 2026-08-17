@@ -1479,6 +1479,7 @@ type SettingsSection =
   | 'network'
   | 'remoterepos'
   | 'slideshow'
+  | 'mediametadata'
   | 'advanced'
   | 'about'
 
@@ -1495,9 +1496,140 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'network', label: 'Network' },
   { id: 'remoterepos', label: 'Remote repositories' },
   { id: 'slideshow', label: 'Slideshow' },
+  { id: 'mediametadata', label: 'Media Metadata' },
   { id: 'advanced', label: 'Advanced' },
   { id: 'about', label: 'About' }
 ]
+
+function MediaMetadataSettingsPanel(): JSX.Element {
+  const settings = useAppStore((s) => s.settings)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const mm = settings.mediaMetadata
+  const [plex, setPlex] = useState<{
+    installed: boolean
+    running: boolean
+    dataDir: string | null
+    tokenFound: boolean
+    url: string
+  } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void api.mediaMetadata.probePlex().then((res) => {
+      if (!cancelled && res.ok) setPlex(res.value)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <div className="settings-stack">
+      <SettingsToggle
+        id="set-mm-enabled"
+        label="Enable media metadata"
+        hint="Off by default. When on: context menu Media Metadata, preview title/cover, and folder/video covers from stored streams."
+        checked={mm.enabled === true}
+        onChange={(v) => void applySettingsPatch({ mediaMetadata: { enabled: v } })}
+      />
+      <p className="settings-help">
+        Store movie / TV metadata and a cover on the file or folder as NTFS streams{' '}
+        <code>media_metadata</code> and <code>media_metadata_thumbnail</code>. Right-click → Media
+        Metadata. On a folder, Extract / Download / Update / Clear walk every video inside.
+        Extract and Download skip items that already have metadata; Update refreshes all and
+        extracts missing ones from Plex.
+      </p>
+      <div className="settings-field">
+        <span>Plex Media Server</span>
+        <p className="dim" style={{ margin: '4px 0 8px' }}>
+          {plex
+            ? `${plex.installed ? 'Found' : 'Not found'}${plex.running ? ' · running' : ' · not running'}${plex.tokenFound ? ' · token available' : ' · no token'}${plex.dataDir ? ` · ${plex.dataDir}` : ''}`
+            : 'Checking…'}
+        </p>
+        <label className="settings-labeled-row" htmlFor="set-mm-plex-url">
+          <span>URL</span>
+          <input
+            id="set-mm-plex-url"
+            type="text"
+            value={mm.plexUrl}
+            onChange={(e) => void applySettingsPatch({ mediaMetadata: { plexUrl: e.target.value } })}
+          />
+        </label>
+        <label className="settings-labeled-row" htmlFor="set-mm-plex-token">
+          <span>Token override</span>
+          <input
+            id="set-mm-plex-token"
+            type="password"
+            autoComplete="off"
+            placeholder="(auto from Preferences.xml)"
+            value={mm.plexToken}
+            onChange={(e) =>
+              void applySettingsPatch({ mediaMetadata: { plexToken: e.target.value } })
+            }
+          />
+        </label>
+        <label className="settings-labeled-row" htmlFor="set-mm-plex-dir">
+          <span>Data folder</span>
+          <input
+            id="set-mm-plex-dir"
+            type="text"
+            placeholder="(auto %LOCALAPPDATA%\Plex Media Server)"
+            value={mm.plexDataDir}
+            onChange={(e) =>
+              void applySettingsPatch({ mediaMetadata: { plexDataDir: e.target.value } })
+            }
+          />
+        </label>
+      </div>
+      <div className="settings-field">
+        <span>Internet sources</span>
+        <p className="dim" style={{ margin: '4px 0 8px' }}>
+          TMDB (themoviedb.org) is preferred. OMDb (omdbapi.com) is the IMDb-data fallback. Both
+          need a free API key.
+        </p>
+        <label className="settings-labeled-row" htmlFor="set-mm-src">
+          <span>Preferred</span>
+          <select
+            id="set-mm-src"
+            value={mm.internetSource}
+            onChange={(e) =>
+              void applySettingsPatch({
+                mediaMetadata: { internetSource: e.target.value as 'tmdb' | 'omdb' }
+              })
+            }
+          >
+            <option value="tmdb">TMDB</option>
+            <option value="omdb">OMDb</option>
+          </select>
+        </label>
+        <label className="settings-labeled-row" htmlFor="set-mm-tmdb">
+          <span>TMDB API key</span>
+          <input
+            id="set-mm-tmdb"
+            type="password"
+            autoComplete="off"
+            value={mm.tmdbApiKey}
+            onChange={(e) =>
+              void applySettingsPatch({ mediaMetadata: { tmdbApiKey: e.target.value } })
+            }
+          />
+        </label>
+        <label className="settings-labeled-row" htmlFor="set-mm-omdb">
+          <span>OMDb API key</span>
+          <input
+            id="set-mm-omdb"
+            type="password"
+            autoComplete="off"
+            value={mm.omdbApiKey}
+            onChange={(e) =>
+              void applySettingsPatch({ mediaMetadata: { omdbApiKey: e.target.value } })
+            }
+          />
+        </label>
+      </div>
+    </div>
+  )
+}
 
 function SettingsToggle({
   id,
@@ -1611,13 +1743,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const layouts = useAppStore((s) => s.settings.layouts)
 
-  const startSection = SETTINGS_NAV.some((s) => s.id === initialSection)
-    ? (initialSection as SettingsSection)
-    : 'appearance'
-  const [section, setSection] = useState<SettingsSection>(startSection)
   const [localComputerName, setLocalComputerName] = useState('')
   const devGateActive = useAppStore((s) => s.devGateActive)
   const navItems = SETTINGS_NAV
+  const startSection = navItems.some((s) => s.id === initialSection)
+    ? (initialSection as SettingsSection)
+    : 'appearance'
+  const [section, setSection] = useState<SettingsSection>(startSection)
   const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
   const [excludeText, setExcludeText] = useState(settings.searchExcludeDirNames.join('\n'))
@@ -2175,6 +2307,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </div>
             </div>
           )}
+
+          {section === 'mediametadata' && <MediaMetadataSettingsPanel />}
 
           {section === 'behavior' && (
             <div className="settings-stack">
