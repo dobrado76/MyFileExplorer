@@ -53,6 +53,8 @@ import {
 import { api, call, IpcError } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { patchDirEntriesForRename, rewritePathAfterRename } from '../lib/renameListing'
+import { clearFileViewScroll, liveFileViewScroll } from '../lib/fileViewScroll'
 import { tabRootDeletePrompt, tabsWhoseRootIsDeleted } from '../lib/tabRootDelete'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
 import { isNetworkHostUnc } from '@shared/networkPaths'
@@ -80,7 +82,7 @@ import {
 } from '../lib/quickAccess'
 import { isMediaApiLimitError } from '@shared/mediaApiLimit'
 import { type MediaLibraryItemFlags, type MediaWatchedFilter } from '@shared/mediaMetadata'
-import { isExcludedByMediaLibrary } from '../lib/mediaLibrary'
+import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { isExcludedByViewFilter, listingHasAllSelected } from '../lib/viewFilter'
 import {
   mergeDismissedPaths,
@@ -95,7 +97,7 @@ import {
 } from '@shared/searchQuery'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
-import { invalidateThumbMemory } from '../lib/thumbMemory'
+import { invalidateThumbMemory, invalidateThumbMemoryMany, thumbPathKey } from '../lib/thumbMemory'
 import { nextSelectionAfterDelete } from '../lib/nextSelection'
 import { dedupeDirEntries } from '@shared/dirEntries'
 import {
@@ -171,7 +173,7 @@ function currentLocation(tab: Tab): HistoryEntry {
   if (tab.search.active && tab.search.query.trim()) {
     return searchHistory(tab.search.query.trim(), tab.path, tab.search.indexedOnly)
   }
-  return folderHistory(tab.path)
+  return folderHistory(tab.path, liveFileViewScroll(tab.id) ?? tab.scrollOffset)
 }
 
 export type Listing = {
@@ -242,6 +244,12 @@ export type DialogState =
   | { kind: 'power-search' }
   | { kind: 'change-cover'; path: string }
   | { kind: 'media-kind'; title: string; message: string }
+  | {
+      kind: 'media-pick'
+      title: string
+      message: string
+      candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+    }
   | null
 
 export type MediaLibraryState = {
@@ -412,6 +420,7 @@ let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
 let mediaKindResolve: ((choice: 'movie' | 'show' | null) => void) | null = null
+let mediaPickResolve: ((choice: string | null) => void) | null = null
 
 type AppState = {
   booted: boolean
@@ -509,7 +518,12 @@ type AppState = {
    * Bumped after FS mutations so the folder tree can prune removed nodes and/or
    * reload a parent's children (e.g. after mkdir / paste / rename).
    */
-  treeMutation: { rev: number; removed: string[]; reloadParents: string[] }
+  treeMutation: {
+    rev: number
+    removed: string[]
+    reloadParents: string[]
+    renamed: { from: string; to: string }[]
+  }
   /**
    * Bumped by Refresh (F5) so the folder tree reloads every folder it has already
    * listed — listing alone does not update the tree cache.
@@ -540,6 +554,11 @@ type AppState = {
    * After ADS (or similar) edits: bump so FileView re-fetches column meta for `path`.
    */
   bumpColumnMeta(path: string): void
+  /**
+   * After media-metadata cover writes: drop in-memory thumbs and force icon
+   * tiles + preview to refetch (ADS does not change listing mtime).
+   */
+  invalidateContentThumbs(paths: string[]): void
 
   undo(): Promise<void>
   redo(): Promise<void>
@@ -732,6 +751,12 @@ type AppState = {
   resolveConfirm(confirmed: boolean): void
   askMediaKind(opts: { title: string; message: string }): Promise<'movie' | 'show' | null>
   resolveMediaKind(choice: 'movie' | 'show' | null): void
+  askMediaPick(opts: {
+    title: string
+    message: string
+    candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+  }): Promise<string | null>
+  resolveMediaPick(choice: string | null): void
   imageViewerNavigate(delta: number | 'first' | 'last'): void
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
@@ -781,6 +806,7 @@ type AppState = {
   mediaMetadataDownload(paths: string[]): Promise<void>
   mediaMetadataRefresh(paths: string[]): Promise<void>
   mediaMetadataClear(paths: string[]): Promise<void>
+  mediaMetadataConsolidateSubtitles(paths: string[]): Promise<void>
   mediaMetadataSetWatched(paths: string[], watched: boolean): Promise<void>
   setMediaLibraryWatchedFilter(value: MediaWatchedFilter): void
   setMediaLibraryGenreFilter(genre: string | null): void
@@ -1076,6 +1102,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!s.settings.mediaMetadata.enabled || !folderPath || isRemoteLocation(folderPath)) {
       if (s.mediaLibrary.isContainer || s.mediaLibrary.folderPath) {
         set({ mediaLibrary: emptyMediaLibrary() })
+        resortCurrentListing()
       }
       return
     }
@@ -1091,7 +1118,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           genres: it.genres,
           kind: it.kind,
           season: it.season,
-          episode: it.episode
+          episode: it.episode,
+          title: it.title,
+          showTitle: it.showTitle
         }
         for (const g of it.genres) {
           if (g.trim()) genreSet.add(g)
@@ -1110,26 +1139,39 @@ export const useAppStore = create<AppState>()((set, get) => {
           genreFilter: genreStill
         }
       })
+      resortCurrentListing()
     } catch {
       set({ mediaLibrary: emptyMediaLibrary() })
+      resortCurrentListing()
     }
   }
 
   async function runMediaMetadataOp(
     label: string,
     paths: string[],
-    work: (kindHints?: Record<string, 'movie' | 'show' | 'episode'>) => Promise<{
+    work: (
+      kindHints?: Record<string, 'movie' | 'show' | 'episode'>,
+      pickHints?: Record<string, string>
+    ) => Promise<{
       done: number
       failed: { path: string; message: string }[]
       updated: string[]
       stoppedReason?: string
       needsKind?: { path: string; title: string }[]
+      needsPick?: {
+        path: string
+        title: string
+        candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+      }[]
     }>
   ): Promise<void> {
     if (!get().settings.mediaMetadata.enabled) return
     try {
       let hints: Record<string, 'movie' | 'show' | 'episode'> | undefined
-      let res = await withBusyFeedback('media-metadata', label, undefined, () => work(hints))
+      let pickHints: Record<string, string> | undefined
+      let res = await withBusyFeedback('media-metadata', label, undefined, () =>
+        work(hints, pickHints)
+      )
       if (res.needsKind && res.needsKind.length > 0) {
         const extra: Record<string, 'movie' | 'show' | 'episode'> = { ...hints }
         for (const item of res.needsKind) {
@@ -1142,7 +1184,35 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
         if (Object.keys(extra).length > (hints ? Object.keys(hints).length : 0)) {
           hints = extra
-          const again = await withBusyFeedback('media-metadata', label, undefined, () => work(hints))
+          const pendingPick = res.needsPick
+          const again = await withBusyFeedback('media-metadata', label, undefined, () =>
+            work(hints, pickHints)
+          )
+          res = {
+            done: res.done + again.done,
+            failed: [...res.failed, ...again.failed],
+            updated: [...res.updated, ...again.updated],
+            stoppedReason: again.stoppedReason ?? res.stoppedReason,
+            needsPick: [...(pendingPick ?? []), ...(again.needsPick ?? [])]
+          }
+        }
+      }
+      if (res.needsPick && res.needsPick.length > 0) {
+        const extra: Record<string, string> = { ...pickHints }
+        for (const item of res.needsPick) {
+          const choice = await get().askMediaPick({
+            title: 'Which title?',
+            message: `Several titles match “${item.title}”. Pick the one that fits.`,
+            candidates: item.candidates
+          })
+          if (!choice) break
+          extra[item.path] = choice
+        }
+        if (Object.keys(extra).length > (pickHints ? Object.keys(pickHints).length : 0)) {
+          pickHints = extra
+          const again = await withBusyFeedback('media-metadata', label, undefined, () =>
+            work(hints, pickHints)
+          )
           res = {
             done: res.done + again.done,
             failed: [...res.failed, ...again.failed],
@@ -1151,8 +1221,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         }
       }
-      for (const p of res.updated.length > 0 ? res.updated : paths) get().bumpColumnMeta(p)
       const folder = get().listing.path
+      get().invalidateContentThumbs([
+        ...(res.updated.length > 0 ? res.updated : paths),
+        ...paths,
+        ...(folder ? [folder] : [])
+      ])
       if (folder) void refreshMediaLibraryFolder(folder)
       if (res.stoppedReason) {
         reportOperationError('Media metadata stopped', new Error(res.stoppedReason))
@@ -1421,6 +1495,35 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
+  function currentListingFoldersFirst(listingPath?: string): boolean {
+    const s = get()
+    return listingFoldersFirst({
+      foldersFirst: s.settings.foldersFirst,
+      mediaEnabled: s.settings.mediaMetadata.enabled,
+      mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+      isContainer: s.mediaLibrary.isContainer,
+      listingPath: listingPath ?? s.listing.path,
+      containerPath: s.mediaLibrary.folderPath
+    })
+  }
+
+  function resortCurrentListing(): void {
+    const s = get()
+    const tab = s.activeTab()
+    if (!tab || tab.search.active || s.recycleBin.active) return
+    const listing = s.listingsByTabId[tab.id] ?? s.listing
+    if (!listing.path || listing.entries.length === 0) return
+    const owning = resolveFolderView(tab.path, s.settings.folderViews)
+    const sort = owning?.sort ?? tab.sort
+    const sorted = sortEntries(listing.entries, sort, currentListingFoldersFirst())
+    viewOrderCache = null
+    const nextListing = { ...listing, entries: sorted }
+    set({
+      listing: tab.id === s.activeTabId ? nextListing : s.listing,
+      listingsByTabId: { ...s.listingsByTabId, [tab.id]: nextListing }
+    })
+  }
+
   function commitListing(
     tabId: string,
     listedPath: string,
@@ -1431,7 +1534,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     const owning = resolveFolderView(tab.path, get().settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const sortedEntries = dedupeDirEntries(
-      sortEntries(entries, sort, get().settings.foldersFirst)
+      sortEntries(entries, sort, currentListingFoldersFirst(listedPath))
     )
     const nextListing: Listing = {
       path: listedPath,
@@ -1640,6 +1743,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       back: stacks.back,
       forward: stacks.forward,
       selected: [],
+      scrollOffset: entry.kind === 'folder' ? (entry.scrollOffset ?? 0) : 0,
       search: emptyTabSearch(tab.search.indexedOnly)
     })
     await loadListing(path, { tabId })
@@ -1671,16 +1775,78 @@ export const useAppStore = create<AppState>()((set, get) => {
     get().notify(message.split('\n')[0] ?? message, true)
   }
 
-  function notifyTreeMutation(opts: { removed?: string[]; reloadParents?: string[] }): void {
+  function notifyTreeMutation(opts: {
+    removed?: string[]
+    reloadParents?: string[]
+    renamed?: { from: string; to: string }[]
+  }): void {
     dropRemoteListingCaches(opts.removed ?? [])
     dropRemoteListingCaches(opts.reloadParents ?? [])
     set((s) => ({
       treeMutation: {
         rev: s.treeMutation.rev + 1,
         removed: opts.removed ? [...opts.removed] : [],
-        reloadParents: opts.reloadParents ? [...opts.reloadParents] : []
+        reloadParents: opts.reloadParents ? [...opts.reloadParents] : [],
+        renamed: opts.renamed ? [...opts.renamed] : []
       }
     }))
+  }
+
+  /** Keep the typed name on screen while the network rename + re-list catch up. */
+  function applyListingRename(from: string, to: string, newName: string): void {
+    const rewrite = (p: string): string => rewritePathAfterRename(p, from, to)
+    set((s) => {
+      const listingsByTabId: Record<string, Listing> = {}
+      for (const [tid, L] of Object.entries(s.listingsByTabId)) {
+        listingsByTabId[tid] = {
+          ...L,
+          entries: patchDirEntriesForRename(L.entries, from, to, newName)
+        }
+      }
+      const listing = listingsByTabId[s.activeTabId] ?? {
+        ...s.listing,
+        entries: patchDirEntriesForRename(s.listing.entries, from, to, newName)
+      }
+      const tabs = s.tabs.map((t) => ({
+        ...t,
+        path: rewrite(t.path),
+        rootPath: t.rootPath ? rewrite(t.rootPath) : null,
+        selected: t.selected.map(rewrite),
+        treeExpanded: t.treeExpanded.map(rewrite),
+        search: t.search.active
+          ? {
+              ...t.search,
+              results: t.search.results.map((r) => ({
+                ...r,
+                path: rewrite(r.path),
+                name: samePath(r.path, from) ? newName : r.name
+              })),
+              walkItems: t.search.walkItems.map((r) => ({
+                ...r,
+                path: rewrite(r.path),
+                name: samePath(r.path, from) ? newName : r.name
+              }))
+            }
+          : t.search
+      }))
+      const activeSearch = tabs.find((t) => t.id === s.activeTabId)?.search ?? s.search
+      viewOrderCache = null
+      return {
+        renamingPath: null,
+        renameSource: null,
+        listingsByTabId,
+        listing,
+        tabs,
+        search: activeSearch,
+        focusedPath: s.focusedPath ? rewrite(s.focusedPath) : null,
+        selectionAnchor: s.selectionAnchor ? rewrite(s.selectionAnchor) : null,
+        treeFocusPath: s.treeFocusPath ? rewrite(s.treeFocusPath) : null
+      }
+    })
+    const after = get()
+    for (const L of Object.values(after.listingsByTabId)) {
+      rememberRemoteListing(L.path, L.entries, after.drives)
+    }
   }
 
   function notifyTreeRemoved(removed: string[]): void {
@@ -1806,7 +1972,14 @@ export const useAppStore = create<AppState>()((set, get) => {
       viewOrderCache.listingRef === listingRef &&
       viewOrderCache.sortKey === sort.key &&
       viewOrderCache.sortDir === sort.dir &&
-      viewOrderCache.foldersFirst === s.settings.foldersFirst &&
+      viewOrderCache.foldersFirst === listingFoldersFirst({
+        foldersFirst: s.settings.foldersFirst,
+        mediaEnabled: s.settings.mediaMetadata.enabled,
+        mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+        isContainer: s.mediaLibrary.isContainer,
+        listingPath: s.listing.path,
+        containerPath: s.mediaLibrary.folderPath
+      }) &&
       viewOrderCache.filterKey === filterKey
     ) {
       return viewOrderCache.paths
@@ -1816,6 +1989,16 @@ export const useAppStore = create<AppState>()((set, get) => {
       !tab.search.active &&
       s.listing.path &&
       samePath(s.listing.path, s.mediaLibrary.folderPath)
+    const foldersFirst = tab.search.active
+      ? s.settings.foldersFirst
+      : listingFoldersFirst({
+          foldersFirst: s.settings.foldersFirst,
+          mediaEnabled: s.settings.mediaMetadata.enabled,
+          mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+          isContainer: s.mediaLibrary.isContainer,
+          listingPath: s.listing.path,
+          containerPath: s.mediaLibrary.folderPath
+        })
     const before = sortEntries(
       sourceEntries.filter((e) => {
         if (isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)) {
@@ -1825,14 +2008,14 @@ export const useAppStore = create<AppState>()((set, get) => {
         return true
       }),
       sort,
-      s.settings.foldersFirst
+      foldersFirst
     )
     const paths = before.map((e) => e.path)
     viewOrderCache = {
       listingRef,
       sortKey: sort.key,
       sortDir: sort.dir,
-      foldersFirst: s.settings.foldersFirst,
+      foldersFirst,
       filterKey,
       paths
     }
@@ -2225,7 +2408,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     notice: null,
     remoteBusyDialog: null,
     addressEditing: false,
-    treeMutation: { rev: 0, removed: [], reloadParents: [] },
+    treeMutation: { rev: 0, removed: [], reloadParents: [], renamed: [] },
     treeRefreshRev: 0,
     treeCollapseRequest: { tabId: '', rev: 0 },
     undoStack: [],
@@ -2683,7 +2866,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     bumpColumnMeta(path) {
       invalidateThumbMemory(path)
-      const key = path.toLowerCase()
+      const key = thumbPathKey(path)
       set((s) => ({
         columnMetaBump: { rev: s.columnMetaBump.rev + 1, path },
         thumbRevByPath: {
@@ -2691,6 +2874,26 @@ export const useAppStore = create<AppState>()((set, get) => {
           [key]: (s.thumbRevByPath[key] ?? 0) + 1
         }
       }))
+    },
+
+    invalidateContentThumbs(paths) {
+      const uniq = [...new Set(paths.filter(Boolean).map((p) => thumbPathKey(p)))]
+      invalidateThumbMemoryMany(uniq)
+      if (uniq.length === 0) {
+        set((s) => ({ videoThumbRev: s.videoThumbRev + 1 }))
+        return
+      }
+      set((s) => {
+        const thumbRevByPath = { ...s.thumbRevByPath }
+        for (const key of uniq) {
+          thumbRevByPath[key] = (thumbRevByPath[key] ?? 0) + 1
+        }
+        return {
+          columnMetaBump: { rev: s.columnMetaBump.rev + 1, path: paths[0] ?? s.columnMetaBump.path },
+          thumbRevByPath,
+          videoThumbRev: s.videoThumbRev + 1
+        }
+      })
     },
 
     async navigate(path, opts) {
@@ -3076,6 +3279,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     async closeTab(id) {
       const s = get()
       if (s.tabs.length <= 1) return
+      clearFileViewScroll(id)
       const idx = s.tabs.findIndex((t) => t.id === id)
       const tabs = s.tabs.filter((t) => t.id !== id)
       const tabIds = tabs.map((t) => t.id)
@@ -3395,7 +3599,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         listing.entries.length > 0 &&
         !(id === s.activeTabId && (s.search.active || s.recycleBin.active))
       ) {
-        const sorted = sortEntries(listing.entries, sort, s.settings.foldersFirst)
+        const sorted = sortEntries(listing.entries, sort, currentListingFoldersFirst())
         set((st) => {
           const nextListing = { ...listing, entries: sorted }
           const listingsByTabId = { ...st.listingsByTabId, [id]: nextListing }
@@ -3721,10 +3925,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     async submitRename(newName) {
       const path = get().renamingPath
       if (!path) return
-      set({ renamingPath: null, renameSource: null })
 
       // Drive roots: edit the volume label only (path stays `C:\`).
       if (isVolumeRootPath(path)) {
+        set({ renamingPath: null, renameSource: null })
         const name = newName.trim()
         const prev =
           get().drives.find((d) => samePath(d.path, path))?.volumeName ?? ''
@@ -3746,13 +3950,19 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
 
-      if (!newName.trim()) return
+      const trimmed = newName.trim()
       const oldName = basename(path)
-      if (newName === oldName) return
+      if (!trimmed || trimmed === oldName) {
+        set({ renamingPath: null, renameSource: null })
+        return
+      }
+      const parent = parentOf(path)
+      const dest = parent ? joinPath(parent, trimmed) : path
+      applyListingRename(path, dest, trimmed)
       try {
         await releaseMediaLocks()
-        const res = await withBusyFeedback('relocate', 'Renaming…', newName.trim(), () =>
-          call(api.fs.rename({ path, newName: newName.trim() }))
+        const res = await withBusyFeedback('relocate', 'Renaming…', trimmed, () =>
+          call(api.fs.rename({ path, newName: trimmed }))
         )
         recordUndo({
           kind: 'rename',
@@ -3760,17 +3970,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           to: res.path,
           label: oldName
         })
-        const parent = parentOf(path)
+        if (!samePath(res.path, dest)) applyListingRename(dest, res.path, basename(res.path))
         notifyTreeMutation({
-          removed: [path],
+          renamed: [{ from: path, to: res.path }],
           reloadParents: parent ? [parent] : []
         })
-        // If any tab was on this path (or under it), rewrite to the new location.
-        const rewrite = (p: string): string => {
-          if (samePath(p, path)) return res.path
-          if (isUnderPath(p, path)) return res.path + p.slice(path.length)
-          return p
-        }
+        const rewrite = (p: string): string => rewritePathAfterRename(p, path, res.path)
         set((s) => ({
           mediaHold: false,
           tabs: s.tabs.map((t) => ({
@@ -3786,6 +3991,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
       } catch (e) {
+        applyListingRename(dest, path, oldName)
         set({ mediaHold: false })
         reportOperationError('Rename failed', e)
       }
@@ -4650,6 +4856,31 @@ export const useAppStore = create<AppState>()((set, get) => {
       r?.(choice)
     },
 
+    async askMediaPick(opts) {
+      if (mediaPickResolve) {
+        mediaPickResolve(null)
+        mediaPickResolve = null
+      }
+      return await new Promise<string | null>((resolve) => {
+        mediaPickResolve = resolve
+        set({
+          dialog: {
+            kind: 'media-pick',
+            title: opts.title,
+            message: opts.message,
+            candidates: opts.candidates
+          }
+        })
+      })
+    },
+
+    resolveMediaPick(choice) {
+      set({ dialog: null })
+      const r = mediaPickResolve
+      mediaPickResolve = null
+      r?.(choice)
+    },
+
     setImageVersionPreview(preview) {
       set({ imageVersionPreview: preview })
     },
@@ -4977,7 +5208,15 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (patch.mediaMetadata && typeof patch.mediaMetadata.enabled === 'boolean') {
           const folder = get().listing.path
           if (patch.mediaMetadata.enabled && folder) void refreshMediaLibraryFolder(folder)
-          else set({ mediaLibrary: emptyMediaLibrary() })
+          else {
+            set({ mediaLibrary: emptyMediaLibrary() })
+            resortCurrentListing()
+          }
+        } else if (
+          patch.foldersFirst !== undefined ||
+          (patch.mediaMetadata && typeof patch.mediaMetadata.mixFilesAndFolders === 'boolean')
+        ) {
+          resortCurrentListing()
         }
         if (patch.slideshowFeaturesEnabled === true) {
           hydrateSlideshowCacheFromSettings(
@@ -5233,14 +5472,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async mediaMetadataDownload(paths) {
-      await runMediaMetadataOp('Downloading media metadata…', paths, (kindHints) =>
-        call(api.mediaMetadata.download({ paths, kindHints }))
+      await runMediaMetadataOp('Downloading media metadata…', paths, (kindHints, pickHints) =>
+        call(api.mediaMetadata.download({ paths, kindHints, pickHints }))
       )
     },
 
     async mediaMetadataRefresh(paths) {
-      await runMediaMetadataOp('Refreshing media metadata…', paths, (kindHints) =>
-        call(api.mediaMetadata.refresh({ paths, kindHints }))
+      await runMediaMetadataOp('Refreshing media metadata…', paths, (kindHints, pickHints) =>
+        call(api.mediaMetadata.refresh({ paths, kindHints, pickHints }))
       )
     },
 
@@ -5250,12 +5489,48 @@ export const useAppStore = create<AppState>()((set, get) => {
       )
     },
 
+    async mediaMetadataConsolidateSubtitles(paths) {
+      if (!get().settings.mediaMetadata.enabled) return
+      const ok = await get().askConfirm({
+        title: 'Consolidate subtitles?',
+        message:
+          'Copy the first English subtitle (.srt preferred) next to each video, then send Subs / Subtitles folders to the Recycle Bin.',
+        confirmLabel: 'Consolidate',
+        danger: true
+      })
+      if (!ok) return
+      try {
+        const res = await withBusyFeedback('media-metadata', 'Consolidating subtitles…', undefined, () =>
+          call(api.mediaMetadata.consolidateSubtitles({ paths }))
+        )
+        const folder = get().listing.path
+        if (folder) void get().refresh()
+        const failN = res.failed.length
+        if (res.copied === 0 && res.recycled === 0 && failN === 0) {
+          get().notify('No Subs folders with English subtitles found')
+        } else if (failN > 0) {
+          get().notify(
+            `Copied ${res.copied} · ${failN} failed${res.failed[0] ? ` (${res.failed[0].message})` : ''}`,
+            true
+          )
+        } else {
+          get().notify(
+            res.copied === 1
+              ? `Copied 1 subtitle${res.recycled ? ' · Subs sent to Recycle Bin' : ''}`
+              : `Copied ${res.copied} subtitles${res.recycled ? ` · ${res.recycled} Subs folder${res.recycled === 1 ? '' : 's'} sent to Recycle Bin` : ''}`
+          )
+        }
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     async mediaMetadataSetWatched(paths, watched) {
       if (!get().settings.mediaMetadata.enabled) return
       try {
         const res = await call(api.mediaMetadata.setWatched({ paths, watched }))
-        for (const p of res.updated) get().bumpColumnMeta(p)
         const folder = get().listing.path
+        get().invalidateContentThumbs([...res.updated, ...paths, ...(folder ? [folder] : [])])
         if (folder) void refreshMediaLibraryFolder(folder)
         get().notify(watched ? 'Marked as watched' : 'Marked as unwatched')
       } catch (e) {
@@ -5393,7 +5668,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().setViewMode('details', id)
       const entering = !tab.search.active
       const last = tab.back[tab.back.length - 1]
-      const folderHere = folderHistory(tab.path)
+      const folderHere = folderHistory(tab.path, liveFileViewScroll(tab.id) ?? tab.scrollOffset)
       const back =
         entering && !(last && sameHistoryEntry(last, folderHere))
           ? [...tab.back, folderHere]

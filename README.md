@@ -44,7 +44,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
-- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); cover + title in preview; watched / genre filters on library folders — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
+- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete
@@ -103,7 +103,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 12. Select a `.ics` or `.eml` — agenda / email preview. Optional: **Open preview window** and try Zen.
 13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
 14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
-15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover and Mark as Watched.
+15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover, Mark as Watched, and the Watched / Genre toolbar.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 

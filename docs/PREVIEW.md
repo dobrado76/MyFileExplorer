@@ -6,7 +6,7 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 **Extension catalog:** [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) — every extension routed by the preview pane, with notes per type.
 
-**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a poster + title sit above the player. Movie/TV fields and extracted file metadata (duration, codec, …) use **Media** / **File** tabs under the player when both exist (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Click the poster for the stored full-size cover. With no file selected, the pane previews the **current folder** (tree selection / listing) so a show folder keeps its card until you click an episode. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a portrait poster + title sit above the player. Movie/TV fields and extracted file metadata (duration, codec, …) use **Media** / **File** tabs under the player when both exist (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Click the poster for the stored full-size cover. With no file selected, the pane previews the **current folder** so a show folder keeps its card until you click an episode. Episode files keep `!VIDTHUMB_CACHE` icons; the show cover is used in preview when the episode has none. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ### Detached preview window
 
@@ -209,12 +209,12 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 ## Audio / video
 
 - Inline Chromium `<video>` / `<audio>` via `mfe-media://` (`mediaUrl`) — protocol must answer **byte-range** requests (`206` + `Content-Range`); a plain full-body `200` is not enough for Chromium media
-- Video: `.mp4`, `.m4v`, `.webm`, `.mkv`, `.avi`, `.divx`, `.mov`, `.wmv`, `.mpg`, `.mpeg` — player/strip plus parsed tags/format when present (`group: 'video'`; empty fields omitted). Embedded artwork is not used as the video still (frame posters stay separate).
+- Video: `.mp4`, `.m4v`, `.webm`, `.mkv`, `.avi`, `.divx`, `.rmvb`, `.rm`, `.mov`, `.wmv`, `.mpg`, `.mpeg` — player/strip plus parsed tags/format when present (`group: 'video'`; empty fields omitted). Embedded artwork is not used as the video still (frame posters stay separate).
 - Audio: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac`, `.wma`, `.opus` — player plus parsed tags/format (`group: 'audio'`) and embedded cover when present (`posterUrl`, cached under `userData/audio-covers/`)
 - **Async tags:** `preview:get` returns `mediaUrl` / poster / remux hooks without waiting on `music-metadata` (duration scans can read the whole file). Tag fields arrive via `preview:getMediaMeta` in parallel while the player buffers (`mediaMetaPending`)
 - Playback depends on Chromium’s codecs (H.264/AAC MP4 and WebM usually work)
 - Containers Chromium can’t demux (`.mkv`, `.wmv`, …): still (`posterUrl`) then remux/transcode to MP4 under `userData/video-remux/` (`preview:ensurePlayable`) when practical. Settings → Behavior: **Autoplay media in preview** (`previewVideoAutoplay`, default off)
-- **`.avi` / `.divx`**: no in-pane player — animate `!VIDTHUMB_CACHE` strip frames when present, plus **Open with default app** (D33); tag metadata still listed when parseable. `.divx` is an AVI/RIFF file with a DivX codec.
+- **`.avi` / `.divx` / `.rmvb` / `.rm`**: no in-pane player — animate `!VIDTHUMB_CACHE` strip frames when present, plus **Open with default app** (D33); tag metadata still listed when parseable. `.divx` is an AVI/RIFF file with a DivX codec. `.rmvb` / `.rm` are RealMedia.
 - On decode error for otherwise playable types: short message + open-with-default-app button (and poster if available)
 
 ### Icon-view video strips (`!VIDTHUMB_CACHE`, D26)

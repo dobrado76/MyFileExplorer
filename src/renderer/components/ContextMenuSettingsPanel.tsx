@@ -64,6 +64,8 @@ const PRESETS: Preset[] = [
         'mov',
         'm4v',
         'wmv',
+        'rmvb',
+        'rm',
         'mp3',
         'flac',
         'wav',

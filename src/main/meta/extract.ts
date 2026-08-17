@@ -42,7 +42,9 @@ const AV_EXTS = new Set([
   'mov',
   'wmv',
   'mpg',
-  'mpeg'
+  'mpeg',
+  'rmvb',
+  'rm'
 ])
 
 const GEN_PARAM_KEYS = new Set([

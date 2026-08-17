@@ -78,7 +78,20 @@ const IMAGE_EXTS = new Set([
   'ico'
 ])
 const AUDIO_EXTS = new Set(['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma', 'opus'])
-const VIDEO_EXTS = new Set(['mp4', 'mkv', 'webm', 'avi', 'divx', 'mov', 'wmv', 'm4v', 'mpg', 'mpeg'])
+const VIDEO_EXTS = new Set([
+  'mp4',
+  'mkv',
+  'webm',
+  'avi',
+  'divx',
+  'mov',
+  'wmv',
+  'm4v',
+  'mpg',
+  'mpeg',
+  'rmvb',
+  'rm'
+])
 const TEXT_EXTS = new Set([
   'txt',
   'json',

@@ -18,7 +18,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | [Images](#images) | `png` `jpg` `jpeg` `jfif` `webp` `gif` `bmp` `avif` `tiff` `tif` `tga` `hdr` `svg` `ico` | `image` |
 | [Photoshop](#photoshop) | `psd` | `image` (rasterized) |
 | [Audio](#audio) | `mp3` `wav` `flac` `ogg` `m4a` `aac` `wma` `opus` | `audio` |
-| [Video](#video) | `mp4` `m4v` `webm` `mkv` `mov` `wmv` `mpg` `mpeg` `avi` `divx` | `video` |
+| [Video](#video) | `mp4` `m4v` `webm` `mkv` `mov` `wmv` `mpg` `mpeg` `avi` `divx` `rmvb` `rm` | `video` |
 | [PDF](#pdf) | `pdf` | `pdf` |
 | [Markdown](#markdown) | `md` `markdown` | `markdown` |
 | [HTML](#html) | `html` `htm` `smi` `sami` | `html` |
@@ -104,6 +104,7 @@ Also shows **parsed metadata** underneath when present (same `music-metadata` pa
 | `mkv` / `wmv` / `mpg` / `mpeg` | Still poster, then remux/transcode to MP4 under `userData/video-remux/` when practical (`preview:ensurePlayable`). |
 | `avi` | **Strip-only** — no in-pane player. Animates `!VIDTHUMB_CACHE` frames when present + **Open with default app** (D33). Metadata still listed when parseable. |
 | `divx` | Same as AVI (RIFF/AVI container, DivX codec). Strip-only; Chromium cannot play DivX inline. |
+| `rmvb` / `rm` | RealMedia. **Strip-only** like AVI — Chromium cannot play RealVideo; `!VIDTHUMB_CACHE` + Open with default app. |
 
 Icon-view video strips (`!VIDTHUMB_CACHE`) are separate from the preview pane; see [PREVIEW.md](PREVIEW.md).
 

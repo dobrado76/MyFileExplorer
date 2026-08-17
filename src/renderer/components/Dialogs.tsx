@@ -236,6 +236,14 @@ export function Dialogs(): JSX.Element | null {
       return <CoverPickerDialog path={dialog.path} />
     case 'media-kind':
       return <MediaKindDialog title={dialog.title} message={dialog.message} />
+    case 'media-pick':
+      return (
+        <MediaPickDialog
+          title={dialog.title}
+          message={dialog.message}
+          candidates={dialog.candidates}
+        />
+      )
   }
 }
 
@@ -260,6 +268,45 @@ function MediaKindDialog({ title, message }: { title: string; message: string })
       }
     >
       <div className="alert-message">{message}</div>
+    </Modal>
+  )
+}
+
+function MediaPickDialog({
+  title,
+  message,
+  candidates
+}: {
+  title: string
+  message: string
+  candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+}): JSX.Element {
+  const resolveMediaPick = useAppStore((s) => s.resolveMediaPick)
+  return (
+    <Modal
+      title={title}
+      wide
+      onClose={() => resolveMediaPick(null)}
+      actions={
+        <button className="btn" onClick={() => resolveMediaPick(null)}>
+          Skip
+        </button>
+      }
+    >
+      <div className="alert-message">{message}</div>
+      <ul className="media-pick-list">
+        {candidates.map((c) => (
+          <li key={c.id}>
+            <button type="button" className="media-pick-item" onClick={() => resolveMediaPick(c.id)}>
+              <span className="media-pick-title">
+                {c.title}
+                {c.year != null ? ` (${c.year})` : ''}
+              </span>
+              {c.subtitle ? <span className="dim media-pick-sub">{c.subtitle}</span> : null}
+            </button>
+          </li>
+        ))}
+      </ul>
     </Modal>
   )
 }
@@ -1579,6 +1626,20 @@ function MediaMetadataSettingsPanel(): JSX.Element {
           <span className="dim">px tall (preview poster)</span>
         </div>
       </label>
+      <SettingsToggle
+        id="set-mm-ep-labels"
+        label="Show season/episode and title on icon tiles"
+        hint="On (default): icon views show S02E01 and the episode title under the thumb. Off: the filename. Details and List always use the filename."
+        checked={mm.showEpisodeIconLabels !== false}
+        onChange={(v) => void applySettingsPatch({ mediaMetadata: { showEpisodeIconLabels: v } })}
+      />
+      <SettingsToggle
+        id="set-mm-mix-tiles"
+        label="Mix folders and files in media libraries"
+        hint="On (default): in a folder tagged as a media container, sort tiles in one A–Z list so cover folders sit next to movie files. Off: keep Settings → Behavior → Folders first."
+        checked={mm.mixFilesAndFolders !== false}
+        onChange={(v) => void applySettingsPatch({ mediaMetadata: { mixFilesAndFolders: v } })}
+      />
       <p className="settings-help">
         Store movie / TV metadata and a cover on the file or folder as NTFS streams{' '}
         <code>media_metadata</code> and <code>media_metadata_thumbnail</code>. Right-click → Media

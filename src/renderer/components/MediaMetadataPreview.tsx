@@ -15,6 +15,7 @@ import {
   formatMediaRatingScore,
   mediaRatingSourceTitle
 } from '@shared/mediaRatings'
+import { thumbPathKey } from '../lib/thumbMemory'
 import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
 import { CloseIcon, CopyIcon } from '../lib/icons'
@@ -62,7 +63,7 @@ export function MediaMetadataProvider({
   children: ReactNode
 }): JSX.Element {
   const enabled = useAppStore((s) => s.settings.mediaMetadata.enabled)
-  const bump = useAppStore((s) => s.thumbRevByPath[path.toLowerCase()] ?? 0)
+  const bump = useAppStore((s) => s.thumbRevByPath[thumbPathKey(path)] ?? 0)
   const [view, setView] = useState<MediaMetaView | null>(null)
 
   useEffect(() => {

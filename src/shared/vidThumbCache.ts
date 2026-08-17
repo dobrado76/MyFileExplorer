@@ -21,7 +21,9 @@ const VIDEO_EXTS = new Set([
   'wmv',
   'm4v',
   'mpg',
-  'mpeg'
+  'mpeg',
+  'rmvb',
+  'rm'
 ])
 
 export function isVidThumbVideoExt(ext: string): boolean {

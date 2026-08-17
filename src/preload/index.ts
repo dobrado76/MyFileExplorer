@@ -130,6 +130,7 @@ const api: MyFileExplorerApi = {
     setCover: invoke(IPC.mediaMetadataSetCover),
     setWatched: invoke(IPC.mediaMetadataSetWatched),
     folderLibrary: invoke(IPC.mediaMetadataFolderLibrary),
+    consolidateSubtitles: invoke(IPC.mediaMetadataConsolidateSubtitles),
     probePlex: invokeVoid(IPC.mediaMetadataProbePlex)
   },
   slideshow: {

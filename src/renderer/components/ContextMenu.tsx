@@ -86,7 +86,8 @@ function mediaMetadataMenu(
       items: [
         {
           label: 'Extract from Plex Media Server',
-          title: 'Only items that do not already have metadata. Folders include every video inside.',
+          title:
+            'Only items that do not already have metadata and a cover. A library folder writes each show/movie cover, then every video inside.',
           action: () => {
             close()
             void s.mediaMetadataExtractPlex(targets)
@@ -94,7 +95,8 @@ function mediaMetadataMenu(
         },
         {
           label: 'Download from Internet',
-          title: 'Only items that do not already have metadata. Folders include every video inside.',
+          title:
+            'Only items that do not already have metadata and a cover. A library folder writes each show/movie cover, then every video inside.',
           action: () => {
             close()
             void s.mediaMetadataDownload(targets)
@@ -114,6 +116,15 @@ function mediaMetadataMenu(
           action: () => {
             close()
             void s.mediaMetadataClear(targets)
+          }
+        },
+        {
+          label: 'Consolidate subtitles',
+          title:
+            'Copy the first English subtitle next to each video and send Subs folders to the Recycle Bin',
+          action: () => {
+            close()
+            void s.mediaMetadataConsolidateSubtitles(targets)
           }
         },
         ...(targets.length === 1

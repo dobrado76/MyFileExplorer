@@ -6,12 +6,19 @@ import {
   classifyMediaFromNames,
   isGenericMediaFolderName,
   isMediaMetadataVideoName,
+  isMediaTitleFolder,
+  isMoviePartVideoName,
+  isMultipartMovieFolder,
+  isNeedsMediaPickError,
   isSeasonFolderName,
   normalizeEpisodeFields,
   parseMediaFileName,
+  pickIdFromStored,
   type MediaMetadata,
+  type MediaPickCandidate,
   type MediaQueryKind
 } from '@shared/mediaMetadata'
+import { isUnderPath, samePath } from '@shared/paths'
 import { requireAbsolute } from '../fs/list'
 import { beginOp } from '../fs/opProgress'
 import { invalidateColumnMetaPaths } from '../meta/columns'
@@ -21,6 +28,7 @@ import { downloadPlexThumb, extractFromPlex, probePlex } from './plex'
 import {
   clearMediaMetadata,
   hasMediaMetadataContainer,
+  hasMediaThumbnail,
   readMediaMetadata,
   readMediaThumbnail,
   writeMediaMetadata
@@ -33,10 +41,12 @@ export type MediaMetadataOpResult = {
   updated: string[]
   stoppedReason?: string
   needsKind?: { path: string; title: string }[]
+  needsPick?: { path: string; title: string; candidates: MediaPickCandidate[] }[]
 }
 
 export { probePlex }
 export { listMediaCovers, setMediaCover } from './covers'
+export { consolidateSubtitles } from './subtitles'
 
 function isVideoName(name: string): boolean {
   return isMediaMetadataVideoName(name)
@@ -64,13 +74,16 @@ async function walkMediaTree(
   }
   let hasVideoHere = false
   const subdirs: string[] = []
+  const skipParts = isMultipartMovieFolder(entries.map((e) => e.name))
   for (const e of entries) {
     if (e.name.startsWith('.')) continue
     const full = path.join(dir, e.name)
     if (e.isFile() && isVideoName(e.name)) {
-      videos.push(full)
       hasVideoHere = true
-      if (videos.length >= MAX_WALK) return
+      if (!skipParts) {
+        videos.push(full)
+        if (videos.length >= MAX_WALK) return
+      }
     } else if (e.isDirectory()) {
       subdirs.push(full)
     }
@@ -83,16 +96,26 @@ async function walkMediaTree(
   }
 }
 
-function shouldWriteFolderMeta(dir: string, childFolders: string[]): boolean {
-  if (isGenericMediaFolderName(path.basename(dir))) return false
-  const direct = childFolders.filter((f) => f !== dir && path.dirname(f) === dir)
+function shouldWriteFolderMeta(
+  dir: string,
+  childFolders: string[],
+  selectedRoots: string[]
+): boolean {
+  const parent = path.dirname(dir)
+  const direct = childFolders.filter((f) => !samePath(f, dir) && samePath(path.dirname(f), dir))
   const nonSeason = direct.filter((f) => !isSeasonFolderName(path.basename(f)))
-  return nonSeason.length <= 8
+  return isMediaTitleFolder({
+    name: path.basename(dir),
+    parentName: path.basename(parent),
+    parentIsSelectedRoot: selectedRoots.some((r) => samePath(r, parent)),
+    nonSeasonChildFolderCount: nonSeason.length
+  })
 }
 
 async function expandTargets(rawPaths: string[]): Promise<{ videos: string[]; folders: string[] }> {
   const videos: string[] = []
   const folderSet = new Set<string>()
+  const selectedRoots: string[] = []
   for (const raw of rawPaths) {
     const p = requireAbsolute(raw)
     let st
@@ -102,15 +125,40 @@ async function expandTargets(rawPaths: string[]): Promise<{ videos: string[]; fo
       continue
     }
     if (st.isFile()) {
-      if (isVideoName(p)) videos.push(p)
+      if (isVideoName(p)) {
+        try {
+          const siblings = await fsp.readdir(path.dirname(p))
+          if (isMultipartMovieFolder(siblings)) {
+            folderSet.add(path.dirname(p))
+            continue
+          }
+        } catch {
+          /* name only */
+        }
+        videos.push(p)
+      }
       continue
     }
     if (st.isDirectory()) {
+      selectedRoots.push(p)
       await walkMediaTree(p, videos, folderSet)
+      try {
+        const kids = await fsp.readdir(p, { withFileTypes: true })
+        for (const e of kids) {
+          if (!e.isDirectory() || e.name.startsWith('.')) continue
+          if (isGenericMediaFolderName(e.name) || isSeasonFolderName(e.name)) continue
+          const full = path.join(p, e.name)
+          if ([...folderSet].some((f) => samePath(f, full) || isUnderPath(f, full))) {
+            folderSet.add(full)
+          }
+        }
+      } catch {
+        /* listing failed */
+      }
     }
   }
   const allFolders = [...folderSet]
-  const folders = allFolders.filter((d) => shouldWriteFolderMeta(d, allFolders))
+  const folders = allFolders.filter((d) => shouldWriteFolderMeta(d, allFolders, selectedRoots))
   return { videos: [...new Set(videos)], folders }
 }
 
@@ -119,11 +167,19 @@ async function applyHit(
   hit: { meta: MediaMetadata; thumbUrl: string | null; thumbUrls?: string[]; thumbBytes?: Buffer | null },
   fetchThumb: (url: string) => Promise<Buffer | null>
 ): Promise<void> {
+  const prev = await readMediaMetadata(target)
+  const filled = normalizeEpisodeFields(hit.meta, path.basename(target))
+  const meta = prev?.watched != null ? { ...filled, watched: prev.watched } : filled
+  if (meta.kind === 'episode') {
+    await writeMediaMetadata(target, meta, null)
+    await invalidateColumnMetaPaths([target])
+    return
+  }
   const seed = hit.thumbBytes && hit.thumbBytes.length > 0 ? hit.thumbBytes : null
-  let thumb: Buffer | null = seed && (await isPortraitCoverBuffer(seed)) ? seed : null
+  let thumb: Buffer | null = seed
   if (!thumb) {
     const urls = [...new Set([...(hit.thumbUrls ?? []), ...(hit.thumbUrl ? [hit.thumbUrl] : [])])]
-    const landscape: Buffer[] = seed ? [seed] : []
+    const landscape: Buffer[] = []
     for (const url of urls) {
       const buf = await fetchThumb(url)
       if (!buf || buf.length < 32) continue
@@ -134,12 +190,34 @@ async function applyHit(
       landscape.push(buf)
     }
     if (!thumb) thumb = await firstPortraitCover(landscape)
+  } else if (!(await isPortraitCoverBuffer(thumb))) {
+    thumb = (await firstPortraitCover([thumb])) ?? thumb
   }
-  const prev = await readMediaMetadata(target)
-  const filled = normalizeEpisodeFields(hit.meta, path.basename(target))
-  const meta = prev?.watched != null ? { ...filled, watched: prev.watched } : filled
-  await writeMediaMetadata(target, meta, meta.kind === 'episode' ? null : thumb)
+  await writeMediaMetadata(target, meta, thumb)
   await invalidateColumnMetaPaths([target])
+  if (meta.kind === 'movie') {
+    try {
+      if ((await fsp.stat(target)).isDirectory()) await clearMoviePartFiles(target)
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function clearMoviePartFiles(dir: string): Promise<void> {
+  let names: string[]
+  try {
+    names = await fsp.readdir(dir)
+  } catch {
+    return
+  }
+  if (!isMultipartMovieFolder(names)) return
+  for (const n of names) {
+    if (!isMoviePartVideoName(n)) continue
+    const full = path.join(dir, n)
+    await clearMediaMetadata(full)
+    await invalidateColumnMetaPaths([full])
+  }
 }
 
 function asShowFolderMeta(meta: MediaMetadata, folderTitle?: string): MediaMetadata {
@@ -195,10 +273,36 @@ async function classifyTarget(
   })
 }
 
+async function firstVideoQuick(dir: string): Promise<string | null> {
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = await fsp.readdir(dir, { withFileTypes: true })
+  } catch {
+    return null
+  }
+  const subdirs: string[] = []
+  for (const e of entries) {
+    if (e.name.startsWith('.')) continue
+    if (e.isFile() && isVideoName(e.name)) return path.join(dir, e.name)
+    if (e.isDirectory()) subdirs.push(path.join(dir, e.name))
+  }
+  for (const sub of subdirs) {
+    let kids: import('node:fs').Dirent[]
+    try {
+      kids = await fsp.readdir(sub, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    const hit = kids.find((e) => e.isFile() && isVideoName(e.name))
+    if (hit) return path.join(sub, hit.name)
+  }
+  return null
+}
+
 async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promise<void> {
   const st = await fsp.stat(target)
   if (st.isFile()) {
-    const hit = await extractFromPlex(target, undefined, { skipPoster: queryKind === 'episode' })
+    const hit = await extractFromPlex(target)
     await applyHit(target, hit, downloadPlexThumb)
     return
   }
@@ -213,14 +317,10 @@ async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promis
       /* try first episode */
     }
   }
-  const videos: string[] = []
-  const folders = new Set<string>()
-  await walkMediaTree(target, videos, folders)
-  if (videos[0]) {
+  const first = await firstVideoQuick(target)
+  if (first) {
     try {
-      const hit = await extractFromPlex(videos[0], hint, {
-        skipPoster: queryKind === 'episode'
-      })
+      const hit = await extractFromPlex(first, hint)
       if (queryKind === 'show') hit.meta = asShowFolderMeta(hit.meta, hint)
       await applyHit(target, hit, downloadPlexThumb)
       return
@@ -233,11 +333,15 @@ async function extractOnePlex(target: string, queryKind: MediaQueryKind): Promis
   await applyHit(target, hit, downloadPlexThumb)
 }
 
-async function downloadOneInternet(target: string, queryKind: MediaQueryKind): Promise<void> {
+async function downloadOneInternet(
+  target: string,
+  queryKind: MediaQueryKind,
+  pickId?: string
+): Promise<void> {
   const st = await fsp.stat(target)
   const name = st.isDirectory() ? folderSearchName(target) : path.basename(target)
   const parsed = parseMediaFileName(name)
-  const hit = await downloadFromInternet(parsed, queryKind)
+  const hit = await downloadFromInternet(parsed, queryKind, pickId)
   if (st.isDirectory() && queryKind === 'show') {
     hit.meta = asShowFolderMeta(hit.meta, parsed.title)
   }
@@ -247,58 +351,92 @@ async function downloadOneInternet(target: string, queryKind: MediaQueryKind): P
 async function runOnTargets(
   label: string,
   rawPaths: string[],
-  each: (target: string, kind: MediaQueryKind) => Promise<boolean>,
-  opts?: { onlyMissing?: boolean; kindHints?: Record<string, MediaQueryKind>; skipClassify?: boolean }
+  each: (target: string, kind: MediaQueryKind, pickId?: string) => Promise<boolean>,
+  opts?: {
+    onlyMissing?: boolean
+    kindHints?: Record<string, MediaQueryKind>
+    pickHints?: Record<string, string>
+    skipClassify?: boolean
+    concurrency?: number
+  }
 ): Promise<MediaMetadataOpResult> {
   const expanded = await expandTargets(rawPaths)
-  const unique = [...new Set([...expanded.videos, ...expanded.folders])]
+  const unique = [...new Set([...expanded.folders, ...expanded.videos])]
   const failed: { path: string; message: string }[] = []
   const updated: string[] = []
   const needsKind: { path: string; title: string }[] = []
+  const needsPick: { path: string; title: string; candidates: MediaPickCandidate[] }[] = []
   let stoppedReason: string | undefined
   const op = beginOp('media-metadata', unique.length, label)
+  const concurrency = Math.max(1, Math.min(opts?.concurrency ?? 1, 8))
   try {
-    for (const target of unique) {
-      op.throwIfCancelled()
-      try {
-        if (opts?.onlyMissing) {
-          const existing = await readMediaMetadata(target)
-          if (existing) {
-            op.tick(path.basename(target))
-            continue
+    let next = 0
+    const worker = async (): Promise<void> => {
+      while (next < unique.length) {
+        if (stoppedReason) return
+        const target = unique[next]!
+        next += 1
+        op.throwIfCancelled()
+        try {
+          if (opts?.onlyMissing) {
+            const existing = await readMediaMetadata(target)
+            if (existing) {
+              const needsCover =
+                existing.kind !== 'episode' && !(await hasMediaThumbnail(target))
+              if (!needsCover) {
+                op.tick(path.basename(target))
+                continue
+              }
+            }
           }
-        }
-        let kind: MediaQueryKind = 'movie'
-        if (!opts?.skipClassify) {
-          const classified = await classifyTarget(target, opts?.kindHints)
-          if (classified === 'ambiguous') {
-            needsKind.push({
+          let kind: MediaQueryKind = 'movie'
+          if (!opts?.skipClassify) {
+            const classified = await classifyTarget(target, opts?.kindHints)
+            if (classified === 'ambiguous') {
+              needsKind.push({
+                path: target,
+                title: parseMediaFileName(folderSearchName(target)).title
+              })
+              op.tick(path.basename(target))
+              continue
+            }
+            kind = classified
+          }
+          const pickId = opts?.pickHints?.[target] ?? opts?.pickHints?.[target.toLowerCase()]
+          if (await each(target, kind, pickId)) updated.push(target)
+        } catch (e) {
+          if (e instanceof AppError && e.code === 'cancelled') throw e
+          if (isNeedsMediaPickError(e)) {
+            needsPick.push({
               path: target,
-              title: parseMediaFileName(folderSearchName(target)).title
+              title: parseMediaFileName(folderSearchName(target)).title,
+              candidates: e.candidates
             })
             op.tick(path.basename(target))
             continue
           }
-          kind = classified
+          const message = e instanceof Error ? e.message : String(e)
+          failed.push({ path: target, message })
+          if (isMediaApiLimitError(e)) {
+            stoppedReason = message
+            return
+          }
         }
-        if (await each(target, kind)) updated.push(target)
-      } catch (e) {
-        if (e instanceof AppError && e.code === 'cancelled') throw e
-        const message = e instanceof Error ? e.message : String(e)
-        failed.push({ path: target, message })
-        if (isMediaApiLimitError(e)) {
-          stoppedReason = message
-          break
-        }
+        op.tick(path.basename(target))
       }
-      op.tick(path.basename(target))
     }
+    await Promise.all(Array.from({ length: Math.min(concurrency, unique.length) }, () => worker()))
     op.finish()
   } catch (e) {
     op.fail()
     throw e
   }
-  if (updated.length === 0 && failed.length > 0 && needsKind.length === 0) {
+  if (
+    updated.length === 0 &&
+    failed.length > 0 &&
+    needsKind.length === 0 &&
+    needsPick.length === 0
+  ) {
     throw new AppError(
       stoppedReason ? 'busy' : 'io',
       failed[0]!.message,
@@ -311,7 +449,8 @@ async function runOnTargets(
     failed,
     updated,
     ...(stoppedReason ? { stoppedReason } : {}),
-    ...(needsKind.length > 0 ? { needsKind } : {})
+    ...(needsKind.length > 0 ? { needsKind } : {}),
+    ...(needsPick.length > 0 ? { needsPick } : {})
   }
 }
 
@@ -326,39 +465,41 @@ export async function extractPlexMany(
       await extractOnePlex(target, kind)
       return true
     },
-    { onlyMissing: true, kindHints }
+    { onlyMissing: true, kindHints, concurrency: 6 }
   )
 }
 
 export async function downloadInternetMany(
   paths: string[],
-  kindHints?: Record<string, MediaQueryKind>
+  kindHints?: Record<string, MediaQueryKind>,
+  pickHints?: Record<string, string>
 ): Promise<MediaMetadataOpResult> {
   return runOnTargets(
     'Downloading media metadata…',
     paths,
-    async (target, kind) => {
-      await downloadOneInternet(target, kind)
+    async (target, kind, pickId) => {
+      await downloadOneInternet(target, kind, pickId)
       return true
     },
-    { onlyMissing: true, kindHints }
+    { onlyMissing: true, kindHints, pickHints }
   )
 }
 
 export async function refreshMany(
   paths: string[],
-  kindHints?: Record<string, MediaQueryKind>
+  kindHints?: Record<string, MediaQueryKind>,
+  pickHints?: Record<string, string>
 ): Promise<MediaMetadataOpResult> {
   return runOnTargets(
     'Updating media metadata…',
     paths,
-    async (target, kind) => {
+    async (target, kind, pickId) => {
       const existing = await readMediaMetadata(target)
       if (!existing || existing.source === 'plex') await extractOnePlex(target, kind)
-      else await downloadOneInternet(target, kind)
+      else await downloadOneInternet(target, kind, pickId ?? pickIdFromStored(existing))
       return true
     },
-    { kindHints }
+    { kindHints, pickHints, concurrency: 4 }
   )
 }
 
@@ -368,6 +509,11 @@ export async function clearMany(paths: string[]): Promise<MediaMetadataOpResult>
     paths,
     async (target) => {
       const r = await clearMediaMetadata(target)
+      try {
+        if ((await fsp.stat(target)).isDirectory()) await clearMoviePartFiles(target)
+      } catch {
+        /* ignore */
+      }
       if (!r.cleared) return false
       await invalidateColumnMetaPaths([target])
       return true
@@ -427,6 +573,8 @@ export async function getFolderMediaLibrary(rawPath: string): Promise<{
     kind: MediaMetadata['kind']
     season?: number
     episode?: number
+    title?: string
+    showTitle?: string
   }[]
 }> {
   const dir = requireAbsolute(rawPath)
@@ -451,6 +599,8 @@ export async function getFolderMediaLibrary(rawPath: string): Promise<{
     kind: MediaMetadata['kind']
     season?: number
     episode?: number
+    title?: string
+    showTitle?: string
   }[] = []
   for (const name of names) {
     if (name.startsWith('.')) continue
@@ -464,7 +614,9 @@ export async function getFolderMediaLibrary(rawPath: string): Promise<{
       genres: ep.genres ?? [],
       kind: ep.kind,
       season: ep.season,
-      episode: ep.episode
+      episode: ep.episode,
+      title: ep.title,
+      showTitle: ep.showTitle
     })
   }
   return { isContainer, items }

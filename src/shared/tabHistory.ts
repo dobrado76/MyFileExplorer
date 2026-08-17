@@ -1,6 +1,6 @@
 /** Per-tab navigation locations — folder or a WFE-style search. */
 
-export type FolderHistoryEntry = { kind: 'folder'; path: string }
+export type FolderHistoryEntry = { kind: 'folder'; path: string; scrollOffset?: number }
 
 export type SearchHistoryEntry = {
   kind: 'search'
@@ -11,8 +11,9 @@ export type SearchHistoryEntry = {
 
 export type HistoryEntry = FolderHistoryEntry | SearchHistoryEntry
 
-export function folderHistory(path: string): FolderHistoryEntry {
-  return { kind: 'folder', path }
+export function folderHistory(path: string, scrollOffset = 0): FolderHistoryEntry {
+  const y = Number.isFinite(scrollOffset) ? Math.max(0, Math.round(scrollOffset)) : 0
+  return y > 0 ? { kind: 'folder', path, scrollOffset: y } : { kind: 'folder', path }
 }
 
 export function searchHistory(
@@ -46,12 +47,12 @@ export function sameHistoryEntry(a: HistoryEntry, b: HistoryEntry): boolean {
 }
 
 export function rewriteHistoryEntry(entry: HistoryEntry, rewrite: (path: string) => string): HistoryEntry {
-  if (entry.kind === 'folder') return { kind: 'folder', path: rewrite(entry.path) }
+  if (entry.kind === 'folder') return folderHistory(rewrite(entry.path), entry.scrollOffset ?? 0)
   return { ...entry, scopePath: rewrite(entry.scopePath) }
 }
 
 export function persistHistoryEntry(entry: HistoryEntry): HistoryEntry {
-  if (entry.kind === 'folder') return { kind: 'folder', path: entry.path }
+  if (entry.kind === 'folder') return folderHistory(entry.path, entry.scrollOffset ?? 0)
   return {
     kind: 'search',
     query: entry.query,
@@ -74,9 +75,11 @@ export function coerceHistoryEntry(raw: unknown): HistoryEntry | null {
     }
   }
   if (o.kind === 'folder' && typeof o.path === 'string' && o.path.length > 0) {
-    return { kind: 'folder', path: o.path }
+    return folderHistory(o.path, typeof o.scrollOffset === 'number' ? o.scrollOffset : 0)
   }
-  if (typeof o.path === 'string' && o.path.length > 0) return { kind: 'folder', path: o.path }
+  if (typeof o.path === 'string' && o.path.length > 0) {
+    return folderHistory(o.path, typeof o.scrollOffset === 'number' ? o.scrollOffset : 0)
+  }
   return null
 }
 

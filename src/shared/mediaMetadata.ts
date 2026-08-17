@@ -46,6 +46,18 @@ export type MediaLibraryItemFlags = {
   kind?: MediaMetadataKind
   season?: number
   episode?: number
+  /** Episode title (not the show name). */
+  title?: string
+  showTitle?: string
+}
+
+/** Media-container listings can ignore global folders-first (covers mix with files). */
+export function mediaContainerIgnoresFoldersFirst(
+  mediaEnabled: boolean,
+  mixFilesAndFolders: boolean,
+  isContainer: boolean
+): boolean {
+  return mediaEnabled && mixFilesAndFolders && isContainer
 }
 
 export function matchesMediaLibraryFilter(
@@ -71,45 +83,83 @@ export type ParsedMediaName = {
   kind: 'movie' | 'episode' | 'unknown'
 }
 
-const VIDEO_EXT_RE = /\.(mp4|mkv|webm|avi|divx|mov|wmv|m4v|mpg|mpeg|ts|m2ts|vob)$/i
+const VIDEO_EXT_RE = /\.(mp4|mkv|webm|avi|divx|mov|wmv|m4v|mpg|mpeg|ts|m2ts|vob|rmvb|rm)$/i
 
 export function isMediaMetadataVideoName(name: string): boolean {
   return VIDEO_EXT_RE.test(name)
 }
 
 const JUNK_RE =
-  /\b(1080p|720p|2160p|480p|4k|uhd|bluray|blu-?ray|webrip|web-?dl|webdl|hdtv|dvdrip|brrip|bdrip|x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|truehd|atmos|hdr10|hdr|dv|dolby|remux|proper|repack|extended|unrated|directors?\.?cut|multi|yify|rarbg|etrg|sparks|amiable|internal|limited|complete|season|disc\d+|cd\d+)\b/gi
+  /\b(1080p|720p|2160p|480p|4k|uhd|bluray|blu-?ray|webrip|web-?dl|webdl|hdtv|dvdrip|brrip|bdrip|x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|truehd|atmos|hdr10|hdr|dv|dolby|remux|proper|repack|extended|unrated|directors?\.?cut|multi|yify|rarbg|etrg|sparks|amiable|internal|limited|complete|season|disc\d+|cd\d+|part\s*\d+)\b/gi
+
+/** Old CD rips: `[Part 1]`, `CD2`, `Disc 1`, `1of2`. Not TV `SxxExx`. */
+const MOVIE_PART_RE =
+  /(?:^|[.\s_\-[(])(?:(?:part|cd|disc)[\s._-]*\d{1,2}|\d{1,2}\s*(?:of|\/)\s*\d{1,2})(?:[.\s_\-)]|\]|$)/i
 
 const EPISODE_RE = /(?:^|[.\s_-])(?:s(\d{1,2})e(\d{1,3})|(\d{1,2})x(\d{1,3}))(?:[.\s_-]|$)/i
 
 const YEAR_RE = /(?:^|[.\s(_-])((?:19|20)\d{2})(?:[.\s)_-]|$)/
 
+/** Scene/P2P `-GROUP` at the end (`x265-ION265`, `-RARBG`). Applied only on tagged names. */
+const RELEASE_GROUP_RE = /\s*-[A-Za-z][A-Za-z0-9]{1,20}$/
+
 export function stripVideoExtension(name: string): string {
   return name.replace(VIDEO_EXT_RE, '')
+}
+
+function hasJunkTags(s: string): boolean {
+  JUNK_RE.lastIndex = 0
+  const hit = JUNK_RE.test(s)
+  JUNK_RE.lastIndex = 0
+  return hit
+}
+
+function looksLikeSceneName(s: string): boolean {
+  return EPISODE_RE.test(s) || YEAR_RE.test(s) || hasJunkTags(s)
+}
+
+function stripReleaseGroup(s: string): string {
+  return s.replace(RELEASE_GROUP_RE, '').trim()
+}
+
+/** `-ION265` leftover after tags, not the hyphen in `Spider-Man`. */
+function stripLeftoverGroup(s: string): string {
+  return s.replace(/(?:^|\s)-[A-Za-z][A-Za-z0-9]{1,20}$/, '').trim()
+}
+
+function cleanTitlePart(s: string): string {
+  JUNK_RE.lastIndex = 0
+  s = s.replace(JUNK_RE, ' ')
+  JUNK_RE.lastIndex = 0
+  s = s.replace(/[[\](){}]/g, ' ').replace(/\s+/g, ' ').trim()
+  return stripLeftoverGroup(s)
 }
 
 export function parseMediaFileName(rawName: string): ParsedMediaName {
   let s = stripVideoExtension(rawName.trim())
   s = s.replace(/[._]+/g, ' ').replace(/\s+/g, ' ').trim()
+  if (looksLikeSceneName(s)) s = stripReleaseGroup(s)
 
   let season: number | undefined
   let episode: number | undefined
   const ep = EPISODE_RE.exec(s)
+  const yearHit = YEAR_RE.exec(s)
+  let year = yearHit ? Number(yearHit[1]) : undefined
+  if (year != null && !Number.isFinite(year)) year = undefined
+
   if (ep) {
     season = Number(ep[1] || ep[3])
     episode = Number(ep[2] || ep[4])
-    s = (s.slice(0, ep.index) + ' ' + s.slice(ep.index + ep[0].length)).trim()
+    const before = s.slice(0, ep.index).trim()
+    const after = s.slice(ep.index + ep[0].length).trim()
+    s = before || after
   }
 
-  let year: number | undefined
-  const ym = YEAR_RE.exec(s)
-  if (ym) {
-    year = Number(ym[1])
-    s = (s.slice(0, ym.index) + ' ' + s.slice(ym.index + ym[0].length)).trim()
+  if (year != null) {
+    s = s.replace(YEAR_RE, ' ').replace(/\s+/g, ' ').trim()
   }
 
-  s = s.replace(JUNK_RE, ' ')
-  s = s.replace(/[[\](){}]/g, ' ').replace(/\s+/g, ' ').trim()
+  s = cleanTitlePart(s)
   const title = s || stripVideoExtension(rawName).replace(/[._]+/g, ' ').trim()
 
   const kind: ParsedMediaName['kind'] =
@@ -161,6 +211,23 @@ export function episodeIconLabel(
   return formatEpisodeCode(flags.season, flags.episode)
 }
 
+/**
+ * Episode title for icon tiles. Skips empty, “Untitled”, show-name duplicates,
+ * and labels that are only an SxxExx code.
+ */
+export function episodeIconTitle(
+  flags: Pick<MediaLibraryItemFlags, 'kind' | 'title' | 'showTitle'> | undefined
+): string | null {
+  if (flags?.kind !== 'episode') return null
+  const title = flags.title?.trim()
+  if (!title || /^untitled$/i.test(title)) return null
+  const show = flags.showTitle?.trim()
+  if (show && title.toLowerCase() === show.toLowerCase()) return null
+  const compact = title.replace(/[\s._-]+/g, '')
+  if (/^s\d{1,2}e\d{1,3}$/i.test(compact)) return null
+  return title
+}
+
 /** True for episode files (stored kind, or SxxExx / NxNN in the name). */
 export function isEpisodeListEntry(
   name: string,
@@ -179,6 +246,51 @@ export function isGenericMediaFolderName(name: string): boolean {
 
 export function isSeasonFolderName(name: string): boolean {
   return /^(season\s*\d+|s\d{1,2}|specials)$/i.test(name.trim())
+}
+
+export function isMoviePartVideoName(name: string): boolean {
+  if (!isMediaMetadataVideoName(name)) return false
+  if (parseMediaFileName(name).kind === 'episode') return false
+  return MOVIE_PART_RE.test(stripVideoExtension(name))
+}
+
+function moviePartGroupKey(name: string): string {
+  const stripped = `${stripVideoExtension(name).replace(MOVIE_PART_RE, ' ').trim()}.mkv`
+  return parseMediaFileName(stripped).title.toLowerCase()
+}
+
+/**
+ * Folder whose videos are CD/part splits of one movie (not a TV show).
+ * The folder is the title; the part files are not.
+ */
+export function isMultipartMovieFolder(childNames: string[]): boolean {
+  if (childNames.some((n) => isSeasonFolderName(n))) return false
+  const videos = childNames.filter((n) => isMediaMetadataVideoName(n))
+  if (videos.some((n) => parseMediaFileName(n).kind === 'episode')) return false
+  const parts = videos.filter((n) => isMoviePartVideoName(n))
+  if (parts.length < 2) return false
+  const counts = new Map<string, number>()
+  for (const n of parts) {
+    const key = moviePartGroupKey(n)
+    if (!key) continue
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.values()].some((n) => n >= 2)
+}
+
+/**
+ * Folders that get a movie/show card + cover.
+ * Direct children of a library (selected root or a generic dump name) always qualify.
+ */
+export function isMediaTitleFolder(opts: {
+  name: string
+  parentName: string
+  parentIsSelectedRoot: boolean
+  nonSeasonChildFolderCount: number
+}): boolean {
+  if (isGenericMediaFolderName(opts.name) || isSeasonFolderName(opts.name)) return false
+  if (opts.parentIsSelectedRoot || isGenericMediaFolderName(opts.parentName)) return true
+  return opts.nonSeasonChildFolderCount <= 8
 }
 
 export type MediaQueryKind = 'movie' | 'show' | 'episode'
@@ -200,13 +312,14 @@ export function classifyMediaFromNames(opts: {
 
   if (!opts.isDirectory) {
     if (parsed.kind === 'episode') return 'episode'
-    if (episodeVideos.length > 0) return 'episode'
     if (parsed.kind === 'movie' || parsed.year != null) return 'movie'
+    if (episodeVideos.length > 0) return 'episode'
     return 'ambiguous'
   }
 
   if (isGenericMediaFolderName(opts.name) || isSeasonFolderName(opts.name)) return 'ambiguous'
   if (seasonDirs.length > 0 || episodeVideos.length > 0) return 'show'
+  if (isMultipartMovieFolder(children)) return 'movie'
   if (parsed.kind === 'movie' || parsed.year != null) return 'movie'
   if (videos.length >= 3) return 'show'
   return 'ambiguous'
@@ -219,4 +332,85 @@ export function parseMediaMetadataJson(text: string): MediaMetadata | null {
   } catch {
     return null
   }
+}
+
+/** Cap how many remakes / same-title hits we show in the picker. */
+export const MEDIA_PICK_MAX = 12
+
+export type MediaPickCandidate = {
+  id: string
+  title: string
+  year?: number
+  subtitle?: string
+}
+
+export type NamedYearHit = {
+  title: string
+  year?: number
+}
+
+export type NamedMatchDecision<T> =
+  | { action: 'auto'; hit: T }
+  | { action: 'ask'; hits: T[] }
+  | { action: 'none' }
+
+export function normalizeMediaTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * Auto-pick when the year or a unique exact title is enough.
+ * Ask only when several results share the same exact title and the year
+ * does not uniquely choose one (Dune 1984 vs 2021).
+ */
+export function decideNamedMatches<T extends NamedYearHit>(
+  results: T[],
+  queryTitle: string,
+  queryYear?: number
+): NamedMatchDecision<T> {
+  if (results.length === 0) return { action: 'none' }
+  if (results.length === 1) return { action: 'auto', hit: results[0]! }
+  const q = normalizeMediaTitle(queryTitle)
+  const exact = results.filter((r) => normalizeMediaTitle(r.title) === q)
+  const pool = exact.length > 0 ? exact : results
+  if (queryYear != null) {
+    const yearHits = pool.filter((r) => r.year === queryYear)
+    if (yearHits.length === 1) return { action: 'auto', hit: yearHits[0]! }
+    if (yearHits.length > 1) return { action: 'ask', hits: yearHits.slice(0, MEDIA_PICK_MAX) }
+    if (exact.length === 1) return { action: 'auto', hit: exact[0]! }
+    if (exact.length > 1) return { action: 'ask', hits: exact.slice(0, MEDIA_PICK_MAX) }
+    return { action: 'auto', hit: results[0]! }
+  }
+  if (exact.length > 1) return { action: 'ask', hits: exact.slice(0, MEDIA_PICK_MAX) }
+  if (exact.length === 1) return { action: 'auto', hit: exact[0]! }
+  return { action: 'auto', hit: results[0]! }
+}
+
+export class NeedsMediaPickError extends Error {
+  readonly candidates: MediaPickCandidate[]
+  constructor(candidates: MediaPickCandidate[]) {
+    super('Multiple titles match')
+    this.name = 'NeedsMediaPickError'
+    this.candidates = candidates
+  }
+}
+
+export function isNeedsMediaPickError(e: unknown): e is NeedsMediaPickError {
+  return e instanceof NeedsMediaPickError
+}
+
+/** Re-fetch the same internet title on Update without searching again. */
+export function pickIdFromStored(meta: MediaMetadata): string | undefined {
+  if (meta.source === 'tmdb' && meta.sourceId) {
+    const movie = /^movie:(\d+)/.exec(meta.sourceId)
+    if (movie?.[1]) return `tmdb:movie:${movie[1]}`
+    const tv = /^tv:(\d+)/.exec(meta.sourceId)
+    if (tv?.[1]) return `tmdb:tv:${tv[1]}`
+  }
+  if (meta.source === 'omdb' && meta.sourceId) return `omdb:${meta.sourceId}`
+  return undefined
 }

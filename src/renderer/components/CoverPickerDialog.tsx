@@ -24,7 +24,7 @@ function previewSrc(b64: string): string {
 
 export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
-  const bumpColumnMeta = useAppStore((s) => s.bumpColumnMeta)
+  const invalidateContentThumbs = useAppStore((s) => s.invalidateContentThumbs)
   const notify = useAppStore((s) => s.notify)
   const [title, setTitle] = useState(basename(path))
   const [covers, setCovers] = useState<Cover[]>([])
@@ -69,7 +69,7 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
     setSaving(true)
     try {
       await call(api.mediaMetadata.setCover({ path, coverId: picked }))
-      bumpColumnMeta(path)
+      invalidateContentThumbs([path])
       notify('Cover updated')
       closeDialog()
     } catch (e) {

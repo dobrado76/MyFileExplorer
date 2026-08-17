@@ -51,12 +51,10 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
-| Media metadata (D50) | Opt-in Plex / TMDB / OMDb title + cover on the file (NTFS streams); Change cover; watched / genre toolbar on container folders; API-limit dialog — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
+| Media metadata (D50) | Opt-in Plex / TMDB / OMDb cards on the file or folder (NTFS streams). Show poster on the show folder; episode files keep VIDTHUMB + episode JSON (`SxxExx` tiles). Change cover; consolidate Subs; watched / genre toolbar; CD-split movie folders; internet **Which title?** only on remakes; API-limit dialog — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | Delete a tab root | Always confirm; warns that scoped tabs will close |
 | Details horizontal scroll | Scrollbar at the **bottom** of the file pane; header and rows move together |
 | Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |
-| Preview Media / File tabs | Under the player when both movie/TV details and extracted file metadata exist; Media fields match File boxed rows (genres stay pills) |
-| TV show metadata | Show cover on the show folder; episode files use VIDTHUMB + episode JSON; container flag on the library parent |
 
 ## Recent behavior (v0.8.x)
 

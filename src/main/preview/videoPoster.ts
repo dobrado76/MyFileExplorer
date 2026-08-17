@@ -26,7 +26,7 @@ export const CHROMIUM_WEAK_VIDEO_EXTS = new Set([
  * No in-pane `<video>` (codecs too hostile / convert too heavy). Preview shows
  * `!VIDTHUMB_CACHE` strip when present + Open with default app.
  */
-export const STRIP_ONLY_VIDEO_EXTS = new Set(['avi', 'divx'])
+export const STRIP_ONLY_VIDEO_EXTS = new Set(['avi', 'divx', 'rmvb', 'rm'])
 
 function posterCacheDir(): string {
   const dir = path.join(app.getPath('userData'), 'video-posters')

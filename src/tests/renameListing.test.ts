@@ -1,0 +1,36 @@
+import { describe, expect, it } from 'vitest'
+import type { DirEntry } from '../shared/schemas/fs'
+import { patchDirEntriesForRename, rewritePathAfterRename } from '../renderer/lib/renameListing'
+
+function file(name: string, dir = '\\\\nas\\media'): DirEntry {
+  return {
+    name,
+    path: `${dir}\\${name}`,
+    kind: 'file',
+    size: 1,
+    mtimeMs: 1,
+    birthtimeMs: 1,
+    ext: name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '',
+    isHidden: false
+  }
+}
+
+describe('rewritePathAfterRename', () => {
+  it('rewrites the item and paths under it', () => {
+    expect(rewritePathAfterRename('D:\\a\\old', 'D:\\a\\old', 'D:\\a\\new')).toBe('D:\\a\\new')
+    expect(rewritePathAfterRename('D:\\a\\old\\x', 'D:\\a\\old', 'D:\\a\\new')).toBe('D:\\a\\new\\x')
+    expect(rewritePathAfterRename('D:\\a\\other', 'D:\\a\\old', 'D:\\a\\new')).toBe('D:\\a\\other')
+  })
+})
+
+describe('patchDirEntriesForRename', () => {
+  it('shows the new name immediately', () => {
+    const entries = [file('Adventureland (2009) [Part 1].avi'), file('Adventureland (2009) [Part 2].avi')]
+    const from = entries[0]!.path
+    const to = '\\\\nas\\media\\Adventureland (2009).avi'
+    const next = patchDirEntriesForRename(entries, from, to, 'Adventureland (2009).avi')
+    expect(next[0]!.name).toBe('Adventureland (2009).avi')
+    expect(next[0]!.path).toBe(to)
+    expect(next[1]!.name).toBe('Adventureland (2009) [Part 2].avi')
+  })
+})

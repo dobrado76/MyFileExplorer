@@ -299,6 +299,7 @@ export type MyFileExplorerApi = {
     download(req: {
       paths: string[]
       kindHints?: Record<string, 'movie' | 'show' | 'episode'>
+      pickHints?: Record<string, string>
     }): Promise<
       Result<{
         done: number
@@ -306,11 +307,17 @@ export type MyFileExplorerApi = {
         updated: string[]
         stoppedReason?: string
         needsKind?: { path: string; title: string }[]
+        needsPick?: {
+          path: string
+          title: string
+          candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+        }[]
       }>
     >
     refresh(req: {
       paths: string[]
       kindHints?: Record<string, 'movie' | 'show' | 'episode'>
+      pickHints?: Record<string, string>
     }): Promise<
       Result<{
         done: number
@@ -318,6 +325,11 @@ export type MyFileExplorerApi = {
         updated: string[]
         stoppedReason?: string
         needsKind?: { path: string; title: string }[]
+        needsPick?: {
+          path: string
+          title: string
+          candidates: { id: string; title: string; year?: number; subtitle?: string }[]
+        }[]
       }>
     >
     clear(req: { paths: string[] }): Promise<
@@ -350,6 +362,14 @@ export type MyFileExplorerApi = {
     >
     setCover(req: { path: string; coverId: string }): Promise<Result<{ ok: true }>>
     setWatched(req: { paths: string[]; watched: boolean }): Promise<Result<{ updated: string[] }>>
+    consolidateSubtitles(req: { paths: string[] }): Promise<
+      Result<{
+        copied: number
+        skipped: number
+        recycled: number
+        failed: { path: string; message: string }[]
+      }>
+    >
     folderLibrary(req: { path: string }): Promise<
       Result<{
         isContainer: boolean
@@ -360,6 +380,8 @@ export type MyFileExplorerApi = {
           kind: 'movie' | 'show' | 'episode'
           season?: number
           episode?: number
+          title?: string
+          showTitle?: string
         }[]
       }>
     >

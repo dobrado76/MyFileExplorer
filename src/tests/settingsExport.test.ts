@@ -126,7 +126,9 @@ describe('settings export / import', () => {
           omdbApiKey: 'omdb-test',
           internetSource: 'omdb',
           plexUrl: 'http://127.0.0.1:32400',
-          coverHeightPx: 160
+          coverHeightPx: 160,
+          showEpisodeIconLabels: false,
+          mixFilesAndFolders: false
         }
       },
       networkHosts: []
@@ -137,6 +139,10 @@ describe('settings export / import', () => {
     expect(parsed.settings.mediaMetadata.omdbApiKey).toBe('omdb-test')
     expect(parsed.settings.mediaMetadata.internetSource).toBe('omdb')
     expect(parsed.settings.mediaMetadata.coverHeightPx).toBe(160)
+    expect(parsed.settings.mediaMetadata.showEpisodeIconLabels).toBe(false)
+    expect(parsed.settings.mediaMetadata.mixFilesAndFolders).toBe(false)
+    expect(defaultSettings.mediaMetadata.showEpisodeIconLabels).toBe(true)
+    expect(defaultSettings.mediaMetadata.mixFilesAndFolders).toBe(true)
   })
 
   it('round-trips remote connection metadata and strips hasPassword', () => {

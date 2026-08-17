@@ -24,11 +24,21 @@ export async function isPortraitCoverBuffer(buf: Buffer): Promise<boolean> {
  * If none are portrait, return the first usable image (better than empty).
  */
 export async function firstPortraitCover(buffers: Array<Buffer | null | undefined>): Promise<Buffer | null> {
-  let fallback: Buffer | null = null
+  return pickBestCover(buffers)
+}
+
+/** Largest portrait; if none, largest usable image. */
+export async function pickBestCover(buffers: Array<Buffer | null | undefined>): Promise<Buffer | null> {
+  const portraits: { buf: Buffer; area: number }[] = []
+  const others: { buf: Buffer; area: number }[] = []
   for (const buf of buffers) {
     if (!buf || buf.length < 32) continue
-    if (await isPortraitCoverBuffer(buf)) return buf
-    if (!fallback) fallback = buf
+    const { width, height } = await imageSize(buf)
+    const area = Math.max(0, width) * Math.max(0, height)
+    if (isPortraitCover(width, height)) portraits.push({ buf, area })
+    else others.push({ buf, area })
   }
-  return fallback
+  const pool = portraits.length > 0 ? portraits : others
+  pool.sort((a, b) => b.area - a.area)
+  return pool[0]?.buf ?? null
 }

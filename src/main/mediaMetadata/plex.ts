@@ -97,7 +97,14 @@ async function readPrefsFile(dataDir: string): Promise<{ token: string | null; d
   }
 }
 
+const PLEX_CACHE_MS = 30_000
+const PLEX_HTTP_MS = 4000
+let plexResolveCache: { at: number; value: PlexResolved; sections?: string[] } | null = null
+
 export async function resolvePlex(): Promise<PlexResolved> {
+  if (plexResolveCache && Date.now() - plexResolveCache.at < PLEX_CACHE_MS) {
+    return plexResolveCache.value
+  }
   const cfg = plexPrefs()
   let dataDir = cfg.plexDataDir || null
   if (dataDir && !existsSync(dataDir)) dataDir = null
@@ -123,7 +130,9 @@ export async function resolvePlex(): Promise<PlexResolved> {
       }
     }
   }
-  return { url: normalizePlexBaseUrl(cfg.plexUrl), token, dataDir }
+  const value = { url: normalizePlexBaseUrl(cfg.plexUrl), token, dataDir }
+  plexResolveCache = { at: Date.now(), value }
+  return value
 }
 
 export function plexLooksInstalled(dataDir: string | null): boolean {
@@ -135,7 +144,7 @@ async function plexGet(url: string, token: string, pathname: string): Promise<un
   const sep = pathname.includes('?') ? '&' : '?'
   const href = `${url}${pathname}${token ? `${sep}X-Plex-Token=${encodeURIComponent(token)}` : ''}`
   const ac = new AbortController()
-  const t = setTimeout(() => ac.abort(), 12000)
+  const t = setTimeout(() => ac.abort(), PLEX_HTTP_MS)
   try {
     const res = await fetch(href, {
       signal: ac.signal,
@@ -266,11 +275,22 @@ function normalizeWin(p: string): string {
 }
 
 async function librarySectionKeys(resolved: PlexResolved): Promise<string[]> {
+  if (
+    plexResolveCache &&
+    plexResolveCache.value === resolved &&
+    plexResolveCache.sections
+  ) {
+    return plexResolveCache.sections
+  }
   try {
     const payload = await plexGet(resolved.url, resolved.token, '/library/sections')
-    return metadataList(payload)
+    const keys = metadataList(payload)
       .map((d) => String(d.key ?? ''))
       .filter(Boolean)
+    if (plexResolveCache && plexResolveCache.value === resolved) {
+      plexResolveCache.sections = keys
+    }
+    return keys
   } catch {
     return []
   }
@@ -305,18 +325,17 @@ async function tryFileLookups(resolved: PlexResolved, pathnames: string[]): Prom
 
 async function lookupByFile(resolved: PlexResolved, filePath: string): Promise<PlexHit | null> {
   const variants = [filePath, filePath.replace(/\\/g, '/')]
-  const allPaths = variants.map((v) => `/library/all?file=${encodeURIComponent(v)}`)
-  const hit = await tryFileLookups(resolved, allPaths)
-  if (hit) return hit
   const sectionKeys = await librarySectionKeys(resolved)
-  if (!sectionKeys.length) return null
-  const sectionPaths: string[] = []
-  for (const v of variants) {
-    for (const key of sectionKeys) {
-      sectionPaths.push(`/library/sections/${key}/all?file=${encodeURIComponent(v)}`)
+  const pathnames: string[] = []
+  for (const key of sectionKeys) {
+    for (const v of variants) {
+      pathnames.push(`/library/sections/${key}/all?file=${encodeURIComponent(v)}`)
     }
   }
-  return tryFileLookups(resolved, sectionPaths)
+  if (pathnames.length === 0) {
+    for (const v of variants) pathnames.push(`/library/all?file=${encodeURIComponent(v)}`)
+  }
+  return tryFileLookups(resolved, pathnames)
 }
 
 async function lookupShowByTitle(resolved: PlexResolved, title: string): Promise<PlexHit | null> {
@@ -819,22 +838,35 @@ export async function readLocalPlexPoster(dataDir: string, metadataId: string): 
 }
 
 async function resolvePlexPoster(resolved: PlexResolved, hit: PlexHit): Promise<Buffer | null> {
-  const { firstPortraitCover, isPortraitCoverBuffer } = await import('./coverImage')
-  const urls = [...new Set([...(hit.thumbUrls ?? []), ...(hit.thumbUrl ? [hit.thumbUrl] : [])])]
-  const landscape: Buffer[] = []
-  for (const url of urls) {
-    const buf = await downloadPlexThumb(url)
-    if (!buf) continue
-    if (await isPortraitCoverBuffer(buf)) return buf
-    landscape.push(buf)
-  }
+  const { pickBestCover } = await import('./coverImage')
+  const bufs: Buffer[] = []
   const id = hit.meta.sourceId?.trim()
   if (resolved.dataDir && id) {
-    const local = await readLocalPlexPoster(resolved.dataDir, id)
-    if (local && (await isPortraitCoverBuffer(local))) return local
-    if (local) landscape.push(local)
+    const files = await listPlexLocalPosterFiles(resolved.dataDir, id)
+    for (const f of files) {
+      try {
+        const buf = await fsp.readFile(f.absPath)
+        if (buf.length >= 32 && looksLikeImage(buf)) bufs.push(buf)
+      } catch {
+        /* skip unreadable */
+      }
+    }
   }
-  return firstPortraitCover(landscape)
+  if (bufs.length === 0 && id) {
+    const http = await listPlexHttpPosters(id)
+    for (const p of http.slice(0, 8)) {
+      const buf = await downloadPlexThumb(p.href)
+      if (buf && buf.length >= 32) bufs.push(buf)
+    }
+  }
+  if (bufs.length === 0) {
+    const urls = [...new Set([...(hit.thumbUrls ?? []), ...(hit.thumbUrl ? [hit.thumbUrl] : [])])]
+    for (const url of urls) {
+      const buf = await downloadPlexThumb(url)
+      if (buf && buf.length >= 32) bufs.push(buf)
+    }
+  }
+  return pickBestCover(bufs)
 }
 
 async function withPoster(resolved: PlexResolved, hit: PlexHit): Promise<PlexHit> {
@@ -848,6 +880,49 @@ async function withPoster(resolved: PlexResolved, hit: PlexHit): Promise<PlexHit
   return { ...hit, thumbBytes }
 }
 
+async function hitFromSqliteRow(resolved: PlexResolved, row: SqliteMetaRow): Promise<PlexHit> {
+  const showId =
+    kindFromPlexType(row.metadataType) === 'episode' && row.parentId
+      ? await showIdFromSqlite(resolved.dataDir!, row.parentId)
+      : null
+  const coverKey = showId ?? row.id
+  const urls = [
+    ...plexCoverUrlsFromItem(resolved.url, resolved.token, {
+      type: kindFromPlexType(row.metadataType),
+      ratingKey: String(row.id),
+      grandparentRatingKey: showId != null ? String(showId) : undefined,
+      thumb: `/library/metadata/${coverKey}/thumb`
+    }),
+    resolvePlexImageUrl(resolved.url, resolved.token, row.userThumbUrl)
+  ].filter((u): u is string => !!u)
+  const tags = await tagsFromSqlite(resolved.dataDir!, row.id)
+  const kind = kindFromPlexType(row.metadataType)
+  const ctx =
+    kind === 'episode' ? await seasonContextFromSqlite(resolved.dataDir!, row.parentId) : {}
+  const meta: MediaMetadata = {
+    version: 1,
+    source: 'plex',
+    sourceId: String(row.id),
+    kind,
+    title: row.title || 'Untitled',
+    year: row.year ?? undefined,
+    country: tags.country,
+    genres: tags.genres,
+    synopsis: row.summary ?? undefined,
+    directors: tags.directors,
+    actors: tags.actors,
+    ratings:
+      row.rating != null && Number.isFinite(row.rating)
+        ? [{ source: 'Plex', value: row.rating, max: 10 }]
+        : undefined,
+    season: kind === 'episode' ? ctx.season : undefined,
+    episode: kind === 'episode' ? row.index ?? undefined : undefined,
+    showTitle: kind === 'episode' ? ctx.showTitle : undefined,
+    fetchedAt: new Date().toISOString()
+  }
+  return { meta, thumbUrl: urls[0] ?? null, thumbUrls: urls }
+}
+
 export async function extractFromPlex(
   filePath: string,
   hintTitle?: string,
@@ -858,14 +933,22 @@ export async function extractFromPlex(
     throw new Error('Plex Media Server was not found on this PC')
   }
   const finish = (hit: PlexHit): Promise<PlexHit> | PlexHit =>
-    opts?.skipPoster ? hit : withPoster(resolved, hit)
+    hit.meta.kind === 'episode' || opts?.skipPoster ? hit : withPoster(resolved, hit)
 
-  const httpHit = await lookupByFile(resolved, filePath)
-  if (httpHit) return finish(httpHit)
-
-  if (hintTitle) {
-    const showHit = await lookupShowByTitle(resolved, hintTitle)
-    if (showHit) return finish(showHit)
+  let isDir = false
+  try {
+    isDir = (await fsp.stat(filePath)).isDirectory()
+  } catch {
+    /* treat as file lookup */
+  }
+  if (isDir) {
+    if (hintTitle) {
+      const showHit = await lookupShowByTitle(resolved, hintTitle)
+      if (showHit) return finish(showHit)
+    }
+    throw new Error(
+      `No Plex match for ${path.basename(filePath)}${resolved.token ? '' : ' (no Plex token; is the server signed in?)'}`
+    )
   }
 
   if (resolved.dataDir) {
@@ -873,47 +956,16 @@ export async function extractFromPlex(
     if (row) {
       const byKey = await lookupByRatingKey(resolved, row.id)
       if (byKey) return finish(byKey)
-      const showId =
-        kindFromPlexType(row.metadataType) === 'episode' && row.parentId
-          ? await showIdFromSqlite(resolved.dataDir, row.parentId)
-          : null
-      const coverKey = showId ?? row.id
-      const urls = [
-        ...plexCoverUrlsFromItem(resolved.url, resolved.token, {
-          type: kindFromPlexType(row.metadataType),
-          ratingKey: String(row.id),
-          grandparentRatingKey: showId != null ? String(showId) : undefined,
-          thumb: `/library/metadata/${coverKey}/thumb`
-        }),
-        resolvePlexImageUrl(resolved.url, resolved.token, row.userThumbUrl)
-      ].filter((u): u is string => !!u)
-      const tags = await tagsFromSqlite(resolved.dataDir, row.id)
-      const kind = kindFromPlexType(row.metadataType)
-      const ctx =
-        kind === 'episode' ? await seasonContextFromSqlite(resolved.dataDir, row.parentId) : {}
-      const meta: MediaMetadata = {
-        version: 1,
-        source: 'plex',
-        sourceId: String(row.id),
-        kind,
-        title: row.title || 'Untitled',
-        year: row.year ?? undefined,
-        country: tags.country,
-        genres: tags.genres,
-        synopsis: row.summary ?? undefined,
-        directors: tags.directors,
-        actors: tags.actors,
-        ratings:
-          row.rating != null && Number.isFinite(row.rating)
-            ? [{ source: 'Plex', value: row.rating, max: 10 }]
-            : undefined,
-        season: kind === 'episode' ? ctx.season : undefined,
-        episode: kind === 'episode' ? row.index ?? undefined : undefined,
-        showTitle: kind === 'episode' ? ctx.showTitle : undefined,
-        fetchedAt: new Date().toISOString()
-      }
-      return finish({ meta, thumbUrl: urls[0] ?? null, thumbUrls: urls })
+      return finish(await hitFromSqliteRow(resolved, row))
     }
+  }
+
+  const httpHit = await lookupByFile(resolved, filePath)
+  if (httpHit) return finish(httpHit)
+
+  if (hintTitle) {
+    const showHit = await lookupShowByTitle(resolved, hintTitle)
+    if (showHit) return finish(showHit)
   }
 
   throw new Error(
@@ -990,11 +1042,21 @@ function thumbFetchVariants(url: string): { href: string; token: string }[] {
 }
 
 export async function downloadPlexThumb(url: string): Promise<Buffer | null> {
-  for (const { href, token } of thumbFetchVariants(url)) {
+  const variants = thumbFetchVariants(url)
+  const local = variants.find((v) => {
+    try {
+      const host = new URL(v.href).hostname
+      return host === '127.0.0.1' || host === 'localhost'
+    } catch {
+      return false
+    }
+  })
+  const list = local ? [local] : variants.slice(0, 2)
+  for (const { href, token } of list) {
     const headers = token
       ? plexClientHeaders(token, '*/*')
       : { Accept: '*/*', 'X-Plex-Product': 'MyFileExplorer', 'X-Plex-Client-Identifier': 'myfileexplorer-media-metadata' }
-    const buf = await plexHttpGet(href, headers, 20000)
+    const buf = await plexHttpGet(href, headers, PLEX_HTTP_MS)
     if (buf) return buf
   }
   return null

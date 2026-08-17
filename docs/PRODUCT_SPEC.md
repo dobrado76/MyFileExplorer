@@ -131,7 +131,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
-- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
@@ -148,7 +148,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Selection: preview the **most recently selected** item (keyboard/mouse focus); when multi-select, still show that file’s rich preview and a “N selected” badge (not a blank summary).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
-- Inline video/audio playback in-pane for common containers (see PREVIEW.md); MKV remuxed via ffmpeg when practical; **`.avi` / `.divx`** use thumb-strip + open with default app (no in-pane player).
+- Inline video/audio playback in-pane for common containers (see PREVIEW.md); MKV remuxed via ffmpeg when practical; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app (no in-pane player).
 - Office docs: Word, PowerPoint (`.pptx` approximate slide layout + images; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 - Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 - ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
@@ -156,7 +156,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
-- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + cover above the video. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored full-size image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ---
 
@@ -170,7 +170,7 @@ See [SEARCH.md](SEARCH.md).
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
 - Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
 - Results use Details with a temporary **Folder** column (sortable; search-only, not saved); context **Open File Path** / **Open File in new tab** open locations in-app.
-- Search is a **tab history location** (D29): Back/Forward restore folder or search; each tab keeps its own query/results; switching tabs does not clear. Delete / move prunes those hits (and children of a removed folder).
+- Search is a **tab history location** (D29): Back/Forward restore folder or search (and the file-list scroll for that folder); each tab keeps its own query/results; switching tabs does not clear. Delete / move prunes those hits (and children of a removed folder).
 - Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
 
 ---
@@ -189,7 +189,7 @@ See [SEARCH.md](SEARCH.md).
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
-| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
+| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (default on — one A–Z list in a container folder). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
 | About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 

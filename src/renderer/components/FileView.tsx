@@ -46,8 +46,8 @@ import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { compileViewFilter } from '../lib/viewFilter'
 import { detailsTableMinWidth } from '../lib/detailsTable'
-import { episodeIconLabel, isEpisodeListEntry } from '@shared/mediaMetadata'
-import { isExcludedByMediaLibrary } from '../lib/mediaLibrary'
+import { episodeIconLabel, episodeIconTitle, isEpisodeListEntry } from '@shared/mediaMetadata'
+import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
@@ -55,6 +55,7 @@ import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { RenameInput } from './RenameInput'
+import { noteFileViewScroll } from '../lib/fileViewScroll'
 
 /** Details columns only while browsing the Recycle Bin (not part of folder column layout). */
 type RecycleDetailsColId = 'origin' | 'dateDeleted' | 'size' | 'type'
@@ -267,11 +268,21 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const hideNameExtensions = settings.hideNameExtensions
   const mediaLibrary = useAppStore((s) => s.mediaLibrary)
-  const labelFor = (entry: DirEntry): string => {
+  const labelFor = (entry: DirEntry): string =>
+    entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+
+  const showEpisodeIconLabels = settings.mediaMetadata.showEpisodeIconLabels !== false
+  const gridNameFor = (
+    entry: DirEntry
+  ): { code: string | null; title: string | null; fallback: string } => {
     const flags = mediaLibrary.items[entry.path.toLowerCase()]
-    const episode = episodeIconLabel(flags)
-    if (episode) return episode
-    return entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+    const fallback = entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+    if (!showEpisodeIconLabels) return { code: null, title: null, fallback }
+    return {
+      code: episodeIconLabel(flags),
+      title: episodeIconTitle(flags),
+      fallback
+    }
   }
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -594,10 +605,21 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (applyMedia) {
       filtered = filtered.filter((e) => !isExcludedByMediaLibrary(e.path, mediaLibrary))
     }
+    const foldersFirst =
+      recycleMode || searchMode
+        ? settings.foldersFirst
+        : listingFoldersFirst({
+            foldersFirst: settings.foldersFirst,
+            mediaEnabled: settings.mediaMetadata.enabled,
+            mixFilesAndFolders: settings.mediaMetadata.mixFilesAndFolders !== false,
+            isContainer: mediaLibrary.isContainer,
+            listingPath: folderPath,
+            containerPath: mediaLibrary.folderPath
+          })
     if (recycleMode) {
       const dirMul = recycleSort.dir === 'asc' ? 1 : -1
       return [...filtered].sort((a, b) => {
-        if (settings.foldersFirst) {
+        if (foldersFirst) {
           const ad = a.kind === 'dir' ? 0 : 1
           const bd = b.kind === 'dir' ? 0 : 1
           if (ad !== bd) return ad - bd
@@ -630,12 +652,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (SYNC_SORT_KEYS.has(sort.key)) {
       // Normal folder browsing: store keeps listing sorted (loadListing / setSort).
       if (!searchMode) return filtered
-      return sortEntries(filtered, sort, settings.foldersFirst)
+      return sortEntries(filtered, sort, foldersFirst)
     }
     const colId = sort.key as DetailsColumnId
     const dir = sort.dir === 'asc' ? 1 : -1
     return [...filtered].sort((a, b) => {
-      if (settings.foldersFirst) {
+      if (foldersFirst) {
         const ad = a.kind === 'dir' ? 0 : 1
         const bd = b.kind === 'dir' ? 0 : 1
         if (ad !== bd) return ad - bd
@@ -652,6 +674,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     sourceEntries,
     effectiveSort,
     settings.foldersFirst,
+    settings.mediaMetadata.enabled,
+    settings.mediaMetadata.mixFilesAndFolders,
     isExcluded,
     viewFilterOn,
     viewPatterns.length,
@@ -865,11 +889,28 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         return -1
       })()
 
+      const ensureRowVisible = (rowIdx: number): void => {
+        const el = scrollRef.current
+        if (!el) return
+        userScrolledRef.current = true
+        const top = rowIdx * rowHeight
+        const bottom = top + rowHeight
+        const viewTop = el.scrollTop
+        const viewBottom = viewTop + el.clientHeight
+        if (top >= viewTop && bottom <= viewBottom) return
+        const next =
+          top < viewTop ? top : Math.max(0, bottom - el.clientHeight)
+        el.scrollTop = next
+        virtualizer.scrollToOffset(next)
+        noteFileViewScroll(tabId, next)
+        setScrollOffset(next)
+      }
+
       const selectAndScroll = (target: number): void => {
         const targetPath = entries[target]!.path
         setSelection([targetPath], targetPath, targetPath)
         const rowIdx = spec ? Math.floor(target / columns) : target
-        virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
+        ensureRowVisible(rowIdx)
       }
 
       // Typeahead: printable character → next item whose name starts with the buffer.
@@ -978,7 +1019,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           targetPath
         )
         const rowIdx = spec ? Math.floor(target / columns) : target
-        virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
+        ensureRowVisible(rowIdx)
       } else {
         selectAndScroll(target)
       }
@@ -996,7 +1037,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     spec,
     columns,
     rowHeight,
-    virtualizer
+    virtualizer,
+    tabId,
+    setScrollOffset
   ])
 
   // Layout is deterministic, so marquee hits are pure math over all entries
@@ -1109,16 +1152,41 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [setSelection]
   )
 
-  // Restore scroll offset when path changes; save on scroll.
+  // Restore history/tab scroll after the listing for this folder is on screen.
+  // Re-apply until the user scrolls — a NAS re-list remounts virtual rows.
   const listingPath = listing.path
-  useEffect(() => {
+  const userScrolledRef = useRef(false)
+  const applyingRestoreRef = useRef(false)
+  const restoreFolderRef = useRef(folderPath)
+  if (restoreFolderRef.current !== folderPath) {
+    restoreFolderRef.current = folderPath
+    userScrolledRef.current = false
+  }
+  const tabScrollOffset = tab?.scrollOffset
+  useLayoutEffect(() => {
+    if (overlayMode || fileListScrollRequest) return
+    if (tabScrollOffset == null || !folderPath) return
+    if (userScrolledRef.current) return
+    if (!samePath(listingPath, folderPath)) return
+    if (listing.loading && entries.length === 0) return
     const el = scrollRef.current
-    if (!el || !tab) return
-    // Don't clobber a pending reveal scroll (would jump back to 0 on new tabs).
-    if (fileListScrollRequest) return
-    el.scrollTop = tab.scrollOffset
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listingPath, tab?.id, fileListScrollRequest])
+    if (!el) return
+    applyingRestoreRef.current = true
+    el.scrollTop = tabScrollOffset
+    virtualizer.scrollToOffset(tabScrollOffset)
+    requestAnimationFrame(() => {
+      applyingRestoreRef.current = false
+    })
+  }, [
+    folderPath,
+    listingPath,
+    listing.loading,
+    entries.length,
+    overlayMode,
+    fileListScrollRequest,
+    virtualizer,
+    tabScrollOffset
+  ])
 
   const pendingScrollRef = useRef(0)
   const scrollSaveTimerRef = useRef(0)
@@ -1146,12 +1214,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     // Do not write scrollOffset into Zustand every frame — that re-renders the
     // whole explorer (tabs subscription) and feels like a 20k-file hitch.
     pendingScrollRef.current = el.scrollTop
+    noteFileViewScroll(tabId, el.scrollTop)
+    if (!applyingRestoreRef.current) userScrolledRef.current = true
+    if (applyingRestoreRef.current) return
     if (scrollSaveTimerRef.current) return
     scrollSaveTimerRef.current = window.setTimeout(() => {
       scrollSaveTimerRef.current = 0
       setScrollOffset(pendingScrollRef.current)
     }, 150)
-  }, [setScrollOffset, overlayMode, syncDetailsHeaderScroll])
+  }, [setScrollOffset, overlayMode, syncDetailsHeaderScroll, tabId])
 
   useEffect(() => {
     return () => {
@@ -1801,12 +1872,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
                 const iconPx = Math.min(spec.thumb, 48)
                 const flags = mediaLibrary.items[entry.path.toLowerCase()]
+                const gridName = gridNameFor(entry)
                 const hasContentPreview =
                   contentThumbPaths.current.get(entry.path.toLowerCase()) === true
                 const hideName =
                   noFilenameView &&
                   hasContentPreview &&
-                  !isEpisodeListEntry(entry.name, flags)
+                  !(showEpisodeIconLabels && isEpisodeListEntry(entry.name, flags))
                 return (
                   <div
                     key={entry.path}
@@ -1871,10 +1943,23 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     samePath(renamingPath, entry.path) ? (
                       renameEditor(entry)
                     ) : hideName ? null : (
-                      <div className="cell-name">
-                        <span className="cell-name-primary" title={entry.name}>
-                          {labelFor(entry)}
-                        </span>
+                      <div className={`cell-name${gridName.title ? ' has-episode-title' : ''}`}>
+                        {gridName.code ? (
+                          <>
+                            <span className="cell-name-primary" title={entry.name}>
+                              {gridName.code}
+                            </span>
+                            {gridName.title ? (
+                              <span className="cell-name-episode-title" title={entry.name}>
+                                {gridName.title}
+                              </span>
+                            ) : null}
+                          </>
+                        ) : (
+                          <span className="cell-name-primary" title={entry.name}>
+                            {gridName.fallback}
+                          </span>
+                        )}
                         {recycleMode && viewMode !== 'details' ? (
                           <span className="cell-name-path" title={entry.path}>
                             {entry.path}

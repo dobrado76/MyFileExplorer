@@ -16,6 +16,16 @@ export const mediaMetadataSettingsSchema = z.object({
   tmdbApiKey: z.string().catch(''),
   omdbApiKey: z.string().catch(''),
   internetSource: z.enum(['tmdb', 'omdb']).catch('tmdb'),
+  /**
+   * Icon/thumbnail tiles: `SxxExx` + episode title (default) vs the filename.
+   * Details / List always use the filename.
+   */
+  showEpisodeIconLabels: z.boolean().catch(true),
+  /**
+   * In a `media_metadata_container` folder, sort files and folders in one list
+   * (ignore Settings → Behavior → Folders first).
+   */
+  mixFilesAndFolders: z.boolean().catch(true),
   plexUrl: z.string().catch('http://127.0.0.1:32400'),
   plexToken: z.string().catch(''),
   plexDataDir: z.string().catch('')
@@ -28,7 +38,9 @@ export const defaultMediaMetadataSettings: MediaMetadataSettings =
 
 export const mediaMetadataPathsSchema = z.object({
   paths: z.array(z.string().min(1)).min(1).max(200),
-  kindHints: z.record(z.string(), z.enum(['movie', 'show', 'episode'])).optional()
+  kindHints: z.record(z.string(), z.enum(['movie', 'show', 'episode'])).optional(),
+  /** Internet download only — `tmdb:movie:123` / `tmdb:tv:456` / `omdb:tt…`. */
+  pickHints: z.record(z.string(), z.string()).optional()
 })
 
 export const mediaMetadataPathSchema = z.object({

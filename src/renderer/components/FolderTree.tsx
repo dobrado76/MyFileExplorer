@@ -10,6 +10,7 @@ import {
 import { useAppStore, dropOperation } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { samePath, isUnderPath, basename, segmentsOf, parentOf } from '../lib/paths'
+import { rewritePathAfterRename } from '../lib/renameListing'
 import { isNetworkHostUnc, normalizeServerName } from '@shared/networkPaths'
 import { formatRemoteLocation } from '@shared/remotePaths'
 import {
@@ -54,6 +55,33 @@ function pruneRemoved(map: NodesMap, removed: string[]): NodesMap {
     if (isGone(key)) continue
     const children = node.children?.filter((c) => !isGone(c)) ?? node.children
     next[key] = children === node.children ? node : { ...node, children: children ?? null }
+  }
+  return next
+}
+
+function rewriteRenamed(
+  map: NodesMap,
+  pairs: { from: string; to: string }[]
+): NodesMap {
+  if (pairs.length === 0) return map
+  const rewrite = (p: string): string => {
+    let out = p
+    for (const { from, to } of pairs) out = rewritePathAfterRename(out, from, to)
+    return out
+  }
+  const next: NodesMap = {}
+  for (const [key, node] of Object.entries(map)) {
+    const nk = rewrite(key)
+    const children = node.children?.map(rewrite) ?? node.children
+    let childHidden = node.childHidden
+    if (childHidden) {
+      const hidden: Record<string, boolean> = {}
+      for (const [p, v] of Object.entries(childHidden)) {
+        hidden[rewrite(p).toLowerCase()] = v
+      }
+      childHidden = hidden
+    }
+    next[nk] = { ...node, children: children ?? null, childHidden }
   }
   return next
 }
@@ -495,11 +523,15 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   useEffect(() => {
     if (treeMutation.rev === 0) return
     const removed = treeMutation.removed
-    if (removed.length > 0) {
+    const renamed = treeMutation.renamed
+    if (removed.length > 0 || renamed.length > 0) {
       setNodesByTab((prev) => {
         const next: Record<string, NodesMap> = {}
         for (const [tabId, map] of Object.entries(prev)) {
-          next[tabId] = pruneRemoved(map, removed)
+          let nodes = map
+          if (renamed.length > 0) nodes = rewriteRenamed(nodes, renamed)
+          if (removed.length > 0) nodes = pruneRemoved(nodes, removed)
+          next[tabId] = nodes
         }
         return next
       })
@@ -508,7 +540,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     for (const parent of treeMutation.reloadParents) {
       void loadChildren(parent, tabId, { preserveExpanded: true })
     }
-  }, [treeMutation.rev, treeMutation.removed, treeMutation.reloadParents, loadChildren])
+  }, [treeMutation.rev, treeMutation.removed, treeMutation.reloadParents, treeMutation.renamed, loadChildren])
 
   // Refresh (F5): re-list every folder this tab has already loaded in the tree.
   useEffect(() => {

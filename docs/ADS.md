@@ -103,7 +103,7 @@ Column visibility / order live with the rest of the Details layout in settings (
 
 Compiled file lists (D39) write ADS **`Index`** (image path list) and **`Count`** on `.dat` under the compiled root (Update Lists). `.txt` lists do not use Index ADS. Same NTFS mechanism; slideshow code calls `adsWin32` helpers directly rather than going through the manager UI.
 
-**Media metadata (D50)** writes `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes), and `media_metadata_container` (folder flag). Same NTFS mechanism; not under `userData`. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
+**Media metadata (D50)** writes `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes — not on episode files), and `media_metadata_container` (library + title folder flag). Same NTFS mechanism; not under `userData`. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 Image-edit history uses `VER_*` / `VER_COUNT` — see below.
 

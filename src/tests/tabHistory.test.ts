@@ -39,6 +39,14 @@ describe('tabHistory', () => {
     )
   })
 
+  it('stores folder scroll on history entries and keeps it through persist/coerce', () => {
+    const e = folderHistory('C:\\Data', 1400)
+    expect(e).toEqual({ kind: 'folder', path: 'C:\\Data', scrollOffset: 1400 })
+    expect(persistHistoryEntry(e)).toEqual(e)
+    expect(coerceHistoryList([e])).toEqual([e])
+    expect(folderHistory('C:\\Data', 0)).toEqual({ kind: 'folder', path: 'C:\\Data' })
+  })
+
   it('persistHistoryEntry is a plain clone', () => {
     const e = searchHistory('q', 'C:\\', false)
     expect(persistHistoryEntry(e)).toEqual(e)

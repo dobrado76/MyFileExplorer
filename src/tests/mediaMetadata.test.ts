@@ -2,16 +2,24 @@ import { describe, expect, it } from 'vitest'
 import {
   parseMediaFileName,
   parseMediaMetadataJson,
+  decideNamedMatches,
+  normalizeMediaTitle,
+  pickIdFromStored,
   formatMediaRating,
   formatEpisodeCode,
   normalizeEpisodeFields,
   episodeIconLabel,
+  episodeIconTitle,
   isEpisodeListEntry,
   isGenericMediaFolderName,
+  isMediaTitleFolder,
   isSeasonFolderName,
   classifyMediaFromNames,
+  isMoviePartVideoName,
+  isMultipartMovieFolder,
   isMediaMetadataVideoName,
   matchesMediaLibraryFilter,
+  mediaContainerIgnoresFoldersFirst,
   MEDIA_METADATA_ADS,
   MEDIA_METADATA_CONTAINER_ADS,
   MEDIA_METADATA_THUMB_ADS
@@ -63,9 +71,26 @@ describe('parseMediaFileName', () => {
 
   it('parses 01x03 in a spaced title', () => {
     const p = parseMediaFileName('3 Body Problem 01x03 - Release by Wentworth_Miller.mkv')
+    expect(p.title).toBe('3 Body Problem')
     expect(p.season).toBe(1)
     expect(p.episode).toBe(3)
     expect(p.kind).toBe('episode')
+  })
+
+  it('strips scene tags and the release group after SxxExx', () => {
+    const p = parseMediaFileName('Dexter.S02E01.BDRip.x265-ION265.mp4')
+    expect(p.title).toBe('Dexter')
+    expect(p.season).toBe(2)
+    expect(p.episode).toBe(1)
+    expect(p.kind).toBe('episode')
+  })
+
+  it('strips a trailing -GROUP on movies without eating hyphenated titles', () => {
+    const movie = parseMediaFileName('The.Matrix.1999.1080p.BluRay.x264-SPARKS.mkv')
+    expect(movie.title).toBe('The Matrix')
+    expect(movie.year).toBe(1999)
+    expect(parseMediaFileName('Spider-Man').title).toBe('Spider-Man')
+    expect(parseMediaFileName('Catch-22.S01E01.mkv').title).toBe('Catch-22')
   })
 
   it('uses a folder-style name without year as unknown', () => {
@@ -173,6 +198,16 @@ describe('episode icon labels', () => {
     expect(episodeIconLabel(undefined)).toBeNull()
   })
 
+  it('shows a real episode title under SxxExx, not the show name', () => {
+    expect(
+      episodeIconTitle({ kind: 'episode', title: 'Waiting to Exhale', showTitle: 'Dexter' })
+    ).toBe('Waiting to Exhale')
+    expect(episodeIconTitle({ kind: 'episode', title: 'Dexter', showTitle: 'Dexter' })).toBeNull()
+    expect(episodeIconTitle({ kind: 'episode', title: 'Untitled' })).toBeNull()
+    expect(episodeIconTitle({ kind: 'episode', title: 'S02E01' })).toBeNull()
+    expect(episodeIconTitle({ kind: 'show', title: 'Dexter' })).toBeNull()
+  })
+
   it('treats SxxExx names and stored kind as episode rows', () => {
     expect(isEpisodeListEntry('Show.S01E01.mkv')).toBe(true)
     expect(isEpisodeListEntry('Movie.1999.mkv')).toBe(false)
@@ -199,6 +234,19 @@ describe('classifyMediaFromNames', () => {
 
   it('treats a year-tagged file as a movie', () => {
     expect(classifyMediaFromNames({ name: 'Heat.1995.mkv', isDirectory: false })).toBe('movie')
+  })
+
+  it('does not treat a movie as an episode just because a sibling is TV', () => {
+    expect(
+      classifyMediaFromNames({
+        name: 'News.of.the.World.2020.AMZN.WEBRip.avi',
+        isDirectory: false,
+        childNames: [
+          'News.of.the.World.2020.AMZN.WEBRip.avi',
+          'Brooklyn.Nine-Nine.S01E01.mkv'
+        ]
+      })
+    ).toBe('movie')
   })
 
   it('treats a folder with season dirs or episode files as a show', () => {
@@ -237,6 +285,42 @@ describe('classifyMediaFromNames', () => {
       })
     ).toBe('ambiguous')
   })
+
+  it('treats a CD-part movie folder as the movie, not a show', () => {
+    const kids = [
+      'Adventureland (2009) [Part 1].avi',
+      'Adventureland (2009) [Part 2].avi'
+    ]
+    expect(isMoviePartVideoName(kids[0]!)).toBe(true)
+    expect(isMultipartMovieFolder(kids)).toBe(true)
+    expect(
+      classifyMediaFromNames({
+        name: 'Adventureland',
+        isDirectory: true,
+        childNames: kids
+      })
+    ).toBe('movie')
+    expect(
+      classifyMediaFromNames({
+        name: 'The Stand',
+        isDirectory: true,
+        childNames: ['The.Stand.CD1.avi', 'The.Stand.CD2.avi', 'The.Stand.CD3.avi']
+      })
+    ).toBe('movie')
+  })
+
+  it('does not treat TV episode folders as multipart movies', () => {
+    expect(
+      isMultipartMovieFolder(['Dexter.S01E01.mkv', 'Dexter.S01E02.mkv'])
+    ).toBe(false)
+    expect(
+      classifyMediaFromNames({
+        name: 'Dexter',
+        isDirectory: true,
+        childNames: ['Dexter.S01E01.mkv', 'Dexter.S01E02.mkv']
+      })
+    ).toBe('show')
+  })
 })
 
 describe('isSeasonFolderName', () => {
@@ -256,10 +340,49 @@ describe('isGenericMediaFolderName', () => {
   })
 })
 
+describe('isMediaTitleFolder', () => {
+  it('writes a card on each show under a library folder', () => {
+    expect(
+      isMediaTitleFolder({
+        name: '3 Body Problem',
+        parentName: 'Series',
+        parentIsSelectedRoot: true,
+        nonSeasonChildFolderCount: 40
+      })
+    ).toBe(true)
+    expect(
+      isMediaTitleFolder({
+        name: 'Alcatraz',
+        parentName: 'Series',
+        parentIsSelectedRoot: false,
+        nonSeasonChildFolderCount: 2
+      })
+    ).toBe(true)
+    expect(
+      isMediaTitleFolder({
+        name: 'Series',
+        parentName: 'E:',
+        parentIsSelectedRoot: true,
+        nonSeasonChildFolderCount: 40
+      })
+    ).toBe(false)
+    expect(
+      isMediaTitleFolder({
+        name: 'Season 01',
+        parentName: 'Alcatraz',
+        parentIsSelectedRoot: false,
+        nonSeasonChildFolderCount: 0
+      })
+    ).toBe(false)
+  })
+})
+
 describe('isMediaMetadataVideoName', () => {
   it('accepts video files and rejects other documents', () => {
     expect(isMediaMetadataVideoName('Heat.mkv')).toBe(true)
     expect(isMediaMetadataVideoName('show.S01E01.m2ts')).toBe(true)
+    expect(isMediaMetadataVideoName('Old.Movie.2005.rmvb')).toBe(true)
+    expect(isMediaMetadataVideoName('clip.rm')).toBe(true)
     expect(isMediaMetadataVideoName('notes.txt')).toBe(false)
     expect(isMediaMetadataVideoName('info.json')).toBe(false)
   })
@@ -287,6 +410,15 @@ describe('matchesMediaLibraryFilter', () => {
     expect(matchesMediaLibraryFilter(flags, 'unwatched', null)).toBe(false)
     expect(matchesMediaLibraryFilter(flags, 'all', 'crime')).toBe(true)
     expect(matchesMediaLibraryFilter(flags, 'all', 'Comedy')).toBe(false)
+  })
+})
+
+describe('mediaContainerIgnoresFoldersFirst', () => {
+  it('mixes tiles only in an enabled media container', () => {
+    expect(mediaContainerIgnoresFoldersFirst(true, true, true)).toBe(true)
+    expect(mediaContainerIgnoresFoldersFirst(true, true, false)).toBe(false)
+    expect(mediaContainerIgnoresFoldersFirst(true, false, true)).toBe(false)
+    expect(mediaContainerIgnoresFoldersFirst(false, true, true)).toBe(false)
   })
 })
 
@@ -407,5 +539,76 @@ describe('compareCoverSize', () => {
     ]
     const sorted = [...items].sort(compareCoverSize)
     expect(sorted[0]?.bytes).toBe(200_000)
+  })
+})
+
+describe('decideNamedMatches', () => {
+  const dune = [
+    { title: 'Dune', year: 1984 },
+    { title: 'Dune', year: 2021 },
+    { title: 'Dune: Part Two', year: 2024 }
+  ]
+
+  it('asks when several exact titles exist and there is no year', () => {
+    const d = decideNamedMatches(dune, 'Dune')
+    expect(d.action).toBe('ask')
+    if (d.action === 'ask') {
+      expect(d.hits.map((h) => h.year)).toEqual([1984, 2021])
+    }
+  })
+
+  it('auto-picks the year when the filename has one', () => {
+    const d = decideNamedMatches(dune, 'Dune', 2021)
+    expect(d.action).toBe('auto')
+    if (d.action === 'auto') expect(d.hit.year).toBe(2021)
+  })
+
+  it('auto-picks a unique exact title among fuzzy extras', () => {
+    const d = decideNamedMatches(dune, 'Dune Part Two')
+    expect(d.action).toBe('auto')
+    if (d.action === 'auto') expect(d.hit.year).toBe(2024)
+  })
+
+  it('auto-picks the only result', () => {
+    const d = decideNamedMatches([{ title: 'Heat', year: 1995 }], 'Heat')
+    expect(d.action).toBe('auto')
+  })
+
+  it('normalizes apostrophes and punctuation', () => {
+    expect(normalizeMediaTitle("Ocean's Eleven")).toBe('oceans eleven')
+    expect(normalizeMediaTitle('Dune: Part Two')).toBe('dune part two')
+  })
+
+  it('rebuilds a pick id from stored TMDB / OMDb metadata', () => {
+    expect(
+      pickIdFromStored({
+        version: 1,
+        source: 'tmdb',
+        sourceId: 'movie:438631',
+        kind: 'movie',
+        title: 'Dune',
+        fetchedAt: '2026-01-01T00:00:00.000Z'
+      })
+    ).toBe('tmdb:movie:438631')
+    expect(
+      pickIdFromStored({
+        version: 1,
+        source: 'tmdb',
+        sourceId: 'tv:1396:s2e1',
+        kind: 'episode',
+        title: 'Seven Thirty-Seven',
+        fetchedAt: '2026-01-01T00:00:00.000Z'
+      })
+    ).toBe('tmdb:tv:1396')
+    expect(
+      pickIdFromStored({
+        version: 1,
+        source: 'omdb',
+        sourceId: 'tt1160419',
+        kind: 'movie',
+        title: 'Dune',
+        fetchedAt: '2026-01-01T00:00:00.000Z'
+      })
+    ).toBe('omdb:tt1160419')
   })
 })

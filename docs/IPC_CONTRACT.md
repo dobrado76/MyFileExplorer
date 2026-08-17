@@ -176,18 +176,19 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 
 | Channel | Request | Response |
 | ------- | ------- | -------- |
-| `mediaMetadata:extractPlex` | `{ paths[] }` | `{ done, failed[], updated[], stoppedReason? }` — skip items that already have streams |
-| `mediaMetadata:download` | `{ paths[] }` | same — TMDB / OMDb |
-| `mediaMetadata:refresh` | `{ paths[] }` | same — refresh from stored source; missing from Plex |
+| `mediaMetadata:extractPlex` | `{ paths[], kindHints? }` | `{ done, failed[], updated[], stoppedReason?, needsKind? }` — skip items that already have streams |
+| `mediaMetadata:download` | `{ paths[], kindHints?, pickHints? }` | same + `needsPick?` — TMDB / OMDb; `pickHints` is `tmdb:movie:id` / `tmdb:tv:id` / `omdb:tt…` after the title picker |
+| `mediaMetadata:refresh` | `{ paths[], kindHints?, pickHints? }` | same — refresh from stored source; missing from Plex |
 | `mediaMetadata:clear` | `{ paths[] }` | same |
 | `mediaMetadata:get` | `{ path }` | `{ metadata, thumbnailBase64 }` |
 | `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — largest pixel size first |
 | `mediaMetadata:setCover` | `{ path, coverId }` | `{ ok: true }` |
 | `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
-| `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode? }[] }` |
+| `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode?, title?, showTitle? }[] }` |
+| `mediaMetadata:consolidateSubtitles` | `{ paths[] }` | `{ copied, skipped, recycled, failed[] }` — flatten Subs / Subtitles next to videos; Recycle Bin |
 | `mediaMetadata:probePlex` | — | `{ installed, running, dataDir, tokenFound, url }` |
 
-`stoppedReason` is set when a TMDB/OMDb quota stops the batch. Progress uses `op-progress` kind `media-metadata`.
+`stoppedReason` is set when a TMDB/OMDb quota stops the batch. `needsKind` is a yearless movie-or-show ask. `needsPick` (download / internet refresh only) is a same-title remake list; the renderer retries with `pickHints`. Progress uses `op-progress` kind `media-metadata`.
 
 ### `app.*`
 
@@ -228,7 +229,7 @@ window.myFileExplorer = {
   thumbs: { get, generateVidCache },
   meta: { getMany, invalidate },
   ads: { list, exists, readText, writeText, delete, readBytes, writeBytes, copy },
-  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, probePlex },
+  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
   slideshow: { listImages, updateCompiledLists, openCompiledListsWindow, … },
   app: { getPath, pickFolder, ready, … },
   onEvent: (handler) => unsubscribe

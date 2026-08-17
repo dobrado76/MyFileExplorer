@@ -7,6 +7,7 @@ import {
   markThumbDecoded,
   setThumbMemory,
   thumbMemoryKey,
+  thumbPathKey,
   type ThumbMemoryEntry
 } from '../lib/thumbMemory'
 
@@ -51,7 +52,7 @@ function preload(url: string): Promise<boolean> {
  */
 export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Props): JSX.Element {
   const videoThumbRev = useAppStore((s) => s.videoThumbRev)
-  const imageThumbRev = useAppStore((s) => s.thumbRevByPath[path.toLowerCase()] ?? 0)
+  const imageThumbRev = useAppStore((s) => s.thumbRevByPath[thumbPathKey(path)] ?? 0)
   const key = thumbMemoryKey(path, mtimeMs, size, videoThumbRev, imageThumbRev)
   const frameMs = useAppStore((s) => s.settings.vidThumbFrameMs)
   const wrapRef = useRef<HTMLSpanElement>(null)
@@ -64,6 +65,7 @@ export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Prop
   const [failed, setFailed] = useState(false)
   const frameIdxRef = useRef(0)
   const reqIdRef = useRef(0)
+  const prevKeyRef = useRef(key)
   const onHasContentRef = useRef(onHasContent)
   useLayoutEffect(() => {
     onHasContentRef.current = onHasContent
@@ -88,15 +90,20 @@ export function ThumbImage({ path, mtimeMs, size, fallback, onHasContent }: Prop
   }, [])
 
   // Resolve thumb URLs when near view (memory cache skips IPC).
+  // After a cover write the cache key changes — refetch even if the
+  // IntersectionObserver still says off-screen (busy overlay / virtualizer).
   useEffect(() => {
     const hit = getThumbMemory(key)
     if (hit) {
+      prevKeyRef.current = key
       setEntry(hit)
       setFailed(false)
       setDisplaySrc(hit.url)
       return
     }
-    if (!nearView) return
+    const keyChanged = prevKeyRef.current !== key
+    prevKeyRef.current = key
+    if (!nearView && !keyChanged) return
 
     const reqId = ++reqIdRef.current
     setFailed(false)

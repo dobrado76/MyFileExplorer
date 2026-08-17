@@ -201,6 +201,7 @@ import {
   downloadInternetMany,
   extractPlexMany,
   getFolderMediaLibrary,
+  consolidateSubtitles,
   getMediaMetadataView,
   listMediaCovers,
   probePlex,
@@ -677,11 +678,11 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.mediaMetadataDownload, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
-    return downloadInternetMany(req.paths, req.kindHints)
+    return downloadInternetMany(req.paths, req.kindHints, req.pickHints)
   })
   handle(IPC.mediaMetadataRefresh, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
-    return refreshMany(req.paths, req.kindHints)
+    return refreshMany(req.paths, req.kindHints, req.pickHints)
   })
   handle(IPC.mediaMetadataClear, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
@@ -704,6 +705,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.mediaMetadataFolderLibrary, mediaMetadataPathSchema, (req) => {
     assertMediaMetadataEnabled()
     return getFolderMediaLibrary(req.path)
+  })
+  handle(IPC.mediaMetadataConsolidateSubtitles, mediaMetadataPathsSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return consolidateSubtitles(req.paths)
   })
   handle(IPC.mediaMetadataProbePlex, emptySchema, () => probePlex())
   handle(

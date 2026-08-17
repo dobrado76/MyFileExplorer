@@ -17,6 +17,7 @@ describe('vidThumbCache', () => {
     expect(isVidThumbVideoExt('mp4')).toBe(true)
     expect(isVidThumbVideoExt('.MKV')).toBe(true)
     expect(isVidThumbVideoExt('divx')).toBe(true)
+    expect(isVidThumbVideoExt('rmvb')).toBe(true)
     expect(isVidThumbVideoExt('png')).toBe(false)
   })
 

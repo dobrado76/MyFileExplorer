@@ -63,6 +63,8 @@ const MIME_BY_EXT: Record<string, string> = {
   ts: 'video/mp2t',
   m2ts: 'video/mp2t',
   flv: 'video/x-flv',
+  rmvb: 'application/vnd.rn-realmedia-vbr',
+  rm: 'application/vnd.rn-realmedia',
   txt: 'text/plain',
   html: 'text/html',
   htm: 'text/html',

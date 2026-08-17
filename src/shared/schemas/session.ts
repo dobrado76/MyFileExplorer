@@ -39,7 +39,11 @@ export const tabIconSchema = z
 export type TabIcon = z.infer<typeof tabIconSchema>
 
 const historyEntrySchema = z.union([
-  z.object({ kind: z.literal('folder'), path: z.string().min(1) }),
+  z.object({
+    kind: z.literal('folder'),
+    path: z.string().min(1),
+    scrollOffset: z.number().nonnegative().optional()
+  }),
   z.object({
     kind: z.literal('search'),
     query: z.string(),

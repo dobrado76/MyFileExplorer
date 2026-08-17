@@ -147,6 +147,26 @@ describe('session schema migration', () => {
     expect(parsed.tabs[0]!.search).toEqual({ active: false, query: '', indexedOnly: false })
   })
 
+  it('keeps folder scrollOffset on history entries', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\Data',
+          historyBack: [{ kind: 'folder', path: 'C:\\Data', scrollOffset: 880 }]
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.historyBack[0]).toEqual({
+      kind: 'folder',
+      path: 'C:\\Data',
+      scrollOffset: 880
+    })
+  })
+
   it('keeps a persisted search location on the tab', () => {
     const parsed = sessionSchema.parse({
       version: 1,

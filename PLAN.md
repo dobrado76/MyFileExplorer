@@ -60,7 +60,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 
 ## Immediate next work
 
-1. Soak-test **D50** media metadata (Plex extract without PMS running, TMDB limit dialog, Change cover, watched/genre toolbar) — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
+1. Soak-test **D50** media metadata (Plex extract without PMS running, TMDB remake picker, episode `SxxExx` tiles, CD-split movie folders, Change cover, watched/genre toolbar, consolidate Subs) — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
 2. Confirm Details horizontal scroll (header + rows, scrollbar at pane bottom) on a narrow window
 3. Confirm deleting a scoped tab root always prompts and closes those tabs
 4. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
