@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom'
 import { formatMediaRating, type MediaMetadata } from '@shared/mediaMetadata'
 import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
-import { CloseIcon } from '../lib/icons'
+import { CloseIcon, CopyIcon } from '../lib/icons'
 
 function thumbBlob(bytes: Uint8Array): Blob {
   let type = 'image/jpeg'
@@ -30,6 +30,22 @@ type MediaMetaView = {
 }
 
 const MediaMetaCtx = createContext<MediaMetaView | null>(null)
+
+export function useMediaMetadata(): MediaMetaView | null {
+  return useContext(MediaMetaCtx)
+}
+
+export function mediaMetadataHasDetails(meta: MediaMetadata): boolean {
+  return Boolean(
+    (meta.country && meta.country.length > 0) ||
+      (meta.genres && meta.genres.length > 0) ||
+      (meta.directors && meta.directors.length > 0) ||
+      (meta.actors && meta.actors.length > 0) ||
+      meta.ratings?.some((r) => formatMediaRating(r.value)) ||
+      meta.originalLanguage ||
+      meta.synopsis
+  )
+}
 
 export function MediaMetadataProvider({
   path,
@@ -189,31 +205,45 @@ export function MediaMetadataHero(): JSX.Element | null {
   )
 }
 
-function DetailRow({ label, children }: { label: string; children: ReactNode }): JSX.Element {
+function BoxedField({
+  label,
+  value,
+  onCopy,
+  multiline = false
+}: {
+  label: string
+  value: string
+  onCopy?: (value: string) => Promise<void>
+  multiline?: boolean
+}): JSX.Element {
   return (
-    <div className="media-metadata-row">
-      <div className="media-metadata-row-label">{label}</div>
-      <div className="media-metadata-row-value">{children}</div>
+    <div className={`preview-field${multiline ? ' is-multiline' : ''}`}>
+      <div className="field-label">
+        <span className="field-label-text">{label}</span>
+        {onCopy ? (
+          <button
+            type="button"
+            className="field-copy"
+            aria-label={`Copy ${label}`}
+            onClick={() => void onCopy(value)}
+          >
+            <CopyIcon size={12} />
+          </button>
+        ) : null}
+      </div>
+      <div className="field-value">{value}</div>
     </div>
   )
 }
 
-export function MediaMetadataDetails(): JSX.Element | null {
+export function MediaMetadataDetails({
+  onCopy
+}: {
+  onCopy?: (value: string) => Promise<void>
+} = {}): JSX.Element | null {
   const view = useContext(MediaMetaCtx)
-  if (!view) return null
+  if (!view || !mediaMetadataHasDetails(view.meta)) return null
   const { meta } = view
-  const chips = (items: string[] | undefined): JSX.Element | null => {
-    if (!items?.length) return null
-    return (
-      <div className="media-metadata-chips">
-        {items.map((g) => (
-          <span key={g} className="media-metadata-chip">
-            {g}
-          </span>
-        ))}
-      </div>
-    )
-  }
 
   const ratings = meta.ratings
     ?.map((r) => {
@@ -224,30 +254,40 @@ export function MediaMetadataDetails(): JSX.Element | null {
     .filter(Boolean)
     .join('  ·  ')
 
-  const hasBody =
-    (meta.country && meta.country.length > 0) ||
-    (meta.genres && meta.genres.length > 0) ||
-    (meta.directors && meta.directors.length > 0) ||
-    (meta.actors && meta.actors.length > 0) ||
-    ratings ||
-    meta.originalLanguage ||
-    meta.synopsis
-
-  if (!hasBody) return null
-
   return (
-    <div className="media-metadata-details">
-      {meta.originalLanguage ? (
-        <DetailRow label="Language">{meta.originalLanguage}</DetailRow>
-      ) : null}
-      {meta.country?.length ? <DetailRow label="Country">{meta.country.join(', ')}</DetailRow> : null}
-      {meta.genres?.length ? <DetailRow label="Genres">{chips(meta.genres)}</DetailRow> : null}
-      {meta.directors?.length ? (
-        <DetailRow label="Directors">{meta.directors.join(', ')}</DetailRow>
-      ) : null}
-      {meta.actors?.length ? <DetailRow label="Actors">{meta.actors.join(', ')}</DetailRow> : null}
-      {ratings ? <DetailRow label="Ratings">{ratings}</DetailRow> : null}
-      {meta.synopsis ? <p className="media-metadata-synopsis">{meta.synopsis}</p> : null}
+    <div className="preview-fields preview-fields-media">
+      <div>
+        {meta.originalLanguage ? (
+          <BoxedField label="Language" value={meta.originalLanguage} onCopy={onCopy} />
+        ) : null}
+        {meta.country?.length ? (
+          <BoxedField label="Country" value={meta.country.join(', ')} onCopy={onCopy} />
+        ) : null}
+        {meta.genres?.length ? (
+          <div className="preview-field preview-field-pills">
+            <div className="field-label">
+              <span className="field-label-text">Genres</span>
+            </div>
+            <div className="media-metadata-chips">
+              {meta.genres.map((g) => (
+                <span key={g} className="media-metadata-chip">
+                  {g}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {meta.directors?.length ? (
+          <BoxedField label="Directors" value={meta.directors.join(', ')} onCopy={onCopy} />
+        ) : null}
+        {meta.actors?.length ? (
+          <BoxedField label="Actors" value={meta.actors.join(', ')} onCopy={onCopy} />
+        ) : null}
+        {ratings ? <BoxedField label="Ratings" value={ratings} onCopy={onCopy} /> : null}
+        {meta.synopsis ? (
+          <BoxedField label="Synopsis" value={meta.synopsis} onCopy={onCopy} multiline />
+        ) : null}
+      </div>
     </div>
   )
 }

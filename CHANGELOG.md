@@ -17,6 +17,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Changed
 
 - **Deleting a tab root** — a folder that is the scoped root of any open tab now always asks for confirmation (Cancel / Delete) and warns that those tabs will be closed. After a successful delete, the affected tabs close (a replacement tab opens if that would leave none).
+- **Preview Media / File tabs** — when a file has both stored movie/TV metadata and extracted file fields, they sit in **Media** and **File** tabs under the player (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Metadata no longer overlays the video still.
+- **File metadata density** — short extracted fields (duration, bitrate, sample rate, Yes/No, …) share a line; long values stay full-width.
 
 ### Fixed
 

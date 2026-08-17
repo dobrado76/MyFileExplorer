@@ -69,7 +69,7 @@ Custom theme = user-editable map of these tokens in settings.
 
 - Header: file name + type
 - Body: media / text / placeholder
-- Footer or side fields: metadata table (key → value), monospace for prompts
+- Footer or side fields: metadata table (key → value), monospace for prompts. When both movie/TV details and extracted file metadata exist, **Media** / **File** tabs sit under the visualization (not over it)
 - Empty state when nothing selected
 
 ---

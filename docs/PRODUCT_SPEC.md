@@ -156,7 +156,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
-- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + cover above the video and the rest of the fields below. Click the cover for a fullscreen view of the stored full-size image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + cover above the video. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored full-size image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ---
 

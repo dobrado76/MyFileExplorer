@@ -55,6 +55,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Delete a tab root | Always confirm; warns that scoped tabs will close |
 | Details horizontal scroll | Scrollbar at the **bottom** of the file pane; header and rows move together |
 | Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |
+| Preview Media / File tabs | Under the player when both movie/TV details and extracted file metadata exist; Media fields match File boxed rows (genres stay pills) |
 
 ## Recent behavior (v0.8.x)
 

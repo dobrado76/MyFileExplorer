@@ -70,10 +70,11 @@ When the selected file or folder has streams:
 
 1. **Hero** — poster + title, year / SxxExx / show name. Click the poster for a fullscreen view of the **stored** image (not a web URL).
 2. **Change cover** and **Mark as Watched** under the title.
-3. **Player** (if it is a video).
-4. **Details** — language, country, genres, directors, actors, ratings (`7.6/10 (Plex)`), synopsis.
+3. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
+4. **Details** — language, country, genres (pills), directors, actors, ratings (`7.6/10 (Plex)`), synopsis. Field values use the same boxed rows as file metadata; genres stay pills.
+5. **Media / File tabs** — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs.
 
-Hero and details sit with a small inset so they are not flush against the pane edge. Cover height is the setting above.
+Cover height is the setting above.
 
 ---
 

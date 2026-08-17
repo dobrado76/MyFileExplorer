@@ -2,11 +2,11 @@
 
 **Version:** 0.8.x
 
-The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params).
+The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params). Short File-tab values (duration, bitrate, channels, Yes/No, …) share a row; titles, comments, and other long values stay full-width boxed rows.
 
 **Extension catalog:** [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) — every extension routed by the preview pane, with notes per type.
 
-**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a poster + title sit above the player and the remaining fields below. Click the poster for the stored full-size cover. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a poster + title sit above the player. Movie/TV fields and extracted file metadata (duration, codec, …) use **Media** / **File** tabs under the player when both exist (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Click the poster for the stored full-size cover. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ### Detached preview window
 

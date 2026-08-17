@@ -1,4 +1,4 @@
-import { useMemo, type JSX, type ReactNode } from 'react'
+import { useMemo, useState, type JSX, type ReactNode } from 'react'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
 import { highlightLanguage } from '../../lib/highlight'
 import { basename } from '../../lib/paths'
@@ -35,7 +35,9 @@ import {
   MediaMetadataDetails,
   MediaMetadataHero,
   MediaMetadataPreview,
-  MediaMetadataProvider
+  MediaMetadataProvider,
+  mediaMetadataHasDetails,
+  useMediaMetadata
 } from '../MediaMetadataPreview'
 import type { DriveInfo } from '@shared/schemas/fs'
 
@@ -175,13 +177,15 @@ export function PreviewView({
   const kindClass =
     model?.kind === 'image'
       ? ' preview-kind-image'
-      : model?.kind === 'archive'
-        ? ' preview-kind-archive'
-        : model?.kind === 'chm'
-          ? ' preview-kind-chm'
-          : model?.kind === 'model3d'
-            ? ' preview-kind-model3d'
-            : ''
+      : model?.kind === 'video'
+        ? ' preview-kind-video'
+        : model?.kind === 'archive'
+          ? ' preview-kind-archive'
+          : model?.kind === 'chm'
+            ? ' preview-kind-chm'
+            : model?.kind === 'model3d'
+              ? ' preview-kind-model3d'
+              : ''
 
   return (
     <div className={`preview${kindClass}${zen ? ' preview-zen' : ''}`}>
@@ -271,6 +275,7 @@ function PreviewBody({
   return (
     <MediaMetadataProvider path={previewPath}>
       <div className="preview-content">
+        <div className="preview-viz">
         {!zen ? <MediaMetadataHero /> : null}
         {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
         {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
@@ -472,45 +477,95 @@ function PreviewBody({
           </>
         )}
         {model.kind === 'missing' && <div className="preview-empty">File no longer exists</div>}
-
-        {!zen ? <MediaMetadataDetails /> : null}
+        </div>
 
         {!zen && model.warnings && model.warnings.length > 0 && (
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
         )}
 
-        {!zen && hasRichFields && (
-          <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
-            {CONTENT_GROUPS.map(({ key, label }) => {
-              const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
-              if (fields.length === 0) return null
-              const groupLabel =
-                key === 'generation' && model.subtitle?.startsWith('SafeTensors')
-                  ? 'Training'
-                  : key === 'other' && model.subtitle?.startsWith('SafeTensors')
-                    ? 'Weights'
-                    : key === 'other' && model.subtitle === '3ds Max UVW map'
-                      ? 'UVW map'
-                      : key === 'other' && model.subtitle === 'Radiance HDR'
-                        ? 'HDR'
-                        : label
-              return (
-                <div key={key}>
-                  <div className="preview-group-title">{groupLabel}</div>
-                  {key === 'generation' ? (
-                    <GenerationFields fields={fields} onCopy={onCopy} />
-                  ) : (
-                    fields.map((f) => <Field key={f.id} field={f} onCopy={onCopy} />)
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {!zen ? (
+          <PreviewMetaTabs
+            hasFile={hasRichFields}
+            file={
+              <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
+                {CONTENT_GROUPS.map(({ key, label }) => {
+                  const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
+                  if (fields.length === 0) return null
+                  const groupLabel =
+                    key === 'generation' && model.subtitle?.startsWith('SafeTensors')
+                      ? 'Training'
+                      : key === 'other' && model.subtitle?.startsWith('SafeTensors')
+                        ? 'Weights'
+                        : key === 'other' && model.subtitle === '3ds Max UVW map'
+                          ? 'UVW map'
+                          : key === 'other' && model.subtitle === 'Radiance HDR'
+                            ? 'HDR'
+                            : label
+                  return (
+                    <div key={key}>
+                      <div className="preview-group-title">{groupLabel}</div>
+                      {key === 'generation' ? (
+                        <GenerationFields fields={fields} onCopy={onCopy} />
+                      ) : (
+                        <CompactableFields fields={fields} onCopy={onCopy} />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            }
+            onCopy={onCopy}
+          />
+        ) : null}
       </div>
 
       {!zen && fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
     </MediaMetadataProvider>
+  )
+}
+
+function PreviewMetaTabs({
+  hasFile,
+  file,
+  onCopy
+}: {
+  hasFile: boolean
+  file: ReactNode
+  onCopy: (value: string) => Promise<void>
+}): JSX.Element | null {
+  const media = useMediaMetadata()
+  const hasMedia = !!media && mediaMetadataHasDetails(media.meta)
+  const [tab, setTab] = useState<'media' | 'file'>('media')
+  if (!hasMedia && !hasFile) return null
+  const showTabs = hasMedia && hasFile
+  const active = showTabs ? tab : hasMedia ? 'media' : 'file'
+
+  return (
+    <div className="preview-meta">
+      {showTabs ? (
+        <div className="preview-meta-tabs" role="tablist" aria-label="Preview metadata">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={active === 'media'}
+            className={`preview-source-tab${active === 'media' ? ' active' : ''}`}
+            onClick={() => setTab('media')}
+          >
+            Media
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={active === 'file'}
+            className={`preview-source-tab${active === 'file' ? ' active' : ''}`}
+            onClick={() => setTab('file')}
+          >
+            File
+          </button>
+        </div>
+      ) : null}
+      {active === 'media' ? <MediaMetadataDetails onCopy={onCopy} /> : file}
+    </div>
   )
 }
 
@@ -590,6 +645,89 @@ function DetailRow({
       </div>
       <div className={`d-value${field.mono ? ' mono' : ''}`}>{field.value}</div>
     </div>
+  )
+}
+
+function fieldIdTail(id: string): string {
+  const i = id.lastIndexOf('.')
+  return i >= 0 ? id.slice(i + 1) : id
+}
+
+/** Titles, comments, and other values that should keep a full-width boxed row. */
+const BLOCK_FIELD_TAILS = new Set([
+  'title',
+  'artists',
+  'artist',
+  'album',
+  'albumArtist',
+  'genre',
+  'comment',
+  'description',
+  'lyrics',
+  'copyright',
+  'synopsis',
+  'prompt',
+  'negative',
+  'rawParameters',
+  'comfyPromptJson',
+  'comfyWorkflowJson',
+  'subject',
+  'from',
+  'to',
+  'body',
+  'target',
+  'args',
+  'workingDir'
+])
+
+function isCompactPreviewField(f: PreviewField): boolean {
+  if (f.syntax === 'json' || f.mono) return false
+  if (f.value.includes('\n')) return false
+  const tail = fieldIdTail(f.id)
+  if (BLOCK_FIELD_TAILS.has(tail)) return false
+  if (f.id.toLowerCase().includes('json')) return false
+  return f.value.length <= 28
+}
+
+function CompactableFields({
+  fields,
+  onCopy
+}: {
+  fields: PreviewField[]
+  onCopy(v: string): Promise<void>
+}): JSX.Element {
+  const chunks: Array<
+    { type: 'flow'; items: PreviewField[] } | { type: 'block'; item: PreviewField }
+  > = []
+  let flow: PreviewField[] = []
+  const flushFlow = (): void => {
+    if (flow.length === 1) chunks.push({ type: 'block', item: flow[0]! })
+    else if (flow.length > 1) chunks.push({ type: 'flow', items: flow })
+    flow = []
+  }
+  for (const f of fields) {
+    if (isCompactPreviewField(f)) flow.push(f)
+    else {
+      flushFlow()
+      chunks.push({ type: 'block', item: f })
+    }
+  }
+  flushFlow()
+
+  return (
+    <>
+      {chunks.map((c) =>
+        c.type === 'flow' ? (
+          <div key={c.items.map((f) => f.id).join('|')} className="preview-field-flow">
+            {c.items.map((f) => (
+              <Field key={f.id} field={f} onCopy={onCopy} compact />
+            ))}
+          </div>
+        ) : (
+          <Field key={c.item.id} field={c.item} onCopy={onCopy} />
+        )
+      )}
+    </>
   )
 }
 
