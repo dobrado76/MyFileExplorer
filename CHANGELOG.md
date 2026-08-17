@@ -23,6 +23,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Rename scroll** — after you finish renaming a new file/folder (or any item), the list stays on that entry in its new sort position instead of leaving you at “New folder” / “New file”.
 - **Media search name** — when Plex or the internet finds no title, a dialog offers the filename in a **Search as** box so you can drop extra sort numbers (e.g. the second `5` in `Babylon 5 - 5 - A Call to Arms`) or add a year and retry. Cancel skips that item.
 - **Media cover tiles** — Extract from Plex / Download from Internet / Change cover refresh the file or folder poster in place. Tiles used to keep the old strip or folder icon until you left the folder and came back.
 - **Back scroll** — Back / Forward restore the file-list scroll position for that folder (it used to jump to the top).

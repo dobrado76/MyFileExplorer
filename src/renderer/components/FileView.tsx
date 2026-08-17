@@ -286,6 +286,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  /** True after the user (or a follow-selection scroll) moved the list — skip Back-style restore. */
+  const userScrolledRef = useRef(false)
   const detailsHeaderRef = useRef<HTMLDivElement>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const typeaheadRef = useRef<{ buffer: string; timer: number }>({ buffer: '', timer: 0 })
@@ -825,18 +827,28 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     const rowIdx = spec ? Math.floor(idx / columns) : idx
     const visible = virtualizer.getVirtualItems()
     if (visible.some((v) => v.index === rowIdx)) return
+    userScrolledRef.current = true
     virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
-  }, [renamingPath, entries, spec, columns, virtualizer])
+    const el = scrollRef.current
+    if (el) {
+      noteFileViewScroll(tabId, el.scrollTop)
+      setScrollOffset(el.scrollTop)
+    }
+  }, [renamingPath, entries, spec, columns, virtualizer, tabId, setScrollOffset])
 
-  // Reveal / open-location: scroll selection into view once the listing has it.
+  // Reveal / open-location / post-rename: scroll selection into view once the listing has it.
   useLayoutEffect(() => {
     if (!isFocusedSurface || !fileListScrollRequest) return
     const idx = entries.findIndex((en) => samePath(en.path, fileListScrollRequest.path))
     if (idx < 0) return
     const rowIdx = spec ? Math.floor(idx / columns) : idx
+    userScrolledRef.current = true
     virtualizer.scrollToIndex(rowIdx, { align: 'center' })
     const el = scrollRef.current
-    if (el) setScrollOffset(el.scrollTop)
+    if (el) {
+      noteFileViewScroll(tabId, el.scrollTop)
+      setScrollOffset(el.scrollTop)
+    }
     clearFileListScrollRequest()
   }, [
     isFocusedSurface,
@@ -846,7 +858,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     columns,
     virtualizer,
     clearFileListScrollRequest,
-    setScrollOffset
+    setScrollOffset,
+    tabId
   ])
 
   // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range),
@@ -1155,7 +1168,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   // Restore history/tab scroll after the listing for this folder is on screen.
   // Re-apply until the user scrolls — a NAS re-list remounts virtual rows.
   const listingPath = listing.path
-  const userScrolledRef = useRef(false)
   const applyingRestoreRef = useRef(false)
   const restoreFolderRef = useRef(folderPath)
   if (restoreFolderRef.current !== folderPath) {

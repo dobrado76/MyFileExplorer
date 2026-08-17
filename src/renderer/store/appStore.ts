@@ -1884,15 +1884,31 @@ export const useAppStore = create<AppState>()((set, get) => {
     set((s) => {
       const listingsByTabId: Record<string, Listing> = {}
       for (const [tid, L] of Object.entries(s.listingsByTabId)) {
+        const t = s.tabs.find((x) => x.id === tid)
+        const owning = t ? resolveFolderView(t.path, s.settings.folderViews) : undefined
+        const sort = owning?.sort ?? t?.sort ?? { key: 'name' as const, dir: 'asc' as const }
         listingsByTabId[tid] = {
           ...L,
-          entries: patchDirEntriesForRename(L.entries, from, to, newName)
+          entries: sortEntries(
+            patchDirEntriesForRename(L.entries, from, to, newName),
+            sort,
+            currentListingFoldersFirst(L.path)
+          )
         }
       }
-      const listing = listingsByTabId[s.activeTabId] ?? {
-        ...s.listing,
-        entries: patchDirEntriesForRename(s.listing.entries, from, to, newName)
-      }
+      const listing = listingsByTabId[s.activeTabId] ?? (() => {
+        const tab = s.tabs.find((x) => x.id === s.activeTabId)
+        const owning = tab ? resolveFolderView(tab.path, s.settings.folderViews) : undefined
+        const sort = owning?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const }
+        return {
+          ...s.listing,
+          entries: sortEntries(
+            patchDirEntriesForRename(s.listing.entries, from, to, newName),
+            sort,
+            currentListingFoldersFirst(s.listing.path)
+          )
+        }
+      })()
       const tabs = s.tabs.map((t) => ({
         ...t,
         path: rewrite(t.path),
@@ -1933,6 +1949,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     for (const L of Object.values(after.listingsByTabId)) {
       rememberRemoteListing(L.path, L.entries, after.drives)
     }
+    get().requestFileListScrollTo(to)
   }
 
   function notifyTreeRemoved(removed: string[]): void {
@@ -4076,6 +4093,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         }))
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
+        get().requestFileListScrollTo(res.path)
       } catch (e) {
         applyListingRename(dest, path, oldName)
         set({ mediaHold: false })

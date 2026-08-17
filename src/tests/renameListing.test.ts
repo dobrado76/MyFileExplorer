@@ -34,3 +34,20 @@ describe('patchDirEntriesForRename', () => {
     expect(next[1]!.name).toBe('Adventureland (2009) [Part 2].avi')
   })
 })
+
+describe('rename then sort', () => {
+  it('places the new name where A–Z sort expects it', () => {
+    const dir = 'C:\\lib'
+    const entries = [
+      file('Alpha', dir),
+      file('New folder', dir),
+      file('Zulu', dir)
+    ].map((e) => ({ ...e, kind: 'dir' as const, ext: '' }))
+    const from = `${dir}\\New folder`
+    const patched = patchDirEntriesForRename(entries, from, `${dir}\\Babylon 5`, 'Babylon 5')
+    const names = [...patched]
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+      .map((e) => e.name)
+    expect(names).toEqual(['Alpha', 'Babylon 5', 'Zulu'])
+  })
+})
