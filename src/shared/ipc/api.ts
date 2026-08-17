@@ -284,28 +284,40 @@ export type MyFileExplorerApi = {
     }): Promise<Result<{ launched: true }>>
   }
   mediaMetadata: {
-    extractPlex(req: { paths: string[] }): Promise<
+    extractPlex(req: {
+      paths: string[]
+      kindHints?: Record<string, 'movie' | 'show' | 'episode'>
+    }): Promise<
       Result<{
         done: number
         failed: { path: string; message: string }[]
         updated: string[]
         stoppedReason?: string
+        needsKind?: { path: string; title: string }[]
       }>
     >
-    download(req: { paths: string[] }): Promise<
+    download(req: {
+      paths: string[]
+      kindHints?: Record<string, 'movie' | 'show' | 'episode'>
+    }): Promise<
       Result<{
         done: number
         failed: { path: string; message: string }[]
         updated: string[]
         stoppedReason?: string
+        needsKind?: { path: string; title: string }[]
       }>
     >
-    refresh(req: { paths: string[] }): Promise<
+    refresh(req: {
+      paths: string[]
+      kindHints?: Record<string, 'movie' | 'show' | 'episode'>
+    }): Promise<
       Result<{
         done: number
         failed: { path: string; message: string }[]
         updated: string[]
         stoppedReason?: string
+        needsKind?: { path: string; title: string }[]
       }>
     >
     clear(req: { paths: string[] }): Promise<
@@ -341,7 +353,14 @@ export type MyFileExplorerApi = {
     folderLibrary(req: { path: string }): Promise<
       Result<{
         isContainer: boolean
-        items: { path: string; watched: boolean; genres: string[] }[]
+        items: {
+          path: string
+          watched: boolean
+          genres: string[]
+          kind: 'movie' | 'show' | 'episode'
+          season?: number
+          episode?: number
+        }[]
       }>
     >
     probePlex(): Promise<

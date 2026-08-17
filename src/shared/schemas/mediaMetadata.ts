@@ -27,7 +27,8 @@ export const defaultMediaMetadataSettings: MediaMetadataSettings =
   mediaMetadataSettingsSchema.parse({})
 
 export const mediaMetadataPathsSchema = z.object({
-  paths: z.array(z.string().min(1)).min(1).max(200)
+  paths: z.array(z.string().min(1)).min(1).max(200),
+  kindHints: z.record(z.string(), z.enum(['movie', 'show', 'episode'])).optional()
 })
 
 export const mediaMetadataPathSchema = z.object({

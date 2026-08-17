@@ -13,6 +13,7 @@ export function usePreviewTarget(): {
 } {
   const selected = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId)?.selected ?? [])
   const focusedPath = useAppStore((s) => s.focusedPath)
+  const listingPath = useAppStore((s) => s.listing.path)
   const listingEntries = useAppStore((s) => s.listing.entries)
   const search = useAppStore((s) => s.search)
   const recycleBin = useAppStore((s) => s.recycleBin)
@@ -28,9 +29,11 @@ export function usePreviewTarget(): {
     [recycleBin.active, recycleBin.items, search.active, search.results, listingEntries]
   )
 
+  const folderFallback =
+    !search.active && !recycleBin.active && listingPath.trim() ? listingPath : null
   const previewPath = useMemo(
-    () => resolvePreviewTargetPath(selected, focusedPath),
-    [selected, focusedPath]
+    () => resolvePreviewTargetPath(selected, focusedPath, folderFallback),
+    [selected, focusedPath, folderFallback]
   )
 
   const selectedStamp = useMemo(() => {

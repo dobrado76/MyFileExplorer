@@ -17,8 +17,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Changed
 
 - **Deleting a tab root** — a folder that is the scoped root of any open tab now always asks for confirmation (Cancel / Delete) and warns that those tabs will be closed. After a successful delete, the affected tabs close (a replacement tab opens if that would leave none).
-- **Preview Media / File tabs** — when a file has both stored movie/TV metadata and extracted file fields, they sit in **Media** and **File** tabs under the player (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Metadata no longer overlays the video still.
+- **Preview Media / File tabs** — when a file has both stored movie/TV metadata and extracted file fields, they sit in **Media** and **File** tabs under the player (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Ratings use source marks (Plex, IMDb, Rotten Tomatoes, Metacritic, TMDB) instead of `(Plex)` text. Metadata no longer overlays the video still.
 - **File metadata density** — short extracted fields (duration, bitrate, sample rate, Yes/No, …) share a line; long values stay full-width.
+- **TV show metadata** — show cover + card attach to the show folder (folder icon = poster, shrink-to-fit; XL icons only hides the name). Opening the show in the tree (no file selected) keeps the show card in the preview until you click an episode. Episode preview uses the show cover when the episode has none. Episode tiles show `S01E07` when that metadata is stored (season defaults to 1 if Plex omits it), otherwise the filename (tooltip is always the filename). Landscape stills/backdrops are skipped in favor of the next portrait cover. Episode files get episode metadata and keep `!VIDTHUMB_CACHE` thumbs. The library folder (parent of the show folders) is marked as a media container. Movie vs show is detected from names; a dialog asks only when it is unclear.
 
 ### Fixed
 

@@ -43,6 +43,9 @@ export type MediaWatchedFilter = 'all' | 'watched' | 'unwatched'
 export type MediaLibraryItemFlags = {
   watched: boolean
   genres: string[]
+  kind?: MediaMetadataKind
+  season?: number
+  episode?: number
 }
 
 export function matchesMediaLibraryFilter(
@@ -132,11 +135,81 @@ export function formatMediaRating(value: number): string {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
 }
 
+/** Compact `S01E07`. Missing season becomes 1 when an episode number is present. */
+export function formatEpisodeCode(season?: number, episode?: number): string | null {
+  if (season == null && episode == null) return null
+  const sNum = episode != null ? (season ?? 1) : season
+  const s = sNum != null ? `S${String(sNum).padStart(2, '0')}` : ''
+  const e = episode != null ? `E${String(episode).padStart(2, '0')}` : ''
+  return `${s}${e}` || null
+}
+
+/** Fill S/E from the file name; default season to 1 for episode records. */
+export function normalizeEpisodeFields(meta: MediaMetadata, fileName?: string): MediaMetadata {
+  if (meta.kind !== 'episode') return meta
+  const parsed = fileName ? parseMediaFileName(fileName) : { season: undefined, episode: undefined }
+  const episode = meta.episode ?? parsed.episode
+  const season = meta.season ?? parsed.season ?? 1
+  return { ...meta, season, episode }
+}
+
+/** Icon/list label for an episode when stored S/E metadata exists. */
+export function episodeIconLabel(
+  flags: Pick<MediaLibraryItemFlags, 'kind' | 'season' | 'episode'> | undefined
+): string | null {
+  if (flags?.kind !== 'episode') return null
+  return formatEpisodeCode(flags.season, flags.episode)
+}
+
+/** True for episode files (stored kind, or SxxExx / NxNN in the name). */
+export function isEpisodeListEntry(
+  name: string,
+  flags?: Pick<MediaLibraryItemFlags, 'kind'>
+): boolean {
+  if (flags?.kind === 'episode') return true
+  return parseMediaFileName(name).kind === 'episode'
+}
+
 const GENERIC_MEDIA_FOLDER_RE =
   /^(movies?|films?|tv|tvs|television|series|shows?|tv[ ._-]?shows?|tv[ ._-]?series|videos?|downloads?|media|anime|cartoons?|documentaries|documentary|collections?|kids|children|4k|uhd|hdr|1080p|720p|2160p|season\s*\d+|s\d{1,2}|specials|extras)$/i
 
 export function isGenericMediaFolderName(name: string): boolean {
   return GENERIC_MEDIA_FOLDER_RE.test(name.trim())
+}
+
+export function isSeasonFolderName(name: string): boolean {
+  return /^(season\s*\d+|s\d{1,2}|specials)$/i.test(name.trim())
+}
+
+export type MediaQueryKind = 'movie' | 'show' | 'episode'
+
+/**
+ * Infer movie / show / episode from a file or folder name plus optional children.
+ * `ambiguous` is rare (yearless title, no episode siblings) — the UI should ask.
+ */
+export function classifyMediaFromNames(opts: {
+  name: string
+  isDirectory: boolean
+  childNames?: string[]
+}): MediaQueryKind | 'ambiguous' {
+  const parsed = parseMediaFileName(opts.name)
+  const children = opts.childNames ?? []
+  const videos = children.filter((n) => isMediaMetadataVideoName(n))
+  const episodeVideos = videos.filter((n) => parseMediaFileName(n).kind === 'episode')
+  const seasonDirs = children.filter((n) => isSeasonFolderName(n))
+
+  if (!opts.isDirectory) {
+    if (parsed.kind === 'episode') return 'episode'
+    if (episodeVideos.length > 0) return 'episode'
+    if (parsed.kind === 'movie' || parsed.year != null) return 'movie'
+    return 'ambiguous'
+  }
+
+  if (isGenericMediaFolderName(opts.name) || isSeasonFolderName(opts.name)) return 'ambiguous'
+  if (seasonDirs.length > 0 || episodeVideos.length > 0) return 'show'
+  if (parsed.kind === 'movie' || parsed.year != null) return 'movie'
+  if (videos.length >= 3) return 'show'
+  return 'ambiguous'
 }
 
 export function parseMediaMetadataJson(text: string): MediaMetadata | null {

@@ -195,6 +195,11 @@ function ratingsFromPlex(item: Record<string, unknown>): MediaMetadataRating[] {
   return out
 }
 
+function plexIndex(v: unknown): number | undefined {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
 function metaFromPlexItem(item: Record<string, unknown>, sourceId: string): MediaMetadata {
   const type = String(item.type ?? '')
   const kind: MediaMetadata['kind'] =
@@ -216,8 +221,8 @@ function metaFromPlexItem(item: Record<string, unknown>, sourceId: string): Medi
     directors: tagList(item.Director),
     actors: tagList(item.Role).slice(0, 20),
     ratings: ratingsFromPlex(item),
-    season: kind === 'episode' ? Number(item.parentIndex) || undefined : undefined,
-    episode: kind === 'episode' ? Number(item.index) || undefined : undefined,
+    season: kind === 'episode' ? plexIndex(item.parentIndex) : undefined,
+    episode: kind === 'episode' ? plexIndex(item.index) : undefined,
     showTitle:
       kind === 'episode'
         ? String(item.grandparentTitle ?? item.parentTitle ?? '').trim() || undefined
@@ -464,6 +469,44 @@ async function sqliteItemArt(
   }
 }
 
+async function seasonContextFromSqlite(
+  dataDir: string,
+  parentId: number | null
+): Promise<{ season?: number; showTitle?: string }> {
+  if (parentId == null) return {}
+  const dbPath = path.join(dataDir, 'Plug-in Support', 'Databases', 'com.plexapp.plugins.library.db')
+  if (!existsSync(dbPath)) return {}
+  try {
+    const { DatabaseSync } = await import('node:sqlite')
+    const db = new DatabaseSync(dbPath, { readOnly: true })
+    try {
+      const parent = db
+        .prepare(
+          `SELECT title, "index" AS idx, parent_id AS parentId, metadata_type AS metadataType
+           FROM metadata_items WHERE id = ?`
+        )
+        .get(parentId) as
+        | { title: string; idx: number | null; parentId: number | null; metadataType: number }
+        | undefined
+      if (!parent) return {}
+      if (parent.metadataType === 2) return { showTitle: parent.title || undefined }
+      const season = parent.idx != null && Number.isFinite(parent.idx) ? parent.idx : undefined
+      let showTitle: string | undefined
+      if (parent.parentId != null) {
+        const show = db
+          .prepare(`SELECT title FROM metadata_items WHERE id = ?`)
+          .get(parent.parentId) as { title: string } | undefined
+        showTitle = show?.title || undefined
+      }
+      return { season, showTitle }
+    } finally {
+      db.close()
+    }
+  } catch {
+    return {}
+  }
+}
+
 async function showIdFromSqlite(dataDir: string, startId: number): Promise<number | null> {
   const dbPath = path.join(dataDir, 'Plug-in Support', 'Databases', 'com.plexapp.plugins.library.db')
   if (!existsSync(dbPath)) return null
@@ -540,29 +583,32 @@ function hashFromGuid(guid: string | null): string | null {
 
 async function pickLargestImage(dir: string): Promise<Buffer | null> {
   if (!existsSync(dir)) return null
-  let best: Buffer | null = null
-  let bestSize = 0
+  const { isPortraitCoverBuffer } = await import('./coverImage')
   let names: string[]
   try {
     names = await fsp.readdir(dir)
   } catch {
     return null
   }
+  const portraits: { buf: Buffer; size: number }[] = []
+  const others: { buf: Buffer; size: number }[] = []
   for (const name of names) {
     if (name.startsWith('.')) continue
     const full = path.join(dir, name)
     try {
       const st = await fsp.stat(full)
-      if (!st.isFile() || st.size < 32 || st.size <= bestSize) continue
+      if (!st.isFile() || st.size < 32) continue
       const buf = await fsp.readFile(full)
       if (!looksLikeImage(buf)) continue
-      best = buf
-      bestSize = st.size
+      const slot = (await isPortraitCoverBuffer(buf)) ? portraits : others
+      slot.push({ buf, size: st.size })
     } catch {
       /* skip */
     }
   }
-  return best
+  const pool = portraits.length > 0 ? portraits : others
+  pool.sort((a, b) => b.size - a.size)
+  return pool[0]?.buf ?? null
 }
 
 async function readPosterForArtItem(
@@ -773,17 +819,22 @@ export async function readLocalPlexPoster(dataDir: string, metadataId: string): 
 }
 
 async function resolvePlexPoster(resolved: PlexResolved, hit: PlexHit): Promise<Buffer | null> {
+  const { firstPortraitCover, isPortraitCoverBuffer } = await import('./coverImage')
   const urls = [...new Set([...(hit.thumbUrls ?? []), ...(hit.thumbUrl ? [hit.thumbUrl] : [])])]
+  const landscape: Buffer[] = []
   for (const url of urls) {
     const buf = await downloadPlexThumb(url)
-    if (buf) return buf
+    if (!buf) continue
+    if (await isPortraitCoverBuffer(buf)) return buf
+    landscape.push(buf)
   }
   const id = hit.meta.sourceId?.trim()
   if (resolved.dataDir && id) {
     const local = await readLocalPlexPoster(resolved.dataDir, id)
-    if (local) return local
+    if (local && (await isPortraitCoverBuffer(local))) return local
+    if (local) landscape.push(local)
   }
-  return null
+  return firstPortraitCover(landscape)
 }
 
 async function withPoster(resolved: PlexResolved, hit: PlexHit): Promise<PlexHit> {
@@ -838,6 +889,8 @@ export async function extractFromPlex(
       ].filter((u): u is string => !!u)
       const tags = await tagsFromSqlite(resolved.dataDir, row.id)
       const kind = kindFromPlexType(row.metadataType)
+      const ctx =
+        kind === 'episode' ? await seasonContextFromSqlite(resolved.dataDir, row.parentId) : {}
       const meta: MediaMetadata = {
         version: 1,
         source: 'plex',
@@ -854,7 +907,9 @@ export async function extractFromPlex(
           row.rating != null && Number.isFinite(row.rating)
             ? [{ source: 'Plex', value: row.rating, max: 10 }]
             : undefined,
+        season: kind === 'episode' ? ctx.season : undefined,
         episode: kind === 'episode' ? row.index ?? undefined : undefined,
+        showTitle: kind === 'episode' ? ctx.showTitle : undefined,
         fetchedAt: new Date().toISOString()
       }
       return finish({ meta, thumbUrl: urls[0] ?? null, thumbUrls: urls })

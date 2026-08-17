@@ -241,6 +241,7 @@ export type DialogState =
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | { kind: 'power-search' }
   | { kind: 'change-cover'; path: string }
+  | { kind: 'media-kind'; title: string; message: string }
   | null
 
 export type MediaLibraryState = {
@@ -410,6 +411,7 @@ const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
+let mediaKindResolve: ((choice: 'movie' | 'show' | null) => void) | null = null
 
 type AppState = {
   booted: boolean
@@ -728,6 +730,8 @@ type AppState = {
     danger?: boolean
   }): Promise<boolean>
   resolveConfirm(confirmed: boolean): void
+  askMediaKind(opts: { title: string; message: string }): Promise<'movie' | 'show' | null>
+  resolveMediaKind(choice: 'movie' | 'show' | null): void
   imageViewerNavigate(delta: number | 'first' | 'last'): void
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
@@ -1082,7 +1086,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       const items: Record<string, MediaLibraryItemFlags> = {}
       const genreSet = new Set<string>()
       for (const it of res.items) {
-        items[it.path.toLowerCase()] = { watched: it.watched, genres: it.genres }
+        items[it.path.toLowerCase()] = {
+          watched: it.watched,
+          genres: it.genres,
+          kind: it.kind,
+          season: it.season,
+          episode: it.episode
+        }
         for (const g of it.genres) {
           if (g.trim()) genreSet.add(g)
         }
@@ -1108,16 +1118,39 @@ export const useAppStore = create<AppState>()((set, get) => {
   async function runMediaMetadataOp(
     label: string,
     paths: string[],
-    work: () => Promise<{
+    work: (kindHints?: Record<string, 'movie' | 'show' | 'episode'>) => Promise<{
       done: number
       failed: { path: string; message: string }[]
       updated: string[]
       stoppedReason?: string
+      needsKind?: { path: string; title: string }[]
     }>
   ): Promise<void> {
     if (!get().settings.mediaMetadata.enabled) return
     try {
-      const res = await withBusyFeedback('media-metadata', label, undefined, work)
+      let hints: Record<string, 'movie' | 'show' | 'episode'> | undefined
+      let res = await withBusyFeedback('media-metadata', label, undefined, () => work(hints))
+      if (res.needsKind && res.needsKind.length > 0) {
+        const extra: Record<string, 'movie' | 'show' | 'episode'> = { ...hints }
+        for (const item of res.needsKind) {
+          const choice = await get().askMediaKind({
+            title: 'Movie or TV show?',
+            message: `“${item.title}” could be a movie or a TV show. Which should we look up?`
+          })
+          if (!choice) break
+          extra[item.path] = choice
+        }
+        if (Object.keys(extra).length > (hints ? Object.keys(hints).length : 0)) {
+          hints = extra
+          const again = await withBusyFeedback('media-metadata', label, undefined, () => work(hints))
+          res = {
+            done: res.done + again.done,
+            failed: [...res.failed, ...again.failed],
+            updated: [...res.updated, ...again.updated],
+            stoppedReason: again.stoppedReason ?? res.stoppedReason
+          }
+        }
+      }
       for (const p of res.updated.length > 0 ? res.updated : paths) get().bumpColumnMeta(p)
       const folder = get().listing.path
       if (folder) void refreshMediaLibraryFolder(folder)
@@ -4593,6 +4626,30 @@ export const useAppStore = create<AppState>()((set, get) => {
       r?.(confirmed)
     },
 
+    async askMediaKind(opts) {
+      if (mediaKindResolve) {
+        mediaKindResolve(null)
+        mediaKindResolve = null
+      }
+      return await new Promise<'movie' | 'show' | null>((resolve) => {
+        mediaKindResolve = resolve
+        set({
+          dialog: {
+            kind: 'media-kind',
+            title: opts.title,
+            message: opts.message
+          }
+        })
+      })
+    },
+
+    resolveMediaKind(choice) {
+      set({ dialog: null })
+      const r = mediaKindResolve
+      mediaKindResolve = null
+      r?.(choice)
+    },
+
     setImageVersionPreview(preview) {
       set({ imageVersionPreview: preview })
     },
@@ -5170,20 +5227,20 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async mediaMetadataExtractPlex(paths) {
-      await runMediaMetadataOp('Extracting media metadata…', paths, () =>
-        call(api.mediaMetadata.extractPlex({ paths }))
+      await runMediaMetadataOp('Extracting media metadata…', paths, (kindHints) =>
+        call(api.mediaMetadata.extractPlex({ paths, kindHints }))
       )
     },
 
     async mediaMetadataDownload(paths) {
-      await runMediaMetadataOp('Downloading media metadata…', paths, () =>
-        call(api.mediaMetadata.download({ paths }))
+      await runMediaMetadataOp('Downloading media metadata…', paths, (kindHints) =>
+        call(api.mediaMetadata.download({ paths, kindHints }))
       )
     },
 
     async mediaMetadataRefresh(paths) {
-      await runMediaMetadataOp('Refreshing media metadata…', paths, () =>
-        call(api.mediaMetadata.refresh({ paths }))
+      await runMediaMetadataOp('Refreshing media metadata…', paths, (kindHints) =>
+        call(api.mediaMetadata.refresh({ paths, kindHints }))
       )
     },
 

@@ -46,6 +46,7 @@ import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { compileViewFilter } from '../lib/viewFilter'
 import { detailsTableMinWidth } from '../lib/detailsTable'
+import { episodeIconLabel, isEpisodeListEntry } from '@shared/mediaMetadata'
 import { isExcludedByMediaLibrary } from '../lib/mediaLibrary'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
@@ -265,8 +266,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const hideNameExtensions = settings.hideNameExtensions
-  const labelFor = (entry: DirEntry): string =>
-    entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+  const mediaLibrary = useAppStore((s) => s.mediaLibrary)
+  const labelFor = (entry: DirEntry): string => {
+    const flags = mediaLibrary.items[entry.path.toLowerCase()]
+    const episode = episodeIconLabel(flags)
+    if (episode) return episode
+    return entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const detailsHeaderRef = useRef<HTMLDivElement>(null)
@@ -284,7 +290,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     null
   )
   const suppressClickRef = useRef(false)
-  /** Paths with a content thumb (image / video strip) — used to hide names in no-filename view. */
+  /** Paths with a content thumb (image / video strip / folder cover) — hide names in no-filename view. */
   const contentThumbPaths = useRef(new Map<string, boolean>())
   const [, setContentThumbTick] = useState(0)
   const noteContentThumb = useCallback((filePath: string, has: boolean) => {
@@ -463,7 +469,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     resizeObserverRef.current = ro
   }, [])
 
-  const mediaLibrary = useAppStore((s) => s.mediaLibrary)
   const viewFilterOn = settings.viewFilterEnabled
   const viewPatterns = settings.viewFilterPatterns
   const compiledFilter = useMemo(
@@ -1795,10 +1800,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 const isSel = selected.has(entry.path.toLowerCase())
                 const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
                 const iconPx = Math.min(spec.thumb, 48)
+                const flags = mediaLibrary.items[entry.path.toLowerCase()]
                 const hasContentPreview =
-                  entry.kind === 'file' &&
                   contentThumbPaths.current.get(entry.path.toLowerCase()) === true
-                const hideName = noFilenameView && hasContentPreview
+                const hideName =
+                  noFilenameView &&
+                  hasContentPreview &&
+                  !isEpisodeListEntry(entry.name, flags)
                 return (
                   <div
                     key={entry.path}
@@ -1864,7 +1872,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       renameEditor(entry)
                     ) : hideName ? null : (
                       <div className="cell-name">
-                        <span className="cell-name-primary" title={entry.path}>
+                        <span className="cell-name-primary" title={entry.name}>
                           {labelFor(entry)}
                         </span>
                         {recycleMode && viewMode !== 'details' ? (
@@ -1932,7 +1940,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   samePath(renamingPath, entry.path)
                     ? renameEditor(entry)
                     : (
-                        <span className="row-name-text" title={entry.path}>
+                        <span className="row-name-text" title={entry.name}>
                           <span className="cell-name-primary">{labelFor(entry)}</span>
                           {recycleMode && viewMode !== 'details' ? (
                             <span className="cell-name-path" title={entry.path}>

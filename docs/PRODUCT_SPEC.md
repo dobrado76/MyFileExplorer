@@ -75,7 +75,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 
 | Mode              | Behavior                                                    |
 | ----------------- | ----------------------------------------------------------- |
-| Extra large icons only, no filename | Like Extra large; hide the filename for files that show a content preview (image/PSD thumb or video strip). Folders and files without a preview keep their names |
+| Extra large icons only, no filename | Like Extra large; hide the filename for items that show a content preview (image/PSD thumb, video strip, or a movie/show folder cover). Episode files still show `SxxExx` when stored, otherwise the filename (tooltip is always the filename). Other folders and files without a preview keep their names |
 | Extra large icons | Image/PSD content thumbs; videos use `!VIDTHUMB_CACHE` strip animation when present (generate via context menu — D26); otherwise Windows shell icons |
 | Large icons       | Same                                                        |
 | Medium icons      | Same                                                        |

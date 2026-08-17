@@ -14,7 +14,7 @@ Locked choice: [DECISIONS.md](DECISIONS.md) **D50**. Streams: [ADS.md](ADS.md). 
 | ------- | ---- |
 | Context menu **Media Metadata** | Settings → Media Metadata is **on**, and the selection is a **folder** or a **video file** |
 | Title + poster above the preview player | The selected item has stored metadata |
-| Poster as the icon thumb | Same — icon views use the stored cover (shrink-to-fit in the cell) |
+| Poster as the icon thumb | **Folders** (movie/show card) use the stored cover instead of the folder icon (shrink-to-fit; XL icons only hides the folder name). **Episode files** keep `!VIDTHUMB_CACHE` strip thumbs — not the show poster. Preview uses the show cover when the episode has none. Episode tiles show `S01E07` when that metadata is stored (season defaults to 1 if missing), otherwise the filename; the tooltip is always the filename |
 | **Change cover** picker | Context menu (single item) or the link under the preview title |
 | **Mark as Watched** / **Unwatched** | Context menu, and a button on the preview when metadata exists |
 | Toolbar **Watched** + **Genre** filters | You are inside a folder marked as a media container (see below) |
@@ -58,7 +58,19 @@ Status-bar progress shows while a batch runs; **Cancel** stops between items.
 
 ### Folder walks
 
-Right-click a show or movie folder and the command includes every video underneath (cap 20 000). The app also writes **folder-level** metadata (show/movie card) when the folder name looks like a title — not generic dump names (`Movies`, `TV`, `Season 01`, `Downloads`, …). Season / `Specials` folders use the parent name as the search title.
+Right-click a show or movie folder and the command includes every video underneath (cap 20 000).
+
+**Shows vs movies** are detected from names and children (`S01E02`, `1x09`, `Season 01`, a year in the title, …). That is almost always enough. If a yearless folder could be either, a **Movie or TV show?** dialog asks once.
+
+| Item | What is stored |
+| ---- | -------------- |
+| Show folder (`Breaking Bad`) | Show metadata + **portrait** cover (folder icon becomes the poster). Landscape stills / backdrops are skipped |
+| Episode file | Episode metadata only. Icon stays the extracted `!VIDTHUMB_CACHE` thumb |
+| Movie file or movie folder | Movie metadata + cover |
+
+Season / `Specials` folders are not title cards; the parent show folder is. Generic dump names (`Movies`, `TV`, `Downloads`, …) are not written as title cards.
+
+`media_metadata_container` is set on the **library folder** (the parent of the show folders, e.g. `TV Shows`) and on the show folder itself so Watched / Genre filters appear in both places.
 
 **Video extensions:** `.mp4` `.mkv` `.webm` `.avi` `.divx` `.mov` `.wmv` `.m4v` `.mpg` `.mpeg` `.ts` `.m2ts` `.vob`.
 
@@ -66,12 +78,12 @@ Right-click a show or movie folder and the command includes every video undernea
 
 ## Preview
 
-When the selected file or folder has streams:
+When the selected file or folder has streams (or you are inside a show/movie folder with no file selected — the current folder is the preview target):
 
 1. **Hero** — poster + title, year / SxxExx / show name. Click the poster for a fullscreen view of the **stored** image (not a web URL).
 2. **Change cover** and **Mark as Watched** under the title.
 3. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
-4. **Details** — language, country, genres (pills), directors, actors, ratings (`7.6/10 (Plex)`), synopsis. Field values use the same boxed rows as file metadata; genres stay pills.
+4. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills.
 5. **Media / File tabs** — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs.
 
 Cover height is the setting above.
@@ -98,7 +110,7 @@ Plex does not need to be running for local bundle posters. The on-disk layout is
 
 **Mark as Watched** (menu or preview) only changes items that already have metadata.
 
-When metadata is written, the **containing folder** (and the folder you ran the command on) gets a `media_metadata_container` stream. **Only then** does that folder’s toolbar show:
+When metadata is written, `media_metadata_container` is set on the library folder (parent of show/movie title folders) and on the title folder. **Only then** does that folder’s toolbar show:
 
 | Control | Values |
 | ------- | ------ |
@@ -117,7 +129,7 @@ Folders you tagged **before** this container flag existed will not show the tool
 
 - Uses the local HTTP API when Plex Media Server is running (token from `Preferences.xml` unless you set one).
 - If PMS is **not** running, extract still reads the library **SQLite** and poster files on disk.
-- Episode extract prefers the **show** poster.
+- Episode extract writes **episode** text metadata; the **show** poster goes on the show folder, not on the episode file.
 - The Plex token is **not** sent to `plex.tv` CDN hosts.
 
 **TMDB / OMDb** need an API key. Names are parsed from the file or folder (`The.Matrix.1999.mkv`, `Show.S01E02.mkv`, `1x09`, …).
@@ -134,9 +146,9 @@ No `.nfo`, no `folder.jpg` written by this app, nothing under `userData` for the
 
 | Stream | On | Contents |
 | ------ | -- | -------- |
-| `media_metadata` | Video file or title folder | JSON (title, year, genres, cast, ratings, `watched`, source, …) |
-| `media_metadata_thumbnail` | Same | Cover image bytes |
-| `media_metadata_container` | Folder that **contains** tagged media | Small JSON flag so the toolbar can appear |
+| `media_metadata` | Video file or title folder | JSON (title, year, genres, cast, ratings, `watched`, source, …). Episodes include `season` / `episode` / `showTitle`. |
+| `media_metadata_thumbnail` | Movie file, movie folder, or **show folder** | Cover image bytes. **Not** written on episode files. |
+| `media_metadata_container` | Library folder (parent of show folders) and the show/movie folder | Small JSON flag so the toolbar can appear |
 
 Streams ride with the file on NTFS copy/move. They do **not** survive a copy to FAT/exFAT/network shares that strip ADS. Explorer still opens the video as usual — it ignores these names.
 

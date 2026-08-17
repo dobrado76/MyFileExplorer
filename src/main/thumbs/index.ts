@@ -92,6 +92,23 @@ export async function getThumbUrl(
 ): Promise<{ url: string | null; frames?: string[] }> {
   const file = requireAbsolute(rawPath)
 
+  const { isMediaMetadataVideoName } = await import('@shared/mediaMetadata')
+  if (isMediaMetadataVideoName(file)) {
+    try {
+      const { getSettings } = await import('../settings/store')
+      if (getSettings().mediaMetadata.enabled && process.platform === 'win32') {
+        const { readMediaMetadata } = await import('../mediaMetadata/store')
+        const meta = await readMediaMetadata(file)
+        if (meta?.kind === 'episode') {
+          const frames = await resolveVidThumbFrames(file)
+          return frames.length > 0 ? { url: frames[0]!, frames } : { url: null }
+        }
+      }
+    } catch {
+      /* fall through to cover / strip */
+    }
+  }
+
   const cover = await mediaCoverThumbUrl(file)
   if (cover) return { url: cover }
 

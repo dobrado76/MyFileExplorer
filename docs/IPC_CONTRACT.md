@@ -184,7 +184,7 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — largest pixel size first |
 | `mediaMetadata:setCover` | `{ path, coverId }` | `{ ok: true }` |
 | `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
-| `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[] }[] }` |
+| `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode? }[] }` |
 | `mediaMetadata:probePlex` | — | `{ installed, running, dataDir, tokenFound, url }` |
 
 `stoppedReason` is set when a TMDB/OMDb quota stops the batch. Progress uses `op-progress` kind `media-metadata`.

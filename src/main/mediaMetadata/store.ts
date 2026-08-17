@@ -4,8 +4,10 @@ import {
   MEDIA_METADATA_ADS,
   MEDIA_METADATA_CONTAINER_ADS,
   MEDIA_METADATA_THUMB_ADS,
+  isSeasonFolderName,
   parseMediaMetadataJson,
-  type MediaMetadata
+  type MediaMetadata,
+  type MediaMetadataKind
 } from '@shared/mediaMetadata'
 import { requireAbsolute } from '../fs/list'
 
@@ -49,24 +51,46 @@ export async function readMediaMetadata(rawPath: string): Promise<MediaMetadata 
   return parseMediaMetadataJson(text)
 }
 
+export async function markContainersForKind(rawPath: string, kind: MediaMetadataKind): Promise<void> {
+  const target = requireAbsolute(rawPath)
+  try {
+    const st = await fsp.stat(target)
+    if (st.isFile()) {
+      const parent = path.dirname(target)
+      if (kind === 'episode') {
+        const showDir = isSeasonFolderName(path.basename(parent)) ? path.dirname(parent) : parent
+        await markMediaMetadataContainer(showDir)
+        await markMediaMetadataContainer(path.dirname(showDir))
+      } else {
+        await markMediaMetadataContainer(parent)
+      }
+      return
+    }
+    if (kind === 'show') {
+      await markMediaMetadataContainer(target)
+      await markMediaMetadataContainer(path.dirname(target))
+    } else {
+      await markMediaMetadataContainer(target)
+    }
+  } catch {
+    /* container flag is best-effort */
+  }
+}
+
 export async function writeMediaMetadata(
   rawPath: string,
   meta: MediaMetadata,
   thumb?: Buffer | null
 ): Promise<void> {
   const file = requireAbsolute(rawPath)
-  const { writeStreamText, writeStreamBytes } = await import('../fs/adsWin32')
+  const { writeStreamText, writeStreamBytes, streamExists, deleteStream } = await import('../fs/adsWin32')
   await writeStreamText(file, MEDIA_METADATA_ADS, JSON.stringify(meta, null, 2), false)
-  if (thumb && thumb.length > 0) {
+  if (meta.kind === 'episode') {
+    if (streamExists(file, MEDIA_METADATA_THUMB_ADS)) deleteStream(file, MEDIA_METADATA_THUMB_ADS)
+  } else if (thumb && thumb.length > 0) {
     await writeStreamBytes(file, MEDIA_METADATA_THUMB_ADS, thumb)
   }
-  try {
-    const st = await fsp.stat(file)
-    if (st.isDirectory()) await markMediaMetadataContainer(file)
-    else await markMediaMetadataContainer(path.dirname(file))
-  } catch {
-    /* container flag is best-effort */
-  }
+  await markContainersForKind(file, meta.kind)
 }
 
 export async function clearMediaMetadata(rawPath: string): Promise<{ cleared: boolean }> {

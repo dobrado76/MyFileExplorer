@@ -8,10 +8,17 @@ import {
   type ReactNode
 } from 'react'
 import { createPortal } from 'react-dom'
-import { formatMediaRating, type MediaMetadata } from '@shared/mediaMetadata'
+import { formatEpisodeCode, formatMediaRating, type MediaMetadata } from '@shared/mediaMetadata'
+import {
+  classifyMediaRatingSource,
+  formatMediaRatingCopyLine,
+  formatMediaRatingScore,
+  mediaRatingSourceTitle
+} from '@shared/mediaRatings'
 import { useAppStore } from '../store/appStore'
 import { api } from '../lib/ipc'
 import { CloseIcon, CopyIcon } from '../lib/icons'
+import { MediaRatingIcon } from '../lib/mediaRatingIcons'
 
 function thumbBlob(bytes: Uint8Array): Blob {
   let type = 'image/jpeg'
@@ -93,8 +100,8 @@ export function MediaMetadataProvider({
 }
 
 function episodeLabel(meta: MediaMetadata): string | null {
-  if (meta.kind !== 'episode' || (meta.season == null && meta.episode == null)) return null
-  return `S${String(meta.season ?? 0).padStart(2, '0')}E${String(meta.episode ?? 0).padStart(2, '0')}`
+  if (meta.kind !== 'episode') return null
+  return formatEpisodeCode(meta.season, meta.episode)
 }
 
 export function MediaMetadataHero(): JSX.Element | null {
@@ -245,13 +252,19 @@ export function MediaMetadataDetails({
   if (!view || !mediaMetadataHasDetails(view.meta)) return null
   const { meta } = view
 
-  const ratings = meta.ratings
-    ?.map((r) => {
-      const n = formatMediaRating(r.value)
-      if (!n) return null
-      return `${n}${r.max ? `/${r.max}` : ''} (${r.source})`
-    })
-    .filter(Boolean)
+  const ratingItems =
+    meta.ratings
+      ?.map((r) => {
+        const brand = classifyMediaRatingSource(r.source)
+        const score = formatMediaRatingScore(r, brand)
+        if (!score) return null
+        const title = mediaRatingSourceTitle(brand, r.source)
+        return { brand, score, title, value: r.value, max: r.max }
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null) ?? []
+  const ratingsCopy = meta.ratings
+    ?.map((r) => formatMediaRatingCopyLine(r))
+    .filter((x): x is string => Boolean(x))
     .join('  ·  ')
 
   return (
@@ -283,7 +296,42 @@ export function MediaMetadataDetails({
         {meta.actors?.length ? (
           <BoxedField label="Actors" value={meta.actors.join(', ')} onCopy={onCopy} />
         ) : null}
-        {ratings ? <BoxedField label="Ratings" value={ratings} onCopy={onCopy} /> : null}
+        {ratingItems.length > 0 ? (
+          <div className="preview-field preview-field-pills">
+            <div className="field-label">
+              <span className="field-label-text">Ratings</span>
+              {onCopy && ratingsCopy ? (
+                <button
+                  type="button"
+                  className="field-copy"
+                  aria-label="Copy Ratings"
+                  onClick={() => void onCopy(ratingsCopy)}
+                >
+                  <CopyIcon size={12} />
+                </button>
+              ) : null}
+            </div>
+            <div className="media-metadata-ratings">
+              {ratingItems.map((r) => (
+                <span
+                  key={`${r.brand}-${r.title}-${r.score}`}
+                  className="media-metadata-rating"
+                  title={r.title}
+                  aria-label={`${r.title} ${r.score}`}
+                >
+                  <MediaRatingIcon
+                    brand={r.brand}
+                    title={r.title}
+                    size={16}
+                    value={r.value}
+                    max={r.max}
+                  />
+                  <span className="media-metadata-rating-score">{r.score}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {meta.synopsis ? (
           <BoxedField label="Synopsis" value={meta.synopsis} onCopy={onCopy} multiline />
         ) : null}

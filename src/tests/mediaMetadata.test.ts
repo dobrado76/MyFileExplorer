@@ -3,13 +3,24 @@ import {
   parseMediaFileName,
   parseMediaMetadataJson,
   formatMediaRating,
+  formatEpisodeCode,
+  normalizeEpisodeFields,
+  episodeIconLabel,
+  isEpisodeListEntry,
   isGenericMediaFolderName,
+  isSeasonFolderName,
+  classifyMediaFromNames,
   isMediaMetadataVideoName,
   matchesMediaLibraryFilter,
   MEDIA_METADATA_ADS,
   MEDIA_METADATA_CONTAINER_ADS,
   MEDIA_METADATA_THUMB_ADS
 } from '../shared/mediaMetadata'
+import {
+  classifyMediaRatingSource,
+  formatMediaRatingCopyLine,
+  formatMediaRatingScore
+} from '../shared/mediaRatings'
 import { isMediaApiLimitPayload, mediaApiLimitMessage } from '../shared/mediaApiLimit'
 import {
   appendPlexToken,
@@ -25,6 +36,7 @@ import {
   plexMetadataUriPosterName
 } from '../main/mediaMetadata/plexLocal'
 import { compareCoverSize } from '../main/mediaMetadata/covers'
+import { isPortraitCover } from '../main/mediaMetadata/coverImage'
 
 describe('parseMediaFileName', () => {
   it('parses a movie with year and tags', () => {
@@ -46,6 +58,13 @@ describe('parseMediaFileName', () => {
     const p = parseMediaFileName('Game of Thrones 1x09.mkv')
     expect(p.season).toBe(1)
     expect(p.episode).toBe(9)
+    expect(p.kind).toBe('episode')
+  })
+
+  it('parses 01x03 in a spaced title', () => {
+    const p = parseMediaFileName('3 Body Problem 01x03 - Release by Wentworth_Miller.mkv')
+    expect(p.season).toBe(1)
+    expect(p.episode).toBe(3)
     expect(p.kind).toBe('episode')
   })
 
@@ -96,6 +115,136 @@ describe('formatMediaRating', () => {
   it('rounds noisy Plex floats', () => {
     expect(formatMediaRating(7.59999990463257)).toBe('7.6')
     expect(formatMediaRating(8)).toBe('8')
+  })
+})
+
+describe('media rating brands', () => {
+  it('classifies the sources we store', () => {
+    expect(classifyMediaRatingSource('Plex')).toBe('plex')
+    expect(classifyMediaRatingSource('Plex audience')).toBe('plex-audience')
+    expect(classifyMediaRatingSource('TMDB')).toBe('tmdb')
+    expect(classifyMediaRatingSource('Internet Movie Database')).toBe('imdb')
+    expect(classifyMediaRatingSource('IMDb')).toBe('imdb')
+    expect(classifyMediaRatingSource('Rotten Tomatoes')).toBe('rt')
+    expect(classifyMediaRatingSource('Metacritic')).toBe('metacritic')
+    expect(classifyMediaRatingSource('Letterboxd')).toBe('other')
+  })
+
+  it('formats scores and copy without parenthetical source text', () => {
+    expect(formatMediaRatingScore({ source: 'Plex', value: 7.1, max: 10 }, 'plex')).toBe('7.1/10')
+    expect(formatMediaRatingScore({ source: 'Rotten Tomatoes', value: 87 }, 'rt')).toBe('87%')
+    expect(formatMediaRatingCopyLine({ source: 'Internet Movie Database', value: 7.6, max: 10 })).toBe(
+      '7.6/10 IMDb'
+    )
+  })
+})
+
+describe('episode icon labels', () => {
+  it('formats SxxExx from stored numbers', () => {
+    expect(formatEpisodeCode(1, 7)).toBe('S01E07')
+    expect(formatEpisodeCode(12, 3)).toBe('S12E03')
+    expect(formatEpisodeCode(2, undefined)).toBe('S02')
+    expect(formatEpisodeCode(undefined, 9)).toBe('S01E09')
+    expect(formatEpisodeCode()).toBeNull()
+  })
+
+  it('fills season from the file name and defaults to 1', () => {
+    const base = {
+      version: 1 as const,
+      source: 'plex' as const,
+      kind: 'episode' as const,
+      title: 'Destroyer of Worlds',
+      fetchedAt: '2026-01-01T00:00:00.000Z'
+    }
+    expect(
+      normalizeEpisodeFields(
+        { ...base, episode: 3 },
+        '3 Body Problem 01x03 - Release by Wentworth_Miller.mkv'
+      ).season
+    ).toBe(1)
+    expect(normalizeEpisodeFields({ ...base, episode: 3 }).season).toBe(1)
+    expect(normalizeEpisodeFields({ ...base, season: 2, episode: 4 }).season).toBe(2)
+  })
+
+  it('uses stored episode metadata only', () => {
+    expect(episodeIconLabel({ kind: 'episode', season: 1, episode: 7 })).toBe('S01E07')
+    expect(episodeIconLabel({ kind: 'show', season: 1, episode: 7 })).toBeNull()
+    expect(episodeIconLabel({ kind: 'episode' })).toBeNull()
+    expect(episodeIconLabel(undefined)).toBeNull()
+  })
+
+  it('treats SxxExx names and stored kind as episode rows', () => {
+    expect(isEpisodeListEntry('Show.S01E01.mkv')).toBe(true)
+    expect(isEpisodeListEntry('Movie.1999.mkv')).toBe(false)
+    expect(isEpisodeListEntry('Special.mkv', { kind: 'episode' })).toBe(true)
+  })
+})
+
+describe('classifyMediaFromNames', () => {
+  it('treats SxxExx files as episodes', () => {
+    expect(
+      classifyMediaFromNames({ name: 'Breaking.Bad.S01E07.mkv', isDirectory: false })
+    ).toBe('episode')
+  })
+
+  it('treats a yearless sibling of episodes as an episode', () => {
+    expect(
+      classifyMediaFromNames({
+        name: 'Special.mkv',
+        isDirectory: false,
+        childNames: ['Show.S01E01.mkv', 'Special.mkv']
+      })
+    ).toBe('episode')
+  })
+
+  it('treats a year-tagged file as a movie', () => {
+    expect(classifyMediaFromNames({ name: 'Heat.1995.mkv', isDirectory: false })).toBe('movie')
+  })
+
+  it('treats a folder with season dirs or episode files as a show', () => {
+    expect(
+      classifyMediaFromNames({
+        name: 'Breaking Bad',
+        isDirectory: true,
+        childNames: ['Season 01', 'Season 02']
+      })
+    ).toBe('show')
+    expect(
+      classifyMediaFromNames({
+        name: 'The Office',
+        isDirectory: true,
+        childNames: ['The.Office.S01E01.mkv', 'The.Office.S01E02.mkv']
+      })
+    ).toBe('show')
+  })
+
+  it('treats a year-tagged title folder as a movie', () => {
+    expect(
+      classifyMediaFromNames({
+        name: 'Heat (1995)',
+        isDirectory: true,
+        childNames: ['Heat.1995.mkv']
+      })
+    ).toBe('movie')
+  })
+
+  it('asks when a yearless folder has no episode clues', () => {
+    expect(
+      classifyMediaFromNames({
+        name: 'Dune',
+        isDirectory: true,
+        childNames: ['Dune.mkv']
+      })
+    ).toBe('ambiguous')
+  })
+})
+
+describe('isSeasonFolderName', () => {
+  it('matches season folders', () => {
+    expect(isSeasonFolderName('Season 01')).toBe(true)
+    expect(isSeasonFolderName('S02')).toBe(true)
+    expect(isSeasonFolderName('Specials')).toBe(true)
+    expect(isSeasonFolderName('Breaking Bad')).toBe(false)
   })
 })
 
@@ -211,6 +360,16 @@ describe('Plex cover URLs', () => {
     expect(item?.Genre).toEqual([{ tag: 'Crime' }])
   })
 
+  it('parses episode parentIndex as the season', () => {
+    const item = firstMetadataFromXml(
+      `<MediaContainer><Video ratingKey="9" type="episode" title="Destroyer of Worlds" index="3" parentIndex="1" year="2024" grandparentTitle="3 Body Problem"/></MediaContainer>`
+    )
+    expect(item?.type).toBe('episode')
+    expect(item?.index).toBe('3')
+    expect(item?.parentIndex).toBe('1')
+    expect(item?.grandparentTitle).toBe('3 Body Problem')
+  })
+
   it('lists every Photo in a Plex posters XML payload', () => {
     const photos = allPhotosFromXml(
       `<MediaContainer><Photo key="/library/metadata/7/posters/a" selected="1"/><Photo key="/library/metadata/7/posters/b"/></MediaContainer>`
@@ -218,6 +377,15 @@ describe('Plex cover URLs', () => {
     expect(photos).toHaveLength(2)
     expect(photos[0]?.key).toBe('/library/metadata/7/posters/a')
     expect(photos[0]?.selected).toBe('1')
+  })
+})
+
+describe('isPortraitCover', () => {
+  it('accepts taller-than-wide posters and rejects landscape stills', () => {
+    expect(isPortraitCover(1000, 1500)).toBe(true)
+    expect(isPortraitCover(1920, 1080)).toBe(false)
+    expect(isPortraitCover(800, 800)).toBe(false)
+    expect(isPortraitCover(0, 1200)).toBe(false)
   })
 })
 

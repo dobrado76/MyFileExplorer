@@ -673,15 +673,15 @@ export function registerIpcHandlers(): void {
   handle(IPC.appDevGate, emptySchema, () => ({ active: isDevGateActive() }))
   handle(IPC.mediaMetadataExtractPlex, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
-    return extractPlexMany(req.paths)
+    return extractPlexMany(req.paths, req.kindHints)
   })
   handle(IPC.mediaMetadataDownload, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
-    return downloadInternetMany(req.paths)
+    return downloadInternetMany(req.paths, req.kindHints)
   })
   handle(IPC.mediaMetadataRefresh, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
-    return refreshMany(req.paths)
+    return refreshMany(req.paths, req.kindHints)
   })
   handle(IPC.mediaMetadataClear, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()

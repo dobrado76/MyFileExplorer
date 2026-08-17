@@ -6,7 +6,7 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 **Extension catalog:** [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) — every extension routed by the preview pane, with notes per type.
 
-**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a poster + title sit above the player. Movie/TV fields and extracted file metadata (duration, codec, …) use **Media** / **File** tabs under the player when both exist (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Click the poster for the stored full-size cover. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+**Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a poster + title sit above the player. Movie/TV fields and extracted file metadata (duration, codec, …) use **Media** / **File** tabs under the player when both exist (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Click the poster for the stored full-size cover. With no file selected, the pane previews the **current folder** (tree selection / listing) so a show folder keeps its card until you click an episode. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ### Detached preview window
 
@@ -390,3 +390,4 @@ Header-only parse (8-byte length + JSON); **weights are never loaded**. No large
 - Parse on main process; cache preview parse result keyed by path+mtime+size until change
 - Cancel in-flight preview when selection changes
 - Multi-select: preview the focused / most recently selected path (not a blank summary)
+- No selection: preview the current folder (same as selecting that folder in the parent listing)

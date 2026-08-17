@@ -2,8 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { resolvePreviewTargetPath } from '../shared/previewTarget'
 
 describe('resolvePreviewTargetPath', () => {
-  it('returns null when nothing is selected', () => {
+  it('returns null when nothing is selected and there is no folder', () => {
     expect(resolvePreviewTargetPath([], 'C:\\a.txt')).toBeNull()
+  })
+
+  it('previews the current folder when nothing is selected', () => {
+    expect(resolvePreviewTargetPath([], null, 'E:\\Series\\7 Days')).toBe('E:\\Series\\7 Days')
+  })
+
+  it('prefers a selected file over the current folder', () => {
+    expect(
+      resolvePreviewTargetPath(['E:\\Series\\7 Days\\S01E01.mkv'], null, 'E:\\Series\\7 Days')
+    ).toBe('E:\\Series\\7 Days\\S01E01.mkv')
   })
 
   it('uses focused path when it is in the selection', () => {

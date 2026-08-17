@@ -1,6 +1,6 @@
 import { AppError } from '@shared/result'
 import { isMediaApiLimitPayload, mediaApiLimitMessage } from '@shared/mediaApiLimit'
-import type { MediaMetadata, ParsedMediaName } from '@shared/mediaMetadata'
+import type { MediaMetadata, MediaQueryKind, ParsedMediaName } from '@shared/mediaMetadata'
 import { getSettings } from '../settings/store'
 
 type NetHit = {
@@ -77,8 +77,58 @@ function pickCast(cast: unknown, n: number): string[] {
     .slice(0, n)
 }
 
-async function fromTmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
+async function fromTmdbShow(parsed: ParsedMediaName, key: string, headers: Record<string, string>): Promise<NetHit> {
+  const search = (await fetchJson(
+    tmdbUrl(`/search/tv?query=${encodeURIComponent(parsed.title)}`, key),
+    headers
+  )) as { results?: { id: number; name?: string; first_air_date?: string }[] }
+  const show = search.results?.[0]
+  if (!show) throw new Error(`TMDB: no TV show matching “${parsed.title}”`)
+  const details = (await fetchJson(
+    tmdbUrl(`/tv/${show.id}?append_to_response=credits`, key),
+    headers
+  )) as {
+    name?: string
+    first_air_date?: string
+    overview?: string
+    original_language?: string
+    origin_country?: string[]
+    genres?: { name?: string }[]
+    poster_path?: string
+    vote_average?: number
+    credits?: { crew?: unknown; cast?: unknown }
+    created_by?: { name?: string }[]
+  }
+  const year = Number((details.first_air_date ?? '').slice(0, 4))
+  return {
+    meta: {
+      version: 1,
+      source: 'tmdb',
+      sourceId: `tv:${show.id}`,
+      kind: 'show',
+      title: details.name || parsed.title,
+      year: Number.isFinite(year) && year > 1800 ? year : parsed.year,
+      originalLanguage: details.original_language || undefined,
+      country: details.origin_country,
+      genres: (details.genres ?? []).map((g) => g.name ?? '').filter(Boolean),
+      synopsis: details.overview || undefined,
+      directors: (details.created_by ?? []).map((c) => c.name ?? '').filter(Boolean),
+      actors: pickCast(details.credits?.cast, 20),
+      ratings:
+        details.vote_average != null
+          ? [{ source: 'TMDB', value: Number(details.vote_average), max: 10 }]
+          : undefined,
+      fetchedAt: new Date().toISOString()
+    },
+    thumbUrl: tmdbPosterUrl(details.poster_path)
+  }
+}
+
+async function fromTmdb(parsed: ParsedMediaName, key: string, queryKind?: MediaQueryKind): Promise<NetHit> {
   const headers = tmdbHeaders(key)
+  if (queryKind === 'show' && parsed.kind !== 'episode') {
+    return fromTmdbShow(parsed, key, headers)
+  }
   if (parsed.kind === 'episode' && parsed.season != null && parsed.episode != null) {
     const search = (await fetchJson(
       tmdbUrl(`/search/tv?query=${encodeURIComponent(parsed.title)}`, key),
@@ -143,6 +193,14 @@ async function fromTmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
     }
   }
 
+  if (queryKind !== 'movie') {
+    try {
+      return await fromTmdbShow(parsed, key, headers)
+    } catch {
+      /* fall through to movie */
+    }
+  }
+
   const movieSearch = (await fetchJson(
     tmdbUrl(
       `/search/movie?query=${encodeURIComponent(parsed.title)}${parsed.year ? `&year=${parsed.year}` : ''}`,
@@ -152,50 +210,14 @@ async function fromTmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
   )) as { results?: { id: number }[] }
   const movieId = movieSearch.results?.[0]?.id
   if (movieId == null) {
-    const tvSearch = (await fetchJson(
-      tmdbUrl(`/search/tv?query=${encodeURIComponent(parsed.title)}`, key),
-      headers
-    )) as { results?: { id: number }[] }
-    const tvId = tvSearch.results?.[0]?.id
-    if (tvId == null) throw new Error(`TMDB: no match for “${parsed.title}”`)
-    const details = (await fetchJson(
-      tmdbUrl(`/tv/${tvId}?append_to_response=credits`, key),
-      headers
-    )) as {
-      name?: string
-      first_air_date?: string
-      overview?: string
-      original_language?: string
-      origin_country?: string[]
-      genres?: { name?: string }[]
-      poster_path?: string
-      vote_average?: number
-      credits?: { crew?: unknown; cast?: unknown }
-      created_by?: { name?: string }[]
+    if (queryKind === 'movie') {
+      try {
+        return await fromTmdbShow(parsed, key, headers)
+      } catch {
+        throw new Error(`TMDB: no match for “${parsed.title}”`)
+      }
     }
-    const year = Number((details.first_air_date ?? '').slice(0, 4))
-    return {
-      meta: {
-        version: 1,
-        source: 'tmdb',
-        sourceId: `tv:${tvId}`,
-        kind: 'show',
-        title: details.name || parsed.title,
-        year: Number.isFinite(year) && year > 1800 ? year : parsed.year,
-        originalLanguage: details.original_language || undefined,
-        country: details.origin_country,
-        genres: (details.genres ?? []).map((g) => g.name ?? '').filter(Boolean),
-        synopsis: details.overview || undefined,
-        directors: (details.created_by ?? []).map((c) => c.name ?? '').filter(Boolean),
-        actors: pickCast(details.credits?.cast, 20),
-        ratings:
-          details.vote_average != null
-            ? [{ source: 'TMDB', value: Number(details.vote_average), max: 10 }]
-            : undefined,
-        fetchedAt: new Date().toISOString()
-      },
-      thumbUrl: tmdbPosterUrl(details.poster_path)
-    }
+    throw new Error(`TMDB: no match for “${parsed.title}”`)
   }
 
   const details = (await fetchJson(
@@ -239,14 +261,24 @@ async function fromTmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
   }
 }
 
-async function fromOmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
+async function fromOmdb(
+  parsed: ParsedMediaName,
+  key: string,
+  queryKind?: MediaQueryKind
+): Promise<NetHit> {
   const params = new URLSearchParams({ apikey: key, t: parsed.title })
   if (parsed.year) params.set('y', String(parsed.year))
-  if (parsed.kind === 'episode' && parsed.season != null && parsed.episode != null) {
+  if (
+    (queryKind === 'episode' || parsed.kind === 'episode') &&
+    parsed.season != null &&
+    parsed.episode != null
+  ) {
     params.set('type', 'episode')
     params.set('Season', String(parsed.season))
     params.set('Episode', String(parsed.episode))
-  } else if (parsed.kind === 'movie') {
+  } else if (queryKind === 'show') {
+    params.set('type', 'series')
+  } else if (queryKind === 'movie' || parsed.kind === 'movie') {
     params.set('type', 'movie')
   }
   const data = (await fetchJson(`https://www.omdbapi.com/?${params.toString()}`)) as {
@@ -378,14 +410,17 @@ export async function listTmdbPosterPaths(opts: {
   }
 }
 
-export async function downloadFromInternet(parsed: ParsedMediaName): Promise<NetHit> {
+export async function downloadFromInternet(
+  parsed: ParsedMediaName,
+  queryKind?: MediaQueryKind
+): Promise<NetHit> {
   const s = getSettings().mediaMetadata
   const preferred = s.internetSource
   const tmdb = s.tmdbApiKey.trim()
   const omdb = s.omdbApiKey.trim()
-  if (preferred === 'omdb' && omdb) return fromOmdb(parsed, omdb)
-  if (tmdb) return fromTmdb(parsed, tmdb)
-  if (omdb) return fromOmdb(parsed, omdb)
+  if (preferred === 'omdb' && omdb) return fromOmdb(parsed, omdb, queryKind)
+  if (tmdb) return fromTmdb(parsed, tmdb, queryKind)
+  if (omdb) return fromOmdb(parsed, omdb, queryKind)
   throw new Error('Add a TMDB or OMDb API key in Settings → Media Metadata')
 }
 

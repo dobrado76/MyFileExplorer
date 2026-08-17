@@ -56,6 +56,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Details horizontal scroll | Scrollbar at the **bottom** of the file pane; header and rows move together |
 | Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |
 | Preview Media / File tabs | Under the player when both movie/TV details and extracted file metadata exist; Media fields match File boxed rows (genres stay pills) |
+| TV show metadata | Show cover on the show folder; episode files use VIDTHUMB + episode JSON; container flag on the library parent |
 
 ## Recent behavior (v0.8.x)
 

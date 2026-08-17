@@ -234,7 +234,34 @@ export function Dialogs(): JSX.Element | null {
       return <PowerSearchDialog />
     case 'change-cover':
       return <CoverPickerDialog path={dialog.path} />
+    case 'media-kind':
+      return <MediaKindDialog title={dialog.title} message={dialog.message} />
   }
+}
+
+function MediaKindDialog({ title, message }: { title: string; message: string }): JSX.Element {
+  const resolveMediaKind = useAppStore((s) => s.resolveMediaKind)
+  return (
+    <Modal
+      title={title}
+      onClose={() => resolveMediaKind(null)}
+      actions={
+        <>
+          <button className="btn" onClick={() => resolveMediaKind(null)}>
+            Skip
+          </button>
+          <button className="btn" onClick={() => resolveMediaKind('movie')}>
+            Movie
+          </button>
+          <button className="btn primary" onClick={() => resolveMediaKind('show')} autoFocus>
+            TV show
+          </button>
+        </>
+      }
+    >
+      <div className="alert-message">{message}</div>
+    </Modal>
+  )
 }
 
 function LayoutNameDialog({
