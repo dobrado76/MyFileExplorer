@@ -11,7 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
-- **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. **Change cover** (context menu or preview) lists Plex + TMDB posters for that title. Preview cover height is Settings → Media Metadata → Cover art size (56–240 px, default 120). Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside.
+- **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. **Change cover** (context menu or preview) lists Plex + TMDB posters for that title, **largest resolution first**, with pixel size on each tile. Preview cover height is Settings → Media Metadata → Cover art size (56–240 px, default 120). Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside.
 
 ### Changed
 

@@ -10,6 +10,12 @@ type Cover = {
   label: string
   selected: boolean
   previewBase64: string
+  width: number
+  height: number
+}
+
+function sizeText(c: Cover): string {
+  return c.width > 0 && c.height > 0 ? `${c.width}×${c.height}` : ''
 }
 
 function previewSrc(b64: string): string {
@@ -45,7 +51,7 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
         if (cancelled) return
         setTitle(res.title)
         setCovers(res.covers)
-        setPicked(res.covers.find((c) => c.selected)?.id ?? res.covers[0]?.id ?? null)
+        setPicked(res.covers[0]?.id ?? null)
         setLoading(false)
       })
       .catch((e: unknown) => {
@@ -94,10 +100,14 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
                 type="button"
                 className={`cover-picker-cell${picked === c.id ? ' is-selected' : ''}`}
                 onClick={() => setPicked(c.id)}
-                title={c.label}
+                title={[c.label, sizeText(c), c.selected ? 'Current' : ''].filter(Boolean).join(' · ')}
               >
                 <img src={previewSrc(c.previewBase64)} alt="" draggable={false} />
-                <span className="cover-picker-label">{c.label}</span>
+                <span className="cover-picker-label">
+                  {c.label}
+                  {c.selected ? ' · Current' : ''}
+                </span>
+                {sizeText(c) ? <span className="cover-picker-size">{sizeText(c)}</span> : null}
               </button>
             ))}
           </div>

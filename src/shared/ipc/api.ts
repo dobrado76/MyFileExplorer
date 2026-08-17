@@ -311,6 +311,8 @@ export type MyFileExplorerApi = {
           label: string
           selected: boolean
           previewBase64: string
+          width: number
+          height: number
         }[]
       }>
     >

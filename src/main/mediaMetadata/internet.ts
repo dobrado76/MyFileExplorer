@@ -283,11 +283,13 @@ export function tmdbPosterOriginalUrl(posterPath: string): string {
   return `https://image.tmdb.org/t/p/original${posterPath}`
 }
 
+export type TmdbPosterRef = { filePath: string; width: number; height: number }
+
 export async function listTmdbPosterPaths(opts: {
   sourceId?: string
   title?: string
   year?: number
-}): Promise<string[]> {
+}): Promise<TmdbPosterRef[]> {
   const key = getSettings().mediaMetadata.tmdbApiKey.trim()
   if (!key) return []
   const headers = tmdbHeaders(key)
@@ -333,11 +335,17 @@ export async function listTmdbPosterPaths(opts: {
   if (kind == null || id == null || !Number.isFinite(id)) return []
   try {
     const data = (await fetchJson(tmdbUrl(`/${kind}/${id}/images`, key), headers)) as {
-      posters?: { file_path?: string }[]
+      posters?: { file_path?: string; width?: number; height?: number }[]
     }
-    return (data.posters ?? [])
-      .map((p) => p.file_path)
-      .filter((p): p is string => typeof p === 'string' && p.length > 0)
+    const out: TmdbPosterRef[] = []
+    for (const p of data.posters ?? []) {
+      if (typeof p.file_path !== 'string' || !p.file_path) continue
+      const width = typeof p.width === 'number' && p.width > 0 ? p.width : 0
+      const height = typeof p.height === 'number' && p.height > 0 ? p.height : 0
+      out.push({ filePath: p.file_path, width, height })
+    }
+    out.sort((a, b) => b.width * b.height - a.width * a.height)
+    return out
   } catch {
     return []
   }

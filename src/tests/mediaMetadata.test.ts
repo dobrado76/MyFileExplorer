@@ -21,6 +21,7 @@ import {
   plexMediaUriToRelPath,
   plexMetadataUriPosterName
 } from '../main/mediaMetadata/plexLocal'
+import { compareCoverSize } from '../main/mediaMetadata/covers'
 
 describe('parseMediaFileName', () => {
   it('parses a movie with year and tags', () => {
@@ -170,5 +171,26 @@ describe('Plex cover URLs', () => {
     expect(photos).toHaveLength(2)
     expect(photos[0]?.key).toBe('/library/metadata/7/posters/a')
     expect(photos[0]?.selected).toBe('1')
+  })
+})
+
+describe('compareCoverSize', () => {
+  it('orders larger pixel area first', () => {
+    const items = [
+      { width: 500, height: 750, bytes: 200_000 },
+      { width: 2000, height: 3000, bytes: 80_000 },
+      { width: 1000, height: 1500, bytes: 400_000 }
+    ]
+    const sorted = [...items].sort(compareCoverSize)
+    expect(sorted.map((x) => x.width)).toEqual([2000, 1000, 500])
+  })
+
+  it('breaks equal area ties with file size', () => {
+    const items = [
+      { width: 1000, height: 1500, bytes: 50_000 },
+      { width: 1000, height: 1500, bytes: 200_000 }
+    ]
+    const sorted = [...items].sort(compareCoverSize)
+    expect(sorted[0]?.bytes).toBe(200_000)
   })
 })

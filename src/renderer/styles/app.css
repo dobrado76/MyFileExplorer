@@ -2737,6 +2737,12 @@ button.media-metadata-hero-poster.is-clickable:hover {
   color: var(--text-dim);
   text-align: center;
 }
+.cover-picker-size {
+  font-size: 0.68em;
+  color: var(--text-dim);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .media-metadata-details {
   margin: 12px 0 4px;
   padding: 0 8px;

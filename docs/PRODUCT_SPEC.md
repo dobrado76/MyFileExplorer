@@ -131,7 +131,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
-- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Change cover. Folders include every video inside. Extract/Download skip items that already have metadata. Change cover (single item) shows available Plex and TMDB posters.
+- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Change cover. Folders include every video inside. Extract/Download skip items that already have metadata. Change cover (single item) shows available Plex and TMDB posters, largest resolution first.
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties

@@ -709,9 +709,14 @@ export async function listPlexLocalPosterFiles(
   return out
 }
 
+function positiveInt(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0
+}
+
 export async function listPlexHttpPosters(
   ratingKey: string
-): Promise<{ href: string; previewHref: string; selected: boolean }[]> {
+): Promise<{ href: string; previewHref: string; selected: boolean; width: number; height: number }[]> {
   const resolved = await resolvePlex()
   const key = ratingKey.trim()
   if (!key) return []
@@ -724,7 +729,7 @@ export async function listPlexHttpPosters(
             ...asRecordList((payload as { MediaContainer?: { Metadata?: unknown; Photo?: unknown } }).MediaContainer?.Metadata),
             ...asRecordList((payload as { MediaContainer?: { Photo?: unknown } }).MediaContainer?.Photo)
           ]
-    const out: { href: string; previewHref: string; selected: boolean }[] = []
+    const out: { href: string; previewHref: string; selected: boolean; width: number; height: number }[] = []
     const seen = new Set<string>()
     for (const item of items) {
       const rawKey = typeof item.key === 'string' ? item.key : ''
@@ -734,8 +739,15 @@ export async function listPlexHttpPosters(
       seen.add(href)
       const previewHref = resolvePlexImageUrl(resolved.url, resolved.token, rawThumb) ?? href
       const selected = item.selected === true || item.selected === 1 || item.selected === '1'
-      out.push({ href, previewHref, selected })
+      out.push({
+        href,
+        previewHref,
+        selected,
+        width: positiveInt(item.width),
+        height: positiveInt(item.height)
+      })
     }
+    out.sort((a, b) => b.width * b.height - a.width * a.height)
     return out
   } catch {
     return []

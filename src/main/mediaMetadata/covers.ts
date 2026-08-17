@@ -26,6 +26,8 @@ export type MediaCoverChoice = {
   label: string
   selected: boolean
   previewBase64: string
+  width: number
+  height: number
 }
 
 type CoverLoader = () => Promise<Buffer | null>
@@ -33,6 +35,19 @@ type CoverLoader = () => Promise<Buffer | null>
 type CoverSession = {
   at: number
   loaders: Map<string, CoverLoader>
+}
+
+type CoverDraft = {
+  id: string
+  source: MediaCoverChoice['source']
+  label: string
+  selected: boolean
+  width: number
+  height: number
+  bytes: number
+  previewBuf: Buffer | null
+  loadPreview: () => Promise<Buffer | null>
+  loader: CoverLoader
 }
 
 const sessions = new Map<string, CoverSession>()
@@ -48,6 +63,27 @@ function pruneSessions(): void {
 
 function sha1(buf: Buffer): string {
   return createHash('sha1').update(buf).digest('hex')
+}
+
+/** Larger pixel area first; same area → larger file first. */
+export function compareCoverSize(
+  a: { width: number; height: number; bytes: number },
+  b: { width: number; height: number; bytes: number }
+): number {
+  const pa = Math.max(0, a.width) * Math.max(0, a.height)
+  const pb = Math.max(0, b.width) * Math.max(0, b.height)
+  if (pb !== pa) return pb - pa
+  return b.bytes - a.bytes
+}
+
+async function imageMeta(buf: Buffer): Promise<{ width: number; height: number }> {
+  try {
+    const sharp = (await import('sharp')).default
+    const m = await sharp(buf, { failOn: 'none', limitInputPixels: 80 * 1024 * 1024 }).metadata()
+    return { width: m.width ?? 0, height: m.height ?? 0 }
+  } catch {
+    return { width: 0, height: 0 }
+  }
 }
 
 async function previewJpeg(buf: Buffer): Promise<string | null> {
@@ -84,37 +120,42 @@ export async function listMediaCovers(rawPath: string): Promise<{
   const meta = await readMediaMetadata(file)
   const current = await readMediaThumbnail(file)
   const currentHash = current && current.length > 32 ? sha1(current) : null
-  const loaders = new Map<string, CoverLoader>()
-  const covers: MediaCoverChoice[] = []
+  const drafts: CoverDraft[] = []
   const seenHash = new Set<string>()
+  const seenKey = new Set<string>()
 
-  const add = async (
-    id: string,
-    source: MediaCoverChoice['source'],
-    label: string,
-    previewBuf: Buffer,
-    loader: CoverLoader,
-    selected: boolean
-  ): Promise<void> => {
-    if (covers.length >= MAX_COVERS) return
-    const h = sha1(previewBuf)
-    if (seenHash.has(h)) return
-    seenHash.add(h)
-    const previewBase64 = await previewJpeg(previewBuf)
-    if (!previewBase64) return
-    const isCurrent = currentHash != null && sha1(previewBuf) === currentHash
-    loaders.set(id, loader)
-    covers.push({
-      id,
-      source,
-      label,
-      selected: selected || isCurrent,
-      previewBase64
-    })
+  const addDraft = (draft: CoverDraft, contentForHash?: Buffer | null, key?: string): void => {
+    if (key) {
+      const k = key.toLowerCase()
+      if (seenKey.has(k)) return
+      seenKey.add(k)
+    }
+    if (contentForHash && contentForHash.length > 32) {
+      const h = sha1(contentForHash)
+      if (seenHash.has(h)) return
+      seenHash.add(h)
+    }
+    drafts.push(draft)
   }
 
   if (current && current.length > 32) {
-    await add('current', 'current', 'Current', current, async () => current, true)
+    const dim = await imageMeta(current)
+    addDraft(
+      {
+        id: 'current',
+        source: 'current',
+        label: 'Current',
+        selected: true,
+        width: dim.width,
+        height: dim.height,
+        bytes: current.length,
+        previewBuf: current,
+        loadPreview: async () => current,
+        loader: async () => current
+      },
+      current,
+      'current'
+    )
   }
 
   const plexId = await plexSourceId(file, meta)
@@ -123,47 +164,107 @@ export async function listMediaCovers(rawPath: string): Promise<{
     const files = await listPlexLocalPosterFiles(resolved.dataDir, plexId)
     let i = 0
     for (const f of files) {
-      if (covers.length >= MAX_COVERS) break
       try {
         const buf = await fsp.readFile(f.absPath)
         if (buf.length < 32) continue
+        const dim = await imageMeta(buf)
         const id = `plex-local-${i++}`
-        await add(id, 'plex', 'Plex', buf, async () => fsp.readFile(f.absPath), f.selected)
+        const abs = f.absPath
+        addDraft(
+          {
+            id,
+            source: 'plex',
+            label: 'Plex',
+            selected: currentHash != null && sha1(buf) === currentHash,
+            width: dim.width,
+            height: dim.height,
+            bytes: buf.length,
+            previewBuf: buf,
+            loadPreview: async () => buf,
+            loader: async () => fsp.readFile(abs)
+          },
+          buf,
+          abs
+        )
       } catch {
         /* skip unreadable */
       }
     }
   }
-  if (plexId && covers.length < MAX_COVERS) {
+  if (plexId) {
     const http = await listPlexHttpPosters(plexId)
     let i = 0
     for (const p of http) {
-      if (covers.length >= MAX_COVERS) break
-      const preview = (await downloadPlexThumb(p.previewHref)) ?? (await downloadPlexThumb(p.href))
-      if (!preview) continue
       const id = `plex-http-${i++}`
       const href = p.href
-      await add(id, 'plex', 'Plex', preview, async () => downloadPlexThumb(href), p.selected)
+      const previewHref = p.previewHref
+      addDraft(
+        {
+          id,
+          source: 'plex',
+          label: 'Plex',
+          selected: false,
+          width: p.width,
+          height: p.height,
+          bytes: p.width * p.height,
+          previewBuf: null,
+          loadPreview: async () => (await downloadPlexThumb(previewHref)) ?? (await downloadPlexThumb(href)),
+          loader: async () => downloadPlexThumb(href)
+        },
+        null,
+        href
+      )
     }
   }
 
-  if (covers.length < MAX_COVERS) {
-    const title = meta?.title || parseMediaFileName(path.basename(file)).title
-    const year = meta?.year
-    const sourceId = meta?.source === 'tmdb' ? meta.sourceId : undefined
-    const paths = await listTmdbPosterPaths({ sourceId, title, year })
-    let i = 0
-    for (const posterPath of paths) {
-      if (covers.length >= MAX_COVERS) break
-      const preview = await downloadImage(tmdbPosterPreviewUrl(posterPath))
-      if (!preview) continue
-      const id = `tmdb-${i++}`
-      const fullUrl = tmdbPosterOriginalUrl(posterPath)
-      await add(id, 'tmdb', 'TMDB', preview, async () => downloadImage(fullUrl), false)
-    }
+  const title = meta?.title || parseMediaFileName(path.basename(file)).title
+  const year = meta?.year
+  const sourceId = meta?.source === 'tmdb' ? meta.sourceId : undefined
+  const paths = await listTmdbPosterPaths({ sourceId, title, year })
+  let ti = 0
+  for (const poster of paths) {
+    const id = `tmdb-${ti++}`
+    const posterPath = poster.filePath
+    const fullUrl = tmdbPosterOriginalUrl(posterPath)
+    addDraft(
+      {
+        id,
+        source: 'tmdb',
+        label: 'TMDB',
+        selected: false,
+        width: poster.width,
+        height: poster.height,
+        bytes: poster.width * poster.height,
+        previewBuf: null,
+        loadPreview: async () => downloadImage(tmdbPosterPreviewUrl(posterPath)),
+        loader: async () => downloadImage(fullUrl)
+      },
+      null,
+      posterPath
+    )
   }
 
-  if (covers.length > 0 && !covers.some((c) => c.selected)) covers[0]!.selected = true
+  drafts.sort(compareCoverSize)
+  const chosen = drafts.slice(0, MAX_COVERS)
+  const loaders = new Map<string, CoverLoader>()
+  const covers: MediaCoverChoice[] = []
+  for (const d of chosen) {
+    const previewBuf = d.previewBuf ?? (await d.loadPreview())
+    if (!previewBuf || previewBuf.length < 32) continue
+    const previewBase64 = await previewJpeg(previewBuf)
+    if (!previewBase64) continue
+    const isCurrent = currentHash != null && sha1(previewBuf) === currentHash
+    loaders.set(d.id, d.loader)
+    covers.push({
+      id: d.id,
+      source: d.source,
+      label: d.label,
+      selected: d.selected || isCurrent,
+      previewBase64,
+      width: d.width,
+      height: d.height
+    })
+  }
 
   sessions.set(file.toLowerCase(), { at: Date.now(), loaders })
   return { title: meta?.title || path.basename(file), covers }
