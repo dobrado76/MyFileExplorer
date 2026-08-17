@@ -302,6 +302,19 @@ export type MyFileExplorerApi = {
         thumbnailBase64: string | null
       }>
     >
+    listCovers(req: { path: string }): Promise<
+      Result<{
+        title: string
+        covers: {
+          id: string
+          source: 'plex' | 'tmdb' | 'current'
+          label: string
+          selected: boolean
+          previewBase64: string
+        }[]
+      }>
+    >
+    setCover(req: { path: string; coverId: string }): Promise<Result<{ ok: true }>>
     probePlex(): Promise<
       Result<{
         installed: boolean

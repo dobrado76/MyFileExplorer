@@ -126,6 +126,8 @@ const api: MyFileExplorerApi = {
     refresh: invoke(IPC.mediaMetadataRefresh),
     clear: invoke(IPC.mediaMetadataClear),
     get: invoke(IPC.mediaMetadataGet),
+    listCovers: invoke(IPC.mediaMetadataListCovers),
+    setCover: invoke(IPC.mediaMetadataSetCover),
     probePlex: invokeVoid(IPC.mediaMetadataProbePlex)
   },
   slideshow: {

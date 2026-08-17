@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useState, type JSX, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type CSSProperties,
+  type JSX,
+  type ReactNode
+} from 'react'
 import { createPortal } from 'react-dom'
 import { formatMediaRating, type MediaMetadata } from '@shared/mediaMetadata'
 import { useAppStore } from '../store/appStore'
@@ -16,6 +24,7 @@ function thumbBlob(bytes: Uint8Array): Blob {
 }
 
 type MediaMetaView = {
+  path: string
   meta: MediaMetadata
   thumbUrl: string | null
 }
@@ -53,9 +62,9 @@ export function MediaMetadataProvider({
           URL.revokeObjectURL(objectUrl)
           return
         }
-        setView({ meta: res.value.metadata, thumbUrl: objectUrl })
+        setView({ path, meta: res.value.metadata, thumbUrl: objectUrl })
       } else {
-        setView({ meta: res.value.metadata, thumbUrl: null })
+        setView({ path, meta: res.value.metadata, thumbUrl: null })
       }
     })
     return () => {
@@ -74,6 +83,8 @@ function episodeLabel(meta: MediaMetadata): string | null {
 
 export function MediaMetadataHero(): JSX.Element | null {
   const view = useContext(MediaMetaCtx)
+  const coverHeightPx = useAppStore((s) => s.settings.mediaMetadata.coverHeightPx)
+  const openDialog = useAppStore((s) => s.openDialog)
   const [open, setOpen] = useState(false)
   useEffect(() => {
     if (!open) return
@@ -93,8 +104,14 @@ export function MediaMetadataHero(): JSX.Element | null {
     .filter(Boolean)
     .join(' · ')
 
+  const coverW = Math.round((coverHeightPx * 2) / 3)
+  const heroStyle = {
+    '--mm-cover-h': `${coverHeightPx}px`,
+    '--mm-cover-w': `${coverW}px`
+  } as CSSProperties
+
   return (
-    <div className="media-metadata-hero">
+    <div className="media-metadata-hero" style={heroStyle}>
       {thumbUrl ? (
         <button
           type="button"
@@ -113,6 +130,13 @@ export function MediaMetadataHero(): JSX.Element | null {
           {meta.title}
         </div>
         {sub ? <div className="media-metadata-hero-sub">{sub}</div> : null}
+        <button
+          type="button"
+          className="media-metadata-change-cover"
+          onClick={() => openDialog({ kind: 'change-cover', path: view.path })}
+        >
+          Change cover
+        </button>
       </div>
       {open && thumbUrl
         ? createPortal(

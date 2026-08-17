@@ -115,6 +115,8 @@ export const IPC = {
   mediaMetadataRefresh: 'mediaMetadata:refresh',
   mediaMetadataClear: 'mediaMetadata:clear',
   mediaMetadataGet: 'mediaMetadata:get',
+  mediaMetadataListCovers: 'mediaMetadata:listCovers',
+  mediaMetadataSetCover: 'mediaMetadata:setCover',
   mediaMetadataProbePlex: 'mediaMetadata:probePlex',
   appCheckUpdate: 'app:checkUpdate',
   appRunUpdate: 'app:runUpdate',

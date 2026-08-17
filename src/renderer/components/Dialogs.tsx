@@ -37,6 +37,10 @@ import { addFolderStatsSkipPath, removeFolderStatsSkipPath } from '@shared/folde
 import { samePath } from '@shared/paths'
 import { formatLayoutUpdatedAt, layoutSummary } from '@shared/layouts'
 import { VID_THUMB_FRAME_MS_MAX, VID_THUMB_FRAME_MS_MIN } from '@shared/vidThumbCache'
+import {
+  MEDIA_METADATA_COVER_HEIGHT_MAX,
+  MEDIA_METADATA_COVER_HEIGHT_MIN
+} from '@shared/schemas/mediaMetadata'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { basename } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
@@ -52,6 +56,7 @@ import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 import { CloseIcon } from '../lib/icons'
+import { CoverPickerDialog } from './CoverPickerDialog'
 
 function Modal({
   title,
@@ -227,6 +232,8 @@ export function Dialogs(): JSX.Element | null {
       return <CopyMoveToDialog op={dialog.op} paths={dialog.paths} />
     case 'power-search':
       return <PowerSearchDialog />
+    case 'change-cover':
+      return <CoverPickerDialog path={dialog.path} />
   }
 }
 
@@ -1532,6 +1539,19 @@ function MediaMetadataSettingsPanel(): JSX.Element {
         checked={mm.enabled === true}
         onChange={(v) => void applySettingsPatch({ mediaMetadata: { enabled: v } })}
       />
+      <label className="settings-field settings-field-narrow" htmlFor="set-mm-cover">
+        <span>Cover art size</span>
+        <div className="settings-inline">
+          <SettingsClampedNumber
+            id="set-mm-cover"
+            value={mm.coverHeightPx}
+            min={MEDIA_METADATA_COVER_HEIGHT_MIN}
+            max={MEDIA_METADATA_COVER_HEIGHT_MAX}
+            onCommit={(v) => void applySettingsPatch({ mediaMetadata: { coverHeightPx: v } })}
+          />
+          <span className="dim">px tall (preview poster)</span>
+        </div>
+      </label>
       <p className="settings-help">
         Store movie / TV metadata and a cover on the file or folder as NTFS streams{' '}
         <code>media_metadata</code> and <code>media_metadata_thumbnail</code>. Right-click → Media

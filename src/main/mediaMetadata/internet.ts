@@ -275,6 +275,74 @@ async function fromOmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
   }
 }
 
+export function tmdbPosterPreviewUrl(posterPath: string): string {
+  return `https://image.tmdb.org/t/p/w185${posterPath}`
+}
+
+export function tmdbPosterOriginalUrl(posterPath: string): string {
+  return `https://image.tmdb.org/t/p/original${posterPath}`
+}
+
+export async function listTmdbPosterPaths(opts: {
+  sourceId?: string
+  title?: string
+  year?: number
+}): Promise<string[]> {
+  const key = getSettings().mediaMetadata.tmdbApiKey.trim()
+  if (!key) return []
+  const headers = tmdbHeaders(key)
+  let kind: 'movie' | 'tv' | null = null
+  let id: number | null = null
+  const sid = opts.sourceId ?? ''
+  const movie = /^movie:(\d+)/.exec(sid)
+  const tv = /^tv:(\d+)/.exec(sid)
+  if (movie?.[1]) {
+    kind = 'movie'
+    id = Number(movie[1])
+  } else if (tv?.[1]) {
+    kind = 'tv'
+    id = Number(tv[1])
+  } else if (opts.title) {
+    const q = encodeURIComponent(opts.title)
+    const yearQ = opts.year ? `&year=${opts.year}` : ''
+    try {
+      const movies = (await fetchJson(tmdbUrl(`/search/movie?query=${q}${yearQ}`, key), headers)) as {
+        results?: { id: number }[]
+      }
+      if (movies.results?.[0]?.id != null) {
+        kind = 'movie'
+        id = movies.results[0].id
+      }
+    } catch {
+      /* try TV */
+    }
+    if (id == null) {
+      try {
+        const shows = (await fetchJson(tmdbUrl(`/search/tv?query=${q}`, key), headers)) as {
+          results?: { id: number }[]
+        }
+        if (shows.results?.[0]?.id != null) {
+          kind = 'tv'
+          id = shows.results[0].id
+        }
+      } catch {
+        return []
+      }
+    }
+  }
+  if (kind == null || id == null || !Number.isFinite(id)) return []
+  try {
+    const data = (await fetchJson(tmdbUrl(`/${kind}/${id}/images`, key), headers)) as {
+      posters?: { file_path?: string }[]
+    }
+    return (data.posters ?? [])
+      .map((p) => p.file_path)
+      .filter((p): p is string => typeof p === 'string' && p.length > 0)
+  } catch {
+    return []
+  }
+}
+
 export async function downloadFromInternet(parsed: ParsedMediaName): Promise<NetHit> {
   const s = getSettings().mediaMetadata
   const preferred = s.internetSource

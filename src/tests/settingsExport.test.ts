@@ -125,7 +125,8 @@ describe('settings export / import', () => {
           tmdbApiKey: 'tmdb-test',
           omdbApiKey: 'omdb-test',
           internetSource: 'omdb',
-          plexUrl: 'http://127.0.0.1:32400'
+          plexUrl: 'http://127.0.0.1:32400',
+          coverHeightPx: 160
         }
       },
       networkHosts: []
@@ -135,6 +136,7 @@ describe('settings export / import', () => {
     expect(parsed.settings.mediaMetadata.tmdbApiKey).toBe('tmdb-test')
     expect(parsed.settings.mediaMetadata.omdbApiKey).toBe('omdb-test')
     expect(parsed.settings.mediaMetadata.internetSource).toBe('omdb')
+    expect(parsed.settings.mediaMetadata.coverHeightPx).toBe(160)
   })
 
   it('round-trips remote connection metadata and strips hasPassword', () => {

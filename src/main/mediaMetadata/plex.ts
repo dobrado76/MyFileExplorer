@@ -8,11 +8,13 @@ import { getSettings } from '../settings/store'
 import {
   plexBundleRelDir,
   plexMediaUriToRelPath,
+  plexMetadataUriPosterName,
   plexPosterSubdirs,
   normalizePlexBaseUrl
 } from './plexLocal'
 import {
   appendPlexToken,
+  allPhotosFromXml,
   firstMetadataFromXml,
   plexCoverUrlsFromItem,
   resolvePlexImageUrl
@@ -595,6 +597,11 @@ async function readPosterForArtItem(
   const hash = (item.hash && item.hash.length >= 2 ? item.hash : null) ?? hashFromGuid(item.guid)
   if (!hash) return null
   const bundle = path.join(dataDir, plexBundleRelDir(hash, item.metadataType))
+  const wanted = item.userThumbUrl ? plexMetadataUriPosterName(item.userThumbUrl) : null
+  if (wanted) {
+    const named = await readNamedPoster(bundle, wanted)
+    if (named) return named
+  }
   for (const d of plexPosterSubdirs(bundle)) {
     const img = await pickLargestImage(d)
     if (img) return img
@@ -612,6 +619,127 @@ async function readPosterForArtItem(
     }
   }
   return null
+}
+
+async function readNamedPoster(bundle: string, fileName: string): Promise<Buffer | null> {
+  const contents = path.join(bundle, 'Contents')
+  if (!existsSync(contents)) return null
+  const dirs = [...plexPosterSubdirs(bundle)]
+  try {
+    for (const name of await fsp.readdir(contents)) {
+      if (name.startsWith('.')) continue
+      dirs.push(path.join(contents, name, 'posters'))
+    }
+  } catch {
+    /* skip */
+  }
+  for (const dir of dirs) {
+    const full = path.join(dir, fileName)
+    try {
+      const buf = await fsp.readFile(full)
+      if (looksLikeImage(buf)) return buf
+    } catch {
+      /* try next folder */
+    }
+  }
+  return null
+}
+
+export async function listPlexLocalPosterFiles(
+  dataDir: string,
+  metadataId: string
+): Promise<{ absPath: string; fileName: string; selected: boolean }[]> {
+  const info = await sqliteItemArt(dataDir, metadataId)
+  if (!info) return []
+  const order = [info]
+  if (info.metadataType === 4 && info.parentId) {
+    const showId = await showIdFromSqlite(dataDir, info.parentId)
+    if (showId != null) {
+      const show = await sqliteItemArt(dataDir, showId)
+      if (show) order.unshift(show)
+    }
+  }
+  const wanted = info.userThumbUrl ? plexMetadataUriPosterName(info.userThumbUrl) : null
+  const out: { absPath: string; fileName: string; selected: boolean }[] = []
+  const seen = new Set<string>()
+  for (const item of order) {
+    const hash = (item.hash && item.hash.length >= 2 ? item.hash : null) ?? hashFromGuid(item.guid)
+    if (!hash) continue
+    const bundle = path.join(dataDir, plexBundleRelDir(hash, item.metadataType))
+    const dirs = [...plexPosterSubdirs(bundle)]
+    const contents = path.join(bundle, 'Contents')
+    if (existsSync(contents)) {
+      try {
+        for (const name of await fsp.readdir(contents)) {
+          if (name.startsWith('.')) continue
+          dirs.push(path.join(contents, name, 'posters'))
+        }
+      } catch {
+        /* skip */
+      }
+    }
+    for (const dir of dirs) {
+      if (!existsSync(dir)) continue
+      let names: string[]
+      try {
+        names = await fsp.readdir(dir)
+      } catch {
+        continue
+      }
+      for (const name of names) {
+        if (name.startsWith('.')) continue
+        const abs = path.join(dir, name)
+        const key = abs.toLowerCase()
+        if (seen.has(key)) continue
+        try {
+          const st = await fsp.stat(abs)
+          if (!st.isFile() || st.size < 32) continue
+        } catch {
+          continue
+        }
+        seen.add(key)
+        out.push({
+          absPath: abs,
+          fileName: name,
+          selected: wanted != null && name.toLowerCase() === wanted
+        })
+      }
+    }
+  }
+  return out
+}
+
+export async function listPlexHttpPosters(
+  ratingKey: string
+): Promise<{ href: string; previewHref: string; selected: boolean }[]> {
+  const resolved = await resolvePlex()
+  const key = ratingKey.trim()
+  if (!key) return []
+  try {
+    const payload = await plexGet(resolved.url, resolved.token, `/library/metadata/${key}/posters`)
+    const items =
+      payload && typeof payload === 'object' && typeof (payload as { __xml?: string }).__xml === 'string'
+        ? allPhotosFromXml((payload as { __xml: string }).__xml)
+        : [
+            ...asRecordList((payload as { MediaContainer?: { Metadata?: unknown; Photo?: unknown } }).MediaContainer?.Metadata),
+            ...asRecordList((payload as { MediaContainer?: { Photo?: unknown } }).MediaContainer?.Photo)
+          ]
+    const out: { href: string; previewHref: string; selected: boolean }[] = []
+    const seen = new Set<string>()
+    for (const item of items) {
+      const rawKey = typeof item.key === 'string' ? item.key : ''
+      const rawThumb = typeof item.thumb === 'string' ? item.thumb : rawKey
+      const href = resolvePlexImageUrl(resolved.url, resolved.token, rawKey || rawThumb)
+      if (!href || seen.has(href)) continue
+      seen.add(href)
+      const previewHref = resolvePlexImageUrl(resolved.url, resolved.token, rawThumb) ?? href
+      const selected = item.selected === true || item.selected === 1 || item.selected === '1'
+      out.push({ href, previewHref, selected })
+    }
+    return out
+  } catch {
+    return []
+  }
 }
 
 export async function readLocalPlexPoster(dataDir: string, metadataId: string): Promise<Buffer | null> {
@@ -657,25 +785,31 @@ async function withPoster(resolved: PlexResolved, hit: PlexHit): Promise<PlexHit
   return { ...hit, thumbBytes }
 }
 
-export async function extractFromPlex(filePath: string, hintTitle?: string): Promise<PlexHit> {
+export async function extractFromPlex(
+  filePath: string,
+  hintTitle?: string,
+  opts?: { skipPoster?: boolean }
+): Promise<PlexHit> {
   const resolved = await resolvePlex()
   if (!plexLooksInstalled(resolved.dataDir) && !resolved.token) {
     throw new Error('Plex Media Server was not found on this PC')
   }
+  const finish = (hit: PlexHit): Promise<PlexHit> | PlexHit =>
+    opts?.skipPoster ? hit : withPoster(resolved, hit)
 
   const httpHit = await lookupByFile(resolved, filePath)
-  if (httpHit) return withPoster(resolved, httpHit)
+  if (httpHit) return finish(httpHit)
 
   if (hintTitle) {
     const showHit = await lookupShowByTitle(resolved, hintTitle)
-    if (showHit) return withPoster(resolved, showHit)
+    if (showHit) return finish(showHit)
   }
 
   if (resolved.dataDir) {
     const row = await queryPlexSqlite(resolved.dataDir, filePath)
     if (row) {
       const byKey = await lookupByRatingKey(resolved, row.id)
-      if (byKey) return withPoster(resolved, byKey)
+      if (byKey) return finish(byKey)
       const showId =
         kindFromPlexType(row.metadataType) === 'episode' && row.parentId
           ? await showIdFromSqlite(resolved.dataDir, row.parentId)
@@ -711,7 +845,7 @@ export async function extractFromPlex(filePath: string, hintTitle?: string): Pro
         episode: kind === 'episode' ? row.index ?? undefined : undefined,
         fetchedAt: new Date().toISOString()
       }
-      return withPoster(resolved, { meta, thumbUrl: urls[0] ?? null, thumbUrls: urls })
+      return finish({ meta, thumbUrl: urls[0] ?? null, thumbUrls: urls })
     }
   }
 

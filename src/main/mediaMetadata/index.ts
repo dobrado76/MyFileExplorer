@@ -3,6 +3,7 @@ import path from 'node:path'
 import { AppError } from '@shared/result'
 import {
   isGenericMediaFolderName,
+  isMediaMetadataVideoName,
   parseMediaFileName,
   type MediaMetadata
 } from '@shared/mediaMetadata'
@@ -18,21 +19,6 @@ import {
   writeMediaMetadata
 } from './store'
 
-const VIDEO_EXTS = new Set([
-  'mp4',
-  'mkv',
-  'webm',
-  'avi',
-  'divx',
-  'mov',
-  'wmv',
-  'm4v',
-  'mpg',
-  'mpeg',
-  'ts',
-  'm2ts'
-])
-
 const MAX_WALK = 20_000
 export type MediaMetadataOpResult = {
   done: number
@@ -41,10 +27,10 @@ export type MediaMetadataOpResult = {
 }
 
 export { probePlex }
+export { listMediaCovers, setMediaCover } from './covers'
 
 function isVideoName(name: string): boolean {
-  const ext = path.extname(name).slice(1).toLowerCase()
-  return VIDEO_EXTS.has(ext)
+  return isMediaMetadataVideoName(name)
 }
 
 function folderSearchName(dir: string): string {

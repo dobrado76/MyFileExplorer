@@ -11,6 +11,7 @@ import { discoveredVerbMatches } from '@shared/schemas/shellVerbs'
 import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf, joinPath } from '../lib/paths'
+import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { parseUnc } from '@shared/networkPaths'
@@ -66,11 +67,18 @@ type MenuItem =
 function mediaMetadataMenu(
   paths: string[],
   close: () => void,
-  s: ReturnType<typeof useAppStore.getState>
+  s: ReturnType<typeof useAppStore.getState>,
+  opts?: { treatAsFolders?: boolean; entries?: { path: string; kind: string }[] }
 ): MenuItem[] {
   if (!s.settings.mediaMetadata.enabled) return []
   const local = paths.filter((p) => p && !p.toLowerCase().startsWith('mfe-remote://'))
-  if (local.length === 0) return []
+  const targets = local.filter((p) => {
+    if (opts?.treatAsFolders) return true
+    const e = opts?.entries?.find((en) => samePath(en.path, p))
+    if (e?.kind === 'dir') return true
+    return isMediaMetadataVideoName(basename(p))
+  })
+  if (targets.length === 0) return []
   return [
     {
       type: 'submenu',
@@ -81,7 +89,7 @@ function mediaMetadataMenu(
           title: 'Only items that do not already have metadata. Folders include every video inside.',
           action: () => {
             close()
-            void s.mediaMetadataExtractPlex(local)
+            void s.mediaMetadataExtractPlex(targets)
           }
         },
         {
@@ -89,7 +97,7 @@ function mediaMetadataMenu(
           title: 'Only items that do not already have metadata. Folders include every video inside.',
           action: () => {
             close()
-            void s.mediaMetadataDownload(local)
+            void s.mediaMetadataDownload(targets)
           }
         },
         {
@@ -97,7 +105,7 @@ function mediaMetadataMenu(
           title: 'Refresh existing from their source; missing items are extracted from Plex. Folders include every video inside.',
           action: () => {
             close()
-            void s.mediaMetadataRefresh(local)
+            void s.mediaMetadataRefresh(targets)
           }
         },
         {
@@ -105,9 +113,21 @@ function mediaMetadataMenu(
           title: 'Folders include every video inside',
           action: () => {
             close()
-            void s.mediaMetadataClear(local)
+            void s.mediaMetadataClear(targets)
           }
-        }
+        },
+        ...(targets.length === 1
+          ? [
+              {
+                label: 'Change cover…',
+                title: 'Pick from Plex and TMDB posters for this title',
+                action: () => {
+                  close()
+                  s.openDialog({ kind: 'change-cover', path: targets[0]! })
+                }
+              }
+            ]
+          : [])
       ]
     }
   ]
@@ -820,7 +840,7 @@ export function ContextMenu(): JSX.Element | null {
             }
           ]
         },
-        ...mediaMetadataMenu([folderPath], close, s),
+        ...mediaMetadataMenu([folderPath], close, s, { treatAsFolders: true }),
         {
           type: 'item',
           label: 'Alternate streams…',
@@ -1611,7 +1631,10 @@ export function ContextMenu(): JSX.Element | null {
     }
     result.push(
       { type: 'sep' },
-      ...mediaMetadataMenu(paths.length > 0 ? paths : single ? [single] : [], close, s),
+      ...mediaMetadataMenu(paths.length > 0 ? paths : single ? [single] : [], close, s, {
+        treatAsFolders: menu.inTree || (isDir && (paths.length <= 1)),
+        entries
+      }),
       {
         type: 'item',
         label: 'Alternate streams…',

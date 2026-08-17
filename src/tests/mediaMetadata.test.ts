@@ -4,11 +4,13 @@ import {
   parseMediaMetadataJson,
   formatMediaRating,
   isGenericMediaFolderName,
+  isMediaMetadataVideoName,
   MEDIA_METADATA_ADS,
   MEDIA_METADATA_THUMB_ADS
 } from '../shared/mediaMetadata'
 import {
   appendPlexToken,
+  allPhotosFromXml,
   firstMetadataFromXml,
   plexCoverUrlsFromItem,
   resolvePlexImageUrl
@@ -16,7 +18,8 @@ import {
 import {
   normalizePlexBaseUrl,
   plexBundleRelDir,
-  plexMediaUriToRelPath
+  plexMediaUriToRelPath,
+  plexMetadataUriPosterName
 } from '../main/mediaMetadata/plexLocal'
 
 describe('parseMediaFileName', () => {
@@ -86,6 +89,15 @@ describe('isGenericMediaFolderName', () => {
   })
 })
 
+describe('isMediaMetadataVideoName', () => {
+  it('accepts video files and rejects other documents', () => {
+    expect(isMediaMetadataVideoName('Heat.mkv')).toBe(true)
+    expect(isMediaMetadataVideoName('show.S01E01.m2ts')).toBe(true)
+    expect(isMediaMetadataVideoName('notes.txt')).toBe(false)
+    expect(isMediaMetadataVideoName('info.json')).toBe(false)
+  })
+})
+
 describe('ADS names', () => {
   it('uses the requested stream names', () => {
     expect(MEDIA_METADATA_ADS).toBe('media_metadata')
@@ -132,11 +144,14 @@ describe('Plex cover URLs', () => {
   it('maps localhost to 127.0.0.1 and builds the metadata bundle path', () => {
     expect(normalizePlexBaseUrl('http://localhost:32400/')).toBe('http://127.0.0.1:32400')
     expect(plexBundleRelDir('4f0e9c2b6d8a3779799387a0dd13d9bfddfd44fd', 1).replace(/\\/g, '/')).toBe(
-      'Metadata/Movies/4/4f0e9c2b6d8a3779799387a0dd13d9bfddfd44fd.bundle'
+      'Metadata/Movies/4/f0e9c2b6d8a3779799387a0dd13d9bfddfd44fd.bundle'
     )
     expect(plexMediaUriToRelPath('media://c/abc.bundle/Contents/Thumbnails/thumb1.jpg')?.replace(/\\/g, '/')).toBe(
       'Media/localhost/c/abc.bundle/Contents/Thumbnails/thumb1.jpg'
     )
+    expect(
+      plexMetadataUriPosterName('metadata://posters/com.plexapp.agents.imdb_91310faf1e9a609251bc5c91e2068afa4283a858')
+    ).toBe('91310faf1e9a609251bc5c91e2068afa4283a858')
   })
 
   it('parses a Plex XML Video including thumb and genres', () => {
@@ -146,5 +161,14 @@ describe('Plex cover URLs', () => {
     expect(item?.title).toBe('Heat')
     expect(item?.thumb).toBe('/library/metadata/7/thumb/1')
     expect(item?.Genre).toEqual([{ tag: 'Crime' }])
+  })
+
+  it('lists every Photo in a Plex posters XML payload', () => {
+    const photos = allPhotosFromXml(
+      `<MediaContainer><Photo key="/library/metadata/7/posters/a" selected="1"/><Photo key="/library/metadata/7/posters/b"/></MediaContainer>`
+    )
+    expect(photos).toHaveLength(2)
+    expect(photos[0]?.key).toBe('/library/metadata/7/posters/a')
+    expect(photos[0]?.selected).toBe('1')
   })
 })

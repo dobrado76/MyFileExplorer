@@ -131,7 +131,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
-- Media Metadata (only when Settings → Media Metadata is enabled) → Extract from Plex / Download from Internet / Update / Clear. Folders include every video inside. Extract/Download skip items that already have metadata.
+- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Change cover. Folders include every video inside. Extract/Download skip items that already have metadata. Change cover (single item) shows available Plex and TMDB posters.
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
@@ -189,7 +189,7 @@ See [SEARCH.md](SEARCH.md).
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
-| Media Metadata | **Enable** (off by default). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50) |
+| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
 | About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 

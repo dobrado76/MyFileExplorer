@@ -52,6 +52,25 @@ function xmlTagList(inner: string, el: string): { tag: string }[] {
   return out.filter((x) => x.tag)
 }
 
+export function xmlAttrsToRecord(attrs: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  const re = /([A-Za-z0-9:]+)="([^"]*)"/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(attrs))) {
+    if (m[1] && m[2] != null) out[m[1]] = m[2]
+  }
+  return out
+}
+
+/** Every Photo (poster) element in a Plex XML MediaContainer. */
+export function allPhotosFromXml(xml: string): Record<string, unknown>[] {
+  const re = /<Photo(\s[^>]*)?\/?>/g
+  const out: Record<string, unknown>[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(xml))) out.push(xmlAttrsToRecord(m[1] ?? ''))
+  return out
+}
+
 /** First Video/Directory/Photo in a Plex XML MediaContainer. */
 export function firstMetadataFromXml(xml: string): Record<string, unknown> | null {
   const m = /<(Video|Directory|Photo)(\s[^>]*)?>/.exec(xml)

@@ -44,6 +44,10 @@ export type ParsedMediaName = {
 
 const VIDEO_EXT_RE = /\.(mp4|mkv|webm|avi|divx|mov|wmv|m4v|mpg|mpeg|ts|m2ts|vob)$/i
 
+export function isMediaMetadataVideoName(name: string): boolean {
+  return VIDEO_EXT_RE.test(name)
+}
+
 const JUNK_RE =
   /\b(1080p|720p|2160p|480p|4k|uhd|bluray|blu-?ray|webrip|web-?dl|webdl|hdtv|dvdrip|brrip|bdrip|x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|truehd|atmos|hdr10|hdr|dv|dolby|remux|proper|repack|extended|unrated|directors?\.?cut|multi|yify|rarbg|etrg|sparks|amiable|internal|limited|complete|season|disc\d+|cd\d+)\b/gi
 

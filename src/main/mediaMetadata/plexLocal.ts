@@ -8,11 +8,17 @@ export function plexMetadataKindDir(metadataType: number): string {
   return 'Movies'
 }
 
-/** `{Metadata}/{Movies|TV Shows}/{h[0]}/{hash}.bundle` */
+/** `{Metadata}/{Movies|TV Shows}/{h[0]}/{h.slice(1)}.bundle` — first hex digit is the folder. */
 export function plexBundleRelDir(hash: string, metadataType: number): string {
   const h = hash.trim().toLowerCase()
   if (h.length < 2) return ''
-  return path.join('Metadata', plexMetadataKindDir(metadataType), h[0]!, `${h}.bundle`)
+  return path.join('Metadata', plexMetadataKindDir(metadataType), h[0]!, `${h.slice(1)}.bundle`)
+}
+
+/** `metadata://posters/com.plexapp.agents.imdb_<sha1>` → the poster file name. */
+export function plexMetadataUriPosterName(uri: string): string | null {
+  const m = /^metadata:\/\/(?:posters|art)\/.+_([a-f0-9]{32,40})$/i.exec(uri.trim())
+  return m?.[1]?.toLowerCase() ?? null
 }
 
 /**

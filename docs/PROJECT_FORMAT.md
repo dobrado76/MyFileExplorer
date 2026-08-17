@@ -86,7 +86,7 @@ Notes:
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
-- `mediaMetadata`: opt-in movie/TV metadata (D50). `{ enabled` (default false), `tmdbApiKey`, `omdbApiKey`, `internetSource` (`tmdb` \| `omdb`), `plexUrl`, `plexToken`, `plexDataDir` }. Streams on the media file/folder: `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes) — not under `userData`.
+- `mediaMetadata`: opt-in movie/TV metadata (D50). `{ enabled` (default false), `coverHeightPx` (56–240, default 120), `tmdbApiKey`, `omdbApiKey`, `internetSource` (`tmdb` \| `omdb`), `plexUrl`, `plexToken`, `plexDataDir` }. Streams on the media file/folder: `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes) — not under `userData`.
 
 ---
 

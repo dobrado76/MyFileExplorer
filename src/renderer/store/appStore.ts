@@ -237,6 +237,7 @@ export type DialogState =
   | { kind: 'power-rename'; paths: string[] }
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | { kind: 'power-search' }
+  | { kind: 'change-cover'; path: string }
   | null
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */

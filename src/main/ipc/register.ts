@@ -201,12 +201,15 @@ import {
   downloadInternetMany,
   extractPlexMany,
   getMediaMetadataView,
+  listMediaCovers,
   probePlex,
-  refreshMany
+  refreshMany,
+  setMediaCover
 } from '../mediaMetadata'
 import {
   mediaMetadataPathSchema,
-  mediaMetadataPathsSchema
+  mediaMetadataPathsSchema,
+  mediaMetadataSetCoverSchema
 } from '@shared/schemas/mediaMetadata'
 
 function assertDevGate(): void {
@@ -682,6 +685,15 @@ export function registerIpcHandlers(): void {
     return clearMany(req.paths)
   })
   handle(IPC.mediaMetadataGet, mediaMetadataPathSchema, (req) => getMediaMetadataView(req.path))
+  handle(IPC.mediaMetadataListCovers, mediaMetadataPathSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return listMediaCovers(req.path)
+  })
+  handle(IPC.mediaMetadataSetCover, mediaMetadataSetCoverSchema, async (req) => {
+    assertMediaMetadataEnabled()
+    await setMediaCover(req.path, req.coverId)
+    return { ok: true as const }
+  })
   handle(IPC.mediaMetadataProbePlex, emptySchema, () => probePlex())
   handle(
     IPC.appCheckUpdate,

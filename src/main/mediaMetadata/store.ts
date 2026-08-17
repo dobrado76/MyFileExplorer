@@ -42,6 +42,12 @@ export async function clearMediaMetadata(rawPath: string): Promise<{ cleared: bo
   return { cleared }
 }
 
+export async function writeMediaThumbnail(rawPath: string, thumb: Buffer): Promise<void> {
+  const file = requireAbsolute(rawPath)
+  const { writeStreamBytes } = await import('../fs/adsWin32')
+  await writeStreamBytes(file, MEDIA_METADATA_THUMB_ADS, thumb)
+}
+
 export async function readMediaThumbnail(rawPath: string): Promise<Buffer | null> {
   const file = requireAbsolute(rawPath)
   const { readStreamBytes } = await import('../fs/adsWin32')
