@@ -5,9 +5,12 @@ import {
   formatMediaRating,
   isGenericMediaFolderName,
   isMediaMetadataVideoName,
+  matchesMediaLibraryFilter,
   MEDIA_METADATA_ADS,
+  MEDIA_METADATA_CONTAINER_ADS,
   MEDIA_METADATA_THUMB_ADS
 } from '../shared/mediaMetadata'
+import { isMediaApiLimitPayload, mediaApiLimitMessage } from '../shared/mediaApiLimit'
 import {
   appendPlexToken,
   allPhotosFromXml,
@@ -69,6 +72,20 @@ describe('parseMediaMetadataJson', () => {
     expect(m?.source).toBe('tmdb')
   })
 
+  it('keeps a watched flag', () => {
+    const m = parseMediaMetadataJson(
+      JSON.stringify({
+        version: 1,
+        source: 'tmdb',
+        kind: 'movie',
+        title: 'Heat',
+        fetchedAt: '2026-01-01T00:00:00.000Z',
+        watched: true
+      })
+    )
+    expect(m?.watched).toBe(true)
+  })
+
   it('rejects junk', () => {
     expect(parseMediaMetadataJson('{}')).toBeNull()
     expect(parseMediaMetadataJson('not json')).toBeNull()
@@ -103,6 +120,36 @@ describe('ADS names', () => {
   it('uses the requested stream names', () => {
     expect(MEDIA_METADATA_ADS).toBe('media_metadata')
     expect(MEDIA_METADATA_THUMB_ADS).toBe('media_metadata_thumbnail')
+    expect(MEDIA_METADATA_CONTAINER_ADS).toBe('media_metadata_container')
+  })
+})
+
+describe('matchesMediaLibraryFilter', () => {
+  it('treats missing flags as unwatched and without genre', () => {
+    expect(matchesMediaLibraryFilter(undefined, 'all', null)).toBe(true)
+    expect(matchesMediaLibraryFilter(undefined, 'unwatched', null)).toBe(true)
+    expect(matchesMediaLibraryFilter(undefined, 'watched', null)).toBe(false)
+    expect(matchesMediaLibraryFilter(undefined, 'all', 'Crime')).toBe(false)
+  })
+
+  it('filters watched and genre', () => {
+    const flags = { watched: true, genres: ['Crime', 'Drama'] }
+    expect(matchesMediaLibraryFilter(flags, 'watched', null)).toBe(true)
+    expect(matchesMediaLibraryFilter(flags, 'unwatched', null)).toBe(false)
+    expect(matchesMediaLibraryFilter(flags, 'all', 'crime')).toBe(true)
+    expect(matchesMediaLibraryFilter(flags, 'all', 'Comedy')).toBe(false)
+  })
+})
+
+describe('media API limits', () => {
+  it('detects HTTP 429 and OMDb / TMDB quota bodies', () => {
+    expect(isMediaApiLimitPayload(429, '', null)).toBe(true)
+    expect(isMediaApiLimitPayload(200, '', { Response: 'False', Error: 'Request limit reached!' })).toBe(
+      true
+    )
+    expect(isMediaApiLimitPayload(200, '', { status_code: 25 })).toBe(true)
+    expect(isMediaApiLimitPayload(200, '', { Response: 'False', Error: 'Movie not found!' })).toBe(false)
+    expect(mediaApiLimitMessage('OMDb')).toMatch(/1,000/)
   })
 })
 

@@ -1535,7 +1535,7 @@ function MediaMetadataSettingsPanel(): JSX.Element {
       <SettingsToggle
         id="set-mm-enabled"
         label="Enable media metadata"
-        hint="Off by default. When on: context menu Media Metadata, preview title/cover, and folder/video covers from stored streams."
+        hint="Off by default. When on: context menu Media Metadata, preview title/cover, folder/video covers from stored streams, and Watched/Genre toolbar filters on folders marked as media containers."
         checked={mm.enabled === true}
         onChange={(v) => void applySettingsPatch({ mediaMetadata: { enabled: v } })}
       />
@@ -1605,7 +1605,8 @@ function MediaMetadataSettingsPanel(): JSX.Element {
         <span>Internet sources</span>
         <p className="dim" style={{ margin: '4px 0 8px' }}>
           TMDB (themoviedb.org) is preferred. OMDb (omdbapi.com) is the IMDb-data fallback. Both
-          need a free API key.
+          need a free API key. Free keys are rate-limited (OMDb about 1,000/day; TMDB also has a
+          short burst limit). If a limit is hit, download stops and a message explains why.
         </p>
         <label className="settings-labeled-row" htmlFor="set-mm-src">
           <span>Preferred</span>

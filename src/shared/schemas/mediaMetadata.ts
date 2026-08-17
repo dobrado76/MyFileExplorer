@@ -38,3 +38,8 @@ export const mediaMetadataSetCoverSchema = z.object({
   path: z.string().min(1),
   coverId: z.string().min(1)
 })
+
+export const mediaMetadataSetWatchedSchema = z.object({
+  paths: z.array(z.string().min(1)).min(1).max(200),
+  watched: z.boolean()
+})

@@ -32,6 +32,7 @@
     "src/tests/**/*",
     "src/renderer/lib/paths.ts",
     "src/renderer/lib/viewFilter.ts",
+    "src/renderer/lib/detailsTable.ts",
     "src/renderer/lib/quickAccess.ts",
     "src/renderer/lib/nextSelection.ts",
     "src/renderer/lib/undoHistory.ts",

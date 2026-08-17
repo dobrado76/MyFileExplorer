@@ -200,16 +200,19 @@ import {
   clearMany,
   downloadInternetMany,
   extractPlexMany,
+  getFolderMediaLibrary,
   getMediaMetadataView,
   listMediaCovers,
   probePlex,
   refreshMany,
-  setMediaCover
+  setMediaCover,
+  setWatchedMany
 } from '../mediaMetadata'
 import {
   mediaMetadataPathSchema,
   mediaMetadataPathsSchema,
-  mediaMetadataSetCoverSchema
+  mediaMetadataSetCoverSchema,
+  mediaMetadataSetWatchedSchema
 } from '@shared/schemas/mediaMetadata'
 
 function assertDevGate(): void {
@@ -693,6 +696,14 @@ export function registerIpcHandlers(): void {
     assertMediaMetadataEnabled()
     await setMediaCover(req.path, req.coverId)
     return { ok: true as const }
+  })
+  handle(IPC.mediaMetadataSetWatched, mediaMetadataSetWatchedSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return setWatchedMany(req.paths, req.watched)
+  })
+  handle(IPC.mediaMetadataFolderLibrary, mediaMetadataPathSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return getFolderMediaLibrary(req.path)
   })
   handle(IPC.mediaMetadataProbePlex, emptySchema, () => probePlex())
   handle(

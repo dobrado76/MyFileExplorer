@@ -78,6 +78,9 @@ import {
   type KnownFolderId,
   type QuickAccessEntry
 } from '../lib/quickAccess'
+import { isMediaApiLimitError } from '@shared/mediaApiLimit'
+import { type MediaLibraryItemFlags, type MediaWatchedFilter } from '@shared/mediaMetadata'
+import { isExcludedByMediaLibrary } from '../lib/mediaLibrary'
 import { isExcludedByViewFilter, listingHasAllSelected } from '../lib/viewFilter'
 import {
   mergeDismissedPaths,
@@ -239,6 +242,24 @@ export type DialogState =
   | { kind: 'power-search' }
   | { kind: 'change-cover'; path: string }
   | null
+
+export type MediaLibraryState = {
+  folderPath: string
+  isContainer: boolean
+  items: Record<string, MediaLibraryItemFlags>
+  watchedFilter: MediaWatchedFilter
+  genreFilter: string | null
+}
+
+export function emptyMediaLibrary(): MediaLibraryState {
+  return {
+    folderPath: '',
+    isContainer: false,
+    items: {},
+    watchedFilter: 'all',
+    genreFilter: null
+  }
+}
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
 export type ImageVersionPreview = { path: string; ads: string | null }
@@ -497,6 +518,8 @@ type AppState = {
   redoStack: UndoEntry[]
   /** Slideshow / categorizer session (gate: settings.slideshowFeaturesEnabled). */
   slideshow: SlideshowSession
+  /** Toolbar filters for a folder marked as a media metadata container. */
+  mediaLibrary: MediaLibraryState
 
   // derived helpers
   activeTab(): Tab
@@ -750,6 +773,9 @@ type AppState = {
   mediaMetadataDownload(paths: string[]): Promise<void>
   mediaMetadataRefresh(paths: string[]): Promise<void>
   mediaMetadataClear(paths: string[]): Promise<void>
+  mediaMetadataSetWatched(paths: string[], watched: boolean): Promise<void>
+  setMediaLibraryWatchedFilter(value: MediaWatchedFilter): void
+  setMediaLibraryGenreFilter(genre: string | null): void
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
@@ -861,25 +887,24 @@ function poolEntriesForTab(s: AppState, tabId: string): { path: string; isHidden
   return s.listingsByTabId[tabId]?.entries ?? []
 }
 
-function poolLengthForTab(s: AppState, tabId: string): number {
-  const tabSearch = s.tabs.find((t) => t.id === tabId)?.search
-  if (s.recycleBin.active && tabId === s.activeTabId) return s.recycleBin.items.length
-  if (tabSearch?.active) return tabSearch.results.length
-  return s.listingsByTabId[tabId]?.entries.length ?? 0
-}
-
 function selectablePathsForTab(s: AppState, tabId: string): string[] {
+  const listingPath = s.listingsByTabId[tabId]?.path ?? ''
+  const applyMedia =
+    s.mediaLibrary.isContainer && listingPath && samePath(listingPath, s.mediaLibrary.folderPath)
   return poolEntriesForTab(s, tabId)
-    .filter(
-      (e) =>
-        !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
-    )
+    .filter((e) => {
+      if (isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)) {
+        return false
+      }
+      if (applyMedia && isExcludedByMediaLibrary(e.path, s.mediaLibrary)) return false
+      return true
+    })
     .map((e) => e.path)
 }
 
 function tabHasAllSelected(s: AppState, tabId: string): boolean {
   const selectedCount = s.tabs.find((t) => t.id === tabId)?.selected.length ?? 0
-  return listingHasAllSelected(selectedCount, poolLengthForTab(s, tabId))
+  return listingHasAllSelected(selectedCount, selectablePathsForTab(s, tabId).length)
 }
 
 export const useAppStore = create<AppState>()((set, get) => {
@@ -1038,6 +1063,44 @@ export const useAppStore = create<AppState>()((set, get) => {
    * After BUSY_FEEDBACK_MS, show an indeterminate status-bar busy state if main
    * has not already pushed real `op-progress`. Clears local busy when `work` ends.
    */
+  async function refreshMediaLibraryFolder(folderPath: string): Promise<void> {
+    const s = get()
+    if (!s.settings.mediaMetadata.enabled || !folderPath || isRemoteLocation(folderPath)) {
+      if (s.mediaLibrary.isContainer || s.mediaLibrary.folderPath) {
+        set({ mediaLibrary: emptyMediaLibrary() })
+      }
+      return
+    }
+    try {
+      const res = await call(api.mediaMetadata.folderLibrary({ path: folderPath }))
+      const prev = get().mediaLibrary
+      const same = prev.folderPath !== '' && samePath(prev.folderPath, folderPath)
+      const items: Record<string, MediaLibraryItemFlags> = {}
+      const genreSet = new Set<string>()
+      for (const it of res.items) {
+        items[it.path.toLowerCase()] = { watched: it.watched, genres: it.genres }
+        for (const g of it.genres) {
+          if (g.trim()) genreSet.add(g)
+        }
+      }
+      const genreStill =
+        same && prev.genreFilter && [...genreSet].some((g) => g.toLowerCase() === prev.genreFilter!.toLowerCase())
+          ? prev.genreFilter
+          : null
+      set({
+        mediaLibrary: {
+          folderPath,
+          isContainer: res.isContainer,
+          items,
+          watchedFilter: same ? prev.watchedFilter : 'all',
+          genreFilter: genreStill
+        }
+      })
+    } catch {
+      set({ mediaLibrary: emptyMediaLibrary() })
+    }
+  }
+
   async function runMediaMetadataOp(
     label: string,
     paths: string[],
@@ -1045,12 +1108,19 @@ export const useAppStore = create<AppState>()((set, get) => {
       done: number
       failed: { path: string; message: string }[]
       updated: string[]
+      stoppedReason?: string
     }>
   ): Promise<void> {
     if (!get().settings.mediaMetadata.enabled) return
     try {
       const res = await withBusyFeedback('media-metadata', label, undefined, work)
       for (const p of res.updated.length > 0 ? res.updated : paths) get().bumpColumnMeta(p)
+      const folder = get().listing.path
+      if (folder) void refreshMediaLibraryFolder(folder)
+      if (res.stoppedReason) {
+        reportOperationError('Media metadata stopped', new Error(res.stoppedReason))
+        return
+      }
       const failN = res.failed.length
       if (failN > 0) {
         get().notify(
@@ -1067,6 +1137,10 @@ export const useAppStore = create<AppState>()((set, get) => {
         get().notify(res.done === 1 ? 'Media metadata saved' : `Media metadata saved for ${res.done} items`)
       }
     } catch (e) {
+      if (isMediaApiLimitError(e)) {
+        reportOperationError('Media metadata stopped', e)
+        return
+      }
       get().notify(e instanceof IpcError ? e.message : String(e), true)
     }
   }
@@ -1355,7 +1429,10 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function afterListingPainted(tabId: string, path: string, sortedEntries: DirEntry[]): void {
-    if (get().activeTabId === tabId) stopOfflinePoll()
+    if (get().activeTabId === tabId) {
+      stopOfflinePoll()
+      void refreshMediaLibraryFolder(path)
+    }
     armWatchesForPath(path, sortedEntries.length)
     if (tabId === get().activeTabId) {
       viewOrderCache = null
@@ -1671,8 +1748,9 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   function viewOrderFilterKey(s: {
     settings: { viewFilterEnabled: boolean; viewFilterPatterns: string[] }
+    mediaLibrary: MediaLibraryState
   }): string {
-    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}`
+    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}|${s.mediaLibrary.watchedFilter}|${s.mediaLibrary.genreFilter ?? ''}`
   }
 
   /** Sorted/filtered paths matching the file view (cached; pruned in place on delete). */
@@ -1696,10 +1774,19 @@ export const useAppStore = create<AppState>()((set, get) => {
     ) {
       return viewOrderCache.paths
     }
+    const applyMedia =
+      s.mediaLibrary.isContainer &&
+      !tab.search.active &&
+      s.listing.path &&
+      samePath(s.listing.path, s.mediaLibrary.folderPath)
     const before = sortEntries(
-      sourceEntries.filter(
-        (e) => !isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
-      ),
+      sourceEntries.filter((e) => {
+        if (isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)) {
+          return false
+        }
+        if (applyMedia && isExcludedByMediaLibrary(e.path, s.mediaLibrary)) return false
+        return true
+      }),
       sort,
       s.settings.foldersFirst
     )
@@ -2106,6 +2193,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     undoStack: [],
     redoStack: [],
     slideshow: emptySlideshowSession(),
+    mediaLibrary: emptyMediaLibrary(),
 
     activeTab() {
       const s = get()
@@ -4815,6 +4903,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (patch.slideshowFeaturesEnabled === false) {
           get().resetSlideshowForGateOff()
         }
+        if (patch.mediaMetadata && typeof patch.mediaMetadata.enabled === 'boolean') {
+          const folder = get().listing.path
+          if (patch.mediaMetadata.enabled && folder) void refreshMediaLibraryFolder(folder)
+          else set({ mediaLibrary: emptyMediaLibrary() })
+        }
         if (patch.slideshowFeaturesEnabled === true) {
           hydrateSlideshowCacheFromSettings(
             get as unknown as Parameters<typeof hydrateSlideshowCacheFromSettings>[0],
@@ -5084,6 +5177,29 @@ export const useAppStore = create<AppState>()((set, get) => {
       await runMediaMetadataOp('Clearing media metadata…', paths, () =>
         call(api.mediaMetadata.clear({ paths }))
       )
+    },
+
+    async mediaMetadataSetWatched(paths, watched) {
+      if (!get().settings.mediaMetadata.enabled) return
+      try {
+        const res = await call(api.mediaMetadata.setWatched({ paths, watched }))
+        for (const p of res.updated) get().bumpColumnMeta(p)
+        const folder = get().listing.path
+        if (folder) void refreshMediaLibraryFolder(folder)
+        get().notify(watched ? 'Marked as watched' : 'Marked as unwatched')
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    setMediaLibraryWatchedFilter(value) {
+      set((s) => ({ mediaLibrary: { ...s.mediaLibrary, watchedFilter: value } }))
+      viewOrderCache = null
+    },
+
+    setMediaLibraryGenreFilter(genre) {
+      set((s) => ({ mediaLibrary: { ...s.mediaLibrary, genreFilter: genre } }))
+      viewOrderCache = null
     },
 
     async calculateFolderStatistics(folderPath, opts) {

@@ -11,7 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
-- **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. **Change cover** (context menu or preview) lists Plex + TMDB posters for that title, **largest resolution first**, with pixel size on each tile. Preview cover height is Settings → Media Metadata → Cover art size (56–240 px, default 120). Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside.
+- **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. **Change cover** (context menu or preview) lists Plex + TMDB posters for that title, **largest resolution first**, with pixel size on each tile. Preview cover height is Settings → Media Metadata → Cover art size (56–240 px, default 120). Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside. Writing metadata marks the containing folder with a `media_metadata_container` stream so that folder’s toolbar can filter **Watched / Unwatched** and **Genre**. **Mark as Watched** (toggles to Unwatched) is on the Media Metadata menu and on the preview when metadata exists. TMDB/OMDb daily or burst limits stop the batch and show a dialog.
 
 ### Changed
 
@@ -19,6 +19,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Details horizontal scroll** — the scrollbar sits at the bottom of the file pane and moves the header and rows together (it used to sit under the column titles and only slide the header).
 - **Plex media covers** — extract uses Plex’s own thumb URL (and photo transcode), does not send the Plex token to CDN hosts, maps `localhost` to `127.0.0.1`, and reads the poster from the on-disk Metadata bundle (`{hash[0]}/{hash.slice(1)}.bundle`) when the server is not running. Re-run **Update** on items that already have text metadata but an empty poster.
 - **GitHub Release attach** — CI looked for `MyFileExplorer Setup *.exe` after the installer was renamed to `MyFileExplorer-x.y.z.exe`, so the tag build produced an installer and then failed to attach it.
 

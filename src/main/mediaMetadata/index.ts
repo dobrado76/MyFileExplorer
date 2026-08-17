@@ -1,5 +1,6 @@
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import { isMediaApiLimitError } from '@shared/mediaApiLimit'
 import { AppError } from '@shared/result'
 import {
   isGenericMediaFolderName,
@@ -14,6 +15,8 @@ import { downloadFromInternet, downloadImage } from './internet'
 import { downloadPlexThumb, extractFromPlex, probePlex } from './plex'
 import {
   clearMediaMetadata,
+  hasMediaMetadataContainer,
+  markMediaMetadataContainer,
   readMediaMetadata,
   readMediaThumbnail,
   writeMediaMetadata
@@ -24,6 +27,7 @@ export type MediaMetadataOpResult = {
   done: number
   failed: { path: string; message: string }[]
   updated: string[]
+  stoppedReason?: string
 }
 
 export { probePlex }
@@ -123,7 +127,9 @@ async function applyHit(
       thumb = null
     }
   }
-  await writeMediaMetadata(target, hit.meta, thumb)
+  const prev = await readMediaMetadata(target)
+  const meta = prev?.watched != null ? { ...hit.meta, watched: prev.watched } : hit.meta
+  await writeMediaMetadata(target, meta, thumb)
   await invalidateColumnMetaPaths([target])
 }
 
@@ -184,6 +190,7 @@ async function runOnTargets(
   const unique = [...new Set([...expanded.videos, ...expanded.folders])]
   const failed: { path: string; message: string }[] = []
   const updated: string[] = []
+  let stoppedReason: string | undefined
   const op = beginOp('media-metadata', unique.length, label)
   try {
     for (const target of unique) {
@@ -199,7 +206,12 @@ async function runOnTargets(
         if (await each(target)) updated.push(target)
       } catch (e) {
         if (e instanceof AppError && e.code === 'cancelled') throw e
-        failed.push({ path: target, message: e instanceof Error ? e.message : String(e) })
+        const message = e instanceof Error ? e.message : String(e)
+        failed.push({ path: target, message })
+        if (isMediaApiLimitError(e)) {
+          stoppedReason = message
+          break
+        }
       }
       op.tick(path.basename(target))
     }
@@ -208,10 +220,27 @@ async function runOnTargets(
     op.fail()
     throw e
   }
-  if (updated.length === 0 && failed.length > 0) {
-    throw new AppError('io', failed[0]!.message, undefined, failed[0]!.path)
+  if (updated.length > 0) {
+    for (const raw of rawPaths) {
+      try {
+        const p = requireAbsolute(raw)
+        const st = await fsp.stat(p)
+        if (st.isDirectory()) await markMediaMetadataContainer(p)
+        else await markMediaMetadataContainer(path.dirname(p))
+      } catch {
+        /* best-effort */
+      }
+    }
   }
-  return { done: updated.length, failed, updated }
+  if (updated.length === 0 && failed.length > 0) {
+    throw new AppError(
+      stoppedReason ? 'busy' : 'io',
+      failed[0]!.message,
+      undefined,
+      failed[0]!.path
+    )
+  }
+  return { done: updated.length, failed, updated, ...(stoppedReason ? { stoppedReason } : {}) }
 }
 
 export async function extractPlexMany(paths: string[]): Promise<MediaMetadataOpResult> {
@@ -267,4 +296,55 @@ export async function getMediaMetadataView(rawPath: string): Promise<{
     metadata,
     thumbnailBase64: thumb ? thumb.toString('base64') : null
   }
+}
+
+export async function setWatchedMany(rawPaths: string[], watched: boolean): Promise<{ updated: string[] }> {
+  const updated: string[] = []
+  for (const raw of rawPaths) {
+    const p = requireAbsolute(raw)
+    const meta = await readMediaMetadata(p)
+    if (!meta) continue
+    if (meta.watched === watched) {
+      updated.push(p)
+      continue
+    }
+    await writeMediaMetadata(p, { ...meta, watched })
+    await invalidateColumnMetaPaths([p])
+    updated.push(p)
+  }
+  if (updated.length === 0) {
+    throw new AppError('validation', 'No media metadata on the selection to mark')
+  }
+  return { updated }
+}
+
+export async function getFolderMediaLibrary(rawPath: string): Promise<{
+  isContainer: boolean
+  items: { path: string; watched: boolean; genres: string[] }[]
+}> {
+  const dir = requireAbsolute(rawPath)
+  if (dir.toLowerCase().startsWith('mfe-remote://')) {
+    return { isContainer: false, items: [] }
+  }
+  const isContainer = await hasMediaMetadataContainer(dir)
+  if (!isContainer) return { isContainer: false, items: [] }
+  let names: string[]
+  try {
+    names = await fsp.readdir(dir)
+  } catch {
+    return { isContainer: true, items: [] }
+  }
+  const items: { path: string; watched: boolean; genres: string[] }[] = []
+  for (const name of names) {
+    if (name.startsWith('.')) continue
+    const full = path.join(dir, name)
+    const meta = await readMediaMetadata(full)
+    if (!meta) continue
+    items.push({
+      path: full,
+      watched: meta.watched === true,
+      genres: meta.genres ?? []
+    })
+  }
+  return { isContainer: true, items }
 }

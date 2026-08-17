@@ -85,6 +85,7 @@ export function MediaMetadataHero(): JSX.Element | null {
   const view = useContext(MediaMetaCtx)
   const coverHeightPx = useAppStore((s) => s.settings.mediaMetadata.coverHeightPx)
   const openDialog = useAppStore((s) => s.openDialog)
+  const mediaMetadataSetWatched = useAppStore((s) => s.mediaMetadataSetWatched)
   const [open, setOpen] = useState(false)
   useEffect(() => {
     if (!open) return
@@ -130,13 +131,22 @@ export function MediaMetadataHero(): JSX.Element | null {
           {meta.title}
         </div>
         {sub ? <div className="media-metadata-hero-sub">{sub}</div> : null}
-        <button
-          type="button"
-          className="media-metadata-change-cover"
-          onClick={() => openDialog({ kind: 'change-cover', path: view.path })}
-        >
-          Change cover
-        </button>
+        <div className="media-metadata-hero-actions">
+          <button
+            type="button"
+            className="media-metadata-change-cover"
+            onClick={() => openDialog({ kind: 'change-cover', path: view.path })}
+          >
+            Change cover
+          </button>
+          <button
+            type="button"
+            className="media-metadata-change-cover"
+            onClick={() => void mediaMetadataSetWatched([view.path], !view.meta.watched)}
+          >
+            {view.meta.watched ? 'Mark as Unwatched' : 'Mark as Watched'}
+          </button>
+        </div>
       </div>
       {open && thumbUrl
         ? createPortal(

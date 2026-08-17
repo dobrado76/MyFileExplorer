@@ -947,6 +947,20 @@ textarea:focus {
   padding: 2px 6px;
   font-size: 0.85em;
 }
+.toolbar-media-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.toolbar-media-caption {
+  font-size: 0.78em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.toolbar-media-select {
+  max-width: 140px;
+}
 .toolbar-remote-glyph {
   font-size: 0.75em;
   font-weight: 600;
@@ -1450,7 +1464,8 @@ body.right-dragging * {
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
+  /* Horizontal scroll lives on `.fileview` (bottom of the pane), not here. */
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 .details-header button {
@@ -2682,8 +2697,14 @@ button.media-metadata-hero-poster.is-clickable:hover {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.media-metadata-change-cover {
+.media-metadata-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
   margin-top: 6px;
+}
+.media-metadata-change-cover {
+  margin-top: 0;
   padding: 0;
   border: 0;
   background: none;

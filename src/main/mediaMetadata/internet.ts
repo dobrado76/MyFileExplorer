@@ -1,3 +1,5 @@
+import { AppError } from '@shared/result'
+import { isMediaApiLimitPayload, mediaApiLimitMessage } from '@shared/mediaApiLimit'
 import type { MediaMetadata, ParsedMediaName } from '@shared/mediaMetadata'
 import { getSettings } from '../settings/store'
 
@@ -20,13 +22,35 @@ function tmdbUrl(pathAndQuery: string, key: string): string {
   return `${href}${sep}api_key=${encodeURIComponent(key)}`
 }
 
+function serviceForUrl(url: string): 'TMDB' | 'OMDb' | 'Internet' {
+  if (/themoviedb\.org/i.test(url)) return 'TMDB'
+  if (/omdbapi\.com/i.test(url)) return 'OMDb'
+  return 'Internet'
+}
+
+function throwIfApiLimit(status: number, raw: string, data: unknown, url: string): void {
+  if (!isMediaApiLimitPayload(status, raw, data)) return
+  throw new AppError('busy', mediaApiLimitMessage(serviceForUrl(url)))
+}
+
 async function fetchJson(url: string, headers?: Record<string, string>): Promise<unknown> {
   const ac = new AbortController()
   const t = setTimeout(() => ac.abort(), 18000)
   try {
     const res = await fetch(url, { signal: ac.signal, headers })
+    const raw = await res.text()
+    let data: unknown = null
+    if (raw.trim()) {
+      try {
+        data = JSON.parse(raw) as unknown
+      } catch {
+        data = null
+      }
+    }
+    throwIfApiLimit(res.status, raw, data, url)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    return (await res.json()) as unknown
+    if (data == null) throw new Error(`HTTP ${res.status}`)
+    return data
   } finally {
     clearTimeout(t)
   }
@@ -242,6 +266,9 @@ async function fromOmdb(parsed: ParsedMediaName, key: string): Promise<NetHit> {
     Ratings?: { Source: string; Value: string }[]
   }
   if (data.Response === 'False') {
+    if (isMediaApiLimitPayload(200, data.Error ?? '', data)) {
+      throw new AppError('busy', mediaApiLimitMessage('OMDb'))
+    }
     throw new Error(data.Error || `OMDb: no match for “${parsed.title}”`)
   }
   const year = Number(String(data.Year ?? '').slice(0, 4))
@@ -368,6 +395,7 @@ export async function downloadImage(url: string): Promise<Buffer | null> {
     const t = setTimeout(() => ac.abort(), 20000)
     try {
       const res = await fetch(url, { signal: ac.signal })
+      if (res.status === 429) throw new AppError('busy', mediaApiLimitMessage(serviceForUrl(url)))
       if (!res.ok) return null
       const buf = Buffer.from(await res.arrayBuffer())
       if (buf.length < 16) return null
@@ -379,7 +407,8 @@ export async function downloadImage(url: string): Promise<Buffer | null> {
     } finally {
       clearTimeout(t)
     }
-  } catch {
+  } catch (e) {
+    if (e instanceof AppError) throw e
     return null
   }
 }

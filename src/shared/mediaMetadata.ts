@@ -1,6 +1,8 @@
 /** NTFS ADS names for experimental media metadata (DEV-gated). */
 export const MEDIA_METADATA_ADS = 'media_metadata'
 export const MEDIA_METADATA_THUMB_ADS = 'media_metadata_thumbnail'
+/** Folder flag: this directory holds media that has metadata (toolbar filters). */
+export const MEDIA_METADATA_CONTAINER_ADS = 'media_metadata_container'
 
 export const MEDIA_METADATA_VERSION = 1 as const
 
@@ -32,6 +34,30 @@ export type MediaMetadata = {
   episode?: number
   showTitle?: string
   fetchedAt: string
+  /** User-set; preserved across extract / download / update. */
+  watched?: boolean
+}
+
+export type MediaWatchedFilter = 'all' | 'watched' | 'unwatched'
+
+export type MediaLibraryItemFlags = {
+  watched: boolean
+  genres: string[]
+}
+
+export function matchesMediaLibraryFilter(
+  flags: MediaLibraryItemFlags | undefined,
+  watched: MediaWatchedFilter,
+  genre: string | null
+): boolean {
+  const isWatched = flags?.watched === true
+  if (watched === 'watched' && !isWatched) return false
+  if (watched === 'unwatched' && isWatched) return false
+  if (genre) {
+    const want = genre.toLowerCase()
+    if (!(flags?.genres ?? []).some((g) => g.toLowerCase() === want)) return false
+  }
+  return true
 }
 
 export type ParsedMediaName = {

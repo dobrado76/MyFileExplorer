@@ -127,7 +127,22 @@ function mediaMetadataMenu(
                 }
               }
             ]
-          : [])
+          : []),
+        (() => {
+          const known = targets
+            .map((p) => s.mediaLibrary.items[p.toLowerCase()])
+            .filter((x): x is { watched: boolean; genres: string[] } => x != null)
+          const allWatched = known.length > 0 && known.every((x) => x.watched)
+          const nextWatched = !allWatched
+          return {
+            label: nextWatched ? 'Mark as Watched' : 'Mark as Unwatched',
+            title: 'Requires stored media metadata on the selection',
+            action: () => {
+              close()
+              void s.mediaMetadataSetWatched(targets, nextWatched)
+            }
+          }
+        })()
       ]
     }
   ]

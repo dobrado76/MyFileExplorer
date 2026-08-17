@@ -4,6 +4,8 @@ import { formatBytes } from '../lib/format'
 import { driveInfoForPath, formatAllDrivesSpace, formatDriveSpaceLine } from '@shared/driveSpace'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { isExcludedByMediaLibrary } from '../lib/mediaLibrary'
+import { samePath } from '../lib/paths'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { api } from '../lib/ipc'
@@ -50,15 +52,26 @@ export function StatusBar(): JSX.Element {
   const drives = useAppStore((s) => s.drives)
   const drivesOverview = useAppStore((s) => s.drivesOverview)
 
+  const mediaLibrary = useAppStore((s) => s.mediaLibrary)
   const hiddenCount = useMemo(() => {
+    const applyMedia =
+      mediaLibrary.isContainer && listing.path && samePath(listing.path, mediaLibrary.folderPath)
     let hidden = 0
     for (const e of listing.entries) {
       if (isExcludedByViewFilter(e, settings.viewFilterPatterns, settings.viewFilterEnabled)) {
         hidden++
+        continue
       }
+      if (applyMedia && isExcludedByMediaLibrary(e.path, mediaLibrary)) hidden++
     }
     return hidden
-  }, [listing.entries, settings.viewFilterPatterns, settings.viewFilterEnabled])
+  }, [
+    listing.entries,
+    listing.path,
+    settings.viewFilterPatterns,
+    settings.viewFilterEnabled,
+    mediaLibrary
+  ])
 
   const selectionSize = useMemo(() => {
     if (selected.length === 0) return 0

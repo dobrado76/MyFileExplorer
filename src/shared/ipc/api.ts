@@ -285,16 +285,36 @@ export type MyFileExplorerApi = {
   }
   mediaMetadata: {
     extractPlex(req: { paths: string[] }): Promise<
-      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+      Result<{
+        done: number
+        failed: { path: string; message: string }[]
+        updated: string[]
+        stoppedReason?: string
+      }>
     >
     download(req: { paths: string[] }): Promise<
-      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+      Result<{
+        done: number
+        failed: { path: string; message: string }[]
+        updated: string[]
+        stoppedReason?: string
+      }>
     >
     refresh(req: { paths: string[] }): Promise<
-      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+      Result<{
+        done: number
+        failed: { path: string; message: string }[]
+        updated: string[]
+        stoppedReason?: string
+      }>
     >
     clear(req: { paths: string[] }): Promise<
-      Result<{ done: number; failed: { path: string; message: string }[]; updated: string[] }>
+      Result<{
+        done: number
+        failed: { path: string; message: string }[]
+        updated: string[]
+        stoppedReason?: string
+      }>
     >
     get(req: { path: string }): Promise<
       Result<{
@@ -317,6 +337,13 @@ export type MyFileExplorerApi = {
       }>
     >
     setCover(req: { path: string; coverId: string }): Promise<Result<{ ok: true }>>
+    setWatched(req: { paths: string[]; watched: boolean }): Promise<Result<{ updated: string[] }>>
+    folderLibrary(req: { path: string }): Promise<
+      Result<{
+        isContainer: boolean
+        items: { path: string; watched: boolean; genres: string[] }[]
+      }>
+    >
     probePlex(): Promise<
       Result<{
         installed: boolean

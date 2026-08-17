@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type WheelEvent
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { DirEntry } from '@shared/schemas/fs'
 import type { SortKey } from '@shared/schemas/session'
@@ -36,6 +45,8 @@ import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { compileViewFilter } from '../lib/viewFilter'
+import { detailsTableMinWidth } from '../lib/detailsTable'
+import { isExcludedByMediaLibrary } from '../lib/mediaLibrary'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
@@ -258,6 +269,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const detailsHeaderRef = useRef<HTMLDivElement>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const typeaheadRef = useRef<{ buffer: string; timer: number }>({ buffer: '', timer: 0 })
   const [width, setWidth] = useState(800)
@@ -451,6 +463,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     resizeObserverRef.current = ro
   }, [])
 
+  const mediaLibrary = useAppStore((s) => s.mediaLibrary)
   const viewFilterOn = settings.viewFilterEnabled
   const viewPatterns = settings.viewFilterPatterns
   const compiledFilter = useMemo(
@@ -495,6 +508,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const recycleColWidth = (id: RecycleDetailsColId): number =>
     recycleColWidths[id] ?? RECYCLE_DETAILS_COLS.find((c) => c.id === id)!.width
+  const detailsTableWidth =
+    viewMode === 'details'
+      ? detailsTableMinWidth(
+          nameColWidth,
+          recycleMode
+            ? RECYCLE_DETAILS_COLS.map((c) => recycleColWidth(c.id))
+            : detailsColumns.map((c) => colWidth(c.id))
+        )
+      : 0
 
   const startRecycleColResize = useCallback(
     (e: React.PointerEvent, id: 'name' | RecycleDetailsColId): void => {
@@ -557,6 +579,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       } else {
         filtered = sourceEntries.filter((e) => !isExcluded(e))
       }
+    }
+    const applyMedia =
+      !recycleMode &&
+      !searchMode &&
+      mediaLibrary.isContainer &&
+      folderPath &&
+      samePath(folderPath, mediaLibrary.folderPath)
+    if (applyMedia) {
+      filtered = filtered.filter((e) => !isExcludedByMediaLibrary(e.path, mediaLibrary))
     }
     if (recycleMode) {
       const dirMul = recycleSort.dir === 'asc' ? 1 : -1
@@ -624,7 +655,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     recycleSort,
     recycleByPath,
     searchMode,
-    showFolderStatistics
+    showFolderStatistics,
+    mediaLibrary,
+    folderPath
   ])
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
@@ -1084,9 +1117,25 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const pendingScrollRef = useRef(0)
   const scrollSaveTimerRef = useRef(0)
+  const syncDetailsHeaderScroll = useCallback((): void => {
+    const list = scrollRef.current
+    const header = detailsHeaderRef.current
+    if (!list || !header) return
+    if (header.scrollLeft !== list.scrollLeft) header.scrollLeft = list.scrollLeft
+  }, [])
+
+  const onDetailsHeaderWheel = (e: WheelEvent<HTMLDivElement>): void => {
+    const list = scrollRef.current
+    if (!list) return
+    if (e.deltaX) list.scrollLeft += e.deltaX
+    if (e.shiftKey && e.deltaY) list.scrollLeft += e.deltaY
+    else if (e.deltaY) list.scrollTop += e.deltaY
+  }
+
   const onScroll = useCallback((): void => {
     const el = scrollRef.current
     if (!el) return
+    syncDetailsHeaderScroll()
     // Overlay scroll is ephemeral — never persist onto the tab folder position.
     if (overlayMode) return
     // Do not write scrollOffset into Zustand every frame — that re-renders the
@@ -1097,7 +1146,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       scrollSaveTimerRef.current = 0
       setScrollOffset(pendingScrollRef.current)
     }, 150)
-  }, [setScrollOffset, overlayMode])
+  }, [setScrollOffset, overlayMode, syncDetailsHeaderScroll])
 
   useEffect(() => {
     return () => {
@@ -1109,6 +1158,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       }
     }
   }, [setScrollOffset])
+
+  useLayoutEffect(() => {
+    syncDetailsHeaderScroll()
+  }, [detailsTableWidth, viewMode, syncDetailsHeaderScroll])
 
   /** Compute the selection that modifiers would produce (sync — needed before drag starts). */
   const selectionForModifiers = useCallback(
@@ -1511,7 +1564,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   return (
     <div className="fileview-pane">
       {viewMode === 'details' && recycleMode && (
-        <div className="details-header">
+        <div
+          ref={detailsHeaderRef}
+          className="details-header"
+          onWheel={onDetailsHeaderWheel}
+        >
           <div className="hcell" style={{ width: nameColWidth }}>
             <button className="hlabel" type="button" onClick={() => toggleRecycleSort('name')}>
               Name{recycleSortArrow('name')}
@@ -1541,7 +1598,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       )}
       {viewMode === 'details' && !recycleMode && (
         <div
+          ref={detailsHeaderRef}
           className="details-header"
+          onWheel={onDetailsHeaderWheel}
           onContextMenu={(e) => {
             e.preventDefault()
             setHeaderMenu({ x: e.clientX, y: e.clientY })
@@ -1720,7 +1779,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             {recycleBin.loading ? 'Loading Recycle Bin…' : 'Searching…'}
           </div>
         )}
-        <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }} data-bg="1">
+        <div
+          style={{
+            height: virtualizer.getTotalSize(),
+            position: 'relative',
+            ...(detailsTableWidth > 0 ? { minWidth: detailsTableWidth } : {})
+          }}
+          data-bg="1"
+        >
           {virtualizer.getVirtualItems().map((vRow) => {
             if (spec) {
               const start = vRow.index * columns
