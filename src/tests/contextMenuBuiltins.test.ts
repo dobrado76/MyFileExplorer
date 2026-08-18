@@ -74,6 +74,28 @@ describe('sanitizeBuiltinLayout', () => {
     expect(itemIds[itemIds.length - 1]).toBe('properties')
     expect(itemIds[itemIds.length - 2]).toBe('calculate-folder-statistics')
   })
+
+  it('places This PC tools above Map network drive', () => {
+    const itemIds = DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT.filter((e) => e.type === 'item').map(
+      (e) => e.id
+    )
+    expect(itemIds.indexOf('computer-manager')).toBeLessThan(itemIds.indexOf('device-manager'))
+    expect(itemIds.indexOf('device-manager')).toBeLessThan(itemIds.indexOf('control-panel'))
+    expect(itemIds.indexOf('control-panel')).toBeLessThan(itemIds.indexOf('map-network-drive'))
+  })
+
+  it('inserts missing This PC tools before Map network drive on existing layouts', () => {
+    const layout = sanitizeBuiltinLayout([
+      { type: 'item', id: 'open' },
+      { type: 'item', id: 'map-network-drive' },
+      { type: 'item', id: 'properties' }
+    ])
+    const ids = layout.filter((e) => e.type === 'item').map((e) => e.id)
+    expect(ids.indexOf('computer-manager')).toBeLessThan(ids.indexOf('map-network-drive'))
+    expect(ids.indexOf('device-manager')).toBeLessThan(ids.indexOf('map-network-drive'))
+    expect(ids.indexOf('control-panel')).toBeLessThan(ids.indexOf('map-network-drive'))
+    expect(ids[ids.length - 1]).toBe('properties')
+  })
 })
 
 describe('applyBuiltinLayoutToMenu', () => {

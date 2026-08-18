@@ -33,6 +33,8 @@ Any future feature inspired by this document should preserve:
 
 # 1. File Automator / batch transformation pipelines
 
+**Not D51.** Local scripts + optional AI authoring shipped as [SCRIPTS.md](SCRIPTS.md). This item stays a separate, unevaluated pipeline composer.
+
 ## Idea
 
 Optional batch-processing: compose several file transformations into one ordered operation. Not a visual programming environment or general automation platform. Unify existing (or simple) ops into a repeatable pipeline that can be previewed before run.
@@ -246,6 +248,8 @@ Not a DAM taxonomy.
 ---
 
 # 10. First-class user script actions
+
+**Shipped as D51** — [SCRIPTS.md](SCRIPTS.md). This parking-lot item is closed for the runner/library/AI-authoring slice. Remaining “action” ideas (icons, refresh-after-run polish) can be evaluated separately.
 
 ## Idea
 

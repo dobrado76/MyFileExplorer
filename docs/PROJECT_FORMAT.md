@@ -21,9 +21,11 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   image-originals/       # legacy D27 backups (migrated to VER_* ADS on ready; may be empty)
   shell-icons/           # Windows shell icon cache
   logs/                  # optional main log files
+  scripts/               # D51 library.json + managed/*.ps1|py|… (not browsed folders)
+  ai-secrets.json        # D51 API keys via safeStorage (never exported)
 ```
 
-**Settings export / import (D45):** Settings → About writes a portable JSON envelope (`format: "myfileexplorer-settings"`) with the **full** `settingsSchema` document (dialog bounds nulled) plus `networkHosts`. **Any new preference must be added to `settingsSchema` (or a nested object already under it)** so it round-trips — there is no separate export allowlist. It does **not** include `window-state.json` or live `session.json` (open tabs). Import replaces `settings.json` (and hosts when present). A raw `settings.json` file is also accepted.
+**Settings export / import (D45):** Settings → About writes a portable JSON envelope (`format: "myfileexplorer-settings"`) with the **full** `settingsSchema` document (dialog bounds nulled) plus `networkHosts`, `remoteConnections` (no passwords), and `scripts` (library source, no AI keys). **Any new preference must be added to `settingsSchema` (or a nested object already under it)** so it round-trips — there is no separate export allowlist. It does **not** include `window-state.json` or live `session.json` (open tabs). Import replaces `settings.json` (and sidecars when present). A raw `settings.json` file is also accepted.
 
 Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and install stay aligned.
 
@@ -87,6 +89,7 @@ Notes:
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
 - `mediaMetadata`: opt-in movie/TV metadata (D50). `{ enabled` (default false), `coverHeightPx` (56–240, default 120), `showEpisodeIconLabels` (default true — icon tiles use `SxxExx` + episode title; false = filename), `mixFilesAndFolders` (default true — media-container listings ignore Folders first), `tmdbApiKey`, `omdbApiKey`, `internetSource` (`tmdb` \| `omdb`), `plexUrl`, `plexToken`, `plexDataDir` }. Streams on the media file/folder: `media_metadata` (JSON, including optional `watched`), `media_metadata_thumbnail` (cover bytes, not on episode files). Folder flag: `media_metadata_container` on the library parent and the title folder — not under `userData`. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- `scripts` / `ai`: D51 runner overrides + OpenAI-compatible provider metadata (no API keys). Geometry: `scriptManagerBounds`, `scriptGenerateBounds` (stripped on export). Guide: [SCRIPTS.md](SCRIPTS.md).
 
 ---
 

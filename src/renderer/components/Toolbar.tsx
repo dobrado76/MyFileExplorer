@@ -6,6 +6,7 @@ import {
   CloseIcon,
   PanelIcon,
   SettingsIcon,
+  ScriptIcon,
   EyeIcon,
   EyeOffIcon,
   UndoIcon,
@@ -303,6 +304,14 @@ export function Toolbar(): JSX.Element {
           <PanelIcon />
         </button>
         <LayoutsMenu />
+        <button
+          className="icon-btn"
+          aria-label="Scripts"
+          title="Script Manager"
+          onClick={() => openDialog({ kind: 'script-manager' })}
+        >
+          <ScriptIcon />
+        </button>
         <button
           className="icon-btn"
           aria-label="Settings"

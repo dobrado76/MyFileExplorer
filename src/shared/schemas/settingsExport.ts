@@ -11,6 +11,7 @@
 import { z } from 'zod'
 import { networkHostSchema, type NetworkHost } from './network'
 import { remoteConnectionSchema, type RemoteConnection } from './remoteConnections'
+import { scriptDefinitionSchema } from './scripts'
 import { defaultSettings, settingsSchema, type Settings } from './settings'
 
 export const SETTINGS_EXPORT_FORMAT = 'myfileexplorer-settings' as const
@@ -22,7 +23,9 @@ const WINDOW_LIKE_KEYS = [
   'powerRenameBounds',
   'remoteConnectionBounds',
   'compiledListsWindowBounds',
-  'previewWindowBounds'
+  'previewWindowBounds',
+  'scriptManagerBounds',
+  'scriptGenerateBounds'
 ] as const
 
 /**
@@ -37,9 +40,19 @@ export function settingsForPortableExport(settings: Settings): Settings {
     powerRenameBounds: null,
     remoteConnectionBounds: null,
     compiledListsWindowBounds: null,
-    previewWindowBounds: null
+    previewWindowBounds: null,
+    scriptManagerBounds: null,
+    scriptGenerateBounds: null
   })
 }
+
+export const scriptExportBundleSchema = z.object({
+  id: z.string(),
+  script: scriptDefinitionSchema,
+  source: z.string()
+})
+
+export type ScriptExportBundle = z.infer<typeof scriptExportBundleSchema>
 
 /** Strip password flags for portable export (secrets stay in safeStorage). */
 export function remoteConnectionsForPortableExport(
@@ -62,7 +75,9 @@ export const settingsExportDocumentSchema = z.object({
   /** When present (including `[]`), replace remembered LAN hosts on import. */
   networkHosts: z.array(networkHostSchema).optional(),
   /** When present (including `[]`), replace remote connection metadata on import (no passwords). */
-  remoteConnections: z.array(remoteConnectionSchema).optional()
+  remoteConnections: z.array(remoteConnectionSchema).optional(),
+  /** When present (including `[]`), replace the script library (source yes, no API keys). */
+  scripts: z.array(scriptExportBundleSchema).optional()
 })
 
 export type SettingsExportDocument = {
@@ -73,12 +88,14 @@ export type SettingsExportDocument = {
   settings: Settings
   networkHosts: NetworkHost[]
   remoteConnections: RemoteConnection[]
+  scripts: ScriptExportBundle[]
 }
 
 export function buildSettingsExportDocument(input: {
   settings: Settings
   networkHosts: NetworkHost[]
   remoteConnections?: RemoteConnection[]
+  scripts?: ScriptExportBundle[]
   appVersion?: string
 }): SettingsExportDocument {
   return {
@@ -88,7 +105,8 @@ export function buildSettingsExportDocument(input: {
     ...(input.appVersion ? { appVersion: input.appVersion } : {}),
     settings: settingsForPortableExport(input.settings),
     networkHosts: input.networkHosts,
-    remoteConnections: remoteConnectionsForPortableExport(input.remoteConnections ?? [])
+    remoteConnections: remoteConnectionsForPortableExport(input.remoteConnections ?? []),
+    scripts: input.scripts ?? []
   }
 }
 
@@ -98,6 +116,8 @@ export type ParsedSettingsImport = {
   networkHosts: NetworkHost[] | null
   /** `null` = leave `remote-connections.json` unchanged (bare settings.json import). */
   remoteConnections: RemoteConnection[] | null
+  /** `null` = leave `scripts/library.json` unchanged (bare settings.json import). */
+  scripts: ScriptExportBundle[] | null
   source: 'envelope' | 'settings-json'
 }
 
@@ -131,6 +151,7 @@ export function parseSettingsImport(raw: unknown): ParsedSettingsImport {
         remoteConnections: Object.prototype.hasOwnProperty.call(o, 'remoteConnections')
           ? remoteConnectionsForPortableExport(env.remoteConnections ?? [])
           : null,
+        scripts: Object.prototype.hasOwnProperty.call(o, 'scripts') ? (env.scripts ?? []) : null,
         source: 'envelope'
       }
     }
@@ -146,6 +167,7 @@ export function parseSettingsImport(raw: unknown): ParsedSettingsImport {
     ),
     networkHosts: null,
     remoteConnections: null,
+    scripts: null,
     source: 'settings-json'
   }
 }

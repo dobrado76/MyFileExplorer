@@ -262,6 +262,27 @@ export type DialogState =
       fileName: string
       suggested: string
     }
+  | { kind: 'script-manager'; selectId?: string }
+  | {
+      kind: 'script-run'
+      scriptId?: string
+      source?: string
+      language?: import('@shared/schemas/scripts').ScriptLanguage
+      name?: string
+      mode: 'folder' | 'selection'
+      root?: string
+      paths?: string[]
+      recursive?: boolean
+      dryRun?: boolean
+    }
+  | {
+      kind: 'script-generate'
+      mode?: 'folder' | 'selection'
+      folderPath?: string
+      scriptId?: string
+      source?: string
+      language?: import('@shared/schemas/scripts').ScriptLanguage
+    }
   | null
 
 export type MediaLibraryState = {
@@ -303,7 +324,7 @@ export type ContextMenuState = {
   dropTransfer?: { destDir: string }
   /** Slideshow player menu (categorize / delete / undo / edit / reveal / exit). */
   slideshow?: boolean
-  /** Tree section header (Drives / Network) — Map / Disconnect / Refresh. */
+  /** Tree section header (Drives / Network) — This PC tools / Map / Disconnect / Refresh. */
   treeSection?: 'drives' | 'network'
 } | null
 
@@ -483,6 +504,7 @@ type AppState = {
   /** Global drop-target folder while dragging (multi-pane highlight). */
   dropHighlightPath: string | null
   dialog: DialogState
+  scriptLibrary: import('@shared/schemas/scripts').ScriptDefinition[]
   /** In-app full-size image viewer (double-click / Enter on images). */
   imageViewer: { path: string; siblings: string[] } | null
   /** In-app Filerobot image editor (preview Edit button / context menu). */
@@ -807,6 +829,7 @@ type AppState = {
   exportSettingsFile(): Promise<void>
   /** Replace settings from an export / settings.json file. */
   importSettingsFile(): Promise<void>
+  refreshScriptLibrary(): Promise<void>
   /**
    * Generate `!VIDTHUMB_CACHE` strip frames for videos (or videos in folders).
    * `missing` skips only complete 20-frame strips (partials are cleared and redone);
@@ -2564,6 +2587,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     dragPaths: [],
     dropHighlightPath: null,
     dialog: null,
+    scriptLibrary: [],
     imageViewer: null,
     imageEditor: null,
     imageVersionPreview: null,
@@ -2782,6 +2806,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           categorizerMap: [...(settings.slideshow.categorizerMap ?? [])]
         }
       })
+      void get().refreshScriptLibrary()
 
       api.onEvent((event: MfeEvent) => {
         const s = get()
@@ -5436,6 +5461,28 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.mediaMetadata
         }
       }
+      if (patch.scripts) {
+        mergedPatch.scripts = {
+          ...prev.scripts,
+          ...patch.scripts,
+          interpreterOverrides: {
+            ...prev.scripts.interpreterOverrides,
+            ...patch.scripts.interpreterOverrides
+          }
+        }
+      }
+      if (patch.ai) {
+        const { providers, ...aiRest } = patch.ai
+        mergedPatch.ai = {
+          ...prev.ai,
+          ...aiRest
+        }
+        if (providers !== undefined) {
+          mergedPatch.ai.providers = providers
+        } else {
+          delete mergedPatch.ai.providers
+        }
+      }
       if (patch.contextMenu) {
         mergedPatch.contextMenu = {
           ...prev.contextMenu,
@@ -5464,6 +5511,23 @@ export const useAppStore = create<AppState>()((set, get) => {
           mediaMetadata: mergedPatch.mediaMetadata
             ? { ...s.settings.mediaMetadata, ...mergedPatch.mediaMetadata }
             : s.settings.mediaMetadata,
+          scripts: mergedPatch.scripts
+            ? {
+                ...s.settings.scripts,
+                ...mergedPatch.scripts,
+                interpreterOverrides: {
+                  ...s.settings.scripts.interpreterOverrides,
+                  ...mergedPatch.scripts.interpreterOverrides
+                }
+              }
+            : s.settings.scripts,
+          ai: mergedPatch.ai
+            ? {
+                ...s.settings.ai,
+                ...mergedPatch.ai,
+                providers: mergedPatch.ai.providers ?? s.settings.ai.providers
+              }
+            : s.settings.ai,
           contextMenu: mergedPatch.contextMenu
             ? {
                 ...s.settings.contextMenu,
@@ -5683,6 +5747,15 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async refreshScriptLibrary() {
+      try {
+        const res = await call(api.script.list())
+        set({ scriptLibrary: res.scripts })
+      } catch {
+        /* runner optional until IPC is up */
+      }
+    },
+
     async exportSettingsFile() {
       try {
         const res = await call(api.settings.exportFile())
@@ -5729,7 +5802,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           typeof res.remoteConnectionCount === 'number'
             ? ` · ${res.remoteConnectionCount} remote connection${res.remoteConnectionCount === 1 ? '' : 's'}`
             : ''
-        get().notify(`Settings imported${hostNote}${remoteNote}`)
+        const scriptNote =
+          typeof res.scriptCount === 'number'
+            ? ` · ${res.scriptCount} script${res.scriptCount === 1 ? '' : 's'}`
+            : ''
+        get().notify(`Settings imported${hostNote}${remoteNote}${scriptNote}`)
+        void get().refreshScriptLibrary()
         if (res.settings.disableHardwareAcceleration !== prevHw) {
           get().notify('Hardware acceleration change applies after restart')
         }

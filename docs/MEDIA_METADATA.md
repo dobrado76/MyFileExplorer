@@ -207,7 +207,7 @@ No `.nfo`, no `folder.jpg` written by this app, nothing under `userData` for the
 | `media_metadata_thumbnail` | Movie file, movie folder, or **show folder** | Cover image bytes. **Not** written on episode files. |
 | `media_metadata_container` | Library folder (parent of show folders) and the show/movie folder | Small JSON flag so the toolbar can appear |
 
-Streams ride with the file on NTFS copy/move. They do **not** survive a copy to FAT/exFAT/network shares that strip ADS. Explorer still opens the video as usual — it ignores these names.
+Streams ride with the file on NTFS copy/move. They do **not** survive a copy to FAT/exFAT/network shares that strip ADS. Explorer still opens the video as usual — it ignores these names. Writing or clearing these streams restores the host file/folder NTFS times (including ChangeTime) so a sync tool should not treat the video as newly modified. Files already written before that restore cannot be rolled back.
 
 Clear removes the two item streams. The container flag is left in place if siblings still have metadata.
 

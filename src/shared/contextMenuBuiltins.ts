@@ -22,6 +22,7 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'paste',
   'paste-into-folder',
   'file-tools',
+  'scripts',
   'rename',
   'power-rename',
   'delete',
@@ -34,6 +35,9 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'open-command-line',
   'hide-from-view',
   'search-index',
+  'computer-manager',
+  'device-manager',
+  'control-panel',
   'map-network-drive',
   'disconnect-network-drive',
   'network-refresh',
@@ -79,6 +83,11 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
     label: 'File Tools',
     hint: 'Copy To… / Move To… / Change Icon…'
   },
+  {
+    id: 'scripts',
+    label: 'Scripts',
+    hint: 'Saved local scripts + Generate / Manage (D51)'
+  },
   { id: 'rename', label: 'Rename' },
   { id: 'power-rename', label: 'Power Rename…' },
   { id: 'delete', label: 'Delete' },
@@ -95,6 +104,21 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   },
   { id: 'hide-from-view', label: 'Hide from view' },
   { id: 'search-index', label: 'Search index actions', hint: 'Add / remove / index this drive' },
+  {
+    id: 'computer-manager',
+    label: 'Computer Manager',
+    hint: 'Drives header — Windows Computer Management (This PC → Manage)'
+  },
+  {
+    id: 'device-manager',
+    label: 'Device Manager',
+    hint: 'Drives header — Windows Device Manager'
+  },
+  {
+    id: 'control-panel',
+    label: 'Control Panel',
+    hint: 'Drives header — classic Control Panel'
+  },
   { id: 'map-network-drive', label: 'Map network drive…' },
   { id: 'disconnect-network-drive', label: 'Disconnect network drive', hint: 'Mapped letter or system dialog' },
   { id: 'network-refresh', label: 'Refresh Network', hint: 'Re-run LAN discovery' },
@@ -188,6 +212,7 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'paste' },
   { type: 'item', id: 'paste-into-folder' },
   { type: 'item', id: 'file-tools' },
+  { type: 'item', id: 'scripts' },
   { type: 'sep', id: 'sep-default-5' },
   { type: 'item', id: 'rename' },
   { type: 'item', id: 'power-rename' },
@@ -204,6 +229,10 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'hide-from-view' },
   { type: 'item', id: 'search-index' },
   { type: 'sep', id: 'sep-default-8' },
+  { type: 'item', id: 'computer-manager' },
+  { type: 'item', id: 'device-manager' },
+  { type: 'item', id: 'control-panel' },
+  { type: 'sep', id: 'sep-default-8b' },
   { type: 'item', id: 'map-network-drive' },
   { type: 'item', id: 'disconnect-network-drive' },
   { type: 'item', id: 'network-refresh' },
@@ -221,6 +250,27 @@ function pinPropertiesLayoutLast(
   if (idx < 0 || idx === layout.length - 1) return layout
   const props = layout[idx]!
   return [...layout.filter((_, i) => i !== idx), props]
+}
+
+/** This PC tools on the Drives header sit above Map network drive (Explorer-like). */
+const DRIVES_HEADER_TOOLS: readonly ContextMenuBuiltinId[] = [
+  'computer-manager',
+  'device-manager',
+  'control-panel'
+]
+
+function insertMissingBuiltin(
+  layout: ContextMenuBuiltinLayoutEntry[],
+  id: ContextMenuBuiltinId
+): void {
+  if ((DRIVES_HEADER_TOOLS as readonly string[]).includes(id)) {
+    const mapIdx = layout.findIndex((e) => e.type === 'item' && e.id === 'map-network-drive')
+    if (mapIdx >= 0) {
+      layout.splice(mapIdx, 0, { type: 'item', id })
+      return
+    }
+  }
+  layout.push({ type: 'item', id })
 }
 
 /**
@@ -276,7 +326,8 @@ export function sanitizeBuiltinLayout(raw: unknown): ContextMenuBuiltinLayoutEnt
 
   for (const id of CONTEXT_MENU_BUILTIN_IDS) {
     if (seenItems.has(id)) continue
-    out.push({ type: 'item', id })
+    seenItems.add(id)
+    insertMissingBuiltin(out, id)
   }
 
   // Empty / junk-only input → ship the curated default (includes separators).

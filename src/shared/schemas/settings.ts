@@ -37,6 +37,13 @@ import {
   mediaMetadataSettingsSchema
 } from './mediaMetadata'
 import {
+  defaultAiSettings,
+  defaultScriptsSettings,
+  aiSettingsSchema,
+  aiProviderProfileSchema,
+  scriptsSettingsSchema
+} from './ai'
+import {
   MAX_CONTEXT_MENU_COMMANDS,
   type ContextMenuCommand
 } from '../contextMenuCommands'
@@ -431,6 +438,21 @@ export const settingsSchema = z.object({
     if (!raw || typeof raw !== 'object') return defaultMediaMetadataSettings
     return { ...defaultMediaMetadataSettings, ...(raw as object) }
   }, mediaMetadataSettingsSchema),
+  /** Local script runner prefs (interpreter overrides, first-run ack). */
+  scripts: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultScriptsSettings
+    return { ...defaultScriptsSettings, ...(raw as object) }
+  }, scriptsSettingsSchema),
+  /** OpenAI-compatible providers (keys live in safeStorage, not here). */
+  ai: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultAiSettings
+    const o = raw as { providers?: unknown }
+    return {
+      ...defaultAiSettings,
+      ...(raw as object),
+      providers: Array.isArray(o.providers) ? o.providers : defaultAiSettings.providers
+    }
+  }, aiSettingsSchema),
   /** Last ADS Manager dialog geometry (null = centered defaults). */
   adsManagerBounds: z
     .object({
@@ -480,6 +502,26 @@ export const settingsSchema = z.object({
       y: z.number(),
       width: z.number().min(320).max(10000),
       height: z.number().min(240).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
+  scriptManagerBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(640).max(10000),
+      height: z.number().min(420).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
+  scriptGenerateBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(520).max(10000),
+      height: z.number().min(360).max(10000),
       maximized: z.boolean().catch(false)
     })
     .nullable()
@@ -563,6 +605,10 @@ export const defaultSettings: Settings = settingsSchema.parse({
   remoteConnectionBounds: null,
   compiledListsWindowBounds: null,
   previewWindowBounds: null,
+  scriptManagerBounds: null,
+  scriptGenerateBounds: null,
+  scripts: defaultScriptsSettings,
+  ai: defaultAiSettings,
   contextMenu: defaultContextMenuSettings
 })
 
@@ -574,6 +620,15 @@ export const settingsPatchSchema = settingsSchema
     networkDiscovery: networkDiscoverySettingsSchema.partial().optional(),
     remoteRepos: remoteReposSettingsSchema.partial().optional(),
     mediaMetadata: mediaMetadataSettingsSchema.partial().optional(),
+    scripts: scriptsSettingsSchema.partial().optional(),
+    ai: aiSettingsSchema
+      .omit({ providers: true })
+      .partial()
+      .extend({
+        /** Omit to leave the saved provider list unchanged (D51 — keys live elsewhere). */
+        providers: z.array(aiProviderProfileSchema).max(20).optional()
+      })
+      .optional(),
     contextMenu: contextMenuSettingsSchema.partial().optional()
   })
 export type SettingsPatch = z.infer<typeof settingsPatchSchema>

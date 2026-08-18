@@ -46,6 +46,8 @@ Renderer must not read arbitrary files via `file://`. Use `mfe-media://` (name T
 
 Never delete `userData` internals via normal file UI unless user navigated there deliberately (treat like any folder — OK).
 
+**Scripts (D51):** spawned as exe + argv (`shell: false`). Paths in `--root` / `--input-list` are `requireAbsolute`. AI HTTP is off unless Settings → AI is enabled; generate/modify/fix never include user paths, listings, or file bytes. API keys use `safeStorage`. See [SCRIPTS.md](SCRIPTS.md).
+
 ---
 
 ## Clipboard

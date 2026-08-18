@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.8.0** shipped; **v0.8.1** development adds **D50** media metadata (see [CHANGELOG.md](../CHANGELOG.md) Unreleased). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D50**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.8.0** shipped; **v0.8.2** development adds **D51** local scripts + optional AI (see [CHANGELOG.md](../CHANGELOG.md) Unreleased). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D51**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -15,7 +15,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 7. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
 
 ---
@@ -31,7 +31,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D50               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D51               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
@@ -44,14 +44,16 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) / compiled lists (D39) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
+| [SCRIPTS.md](SCRIPTS.md)                         | Local scripts + optional AI (D51) |
 | [FUTURE_IDEAS.md](FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 
 ---
 
-## Unreleased since v0.8.0 (v0.8.1 development)
+## Unreleased since v0.8.0 (v0.8.2 development)
 
 | Area | Spec |
 | ---- | ---- |
+| Local scripts (D51) | Runner + library + optional AI generate (never sends files) — [SCRIPTS.md](SCRIPTS.md) |
 | Media metadata (D50) | Opt-in Plex / TMDB / OMDb cards on the file or folder (NTFS streams). Show poster on the show folder; episode files keep VIDTHUMB + episode JSON (`SxxExx` tiles). Change cover; consolidate Subs; watched / genre toolbar; CD-split movie folders; internet **Which title?** only on remakes; API-limit dialog — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | Delete a tab root | Always confirm; warns that scoped tabs will close |
 | Details horizontal scroll | Scrollbar at the **bottom** of the file pane; header and rows move together |

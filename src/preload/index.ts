@@ -58,6 +58,7 @@ const api: MyFileExplorerApi = {
     showItemInFolder: invoke(IPC.shellShowItemInFolder),
     openCommandLine: invoke(IPC.shellOpenCommandLine),
     showProperties: invoke(IPC.shellShowProperties),
+    openWindowsTool: invoke(IPC.shellOpenWindowsTool),
     openRecycleBin: invokeVoid(IPC.shellOpenRecycleBin),
     exec: invoke(IPC.shellExec),
     discoverVerbs: invokeVoid(IPC.shellDiscoverVerbs),
@@ -186,6 +187,31 @@ const api: MyFileExplorerApi = {
     disconnect: invoke(IPC.remoteDisconnect),
     connectedIds: invokeVoid(IPC.remoteConnectedIds),
     testPresets: invokeVoid(IPC.remoteTestPresets)
+  },
+  script: {
+    detectRuntimes: invokeVoid(IPC.scriptDetectRuntimes),
+    list: invokeVoid(IPC.scriptList),
+    get: invoke(IPC.scriptGet),
+    upsert: invoke(IPC.scriptUpsert),
+    delete: invoke(IPC.scriptDelete),
+    duplicate: invoke(IPC.scriptDuplicate),
+    run: invoke(IPC.scriptRun),
+    cancel: invoke(IPC.scriptCancel),
+    importFile: invokeVoid(IPC.scriptImportFile),
+    exportFile: invoke(IPC.scriptExportFile),
+    pickExternal: invokeVoid(IPC.scriptPickExternal),
+    revert: invoke(IPC.scriptRevert),
+    hasPrevious: invoke(IPC.scriptHasPrevious)
+  },
+  ai: {
+    listProviders: invokeVoid(IPC.aiListProviders),
+    upsertProvider: invoke(IPC.aiUpsertProvider),
+    deleteProvider: invoke(IPC.aiDeleteProvider),
+    testConnection: invoke(IPC.aiTestConnection),
+    listModels: invoke(IPC.aiListModels),
+    generate: invoke(IPC.aiGenerate),
+    modify: invoke(IPC.aiModify),
+    fix: invoke(IPC.aiFix)
   },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)

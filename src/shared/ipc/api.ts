@@ -146,6 +146,10 @@ export type MyFileExplorerApi = {
     openCommandLine(req: PathRequest & { elevated?: boolean }): Promise<Result<{ opened: true }>>
     /** Open Explorer’s property sheet (NTFS Security, Sharing, etc.). */
     showProperties(req: PathRequest): Promise<Result<{ shown: true }>>
+    /** Open Computer Management, Device Manager, Control Panel, or This PC Properties. */
+    openWindowsTool(req: {
+      id: import('../schemas/windowsTools').WindowsToolId
+    }): Promise<Result<{ opened: true }>>
     /** Open the Windows Recycle Bin in system Explorer (legacy fallback). */
     openRecycleBin(): Promise<Result<{ opened: boolean; message?: string }>>
     /**
@@ -183,6 +187,7 @@ export type MyFileExplorerApi = {
         settings?: Settings
         networkHostCount?: number
         remoteConnectionCount?: number
+        scriptCount?: number
       }>
     >
   }
@@ -589,6 +594,93 @@ export type MyFileExplorerApi = {
     testPresets(): Promise<
       Result<{ presets: import('../schemas/remoteConnections').RemoteTestPreset[] }>
     >
+  }
+  script: {
+    detectRuntimes(): Promise<
+      Result<{ runtimes: { kind: string; command: string; available: boolean }[] }>
+    >
+    list(): Promise<Result<{ scripts: import('../schemas/scripts').ScriptDefinition[] }>>
+    get(req: { id: string }): Promise<
+      Result<{
+        script: import('../schemas/scripts').ScriptDefinition
+        source: string
+        hasPrevious: boolean
+      }>
+    >
+    upsert(req: {
+      script: Partial<import('../schemas/scripts').ScriptDefinition>
+      source: string
+      backupPrevious?: boolean
+    }): Promise<Result<{ script: import('../schemas/scripts').ScriptDefinition }>>
+    delete(req: { id: string }): Promise<Result<{ deleted: true }>>
+    duplicate(req: {
+      id: string
+      name?: string
+    }): Promise<Result<{ script: import('../schemas/scripts').ScriptDefinition }>>
+    run(
+      req: import('../schemas/scripts').ScriptRunRequest
+    ): Promise<
+      Result<{
+        runId: string
+        exitCode: number | null
+        cancelled: boolean
+        elapsedMs: number
+        output: string
+      }>
+    >
+    cancel(req: { runId: string }): Promise<Result<{ cancelled: boolean }>>
+    importFile(): Promise<
+      Result<{ imported: boolean; script?: import('../schemas/scripts').ScriptDefinition }>
+    >
+    exportFile(req: { id: string }): Promise<Result<{ saved: boolean; path?: string }>>
+    pickExternal(): Promise<Result<{ path: string | null }>>
+    revert(req: { id: string }): Promise<Result<{ source: string }>>
+    hasPrevious(req: { id: string }): Promise<Result<{ hasPrevious: boolean }>>
+  }
+  ai: {
+    listProviders(): Promise<
+      Result<{
+        providers: Array<import('../schemas/ai').AiProviderProfile & { hasApiKey: boolean }>
+      }>
+    >
+    upsertProvider(req: {
+      id?: string
+      name: string
+      type: import('../schemas/ai').AiProviderType
+      baseUrl: string
+      model: string
+      local?: boolean
+      timeoutSec?: number
+      apiKey?: string | null
+    }): Promise<
+      Result<{ provider: import('../schemas/ai').AiProviderProfile & { hasApiKey: boolean } }>
+    >
+    deleteProvider(req: { id: string }): Promise<Result<{ deleted: true }>>
+    testConnection(req: { id: string }): Promise<
+      Result<{ ok: true; modelCount: number; message: string }>
+    >
+    listModels(req: { id: string }): Promise<Result<{ models: { id: string }[] }>>
+    generate(
+      req: import('../schemas/ai').AiGenerateRequest
+    ): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>
+    modify(req: {
+      source: string
+      instruction: string
+      language?: import('../schemas/scripts').ScriptLanguage
+      providerId?: string
+      model?: string
+    }): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>
+    fix(req: {
+      source: string
+      exitCode: number
+      stderr: string
+      stdout?: string
+      os?: string
+      runtime?: string
+      redactPaths: boolean
+      providerId?: string
+      model?: string
+    }): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

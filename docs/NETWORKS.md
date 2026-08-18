@@ -34,7 +34,7 @@ Related: [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [DECISIONS.md](DECISIONS.md) · [
 | Where | Actions |
 | ----- | ------- |
 | Network section header | Map network drive… · Disconnect… · Refresh Network |
-| Drives section header | Map… · Disconnect… |
+| Drives section header | Computer Manager · Device Manager · Control Panel · Map… · Disconnect… · Properties (This PC) |
 | Host / share folder | Map… · Refresh shares (host) · Open in new tab · … |
 | Folder (tree / list / empty pane) | **Open Command Line here** (Terminal / PowerShell / cmd; **Shift+click** = Administrator) |
 

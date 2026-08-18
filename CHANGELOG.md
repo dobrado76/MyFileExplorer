@@ -11,12 +11,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Script editor highlighting** — Script Manager and Generate color PowerShell, Python, cmd, and bash with the same highlight.js theme as preview.
+- **AI generate wait** — Generate / Modify / Ask AI to Fix show a modal overlay with an indeterminate bar and “This may take some time” (elapsed seconds), not the status bar.
+- **Drives header (This PC)** — right-click **Drives** for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, and **Properties** (same This PC sheet as Explorer). These open the real system windows.
+- **Local scripts** (D51) — toolbar **Scripts** / context **Scripts**. Run PowerShell, Python, cmd, or bash against the current folder or selection with live output and Stop. Saved scripts live under app data and rerun with no AI. Optional Settings → **AI** (OpenAI-compatible, including LM Studio): generate or modify a script from a task description — **files and paths are never sent**. Guide: [docs/SCRIPTS.md](docs/SCRIPTS.md).
 - **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. **Change cover** (context menu or preview) lists Plex + TMDB posters for that title, **largest resolution first**, with pixel size on each tile. Preview cover height is Settings → Media Metadata → Cover art size (56–240 px, default 120). Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside. Writing metadata marks the containing folder with a `media_metadata_container` stream so that folder’s toolbar can filter **Watched / Unwatched** and **Genre**. **Mark as Watched** (toggles to Unwatched) is on the Media Metadata menu and on the preview when metadata exists. **Consolidate subtitles** copies the first English subtitle from a `Subs` / `Subtitles` tree next to each video and sends those folders to the Recycle Bin. TMDB/OMDb daily or burst limits stop the batch and show a dialog. Guide: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md).
 - **Collapse all** — toolbar button next to Select all closes every expanded folder-tree branch on the **current tab** (This PC default). The file list stays on the current folder; other tabs are unchanged.
 - **`.flv` video** — treated as video for Media Metadata, search `video:`, icon strips, and preview (remux to MP4 when codecs allow, same as MKV).
 
 ### Changed
 
+- **AI model picker** — Settings → AI and Generate script use a dropdown from `GET /v1/models` (cached on the provider). OpenAI lists hide embeddings/TTS/image models. Long catalogs (OpenRouter) get a filter box.
 - **Deleting a tab root** — a folder that is the scoped root of any open tab now always asks for confirmation (Cancel / Delete) and warns that those tabs will be closed. After a successful delete, the affected tabs close (a replacement tab opens if that would leave none).
 - **Preview Media / File tabs** — when a file has both stored movie/TV metadata and extracted file fields, they sit in **Media** and **File** tabs under the player (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Ratings use source marks (Plex, IMDb, Rotten Tomatoes, Metacritic, TMDB) instead of `(Plex)` text. Metadata no longer overlays the video still.
 - **File metadata density** — short extracted fields (duration, bitrate, sample rate, Yes/No, …) share a line; long values stay full-width.
@@ -24,6 +29,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **ADS host times** — writing or deleting an alternate stream (media metadata, folder stats, ADS Manager) restores NTFS ChangeTime as well as Date modified. The old `utimes` restore left ChangeTime at now, so sync tools recopied the whole video. Read-only rips are handled. Already-bumped files stay bumped.
+- **AI generate on GPT-5 / o-series** — those models reject `max_tokens`; the request now uses `max_completion_tokens` (and retries if a provider wants the other field).
 - **Delete on a drive** — Del / Shift+Del / context Delete on a volume root (`C:\`) do nothing (no prompt, no error).
 - **Rename name clash** — F2 / Power Rename no longer only toast “already exists”. The same review as copy/move offers Skip, Keep both (`name (2).ext`), Replace, and Keep most recent. **New → Other…** creates a stub and renames to the typed name so a clash uses that review too.
 - **Rename focus** — finishing a slow rename (NAS) no longer jumps selection or scroll back to that file if you have already started renaming or selected something else.

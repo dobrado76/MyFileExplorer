@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest'
+import { defaultScriptDefinition, type ScriptDefinition } from '../shared/schemas/scripts'
+import { groupScriptsByCategory, scriptMatchesMenu } from '../shared/scriptMatch'
+
+function script(partial: Partial<ScriptDefinition>): ScriptDefinition {
+  return {
+    ...defaultScriptDefinition(),
+    id: 's1',
+    createdAt: '',
+    updatedAt: '',
+    ...partial
+  }
+}
+
+describe('scriptMatchesMenu', () => {
+  it('shows folder scripts on empty pane', () => {
+    expect(
+      scriptMatchesMenu(script({ scopes: ['folder'] }), {
+        folderPath: 'D:\\lib',
+        selectedPaths: [],
+        selectionKind: 'empty'
+      })
+    ).toBe(true)
+  })
+
+  it('hides disabled / wrong scope', () => {
+    expect(
+      scriptMatchesMenu(script({ contextMenuEnabled: false, scopes: ['folder'] }), {
+        folderPath: 'D:\\lib',
+        selectedPaths: [],
+        selectionKind: 'empty'
+      })
+    ).toBe(false)
+    expect(
+      scriptMatchesMenu(script({ scopes: ['selection'] }), {
+        folderPath: 'D:\\lib',
+        selectedPaths: [],
+        selectionKind: 'empty'
+      })
+    ).toBe(false)
+  })
+
+  it('filters selection by extension and min count', () => {
+    const s = script({
+      scopes: ['selection'],
+      matchExtensions: ['jpg'],
+      minSelection: 2
+    })
+    expect(
+      scriptMatchesMenu(s, {
+        folderPath: 'D:\\lib',
+        selectedPaths: ['D:\\lib\\a.jpg'],
+        selectionKind: 'file'
+      })
+    ).toBe(false)
+    expect(
+      scriptMatchesMenu(s, {
+        folderPath: 'D:\\lib',
+        selectedPaths: ['D:\\lib\\a.jpg', 'D:\\lib\\b.JPG'],
+        selectionKind: 'file'
+      })
+    ).toBe(true)
+    expect(
+      scriptMatchesMenu(s, {
+        folderPath: 'D:\\lib',
+        selectedPaths: ['D:\\lib\\a.jpg', 'D:\\lib\\b.png'],
+        selectionKind: 'file'
+      })
+    ).toBe(false)
+  })
+
+  it('groups optional categories', () => {
+    const groups = groupScriptsByCategory([
+      { name: 'B', category: 'Photos' },
+      { name: 'A', category: 'Photos' },
+      { name: 'Z', category: '' }
+    ])
+    expect(groups[0]?.category).toBe('Photos')
+    expect(groups[0]?.items.map((i) => i.name)).toEqual(['A', 'B'])
+    expect(groups[1]?.category).toBe('')
+  })
+})

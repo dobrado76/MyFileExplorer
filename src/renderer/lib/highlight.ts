@@ -44,6 +44,7 @@ function ensureRegistered(): void {
   hljs.registerLanguage('bash', bash)
   hljs.registerLanguage('powershell', powershell)
   hljs.registerLanguage('dos', dos)
+  hljs.registerLanguage('cmd', dos)
   hljs.registerLanguage('vbscript', vbscript)
   hljs.registerLanguage('ini', ini)
   hljs.registerLanguage('sql', sql)
@@ -202,6 +203,21 @@ export function highlightLanguage(source: string, language: string): HighlightRe
     /* fall through */
   }
   return { language, html: highlightHashComments(source) }
+}
+
+const SCRIPT_TO_HLJS = {
+  powershell: 'powershell',
+  python: 'python',
+  cmd: 'dos',
+  bash: 'bash'
+} as const
+
+/** Highlight a D51 script in the editor (PowerShell / Python / cmd / bash). */
+export function highlightScriptSource(
+  source: string,
+  language: keyof typeof SCRIPT_TO_HLJS
+): HighlightResult {
+  return highlightLanguage(source, SCRIPT_TO_HLJS[language])
 }
 
 /** Highlight source; falls back to escaped plaintext on failure / unknown lang. */

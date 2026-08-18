@@ -35,7 +35,9 @@ export function replaceSettings(raw: unknown): Settings {
     powerRenameBounds: null,
     remoteConnectionBounds: null,
     compiledListsWindowBounds: null,
-    previewWindowBounds: null
+    previewWindowBounds: null,
+    scriptManagerBounds: null,
+    scriptGenerateBounds: null
   })
   settingsStore().replace(next)
   settingsStore().flush()
@@ -66,6 +68,26 @@ export function patchSettings(patch: unknown): Settings {
           ...parsed.mediaMetadata
         }
       : (cur.mediaMetadata ?? defaultSettings.mediaMetadata),
+    scripts: parsed.scripts
+      ? {
+          ...defaultSettings.scripts,
+          ...cur.scripts,
+          ...parsed.scripts,
+          interpreterOverrides: {
+            ...defaultSettings.scripts.interpreterOverrides,
+            ...cur.scripts?.interpreterOverrides,
+            ...parsed.scripts.interpreterOverrides
+          }
+        }
+      : (cur.scripts ?? defaultSettings.scripts),
+    ai: parsed.ai
+      ? {
+          ...defaultSettings.ai,
+          ...cur.ai,
+          ...parsed.ai,
+          providers: parsed.ai.providers ?? cur.ai?.providers ?? defaultSettings.ai.providers
+        }
+      : (cur.ai ?? defaultSettings.ai),
     contextMenu: parsed.contextMenu
       ? {
           ...defaultSettings.contextMenu,

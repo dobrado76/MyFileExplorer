@@ -17,7 +17,9 @@ describe('settings export / import', () => {
       powerRenameBounds: { x: 3, y: 4, width: 900, height: 700, maximized: true },
       remoteConnectionBounds: { x: 7, y: 8, width: 640, height: 520, maximized: false },
       compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 },
-      previewWindowBounds: { x: 9, y: 10, width: 480, height: 720, maximized: true }
+      previewWindowBounds: { x: 9, y: 10, width: 480, height: 720, maximized: true },
+      scriptManagerBounds: { x: 11, y: 12, width: 800, height: 600, maximized: false },
+      scriptGenerateBounds: { x: 13, y: 14, width: 720, height: 520, maximized: false }
     }
     const portable = settingsForPortableExport(withBounds)
     for (const key of windowLikeSettingsKeys()) {
@@ -113,6 +115,42 @@ describe('settings export / import', () => {
     })
     const parsed = parseSettingsImport(doc)
     expect(parsed.settings.remoteRepos).toEqual({ enabled: true })
+  })
+
+  it('round-trips settings.ai (no keys) via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        ai: {
+          ...defaultSettings.ai,
+          enabled: true,
+          defaultModel: 'gpt-4.1-mini',
+          preferredScriptLanguage: 'python',
+          providers: [
+            {
+              id: 'aip_test',
+              name: 'LM Studio',
+              type: 'lmstudio',
+              baseUrl: 'http://127.0.0.1:1234/v1',
+              model: 'local',
+              local: true,
+              timeoutSec: 45,
+              cachedModels: ['local', 'other']
+            }
+          ]
+        }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.ai.enabled).toBe(true)
+    expect(parsed.settings.ai.defaultModel).toBe('gpt-4.1-mini')
+    expect(parsed.settings.ai.providers[0]?.baseUrl).toContain('127.0.0.1')
+    expect(parsed.settings.ai.providers[0]?.cachedModels).toEqual(['local', 'other'])
+    expect(parsed.settings.ai.providers[0]).not.toHaveProperty('apiKey')
+    expect(JSON.stringify(parsed.settings.ai)).not.toMatch(/sk-/)
+    expect(parsed.settings.scriptManagerBounds).toBeNull()
+    expect(parsed.settings.scriptGenerateBounds).toBeNull()
   })
 
   it('round-trips mediaMetadata nested prefs via full settingsSchema', () => {

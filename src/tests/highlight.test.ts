@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { highlightCode, languageFromPath } from '../renderer/lib/highlight'
+import { highlightCode, highlightScriptSource, languageFromPath } from '../renderer/lib/highlight'
 
 describe('languageFromPath', () => {
   it('maps common extensions', () => {
@@ -135,5 +135,26 @@ describe('highlightCode', () => {
     expect(html).toContain('hello')
     expect(html).toContain('code')
     expect(html).not.toContain('<span class="hljs-comment">hello')
+  })
+})
+
+describe('highlightScriptSource', () => {
+  it('highlights each script language', () => {
+    const py = highlightScriptSource('def foo():\n    return 1', 'python')
+    expect(py.language).toBe('python')
+    expect(py.html).toContain('hljs-')
+    expect(py.html).toContain('def')
+
+    const ps = highlightScriptSource('Write-Host "hi"', 'powershell')
+    expect(ps.language).toBe('powershell')
+    expect(ps.html).toContain('hljs-')
+
+    const sh = highlightScriptSource('echo "hi"', 'bash')
+    expect(sh.language).toBe('bash')
+    expect(sh.html).toContain('hljs-')
+
+    const cmd = highlightScriptSource('echo hello', 'cmd')
+    expect(cmd.language).toBe('dos')
+    expect(cmd.html).toContain('hljs-')
   })
 })

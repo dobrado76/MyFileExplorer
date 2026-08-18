@@ -55,6 +55,8 @@ export const IPC = {
   shellOpenCommandLine: 'shell:openCommandLine',
   /** Open the Windows Explorer property sheet (Security / Sharing / …). */
   shellShowProperties: 'shell:showProperties',
+  /** Open a This PC / MMC system window (Computer Management, Device Manager, …). */
+  shellOpenWindowsTool: 'shell:openWindowsTool',
   shellOpenRecycleBin: 'shell:openRecycleBin',
   /** Spawn a user-configured external program with argv (context-menu commands). */
   shellExec: 'shell:exec',
@@ -178,7 +180,30 @@ export const IPC = {
   remoteConnect: 'remote:connect',
   remoteDisconnect: 'remote:disconnect',
   remoteConnectedIds: 'remote:connectedIds',
-  remoteTestPresets: 'remote:testPresets'
+  remoteTestPresets: 'remote:testPresets',
+
+  scriptDetectRuntimes: 'script:detectRuntimes',
+  scriptList: 'script:list',
+  scriptGet: 'script:get',
+  scriptUpsert: 'script:upsert',
+  scriptDelete: 'script:delete',
+  scriptDuplicate: 'script:duplicate',
+  scriptRun: 'script:run',
+  scriptCancel: 'script:cancel',
+  scriptImportFile: 'script:importFile',
+  scriptExportFile: 'script:exportFile',
+  scriptPickExternal: 'script:pickExternal',
+  scriptRevert: 'script:revert',
+  scriptHasPrevious: 'script:hasPrevious',
+
+  aiListProviders: 'ai:listProviders',
+  aiUpsertProvider: 'ai:upsertProvider',
+  aiDeleteProvider: 'ai:deleteProvider',
+  aiTestConnection: 'ai:testConnection',
+  aiListModels: 'ai:listModels',
+  aiGenerate: 'ai:generate',
+  aiModify: 'ai:modify',
+  aiFix: 'ai:fix'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -306,6 +331,14 @@ export type MfeEvent =
   | {
       type: 'preview-window'
       payload: { open: boolean }
+    }
+  | {
+      type: 'script-output'
+      payload: { runId: string; stream: 'stdout' | 'stderr'; text: string }
+    }
+  | {
+      type: 'script-ended'
+      payload: { runId: string; exitCode: number | null; cancelled: boolean; elapsedMs: number }
     }
   | {
       type: 'cover-list'

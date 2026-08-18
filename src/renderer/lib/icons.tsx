@@ -356,6 +356,12 @@ export const SaveIcon = svg(
 export const FolderOpenIcon = svg(
   <path d="M5 4h5l2 2h7a2 2 0 0 1 2 2v1H4V6a2 2 0 0 1 2-2zm-1 5h18l-1.5 10H5.5L4 9z" />
 )
+export const ScriptIcon = svg(
+  <>
+    <path d="M8 4h8a2 2 0 0 1 2 2v14l-4-2-4 2V6a2 2 0 0 1 2-2z" />
+    <path d="M10 9h4M10 13h4" />
+  </>
+)
 export const EraserIcon = svg(
   <>
     <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />

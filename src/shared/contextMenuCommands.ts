@@ -81,15 +81,24 @@ export function commandMatches(
   return paths.every((p) => allowed.has(extensionOf(p)))
 }
 
-const TOKEN_RE = /\{paths\}|\{path\}|\{name\}|\{dir\}|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|[^\s]+/g
+const TOKEN_RE =
+  /\{selectedFiles\}|\{selectionManifest\}|\{recursive\}|\{paths\}|\{path\}|\{name\}|\{dir\}|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|[^\s]+/g
 
-function replaceScalarTokens(text: string, path: string): string {
+export type ArgExpandExtras = {
+  /** Temp UTF-8 manifest path (scripts / large selections). */
+  selectionManifest?: string
+  recursive?: boolean
+}
+
+function replaceScalarTokens(text: string, path: string, extras?: ArgExpandExtras): string {
   const name = basenameOf(path)
   const dir = dirOf(path)
   return text
     .replaceAll('{path}', path)
     .replaceAll('{name}', name)
     .replaceAll('{dir}', dir)
+    .replaceAll('{selectionManifest}', extras?.selectionManifest ?? '')
+    .replaceAll('{recursive}', extras?.recursive ? 'true' : 'false')
 }
 
 /**
@@ -97,7 +106,11 @@ function replaceScalarTokens(text: string, path: string): string {
  * other tokens use the first selected path. No shell evaluation.
  * Also accepts Windows-style `%1` / `%*` as aliases for `{path}` / `{paths}`.
  */
-export function expandArgsTemplate(template: string, paths: string[]): string[] {
+export function expandArgsTemplate(
+  template: string,
+  paths: string[],
+  extras?: ArgExpandExtras
+): string[] {
   const trimmed = template
     .trim()
     .replace(/%\*/g, '{paths}')
@@ -114,8 +127,16 @@ export function expandArgsTemplate(template: string, paths: string[]): string[] 
   if (!matches) return []
 
   for (const raw of matches) {
-    if (raw === '{paths}') {
+    if (raw === '{paths}' || raw === '{selectedFiles}') {
       out.push(...paths)
+      continue
+    }
+    if (raw === '{selectionManifest}') {
+      if (extras?.selectionManifest) out.push(extras.selectionManifest)
+      continue
+    }
+    if (raw === '{recursive}') {
+      if (extras?.recursive) out.push('--recursive')
       continue
     }
     let piece = raw
@@ -125,19 +146,25 @@ export function expandArgsTemplate(template: string, paths: string[]): string[] 
     ) {
       piece = piece.slice(1, -1).replace(/\\(["'\\])/g, '$1')
     }
-    if (piece === '{paths}') {
+    if (piece === '{paths}' || piece === '{selectedFiles}') {
       out.push(...paths)
       continue
     }
     // If a single token embeds `{paths}` among text, expand paths joined — prefer
     // dedicated `{paths}` token; otherwise replace with first path only for safety.
-    if (piece.includes('{paths}')) {
+    if (piece.includes('{paths}') || piece.includes('{selectedFiles}')) {
       for (const p of paths) {
-        out.push(replaceScalarTokens(piece.replaceAll('{paths}', p), p))
+        out.push(
+          replaceScalarTokens(
+            piece.replaceAll('{paths}', p).replaceAll('{selectedFiles}', p),
+            p,
+            extras
+          )
+        )
       }
       continue
     }
-    out.push(replaceScalarTokens(piece, first))
+    out.push(replaceScalarTokens(piece, first, extras))
   }
   return out
 }

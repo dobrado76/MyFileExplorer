@@ -34,7 +34,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 - Preview pane **collapsible**; collapsed state + widths persisted.
 - Pane split ratios persisted in session.
 - **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.
-- **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Map / Disconnect network drive** (native Windows dialogs).
+- **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, **Map / Disconnect network drive**, and **Properties** (This PC) — native Windows windows, not in-app UI.
 - **Network** (D44) — below Drives when LAN discovery is running or hosts were found. Expand a computer → SMB shares (async; does not block folder listing). Open UNC like Explorer; Map / Disconnect / Refresh on the Network header. Tunables in **Settings → Network** (auto vs manual rediscovery + interval). Full detail: [NETWORKS.md](NETWORKS.md).
 
 ---
@@ -98,6 +98,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists |
 | Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits**. A name that already exists opens the same D18 review as copy/move (Skip / Keep both `name (2).ext` / Replace / Keep most recent) |
 | Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
+| Scripts            | Local PowerShell / Python / cmd / bash runner with live output and Stop. Saved library under `userData`. Context **Scripts >**. Optional AI generate/modify (never sends files). [SCRIPTS.md](SCRIPTS.md) (D51) |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer. **Drive roots** (`C:\`) are never deleted — Del / Shift+Del / context Delete are ignored with no message. Deleting a folder that is the **scoped root of any open tab** always confirms (Cancel / Delete) and warns those tabs will close; after a successful delete the affected tabs close (a replacement tab opens if that would leave none) |
@@ -123,6 +124,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Cut / Copy / Paste
 - Rename
 - Power Rename… (search/replace with preview; files and folders in selection only)
+- Scripts (saved local scripts + Generate / Manage; D51)
 - User-defined commands (Settings → Context menu — separate lists for files vs folders; e.g. Edit in Photoshop, Play in VLC)
 - Delete / Delete permanently
 - Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
@@ -190,6 +192,7 @@ See [SEARCH.md](SEARCH.md).
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
 | Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (default on — one A–Z list in a container folder). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
+| AI | **Enable** (off = no outbound AI HTTP). OpenAI-compatible providers (base URL, model, key in `safeStorage`). Test / Refresh models; model fields are dropdowns from `GET /v1/models` (cached). Script-generation defaults. Interpreter path overrides. Privacy: never send paths/listings/contents. Guide: [SCRIPTS.md](SCRIPTS.md) (D51) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
 | About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 

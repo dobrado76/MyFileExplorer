@@ -74,6 +74,11 @@ function shellExecute(
   }
 }
 
+/** ShellExecute “open” for a documented Windows tool (.msc, control.exe, ms-settings:). */
+export function shellExecuteOpen(file: string, parameters?: string | null): boolean {
+  return shellExecute('open', file, parameters ?? null, null)
+}
+
 function wtAvailable(): boolean {
   const whereWt = spawnSync('where.exe', ['wt.exe'], {
     windowsHide: true,

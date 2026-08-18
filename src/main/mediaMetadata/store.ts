@@ -83,28 +83,37 @@ export async function writeMediaMetadata(
   thumb?: Buffer | null
 ): Promise<void> {
   const file = requireAbsolute(rawPath)
-  const { writeStreamText, writeStreamBytes, streamExists, deleteStream } = await import('../fs/adsWin32')
-  await writeStreamText(file, MEDIA_METADATA_ADS, JSON.stringify(meta, null, 2), false)
-  if (meta.kind === 'episode') {
-    if (streamExists(file, MEDIA_METADATA_THUMB_ADS)) deleteStream(file, MEDIA_METADATA_THUMB_ADS)
-  } else if (thumb && thumb.length > 0) {
-    await writeStreamBytes(file, MEDIA_METADATA_THUMB_ADS, thumb)
-  }
+  const { writeStreamText, writeStreamBytes, streamExists, deleteStream, withPreservedHostTimes } =
+    await import('../fs/adsWin32')
+  const noTimes = { preserveHostTimes: false } as const
+  await withPreservedHostTimes(file, async () => {
+    await writeStreamText(file, MEDIA_METADATA_ADS, JSON.stringify(meta, null, 2), false, noTimes)
+    if (meta.kind === 'episode') {
+      if (streamExists(file, MEDIA_METADATA_THUMB_ADS)) {
+        deleteStream(file, MEDIA_METADATA_THUMB_ADS, noTimes)
+      }
+    } else if (thumb && thumb.length > 0) {
+      await writeStreamBytes(file, MEDIA_METADATA_THUMB_ADS, thumb, noTimes)
+    }
+  })
   await markContainersForKind(file, meta.kind)
 }
 
 export async function clearMediaMetadata(rawPath: string): Promise<{ cleared: boolean }> {
   const file = requireAbsolute(rawPath)
-  const { deleteStream, streamExists } = await import('../fs/adsWin32')
+  const { deleteStream, streamExists, withPreservedHostTimes } = await import('../fs/adsWin32')
+  const noTimes = { preserveHostTimes: false } as const
   let cleared = false
-  if (streamExists(file, MEDIA_METADATA_ADS)) {
-    deleteStream(file, MEDIA_METADATA_ADS)
-    cleared = true
-  }
-  if (streamExists(file, MEDIA_METADATA_THUMB_ADS)) {
-    deleteStream(file, MEDIA_METADATA_THUMB_ADS)
-    cleared = true
-  }
+  await withPreservedHostTimes(file, async () => {
+    if (streamExists(file, MEDIA_METADATA_ADS)) {
+      deleteStream(file, MEDIA_METADATA_ADS, noTimes)
+      cleared = true
+    }
+    if (streamExists(file, MEDIA_METADATA_THUMB_ADS)) {
+      deleteStream(file, MEDIA_METADATA_THUMB_ADS, noTimes)
+      cleared = true
+    }
+  })
   return { cleared }
 }
 

@@ -60,6 +60,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `shell:showItemInFolder`    | System Explorer select          |
 | `shell:openCommandLine`     | Open wt / PowerShell / cmd in folder |
 | `shell:showProperties`      | Open Explorer’s property sheet (`ShellExecute` “properties” verb) |
+| `shell:openWindowsTool`     | Allowlisted This PC tools: Computer Management, Device Manager, Control Panel, This PC Properties |
 | `shell:openRecycleBin`      | Legacy: open Windows Recycle Bin in Explorer (prefer in-app view) |
 | `shell:clipboardWriteFiles` | Cut/copy file list for OS paste |
 | `shell:clipboardReadFiles`  | Read file list if present       |

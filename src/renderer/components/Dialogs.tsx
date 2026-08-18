@@ -58,6 +58,10 @@ import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 import { CloseIcon } from '../lib/icons'
 import { CoverPickerDialog } from './CoverPickerDialog'
+import { ScriptManagerDialog } from './ScriptManagerDialog'
+import { ScriptRunnerDialog } from './ScriptRunnerDialog'
+import { ScriptGenerateDialog } from './ScriptGenerateDialog'
+import { AiSettingsPanel } from './AiSettingsPanel'
 
 function Modal({
   title,
@@ -252,6 +256,32 @@ export function Dialogs(): JSX.Element | null {
           message={dialog.message}
           fileName={dialog.fileName}
           suggested={dialog.suggested}
+        />
+      )
+    case 'script-manager':
+      return <ScriptManagerDialog selectId={dialog.selectId} />
+    case 'script-run':
+      return (
+        <ScriptRunnerDialog
+          scriptId={dialog.scriptId}
+          source={dialog.source}
+          language={dialog.language}
+          name={dialog.name}
+          mode={dialog.mode}
+          root={dialog.root}
+          paths={dialog.paths}
+          recursive={dialog.recursive}
+          dryRun={dialog.dryRun}
+        />
+      )
+    case 'script-generate':
+      return (
+        <ScriptGenerateDialog
+          mode={dialog.mode}
+          folderPath={dialog.folderPath}
+          scriptId={dialog.scriptId}
+          source={dialog.source}
+          language={dialog.language}
         />
       )
   }
@@ -1659,6 +1689,7 @@ type SettingsSection =
   | 'remoterepos'
   | 'slideshow'
   | 'mediametadata'
+  | 'ai'
   | 'advanced'
   | 'about'
 
@@ -1676,6 +1707,7 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'remoterepos', label: 'Remote repositories' },
   { id: 'slideshow', label: 'Slideshow' },
   { id: 'mediametadata', label: 'Media Metadata' },
+  { id: 'ai', label: 'AI' },
   { id: 'advanced', label: 'Advanced' },
   { id: 'about', label: 'About' }
 ]
@@ -2516,6 +2548,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
           )}
 
           {section === 'mediametadata' && <MediaMetadataSettingsPanel />}
+          {section === 'ai' && <AiSettingsPanel />}
 
           {section === 'behavior' && (
             <div className="settings-stack">
@@ -3509,10 +3542,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                     customization (built-in show/hide and order, Discover scan catalog and enabled
                     verbs, Custom files/folders commands), theme, named layouts, folder views,
                     slideshow, network discovery, remembered Network hosts, remote repository
-                    connections without passwords, and everything else in Settings. Dialog and
+                    connections without passwords, saved scripts (source yes), AI provider
+                    metadata (not API keys), and everything else in Settings. Dialog and
                     main-window positions are not included. Import replaces current settings; open
                     tabs are unchanged (apply a named layout to restore a workspace). Re-enter
-                    remote passwords after import.
+                    remote passwords and AI keys after import.
                   </div>
                 </div>
                 <div className="settings-btn-stack">

@@ -8,6 +8,7 @@ import {
   type ContextMenuBuiltinId
 } from '@shared/contextMenuBuiltins'
 import { discoveredVerbMatches } from '@shared/schemas/shellVerbs'
+import type { WindowsToolId } from '@shared/schemas/windowsTools'
 import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf, joinPath } from '../lib/paths'
@@ -22,6 +23,9 @@ import { api, call } from '../lib/ipc'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { slideshowCurrentPath } from '../lib/slideshowTypes'
 import { ShellIcon } from './ShellIcon'
+import { buildScriptsMenuItems, isRemoteLocation } from '../lib/scriptsMenu'
+import type { ScriptDefinition } from '@shared/schemas/scripts'
+import type { ScriptMenuContext } from '@shared/scriptMatch'
 
 /** File extension including leading dot (e.g. `.ffs_gui`), or null. */
 function fileExtension(filePath: string): string | null {
@@ -64,6 +68,57 @@ type MenuItem =
       builtin?: ContextMenuBuiltinId
       items: SubEntry[]
     }
+
+function scriptsSubmenu(
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>,
+  ctx: ScriptMenuContext
+): MenuItem | null {
+  if (isRemoteLocation(ctx.folderPath) || ctx.selectedPaths.some((p) => isRemoteLocation(p))) {
+    return null
+  }
+  const items = buildScriptsMenuItems({
+    scripts: s.scriptLibrary,
+    ctx,
+    aiEnabled: s.settings.ai.enabled,
+    onRun(script: ScriptDefinition) {
+      close()
+      const selectionMode =
+        script.scopes.includes('selection') && ctx.selectedPaths.length > 0
+      s.openDialog({
+        kind: 'script-run',
+        scriptId: script.id,
+        name: script.name,
+        mode: selectionMode ? 'selection' : 'folder',
+        root: ctx.folderPath ?? undefined,
+        paths: ctx.selectedPaths,
+        recursive: script.recursive
+      })
+    },
+    onManage() {
+      close()
+      s.openDialog({ kind: 'script-manager' })
+    },
+    onGenerate() {
+      close()
+      s.openDialog({
+        kind: 'script-generate',
+        mode: ctx.selectedPaths.length > 0 ? 'selection' : 'folder',
+        folderPath: ctx.folderPath ?? undefined
+      })
+    }
+  })
+  return {
+    type: 'submenu',
+    label: 'Scripts',
+    builtin: 'scripts',
+    items: items.map((row) =>
+      row.items
+        ? { label: row.label, items: row.items.map((c) => ({ label: c.label, action: c.action })) }
+        : { label: row.label, action: row.action, sep: row.label === '—' }
+    )
+  }
+}
 
 function mediaMetadataMenu(
   paths: string[],
@@ -493,9 +548,41 @@ export function ContextMenu(): JSX.Element | null {
       ]
     }
 
-    // Tree section headers: Drives / Network (Map / Disconnect / Refresh).
+    // Tree section headers: Drives / Network (This PC tools, Map / Disconnect / Refresh).
     if (menu.treeSection) {
-      const out: MenuItem[] = [
+      const openWindowsTool = (id: WindowsToolId): (() => void) => {
+        return () => {
+          close()
+          void call(api.shell.openWindowsTool({ id })).catch((e) =>
+            s.notify(e instanceof Error ? e.message : String(e), true)
+          )
+        }
+      }
+      const out: MenuItem[] = []
+      if (menu.treeSection === 'drives') {
+        out.push(
+          {
+            type: 'item',
+            label: 'Computer Manager',
+            builtin: 'computer-manager',
+            action: openWindowsTool('computer-manager')
+          },
+          {
+            type: 'item',
+            label: 'Device Manager',
+            builtin: 'device-manager',
+            action: openWindowsTool('device-manager')
+          },
+          {
+            type: 'item',
+            label: 'Control Panel',
+            builtin: 'control-panel',
+            action: openWindowsTool('control-panel')
+          },
+          { type: 'sep' }
+        )
+      }
+      out.push(
         {
           type: 'item',
           label: 'Map network drive…',
@@ -514,7 +601,7 @@ export function ContextMenu(): JSX.Element | null {
             void s.openDisconnectNetworkDrive()
           }
         }
-      ]
+      )
       if (menu.treeSection === 'network') {
         out.push(
           { type: 'sep' },
@@ -526,6 +613,17 @@ export function ContextMenu(): JSX.Element | null {
               close()
               void s.startNetworkDiscovery()
             }
+          }
+        )
+      }
+      if (menu.treeSection === 'drives') {
+        out.push(
+          { type: 'sep' },
+          {
+            type: 'item',
+            label: 'Properties',
+            builtin: 'properties',
+            action: openWindowsTool('this-pc-properties')
           }
         )
       }
@@ -898,6 +996,12 @@ export function ContextMenu(): JSX.Element | null {
           }
         }
       )
+      const bgScripts = scriptsSubmenu(close, s, {
+        folderPath,
+        selectedPaths: [],
+        selectionKind: 'empty'
+      })
+      if (bgScripts) result.push(bgScripts)
       return filterHiddenBuiltins(
         result,
         s.settings.contextMenu.hiddenBuiltins,
@@ -1406,6 +1510,25 @@ export function ContextMenu(): JSX.Element | null {
         items: fileToolsItems
       })
     }
+    const scriptsItem = scriptsSubmenu(close, s, {
+      folderPath: s.activeTab().path,
+      selectedPaths: paths,
+      selectionKind:
+        paths.length === 0
+          ? 'empty'
+          : paths.every((p) => {
+              const e = entries.find((en) => samePath(en.path, p))
+              return e?.kind === 'dir' || menu.inTree
+            })
+            ? 'folder'
+            : paths.every((p) => {
+                const e = entries.find((en) => samePath(en.path, p))
+                return e && e.kind !== 'dir'
+              })
+              ? 'file'
+              : 'mixed'
+    })
+    if (scriptsItem) result.push(scriptsItem)
     result.push(
       { type: 'sep' },
       {

@@ -56,7 +56,7 @@ Single module: `src/main/fs/adsWin32.ts` (koffi → `kernel32` `BackupRead` / `B
 | Exists / read / write / delete | Open `path:name:$DATA` |
 | Text read | UTF-8; trim trailing CR/LF/NUL; cut at first NUL (ADS.cs Load conventions) |
 | Text write | Empty value **deletes** the stream unless `writeEmpty` |
-| Host timestamps | ADS write/delete restores the host file/dir **atime** and **mtime** afterward so metadata streams do not bump “Date modified” (e.g. bulk **Calculate Statistics**) |
+| Host timestamps | ADS write/delete restores NTFS **Creation / Access / Write / Change** times (`SetFileInformationByHandle` `FileBasicInfo`). Node `utimes` only fixes LastWriteTime and leaves **ChangeTime** at now — many sync tools treat that as a file change and recopy. Read-only rips temporarily drop `READONLY` so the restore can succeed. Media-metadata extract/clear wrap all streams on that path in one snapshot. Already-bumped files stay bumped (USN history cannot be undone). |
 | Bytes | Base64 over IPC for import/export |
 | Copy | `ads:copy` copies named streams file↔file or dir↔dir (`ignoreNames` optional) |
 

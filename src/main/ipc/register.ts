@@ -33,6 +33,7 @@ import {
 } from '@shared/schemas/preview'
 import { searchQueryRequestSchema, reindexRequestSchema } from '@shared/schemas/search'
 import { slideshowListRequestSchema } from '@shared/schemas/slideshow'
+import { openWindowsToolRequestSchema } from '@shared/schemas/windowsTools'
 import {
   updateCompiledListsRequestSchema,
   validateCompiledListsRequestSchema,
@@ -135,6 +136,7 @@ import {
   showItemInFolder,
   openCommandLineHere,
   showSystemProperties,
+  openWindowsTool,
   openRecycleBin,
   clipboardWriteFiles,
   clipboardReadFiles,
@@ -163,6 +165,9 @@ import {
   remoteIdRequestSchema,
   remoteRenameRequestSchema
 } from '@shared/schemas/remoteIpc'
+import { registerScriptIpc } from '../scripts/ipc'
+import { registerAiIpc } from '../ai/ipc'
+import { listScriptsForExport, replaceScriptsFromExport } from '../scripts/library'
 
 function assertRemoteReposEnabled(): void {
   if (!getSettings().remoteRepos.enabled) {
@@ -515,6 +520,7 @@ export function registerIpcHandlers(): void {
     (req) => openCommandLineHere(req.path, { elevated: req.elevated === true })
   )
   handle(IPC.shellShowProperties, pathRequestSchema, (req) => showSystemProperties(req.path))
+  handle(IPC.shellOpenWindowsTool, openWindowsToolRequestSchema, (req) => openWindowsTool(req.id))
   handle(IPC.shellOpenRecycleBin, emptySchema, () => openRecycleBin())
   handle(
     IPC.shellExec,
@@ -564,6 +570,7 @@ export function registerIpcHandlers(): void {
       settings: getSettings(),
       networkHosts: getRememberedNetworkHosts(),
       remoteConnections: listRemoteConnectionsForExport(),
+      scripts: await listScriptsForExport(),
       appVersion: app.getVersion()
     })
     const opts = {
@@ -606,11 +613,16 @@ export function registerIpcHandlers(): void {
     if (parsed.remoteConnections) {
       remoteConnectionCount = replaceRemoteConnections(parsed.remoteConnections).length
     }
+    let scriptCount: number | undefined
+    if (parsed.scripts) {
+      scriptCount = await replaceScriptsFromExport(parsed.scripts)
+    }
     return {
       imported: true as const,
       settings,
       ...(networkHostCount !== undefined ? { networkHostCount } : {}),
-      ...(remoteConnectionCount !== undefined ? { remoteConnectionCount } : {})
+      ...(remoteConnectionCount !== undefined ? { remoteConnectionCount } : {}),
+      ...(scriptCount !== undefined ? { scriptCount } : {})
     }
   })
 
@@ -1023,4 +1035,7 @@ export function registerIpcHandlers(): void {
   handle(IPC.remoteTestPresets, emptySchema, () => ({
     presets: REMOTE_TEST_PRESETS
   }))
+
+  registerScriptIpc(handle)
+  registerAiIpc(handle)
 }

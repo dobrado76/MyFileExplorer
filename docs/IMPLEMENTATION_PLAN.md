@@ -222,3 +222,15 @@ v0.7.0 plus: drive free space (status bar + Drives pies, mapped + offline); deta
 - [x] Named layouts snapshot multi-view fields
 
 **Exit:** side-by-side / 2×2 with independent folders; restart restores pane layout.
+
+---
+
+## Phase — Local scripts + optional AI (D51)
+
+- [x] Script runner IPC (`script:run` / cancel / detect), argv contract, temp manifests
+- [x] Script library + manager + context **Scripts** submenu
+- [x] Settings → AI (OpenAI-compatible, `safeStorage` keys)
+- [x] Generate / modify / review-before-run (never send files)
+- [x] Dry-run, deps copy-command, Ask AI to Fix confirm, `.mfescript` import/export
+
+**Exit:** hand-written script runs with no AI; generate → save → context-menu rerun with zero AI calls. See [SCRIPTS.md](SCRIPTS.md).

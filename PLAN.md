@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.8.0** shipped; **v0.8.1** development adds **D50** opt-in media metadata ([docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)). Phases 0–10 shipped; **drive free space**; **detached preview**; **`.ics` / `.eml`**; **D49** remote listing cache; Power Search; continue-then-review bulk ops (D18); per-tab search; Network (D44/D3); settings export/import (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.8.0** shipped; **v0.8.2** development adds **D51** local scripts + optional AI authoring ([docs/SCRIPTS.md](docs/SCRIPTS.md)). Phases 0–10 shipped; **drive free space**; **detached preview**; **`.ics` / `.eml`**; **D49** remote listing cache; Power Search; continue-then-review bulk ops (D18); per-tab search; Network (D44/D3); settings export/import (D45); remotes (D46); **D50** media metadata. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -41,7 +41,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/BUILD.md](docs/BUILD.md)                             | Local build + tagged GitHub Releases |
 | [docs/LINUX.md](docs/LINUX.md)                             | Experimental Linux AppImage / Wayland |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
-| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D50) |
+| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D51) |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
 | [docs/PROJECT_FORMAT.md](docs/PROJECT_FORMAT.md)           | On-disk `userData` layout     |
 | [docs/UI_DESIGN.md](docs/UI_DESIGN.md)                     | Chrome & themes               |
@@ -55,17 +55,18 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/NETWORKS.md](docs/NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
+| [docs/SCRIPTS.md](docs/SCRIPTS.md)                         | Local scripts + optional AI authoring (D51) |
 | [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
 ## Immediate next work
 
-1. Soak-test **D50** media metadata (Plex extract without PMS running, TMDB remake picker, episode `SxxExx` tiles, CD-split movie folders, Change cover, watched/genre toolbar, consolidate Subs) — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
-2. Confirm Details horizontal scroll (header + rows, scrollbar at pane bottom) on a narrow window
-3. Confirm deleting a scoped tab root always prompts and closes those tabs
-4. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
-5. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)
+1. Dogfood **D51** scripts (hand-written run/cancel, context Scripts menu, Settings → AI test against LM Studio, generate → save → rerun with no AI) — [docs/SCRIPTS.md](docs/SCRIPTS.md)
+2. Soak-test **D50** media metadata (Plex extract without PMS running, TMDB remake picker, episode `SxxExx` tiles, CD-split movie folders, Change cover, watched/genre toolbar, consolidate Subs) — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
+3. Confirm Details horizontal scroll (header + rows, scrollbar at pane bottom) on a narrow window
+4. Confirm deleting a scoped tab root always prompts and closes those tabs
+5. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md) — File Automator stays separate from D51
 
 ## Agent rules
 
