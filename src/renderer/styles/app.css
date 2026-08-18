@@ -6659,16 +6659,29 @@ html.idle-cursor-hidden * {
   overflow: auto;
 }
 .modal.modal-script-manager {
-  min-width: min(960px, 96vw);
-  max-width: 96vw;
-  max-height: 94vh;
-  height: min(860px, 94vh);
+  position: fixed;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  min-width: 640px;
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+}
+.modal.modal-script-manager .modal-title {
+  cursor: move;
+  user-select: none;
+}
+.modal.modal-script-manager.is-maximized .modal-title {
+  cursor: default;
 }
 .modal.modal-script-manager .modal-body.modal-body-scripts {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .modal.modal-script-manager .modal-actions {
   flex-shrink: 0;
@@ -6681,12 +6694,40 @@ html.idle-cursor-hidden * {
 .modal-script-generate {
   min-width: min(780px, 96vw);
 }
+.modal.modal-script-run {
+  position: fixed;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  min-width: 480px;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal.modal-script-run .modal-title {
+  cursor: move;
+  user-select: none;
+}
+.modal.modal-script-run .modal-body.modal-body-scripts {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal.modal-script-run .script-output {
+  flex: 1;
+  min-height: 160px;
+  max-height: none;
+}
 .script-manager {
   display: grid;
   grid-template-columns: 220px 1fr;
   gap: 12px;
   min-height: 0;
   flex: 1;
+  height: 100%;
 }
 .script-manager-list {
   display: flex;
@@ -6722,21 +6763,55 @@ html.idle-cursor-hidden * {
   flex-wrap: wrap;
   gap: 6px;
 }
+.script-manager-editor .settings-field[title] > span:first-child,
+.script-check-row label[title],
+.modal-script-generate .settings-field[title] > span:first-child,
+.modal-script-generate .settings-toggle[title] {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
 .script-manager-editor {
   display: flex;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 .script-meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.script-meta-primary,
+.script-meta-secondary {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px 12px;
 }
 .script-meta-wide {
   grid-column: 1 / -1;
+}
+.modal-script-manager.is-maximized .script-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 20px;
+  align-items: start;
+}
+.modal-script-manager.is-maximized .script-meta-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.modal-script-manager.is-maximized .script-meta-secondary .script-meta-wide {
+  grid-column: auto;
+}
+.modal-script-manager.is-maximized .script-meta-secondary textarea {
+  min-height: 56px;
+  max-height: 88px;
 }
 .script-check-row {
   display: flex;

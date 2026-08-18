@@ -1,21 +1,26 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode
+} from 'react'
 import { useAppStore } from '../store/appStore'
 import { api, call, IpcError } from '../lib/ipc'
 import type { ScriptDefinition, ScriptLanguage, ScriptParameter } from '@shared/schemas/scripts'
 import { looksDestructive, scanDestructiveSource } from '@shared/scriptDestructive'
 import { CloseIcon } from '../lib/icons'
 import { highlightScriptSource } from '../lib/highlight'
+import {
+  FLOATING_RESIZE_EDGES,
+  useFloatingModalBounds,
+  type FloatingBounds
+} from '../lib/floatingModalBounds'
 
-export function ScriptModal({
-  title,
-  children,
-  actions,
-  className,
-  onClose,
-  busy,
-  busyTitle,
-  busyHint
-}: {
+type ScriptModalProps = {
   title: string
   children: ReactNode
   actions: ReactNode
@@ -24,7 +29,19 @@ export function ScriptModal({
   busy?: boolean
   busyTitle?: string
   busyHint?: string
-}): JSX.Element {
+  /** Drag title + resize edges; persist size/position. */
+  floating?: {
+    saved: (FloatingBounds & { maximized?: boolean }) | null
+    persist: (next: FloatingBounds, maximized: boolean) => void
+    minW: number
+    minH: number
+    defaultW: number
+    defaultH: number
+    allowMaximize?: boolean
+  }
+}
+
+function useScriptModalEscape(onClose: () => void, busy?: boolean): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape' && !busy) onClose()
@@ -33,7 +50,23 @@ export function ScriptModal({
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose, busy])
+}
 
+export function ScriptModal(props: ScriptModalProps): JSX.Element {
+  return props.floating ? <FloatingScriptModal {...props} floating={props.floating} /> : <CenteredScriptModal {...props} />
+}
+
+function CenteredScriptModal({
+  title,
+  children,
+  actions,
+  className,
+  onClose,
+  busy,
+  busyTitle,
+  busyHint
+}: ScriptModalProps): JSX.Element {
+  useScriptModalEscape(onClose, busy)
   return (
     <div
       className="modal-backdrop"
@@ -45,22 +78,143 @@ export function ScriptModal({
         aria-label={title}
         aria-busy={busy || undefined}
       >
-        <div className="modal-title modal-title-chrome">
-          <span className="modal-title-text">{title}</span>
-          <button
-            type="button"
-            className="modal-title-btn"
-            aria-label="Close"
-            disabled={busy}
-            onClick={onClose}
-          >
-            <CloseIcon size={18} />
-          </button>
-        </div>
+        <ScriptModalChrome title={title} onClose={onClose} busy={busy} />
         <div className="modal-body modal-body-scripts">{children}</div>
         <div className="modal-actions">{actions}</div>
         {busy && <AiBusyOverlay title={busyTitle ?? 'Working…'} hint={busyHint} />}
       </div>
+    </div>
+  )
+}
+
+function FloatingScriptModal({
+  title,
+  children,
+  actions,
+  className,
+  onClose,
+  busy,
+  busyTitle,
+  busyHint,
+  floating
+}: ScriptModalProps & { floating: NonNullable<ScriptModalProps['floating']> }): JSX.Element {
+  useScriptModalEscape(onClose, busy)
+  const { bounds, maximized, beginDrag, toggleMaximize } = useFloatingModalBounds(floating)
+  return (
+    <div
+      className="modal-backdrop"
+      onMouseDown={(e) => e.target === e.currentTarget && !busy && onClose()}
+    >
+      <div
+        className={`modal modal-wide ${className ?? ''}${maximized ? ' is-maximized' : ''}`.trim()}
+        role="dialog"
+        aria-label={title}
+        aria-busy={busy || undefined}
+        style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {!maximized &&
+          FLOATING_RESIZE_EDGES.map((edge) => (
+            <div
+              key={edge}
+              className={`modal-resize-handle ${edge}`}
+              onPointerDown={(e) => beginDrag(edge, e)}
+            />
+          ))}
+        <ScriptModalChrome
+          title={title}
+          onClose={onClose}
+          busy={busy}
+          onMove={maximized ? undefined : (e) => beginDrag('move', e)}
+          onMaximize={floating.allowMaximize ? toggleMaximize : undefined}
+          maximized={maximized}
+        />
+        <div className="modal-body modal-body-scripts">{children}</div>
+        <div className="modal-actions">{actions}</div>
+        {busy && <AiBusyOverlay title={busyTitle ?? 'Working…'} hint={busyHint} />}
+      </div>
+    </div>
+  )
+}
+
+function ScriptModalChrome({
+  title,
+  onClose,
+  busy,
+  onMove,
+  onMaximize,
+  maximized
+}: {
+  title: string
+  onClose(): void
+  busy?: boolean
+  onMove?: (e: ReactPointerEvent) => void
+  onMaximize?: () => void
+  maximized?: boolean
+}): JSX.Element {
+  return (
+    <div
+      className="modal-title modal-title-chrome"
+      onPointerDown={onMove}
+      onDoubleClick={
+        onMaximize
+          ? (e) => {
+              e.preventDefault()
+              onMaximize()
+            }
+          : undefined
+      }
+    >
+      <span
+        className="modal-title-text"
+        title="Saved scripts run locally on the current folder or selection. AI (optional) can write or edit source — it never reads your files."
+      >
+        {title}
+      </span>
+      {onMaximize ? (
+        <button
+          type="button"
+          className="modal-title-btn"
+          aria-label={maximized ? 'Restore' : 'Maximize'}
+          title={maximized ? 'Restore down (remembered)' : 'Maximize — two-column fields, taller editor'}
+          disabled={busy}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMaximize()
+          }}
+        >
+          {maximized ? (
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+              <rect x="3" y="1" width="7" height="7" fill="none" stroke="currentColor" strokeWidth="1.2" />
+              <rect
+                x="1"
+                y="3"
+                width="7"
+                height="7"
+                fill="var(--bg, #1a1d24)"
+                stroke="currentColor"
+                strokeWidth="1.2"
+              />
+            </svg>
+          ) : (
+            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+              <rect x="1.5" y="1.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1.2" />
+            </svg>
+          )}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="modal-title-btn"
+        aria-label="Close"
+        title="Close (Esc)"
+        disabled={busy}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onClose}
+      >
+        <CloseIcon size={18} />
+      </button>
     </div>
   )
 }
@@ -138,6 +292,7 @@ export function SourceEditor({
           onChange={(e) => onChange(e.target.value)}
           onScroll={syncScroll}
           aria-label={`${language} source`}
+          title="Script source. At run time the app passes --root (folder) or --input-list (selection manifest), plus --recursive / --dry-run / --param when those options apply. Review before Run — this executes as you."
         />
       </div>
     </div>
@@ -229,6 +384,7 @@ export function RiskBanner(): JSX.Element | null {
       <button
         type="button"
         className="btn"
+        title="Dismiss this warning. Scripts still run with your Windows account and can change or delete files."
         onClick={() => void applySettingsPatch({ scripts: { acknowledgedRisk: true } })}
       >
         I understand
@@ -259,6 +415,7 @@ export function CopyInstall({ language, deps }: { language: ScriptLanguage; deps
       <button
         type="button"
         className="btn"
+        title="Copy the install command to the clipboard. The app never installs packages for you."
         onClick={() => void navigator.clipboard.writeText(cmd)}
       >
         Copy install command

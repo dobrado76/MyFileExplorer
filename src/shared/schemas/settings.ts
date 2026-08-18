@@ -526,6 +526,16 @@ export const settingsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Last Script Runner output dialog geometry (null = centered defaults). */
+  scriptRunnerBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(480).max(10000),
+      height: z.number().min(360).max(10000)
+    })
+    .nullable()
+    .catch(null),
   /**
    * User-defined external context-menu commands + optional hidden built-ins (D41).
    */
@@ -607,6 +617,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   previewWindowBounds: null,
   scriptManagerBounds: null,
   scriptGenerateBounds: null,
+  scriptRunnerBounds: null,
   scripts: defaultScriptsSettings,
   ai: defaultAiSettings,
   contextMenu: defaultContextMenuSettings

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import type { ScriptDefinition, ScriptLanguage } from '@shared/schemas/scripts'
 import { defaultScriptDefinition, scriptFileExtension } from '@shared/schemas/scripts'
 import { looksDestructive } from '@shared/scriptDestructive'
@@ -16,6 +16,61 @@ import {
 
 const LANGS: ScriptLanguage[] = ['powershell', 'python', 'cmd', 'bash']
 
+/** Hover help for Script Manager — native `title` (same as the rest of the app). */
+const T = {
+  search: 'Filter the library by name, description, or category.',
+  new: 'Start a blank script. Save to add it to the library. Nothing is sent to AI.',
+  generate:
+    'Describe a task and let AI draft source. Only the task text is sent — not files or paths. Review before you Save or Run.',
+  import:
+    'Open a .mfescript file. Imports are untrusted — read the source before running.',
+  export: 'Save this script as a .mfescript you can share or back up.',
+  listItem: 'Open this script to edit or run. Saved scripts rerun locally with no AI.',
+  name: 'How the script appears in this list and in the context menu.',
+  language:
+    'Interpreter used on Run: PowerShell, Python, cmd, or bash. Must be on PATH (or set under Settings → AI → Script runner).',
+  description: 'Optional note for you. Also used when searching the library.',
+  category:
+    'Optional group name. Context menu Scripts lists items under this heading when set.',
+  extensions:
+    'For Selection scope: only offer this script when every selected file has one of these extensions (e.g. jpg, png). Leave empty to allow any type.',
+  minSelection:
+    'For Selection scope: hide the script in the context menu unless at least this many items are selected. 0 = no minimum.',
+  parameters:
+    'One parameter per line: name|type|label|required. Types: string, int, float, bool, file, folder, choice. Required is 1 or 0. At run time each value is passed as --name value.',
+  dependencies:
+    'Package names to remind you about (pip / Install-Module). Shown with Copy install command — never installed automatically.',
+  folder:
+    'Run against the current folder. The script receives --root "<folder>" and optional --recursive.',
+  selection:
+    'Run against selected files/folders. Paths go in a temp UTF-8 list as --input-list (one path per line).',
+  recursive:
+    'When Folder is on, default to walking subfolders (--recursive). You can still change this on the Run dialog.',
+  contextMenu:
+    'Show this script under right-click Scripts when the current folder or selection matches scope, extensions, and min selection.',
+  destructive:
+    'Mark as dangerous (delete/overwrite). Shows a warning banner. Also auto-detected from source (Remove-Item, rm, del, …).',
+  dryRun:
+    'Script understands --dry-run (preview only, no writes). Enables the Dry run button so you can test safely.',
+  external:
+    'Run a .ps1 / .py / .cmd / .sh on disk instead of the editor source. The file is not copied into app data.',
+  externalPath: 'Absolute path to the script file to execute.',
+  browse: 'Pick an existing .ps1, .py, .cmd, .bat, or .sh on disk.',
+  duplicate: 'Save a copy of this script in the library and open the copy.',
+  revert:
+    'Restore the previous editor source (after an AI modify). Does not undo Save. Disabled if there is no previous version.',
+  delete: 'Remove this script from the library. Does not delete an External file on disk.',
+  modifyAi:
+    'Send the current source plus your instruction to AI. Files and paths are never sent. Review the result before Save.',
+  openAi:
+    'Turn on AI in Settings to generate or modify scripts. Hand-written scripts still run without AI.',
+  save: 'Write this script to the library under app data. Later runs are local — no AI.',
+  dryRunBtn:
+    'Save if needed, then run with --dry-run. Use this when the script supports a preview pass.',
+  run: 'Save if needed, then execute as your Windows user on the current folder or selection. Live output and Stop are in the next dialog.',
+  close: 'Close Script Manager. Unsaved edits are discarded.'
+} as const
+
 export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
   const openDialog = useAppStore((s) => s.openDialog)
@@ -25,6 +80,13 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
   const tab = useAppStore((s) => s.activeTab())
   const selected = tab.selected
   const settings = useAppStore((s) => s.settings)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const persistManagerBounds = useCallback(
+    (next: { x: number; y: number; width: number; height: number }, maximized: boolean) => {
+      void applySettingsPatch({ scriptManagerBounds: { ...next, maximized } })
+    },
+    [applySettingsPatch]
+  )
 
   const [query, setQuery] = useState('')
   const [currentId, setCurrentId] = useState<string | null>(selectId ?? null)
@@ -192,12 +254,22 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
       className="modal-script-manager"
       title="Script Manager"
       onClose={closeDialog}
+      floating={{
+        saved: settings.scriptManagerBounds,
+        persist: persistManagerBounds,
+        minW: 640,
+        minH: 420,
+        defaultW: 980,
+        defaultH: 720,
+        allowMaximize: true
+      }}
       actions={
         <>
           <div className="modal-action-start script-check-row">
             <button
               type="button"
               className="btn"
+              title={T.duplicate}
               disabled={!currentId}
               onClick={() => {
                 if (!currentId) return
@@ -214,6 +286,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             <button
               type="button"
               className="btn"
+              title={T.revert}
               disabled={!hasPrevious || !currentId}
               onClick={() => {
                 if (!currentId) return
@@ -232,6 +305,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             <button
               type="button"
               className="btn danger"
+              title={T.delete}
               disabled={!currentId}
               onClick={() => {
                 if (!currentId) return
@@ -250,6 +324,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               <button
                 type="button"
                 className="btn"
+                title={T.modifyAi}
                 onClick={() => {
                   closeDialog()
                   openDialog({
@@ -267,6 +342,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               <button
                 type="button"
                 className="btn"
+                title={T.openAi}
                 onClick={() => {
                   closeDialog()
                   openDialog({ kind: 'settings', section: 'ai' })
@@ -276,18 +352,36 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               </button>
             )}
           </div>
-          <button type="button" className="btn" onClick={() => void save()} disabled={saving}>
+          <button
+            type="button"
+            className="btn"
+            title={T.save}
+            onClick={() => void save()}
+            disabled={saving}
+          >
             Save
           </button>
           {dryRunSupported && (
-            <button type="button" className="btn" onClick={() => void run(true)} disabled={saving}>
+            <button
+              type="button"
+              className="btn"
+              title={T.dryRunBtn}
+              onClick={() => void run(true)}
+              disabled={saving}
+            >
               Dry run
             </button>
           )}
-          <button type="button" className="btn primary" onClick={() => void run(false)} disabled={saving}>
+          <button
+            type="button"
+            className="btn primary"
+            title={T.run}
+            onClick={() => void run(false)}
+            disabled={saving}
+          >
             Run
           </button>
-          <button type="button" className="btn" onClick={closeDialog}>
+          <button type="button" className="btn" title={T.close} onClick={closeDialog}>
             Close
           </button>
         </>
@@ -300,16 +394,18 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
           <input
             type="search"
             placeholder="Search scripts"
+            title={T.search}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="script-manager-list-actions">
-            <button type="button" className="btn" onClick={blank}>
+            <button type="button" className="btn" title={T.new} onClick={blank}>
               New
             </button>
             <button
               type="button"
               className="btn"
+              title={T.generate}
               onClick={() => {
                 closeDialog()
                 openDialog({
@@ -328,6 +424,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                 <button
                   type="button"
                   className={s.id === currentId ? 'active' : ''}
+                  title={s.description.trim() ? `${s.description}\n\n${T.listItem}` : T.listItem}
                   onClick={() => void load(s.id).catch((e) => setError(formatError(e)))}
                 >
                   {s.name}
@@ -340,6 +437,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             <button
               type="button"
               className="btn"
+              title={T.import}
               onClick={() => {
                 void (async () => {
                   try {
@@ -367,6 +465,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             <button
               type="button"
               className="btn"
+              title={T.export}
               disabled={!currentId}
               onClick={() => {
                 if (!currentId) return
@@ -383,102 +482,106 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
         </aside>
         <div className="script-manager-editor">
           <div className="script-meta-grid">
-            <label className="settings-field">
-              <span>Name</span>
-              <input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value)
-                  setDirty(true)
-                }}
-              />
-            </label>
-            <label className="settings-field">
-              <span>Language</span>
-              <select
-                value={language}
-                onChange={(e) => {
-                  setLanguage(e.target.value as ScriptLanguage)
-                  setDirty(true)
-                }}
-              >
-                {LANGS.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                    {scriptFileExtension(l)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="settings-field script-meta-wide">
-              <span>Description</span>
-              <input
-                value={description}
-                onChange={(e) => {
-                  setDescription(e.target.value)
-                  setDirty(true)
-                }}
-              />
-            </label>
-            <label className="settings-field">
-              <span>Category</span>
-              <input
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value)
-                  setDirty(true)
-                }}
-              />
-            </label>
-            <label className="settings-field">
-              <span>Extensions (selection)</span>
-              <input
-                value={matchExtensions}
-                placeholder="jpg, png"
-                onChange={(e) => {
-                  setMatchExtensions(e.target.value)
-                  setDirty(true)
-                }}
-              />
-            </label>
-            <label className="settings-field">
-              <span>Min selection</span>
-              <input
-                type="number"
-                min={0}
-                value={minSelection}
-                onChange={(e) => {
-                  setMinSelection(Number(e.target.value) || 0)
-                  setDirty(true)
-                }}
-              />
-            </label>
-            <label className="settings-field script-meta-wide">
-              <span>Parameters (name|type|label|required)</span>
-              <textarea
-                rows={3}
-                value={paramLines}
-                placeholder="threshold|int|Threshold|1"
-                onChange={(e) => {
-                  setParamLines(e.target.value)
-                  setDirty(true)
-                }}
-              />
-            </label>
-            <label className="settings-field script-meta-wide">
-              <span>Dependencies</span>
-              <input
-                value={dependencies}
-                placeholder="pillow, numpy"
-                onChange={(e) => {
-                  setDependencies(e.target.value)
-                  setDirty(true)
-                }}
-              />
-            </label>
+            <div className="script-meta-primary">
+              <label className="settings-field" title={T.name}>
+                <span>Name</span>
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+              <label className="settings-field" title={T.language}>
+                <span>Language</span>
+                <select
+                  value={language}
+                  onChange={(e) => {
+                    setLanguage(e.target.value as ScriptLanguage)
+                    setDirty(true)
+                  }}
+                >
+                  {LANGS.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                      {scriptFileExtension(l)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="settings-field script-meta-wide" title={T.description}>
+                <span>Description</span>
+                <input
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+              <label className="settings-field" title={T.category}>
+                <span>Category</span>
+                <input
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+              <label className="settings-field" title={T.extensions}>
+                <span>Extensions (selection)</span>
+                <input
+                  value={matchExtensions}
+                  placeholder="jpg, png"
+                  onChange={(e) => {
+                    setMatchExtensions(e.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+            </div>
+            <div className="script-meta-secondary">
+              <label className="settings-field" title={T.minSelection}>
+                <span>Min selection</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={minSelection}
+                  onChange={(e) => {
+                    setMinSelection(Number(e.target.value) || 0)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+              <label className="settings-field script-meta-wide" title={T.parameters}>
+                <span>Parameters (name|type|label|required)</span>
+                <textarea
+                  rows={3}
+                  value={paramLines}
+                  placeholder="threshold|int|Threshold|1"
+                  onChange={(e) => {
+                    setParamLines(e.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+              <label className="settings-field script-meta-wide" title={T.dependencies}>
+                <span>Dependencies</span>
+                <input
+                  value={dependencies}
+                  placeholder="pillow, numpy"
+                  onChange={(e) => {
+                    setDependencies(e.target.value)
+                    setDirty(true)
+                  }}
+                />
+              </label>
+            </div>
           </div>
           <div className="script-check-row">
-            <label>
+            <label title={T.folder}>
               <input
                 type="checkbox"
                 checked={scopes.includes('folder')}
@@ -494,7 +597,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Folder
             </label>
-            <label>
+            <label title={T.selection}>
               <input
                 type="checkbox"
                 checked={scopes.includes('selection')}
@@ -510,7 +613,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Selection
             </label>
-            <label>
+            <label title={T.recursive}>
               <input
                 type="checkbox"
                 checked={recursive}
@@ -521,7 +624,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Recursive default
             </label>
-            <label>
+            <label title={T.contextMenu}>
               <input
                 type="checkbox"
                 checked={contextMenuEnabled}
@@ -532,7 +635,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Context menu
             </label>
-            <label>
+            <label title={T.destructive}>
               <input
                 type="checkbox"
                 checked={destructive}
@@ -543,7 +646,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Destructive
             </label>
-            <label>
+            <label title={T.dryRun}>
               <input
                 type="checkbox"
                 checked={dryRunSupported}
@@ -554,7 +657,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Dry-run supported
             </label>
-            <label>
+            <label title={T.external}>
               <input
                 type="checkbox"
                 checked={sourceKind === 'external'}
@@ -570,6 +673,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             <div className="script-check-row">
               <input
                 style={{ flex: 1 }}
+                title={T.externalPath}
                 value={externalPath}
                 placeholder="Absolute path to .ps1 / .py / .cmd / .sh"
                 onChange={(e) => {
@@ -580,6 +684,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               <button
                 type="button"
                 className="btn"
+                title={T.browse}
                 onClick={() => {
                   void call(api.script.pickExternal()).then((r) => {
                     if (r.path) {

@@ -37,7 +37,8 @@ export function replaceSettings(raw: unknown): Settings {
     compiledListsWindowBounds: null,
     previewWindowBounds: null,
     scriptManagerBounds: null,
-    scriptGenerateBounds: null
+    scriptGenerateBounds: null,
+    scriptRunnerBounds: null
   })
   settingsStore().replace(next)
   settingsStore().flush()

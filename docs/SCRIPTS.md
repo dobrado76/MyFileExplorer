@@ -30,9 +30,9 @@ Languages: PowerShell (`.ps1`), Python (`.py`), cmd (`.bat`/`.cmd` on Windows), 
 
 ## Using scripts
 
-1. Toolbar **Scripts** or context **Scripts → Manage Scripts…**
+1. Toolbar **Scripts** or context **Scripts → Manage Scripts…**. Script Manager is movable and resizable; **Maximize** (and the restored size) persist. Maximized uses a two-column field layout so the editor is taller.
 2. Write or paste source, set folder vs selection scope, Save.
-3. **Run** / **Dry run** opens the execution dialog (live stdout/stderr, elapsed, Stop, copy output).
+3. **Run** / **Dry run** opens the execution dialog (live stdout/stderr, elapsed, Stop, copy output). Drag the title to move; drag edges to resize. Size and position are remembered.
 4. Context **Scripts >** lists eligible saved items (scope, optional category, extension / min-selection filters).
 5. First run: acknowledge that scripts run as you and can delete files. Destructive-looking source (`Remove-Item`, `os.remove`, `rm -rf`, `del`, …) shows a banner.
 

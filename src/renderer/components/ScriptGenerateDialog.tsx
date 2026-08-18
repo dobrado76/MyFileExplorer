@@ -90,6 +90,7 @@ export function ScriptGenerateDialog(props: {
             <button
               type="button"
               className="btn primary"
+              title="Enable AI and add a provider. Hand-written scripts still run from Script Manager without AI."
               onClick={() => {
                 closeDialog()
                 openDialog({ kind: 'settings', section: 'ai' })
@@ -97,7 +98,7 @@ export function ScriptGenerateDialog(props: {
             >
               Open AI Settings
             </button>
-            <button type="button" className="btn" onClick={closeDialog}>
+            <button type="button" className="btn" title="Close this dialog." onClick={closeDialog}>
               Close
             </button>
           </>
@@ -233,19 +234,38 @@ export function ScriptGenerateDialog(props: {
       busyHint="This may take some time."
       actions={
         <>
-          <button type="button" className="btn" disabled={!!busy} onClick={() => void generate()}>
+          <button
+            type="button"
+            className="btn"
+            title="Send the task description to AI and replace the editor with a new draft. File names and paths are never sent."
+            disabled={!!busy}
+            onClick={() => void generate()}
+          >
             {source ? 'Regenerate' : 'Generate'}
           </button>
-          <button type="button" className="btn" disabled={!!busy || !source} onClick={() => void modify()}>
+          <button
+            type="button"
+            className="btn"
+            title="Send the current source plus the modify instruction. Only text — not your files."
+            disabled={!!busy || !source}
+            onClick={() => void modify()}
+          >
             Modify
           </button>
-          <button type="button" className="btn" disabled={!!busy || !source} onClick={() => void save()}>
+          <button
+            type="button"
+            className="btn"
+            title="Save into the script library. Later runs are local with no AI."
+            disabled={!!busy || !source}
+            onClick={() => void save()}
+          >
             Save
           </button>
           {dryRunSupported && (
             <button
               type="button"
               className="btn"
+              title="Save, then run with --dry-run if the script supports a preview pass."
               disabled={!!busy || !source}
               onClick={() => {
                 void save().then((id) => {
@@ -270,6 +290,7 @@ export function ScriptGenerateDialog(props: {
           <button
             type="button"
             className="btn primary"
+            title="Save to the library, then execute as you on the current folder or selection."
             disabled={!!busy || !source}
             onClick={() => {
               void save().then((id) => {
@@ -290,7 +311,13 @@ export function ScriptGenerateDialog(props: {
           >
             Save & run
           </button>
-          <button type="button" className="btn" disabled={!!busy} onClick={closeDialog}>
+          <button
+            type="button"
+            className="btn"
+            title="Close without saving. Unsaved generated source is discarded."
+            disabled={!!busy}
+            onClick={closeDialog}
+          >
             Close
           </button>
         </>
@@ -309,7 +336,10 @@ export function ScriptGenerateDialog(props: {
         </label>
       )}
       <div className="script-meta-grid">
-        <label className="settings-field">
+        <label
+          className="settings-field"
+          title="Which AI endpoint to use. Local (LM Studio) stays on this PC. Cloud sends only the task/source text."
+        >
           <span>Provider</span>
           <select value={providerId} onChange={(e) => setProviderId(e.target.value)}>
             {providers.map((p) => (
@@ -320,7 +350,10 @@ export function ScriptGenerateDialog(props: {
             ))}
           </select>
         </label>
-        <label className="settings-field">
+        <label
+          className="settings-field"
+          title="Model id from GET /v1/models. Pick a cheaper or faster model without typing the id."
+        >
           <span>Model</span>
           <AiModelSelect
             value={model}
@@ -350,7 +383,10 @@ export function ScriptGenerateDialog(props: {
             }}
           />
         </label>
-        <label className="settings-field">
+        <label
+          className="settings-field"
+          title="Language for the generated script. Auto lets the model choose from PowerShell, Python, cmd, or bash."
+        >
           <span>Language</span>
           <select
             value={language}
@@ -363,18 +399,27 @@ export function ScriptGenerateDialog(props: {
             <option value="bash">bash</option>
           </select>
         </label>
-        <label className="settings-field">
+        <label
+          className="settings-field"
+          title="Folder: script gets --root. Selection: selected paths go in a temp --input-list. AI is not told your paths."
+        >
           <span>Target</span>
           <select value={target} onChange={(e) => setTarget(e.target.value as 'folder' | 'selection')}>
             <option value="folder">Current folder</option>
             <option value="selection">Selected items</option>
           </select>
         </label>
-        <label className="settings-toggle">
+        <label
+          className="settings-toggle"
+          title="When the target is the current folder, the script should walk subfolders (--recursive)."
+        >
           <input type="checkbox" checked={recursive} onChange={(e) => setRecursive(e.target.checked)} />
           <span>Recursive</span>
         </label>
-        <label className="settings-field script-meta-wide">
+        <label
+          className="settings-field script-meta-wide"
+          title="What the script should do. Do not paste paths or file contents — those are never sent and should not be in the prompt."
+        >
           <span>Task</span>
           <textarea
             rows={3}
@@ -384,7 +429,10 @@ export function ScriptGenerateDialog(props: {
           />
         </label>
         {source ? (
-          <label className="settings-field script-meta-wide">
+          <label
+            className="settings-field script-meta-wide"
+            title="Tell AI how to change the current source (Modify button). Only this text plus the source is sent."
+          >
             <span>Modify instruction</span>
             <input
               value={instruction}
@@ -393,11 +441,11 @@ export function ScriptGenerateDialog(props: {
             />
           </label>
         ) : null}
-        <label className="settings-field">
+        <label className="settings-field" title="Library and context-menu name after you Save.">
           <span>Name</span>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="settings-field">
+        <label className="settings-field" title="Optional note stored with the script. Used when searching the library.">
           <span>Description</span>
           <input value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>

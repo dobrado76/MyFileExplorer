@@ -27,7 +27,14 @@ export function ScriptRunnerDialog(props: {
   const closeDialog = useAppStore((s) => s.closeDialog)
   const openDialog = useAppStore((s) => s.openDialog)
   const notify = useAppStore((s) => s.notify)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const settings = useAppStore((s) => s.settings)
+  const persistRunnerBounds = useCallback(
+    (next: { x: number; y: number; width: number; height: number }) => {
+      void applySettingsPatch({ scriptRunnerBounds: next })
+    },
+    [applySettingsPatch]
+  )
 
   const [script, setScript] = useState<ScriptDefinition | null>(null)
   const [source, setSource] = useState(props.source ?? '')
@@ -157,10 +164,19 @@ export function ScriptRunnerDialog(props: {
 
   return (
     <ScriptModal
+      className="modal-script-run"
       title={title}
       busy={aiBusy}
       busyTitle="Asking AI to fix…"
       busyHint="This may take some time."
+      floating={{
+        saved: settings.scriptRunnerBounds,
+        persist: persistRunnerBounds,
+        minW: 480,
+        minH: 360,
+        defaultW: 760,
+        defaultH: 640
+      }}
       onClose={() => {
         if (aiBusy) return
         if (status === 'running') stop()
@@ -168,26 +184,54 @@ export function ScriptRunnerDialog(props: {
       }}
       actions={
         <>
-          <button type="button" className="btn" onClick={() => void navigator.clipboard.writeText(output)}>
+          <button
+            type="button"
+            className="btn"
+            title="Copy stdout/stderr from this run to the clipboard."
+            onClick={() => void navigator.clipboard.writeText(output)}
+          >
             Copy output
           </button>
           {status === 'running' ? (
-            <button type="button" className="btn danger" onClick={stop}>
+            <button
+              type="button"
+              className="btn danger"
+              title="Kill the running process. Partial file changes already made are not undone."
+              onClick={stop}
+            >
               Stop
             </button>
           ) : (
             <>
               {dryOk && (
-                <button type="button" className="btn" disabled={busy} onClick={() => void start(true)}>
+                <button
+                  type="button"
+                  className="btn"
+                  title="Run with --dry-run so the script can preview without writing."
+                  disabled={busy}
+                  onClick={() => void start(true)}
+                >
                   Dry run
                 </button>
               )}
-              <button type="button" className="btn primary" disabled={busy} onClick={() => void start(false)}>
+              <button
+                type="button"
+                className="btn primary"
+                title="Execute as your Windows user. Output streams here; use Stop to cancel."
+                disabled={busy}
+                onClick={() => void start(false)}
+              >
                 Run
               </button>
             </>
           )}
-          <button type="button" className="btn" disabled={aiBusy} onClick={closeDialog}>
+          <button
+            type="button"
+            className="btn"
+            title="Close this run window. A running script is stopped first."
+            disabled={aiBusy}
+            onClick={closeDialog}
+          >
             Close
           </button>
         </>
@@ -200,7 +244,10 @@ export function ScriptRunnerDialog(props: {
         <ParamsForm parameters={script.parameters} values={params} onChange={setParams} />
       )}
       {(script?.scopes.includes('folder') || props.mode === 'folder') && (
-        <label className="settings-toggle">
+        <label
+          className="settings-toggle"
+          title="Pass --recursive so the script walks subfolders of the current folder."
+        >
           <input
             type="checkbox"
             checked={recursive}
@@ -222,7 +269,12 @@ export function ScriptRunnerDialog(props: {
       {status === 'done' && exitCode != null && exitCode !== 0 && settings.ai.enabled && (
         <div className="script-fix">
           {!confirmFix ? (
-            <button type="button" className="btn" onClick={() => setConfirmFix(true)}>
+            <button
+              type="button"
+              className="btn"
+              title="Offer to send source, exit code, and stderr to AI. Files and listings are never sent. You confirm on the next step."
+              onClick={() => setConfirmFix(true)}
+            >
               Ask AI to fix…
             </button>
           ) : (

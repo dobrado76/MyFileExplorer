@@ -11,6 +11,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Script run window** — the output dialog is movable and resizable; size and position persist (`scriptRunnerBounds`). The log pane grows with the window so long reports stay on screen.
+- **Script Manager window** — movable and resizable; **Maximize** persists with size/position (`scriptManagerBounds`). Maximized puts Min selection / Parameters / Dependencies in a second column so the editor is taller.
+- **Script Manager tooltips** — every field label and button explains scope, CLI flags, AI privacy, and run vs dry-run. Generate and Run dialogs have the same hover help.
 - **Script editor highlighting** — Script Manager and Generate color PowerShell, Python, cmd, and bash with the same highlight.js theme as preview.
 - **AI generate wait** — Generate / Modify / Ask AI to Fix show a modal overlay with an indeterminate bar and “This may take some time” (elapsed seconds), not the status bar.
 - **Drives header (This PC)** — right-click **Drives** for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, and **Properties** (same This PC sheet as Explorer). These open the real system windows.

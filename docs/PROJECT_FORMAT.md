@@ -89,7 +89,7 @@ Notes:
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
 - `mediaMetadata`: opt-in movie/TV metadata (D50). `{ enabled` (default false), `coverHeightPx` (56–240, default 120), `showEpisodeIconLabels` (default true — icon tiles use `SxxExx` + episode title; false = filename), `mixFilesAndFolders` (default true — media-container listings ignore Folders first), `tmdbApiKey`, `omdbApiKey`, `internetSource` (`tmdb` \| `omdb`), `plexUrl`, `plexToken`, `plexDataDir` }. Streams on the media file/folder: `media_metadata` (JSON, including optional `watched`), `media_metadata_thumbnail` (cover bytes, not on episode files). Folder flag: `media_metadata_container` on the library parent and the title folder — not under `userData`. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
-- `scripts` / `ai`: D51 runner overrides + OpenAI-compatible provider metadata (no API keys). Geometry: `scriptManagerBounds`, `scriptGenerateBounds` (stripped on export). Guide: [SCRIPTS.md](SCRIPTS.md).
+- `scripts` / `ai`: D51 runner overrides + OpenAI-compatible provider metadata (no API keys). Geometry: `scriptManagerBounds`, `scriptGenerateBounds`, `scriptRunnerBounds` (stripped on export). Guide: [SCRIPTS.md](SCRIPTS.md).
 
 ---
 

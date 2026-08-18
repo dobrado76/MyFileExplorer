@@ -19,7 +19,8 @@ describe('settings export / import', () => {
       compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 },
       previewWindowBounds: { x: 9, y: 10, width: 480, height: 720, maximized: true },
       scriptManagerBounds: { x: 11, y: 12, width: 800, height: 600, maximized: false },
-      scriptGenerateBounds: { x: 13, y: 14, width: 720, height: 520, maximized: false }
+      scriptGenerateBounds: { x: 13, y: 14, width: 720, height: 520, maximized: false },
+      scriptRunnerBounds: { x: 15, y: 16, width: 760, height: 640 }
     }
     const portable = settingsForPortableExport(withBounds)
     for (const key of windowLikeSettingsKeys()) {
@@ -151,6 +152,7 @@ describe('settings export / import', () => {
     expect(JSON.stringify(parsed.settings.ai)).not.toMatch(/sk-/)
     expect(parsed.settings.scriptManagerBounds).toBeNull()
     expect(parsed.settings.scriptGenerateBounds).toBeNull()
+    expect(parsed.settings.scriptRunnerBounds).toBeNull()
   })
 
   it('round-trips mediaMetadata nested prefs via full settingsSchema', () => {

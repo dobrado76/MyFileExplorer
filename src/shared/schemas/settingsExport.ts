@@ -25,7 +25,8 @@ const WINDOW_LIKE_KEYS = [
   'compiledListsWindowBounds',
   'previewWindowBounds',
   'scriptManagerBounds',
-  'scriptGenerateBounds'
+  'scriptGenerateBounds',
+  'scriptRunnerBounds'
 ] as const
 
 /**
@@ -42,7 +43,8 @@ export function settingsForPortableExport(settings: Settings): Settings {
     compiledListsWindowBounds: null,
     previewWindowBounds: null,
     scriptManagerBounds: null,
-    scriptGenerateBounds: null
+    scriptGenerateBounds: null,
+    scriptRunnerBounds: null
   })
 }
 
