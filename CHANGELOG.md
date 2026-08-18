@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-19
+
+Ninth product release: **D51 local scripts** turn the file manager into a universal runner (PowerShell / Python / cmd / bash) with optional AI that never sees your files, plus **D50 media metadata** and a large polish pass. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
 - **Script run window** — the output dialog is movable and resizable; size and position persist (`scriptRunnerBounds`). The log pane grows with the window so long reports stay on screen.

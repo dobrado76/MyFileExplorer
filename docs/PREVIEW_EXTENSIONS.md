@@ -1,6 +1,6 @@
 # Preview pane — supported extensions
 
-**Version:** 0.8.x  
+**Version:** 0.9.0  
 **Source of truth:** extension sets in [`src/main/preview/index.ts`](../src/main/preview/index.ts) (plus CHM / video helpers). Behavior detail: [PREVIEW.md](PREVIEW.md).
 
 **Click-through fixtures:** [`samples/preview-extensions/`](../samples/preview-extensions/) — one small file per supported extension (`npm run samples:preview` to regenerate).

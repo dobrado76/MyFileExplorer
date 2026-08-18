@@ -1,6 +1,6 @@
 # Media metadata (D50)
 
-**Status:** Unreleased (on `0.8.1` development builds) · Decision **D50** · **Windows / NTFS only**
+**Status:** shipped in **v0.9.0** · Decision **D50** · **Windows / NTFS only**
 
 Opt-in movie and TV cards for a local library. Title, year, genres, cast, ratings, a watched flag, and a **portrait** poster live on the **file or folder** as NTFS alternate data streams — not as `.nfo` / `folder.jpg`, and not under `%APPDATA%`.
 

@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.8.0 (implemented)
+**Version:** 0.9.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -130,6 +130,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.6.3 remotes (D46) + context-menu Discover/layout (D41) + experimental Linux AppImage helpers; Windows remains primary; RELEASE_NOTES / docs tag-ready
 - [x] v0.7.0 Power Search + continue-then-review bulk ops + per-tab search + PowerPoint slides + folder statistics depth-first + slideshow crop + search progress UX + tab/splitter polish; RELEASE_NOTES / docs aligned to **0.7.0** for tag `v0.7.0`
 - [x] v0.8.0 drive free space + detached preview + `.ics`/`.eml` + D49 listing cache + preview-type / large-folder polish; RELEASE_NOTES / docs aligned to **0.8.0** for tag `v0.8.0`
+- [x] v0.9.0 D51 universal script runner + optional AI + D50 media metadata + polish; README / CHANGELOG / RELEASE_NOTES / SCRIPTS / docs aligned to **0.9.0** for tag `v0.9.0`
 
 ---
 
@@ -212,6 +213,10 @@ v0.6.3 plus: Power Search visual builder; continue-then-review copy/move/trash/d
 
 v0.7.0 plus: drive free space (status bar + Drives pies, mapped + offline); detached preview window + Zen; `.ics` / `.ical` / `.eml` preview; D49 session listing cache for NAS/UNC; 3D / HDR / Unity / VS / subtitle / `.uvw` preview; Power Search saved designs; tab icon defaults; large-folder interactivity; README / CHANGELOG / RELEASE_NOTES / PREVIEW_EXTENSIONS / docs aligned to **0.8.0** for tag `v0.8.0`. ✅
 
+## Definition of done (v0.9.0 product)
+
+v0.8.0 plus: **D51** universal local script runner (PowerShell / Python / cmd / bash on folder or selection; library; context Scripts; optional AI that never sends files); **D50** opt-in media metadata; This PC tools on Drives; ADS ChangeTime restore; Script Manager / Run window geometry; README / CHANGELOG / RELEASE_NOTES / SCRIPTS / docs aligned to **0.9.0** for tag `v0.9.0`. ✅
+
 ---
 
 ## Phase — Multi-view panes (D31)
@@ -233,4 +238,4 @@ v0.7.0 plus: drive free space (status bar + Drives pies, mapped + offline); deta
 - [x] Generate / modify / review-before-run (never send files)
 - [x] Dry-run, deps copy-command, Ask AI to Fix confirm, `.mfescript` import/export
 
-**Exit:** hand-written script runs with no AI; generate → save → context-menu rerun with zero AI calls. See [SCRIPTS.md](SCRIPTS.md).
+**Exit:** hand-written script runs with no AI; generate → save → context-menu rerun with zero AI calls. The file manager is a universal runner — new jobs are scripts, not app releases. See [SCRIPTS.md](SCRIPTS.md).

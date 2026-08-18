@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.8.1 (development)
+**App:** MyFileExplorer · **Version:** 0.9.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -15,6 +15,7 @@ Features are deliberately patterned after tools people already trust — then fo
 | **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, compiled file lists for large libraries, image-list cache. |
 | **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
 | **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
+| **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / Python / cmd / bash on the folder or selection you are looking at, with a saved library and optional AI that never reads files. Explorer only opens a prompt. |
 
 Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27).
 
@@ -106,6 +107,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
 | **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |
 | **No junk written into browsed folders** | App state, icon/thumb caches, image originals, and search DB live under `%APPDATA%\MyFileExplorer` only (video strips use an existing `!VIDTHUMB_CACHE` convention when you generate them). |
+| **Universal script runner (D51)** | Saved PowerShell / Python / cmd / bash scripts run on the current folder or selection (live output, Stop, dry-run) and appear on the context menu. Optional AI writes source without seeing your files. The command set is no longer limited to what we ship. Guide: [SCRIPTS.md](SCRIPTS.md). |
 
 ---
 
@@ -127,7 +129,8 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D50)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D51)  
+- [SCRIPTS.md](SCRIPTS.md) — universal script runner + optional AI (D51)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
 - [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  

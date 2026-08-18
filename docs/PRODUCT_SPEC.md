@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.8.1 (development; last product release 0.8.0)
+**Version:** 0.9.0
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).
@@ -98,7 +98,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists |
 | Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits**. A name that already exists opens the same D18 review as copy/move (Skip / Keep both `name (2).ext` / Replace / Keep most recent) |
 | Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
-| Scripts            | Local PowerShell / Python / cmd / bash runner with live output and Stop. Saved library under `userData`. Context **Scripts >**. Optional AI generate/modify (never sends files). [SCRIPTS.md](SCRIPTS.md) (D51) |
+| Scripts            | Universal runner: PowerShell / Python / cmd / bash on the current folder or selection, live output, Stop. Saved library under `userData` becomes context **Scripts >** verbs — that is how capabilities grow without a new release. Optional AI generate/modify (never sends files). [SCRIPTS.md](SCRIPTS.md) (D51) |
 | Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer. **Drive roots** (`C:\`) are never deleted — Del / Shift+Del / context Delete are ignored with no message. Deleting a folder that is the **scoped root of any open tab** always confirms (Cancel / Delete) and warns those tabs will close; after a successful delete the affected tabs close (a replacement tab opens if that would leave none) |
@@ -124,7 +124,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Cut / Copy / Paste
 - Rename
 - Power Rename… (search/replace with preview; files and folders in selection only)
-- Scripts (saved local scripts + Generate / Manage; D51)
+- Scripts (universal runner: saved local scripts + Generate / Manage; D51)
 - User-defined commands (Settings → Context menu — separate lists for files vs folders; e.g. Edit in Photoshop, Play in VLC)
 - Delete / Delete permanently
 - Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)

@@ -1,6 +1,6 @@
 # Integrating with MyFileExplorer
 
-**Version:** 0.8.x
+**Version:** 0.9.0
 
 Other apps can “Reveal in Explorer” / open a folder **inside MyFileExplorer** instead of launching Windows File Explorer. A single running instance is reused; each request opens or focuses a **tab**.
 

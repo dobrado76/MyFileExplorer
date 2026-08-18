@@ -67,15 +67,14 @@ export function useFloatingModalBounds(opts: {
 } {
   const { saved, persist, minW, minH, defaultW, defaultH, allowMaximize = false } = opts
   const [maximized, setMaximized] = useState(() => allowMaximize && !!saved?.maximized)
-  const restoreRef = useRef<FloatingBounds>(
-    saved
-      ? clampFloatingBounds(saved, minW, minH)
-      : defaultFloatingBounds(defaultW, defaultH, minW, minH)
-  )
+  const initialRestore = saved
+    ? clampFloatingBounds(saved, minW, minH)
+    : defaultFloatingBounds(defaultW, defaultH, minW, minH)
+  const restoreRef = useRef<FloatingBounds>(initialRestore)
   const [bounds, setBounds] = useState<FloatingBounds>(() =>
     allowMaximize && saved?.maximized
       ? maximizedFloatingBounds(minW, minH)
-      : restoreRef.current
+      : initialRestore
   )
   const boundsRef = useRef(bounds)
   useEffect(() => {

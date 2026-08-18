@@ -2,13 +2,13 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.8.0** shipped; **v0.8.2** development adds **D51** local scripts + optional AI authoring ([docs/SCRIPTS.md](docs/SCRIPTS.md)). Phases 0–10 shipped; **drive free space**; **detached preview**; **`.ics` / `.eml`**; **D49** remote listing cache; Power Search; continue-then-review bulk ops (D18); per-tab search; Network (D44/D3); settings export/import (D45); remotes (D46); **D50** media metadata. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.9.0** — **D51** universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped; drive free space; detached preview; `.ics` / `.eml`; D49 remote listing cache; Power Search; continue-then-review (D18); per-tab search; Network (D44/D3); settings export (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## What we are building
 
-A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, and **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38).
+A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), a **universal local script runner** (D51 — PowerShell / Python / cmd / bash on the current folder or selection), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, and **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38).
 
 ## Stack (locked)
 
@@ -55,18 +55,17 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/NETWORKS.md](docs/NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
-| [docs/SCRIPTS.md](docs/SCRIPTS.md)                         | Local scripts + optional AI authoring (D51) |
+| [docs/SCRIPTS.md](docs/SCRIPTS.md)                         | Universal script runner + optional AI (D51) |
 | [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
 ## Immediate next work
 
-1. Dogfood **D51** scripts (hand-written run/cancel, context Scripts menu, Settings → AI test against LM Studio, generate → save → rerun with no AI) — [docs/SCRIPTS.md](docs/SCRIPTS.md)
-2. Soak-test **D50** media metadata (Plex extract without PMS running, TMDB remake picker, episode `SxxExx` tiles, CD-split movie folders, Change cover, watched/genre toolbar, consolidate Subs) — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
-3. Confirm Details horizontal scroll (header + rows, scrollbar at pane bottom) on a narrow window
-4. Confirm deleting a scoped tab root always prompts and closes those tabs
-5. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md) — File Automator stays separate from D51
+1. Ship tag `v0.9.0` (installer + GitHub Release) — [docs/BUILD.md](docs/BUILD.md)
+2. Dogfood the script library (share a `.mfescript`, context-menu rerun, dry-run, Ask AI to Fix) — [docs/SCRIPTS.md](docs/SCRIPTS.md)
+3. Soak-test **D50** media metadata on a real library — [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)
+4. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md) — File Automator stays separate from D51
 
 ## Agent rules
 

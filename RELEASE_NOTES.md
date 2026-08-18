@@ -1,67 +1,66 @@
-# MyFileExplorer v0.8.0 — release notes
+# MyFileExplorer v0.9.0 — release notes
 
-**Date:** 2026-08-16  
-**Tag:** `v0.8.0` (package **0.8.0**)  
-**Previous product baseline:** [v0.7.0](CHANGELOG.md#070---2026-08-14)
+**Date:** 2026-08-19  
+**Tag:** `v0.9.0` (package **0.9.0**)  
+**Previous product baseline:** [v0.8.0](CHANGELOG.md#080---2026-08-16)
 
-Eighth product release (**v0.8**): **drive free space** (status bar + Drives pies), a **detached preview window**, **`.ics` / `.eml` preview**, instant **NAS listing memory**, and a large pass of new preview types plus large-folder performance.
+Ninth product release (**v0.9**): a **universal local script runner** in the file manager. PowerShell, Python, cmd, and bash run against the current folder or selection with live output. Save a script once and it is a first-class command forever. Optional AI can **write** scripts; it **never reads** your files.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Preview types: [docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md). Networks: [docs/NETWORKS.md](docs/NETWORKS.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Also in this line: **opt-in movie/TV metadata** (D50), This PC tools from the Drives header, and a large metadata / rename / ADS polish pass.
+
+Full detail: [CHANGELOG.md](CHANGELOG.md). Scripts: [docs/SCRIPTS.md](docs/SCRIPTS.md). Media: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Drive free space
-- Status bar shows `N GB free of M GB (P%)` for the current volume.
-- Click the tree **Drives** header for every volume: pie charts in the preview pane, all letters in the status bar.
-- Online **mapped** letters (N: / M: / …) use the same space query as Properties.
-- Offline maps, empty CDs, and empty card readers show **Disconnected** / size unknown and cannot stall the rest of the list.
+### Universal script runner (D51)
 
-### Detached preview window
-- Preview header **Open preview window** opens a peer window with the same live preview.
-- Follows the selection even if you collapse the docked pane. Position / size / maximized are remembered (stripped on settings export).
-- **Zen mode** hides metadata and fills the window with the visualization.
+Explorer stops at “open this folder in a terminal.” MyFileExplorer **is** the runner.
 
-### Calendar & email preview
-- **`.ics` / `.ical`** — event / to-do agenda (Preview) and highlighted source (Raw).
-- **`.eml`** — From / To / Subject / Date, attachments, and body (plain or sanitized HTML). Remote images are not loaded. Outlook `.msg` is not this format.
+- Toolbar **Scripts** / context **Scripts**. Saved library under app data — no sidecars in your folders.
+- **PowerShell, Python, cmd, bash** on PATH (or Settings → AI → Script runner overrides).
+- **Folder** (`--root`) or **selection** (`--input-list` UTF-8 manifest). Recursive and dry-run when the script supports them.
+- Live stdout/stderr, elapsed time, **Stop**. The run window is movable/resizable and remembers size.
+- Script Manager: editor with highlighting, parameters, categories, extension / min-selection filters, import/export `.mfescript`, external file refs. Maximize for a two-column field layout and a taller editor.
+- First-class **context menu** items — a saved script is as reachable as Copy or Delete.
+- Destructive source is flagged. Declared deps show **Copy install command** — the app never silent-installs packages.
 
-### NAS / UNC folders reopen instantly
-- Last listing for a remote folder is kept in memory for the session (~24 folders; huge listings skipped).
-- Navigating back paints immediately, then revalidates in the background.
-- F5, your own file ops, and a watch event on that folder drop the snapshot. Local disks unchanged; nothing written to disk.
+That is the infinite part: any job you can express in a script — reports, renames, transcodes, caption merges, folder audits — becomes a reusable verb on the current folder or selection. The file manager does not need a new feature for each job.
 
-### More preview types
-- **3D meshes** — `.obj` / `.fbx` / `.3ds` orbit in WebGL.
-- **`.hdr`** — Radiance HDRI tonemapped for thumbs / preview / slideshow.
-- **Unity / Visual Studio text** — `.meta` / `.mat` / `.shader` / `.csproj` / `.sln` / … as highlighted text.
-- **`.uvw`**, **subtitles** (`.srt` / text `.sub` / SAMI), **`.divx`**.
-- Click-through fixtures: [`samples/preview-extensions/`](samples/preview-extensions/) (`npm run samples:preview`).
+### Optional AI that never sees your files
 
-### Search, tabs, settings
-- **Power Search saved designs** — name a complex search and load it later.
-- Search **exclude patterns** use the same language as the view filter.
-- Default **tab icons** (Computer / drive / folder); Settings → Appearance: show tab icons, equal-width tabs.
-- **Show folder statistics** toggle (Behavior) — hide Size / Files / Folders calculated columns when comparing listing speed.
-- Settings → About: **Current version** card; Updates is **Folder or URL** on one line.
+Settings → **AI** (off by default): OpenAI-compatible providers, including LM Studio.
 
-### Performance & reliability
-- Large Details folders stay interactive (column meta only for on-screen rows).
-- 200k-file Select All no longer freezes the UI.
-- Calculate Statistics skips system / filtered folders and recovers from permission errors.
-- Search walk no longer starves preview; `.obj` typing no longer floods then restarts.
+- Generate or modify from a **task description + source only**. No paths, listings, or file bytes.
+- Model dropdown from `GET /v1/models` (cached). OpenAI catalogs hide embeddings/TTS/image.
+- **Ask AI to Fix** after a failed run asks first and lists the payload. Never auto-sent.
+- Saved scripts **rerun locally with zero AI calls**.
+
+### Movie / TV metadata (D50)
+
+Settings → Media Metadata (off by default). Extract from a local Plex server or download (TMDB / OMDb). Covers and JSON live as NTFS streams on the file or folder — no `.nfo` / `folder.jpg`. Show posters on the show folder; episode tiles can show `SxxExx`. Watched / genre toolbar. Change cover. Consolidate ripper Subs.
+
+### Also in 0.9
+
+- Right-click **Drives**: Computer Manager, Device Manager, Control Panel, Properties.
+- Collapse all on the current tab’s folder tree.
+- ADS writes restore NTFS **ChangeTime** (not just Date modified) so sync tools do not recopy a whole library.
+- Thumbnail view folder icons when Media Metadata is on.
+- Rename clashes use the same Skip / Keep both / Replace review as copy/move.
+- Local `dist` no longer Authenticode-signs (GitHub Release builds were already unsigned).
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.8.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.9.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
-3. Before a PC swap: **Settings → About → Export…**.
+3. Before a PC swap: **Settings → About → Export…** (includes the script library; AI keys stay on the machine).
 
 ## Upgrade notes
 
-- Fully quit and relaunch after upgrade (drive space, listing cache, and preview window are main/renderer — HMR is not enough).
+- Fully quit and relaunch (scripts, AI, and media metadata are main/renderer — HMR is not enough).
+- Scripts are new: open **Scripts**, write or generate one, Save, then run from the context menu. AI is optional.
+- Media Metadata stays **off** until you enable it. If you already extracted on 0.8.x builds, ADS host times are now preserved on **future** writes only.
 - Re-enter remote passwords after settings import if you use remotes.
-- Click **Drives** in the tree to see every volume’s free space, including mapped letters.

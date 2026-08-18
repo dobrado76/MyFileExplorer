@@ -1,6 +1,6 @@
 # Security
 
-**Version:** 0.8.x
+**Version:** 0.9.0
 
 ---
 
