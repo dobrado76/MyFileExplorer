@@ -53,7 +53,11 @@ import {
 import { api, call, IpcError } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
-import { patchDirEntriesForRename, rewritePathAfterRename } from '../lib/renameListing'
+import {
+  patchDirEntriesForRename,
+  renameShouldFollow,
+  rewritePathAfterRename
+} from '../lib/renameListing'
 import { clearFileViewScroll, liveFileViewScroll } from '../lib/fileViewScroll'
 import { tabRootDeletePrompt, tabsWhoseRootIsDeleted } from '../lib/tabRootDelete'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
@@ -1963,9 +1967,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       }))
       const activeSearch = tabs.find((t) => t.id === s.activeTabId)?.search ?? s.search
       viewOrderCache = null
+      const keepRename =
+        !!s.renamingPath && !samePath(s.renamingPath, from) && !samePath(s.renamingPath, to)
       return {
-        renamingPath: null,
-        renameSource: null,
+        renamingPath: keepRename ? s.renamingPath : null,
+        renameSource: keepRename ? s.renameSource : null,
         listingsByTabId,
         listing,
         tabs,
@@ -1979,7 +1985,17 @@ export const useAppStore = create<AppState>()((set, get) => {
     for (const L of Object.values(after.listingsByTabId)) {
       rememberRemoteListing(L.path, L.entries, after.drives)
     }
-    get().requestFileListScrollTo(to)
+    const tab = after.tabs.find((t) => t.id === after.activeTabId)
+    if (
+      renameShouldFollow({
+        renamingPath: after.renamingPath,
+        focusedPath: after.focusedPath,
+        selected: tab?.selected ?? [],
+        paths: [from, to]
+      })
+    ) {
+      get().requestFileListScrollTo(to)
+    }
   }
 
   function notifyTreeRemoved(removed: string[]): void {
@@ -4121,9 +4137,26 @@ export const useAppStore = create<AppState>()((set, get) => {
             treeExpanded: t.treeExpanded.map(rewrite)
           }))
         }))
-        await get().refresh()
-        get().setSelection([res.path], res.path, res.path)
-        get().requestFileListScrollTo(res.path)
+        const followPaths = [path, dest, res.path]
+        const stillOnRenamedItem = (): boolean => {
+          const s = get()
+          const tab = s.tabs.find((t) => t.id === s.activeTabId)
+          return renameShouldFollow({
+            renamingPath: s.renamingPath,
+            focusedPath: s.focusedPath,
+            selected: tab?.selected ?? [],
+            paths: followPaths
+          })
+        }
+        // A late NAS save must not remount the list (or jump selection) while
+        // another inline rename is already open.
+        if (stillOnRenamedItem()) {
+          await get().refresh()
+          if (stillOnRenamedItem()) {
+            get().setSelection([res.path], res.path, res.path)
+            get().requestFileListScrollTo(res.path)
+          }
+        }
       } catch (e) {
         applyListingRename(dest, path, oldName)
         set({ mediaHold: false })

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { DirEntry } from '../shared/schemas/fs'
-import { patchDirEntriesForRename, rewritePathAfterRename } from '../renderer/lib/renameListing'
+import {
+  patchDirEntriesForRename,
+  renameShouldFollow,
+  rewritePathAfterRename
+} from '../renderer/lib/renameListing'
 
 function file(name: string, dir = '\\\\nas\\media'): DirEntry {
   return {
@@ -32,6 +36,43 @@ describe('patchDirEntriesForRename', () => {
     expect(next[0]!.name).toBe('Adventureland (2009).avi')
     expect(next[0]!.path).toBe(to)
     expect(next[1]!.name).toBe('Adventureland (2009) [Part 2].avi')
+  })
+})
+
+describe('renameShouldFollow', () => {
+  const paths = ['C:\\lib\\old.avi', 'C:\\lib\\new.avi']
+
+  it('follows when the user is still on the renamed item', () => {
+    expect(
+      renameShouldFollow({
+        renamingPath: null,
+        focusedPath: 'C:\\lib\\new.avi',
+        selected: ['C:\\lib\\new.avi'],
+        paths
+      })
+    ).toBe(true)
+  })
+
+  it('does not steal focus when another rename is open', () => {
+    expect(
+      renameShouldFollow({
+        renamingPath: 'C:\\lib\\other.avi',
+        focusedPath: 'C:\\lib\\other.avi',
+        selected: ['C:\\lib\\other.avi'],
+        paths
+      })
+    ).toBe(false)
+  })
+
+  it('does not steal focus when the user selected something else', () => {
+    expect(
+      renameShouldFollow({
+        renamingPath: null,
+        focusedPath: 'C:\\lib\\other.avi',
+        selected: ['C:\\lib\\other.avi'],
+        paths
+      })
+    ).toBe(false)
   })
 })
 
