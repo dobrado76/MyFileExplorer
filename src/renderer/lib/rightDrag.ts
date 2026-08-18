@@ -4,6 +4,9 @@ import {
   updateDragAutoScrollPointer
 } from './dragAutoScroll'
 import { samePath, isUnderPath } from './paths'
+import { isVolumeRootPath } from '@shared/paths'
+
+export { isVolumeRootPath }
 
 const THRESHOLD_PX = 5
 
@@ -18,12 +21,6 @@ export type RightDragSession = {
 export function isValidDropDest(paths: string[], dest: string): boolean {
   if (!dest || paths.length === 0) return false
   return !paths.some((p) => samePath(p, dest) || isUnderPath(dest, p))
-}
-
-/** Drive / volume roots like `C:\` — Explorer does not drag these as move/copy sources. */
-export function isVolumeRootPath(p: string): boolean {
-  const n = p.replace(/\//g, '\\').replace(/\\+$/, '')
-  return /^[a-zA-Z]:$/i.test(n)
 }
 
 /**

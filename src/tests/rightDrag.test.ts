@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isVolumeRootPath } from '../shared/paths'
 
 /** Mirror of renderer/lib/rightDrag.isValidDropDest for node-side unit tests. */
 function isValidDropDest(paths: string[], dest: string): boolean {
@@ -8,11 +9,6 @@ function isValidDropDest(paths: string[], dest: string): boolean {
     const s = p.replace(/\\/g, '/').toLowerCase()
     return s === d || d.startsWith(s.endsWith('/') ? s : s + '/')
   })
-}
-
-function isVolumeRootPath(p: string): boolean {
-  const n = p.replace(/\//g, '\\').replace(/\\+$/, '')
-  return /^[a-zA-Z]:$/i.test(n)
 }
 
 describe('isValidDropDest', () => {

@@ -4828,7 +4828,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         get().deleteFromRecycleBinView(paths)
         return
       }
-      const target = paths ?? s.activeTab().selected
+      const target = (paths ?? s.activeTab().selected).filter((p) => !isVolumeRootPath(p))
       if (target.length === 0) return
       const rootHits = tabsWhoseRootIsDeleted(s.tabs, target)
       if (rootHits.length > 0) {

@@ -55,6 +55,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/NETWORKS.md](docs/NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
+| [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
@@ -64,6 +65,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 2. Confirm Details horizontal scroll (header + rows, scrollbar at pane bottom) on a narrow window
 3. Confirm deleting a scoped tab root always prompts and closes those tabs
 4. Phase 11 candidates: Ctrl+click tree → new tab, Comfy node summary, PDF first-page raster
+5. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)
 
 ## Agent rules
 

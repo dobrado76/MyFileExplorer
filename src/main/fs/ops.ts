@@ -26,6 +26,7 @@ import {
   remoteJoin,
   remoteParentPath
 } from '@shared/remotePaths'
+import { isVolumeRootPath } from '@shared/paths'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { recyclePathWin32Robust } from './trashWin32'
@@ -1001,6 +1002,7 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
   const absolute: string[] = []
   for (const raw of paths) {
     const p = requireAbsolute(raw)
+    if (isVolumeRootPath(p)) continue
     if (p.toLowerCase().startsWith('mfe-remote://')) {
       issues.push({
         kind: 'not_allowed',
@@ -1072,7 +1074,9 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
 export async function deletePermanently(paths: string[]): Promise<DeletePermanentResponse> {
   const absolute: string[] = []
   for (const raw of paths) {
-    absolute.push(requireAbsolute(raw))
+    const p = requireAbsolute(raw)
+    if (isVolumeRootPath(p)) continue
+    absolute.push(p)
   }
   const remotes = absolute.filter((p) => p.toLowerCase().startsWith('mfe-remote://'))
   const locals = absolute.filter((p) => !p.toLowerCase().startsWith('mfe-remote://'))

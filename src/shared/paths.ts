@@ -11,6 +11,12 @@ export function stripTrailingSep(p: string): string {
   return p.replace(/[\\/]+$/, '')
 }
 
+/** Drive / volume roots like `C:\` — not a deletable folder. */
+export function isVolumeRootPath(p: string): boolean {
+  const n = p.replace(/\//g, '\\').replace(/\\+$/, '')
+  return /^[a-zA-Z]:$/i.test(n)
+}
+
 /** `C:\` and `C:` are the same volume root for compare / scope checks. */
 function winPathKey(p: string): string {
   const n = stripTrailingSep(normalizeSlashes(p))

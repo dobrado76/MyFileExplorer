@@ -172,6 +172,8 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] Type-ahead select in file view
 - [x] Inline audio/video playback
 
+Longer-horizon optional ideas (clipboard paste, templates, closed tabs, automator, …) are **not** Phase 11 and are **not scheduled**: [FUTURE_IDEAS.md](FUTURE_IDEAS.md).
+
 ---
 
 ## Definition of done (v0.1.0 product)

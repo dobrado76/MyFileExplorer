@@ -11,6 +11,7 @@ import { discoveredVerbMatches } from '@shared/schemas/shellVerbs'
 import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf, joinPath } from '../lib/paths'
+import { isVolumeRootPath } from '../lib/rightDrag'
 import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
@@ -1428,34 +1429,38 @@ export function ContextMenu(): JSX.Element | null {
           s.openDialog({ kind: 'power-rename', paths: [...paths] })
         }
       },
-      {
-        type: 'item',
-        label: 'Delete',
-        hint: 'Del',
-        builtin: 'delete',
-        action: () => {
-          close()
-          // Del → Recycle Bin (never permanent).
-          void s.deleteSelection(
-            false,
-            menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
-          )
-        }
-      },
-      {
-        type: 'item',
-        label: 'Delete permanently',
-        hint: 'Shift+Del',
-        danger: true,
-        builtin: 'delete-permanently',
-        action: () => {
-          close()
-          void s.deleteSelection(
-            true,
-            menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
-          )
-        }
-      },
+      ...(paths.length > 0 && paths.every((p) => isVolumeRootPath(p))
+        ? []
+        : [
+            {
+              type: 'item' as const,
+              label: 'Delete',
+              hint: 'Del',
+              builtin: 'delete' as const,
+              action: () => {
+                close()
+                // Del → Recycle Bin (never permanent).
+                void s.deleteSelection(
+                  false,
+                  menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
+                )
+              }
+            },
+            {
+              type: 'item' as const,
+              label: 'Delete permanently',
+              hint: 'Shift+Del',
+              danger: true,
+              builtin: 'delete-permanently' as const,
+              action: () => {
+                close()
+                void s.deleteSelection(
+                  true,
+                  menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
+                )
+              }
+            }
+          ]),
       ...(paths.length > 0
         ? [
             {

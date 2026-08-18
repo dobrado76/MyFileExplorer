@@ -29,6 +29,7 @@ import { SearchOptionsMenu } from './SearchOptionsMenu'
 import { ViewLayoutSelector } from './ViewLayoutSelector'
 import { RemoteReposToolbar } from './RemoteReposToolbar'
 import { MediaLibraryToolbar } from './MediaLibraryToolbar'
+import { isVolumeRootPath } from '../lib/rightDrag'
 
 export function Toolbar(): JSX.Element {
   const search = useAppStore((s) => s.search)
@@ -69,6 +70,10 @@ export function Toolbar(): JSX.Element {
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const hasSelection = selected.length > 0
+  const canDelete =
+    recycleBinActive
+      ? hasSelection
+      : hasSelection && selected.some((p) => !isVolumeRootPath(p))
   const canEditFs = !recycleBinActive
 
   return (
@@ -130,7 +135,7 @@ export function Toolbar(): JSX.Element {
               ? 'Delete permanently from Recycle Bin'
               : 'Delete (Del → Recycle Bin; Shift+Del permanent)'
           }
-          disabled={!hasSelection}
+          disabled={!canDelete}
           onClick={() => {
             if (recycleBinActive) deleteFromRecycleBinView()
             else void deleteSelection(false)

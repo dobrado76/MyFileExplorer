@@ -16,7 +16,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
 5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
 6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
-7. Deferred notes only when relevant
+7. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
 
 ---
 
@@ -44,6 +44,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) / compiled lists (D39) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
+| [FUTURE_IDEAS.md](FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 
 ---
 
