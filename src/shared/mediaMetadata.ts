@@ -83,7 +83,7 @@ export type ParsedMediaName = {
   kind: 'movie' | 'episode' | 'unknown'
 }
 
-const VIDEO_EXT_RE = /\.(mp4|mkv|webm|avi|divx|mov|wmv|m4v|mpg|mpeg|ts|m2ts|vob|rmvb|rm)$/i
+const VIDEO_EXT_RE = /\.(mp4|mkv|webm|avi|divx|mov|wmv|m4v|mpg|mpeg|ts|m2ts|vob|flv|rmvb|rm)$/i
 
 export function isMediaMetadataVideoName(name: string): boolean {
   return VIDEO_EXT_RE.test(name)
@@ -110,6 +110,25 @@ export function stripVideoExtension(name: string): string {
 /** Filename/folder stem shown in the “search as” box (no video extension). */
 export function mediaSearchStem(rawName: string): string {
   return stripVideoExtension(rawName.trim())
+}
+
+const SEARCH_AS_YEAR_RE = /\(\s*((?:19|20)\d{2})\s*\)\s*$/
+
+/**
+ * User-typed Search as query. Words are kept (no scene-tag strip).
+ * Only a trailing `(1999)` is taken as the year so TMDB/OMDb can still filter remakes.
+ */
+export function parseMediaSearchAs(raw: string): ParsedMediaName {
+  let s = stripVideoExtension(raw.trim()).replace(/\s+/g, ' ').trim()
+  let year: number | undefined
+  const yearHit = SEARCH_AS_YEAR_RE.exec(s)
+  if (yearHit) {
+    year = Number(yearHit[1])
+    if (!Number.isFinite(year)) year = undefined
+    else s = s.slice(0, yearHit.index).trim()
+  }
+  const title = s || stripVideoExtension(raw).trim()
+  return { title, year, kind: year != null ? 'movie' : 'unknown' }
 }
 
 /** Lookup failed because the parsed title missed — user can edit the name and retry. */
@@ -421,6 +440,30 @@ export class NeedsMediaPickError extends Error {
 
 export function isNeedsMediaPickError(e: unknown): e is NeedsMediaPickError {
   return e instanceof NeedsMediaPickError
+}
+
+/**
+ * Search as may be a TMDB / IMDb / OMDb title URL (or a raw `tt…` / `tmdb:movie:id`).
+ * Returns the same pick id Download already understands, or null to treat as a title.
+ */
+export function parseMediaSourceInput(raw: string): string | null {
+  const s = raw.trim().replace(/^['"]+|['"]+$/g, '')
+  if (!s) return null
+  const tmdbPick = /^tmdb:(movie|tv):(\d+)$/i.exec(s)
+  if (tmdbPick?.[1] && tmdbPick[2]) return `tmdb:${tmdbPick[1].toLowerCase()}:${tmdbPick[2]}`
+  const omdbPick = /^omdb:(tt\d+)$/i.exec(s)
+  if (omdbPick?.[1]) return `omdb:${omdbPick[1].toLowerCase()}`
+  const imdbId = /^(tt\d+)$/i.exec(s)
+  if (imdbId?.[1]) return `omdb:${imdbId[1].toLowerCase()}`
+
+  const tmdbPage = /(?:themoviedb\.org|tmdb\.org)\/(movie|tv)\/(\d+)/i.exec(s)
+  if (tmdbPage?.[1] && tmdbPage[2]) return `tmdb:${tmdbPage[1].toLowerCase()}:${tmdbPage[2]}`
+
+  const imdbPage = /imdb\.com\/title\/(tt\d+)/i.exec(s)
+  if (imdbPage?.[1]) return `omdb:${imdbPage[1].toLowerCase()}`
+  const omdbApi = /omdbapi\.com\/[^#]*[?&]i=(tt\d+)/i.exec(s)
+  if (omdbApi?.[1]) return `omdb:${omdbApi[1].toLowerCase()}`
+  return null
 }
 
 /** Re-fetch the same internet title on Update without searching again. */

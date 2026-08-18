@@ -81,7 +81,7 @@ Season / `Specials` folders are not title cards; the parent show folder is. Gene
 
 `media_metadata_container` is set on the **library folder** (the parent of the show folders) and on the show/movie folder itself so Watched / Genre filters appear in both places.
 
-**Video extensions:** `.mp4` `.mkv` `.webm` `.avi` `.divx` `.mov` `.wmv` `.m4v` `.mpg` `.mpeg` `.ts` `.m2ts` `.vob` `.rmvb` `.rm`.
+**Video extensions:** `.mp4` `.mkv` `.webm` `.avi` `.divx` `.mov` `.wmv` `.m4v` `.mpg` `.mpeg` `.ts` `.m2ts` `.vob` `.flv` `.rmvb` `.rm`.
 
 ---
 
@@ -97,10 +97,12 @@ Automation first. Dialogs only when the name is genuinely unclear.
 | --------- | ------------ |
 | One search hit, or the year in the name uniquely matches | Download proceeds |
 | Only one result has that exact title (fuzzy extras ignored) | Download proceeds |
-| Several results share the exact title and the year does not pick one | **Which title?** lists them (title + year + a short line). Skip leaves that item |
+| Several results share the exact title and the year does not pick one | **Which title?** lists them (title + year + a short line). **Search as…** opens the same name box as a miss; Skip leaves that item |
 | **Extract from Plex** | Never asks — Plex already maps the file to one library item |
 
 **Filenames** are parsed from the file or folder (`The.Matrix.1999.mkv`, `Show.S01E02.mkv`, `1x09`, …). Scene tags and the trailing `-GROUP` (`x265-ION265`) are stripped; the show title is the text **before** `SxxExx`. Hyphenated titles (`Spider-Man`, `Catch-22`) stay intact.
+
+A **Search as** (no match, or **Search as…** on **Which title?**) sends the typed name **as-is** — those scene tags are not stripped. A trailing `(1999)` is still used as the year. You can also paste a **TMDB** movie/TV URL or an **IMDb** title URL (OMDb uses that id); that skips search and fetches that title. A TMDB URL on an Extract from Plex miss downloads from the internet instead.
 
 ---
 
@@ -138,7 +140,7 @@ Lists posters from:
 2. **Plex** — files in the local Metadata bundle, plus HTTP `/library/metadata/{id}/posters` if the server is up
 3. **TMDB** — `/movie|tv/{id}/images` (needs a TMDB key)
 
-Tiles are ordered **largest pixel size first**, with `width×height` on each cell. **Use this cover** applies that full image to this app’s thumbnail stream only.
+The dialog is a **fixed size**. The current cover (if any) appears immediately; Plex and TMDB posters **stream in** as their previews load so you can pick before the list is finished. Tiles stay **largest pixel size first**, with `width×height` on each cell. **Use this cover** reloads from that tile’s source (or the preview already shown) — it does not depend on a short-lived in-memory list.
 
 Plex does not need to be running for local bundle posters. The on-disk layout is `Metadata/Movies/{first hex digit}/{rest of hash}.bundle` (same idea for TV).
 
@@ -187,7 +189,7 @@ Confirm before it runs. Remotes are skipped. Walk cap is 20 000 folders; Subs 
 - Episode extract writes **episode** text metadata; the **show** poster goes on the show folder, not on the episode file.
 - The Plex token is **not** sent to `plex.tv` CDN hosts.
 
-**TMDB / OMDb** need an API key. Matching uses the parsed title (and year when present). Same-title remakes use the **Which title?** list above.
+**TMDB / OMDb** need an API key. Matching uses the parsed title (and year when present), or the typed **Search as** string. Same-title remakes use the **Which title?** list above.
 
 ### API limits
 

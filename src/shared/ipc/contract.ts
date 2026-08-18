@@ -307,3 +307,19 @@ export type MfeEvent =
       type: 'preview-window'
       payload: { open: boolean }
     }
+  | {
+      type: 'cover-list'
+      payload: {
+        path: string
+        done: boolean
+        cover?: {
+          id: string
+          source: 'plex' | 'tmdb' | 'current'
+          label: string
+          selected: boolean
+          previewBase64: string
+          width: number
+          height: number
+        }
+      }
+    }

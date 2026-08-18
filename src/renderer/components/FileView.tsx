@@ -726,6 +726,25 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     virtualizer.measure()
   }, [rowHeight, columns, overlayMode, viewMode, virtualizer])
 
+  const ensureRowVisible = useCallback(
+    (rowIdx: number): void => {
+      const el = scrollRef.current
+      if (!el) return
+      userScrolledRef.current = true
+      const top = rowIdx * rowHeight
+      const bottom = top + rowHeight
+      const viewTop = el.scrollTop
+      const viewBottom = viewTop + el.clientHeight
+      if (top >= viewTop && bottom <= viewBottom) return
+      const next = top < viewTop ? top : Math.max(0, bottom - el.clientHeight)
+      el.scrollTop = next
+      virtualizer.scrollToOffset(next)
+      noteFileViewScroll(tabId, next)
+      setScrollOffset(next)
+    },
+    [rowHeight, virtualizer, tabId, setScrollOffset]
+  )
+
   // Only the virtual rows — never the whole listing (Size used to enqueue every file).
   const visibleRangeStart = virtualizer.range?.startIndex ?? 0
   const visibleRangeEnd = virtualizer.range?.endIndex ?? -1
@@ -817,50 +836,22 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     }
   }, [overlayMode, virtualizer])
 
-  // Keep the item being renamed in view (new folder/file, F2, etc.).
-  // Skip when already visible — scrollToIndex remounts virtual rows and can
-  // drop the shell icon if rename is then cancelled (no listing refresh).
+  // Keep the item being renamed in view (F2, new folder/file, tree rename…).
   useLayoutEffect(() => {
     if (!renamingPath) return
     const idx = entries.findIndex((en) => samePath(en.path, renamingPath))
     if (idx < 0) return
-    const rowIdx = spec ? Math.floor(idx / columns) : idx
-    const visible = virtualizer.getVirtualItems()
-    if (visible.some((v) => v.index === rowIdx)) return
-    userScrolledRef.current = true
-    virtualizer.scrollToIndex(rowIdx, { align: 'auto' })
-    const el = scrollRef.current
-    if (el) {
-      noteFileViewScroll(tabId, el.scrollTop)
-      setScrollOffset(el.scrollTop)
-    }
-  }, [renamingPath, entries, spec, columns, virtualizer, tabId, setScrollOffset])
+    ensureRowVisible(spec ? Math.floor(idx / columns) : idx)
+  }, [renamingPath, entries, spec, columns, ensureRowVisible])
 
-  // Reveal / open-location / post-rename: scroll selection into view once the listing has it.
+  // Reveal / open-location / any finished rename: follow the item after it re-sorts.
   useLayoutEffect(() => {
-    if (!isFocusedSurface || !fileListScrollRequest) return
+    if (!fileListScrollRequest) return
     const idx = entries.findIndex((en) => samePath(en.path, fileListScrollRequest.path))
     if (idx < 0) return
-    const rowIdx = spec ? Math.floor(idx / columns) : idx
-    userScrolledRef.current = true
-    virtualizer.scrollToIndex(rowIdx, { align: 'center' })
-    const el = scrollRef.current
-    if (el) {
-      noteFileViewScroll(tabId, el.scrollTop)
-      setScrollOffset(el.scrollTop)
-    }
+    ensureRowVisible(spec ? Math.floor(idx / columns) : idx)
     clearFileListScrollRequest()
-  }, [
-    isFocusedSurface,
-    fileListScrollRequest,
-    entries,
-    spec,
-    columns,
-    virtualizer,
-    clearFileListScrollRequest,
-    setScrollOffset,
-    tabId
-  ])
+  }, [fileListScrollRequest, entries, spec, columns, ensureRowVisible, clearFileListScrollRequest])
 
   // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range),
   // and letter typeahead (next name starting with typed prefix).
@@ -901,23 +892,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         }
         return -1
       })()
-
-      const ensureRowVisible = (rowIdx: number): void => {
-        const el = scrollRef.current
-        if (!el) return
-        userScrolledRef.current = true
-        const top = rowIdx * rowHeight
-        const bottom = top + rowHeight
-        const viewTop = el.scrollTop
-        const viewBottom = viewTop + el.clientHeight
-        if (top >= viewTop && bottom <= viewBottom) return
-        const next =
-          top < viewTop ? top : Math.max(0, bottom - el.clientHeight)
-        el.scrollTop = next
-        virtualizer.scrollToOffset(next)
-        noteFileViewScroll(tabId, next)
-        setScrollOffset(next)
-      }
 
       const selectAndScroll = (target: number): void => {
         const targetPath = entries[target]!.path
@@ -1050,9 +1024,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     spec,
     columns,
     rowHeight,
-    virtualizer,
-    tabId,
-    setScrollOffset
+    ensureRowVisible
   ])
 
   // Layout is deterministic, so marquee hits are pure math over all entries

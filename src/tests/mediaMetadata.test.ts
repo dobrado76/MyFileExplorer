@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseMediaFileName,
+  parseMediaSearchAs,
+  parseMediaSourceInput,
   mediaSearchStem,
   isMediaNameMissError,
   parseMediaMetadataJson,
@@ -45,7 +47,13 @@ import {
   plexMediaUriToRelPath,
   plexMetadataUriPosterName
 } from '../main/mediaMetadata/plexLocal'
-import { compareCoverSize } from '../main/mediaMetadata/covers'
+import {
+  compareCoverSize,
+  parseCoverSourceId,
+  plexFileCoverId,
+  plexUrlCoverId,
+  tmdbCoverId
+} from '../main/mediaMetadata/covers'
 import { isPortraitCover } from '../main/mediaMetadata/coverImage'
 
 describe('parseMediaFileName', () => {
@@ -106,6 +114,56 @@ describe('parseMediaFileName', () => {
       'Babylon 5 - 5 - A Call to Arms'
     )
     expect(parseMediaFileName('Babylon 5 - A Call to Arms').title).toBe('Babylon 5 - A Call to Arms')
+  })
+
+  it('strips scene words that a typed Search as must keep', () => {
+    expect(parseMediaFileName('Season of the Witch').title).toBe('of the Witch')
+    expect(parseMediaFileName('Ruby Complete').title).toBe('Ruby')
+  })
+})
+
+describe('parseMediaSearchAs', () => {
+  it('keeps words the filename parser strips', () => {
+    expect(parseMediaSearchAs('Season of the Witch').title).toBe('Season of the Witch')
+    expect(parseMediaSearchAs('Ruby Complete').title).toBe('Ruby Complete')
+    expect(parseMediaSearchAs('The Complete Works').title).toBe('The Complete Works')
+  })
+
+  it('takes only a trailing parenthetical year', () => {
+    const p = parseMediaSearchAs('Ruby Gloom (2006)')
+    expect(p.title).toBe('Ruby Gloom')
+    expect(p.year).toBe(2006)
+    expect(parseMediaSearchAs('2001: A Space Odyssey').title).toBe('2001: A Space Odyssey')
+    expect(parseMediaSearchAs('2001: A Space Odyssey').year).toBeUndefined()
+  })
+
+  it('does not treat a pasted filename as scene tags', () => {
+    const p = parseMediaSearchAs('Ruby.EXTENDED.1080p.mkv')
+    expect(p.title).toBe('Ruby.EXTENDED.1080p')
+    expect(p.year).toBeUndefined()
+  })
+})
+
+describe('parseMediaSourceInput', () => {
+  it('reads TMDB movie and TV page URLs', () => {
+    expect(parseMediaSourceInput('https://www.themoviedb.org/movie/550-fight-club')).toBe(
+      'tmdb:movie:550'
+    )
+    expect(parseMediaSourceInput('https://www.themoviedb.org/tv/1396-breaking-bad?language=en-US')).toBe(
+      'tmdb:tv:1396'
+    )
+    expect(parseMediaSourceInput('tmdb:movie:438631')).toBe('tmdb:movie:438631')
+  })
+
+  it('reads IMDb / OMDb ids', () => {
+    expect(parseMediaSourceInput('https://www.imdb.com/title/tt0137523/?ref_=fn_al_tt_1')).toBe(
+      'omdb:tt0137523'
+    )
+    expect(parseMediaSourceInput('https://www.omdbapi.com/?i=tt1160419&apikey=x')).toBe(
+      'omdb:tt1160419'
+    )
+    expect(parseMediaSourceInput('tt0137523')).toBe('omdb:tt0137523')
+    expect(parseMediaSourceInput('Season of the Witch')).toBeNull()
   })
 })
 
@@ -407,6 +465,7 @@ describe('isMediaMetadataVideoName', () => {
     expect(isMediaMetadataVideoName('show.S01E01.m2ts')).toBe(true)
     expect(isMediaMetadataVideoName('Old.Movie.2005.rmvb')).toBe(true)
     expect(isMediaMetadataVideoName('clip.rm')).toBe(true)
+    expect(isMediaMetadataVideoName('stream.flv')).toBe(true)
     expect(isMediaMetadataVideoName('notes.txt')).toBe(false)
     expect(isMediaMetadataVideoName('info.json')).toBe(false)
   })
@@ -563,6 +622,24 @@ describe('compareCoverSize', () => {
     ]
     const sorted = [...items].sort(compareCoverSize)
     expect(sorted[0]?.bytes).toBe(200_000)
+  })
+})
+
+describe('cover source ids', () => {
+  it('round-trips file, url, and tmdb refs', () => {
+    const abs = 'C:\\Plex Media Server\\Metadata\\Movies\\ab\\cdef.bundle\\posters\\x.jpg'
+    expect(parseCoverSourceId(plexFileCoverId(abs))).toEqual({ kind: 'plex-file', path: abs })
+    expect(parseCoverSourceId(plexUrlCoverId('http://127.0.0.1/full', 'http://127.0.0.1/prev'))).toEqual({
+      kind: 'plex-url',
+      href: 'http://127.0.0.1/full',
+      previewHref: 'http://127.0.0.1/prev'
+    })
+    expect(parseCoverSourceId(tmdbCoverId('/abc/poster.jpg'))).toEqual({
+      kind: 'tmdb',
+      posterPath: '/abc/poster.jpg'
+    })
+    expect(parseCoverSourceId('current')).toEqual({ kind: 'current' })
+    expect(parseCoverSourceId('plex-local-3')).toBeNull()
   })
 })
 

@@ -15,6 +15,8 @@ import {
   mediaSearchStem,
   normalizeEpisodeFields,
   parseMediaFileName,
+  parseMediaSearchAs,
+  parseMediaSourceInput,
   pickIdFromStored,
   type MediaMetadata,
   type MediaPickCandidate,
@@ -43,7 +45,12 @@ export type MediaMetadataOpResult = {
   updated: string[]
   stoppedReason?: string
   needsKind?: { path: string; title: string }[]
-  needsPick?: { path: string; title: string; candidates: MediaPickCandidate[] }[]
+  needsPick?: {
+    path: string
+    title: string
+    suggested: string
+    candidates: MediaPickCandidate[]
+  }[]
   needsName?: { path: string; suggested: string; message: string }[]
 }
 
@@ -357,8 +364,9 @@ async function downloadOneInternet(
   nameHint?: string
 ): Promise<void> {
   const st = await fsp.stat(target)
-  const name = nameHint || (st.isDirectory() ? folderSearchName(target) : path.basename(target))
-  const parsed = parseMediaFileName(name)
+  const parsed = nameHint
+    ? parseMediaSearchAs(nameHint)
+    : parseMediaFileName(st.isDirectory() ? folderSearchName(target) : path.basename(target))
   const hit = await downloadFromInternet(parsed, queryKind, pickId)
   if (st.isDirectory() && queryKind === 'show') {
     hit.meta = asShowFolderMeta(hit.meta, parsed.title)
@@ -389,7 +397,12 @@ async function runOnTargets(
   const failed: { path: string; message: string }[] = []
   const updated: string[] = []
   const needsKind: { path: string; title: string }[] = []
-  const needsPick: { path: string; title: string; candidates: MediaPickCandidate[] }[] = []
+  const needsPick: {
+    path: string
+    title: string
+    suggested: string
+    candidates: MediaPickCandidate[]
+  }[] = []
   const needsName: { path: string; suggested: string; message: string }[] = []
   let stoppedReason: string | undefined
   const op = beginOp('media-metadata', unique.length, label)
@@ -427,15 +440,24 @@ async function runOnTargets(
             }
             kind = classified
           }
-          const pickId = opts?.pickHints?.[target] ?? opts?.pickHints?.[target.toLowerCase()]
-          const nameHint = nameHintOf(target, opts?.nameHints)
+          const nameHintRaw = nameHintOf(target, opts?.nameHints)
+          const fromUrl = nameHintRaw ? parseMediaSourceInput(nameHintRaw) : undefined
+          const pickId =
+            fromUrl ?? opts?.pickHints?.[target] ?? opts?.pickHints?.[target.toLowerCase()]
+          if (fromUrl?.startsWith('tmdb:tv:')) kind = 'show'
+          if (fromUrl?.startsWith('tmdb:movie:')) kind = 'movie'
+          const nameHint = fromUrl ? undefined : nameHintRaw
           if (await each(target, kind, pickId, nameHint)) updated.push(target)
         } catch (e) {
           if (e instanceof AppError && e.code === 'cancelled') throw e
           if (isNeedsMediaPickError(e)) {
             needsPick.push({
               path: target,
-              title: parseMediaFileName(folderSearchName(target)).title,
+              title:
+                nameHintOf(target, opts?.nameHints) ||
+                parseMediaFileName(folderSearchName(target)).title,
+              suggested:
+                nameHintOf(target, opts?.nameHints) || mediaSearchStem(path.basename(target)),
               candidates: e.candidates
             })
             op.tick(path.basename(target))
@@ -499,8 +521,9 @@ export async function extractPlexMany(
   return runOnTargets(
     'Extracting media metadata…',
     paths,
-    async (target, kind, _pickId, nameHint) => {
-      await extractOnePlex(target, kind, nameHint)
+    async (target, kind, pickId, nameHint) => {
+      if (pickId) await downloadOneInternet(target, kind, pickId, nameHint)
+      else await extractOnePlex(target, kind, nameHint)
       return true
     },
     { onlyMissing: true, kindHints, nameHints, concurrency: 6 }
@@ -535,8 +558,9 @@ export async function refreshMany(
     paths,
     async (target, kind, pickId, nameHint) => {
       const existing = await readMediaMetadata(target)
-      if (!existing || existing.source === 'plex') await extractOnePlex(target, kind, nameHint)
-      else await downloadOneInternet(target, kind, pickId ?? pickIdFromStored(existing), nameHint)
+      if (pickId) await downloadOneInternet(target, kind, pickId, nameHint)
+      else if (!existing || existing.source === 'plex') await extractOnePlex(target, kind, nameHint)
+      else await downloadOneInternet(target, kind, pickIdFromStored(existing), nameHint)
       return true
     },
     { kindHints, pickHints, nameHints, concurrency: 4 }

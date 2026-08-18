@@ -181,14 +181,14 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `mediaMetadata:refresh` | `{ paths[], kindHints?, pickHints?, nameHints? }` | same — refresh from stored source; missing from Plex |
 | `mediaMetadata:clear` | `{ paths[] }` | same |
 | `mediaMetadata:get` | `{ path }` | `{ metadata, thumbnailBase64 }` |
-| `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — largest pixel size first |
-| `mediaMetadata:setCover` | `{ path, coverId }` | `{ ok: true }` |
+| `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — returns the current cover immediately; more arrive on `cover-list` events |
+| `mediaMetadata:setCover` | `{ path, coverId, previewBase64? }` | `{ ok: true }` — preview is a fallback if the cover session is gone |
 | `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
 | `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode?, title?, showTitle? }[] }` |
 | `mediaMetadata:consolidateSubtitles` | `{ paths[] }` | `{ copied, skipped, recycled, failed[] }` — flatten Subs / Subtitles next to videos; Recycle Bin |
 | `mediaMetadata:probePlex` | — | `{ installed, running, dataDir, tokenFound, url }` |
 
-`stoppedReason` is set when a TMDB/OMDb quota stops the batch. `needsKind` is a yearless movie-or-show ask. `needsPick` (download / internet refresh only) is a same-title remake list; the renderer retries with `pickHints`. `needsName` is a title miss; the renderer asks for an edited search string and retries with `nameHints`. Progress uses `op-progress` kind `media-metadata`.
+`stoppedReason` is set when a TMDB/OMDb quota stops the batch. `needsKind` is a yearless movie-or-show ask. `needsPick` (download / internet refresh only) is a same-title remake list; the renderer retries with `pickHints`, or **Search as…** with a literal `nameHints` string. `needsName` is a title miss; the renderer asks for an edited search string (or a TMDB / IMDb URL) and retries with `nameHints` (not scene-stripped; URLs become pick ids). Progress uses `op-progress` kind `media-metadata`.
 
 ### `app.*`
 
@@ -211,6 +211,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
 | `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/compile-lists/media-metadata; byte fields for large streaming copies |
+| `cover-list`              | `{ path, done, cover? }` — Change cover tiles as previews load |
 | `compiled-playlist-apply` | `{ paths, preferPath? }` — detached lists window → main slideshow |
 | `session-external-change` | rare: multi-window later                      |
 

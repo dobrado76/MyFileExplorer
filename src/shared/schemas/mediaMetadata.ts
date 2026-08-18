@@ -41,7 +41,7 @@ export const mediaMetadataPathsSchema = z.object({
   kindHints: z.record(z.string(), z.enum(['movie', 'show', 'episode'])).optional(),
   /** Internet download only — `tmdb:movie:123` / `tmdb:tv:456` / `omdb:tt…`. */
   pickHints: z.record(z.string(), z.string()).optional(),
-  /** Edited search name after a miss (`Babylon 5 - A Call to Arms`). */
+  /** Search as typed by the user — sent to Plex/TMDB/OMDb without scene-tag stripping. */
   nameHints: z.record(z.string(), z.string()).optional()
 })
 
@@ -51,7 +51,9 @@ export const mediaMetadataPathSchema = z.object({
 
 export const mediaMetadataSetCoverSchema = z.object({
   path: z.string().min(1),
-  coverId: z.string().min(1)
+  coverId: z.string().min(1),
+  /** Picker JPEG — used when the main-process cover session is gone (reload / remount). */
+  previewBase64: z.string().min(1).max(2_000_000).optional()
 })
 
 export const mediaMetadataSetWatchedSchema = z.object({

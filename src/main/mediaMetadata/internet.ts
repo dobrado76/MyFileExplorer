@@ -110,6 +110,22 @@ function parseOmdbPickId(pickId?: string): string | null {
   return m?.[1] ?? null
 }
 
+async function tmdbPickFromImdb(imdbId: string, key: string): Promise<string | null> {
+  try {
+    const data = (await fetchJson(
+      tmdbUrl(`/find/${encodeURIComponent(imdbId)}?external_source=imdb_id`, key),
+      tmdbHeaders(key)
+    )) as { movie_results?: { id?: number }[]; tv_results?: { id?: number }[] }
+    const movie = data.movie_results?.[0]?.id
+    if (typeof movie === 'number' && Number.isFinite(movie)) return `tmdb:movie:${movie}`
+    const tv = data.tv_results?.[0]?.id
+    if (typeof tv === 'number' && Number.isFinite(tv)) return `tmdb:tv:${tv}`
+  } catch {
+    /* caller falls through */
+  }
+  return null
+}
+
 function throwIfAsk<T extends { numericId: number; id: string; title: string; year?: number; subtitle?: string }>(
   decision: NamedMatchDecision<T>
 ): number {
@@ -233,10 +249,10 @@ async function fromTmdb(
 ): Promise<NetHit> {
   const headers = tmdbHeaders(key)
   const picked = parseTmdbPickId(pickId)
-  if (queryKind === 'show' && parsed.kind !== 'episode') {
+  if (picked?.kind === 'tv' && parsed.kind !== 'episode') {
     return fromTmdbShow(parsed, key, headers, pickId)
   }
-  if (picked?.kind === 'tv' && parsed.kind !== 'episode') {
+  if (picked?.kind !== 'movie' && queryKind === 'show' && parsed.kind !== 'episode') {
     return fromTmdbShow(parsed, key, headers, pickId)
   }
   if (parsed.kind === 'episode' && parsed.season != null && parsed.episode != null) {
@@ -609,6 +625,17 @@ export async function downloadFromInternet(
   const omdb = s.omdbApiKey.trim()
   if (parseOmdbPickId(pickId) && omdb) return fromOmdb(parsed, omdb, queryKind, pickId)
   if (parseTmdbPickId(pickId) && tmdb) return fromTmdb(parsed, tmdb, queryKind, pickId)
+  const imdbId = parseOmdbPickId(pickId)
+  if (imdbId && tmdb) {
+    const mapped = await tmdbPickFromImdb(imdbId, tmdb)
+    if (mapped) return fromTmdb(parsed, tmdb, queryKind, mapped)
+  }
+  if (parseTmdbPickId(pickId) && !tmdb) {
+    throw new Error('Add a TMDB API key in Settings → Media Metadata to use a TMDB URL')
+  }
+  if (imdbId && !omdb && !tmdb) {
+    throw new Error('Add a TMDB or OMDb API key in Settings → Media Metadata to use an IMDb URL')
+  }
   if (preferred === 'omdb' && omdb) return fromOmdb(parsed, omdb, queryKind, pickId)
   if (tmdb) return fromTmdb(parsed, tmdb, queryKind, pickId)
   if (omdb) return fromOmdb(parsed, omdb, queryKind, pickId)

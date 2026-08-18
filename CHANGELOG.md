@@ -13,6 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Media metadata** (opt-in, off by default) — Settings → Media Metadata. When enabled, the context menu can extract movie/TV info and covers from a local Plex Media Server or download them (TMDB / OMDb), store them as NTFS streams on the file or folder, and show a title/cover above the preview. Click the cover to view the full stored image. **Change cover** (context menu or preview) lists Plex + TMDB posters for that title, **largest resolution first**, with pixel size on each tile. Preview cover height is Settings → Media Metadata → Cover art size (56–240 px, default 120). Extract/Download fill missing items only; Update refreshes all and extracts gaps from Plex. Folders walk every video inside. Writing metadata marks the containing folder with a `media_metadata_container` stream so that folder’s toolbar can filter **Watched / Unwatched** and **Genre**. **Mark as Watched** (toggles to Unwatched) is on the Media Metadata menu and on the preview when metadata exists. **Consolidate subtitles** copies the first English subtitle from a `Subs` / `Subtitles` tree next to each video and sends those folders to the Recycle Bin. TMDB/OMDb daily or burst limits stop the batch and show a dialog. Guide: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md).
 - **Collapse all** — toolbar button next to Select all closes every expanded folder-tree branch on the **current tab** (This PC default). The file list stays on the current folder; other tabs are unchanged.
+- **`.flv` video** — treated as video for Media Metadata, search `video:`, icon strips, and preview (remux to MP4 when codecs allow, same as MKV).
 
 ### Changed
 
@@ -23,7 +24,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
-- **Rename scroll** — after you finish renaming a new file/folder (or any item), the list stays on that entry in its new sort position instead of leaving you at “New folder” / “New file”.
+- **Change cover apply** — **Use this cover** no longer fails with “Cover list expired” when the in-memory session is gone (reload / remount). Each tile keeps a recoverable source, and the preview already on the tile is a fallback. Plex’s small 154×231 tiles also fall back if the full poster URL does not download. Apply errors appear in the dialog.
+- **Search as URL** — on a miss (or **Search as…** from **Which title?**), paste a TMDB movie/TV page or an IMDb title URL to fetch that id instead of searching. Extract from Plex then uses the internet for that item.
+- **Which title?** — **Search as…** opens the same name box as a miss. That typed name is sent as-is (scene tags like `season` / `complete` are not stripped).
+- **Change cover** — the dialog opens at a fixed size and shows the current poster immediately. Plex / TMDB previews stream in as they load so you can pick before the list is finished.
+- **Rename scroll** — after any rename (F2, context menu, new file/folder, or the folder tree), the list (and tree) stay on that entry in its new sort position.
 - **Media search name** — when Plex or the internet finds no title, a dialog offers the filename in a **Search as** box so you can drop extra sort numbers (e.g. the second `5` in `Babylon 5 - 5 - A Call to Arms`) or add a year and retry. Cancel skips that item.
 - **Media cover tiles** — Extract from Plex / Download from Internet / Change cover refresh the file or folder poster in place. Tiles used to keep the old strip or folder icon until you left the folder and came back.
 - **Back scroll** — Back / Forward restore the file-list scroll position for that folder (it used to jump to the top).

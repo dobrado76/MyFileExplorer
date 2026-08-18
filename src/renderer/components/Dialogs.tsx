@@ -41,6 +41,7 @@ import {
   MEDIA_METADATA_COVER_HEIGHT_MAX,
   MEDIA_METADATA_COVER_HEIGHT_MIN
 } from '@shared/schemas/mediaMetadata'
+import { parseMediaSourceInput } from '@shared/mediaMetadata'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { basename } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
@@ -299,6 +300,7 @@ function MediaNameDialog({
     if (!trimmed) return
     resolveMediaName(trimmed)
   }
+  const sourceId = parseMediaSourceInput(name)
   return (
     <Modal
       title={title}
@@ -310,7 +312,7 @@ function MediaNameDialog({
             Cancel
           </button>
           <button type="button" className="btn primary" disabled={!name.trim()} onClick={submit}>
-            Search
+            {sourceId ? 'Use this title' : 'Search'}
           </button>
         </>
       }
@@ -320,7 +322,8 @@ function MediaNameDialog({
         File: {fileName}
       </p>
       <p className="settings-help">
-        Edit the name (drop extra sort numbers, put the year in parentheses) and search again.
+        This name is sent as typed (scene tags are not stripped). Optional year in parentheses, e.g.
+        Title (1999). Or paste a TMDB or IMDb title URL (OMDb uses the IMDb id).
       </p>
       <div className="form-row">
         <label htmlFor="media-search-name">Search as</label>
@@ -357,16 +360,29 @@ function MediaPickDialog({
       wide
       onClose={() => resolveMediaPick(null)}
       actions={
-        <button className="btn" onClick={() => resolveMediaPick(null)}>
-          Skip
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn modal-action-start"
+            onClick={() => resolveMediaPick({ action: 'search-as' })}
+          >
+            Search as…
+          </button>
+          <button type="button" className="btn" onClick={() => resolveMediaPick(null)}>
+            Skip
+          </button>
+        </>
       }
     >
       <div className="alert-message">{message}</div>
       <ul className="media-pick-list">
         {candidates.map((c) => (
           <li key={c.id}>
-            <button type="button" className="media-pick-item" onClick={() => resolveMediaPick(c.id)}>
+            <button
+              type="button"
+              className="media-pick-item"
+              onClick={() => resolveMediaPick({ action: 'pick', id: c.id })}
+            >
               <span className="media-pick-title">
                 {c.title}
                 {c.year != null ? ` (${c.year})` : ''}

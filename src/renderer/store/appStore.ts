@@ -428,7 +428,8 @@ let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
 let mediaKindResolve: ((choice: 'movie' | 'show' | null) => void) | null = null
-let mediaPickResolve: ((choice: string | null) => void) | null = null
+export type MediaPickResult = { action: 'pick'; id: string } | { action: 'search-as' }
+let mediaPickResolve: ((choice: MediaPickResult | null) => void) | null = null
 let mediaNameResolve: ((name: string | null) => void) | null = null
 
 type AppState = {
@@ -764,8 +765,8 @@ type AppState = {
     title: string
     message: string
     candidates: { id: string; title: string; year?: number; subtitle?: string }[]
-  }): Promise<string | null>
-  resolveMediaPick(choice: string | null): void
+  }): Promise<MediaPickResult | null>
+  resolveMediaPick(choice: MediaPickResult | null): void
   askMediaName(opts: {
     title: string
     message: string
@@ -1179,6 +1180,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       needsPick?: {
         path: string
         title: string
+        suggested?: string
         candidates: { id: string; title: string; year?: number; subtitle?: string }[]
       }[]
       needsName?: { path: string; suggested: string; message: string }[]
@@ -1188,8 +1190,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     try {
       let hints: Record<string, 'movie' | 'show' | 'episode'> | undefined
       let pickHints: Record<string, string> | undefined
+      let nameHints: Record<string, string> | undefined
       let res = await withBusyFeedback('media-metadata', label, undefined, () =>
-        work(hints, pickHints)
+        work(hints, pickHints, nameHints)
       )
       if (res.needsKind && res.needsKind.length > 0) {
         const extra: Record<string, 'movie' | 'show' | 'episode'> = { ...hints }
@@ -1204,8 +1207,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (Object.keys(extra).length > (hints ? Object.keys(hints).length : 0)) {
           hints = extra
           const pendingPick = res.needsPick
+          const pendingName = res.needsName
           const again = await withBusyFeedback('media-metadata', label, undefined, () =>
-            work(hints, pickHints)
+            work(hints, pickHints, nameHints)
           )
           res = {
             done: res.done + again.done,
@@ -1213,98 +1217,124 @@ export const useAppStore = create<AppState>()((set, get) => {
             updated: [...res.updated, ...again.updated],
             stoppedReason: again.stoppedReason ?? res.stoppedReason,
             needsPick: [...(pendingPick ?? []), ...(again.needsPick ?? [])],
-            needsName: again.needsName ?? res.needsName
+            needsName: [...(pendingName ?? []), ...(again.needsName ?? [])]
           }
         }
       }
-      if (res.needsPick && res.needsPick.length > 0) {
-        const extra: Record<string, string> = { ...pickHints }
-        for (const item of res.needsPick) {
-          const choice = await get().askMediaPick({
-            title: 'Which title?',
-            message: `Several titles match “${item.title}”. Pick the one that fits.`,
-            candidates: item.candidates
-          })
-          if (!choice) break
-          extra[item.path] = choice
-        }
-        if (Object.keys(extra).length > (pickHints ? Object.keys(pickHints).length : 0)) {
-          pickHints = extra
-          const again = await withBusyFeedback('media-metadata', label, undefined, () =>
-            work(hints, pickHints)
-          )
-          res = {
-            done: res.done + again.done,
-            failed: [...res.failed, ...again.failed],
-            updated: [...res.updated, ...again.updated],
-            stoppedReason: again.stoppedReason ?? res.stoppedReason,
-            needsName: again.needsName ?? res.needsName
+
+      const dropPickHint = (filePath: string): void => {
+        if (!pickHints) return
+        const next = { ...pickHints }
+        delete next[filePath]
+        delete next[filePath.toLowerCase()]
+        pickHints = Object.keys(next).length > 0 ? next : undefined
+      }
+
+      const resolveInteractive = async (item: {
+        path: string
+        title?: string
+        suggested?: string
+        message?: string
+        candidates?: { id: string; title: string; year?: number; subtitle?: string }[]
+        start: 'pick' | 'name'
+      }): Promise<void> => {
+        let suggested = item.suggested || item.title || basename(item.path)
+        let message = item.message || `Several titles match “${item.title ?? suggested}”.`
+        let queryTitle = item.title ?? suggested
+        let candidates = item.candidates
+        let mode: 'pick' | 'name' = item.start
+        let nameTitle = item.start === 'name' ? 'No match' : 'Search as'
+        let resolved = false
+        while (!res.stoppedReason) {
+          if (mode === 'name') {
+            const typed = await get().askMediaName({
+              title: nameTitle,
+              message,
+              fileName: basename(item.path),
+              suggested
+            })
+            if (!typed) break
+            suggested = typed
+            queryTitle = typed
+            nameHints = { ...nameHints, [item.path]: typed }
+            dropPickHint(item.path)
+          } else if (candidates && candidates.length > 0) {
+            const choice = await get().askMediaPick({
+              title: 'Which title?',
+              message: `Several titles match “${queryTitle}”. Pick the one that fits, or search as a different name.`,
+              candidates
+            })
+            if (!choice) break
+            if (choice.action === 'search-as') {
+              nameTitle = 'Search as'
+              message = `Search again for ${basename(item.path)}. The name is sent as typed.`
+              mode = 'name'
+              continue
+            }
+            pickHints = { ...pickHints, [item.path]: choice.id }
           }
+          const again = await withBusyFeedback('media-metadata', label, undefined, () =>
+            work(hints, pickHints, nameHints, [item.path])
+          )
+          res.done += again.done
+          res.updated.push(...again.updated)
+          res.stoppedReason = again.stoppedReason ?? res.stoppedReason
+          if (again.stoppedReason) break
+          if (again.needsKind?.[0]) {
+            const kind = await get().askMediaKind({
+              title: 'Movie or TV show?',
+              message: `“${again.needsKind[0].title}” could be a movie or a TV show. Which should we look up?`
+            })
+            if (!kind) break
+            hints = { ...hints, [item.path]: kind }
+            continue
+          }
+          if (again.needsPick?.[0]) {
+            candidates = again.needsPick[0].candidates
+            queryTitle = again.needsPick[0].title
+            if (again.needsPick[0].suggested) suggested = again.needsPick[0].suggested
+            mode = 'pick'
+            continue
+          }
+          const miss =
+            again.needsName?.[0] ?? again.failed.find((f) => isMediaNameMissError(f.message))
+          if (miss && again.updated.length === 0) {
+            message = miss.message
+            if (again.needsName?.[0]?.suggested) suggested = again.needsName[0].suggested
+            nameTitle = 'No match'
+            mode = 'name'
+            continue
+          }
+          if (again.failed.length > 0) res.failed.push(...again.failed)
+          resolved = again.updated.length > 0 || again.failed.length > 0
+          break
+        }
+        if (!resolved) {
+          res.failed.push({ path: item.path, message })
+        }
+      }
+
+      if (res.needsPick && res.needsPick.length > 0) {
+        for (const item of res.needsPick) {
+          if (res.stoppedReason) break
+          await resolveInteractive({
+            path: item.path,
+            title: item.title,
+            suggested: item.suggested,
+            candidates: item.candidates,
+            start: 'pick'
+          })
         }
       }
       if (res.needsName && res.needsName.length > 0) {
-        let nameHints: Record<string, string> | undefined
         for (const item of res.needsName) {
-          let suggested = item.suggested
-          let message = item.message
-          let askName = true
-          let resolved = false
-          while (!res.stoppedReason) {
-            if (askName) {
-              const typed = await get().askMediaName({
-                title: 'No match',
-                message,
-                fileName: basename(item.path),
-                suggested
-              })
-              if (!typed) break
-              suggested = typed
-              nameHints = { ...nameHints, [item.path]: typed }
-            }
-            askName = true
-            const again = await withBusyFeedback('media-metadata', label, undefined, () =>
-              work(hints, pickHints, nameHints, [item.path])
-            )
-            res.done += again.done
-            res.updated.push(...again.updated)
-            res.stoppedReason = again.stoppedReason ?? res.stoppedReason
-            if (again.stoppedReason) break
-            if (again.needsKind?.[0]) {
-              const choice = await get().askMediaKind({
-                title: 'Movie or TV show?',
-                message: `“${again.needsKind[0].title}” could be a movie or a TV show. Which should we look up?`
-              })
-              if (!choice) break
-              hints = { ...hints, [item.path]: choice }
-              askName = false
-              continue
-            }
-            if (again.needsPick?.[0]) {
-              const choice = await get().askMediaPick({
-                title: 'Which title?',
-                message: `Several titles match “${again.needsPick[0].title}”. Pick the one that fits.`,
-                candidates: again.needsPick[0].candidates
-              })
-              if (!choice) break
-              pickHints = { ...pickHints, [item.path]: choice }
-              askName = false
-              continue
-            }
-            const miss =
-              again.needsName?.[0] ??
-              again.failed.find((f) => isMediaNameMissError(f.message))
-            if (miss && again.updated.length === 0) {
-              message = miss.message
-              if (again.needsName?.[0]?.suggested) suggested = again.needsName[0].suggested
-              continue
-            }
-            if (again.failed.length > 0) res.failed.push(...again.failed)
-            resolved = again.updated.length > 0 || again.failed.length > 0
-            break
-          }
-          if (!resolved) {
-            res.failed.push({ path: item.path, message })
-          }
+          if (res.stoppedReason) break
+          await resolveInteractive({
+            path: item.path,
+            suggested: item.suggested,
+            message: item.message,
+            start: 'name'
+          })
         }
       }
       const folder = get().listing.path
@@ -4182,6 +4212,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         await get().refresh()
         const selected = pairs.map((p) => p.to)
         get().setSelection(selected, selected[0], selected[0])
+        if (selected[0]) get().requestFileListScrollTo(selected[0])
       }
 
       return { pairs, skipped }
@@ -4965,7 +4996,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         mediaPickResolve(null)
         mediaPickResolve = null
       }
-      return await new Promise<string | null>((resolve) => {
+      return await new Promise<MediaPickResult | null>((resolve) => {
         mediaPickResolve = resolve
         set({
           dialog: {

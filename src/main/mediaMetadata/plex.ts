@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import {
-  parseMediaFileName,
+  parseMediaSearchAs,
   type MediaMetadata,
   type MediaMetadataRating,
   type MediaQueryKind
@@ -349,7 +349,7 @@ async function lookupShowByTitle(
   prefer?: MediaQueryKind
 ): Promise<PlexHit | null> {
   try {
-    const parsed = parseMediaFileName(title)
+    const parsed = parseMediaSearchAs(title)
     const query = parsed.title || title
     const payload = await plexGet(
       resolved.url,

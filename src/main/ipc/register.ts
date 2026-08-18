@@ -695,7 +695,7 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.mediaMetadataSetCover, mediaMetadataSetCoverSchema, async (req) => {
     assertMediaMetadataEnabled()
-    await setMediaCover(req.path, req.coverId)
+    await setMediaCover(req.path, req.coverId, req.previewBase64)
     return { ok: true as const }
   })
   handle(IPC.mediaMetadataSetWatched, mediaMetadataSetWatchedSchema, (req) => {

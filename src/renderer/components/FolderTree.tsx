@@ -673,6 +673,17 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     }
   }
 
+  const wasTreeRenameRef = useRef(false)
+  useEffect(() => {
+    if (renameSource === 'tree' && renamingPath) {
+      wasTreeRenameRef.current = true
+      return
+    }
+    if (!wasTreeRenameRef.current || !treeFocusPath) return
+    wasTreeRenameRef.current = false
+    requestAnimationFrame(() => scrollTreePathIntoView(treeFocusPath))
+  }, [renamingPath, renameSource, treeFocusPath, nodes])
+
   /** Visible tree rows in paint order (Quick access, then Drives, with expands). */
   function visibleTreeRowEls(): HTMLElement[] {
     const root = treeRef.current

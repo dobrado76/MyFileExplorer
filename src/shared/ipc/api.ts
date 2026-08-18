@@ -313,6 +313,7 @@ export type MyFileExplorerApi = {
         needsPick?: {
           path: string
           title: string
+          suggested: string
           candidates: { id: string; title: string; year?: number; subtitle?: string }[]
         }[]
         needsName?: { path: string; suggested: string; message: string }[]
@@ -333,6 +334,7 @@ export type MyFileExplorerApi = {
         needsPick?: {
           path: string
           title: string
+          suggested: string
           candidates: { id: string; title: string; year?: number; subtitle?: string }[]
         }[]
         needsName?: { path: string; suggested: string; message: string }[]
@@ -366,7 +368,11 @@ export type MyFileExplorerApi = {
         }[]
       }>
     >
-    setCover(req: { path: string; coverId: string }): Promise<Result<{ ok: true }>>
+    setCover(req: {
+      path: string
+      coverId: string
+      previewBase64?: string
+    }): Promise<Result<{ ok: true }>>
     setWatched(req: { paths: string[]; watched: boolean }): Promise<Result<{ updated: string[] }>>
     consolidateSubtitles(req: { paths: string[] }): Promise<
       Result<{

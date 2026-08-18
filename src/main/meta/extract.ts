@@ -43,6 +43,7 @@ const AV_EXTS = new Set([
   'wmv',
   'mpg',
   'mpeg',
+  'flv',
   'rmvb',
   'rm'
 ])

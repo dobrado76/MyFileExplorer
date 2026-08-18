@@ -1,7 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
-import { basename } from '../lib/paths'
+import { basename, samePath } from '../lib/paths'
 import { CloseIcon } from '../lib/icons'
 
 type Cover = {
@@ -20,6 +20,13 @@ function sizeText(c: Cover): string {
 
 function previewSrc(b64: string): string {
   return `data:image/jpeg;base64,${b64}`
+}
+
+function upsertCover(list: Cover[], next: Cover): Cover[] {
+  const merged = list.some((c) => c.id === next.id)
+    ? list.map((c) => (c.id === next.id ? next : c))
+    : [...list, next]
+  return merged.sort((a, b) => b.width * b.height - a.width * a.height)
 }
 
 export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
@@ -51,29 +58,44 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
         if (cancelled) return
         setTitle(res.title)
         setCovers(res.covers)
-        setPicked(res.covers[0]?.id ?? null)
-        setLoading(false)
+        setPicked((cur) => cur ?? res.covers[0]?.id ?? null)
       })
       .catch((e: unknown) => {
         if (cancelled) return
         setError(e instanceof Error ? e.message : String(e))
         setLoading(false)
       })
+    const unsub = api.onEvent((event) => {
+      if (event.type !== 'cover-list') return
+      if (!samePath(event.payload.path, path)) return
+      if (cancelled) return
+      if (event.payload.cover) {
+        const cover = event.payload.cover
+        setCovers((cur) => upsertCover(cur, cover))
+        setPicked((cur) => cur ?? cover.id)
+      }
+      if (event.payload.done) setLoading(false)
+    })
     return () => {
       cancelled = true
+      unsub()
     }
   }, [path])
 
   const apply = async (): Promise<void> => {
     if (!picked) return
     setSaving(true)
+    setError(null)
     try {
-      await call(api.mediaMetadata.setCover({ path, coverId: picked }))
+      const previewBase64 = covers.find((c) => c.id === picked)?.previewBase64
+      await call(api.mediaMetadata.setCover({ path, coverId: picked, previewBase64 }))
       invalidateContentThumbs([path])
       notify('Cover updated')
       closeDialog()
     } catch (e) {
-      notify(e instanceof Error ? e.message : String(e), true)
+      const message = e instanceof Error ? e.message : String(e)
+      setError(message)
+      notify(message, true)
       setSaving(false)
     }
   }
@@ -88,8 +110,7 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
           </button>
         </div>
         <div className="modal-body cover-picker-body">
-          {loading ? <p className="dim">Loading covers…</p> : null}
-          {error ? <p className="dim">{error}</p> : null}
+          {error ? <p className="cover-picker-error">{error}</p> : null}
           {!loading && !error && covers.length === 0 ? (
             <p className="dim">No covers found. Extract from Plex or download from the internet first.</p>
           ) : null}
@@ -113,6 +134,15 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
           </div>
         </div>
         <div className="modal-actions">
+          <span className="dim cover-picker-status">
+            {loading
+              ? covers.length > 0
+                ? `Loading more… ${covers.length}`
+                : 'Loading covers…'
+              : covers.length > 0
+                ? `${covers.length} cover${covers.length === 1 ? '' : 's'}`
+                : ''}
+          </span>
           <button type="button" className="btn" onClick={closeDialog}>
             Cancel
           </button>

@@ -89,6 +89,7 @@ const VIDEO_EXTS = new Set([
   'm4v',
   'mpg',
   'mpeg',
+  'flv',
   'rmvb',
   'rm'
 ])

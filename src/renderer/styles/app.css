@@ -2820,12 +2820,16 @@ button.media-metadata-hero-poster.is-clickable:hover {
   text-decoration: underline;
 }
 .modal.modal-cover-picker {
-  min-width: min(720px, 92vw);
+  width: min(860px, 94vw);
+  height: min(640px, 86vh);
+  min-width: min(860px, 94vw);
   max-width: min(860px, 94vw);
+  min-height: min(640px, 86vh);
+  max-height: min(640px, 86vh);
 }
 .cover-picker-body {
-  min-height: 220px;
-  max-height: 62vh;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 .cover-picker-grid {
@@ -2866,6 +2870,14 @@ button.media-metadata-hero-poster.is-clickable:hover {
   color: var(--text-dim);
   text-align: center;
   font-variant-numeric: tabular-nums;
+}
+.cover-picker-status {
+  margin-right: auto;
+  align-self: center;
+}
+.cover-picker-error {
+  margin: 0 0 10px;
+  color: var(--danger, #f07178);
 }
 .preview-fields-media {
   padding-top: 10px;
