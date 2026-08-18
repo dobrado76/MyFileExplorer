@@ -861,6 +861,12 @@ type AppState = {
   confirmDeleteFromRecycleBin(confirmed: boolean): Promise<void>
 } & SlideshowActions
 
+function splitBaseExt(name: string): { stem: string; ext: string } {
+  const d = name.lastIndexOf('.')
+  if (d > 0) return { stem: name.slice(0, d), ext: name.slice(d) }
+  return { stem: name, ext: '' }
+}
+
 /** Unique child name: `stem` / `stem (2)` + optional extension (e.g. `.txt`). */
 async function uniqueChildName(parent: string, stem: string, ext: string): Promise<string> {
   let name = `${stem}${ext}`
@@ -4372,12 +4378,28 @@ export const useAppStore = create<AppState>()((set, get) => {
     async createNewFile(parent, name) {
       try {
         if (!samePath(parent, get().activeTab().path)) await get().navigate(parent)
-        const res = await call(api.fs.createFile({ parent, name }))
-        recordUndo({ kind: 'create', paths: [res.path], label: name })
+        const trimmed = name.trim()
+        if (!trimmed) return
+        set({ dialog: null })
+        try {
+          const res = await call(api.fs.createFile({ parent, name: trimmed }))
+          recordUndo({ kind: 'create', paths: [res.path], label: trimmed })
+          await get().refresh()
+          get().setSelection([res.path], res.path, res.path)
+          get().startRename(res.path)
+          return
+        } catch (e) {
+          if (!(e instanceof IpcError && e.code === 'conflict')) throw e
+        }
+        // Name is taken — create a stub, then rename so the D18 review applies.
+        const { ext } = splitBaseExt(trimmed)
+        const stub = await uniqueChildName(parent, 'New file', ext)
+        const res = await call(api.fs.createFile({ parent, name: stub }))
+        recordUndo({ kind: 'create', paths: [res.path], label: stub })
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
-        set({ dialog: null })
         get().startRename(res.path)
+        await get().submitRename(trimmed)
       } catch (e) {
         reportOperationError('New file failed', e)
       }
