@@ -43,7 +43,7 @@ import {
 } from '@shared/schemas/mediaMetadata'
 import { parseMediaSourceInput } from '@shared/mediaMetadata'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
-import { basename } from '../lib/paths'
+import { basename, parentOf } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
 import { DEFAULT_UPDATES_SOURCE, GITHUB_REPO_URL, resolveUpdatesSource } from '@shared/updatesSource'
 import { ThumbImage } from './ThumbImage'
@@ -1023,12 +1023,23 @@ function OpIssuesDialog(): JSX.Element | null {
   )
 
   useEffect(() => {
-    if (!focused || focused.kind !== 'name_conflict' || !destDir) {
+    if (!focused || focused.kind !== 'name_conflict') {
+      setCompare(null)
+      return
+    }
+    const folder = destDir ?? (focused.dest ? parentOf(focused.dest) : null)
+    if (!folder) {
       setCompare(null)
       return
     }
     let cancelled = false
-    void call(api.fs.checkConflicts({ sources: [focused.source], destinationDir: destDir }))
+    void call(
+      api.fs.checkConflicts({
+        sources: [focused.source],
+        destinationDir: folder,
+        ...(focused.dest ? { targets: [focused.dest] } : {})
+      })
+    )
       .then((r) => {
         if (!cancelled) setCompare(r.items[0] ?? null)
       })
@@ -1059,9 +1070,11 @@ function OpIssuesDialog(): JSX.Element | null {
       ? 'Copy'
       : dialog.op === 'move'
         ? 'Move'
-        : dialog.op === 'trash'
-          ? 'Recycle'
-          : 'Delete'
+        : dialog.op === 'rename'
+          ? 'Rename'
+          : dialog.op === 'trash'
+            ? 'Recycle'
+            : 'Delete'
 
   const showCompare = focused?.kind === 'name_conflict'
   const incoming = compare?.source ?? (focused ? sideFromPath(focused.source, focused.sourceMtimeMs) : null)

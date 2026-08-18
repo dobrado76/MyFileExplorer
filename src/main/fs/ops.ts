@@ -19,6 +19,13 @@ import type {
   TrashResponse
 } from '@shared/schemas/fs'
 import { classifyOpIssue, resolveIssueDecision, shouldQueueNameConflict } from '@shared/opIssues'
+import {
+  formatRemoteLocation,
+  parseRemoteLocation,
+  remoteBasename,
+  remoteJoin,
+  remoteParentPath
+} from '@shared/remotePaths'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { recyclePathWin32Robust } from './trashWin32'
@@ -61,18 +68,47 @@ export async function createFile(parent: string, name: string): Promise<{ path: 
   return { path: target }
 }
 
-export async function renameEntry(p: string, newName: string): Promise<{ path: string }> {
+function joinName(dir: string, name: string): string {
+  if (dir.toLowerCase().startsWith('mfe-remote://')) {
+    const loc = parseRemoteLocation(dir)
+    const joined = loc ? remoteJoin(loc.remotePath, name) : null
+    if (!loc || !joined) throw new AppError('validation', 'Invalid name')
+    return formatRemoteLocation(loc.connectionId, joined)
+  }
+  return path.join(dir, name)
+}
+
+function entryBasename(p: string): string {
+  if (p.toLowerCase().startsWith('mfe-remote://')) {
+    const loc = parseRemoteLocation(p)
+    return loc ? remoteBasename(loc.remotePath) : path.basename(p)
+  }
+  return path.basename(p)
+}
+
+export async function renameEntry(
+  p: string,
+  newName: string,
+  policy: ConflictPolicy = 'fail'
+): Promise<{ path: string }> {
   const source = requireAbsolute(p)
   if (source.toLowerCase().startsWith('mfe-remote://')) {
-    const { remoteRename } = await import('../remote/sessionPool')
-    return { path: await remoteRename(source, newName) }
+    return renameRemoteEntry(source, newName, policy)
   }
-  const target = path.join(path.dirname(source), newName)
+  const parent = path.dirname(source)
+  let target = path.join(parent, newName)
   if (target === source) return { path: source }
   // Allow case-only renames on Windows (target "exists" as the same file).
   const caseOnly = process.platform === 'win32' && target.toLowerCase() === source.toLowerCase()
   if (!caseOnly && (await pathExists(target))) {
-    throw new AppError('conflict', `"${newName}" already exists`, 'Choose a different name.')
+    if (policy === 'skip') return { path: source }
+    if (policy === 'rename') {
+      target = path.join(parent, await uniqueTargetName(parent, newName))
+    } else if (policy === 'replace') {
+      await fsp.rm(target, { recursive: true, force: true })
+    } else {
+      throw new AppError('conflict', `"${newName}" already exists`, 'Choose a different name.')
+    }
   }
 
   let isDir = false
@@ -103,13 +139,42 @@ export async function renameEntry(p: string, newName: string): Promise<{ path: s
   }
 }
 
+async function renameRemoteEntry(
+  source: string,
+  newName: string,
+  policy: ConflictPolicy
+): Promise<{ path: string }> {
+  const loc = parseRemoteLocation(source)
+  if (!loc) throw new AppError('validation', 'Not a remote location')
+  const parentRemote = remoteParentPath(loc.remotePath) ?? '/'
+  const destRemote = remoteJoin(parentRemote, newName)
+  if (!destRemote) throw new AppError('validation', 'Invalid name')
+  let finalName = newName
+  const target = formatRemoteLocation(loc.connectionId, destRemote)
+  if (target.toLowerCase() === source.toLowerCase()) return { path: source }
+  if (await pathExists(target)) {
+    if (policy === 'skip') return { path: source }
+    if (policy === 'rename') {
+      const parentUri = formatRemoteLocation(loc.connectionId, parentRemote)
+      finalName = await uniqueTargetName(parentUri, newName)
+    } else if (policy === 'replace') {
+      const { remoteDelete } = await import('../remote/sessionPool')
+      await remoteDelete(target)
+    } else {
+      throw new AppError('conflict', `"${newName}" already exists`, 'Choose a different name.')
+    }
+  }
+  const { remoteRename } = await import('../remote/sessionPool')
+  return { path: await remoteRename(source, finalName) }
+}
+
 /** Generate "name (2).ext", "name (3).ext", … that does not exist in dir. */
 export async function uniqueTargetName(dir: string, name: string): Promise<string> {
   const ext = path.extname(name)
   const base = name.slice(0, name.length - ext.length)
   for (let i = 2; i < 10_000; i++) {
     const candidate = `${base} (${i})${ext}`
-    if (!(await pathExists(path.join(dir, candidate)))) return candidate
+    if (!(await pathExists(joinName(dir, candidate)))) return candidate
   }
   throw new AppError('io', 'Could not find a unique name')
 }
@@ -188,7 +253,8 @@ async function readConflictSide(filePath: string): Promise<ConflictSide> {
 
 export async function checkConflicts(
   sources: string[],
-  destinationDir: string
+  destinationDir: string,
+  targets?: string[]
 ): Promise<{ conflicts: string[]; items: ConflictItem[] }> {
   const dest = requireAbsolute(destinationDir)
   const involvesRemote =
@@ -200,7 +266,8 @@ export async function checkConflicts(
 
   const conflicts: string[] = []
   const items: ConflictItem[] = []
-  for (const s of sources) {
+  for (let i = 0; i < sources.length; i++) {
+    const s = sources[i]!
     const sourcePath = requireAbsolute(s)
     const srcRemote = sourcePath.toLowerCase().startsWith('mfe-remote://')
     const name = srcRemote
@@ -210,7 +277,9 @@ export async function checkConflicts(
       : path.basename(sourcePath)
 
     let destPath: string
-    if (dest.toLowerCase().startsWith('mfe-remote://')) {
+    if (targets?.[i]) {
+      destPath = requireAbsolute(targets[i]!)
+    } else if (dest.toLowerCase().startsWith('mfe-remote://')) {
       const loc = remotePaths!.parseRemoteLocation(dest)
       const joined = remotePaths!.remoteJoin(loc?.remotePath ?? '/', name)
       if (!loc || !joined) continue
@@ -223,7 +292,7 @@ export async function checkConflicts(
       ? (await remotePool!.remoteStatKind(destPath)) != null
       : await pathExists(destPath)
     if (!exists) continue
-    conflicts.push(name)
+    conflicts.push(targets?.[i] ? entryBasename(destPath) : name)
     const [source, destination] = await Promise.all([
       readConflictSide(sourcePath),
       readConflictSide(destPath)
@@ -1079,6 +1148,37 @@ export async function resolveOpIssues(req: ResolveIssuesRequest): Promise<Resolv
   const dest = req.destinationDir
   const work = req.items.filter((it) => it.decision !== 'skip')
   out.skipped = req.items.length - work.length
+
+  if (req.op === 'rename') {
+    for (const it of work) {
+      const d = resolveIssueDecision(it.decision, it)
+      if (d === 'skip') {
+        out.skipped += 1
+        continue
+      }
+      if (!it.dest) {
+        out.issues.push({
+          kind: 'io',
+          code: 'validation',
+          source: it.source,
+          message: 'Rename review is missing the destination path'
+        })
+        continue
+      }
+      try {
+        const res = await renameEntry(
+          it.source,
+          entryBasename(it.dest),
+          d === 'retry' ? 'fail' : d
+        )
+        out.moved.push(res.path)
+        out.moves.push({ from: it.source, to: res.path })
+      } catch (e) {
+        out.issues.push(await toIssue(e, 'move', it.source, it.dest))
+      }
+    }
+    return out
+  }
 
   if (req.op === 'trash') {
     const paths = work.map((it) => it.source)

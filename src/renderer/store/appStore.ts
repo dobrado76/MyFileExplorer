@@ -207,7 +207,7 @@ export type DialogState =
     }
   | {
       kind: 'op-issues'
-      op: 'copy' | 'move' | 'trash' | 'delete'
+      op: 'copy' | 'move' | 'trash' | 'delete' | 'rename'
       issues: OpIssue[]
       destinationDir?: string
       clearCutAfter?: boolean
@@ -688,7 +688,7 @@ type AppState = {
   cancelRename(): void
   /**
    * Power Rename Apply: rename each path to `newName` (basename only).
-   * Skips conflicts / IO errors; records one undo entry for successful pairs.
+   * Name clashes open the same review as copy/move; other IO errors are skipped.
    */
   applyPowerRename(
     items: { path: string; newName: string }[]
@@ -1409,7 +1409,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function openOpIssuesReview(opts: {
-    op: 'copy' | 'move' | 'trash' | 'delete'
+    op: 'copy' | 'move' | 'trash' | 'delete' | 'rename'
     issues: OpIssue[]
     destinationDir?: string
     clearCutAfter?: boolean
@@ -1426,6 +1426,30 @@ export const useAppStore = create<AppState>()((set, get) => {
         doneCount: opts.doneCount
       }
     })
+  }
+
+  async function nameConflictIssue(source: string, dest: string, message: string): Promise<OpIssue> {
+    let sourceMtimeMs: number | undefined
+    let destMtimeMs: number | undefined
+    try {
+      sourceMtimeMs = (await call(api.fs.stat({ path: source }))).mtimeMs
+    } catch {
+      /* compare cards still load via checkConflicts */
+    }
+    try {
+      destMtimeMs = (await call(api.fs.stat({ path: dest }))).mtimeMs
+    } catch {
+      /* dest may have vanished */
+    }
+    return {
+      kind: 'name_conflict',
+      code: 'conflict',
+      source,
+      dest,
+      message,
+      sourceMtimeMs,
+      destMtimeMs
+    }
   }
 
   async function runPermanentDelete(toDelete: string[]): Promise<void> {
@@ -4160,6 +4184,15 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch (e) {
         applyListingRename(dest, path, oldName)
         set({ mediaHold: false })
+        if (e instanceof IpcError && e.code === 'conflict') {
+          openOpIssuesReview({
+            op: 'rename',
+            issues: [await nameConflictIssue(path, dest, e.message)],
+            destinationDir: parent ?? undefined,
+            doneCount: 0
+          })
+          return
+        }
         reportOperationError('Rename failed', e)
       }
     },
@@ -4189,6 +4222,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
       if (work.length === 0) return { pairs, skipped }
 
+      const issues: OpIssue[] = []
       await releaseMediaLocks()
       try {
         await withBusyFeedback(
@@ -4202,7 +4236,9 @@ export const useAppStore = create<AppState>()((set, get) => {
                 pairs.push({ from: item.path, to: res.path })
               } catch (e) {
                 if (e instanceof IpcError && e.code === 'conflict') {
-                  skipped.push(item.newName)
+                  const destParent = parentOf(item.path)
+                  const dest = destParent ? joinPath(destParent, item.newName) : item.path
+                  issues.push(await nameConflictIssue(item.path, dest, e.message))
                   continue
                 }
                 skipped.push(basename(item.path))
@@ -4246,6 +4282,16 @@ export const useAppStore = create<AppState>()((set, get) => {
         const selected = pairs.map((p) => p.to)
         get().setSelection(selected, selected[0], selected[0])
         if (selected[0]) get().requestFileListScrollTo(selected[0])
+      }
+
+      if (issues.length > 0) {
+        const destDir = parentOf(issues[0]!.dest ?? issues[0]!.source) ?? undefined
+        openOpIssuesReview({
+          op: 'rename',
+          issues,
+          destinationDir: destDir,
+          doneCount: pairs.length
+        })
       }
 
       return { pairs, skipped }
@@ -4608,15 +4654,23 @@ export const useAppStore = create<AppState>()((set, get) => {
 
       try {
         const busyKind =
-          dialog.op === 'copy' || dialog.op === 'move' ? dialog.op : dialog.op === 'trash' ? 'trash' : 'delete'
+          dialog.op === 'copy' || dialog.op === 'move'
+            ? dialog.op
+            : dialog.op === 'rename'
+              ? 'relocate'
+              : dialog.op === 'trash'
+                ? 'trash'
+                : 'delete'
         const busyLabel =
           dialog.op === 'copy'
             ? 'Copying…'
             : dialog.op === 'move'
               ? 'Moving…'
-              : dialog.op === 'trash'
-                ? 'Moving to Recycle Bin…'
-                : 'Deleting…'
+              : dialog.op === 'rename'
+                ? 'Renaming…'
+                : dialog.op === 'trash'
+                  ? 'Moving to Recycle Bin…'
+                  : 'Deleting…'
         const res = await withBusyFeedback(busyKind, busyLabel, `${items.length} items`, () =>
           call(
             api.fs.resolveIssues({
@@ -4638,18 +4692,60 @@ export const useAppStore = create<AppState>()((set, get) => {
           notifyTreeReload(dialog.destinationDir ? [dialog.destinationDir] : [])
         }
         if (res.moves.length > 0) {
-          recordUndo({
-            kind: 'move',
-            pairs: res.moves,
-            label: basename(res.moves[0]!.to)
-          })
+          if (dialog.op === 'rename') {
+            recordUndo(
+              res.moves.length === 1
+                ? {
+                    kind: 'rename',
+                    from: res.moves[0]!.from,
+                    to: res.moves[0]!.to,
+                    label: basename(res.moves[0]!.from)
+                  }
+                : {
+                    kind: 'power-rename',
+                    pairs: res.moves,
+                    label:
+                      res.moves.length === 1
+                        ? basename(res.moves[0]!.to)
+                        : `${res.moves.length} items`
+                  }
+            )
+            notifyTreeMutation({
+              renamed: res.moves,
+              reloadParents: parentsOfPaths(res.moves.flatMap((p) => [p.from, p.to]))
+            })
+            const rewriteOne = (p: string): string => {
+              for (const pair of res.moves) {
+                if (samePath(p, pair.from)) return pair.to
+                if (isUnderPath(p, pair.from)) return pair.to + p.slice(pair.from.length)
+              }
+              return p
+            }
+            set((s) => ({
+              tabs: s.tabs.map((t) => ({
+                ...t,
+                path: rewriteOne(t.path),
+                rootPath: t.rootPath ? rewriteOne(t.rootPath) : null,
+                back: t.back.map((e) => rewriteHistoryEntry(e, rewriteOne)),
+                forward: t.forward.map((e) => rewriteHistoryEntry(e, rewriteOne)),
+                selected: t.selected.map(rewriteOne),
+                treeExpanded: t.treeExpanded.map(rewriteOne)
+              }))
+            }))
+          } else {
+            recordUndo({
+              kind: 'move',
+              pairs: res.moves,
+              label: basename(res.moves[0]!.to)
+            })
+            const movedSrc = res.moves.map((p) => p.from)
+            pruneListingRemoved(movedSrc)
+            notifyTreeMutation({
+              removed: movedSrc,
+              reloadParents: dialog.destinationDir ? [dialog.destinationDir] : []
+            })
+          }
           done += res.moves.length
-          const movedSrc = res.moves.map((p) => p.from)
-          pruneListingRemoved(movedSrc)
-          notifyTreeMutation({
-            removed: movedSrc,
-            reloadParents: dialog.destinationDir ? [dialog.destinationDir] : []
-          })
         }
         if (res.trashed.length > 0) {
           recordUndo({
@@ -4683,9 +4779,11 @@ export const useAppStore = create<AppState>()((set, get) => {
               ? 'Copied'
               : dialog.op === 'move'
                 ? 'Moved'
-                : dialog.op === 'trash'
-                  ? 'Moved to Recycle Bin'
-                  : 'Deleted'
+                : dialog.op === 'rename'
+                  ? 'Renamed'
+                  : dialog.op === 'trash'
+                    ? 'Moved to Recycle Bin'
+                    : 'Deleted'
           get().notify(`${verb} ${done.toLocaleString()}`)
         }
         await get().refresh()

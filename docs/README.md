@@ -77,7 +77,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Power Search | Visual query builder (toolbar) → Everything-style query string; exclude extensions via `!ext:` |
 | Per-tab search | Search is a tab history location (Back/Forward); switching tabs does not clear; delete/move prunes hits |
 | Query `!` / names | `!` is NOT after whitespace or `!ext:`; `!!name` is literal; plain queries match names only |
-| Bulk file ops | Continue-then-review (D18) — no mid-pass prompts; Keep most recent; same-folder paste auto-renames |
+| Bulk file ops | Continue-then-review (D18) — no mid-pass prompts; Keep most recent; same-folder paste auto-renames; rename clashes use the same review |
 | PowerPoint preview | `.pptx` approximate slides (text + package images); `.ppt` text-only — [PREVIEW.md](PREVIEW.md) |
 | Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
 | Folder statistics | Depth-first **Calculate Statistics** on full subtrees; Shift+skip tagged trees; columns Files / Total Files / Folders / Total Folders — [ADS.md](ADS.md) |

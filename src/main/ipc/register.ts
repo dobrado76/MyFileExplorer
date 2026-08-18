@@ -325,7 +325,7 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.fsRename, renameRequestSchema, async (req) => {
     muteWatchers()
-    return renameEntry(req.path, req.newName)
+    return renameEntry(req.path, req.newName, req.conflictPolicy ?? 'fail')
   })
   handle(IPC.fsCopy, transferRequestSchema, async (req) => {
     muteWatchers()
@@ -344,7 +344,7 @@ export function registerIpcHandlers(): void {
     return relocateEntries(req.pairs)
   })
   handle(IPC.fsCheckConflicts, checkConflictsRequestSchema, (req) =>
-    checkConflicts(req.sources, req.destinationDir)
+    checkConflicts(req.sources, req.destinationDir, req.targets)
   )
   handle(IPC.fsCreateShortcuts, checkConflictsRequestSchema, async (req) => {
     muteWatchers()

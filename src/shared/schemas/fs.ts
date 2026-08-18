@@ -59,6 +59,9 @@ export const nameInParentRequestSchema = z.object({
 })
 export type NameInParentRequest = z.infer<typeof nameInParentRequestSchema>
 
+export const conflictPolicySchema = z.enum(['fail', 'replace', 'skip', 'rename'])
+export type ConflictPolicy = z.infer<typeof conflictPolicySchema>
+
 export const renameRequestSchema = z.object({
   path: z.string().min(1),
   newName: z
@@ -66,12 +69,10 @@ export const renameRequestSchema = z.object({
     .min(1)
     .max(255)
     .refine((n) => !/[\\/:*?"<>|]/.test(n), 'Name contains invalid characters')
-    .refine((n) => n !== '.' && n !== '..', 'Invalid name')
+    .refine((n) => n !== '.' && n !== '..', 'Invalid name'),
+  conflictPolicy: conflictPolicySchema.optional()
 })
 export type RenameRequest = z.infer<typeof renameRequestSchema>
-
-export const conflictPolicySchema = z.enum(['fail', 'replace', 'skip', 'rename'])
-export type ConflictPolicy = z.infer<typeof conflictPolicySchema>
 
 export const transferRequestSchema = z.object({
   sources: z.array(z.string().min(1)).min(1),
@@ -138,7 +139,9 @@ export type RelocateRequest = z.infer<typeof relocateRequestSchema>
 
 export const checkConflictsRequestSchema = z.object({
   sources: z.array(z.string().min(1)).min(1),
-  destinationDir: z.string().min(1)
+  destinationDir: z.string().min(1),
+  /** When set (same length as sources), compare against these paths instead of dest+basename. */
+  targets: z.array(z.string().min(1)).optional()
 })
 export type CheckConflictsRequest = z.infer<typeof checkConflictsRequestSchema>
 
@@ -173,7 +176,7 @@ export const issueDecisionSchema = z.enum(['replace', 'skip', 'rename', 'keep_ne
 export type IssueDecision = z.infer<typeof issueDecisionSchema>
 
 export const resolveIssuesRequestSchema = z.object({
-  op: z.enum(['copy', 'move', 'trash', 'delete']),
+  op: z.enum(['copy', 'move', 'trash', 'delete', 'rename']),
   destinationDir: z.string().min(1).optional(),
   items: z
     .array(

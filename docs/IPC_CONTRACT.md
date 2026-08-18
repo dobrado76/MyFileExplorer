@@ -18,10 +18,10 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:stat`            | `{ path }`                                       | `StatResult`                                  |
 | `fs:mkdir`           | `{ parent, name }`                               | `{ path }`                                    |
 | `fs:createFile`      | `{ parent, name }`                               | `{ path }`                                    |
-| `fs:rename`          | `{ path, newName }`                              | `{ path }`                                    |
+| `fs:rename`          | `{ path, newName, conflictPolicy? }`             | `{ path }`                                    |
 | `fs:copy`            | `{ sources[], destinationDir, conflictPolicy? }` | `{ copied[], skipped[], issues: OpIssue[], aborted? }` |
 | `fs:move`            | `{ sources[], destinationDir, conflictPolicy? }` | `{ moved[], moves[], skipped[], issues: OpIssue[], aborted? }` |
-| `fs:resolveIssues`   | `{ op: copy\|move\|trash\|delete, destinationDir?, items: { source, dest?, decision, sourceMtimeMs?, destMtimeMs? }[] }` | `{ copied[], moved[], moves[], trashed[], deleted[], skipped, issues[] }` |
+| `fs:resolveIssues`   | `{ op: copy\|move\|trash\|delete\|rename, destinationDir?, items: { source, dest?, decision, sourceMtimeMs?, destMtimeMs? }[] }` | `{ copied[], moved[], moves[], trashed[], deleted[], skipped, issues[] }` |
 | `fs:relocate`        | `{ pairs: { from, to }[] }`                      | `{ moved: string[] }` (exact destinations)    |
 | `fs:checkConflicts`  | `{ sources[], destinationDir }`                  | `{ conflicts[], items[] }` (name + both sides’ stats/dims) |
 | `fs:createShortcuts` | `{ sources[], destinationDir }`                  | `{ created: string[] }` — Windows `.lnk` (right-drag) |
@@ -48,7 +48,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:readImageForEdit` | `{ path, ads? }`                                | `{ dataBase64, mime }` (editor load; tip default) |
 | `fs:saveEditedImageAs` | `{ dataBase64, defaultPath }`                  | `{ path, cancelled }` — no version history    |
 
-`conflictPolicy`: `'fail' (default) | 'replace' | 'skip' | 'rename'` — applied to the whole batch. Default `fail` **queues** name conflicts as `OpIssue` (`kind: name_conflict`) and continues the rest (D18). Renderer does **not** pre-block on `fs:checkConflicts`; that channel is for lazy compare cards in the end-of-op review. `decision` on `fs:resolveIssues`: `'replace' | 'skip' | 'rename' | 'keep_newer' | 'retry'`. `keep_newer` keeps the newer mtime (equal → keep both). `OpIssue`: `{ kind, code, source, dest?, message, sourceMtimeMs?, destMtimeMs? }`. `aborted`: `'cancelled' | 'fatal'` when the pass stopped early; queued issues are still returned.
+`conflictPolicy`: `'fail' (default) | 'replace' | 'skip' | 'rename'` — applied to the whole batch (copy/move) or a single `fs:rename`. Default `fail` **queues** name conflicts as `OpIssue` (`kind: name_conflict`) and continues the rest (D18); inline rename throws `conflict` so the renderer can open the same review. `fs:checkConflicts` accepts optional `targets[]` (same length as `sources`) so rename compare cards use the intended new path, not `dest+basename(source)`. `decision` on `fs:resolveIssues`: `'replace' | 'skip' | 'rename' | 'keep_newer' | 'retry'`. `keep_newer` keeps the newer mtime (equal → keep both). `OpIssue`: `{ kind, code, source, dest?, message, sourceMtimeMs?, destMtimeMs? }`. `aborted`: `'cancelled' | 'fatal'` when the pass stopped early; queued issues are still returned.
 
 `DirEntry`: `{ name, path, kind: 'file'|'dir'|'symlink', size, mtimeMs, ext, isHidden }`.
 

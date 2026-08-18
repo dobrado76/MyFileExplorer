@@ -24,6 +24,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Rename name clash** — F2 / Power Rename no longer only toast “already exists”. The same review as copy/move offers Skip, Keep both (`name (2).ext`), Replace, and Keep most recent.
 - **Rename focus** — finishing a slow rename (NAS) no longer jumps selection or scroll back to that file if you have already started renaming or selected something else.
 - **Change cover apply** — **Use this cover** no longer fails with “Cover list expired” when the in-memory session is gone (reload / remount). Each tile keeps a recoverable source, and the preview already on the tile is a fallback. Plex’s small 154×231 tiles also fall back if the full poster URL does not download. Apply errors appear in the dialog.
 - **Search as URL** — on a miss (or **Search as…** from **Which title?**), paste a TMDB movie/TV page or an IMDb title URL to fetch that id instead of searching. Extract from Plex then uses the internet for that item.
