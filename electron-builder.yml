@@ -23,6 +23,8 @@ asarUnpack:
   - node_modules/node-unrar-js/**
 win:
   icon: build/icon.ico
+  # Unsigned. `scripts/build-win.mjs` sets CSC_IDENTITY_AUTO_DISCOVERY=false so a
+  # local Windows cert is not applied (signtool + timestamp hung the pack for minutes).
   target:
     - nsis
 linux:

@@ -1906,7 +1906,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           path={entry.path}
                           mtimeMs={entry.mtimeMs}
                           size={spec.thumb}
-                          fallback={<ShellIcon path={entry.path} size={iconPx} />}
+                          fallback={
+                            <ShellIcon
+                              path={entry.path}
+                              size={iconPx}
+                              isDir={entry.kind === 'dir'}
+                            />
+                          }
                           onHasContent={(has) => noteContentThumb(entry.path, has)}
                         />
                       ) : (

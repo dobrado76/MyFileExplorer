@@ -2,7 +2,7 @@
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
   "desktopName": "MyFileExplorer",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Windows-first Electron + React file manager: tabs, rich previews (incl. A1111/ComfyUI metadata), Everything-inspired opt-in search, curated/customizable context menu, remotes (FTP/SFTP), OS drag-out, in-app Recycle Bin.",
   "main": "./out/main/index.js",
   "author": "MyFileExplorer",
@@ -27,7 +27,7 @@
     "icons": "node scripts/make-icons.mjs",
     "samples:preview": "node scripts/generate-preview-samples.mjs",
     "postinstall": "node scripts/patch-filerobot-crop.mjs",
-    "build:win": "electron-vite build && electron-builder --win --config electron-builder.yml --publish never",
+    "build:win": "node scripts/build-win.mjs",
     "dist": "node scripts/dist.mjs",
     "dist:nobump": "node scripts/dist.mjs --no-bump",
     "dist:linux": "npm run build:linux"

@@ -21,6 +21,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
+- **Local Windows dist** — `npm run build:win` / `dist` no longer Authenticode-sign. A local cert used to make every packed exe wait on `signtool` (minutes). GitHub Release builds were already unsigned.
 - **AI model picker** — Settings → AI and Generate script use a dropdown from `GET /v1/models` (cached on the provider). OpenAI lists hide embeddings/TTS/image models. Long catalogs (OpenRouter) get a filter box.
 - **Deleting a tab root** — a folder that is the scoped root of any open tab now always asks for confirmation (Cancel / Delete) and warns that those tabs will be closed. After a successful delete, the affected tabs close (a replacement tab opens if that would leave none).
 - **Preview Media / File tabs** — when a file has both stored movie/TV metadata and extracted file fields, they sit in **Media** and **File** tabs under the player (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Ratings use source marks (Plex, IMDb, Rotten Tomatoes, Metacritic, TMDB) instead of `(Plex)` text. Metadata no longer overlays the video still.
@@ -29,6 +30,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Thumbnail folder icons** — with Media Metadata on, icon/thumbnail view asked for a cover then fell back to a **file** glyph. List and Details were fine. Folders with a dot in the name (e.g. `UE_5.7`) still got a real folder icon; `Program Files` / `Windows` did not.
 - **ADS host times** — writing or deleting an alternate stream (media metadata, folder stats, ADS Manager) restores NTFS ChangeTime as well as Date modified. The old `utimes` restore left ChangeTime at now, so sync tools recopied the whole video. Read-only rips are handled. Already-bumped files stay bumped.
 - **AI generate on GPT-5 / o-series** — those models reject `max_tokens`; the request now uses `max_completion_tokens` (and retries if a provider wants the other field).
 - **Delete on a drive** — Del / Shift+Del / context Delete on a volume root (`C:\`) do nothing (no prompt, no error).
