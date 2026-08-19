@@ -1690,11 +1690,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
-  function currentListingFoldersFirst(listingPath?: string, sortKey?: string): boolean {
+  function currentListingFoldersFirst(listingPath?: string): boolean {
     const s = get()
     return listingFoldersFirst({
       foldersFirst: s.settings.foldersFirst,
-      sortKey,
       mediaEnabled: s.settings.mediaMetadata.enabled,
       mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
       isContainer: s.mediaLibrary.isContainer,
@@ -1714,7 +1713,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     const sorted = sortEntries(
       listing.entries,
       sort,
-      currentListingFoldersFirst(listing.path, sort.key)
+      currentListingFoldersFirst(listing.path)
     )
     viewOrderCache = null
     const nextListing = { ...listing, entries: sorted }
@@ -1734,7 +1733,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     const owning = resolveFolderView(tab.path, get().settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const sortedEntries = dedupeDirEntries(
-      sortEntries(entries, sort, currentListingFoldersFirst(listedPath, sort.key))
+      sortEntries(entries, sort, currentListingFoldersFirst(listedPath))
     )
     const nextListing: Listing = {
       path: listedPath,
@@ -2023,7 +2022,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           entries: sortEntries(
             patchDirEntriesForRename(L.entries, from, to, newName),
             sort,
-            currentListingFoldersFirst(L.path, sort.key)
+            currentListingFoldersFirst(L.path)
           )
         }
       }
@@ -2038,7 +2037,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             entries: sortEntries(
               patchDirEntriesForRename(s.listing.entries, from, to, newName),
               sort,
-              currentListingFoldersFirst(s.listing.path, sort.key)
+              currentListingFoldersFirst(s.listing.path)
             )
           }
         })()
@@ -2221,7 +2220,6 @@ export const useAppStore = create<AppState>()((set, get) => {
       viewOrderCache.foldersFirst ===
         listingFoldersFirst({
           foldersFirst: s.settings.foldersFirst,
-          sortKey: sort.key,
           mediaEnabled: s.settings.mediaMetadata.enabled,
           mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
           isContainer: s.mediaLibrary.isContainer,
@@ -2241,13 +2239,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       ? s.settings.foldersFirst
         : listingFoldersFirst({
             foldersFirst: s.settings.foldersFirst,
-            sortKey: sort.key,
-          mediaEnabled: s.settings.mediaMetadata.enabled,
-          mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
-          isContainer: s.mediaLibrary.isContainer,
-          listingPath: s.listing.path,
-          containerPath: s.mediaLibrary.folderPath
-        })
+            mediaEnabled: s.settings.mediaMetadata.enabled,
+            mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+            isContainer: s.mediaLibrary.isContainer,
+            listingPath: s.listing.path,
+            containerPath: s.mediaLibrary.folderPath
+          })
     const before = sortEntries(
       sourceEntries.filter((e) => {
         if (
@@ -3848,7 +3845,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         const sorted = sortEntries(
           listing.entries,
           sort,
-          currentListingFoldersFirst(listing.path, sort.key)
+          currentListingFoldersFirst(listing.path)
         )
         set((st) => {
           const nextListing = { ...listing, entries: sorted }
