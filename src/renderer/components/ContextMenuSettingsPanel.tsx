@@ -461,7 +461,7 @@ export function ContextMenuSettingsPanel(): JSX.Element {
         <code>My Tools \ Option 1</code>). Included in Settings → About → Export / Import.
       </p>
 
-      <div className="context-menu-scope-tabs" role="tablist">
+      <div className="context-menu-scope-tabs settings-search-keep" role="tablist">
         <button
           type="button"
           role="tab"

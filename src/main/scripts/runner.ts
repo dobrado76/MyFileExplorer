@@ -145,7 +145,8 @@ export async function runScriptProcess(input: {
           runId: req.runId,
           exitCode,
           cancelled: run.cancelled,
-          elapsedMs
+          elapsedMs,
+          dryRun: req.dryRun === true
         }
       })
       resolve({

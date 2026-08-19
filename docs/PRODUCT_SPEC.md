@@ -179,6 +179,8 @@ See [SEARCH.md](SEARCH.md).
 
 ## Settings
 
+The Settings dialog has a search box (filters as you type, no Search button) that narrows the section list and hides controls that do not match the keyword.
+
 | Area         | Fields                                                                             |
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size; icon size; **equal-width tabs** (`tabEqualWidth`, default off); **show tab icons** (`showTabIcons`, default on) — hide all tab icons without clearing assigned ones |

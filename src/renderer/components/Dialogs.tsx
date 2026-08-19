@@ -1,7 +1,9 @@
 import {
   createElement,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type JSX,
   type ReactNode
@@ -62,6 +64,15 @@ import { ScriptManagerDialog } from './ScriptManagerDialog'
 import { ScriptRunnerDialog } from './ScriptRunnerDialog'
 import { ScriptGenerateDialog } from './ScriptGenerateDialog'
 import { AiSettingsPanel } from './AiSettingsPanel'
+import {
+  SETTINGS_NAV,
+  SETTINGS_SEARCH_DEBOUNCE_MS,
+  filterSettingsNav,
+  pickSettingsSectionForSearch,
+  settingsSearchTokens,
+  type SettingsSection
+} from '@shared/settingsSearch'
+import { applySettingsPaneFilter } from '../lib/settingsSearchDom'
 
 function Modal({
   title,
@@ -1729,43 +1740,6 @@ const THEME_TOKENS: { key: keyof CustomTheme; label: string }[] = [
   { key: 'accent', label: 'Accent' }
 ]
 
-type SettingsSection =
-  | 'appearance'
-  | 'behavior'
-  | 'contextmenu'
-  | 'quickaccess'
-  | 'layouts'
-  | 'folderviews'
-  | 'filter'
-  | 'preview'
-  | 'search'
-  | 'network'
-  | 'remoterepos'
-  | 'slideshow'
-  | 'mediametadata'
-  | 'ai'
-  | 'advanced'
-  | 'about'
-
-const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'behavior', label: 'Behavior' },
-  { id: 'contextmenu', label: 'Context menu' },
-  { id: 'quickaccess', label: 'Quick access' },
-  { id: 'layouts', label: 'Layouts' },
-  { id: 'folderviews', label: 'Folder views' },
-  { id: 'filter', label: 'View filter' },
-  { id: 'preview', label: 'Preview' },
-  { id: 'search', label: 'Search index' },
-  { id: 'network', label: 'Network' },
-  { id: 'remoterepos', label: 'Remote repositories' },
-  { id: 'slideshow', label: 'Slideshow' },
-  { id: 'mediametadata', label: 'Media Metadata' },
-  { id: 'ai', label: 'Scripting and AI' },
-  { id: 'advanced', label: 'Advanced' },
-  { id: 'about', label: 'About' }
-]
-
 function MediaMetadataSettingsPanel(): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
@@ -1930,6 +1904,7 @@ function SettingsToggle({
   hint,
   hintAsTooltip = false,
   className,
+  searchTerms,
   checked,
   onChange
 }: {
@@ -1938,6 +1913,7 @@ function SettingsToggle({
   hint?: string
   hintAsTooltip?: boolean
   className?: string
+  searchTerms?: string
   checked: boolean
   onChange(v: boolean): void
 }): JSX.Element {
@@ -1946,6 +1922,7 @@ function SettingsToggle({
       className={className ?? 'settings-toggle'}
       htmlFor={id}
       title={hintAsTooltip ? hint : undefined}
+      data-settings-search={searchTerms}
     >
       <span className="settings-toggle-text">
         <span className="settings-toggle-label">{label}</span>
@@ -2043,6 +2020,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     ? (initialSection as SettingsSection)
     : 'appearance'
   const [section, setSection] = useState<SettingsSection>(startSection)
+  const [searchDraft, setSearchDraft] = useState('')
+  const [settingsSearchQuery, setSettingsSearchQuery] = useState('')
+  const paneRef = useRef<HTMLDivElement>(null)
   const categorizerMap = useAppStore((s) => s.slideshow.categorizerMap)
   const [filterText, setFilterText] = useState(settings.viewFilterPatterns.join('\n'))
   const [excludeText, setExcludeText] = useState(settings.searchExcludeDirNames.join('\n'))
@@ -2166,6 +2146,30 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const qaMissingBuiltins = knownFolders.filter(
     (k) => !qaEntries.some((e) => e.builtinId === k.id)
   )
+  const searchTokens = useMemo(
+    () => settingsSearchTokens(settingsSearchQuery),
+    [settingsSearchQuery]
+  )
+  const visibleNav = useMemo(
+    () => filterSettingsNav(navItems, searchTokens),
+    [navItems, searchTokens]
+  )
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setSettingsSearchQuery(searchDraft), SETTINGS_SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(t)
+  }, [searchDraft])
+
+  useEffect(() => {
+    const next = pickSettingsSectionForSearch(section, visibleNav)
+    if (next && next !== section) setSection(next)
+  }, [section, visibleNav])
+
+  useLayoutEffect(() => {
+    const pane = paneRef.current
+    if (!pane) return
+    applySettingsPaneFilter(pane, searchTokens)
+  }, [searchTokens, section, visibleNav.length])
 
   return (
     <Modal
@@ -2180,8 +2184,34 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
       }
     >
       <div className="settings-shell">
+        <div className="settings-search">
+          <input
+            type="search"
+            className="settings-search-input"
+            value={searchDraft}
+            autoFocus
+            spellCheck={false}
+            placeholder="Search settings"
+            aria-label="Search settings"
+            onChange={(e) => setSearchDraft(e.target.value)}
+          />
+          {searchDraft ? (
+            <button
+              type="button"
+              className="settings-search-clear"
+              aria-label="Clear settings search"
+              onClick={() => {
+                setSearchDraft('')
+                setSettingsSearchQuery('')
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <div className="settings-shell-main">
         <nav className="settings-nav" aria-label="Settings sections">
-          {navItems.map((item) => (
+          {visibleNav.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -2192,9 +2222,16 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
             </button>
           ))}
         </nav>
-        <div className="settings-pane">
-          <h2 className="settings-pane-title">{sectionTitle}</h2>
-
+        <div className="settings-pane" ref={paneRef}>
+          {visibleNav.length === 0 ? (
+            <p className="settings-search-empty">
+              No settings match “{settingsSearchQuery.trim() || searchDraft.trim()}”.
+            </p>
+          ) : (
+            <h2 className="settings-pane-title">{sectionTitle}</h2>
+          )}
+          {visibleNav.length > 0 && (
+          <>
           {section === 'appearance' && (
             <div className="settings-grid">
               <label className="settings-field" htmlFor="set-theme">
@@ -2671,6 +2708,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 label="Always confirm permanent delete"
                 hint="Ask even for a single file (Shift+Del)"
                 checked={settings.confirmPermanentDeleteAlways}
+                searchTerms="recycle bin trash shift+del"
                 onChange={(v) => void applySettingsPatch({ confirmPermanentDeleteAlways: v })}
               />
               <label className="settings-field" htmlFor="set-hide-exts">
@@ -3359,6 +3397,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       : 'Hardware acceleration will turn on after restart'
                   )
                 }}
+                searchTerms="gpu vram chromium"
               />
 
               <div className="form-section">Search HTTP API</div>
@@ -3614,6 +3653,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </div>
             </div>
           )}
+          </>
+          )}
+        </div>
         </div>
       </div>
     </Modal>

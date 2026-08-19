@@ -2928,6 +2928,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           if (Object.keys(patch).length > 0) {
             updateTab(owner.id, { search: { ...st, ...patch } })
           }
+        } else if (event.type === 'script-ended') {
+          // Scripts can create/rename/delete anywhere under the folder or selection.
+          // Watchers only cover the current listing, so do a full F5 (list + tree).
+          if (!event.payload.dryRun) void get().refresh()
         } else if (event.type === 'index-progress') {
           set((state) => ({
             indexProgress: {

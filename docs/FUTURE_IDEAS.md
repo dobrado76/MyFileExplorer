@@ -249,7 +249,7 @@ Not a DAM taxonomy.
 
 # 10. First-class user script actions
 
-**Shipped as D51** — [SCRIPTS.md](SCRIPTS.md). This parking-lot item is closed for the runner/library/AI-authoring slice. Remaining “action” ideas (icons, refresh-after-run polish) can be evaluated separately.
+**Shipped as D51** — [SCRIPTS.md](SCRIPTS.md). This parking-lot item is closed for the runner/library/AI-authoring slice. Remaining “action” ideas (icons) can be evaluated separately. The file list and folder tree refresh after a real run (not dry-run).
 
 ## Idea
 

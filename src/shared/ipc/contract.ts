@@ -338,7 +338,13 @@ export type MfeEvent =
     }
   | {
       type: 'script-ended'
-      payload: { runId: string; exitCode: number | null; cancelled: boolean; elapsedMs: number }
+      payload: {
+        runId: string
+        exitCode: number | null
+        cancelled: boolean
+        elapsedMs: number
+        dryRun: boolean
+      }
     }
   | {
       type: 'cover-list'

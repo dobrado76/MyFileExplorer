@@ -177,7 +177,7 @@ Toolbar **Scripts** or context **Scripts → Manage Scripts…** (only after scr
 
 ### Run window
 
-**Run** / **Dry run** opens the execution dialog: live stdout/stderr, elapsed time, **Stop**, copy output. Drag the title to move; drag edges to resize. Size and position are remembered. Folder runs can still toggle **Recursive** here even if the script’s default is off. **Close** on the run window returns to Script Manager (or Generate) instead of dropping you back on the file list.
+**Run** / **Dry run** opens the execution dialog: live stdout/stderr, elapsed time, **Stop**, copy output. Drag the title to move; drag edges to resize. Size and position are remembered. Folder runs can still toggle **Recursive** here even if the script’s default is off. **Close** on the run window returns to Script Manager (or Generate) instead of dropping you back on the file list. After a real **Run** (or Stop mid-run), the file list and folder tree refresh like F5 so created, renamed, or deleted items show up. Dry run does not refresh.
 
 Output is capped (~400 000 characters) so a chatty walk cannot freeze the UI.
 
