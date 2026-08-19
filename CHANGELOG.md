@@ -17,6 +17,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Ask AI to fix** — decode the returned JSON (`source`, `language: "Python"`, …) into the script editor instead of pasting the metadata envelope into the code block.
 - **Copy folder into another drive** — the dest folder appears in the tree as soon as it exists (same as the file list), not only when the copy finishes.
+- **Import script** — Script Manager Import accepts `.ps1` / `.py` / `.cmd` / `.sh` as well as `.mfescript`.
 
 ## [0.9.0] - 2026-08-19
 

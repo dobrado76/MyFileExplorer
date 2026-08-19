@@ -23,7 +23,7 @@ const T = {
   generate:
     'Describe a task and let AI draft source. Only the task text is sent — not files or paths. Review before you Save or Run.',
   import:
-    'Open a .mfescript file. Imports are untrusted — read the source before running.',
+    'Open a .ps1 / .py / .cmd / .sh, or a .mfescript export. Imports are untrusted — read the source before running.',
   export: 'Save this script as a .mfescript you can share or back up.',
   listItem: 'Open this script to edit or run. Saved scripts rerun locally with no AI.',
   name: 'How the script appears in this list and in the context menu.',

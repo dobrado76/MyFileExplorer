@@ -17,7 +17,7 @@ import {
   exportScriptDocument,
   getScript,
   hasPreviousSource,
-  importScriptDocument,
+  importScriptFromFile,
   languageForExternalPath,
   listScripts,
   readScriptSource,
@@ -74,6 +74,9 @@ export function registerScriptIpc(handle: Handle): void {
     const opts = {
       title: 'Import script',
       filters: [
+        { name: 'Scripts', extensions: ['ps1', 'py', 'cmd', 'bat', 'sh', 'mfescript', 'json'] },
+        { name: 'PowerShell', extensions: ['ps1'] },
+        { name: 'Python', extensions: ['py'] },
         { name: 'MyFileExplorer script', extensions: ['mfescript', 'json'] },
         { name: 'All files', extensions: ['*'] }
       ],
@@ -83,8 +86,7 @@ export function registerScriptIpc(handle: Handle): void {
       ? await dialog.showOpenDialog(win, opts)
       : await dialog.showOpenDialog(opts)
     if (picked.canceled || !picked.filePaths[0]) return { imported: false as const }
-    const json = await fsp.readFile(picked.filePaths[0], 'utf8')
-    const script = await importScriptDocument(json)
+    const script = await importScriptFromFile(picked.filePaths[0])
     return { imported: true as const, script }
   })
   handle(IPC.scriptExportFile, scriptExportRequestSchema, async (req, event) => {

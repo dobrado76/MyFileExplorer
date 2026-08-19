@@ -168,7 +168,7 @@ Toolbar **Scripts** or context **Scripts → Manage Scripts…** (only after scr
 - Every field and button has a hover tip.
 - **New** — blank managed script (nothing sent to AI).
 - **Generate with AI…** — optional; task text only.
-- **Import** / **Export** — `.mfescript` JSON.
+- **Import** / **Export** — Import a `.ps1` / `.py` / `.cmd` / `.sh` (copied into the library) or a `.mfescript` JSON export. Export writes `.mfescript`.
 - Write or paste source. Set language, folder vs selection, recursive default, filters, parameters, dependencies.
 - **External file** — run a `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` on disk instead of copying source into app data.
 - **Save** writes `%APPDATA%\MyFileExplorer\scripts\library.json` plus `managed/<id>.<ext>`. Later runs are local.
@@ -740,7 +740,7 @@ No provider → **Open AI Settings**, not a hard error on the runner. Hand-writt
 
 ## Import / export
 
-- Per-script `.mfescript` (JSON, `format: myfileexplorer-script`). Import warns that the file is **untrusted** — read the source.
+- Import a raw `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` (copied into the managed library) or a `.mfescript` JSON (`format: myfileexplorer-script`). Import warns that the file is **untrusted** — read the source.
 - Settings export includes the script library (source yes) and AI provider metadata (keys no). Dialog geometry is stripped.
 - External file references: tick **External file** and browse to a `.ps1` / `.py` / `.cmd` / `.sh`.
 - **Revert** restores the previous **managed** source after an AI modify (not after a normal Save, and not for external files).

@@ -3,10 +3,10 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { app } from 'electron'
 import { AppError } from '@shared/result'
+import { parseScriptImport } from '@shared/scriptImport'
 import {
   defaultScriptDefinition,
   languageFromExtension,
-  mfeScriptDocumentSchema,
   MFESCRIPT_FORMAT,
   MFESCRIPT_FORMAT_VERSION,
   newScriptId,
@@ -229,21 +229,15 @@ export async function exportScriptDocument(id: string): Promise<{
 }
 
 export async function importScriptDocument(json: string): Promise<ScriptDefinition> {
-  let raw: unknown
-  try {
-    raw = JSON.parse(json) as unknown
-  } catch {
-    throw new AppError('validation', 'Not valid JSON')
-  }
-  const parsed = mfeScriptDocumentSchema.parse(raw)
-  return upsertScript({
-    script: {
-      ...parsed.script,
-      sourceKind: 'managed',
-      externalPath: undefined
-    },
-    source: parsed.source
-  })
+  const parsed = parseScriptImport('import.mfescript', json)
+  return upsertScript({ script: parsed.script, source: parsed.source })
+}
+
+export async function importScriptFromFile(filePath: string): Promise<ScriptDefinition> {
+  const abs = requireAbsolute(filePath)
+  const text = await fsp.readFile(abs, 'utf8')
+  const parsed = parseScriptImport(abs, text)
+  return upsertScript({ script: parsed.script, source: parsed.source })
 }
 
 export type ScriptExportBundle = {
