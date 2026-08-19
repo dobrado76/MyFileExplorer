@@ -65,6 +65,7 @@ import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/r
 import { isNetworkHostUnc } from '@shared/networkPaths'
 import { ListingLru, driveTypeForPath, isListingCacheEligible } from '@shared/listingCache'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
+import { isScriptDialogKind, shouldPushScriptDialog } from '@shared/scriptDialogStack'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
 import {
   createSlideshowActions,
@@ -281,6 +282,7 @@ export type DialogState =
       language?: import('@shared/schemas/scripts').ScriptLanguage
       name?: string
       description?: string
+      recursive?: boolean
       reviewFix?: boolean
     }
   | null
@@ -508,6 +510,8 @@ type AppState = {
   /** Global drop-target folder while dragging (multi-pane highlight). */
   dropHighlightPath: string | null
   dialog: DialogState
+  /** Previous script dialogs (Manager / Generate / Run) so Close returns to the caller. */
+  dialogStack: Exclude<DialogState, null>[]
   scriptLibrary: import('@shared/schemas/scripts').ScriptDefinition[]
   /** In-app full-size image viewer (double-click / Enter on images). */
   imageViewer: { path: string; siblings: string[] } | null
@@ -2636,6 +2640,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     dragPaths: [],
     dropHighlightPath: null,
     dialog: null,
+    dialogStack: [],
     scriptLibrary: [],
     imageViewer: null,
     imageEditor: null,
@@ -4071,6 +4076,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         renameSource: null,
         treeFocusPath: null,
         dialog: null,
+        dialogStack: [],
         contextMenu: null
       })
       scheduleSessionSave()
@@ -5429,11 +5435,22 @@ export const useAppStore = create<AppState>()((set, get) => {
         get().notify('Enable scripting in Settings → Scripting and AI', true)
         return
       }
+      const cur = get().dialog
+      if (cur && shouldPushScriptDialog(cur.kind, dialog.kind)) {
+        set({ dialog, dialogStack: [...get().dialogStack, cur] })
+        return
+      }
       set({ dialog })
     },
 
     closeDialog() {
-      set({ dialog: null })
+      const cur = get().dialog
+      const stack = get().dialogStack
+      if (cur && isScriptDialogKind(cur.kind) && stack.length > 0) {
+        set({ dialog: stack[stack.length - 1]!, dialogStack: stack.slice(0, -1) })
+        return
+      }
+      set({ dialog: null, dialogStack: [] })
     },
 
     openContextMenu(menu) {
@@ -5635,7 +5652,7 @@ export const useAppStore = create<AppState>()((set, get) => {
               d.kind === 'script-run' ||
               d.kind === 'script-generate')
           ) {
-            set({ dialog: null })
+            set({ dialog: null, dialogStack: [] })
           }
         }
         if (patch.mediaMetadata && typeof patch.mediaMetadata.enabled === 'boolean') {

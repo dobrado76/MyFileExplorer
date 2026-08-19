@@ -1,6 +1,8 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useCallback, useEffect, useState, type JSX } from 'react'
 import type { ScriptLanguage } from '@shared/schemas/scripts'
 import type { AiProviderProfile } from '@shared/schemas/ai'
+import { uniqueScriptName } from '@shared/scriptNames'
+import { resolveModifyInstruction } from '@shared/scriptGenerate'
 import { looksDestructive } from '@shared/scriptDestructive'
 import { useAppStore } from '../store/appStore'
 import { AiModelSelect, useAiProviderModels } from './AiModelSelect'
@@ -23,6 +25,7 @@ export function ScriptGenerateDialog(props: {
   language?: ScriptLanguage
   name?: string
   description?: string
+  recursive?: boolean
   reviewFix?: boolean
 }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
@@ -30,6 +33,13 @@ export function ScriptGenerateDialog(props: {
   const notify = useAppStore((s) => s.notify)
   const refresh = useAppStore((s) => s.refreshScriptLibrary)
   const settings = useAppStore((s) => s.settings)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const persistGenerateBounds = useCallback(
+    (next: { x: number; y: number; width: number; height: number }, maximized: boolean) => {
+      void applySettingsPatch({ scriptGenerateBounds: { ...next, maximized } })
+    },
+    [applySettingsPatch]
+  )
   const selected = useAppStore((s) => s.activeTab().selected)
 
   const [providers, setProviders] = useState<Array<AiProviderProfile & { hasApiKey: boolean }>>([])
@@ -43,16 +53,21 @@ export function ScriptGenerateDialog(props: {
   const [target, setTarget] = useState<'folder' | 'selection'>(
     props.mode ?? (selected.length > 0 ? 'selection' : 'folder')
   )
-  const [recursive, setRecursive] = useState(false)
+  const [recursive, setRecursive] = useState(props.recursive ?? false)
   const [name, setName] = useState(props.name?.trim() || 'Generated script')
   const [description, setDescription] = useState(props.description ?? '')
   const [source, setSource] = useState(props.source ?? '')
   const [destructive, setDestructive] = useState(() => looksDestructive(props.source ?? ''))
   const [dryRunSupported, setDryRunSupported] = useState(() => /--dry-run/.test(props.source ?? ''))
-  const [dependencies, setDependencies] = useState<string[]>([])
+  const existing = props.scriptId
+    ? useAppStore.getState().scriptLibrary.find((s) => s.id === props.scriptId)
+    : undefined
+  const [dependencies, setDependencies] = useState<string[]>(existing?.dependencies ?? [])
   const [busy, setBusy] = useState<null | 'generate' | 'modify'>(null)
   const [error, setError] = useState<string | null>(null)
   const [cloudAck, setCloudAck] = useState(settings.ai.acknowledgedCloudGenerate)
+  /** Name/description come from the model; show them only after a result. */
+  const [identityFromAi, setIdentityFromAi] = useState(Boolean(props.reviewFix))
 
   const provider = providers.find((p) => p.id === providerId)
   const isLocal = provider?.local ?? false
@@ -70,6 +85,15 @@ export function ScriptGenerateDialog(props: {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!props.scriptId) return
+    const s = useAppStore.getState().scriptLibrary.find((x) => x.id === props.scriptId)
+    if (!s) return
+    if (!props.name?.trim()) setName(s.name)
+    if (props.description == null) setDescription(s.description)
+    if (props.recursive === undefined) setRecursive(s.recursive)
+  }, [props.scriptId, props.name, props.description, props.recursive])
 
   useEffect(() => {
     const p = providers.find((x) => x.id === providerId)
@@ -95,7 +119,6 @@ export function ScriptGenerateDialog(props: {
               className="btn primary"
               title="Enable AI and add a provider. Hand-written scripts still run from Script Manager without AI."
               onClick={() => {
-                closeDialog()
                 openDialog({ kind: 'settings', section: 'ai' })
               }}
             >
@@ -124,8 +147,13 @@ export function ScriptGenerateDialog(props: {
     dependencies: string[]
     source: string
   }): void => {
-    setName(g.name)
+    const taken = useAppStore
+      .getState()
+      .scriptLibrary.filter((s) => s.id !== props.scriptId)
+      .map((s) => s.name)
+    setName(uniqueScriptName(g.name, taken))
     setDescription(g.description)
+    setIdentityFromAi(true)
     setLanguage(g.language)
     setDestructive(g.destructive || looksDestructive(g.source))
     setDryRunSupported(g.dryRunSupported)
@@ -167,8 +195,9 @@ export function ScriptGenerateDialog(props: {
   }
 
   const modify = async (): Promise<void> => {
-    if (!source.trim() || !instruction.trim()) {
-      setError('Need current source and an instruction.')
+    const how = resolveModifyInstruction(instruction, task)
+    if (!source.trim() || !how) {
+      setError('Need current source and a task or modify instruction.')
       return
     }
     setBusy('modify')
@@ -177,7 +206,7 @@ export function ScriptGenerateDialog(props: {
       const res = await call(
         api.ai.modify({
           source,
-          instruction: instruction.trim(),
+          instruction: how,
           language: language === 'auto' ? undefined : language,
           providerId,
           model: model || undefined
@@ -197,21 +226,29 @@ export function ScriptGenerateDialog(props: {
       return null
     }
     try {
+      const prior = props.scriptId
+        ? useAppStore.getState().scriptLibrary.find((s) => s.id === props.scriptId)
+        : undefined
       const res = await call(
         api.script.upsert({
           script: {
+            ...(prior ?? {}),
             id: props.scriptId,
             name,
             description,
             language: language === 'auto' ? 'powershell' : language,
-            interpreter: 'auto',
+            interpreter: prior?.interpreter ?? 'auto',
             scopes: [target],
             recursive,
-            parameters: [],
-            contextMenuEnabled: true,
+            parameters: prior?.parameters ?? [],
+            contextMenuEnabled: prior?.contextMenuEnabled ?? true,
             destructive,
             dryRunSupported,
             sourceKind: 'managed',
+            externalPath: undefined,
+            category: prior?.category ?? '',
+            matchExtensions: prior?.matchExtensions ?? [],
+            minSelection: prior?.minSelection ?? 0,
             dependencies
           },
           source,
@@ -219,7 +256,12 @@ export function ScriptGenerateDialog(props: {
         })
       )
       await refresh()
-      notify('Script saved — reruns locally with no AI')
+      if (res.script.name !== name.trim()) {
+        setName(res.script.name)
+        notify(`Saved as “${res.script.name}” — that name was already in the library`)
+      } else {
+        notify('Script saved — reruns locally with no AI')
+      }
       return res.script.id
     } catch (e) {
       setError(formatError(e))
@@ -230,8 +272,23 @@ export function ScriptGenerateDialog(props: {
   return (
     <ScriptModal
       className="modal-script-generate"
-      title={props.reviewFix ? 'Review AI fix' : 'Generate script with AI'}
+      title={
+        props.reviewFix
+          ? 'Review AI fix'
+          : props.source
+            ? 'Modify script with AI'
+            : 'Generate script with AI'
+      }
       onClose={closeDialog}
+      floating={{
+        saved: settings.scriptGenerateBounds,
+        persist: persistGenerateBounds,
+        minW: 720,
+        minH: 520,
+        defaultW: 980,
+        defaultH: 740,
+        allowMaximize: true
+      }}
       busy={!!busy}
       busyTitle={busy === 'modify' ? 'Modifying…' : 'Generating…'}
       busyHint="This may take some time."
@@ -241,7 +298,7 @@ export function ScriptGenerateDialog(props: {
             type="button"
             className="btn"
             title="Send the task description to AI and replace the editor with a new draft. File names and paths are never sent."
-            disabled={!!busy}
+            disabled={!!busy || !task.trim()}
             onClick={() => void generate()}
           >
             {source ? 'Regenerate' : 'Generate'}
@@ -249,8 +306,8 @@ export function ScriptGenerateDialog(props: {
           <button
             type="button"
             className="btn"
-            title="Send the current source plus the modify instruction. Only text — not your files."
-            disabled={!!busy || !source}
+            title="Send the current source plus the modify instruction (or Task if that field is empty). Only text — not your files."
+            disabled={!!busy || !source.trim() || !resolveModifyInstruction(instruction, task)}
             onClick={() => void modify()}
           >
             Modify
@@ -273,7 +330,21 @@ export function ScriptGenerateDialog(props: {
               onClick={() => {
                 void save().then((id) => {
                   if (!id) return
-                  closeDialog()
+                  useAppStore.setState((s) => ({
+                    dialog:
+                      s.dialog?.kind === 'script-generate'
+                        ? {
+                            ...s.dialog,
+                            scriptId: id,
+                            source,
+                            name,
+                            description,
+                            language: language === 'auto' ? undefined : language,
+                            mode: target,
+                            recursive
+                          }
+                        : s.dialog
+                  }))
                   openDialog({
                     kind: 'script-run',
                     scriptId: id,
@@ -298,7 +369,21 @@ export function ScriptGenerateDialog(props: {
             onClick={() => {
               void save().then((id) => {
                 if (!id) return
-                closeDialog()
+                useAppStore.setState((s) => ({
+                  dialog:
+                    s.dialog?.kind === 'script-generate'
+                      ? {
+                          ...s.dialog,
+                          scriptId: id,
+                          source,
+                          name,
+                          description,
+                          language: language === 'auto' ? undefined : language,
+                          mode: target,
+                          recursive
+                        }
+                      : s.dialog
+                }))
                 openDialog({
                   kind: 'script-run',
                   scriptId: id,
@@ -427,37 +512,55 @@ export function ScriptGenerateDialog(props: {
         </label>
         <label
           className="settings-field script-meta-wide"
-          title="What the script should do. Do not paste paths or file contents — those are never sent and should not be in the prompt."
+          title={
+            source
+              ? 'What to generate, or what is wrong / should change. Modify uses this when Modify instruction is empty. Do not paste paths or file contents.'
+              : 'What the script should do. Do not paste paths or file contents — those are never sent and should not be in the prompt.'
+          }
         >
           <span>Task</span>
           <textarea
             rows={3}
             value={task}
             onChange={(e) => setTask(e.target.value)}
-            placeholder="Describe what the script should do. Do not paste file paths."
+            placeholder={
+              source
+                ? 'What is wrong or what should change. Modify uses this if Modify instruction is empty.'
+                : 'Describe what the script should do. Do not paste file paths.'
+            }
           />
         </label>
         {source ? (
           <label
             className="settings-field script-meta-wide"
-            title="Tell AI how to change the current source (Modify button). Only this text plus the source is sent."
+            title="Optional narrower change. If empty, Modify sends the Task text plus the current source."
           >
             <span>Modify instruction</span>
             <input
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
-              placeholder="Change only this…"
+              placeholder="Optional — otherwise Modify uses Task"
             />
           </label>
         ) : null}
-        <label className="settings-field" title="Library and context-menu name after you Save.">
-          <span>Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="settings-field" title="Optional note stored with the script. Used when searching the library.">
-          <span>Description</span>
-          <input value={description} onChange={(e) => setDescription(e.target.value)} />
-        </label>
+        {identityFromAi ? (
+          <>
+            <label
+              className="settings-field"
+              title="Display name the model chose. Edit before Save if you want. Clash with an existing script becomes Name (2)."
+            >
+              <span>Name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label
+              className="settings-field"
+              title="Note the model chose. Used when searching the library. Edit before Save if you want."
+            >
+              <span>Description</span>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </label>
+          </>
+        ) : null}
       </div>
       {error && <div className="script-banner script-banner-warn">{error}</div>}
       <DestructiveBanner source={source} flagged={destructive} />

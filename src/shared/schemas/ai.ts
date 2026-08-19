@@ -157,6 +157,67 @@ function openaiModelLeaf(model: string): string {
   return slash >= 0 ? id.slice(slash + 1) : id
 }
 
+function contentPartText(part: unknown): string {
+  if (typeof part === 'string') return part
+  if (!part || typeof part !== 'object') return ''
+  const o = part as Record<string, unknown>
+  if (typeof o.text === 'string') return o.text
+  if (typeof o.content === 'string') return o.content
+  return ''
+}
+
+function messageText(message: Record<string, unknown> | undefined): string {
+  if (!message) return ''
+  const content = message.content
+  if (typeof content === 'string') return content
+  if (Array.isArray(content)) return content.map(contentPartText).join('')
+  if (typeof message.refusal === 'string' && message.refusal.trim()) return ''
+  return ''
+}
+
+export function extractChatCompletionText(json: unknown): {
+  text: string
+  finishReason?: string
+  refusal?: string
+  usedReasoning?: boolean
+} {
+  const root = json && typeof json === 'object' ? (json as Record<string, unknown>) : {}
+  const choices = Array.isArray(root.choices) ? root.choices : []
+  const first = choices[0] && typeof choices[0] === 'object' ? (choices[0] as Record<string, unknown>) : {}
+  const message =
+    first.message && typeof first.message === 'object'
+      ? (first.message as Record<string, unknown>)
+      : undefined
+  const text =
+    messageText(message) ||
+    (typeof first.text === 'string' ? first.text : '') ||
+    (typeof root.output_text === 'string' ? root.output_text : '')
+  const refusal = typeof message?.refusal === 'string' ? message.refusal.trim() : ''
+  const finishReason = typeof first.finish_reason === 'string' ? first.finish_reason : undefined
+  const usedReasoning = Boolean(
+    (typeof message?.reasoning_content === 'string' && message.reasoning_content.trim()) ||
+      (typeof message?.reasoning === 'string' && message.reasoning.trim())
+  )
+  return { text, finishReason, refusal: refusal || undefined, usedReasoning }
+}
+
+export function chatCompletionEmptyError(extracted: {
+  text: string
+  finishReason?: string
+  refusal?: string
+  usedReasoning?: boolean
+}): string | null {
+  if (extracted.refusal) return `Provider refused: ${extracted.refusal}`
+  if (extracted.text.trim()) return null
+  if (extracted.finishReason === 'content_filter') {
+    return 'Provider blocked the completion (content filter).'
+  }
+  if (extracted.finishReason === 'length' || extracted.usedReasoning) {
+    return 'Model hit the output token limit before writing the script. Increase Max tokens under Settings → Scripting and AI, or pick a model that returns text (not only reasoning).'
+  }
+  return 'Provider returned an empty completion. Try again, raise Max tokens, or switch model.'
+}
+
 /** GPT-5 / o-series chat completions use max_completion_tokens, not max_tokens. */
 export function usesMaxCompletionTokens(model: string): boolean {
   const leaf = openaiModelLeaf(model)

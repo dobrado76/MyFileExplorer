@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildScriptSystemPrompt, extractGeneratedScript } from '../shared/scriptGenerate'
+import {
+  buildScriptSystemPrompt,
+  extractGeneratedScript,
+  resolveModifyInstruction
+} from '../shared/scriptGenerate'
 
 describe('AI script extract', () => {
   it('parses JSON object', () => {
@@ -77,5 +81,15 @@ describe('system prompt privacy', () => {
     expect(prompt).toMatch(/--input-list/)
     expect(prompt).toMatch(/--root/)
     expect(prompt).toMatch(/Title Case/)
+  })
+})
+
+describe('resolveModifyInstruction', () => {
+  it('prefers the dedicated instruction', () => {
+    expect(resolveModifyInstruction('fix the walk', 'rewrite as a report')).toBe('fix the walk')
+  })
+
+  it('falls back to the task text', () => {
+    expect(resolveModifyInstruction('  ', "don't find any files")).toBe("don't find any files")
   })
 })

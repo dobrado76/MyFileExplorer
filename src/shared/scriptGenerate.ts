@@ -1,6 +1,11 @@
 import { generatedScriptSchema, type GeneratedScript } from './schemas/ai'
 import type { ScriptLanguage } from './schemas/scripts'
 
+/** Modify uses the dedicated instruction, or the Task text if that field is empty. */
+export function resolveModifyInstruction(instruction: string, task: string): string {
+  return instruction.trim() || task.trim()
+}
+
 export const SCRIPT_CLI_CONTRACT = `
 CLI contract the script MUST implement (argv, not a shell string):
 - Folder target: script --root "<folder>" [--recursive] [--dry-run] [--param value…]

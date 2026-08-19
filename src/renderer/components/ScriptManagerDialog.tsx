@@ -68,7 +68,7 @@ const T = {
   dryRunBtn:
     'Save if needed, then run with --dry-run. Use this when the script supports a preview pass.',
   run: 'Save if needed, then execute as your Windows user on the current folder or selection. Live output and Stop are in the next dialog.',
-  close: 'Close Script Manager. Unsaved edits are discarded.'
+  close: 'Close Script Manager. Unsaved edits are discarded. After Dry run / Run, Close on that window returns here.'
 } as const
 
 export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.Element {
@@ -221,7 +221,12 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
       setCurrentId(res.script.id)
       setDirty(false)
       await refresh()
-      notify('Script saved')
+      if (res.script.name !== name.trim()) {
+        setName(res.script.name)
+        notify(`Saved as “${res.script.name}” — that name was already in the library`)
+      } else {
+        notify('Script saved')
+      }
       return res.script
     } catch (e) {
       setError(formatError(e))
@@ -236,7 +241,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
     if (!saved && !currentId) return
     const id = saved?.id ?? currentId
     if (!id) return
-    closeDialog()
+    useAppStore.setState({ dialog: { kind: 'script-manager', selectId: id } })
     openDialog({
       kind: 'script-run',
       scriptId: id,
@@ -327,12 +332,21 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                 title={T.modifyAi}
                 disabled={sourceKind === 'external'}
                 onClick={() => {
-                  closeDialog()
+                  if (currentId) {
+                    useAppStore.setState({ dialog: { kind: 'script-manager', selectId: currentId } })
+                  }
                   openDialog({
                     kind: 'script-generate',
                     scriptId: currentId ?? undefined,
                     source,
                     language,
+                    name,
+                    description,
+                    mode:
+                      selected.length > 0 && scopes.includes('selection')
+                        ? 'selection'
+                        : 'folder',
+                    recursive,
                     folderPath: tab.path
                   })
                 }}
@@ -345,7 +359,6 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                 className="btn"
                 title={T.openAi}
                 onClick={() => {
-                  closeDialog()
                   openDialog({ kind: 'settings', section: 'ai' })
                 }}
               >
@@ -408,7 +421,6 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               className="btn"
               title={T.generate}
               onClick={() => {
-                closeDialog()
                 openDialog({
                   kind: 'script-generate',
                   mode: selected.length > 0 ? 'selection' : 'folder',

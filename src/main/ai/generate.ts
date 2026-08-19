@@ -50,8 +50,10 @@ export async function modifyScript(input: {
   const system = [
     'You modify an existing local file-manager script. Output JSON only with keys:',
     'name, description, language, destructive, dryRunSupported, dependencies, source.',
+    'name is a Title Case display label with spaces (keep the current name unless asked to rename).',
     'Keep the argv contract: --root / --input-list / --recursive / --dry-run / named --params.',
     'Do not add network calls that upload user files. Do not ask for paths.',
+    'Always include the full revised source. Do not return an empty source field.',
     SCRIPT_CLI_CONTRACT
   ].join('\n')
   const user = [

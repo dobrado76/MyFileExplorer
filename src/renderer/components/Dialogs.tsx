@@ -284,6 +284,7 @@ export function Dialogs(): JSX.Element | null {
           language={dialog.language}
           name={dialog.name}
           description={dialog.description}
+          recursive={dialog.recursive}
           reviewFix={dialog.reviewFix}
         />
       )

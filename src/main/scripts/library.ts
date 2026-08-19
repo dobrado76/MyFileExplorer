@@ -3,6 +3,7 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { app } from 'electron'
 import { AppError } from '@shared/result'
+import { uniqueScriptName } from '@shared/scriptNames'
 import { parseScriptImport } from '@shared/scriptImport'
 import {
   defaultScriptDefinition,
@@ -151,7 +152,12 @@ export async function upsertScript(input: {
     id,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
-    name: (input.script.name ?? base.name).trim() || 'Untitled script'
+    name: uniqueScriptName(
+      (input.script.name ?? base.name).trim() || 'Untitled script',
+      listScripts()
+        .filter((s) => s.id !== id)
+        .map((s) => s.name)
+    )
   })
   if (!next.name) throw new AppError('validation', 'Name is required')
   if (next.sourceKind === 'external') {
@@ -199,7 +205,10 @@ export async function duplicateScript(id: string, name?: string): Promise<Script
     script: {
       ...script,
       id: undefined,
-      name: name?.trim() || `${script.name} copy`,
+      name: uniqueScriptName(
+        name?.trim() || script.name,
+        listScripts().map((s) => s.name)
+      ),
       sourceKind: 'managed',
       externalPath: undefined
     },

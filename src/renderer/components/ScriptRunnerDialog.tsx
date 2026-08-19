@@ -305,7 +305,6 @@ export function ScriptRunnerDialog(props: {
                     })
                   )
                     .then((res) => {
-                      closeDialog()
                       openDialog({
                         kind: 'script-generate',
                         scriptId: props.scriptId,

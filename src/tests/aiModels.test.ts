@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   adjustChatCompletionBodyFromError,
   allowsCustomTemperature,
+  chatCompletionEmptyError,
+  extractChatCompletionText,
   preferChatModelIds,
   usesMaxCompletionTokens
 } from '../shared/schemas/ai'
@@ -69,5 +71,34 @@ describe('chat completion param compatibility', () => {
     const err = `Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.`
     const next = adjustChatCompletionBodyFromError({ model: 'x', max_completion_tokens: 4096 }, err)
     expect(next).toBeNull()
+  })
+})
+
+describe('extractChatCompletionText', () => {
+  it('reads string message content', () => {
+    expect(
+      extractChatCompletionText({
+        choices: [{ message: { content: '{"name":"X"}' }, finish_reason: 'stop' }]
+      }).text
+    ).toBe('{"name":"X"}')
+  })
+
+  it('joins array content parts', () => {
+    expect(
+      extractChatCompletionText({
+        choices: [{ message: { content: [{ type: 'text', text: '{"a":' }, { text: '1}' }] } }]
+      }).text
+    ).toBe('{"a":1}')
+  })
+
+  it('explains empty completions', () => {
+    expect(
+      chatCompletionEmptyError({
+        text: '',
+        finishReason: 'length',
+        usedReasoning: true
+      })
+    ).toMatch(/token limit/i)
+    expect(chatCompletionEmptyError({ text: '{"ok":true}' })).toBeNull()
   })
 })

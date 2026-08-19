@@ -171,11 +171,11 @@ Toolbar **Scripts** or context **Scripts → Manage Scripts…** (only after scr
 - **Import** / **Export** — Import a `.ps1` / `.py` / `.cmd` / `.sh` (copied into the library) or a `.mfescript` JSON export. Export writes `.mfescript`.
 - Write or paste source. Set language, folder vs selection, recursive default, filters, parameters, dependencies.
 - **External file** — run a `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` on disk. Hides the in-app editor (one or the other). The file is not copied into app data.
-- **Save** writes `%APPDATA%\MyFileExplorer\scripts\library.json` plus `managed/<id>.<ext>`. Later runs are local.
+- **Save** writes `%APPDATA%\MyFileExplorer\scripts\library.json` plus `managed/<id>.<ext>`. Later runs are local. If the display name is already used, Save appends ` (2)`, ` (3)`, … (same idea as Explorer). The library list is never sent to AI.
 
 ### Run window
 
-**Run** / **Dry run** opens the execution dialog: live stdout/stderr, elapsed time, **Stop**, copy output. Drag the title to move; drag edges to resize. Size and position are remembered. Folder runs can still toggle **Recursive** here even if the script’s default is off.
+**Run** / **Dry run** opens the execution dialog: live stdout/stderr, elapsed time, **Stop**, copy output. Drag the title to move; drag edges to resize. Size and position are remembered. Folder runs can still toggle **Recursive** here even if the script’s default is off. **Close** on the run window returns to Script Manager (or Generate) instead of dropping you back on the file list.
 
 Output is capped (~400 000 characters) so a chatty walk cannot freeze the UI.
 
@@ -713,17 +713,17 @@ Settings → **Scripting and AI** (after scripting is on):
 - **Test** / **Refresh models** uses `GET /v1/models` (no wasteful completion). The result fills a model dropdown and is cached on the provider (no keys).
 - Default model, per-provider model, temperature, max tokens, preferred language. Switch providers or pick a cheaper model from the list — you do not type ids.
 
-**Generate script with AI…** (Script Manager or context menu):
+**Generate / Modify script with AI…** (Script Manager or context menu) — movable and resizable like Script Manager; size persists.
 
 1. Describe the task in plain language (“CSV of extension counts under the current folder, honor --recursive and --dry-run”).
-2. Review/edit source in the highlighted editor (PowerShell, Python, cmd, bash). The **Name** field is a display label (Title Case with spaces); the file on disk is `managed/<id>.<ext>`, not the name.
-3. Save. Later runs are **local** — generating again is optional.
+2. Review/edit source in the highlighted editor (PowerShell, Python, cmd, bash). Name and description come from the model (the Task prompt) — they appear after Generate/Modify so they are not typed and then overwritten. The file on disk is `managed/<id>.<ext>`, not the name.
+3. Save. Later runs are **local** — generating again is optional. A name that already exists becomes `Name (2)` (the model is not told your library).
 
 Also:
 
 - Generate / Modify / Ask AI to Fix show a dialog overlay (indeterminate bar + elapsed) while waiting.
 - Local vs cloud indicator. Cloud first-use copy: task/script may go to the provider; **files do not**.
-- **Modify** sends current source + instruction only.
+- **Modify with AI…** opens this dialog with the current name, description, language, source, and folder/selection flags. **Modify** sends current source plus **Modify instruction**, or **Task** if that field is empty. **Regenerate** always uses Task (new draft).
 - **Ask AI to Fix** (after a non-zero exit) asks first and lists the payload (source, exit code, stderr, OS/runtime). Optional path redaction. Never auto-sent.
 
 Prompt ideas that work well (because the model never sees your disk):

@@ -2,7 +2,9 @@ import { AppError } from '@shared/result'
 import {
   adjustChatCompletionBodyFromError,
   allowsCustomTemperature,
+  chatCompletionEmptyError,
   defaultBaseUrlForType,
+  extractChatCompletionText,
   newAiProviderId,
   preferChatModelIds,
   providerLooksLocal,
@@ -219,12 +221,11 @@ export async function completeChat(input: {
       body: JSON.stringify(body)
     })
     if (res.ok) {
-      const json = (await res.json()) as {
-        choices?: { message?: { content?: string } }[]
-      }
-      const text = json.choices?.[0]?.message?.content
-      if (!text) throw new AppError('io', 'Provider returned an empty completion')
-      return text
+      const json: unknown = await res.json()
+      const extracted = extractChatCompletionText(json)
+      const empty = chatCompletionEmptyError(extracted)
+      if (empty) throw new AppError('io', empty)
+      return extracted.text
     }
     lastStatus = res.status
     lastText = await res.text().catch(() => '')

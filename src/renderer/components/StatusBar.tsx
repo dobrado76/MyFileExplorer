@@ -9,6 +9,7 @@ import { samePath } from '../lib/paths'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { api } from '../lib/ipc'
+import { formatFileOpCounts } from '@shared/fileOpCounts'
 
 function fileOpTitle(kind: string, label?: string): string {
   if (label) return label.replace(/…$/, '')
@@ -112,24 +113,14 @@ export function StatusBar(): JSX.Element {
         ? Math.min(100, Math.round((fileOp.done / fileOp.total) * 100))
         : 0
 
-  const opCounts =
-    fileOp == null
-      ? ''
-      : fileOp.current && fileOp.total <= 0
-        ? ''
-        : fileOp.total > 0
-          ? `${Math.min(fileOp.done, fileOp.total).toLocaleString()} of ${fileOp.total.toLocaleString()}`
-          : fileOp.done > 0
-            ? `${fileOp.done.toLocaleString()} scanned`
-            : '…'
+  const opCounts = fileOp == null ? '' : formatFileOpCounts(fileOp.done, fileOp.total)
 
-  let opCurrent = ''
-  if (fileOp?.current) opCurrent = fileOp.current
-  if (fileOp && hasBytes && fileOp.bytesTotal! > 0) {
-    opCurrent =
-      (opCurrent ? `${opCurrent} · ` : '') +
-      `${formatBytes(fileOp.bytesDone!)} / ${formatBytes(fileOp.bytesTotal!)}`
-  }
+  const opPath = fileOp?.current ?? ''
+  const opBytes =
+    fileOp && hasBytes && fileOp.bytesTotal! > 0
+      ? `${formatBytes(fileOp.bytesDone!)} / ${formatBytes(fileOp.bytesTotal!)}`
+      : ''
+  const opCurrentTitle = [opPath, opBytes].filter(Boolean).join(' · ')
 
   const driveSpaceLabel = useMemo(() => {
     if (drivesOverview) return formatAllDrivesSpace(drives)
@@ -180,9 +171,14 @@ export function StatusBar(): JSX.Element {
           </div>
           <span className="status-op-title">{fileOpTitle(fileOp.kind, fileOp.label)}</span>
           {opCounts ? <span className="status-op-counts">{opCounts}</span> : null}
-          {opCurrent ? (
-            <span className="status-op-current" title={opCurrent}>
-              {opCurrent}
+          {opPath || opBytes ? (
+            <span className="status-op-current" title={opCurrentTitle}>
+              {opPath ? (
+                <span className="status-op-path">
+                  <bdi>{opPath}</bdi>
+                </span>
+              ) : null}
+              {opBytes ? <span className="status-op-bytes">{opBytes}</span> : null}
             </span>
           ) : null}
         </div>

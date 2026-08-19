@@ -14,6 +14,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Mix folders and files in media libraries** is **off** on a first install. When on, it applies only in icon/thumbnail views — List and Details still follow Settings → Behavior → Folders first.
 - **AI script names** — generate/modify ask for a Title Case display label (spaces OK). The on-disk file remains `managed/<id>.<ext>`.
 - **External file** — ticking it hides the Script Manager editor (path + Browse only). Save records the path and no longer writes over the file.
+- **Modify with AI** — carries name, description, recursive, and target into the generate dialog. **Modify** uses Task when Modify instruction is empty. Save keeps existing parameters and category.
+- **Generate / Modify AI window** — wider default (same class as Script Manager: drag, resize, maximize). Empty provider replies now say why (token limit, filter, refusal) instead of a blank “empty completion”.
+- **Script name clashes** — a new or renamed script whose display name is already in the library is saved as `Name (2)`, `Name (3)`, … The existing list is never sent to AI.
+- **Generate / Modify AI** — Name and Description are not asked up front (the model overwrote them). They appear after a result so you can tweak before Save.
+- **Dry run / Run** — Close returns to Script Manager or Generate instead of dismissing the whole script flow.
+- **Copy / move / delete progress** — the status bar shows the full current path (ellipsis from the left so the folder and name stay visible). Hover still shows the complete path.
+- **Copy / move progress counts files**, not top-level folders. Copying or moving one folder with 100k items no longer sticks at “1 of 1”.
 
 ### Fixed
 

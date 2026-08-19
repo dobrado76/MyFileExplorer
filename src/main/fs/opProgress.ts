@@ -17,6 +17,8 @@ export type OpReporter = {
   setDone(done: number, current?: string): void
   /** Update total after a counting/scan pass (0 = indeterminate). */
   setTotal(total: number, current?: string): void
+  /** Discover more files (folder listing) before they are copied. */
+  addToTotal(n: number, current?: string): void
   /** Re-emit current counters (keep UI alive during a long single rename/copy). */
   pulse(current?: string): void
   /** Byte progress for a large file currently being copied. */
@@ -107,14 +109,16 @@ export function beginOp(kind: FileOpKind, total: number, label?: string): OpRepo
       throwIfCancelled()
       bytesDone = undefined
       bytesTotal = undefined
-      done = Math.min(done + 1, Math.max(safeTotal, done + 1))
-      emit('running', current, done >= safeTotal)
+      done += 1
+      if (safeTotal > 0 && done > safeTotal) safeTotal = done
+      emit('running', current, safeTotal > 0 && done >= safeTotal)
     },
     advance(n, current) {
       throwIfCancelled()
       bytesDone = undefined
       bytesTotal = undefined
-      done = Math.min(done + Math.max(0, n), Math.max(safeTotal, done + Math.max(0, n)))
+      done += Math.max(0, n)
+      if (safeTotal > 0 && done > safeTotal) safeTotal = done
       emit('running', current, true)
     },
     setDone(next, current) {
@@ -125,6 +129,11 @@ export function beginOp(kind: FileOpKind, total: number, label?: string): OpRepo
     setTotal(next, current) {
       throwIfCancelled()
       safeTotal = Math.max(0, next)
+      emit('running', current, true)
+    },
+    addToTotal(n, current) {
+      throwIfCancelled()
+      safeTotal += Math.max(0, n)
       emit('running', current, true)
     },
     pulse(current) {

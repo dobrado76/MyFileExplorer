@@ -3224,10 +3224,25 @@ button.media-metadata-hero-poster.is-clickable:hover {
 .statusbar .status-op-current {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  color: var(--text-dim);
+}
+.statusbar .status-op-path {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-dim);
+  direction: rtl;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+.statusbar .status-op-bytes {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .statusbar .status-op-cancel {
   flex: 0 0 auto;
@@ -6695,8 +6710,41 @@ html.idle-cursor-hidden * {
 .modal.modal-script-manager .script-editor {
   min-height: 120px;
 }
-.modal-script-generate {
-  min-width: min(780px, 96vw);
+.modal.modal-script-generate {
+  position: fixed;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  min-width: 720px;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal.modal-script-generate .modal-title {
+  cursor: move;
+  user-select: none;
+}
+.modal.modal-script-generate.is-maximized .modal-title {
+  cursor: default;
+}
+.modal.modal-script-generate .modal-body.modal-body-scripts {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal.modal-script-generate .modal-actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.modal.modal-script-generate .script-editor {
+  min-height: 160px;
+}
+.modal.modal-script-generate .script-meta-grid {
+  flex-shrink: 0;
 }
 .modal.modal-script-run {
   position: fixed;

@@ -124,12 +124,11 @@ export async function renameEntry(
         releaseWatchersAffecting([source, target])
         muteWatchers(400)
         const progress = beginOp('relocate', 1, 'Merging…')
-        const name = path.basename(source)
-        progress.pulse(name)
-        const heartbeat = setInterval(() => progress.pulse(name), 500)
+        progress.pulse(source)
+        const heartbeat = setInterval(() => progress.pulse(source), 500)
         try {
           await mergeDirectoryInto(source, target)
-          progress.tick(path.basename(target))
+          progress.tick(target)
           progress.finish()
           return { path: target }
         } catch (e) {
@@ -157,12 +156,11 @@ export async function renameEntry(
   muteWatchers(400)
 
   const progress = beginOp('relocate', 1, 'Renaming…')
-  const name = path.basename(source)
-  progress.pulse(name)
-  const heartbeat = setInterval(() => progress.pulse(name), 500)
+  progress.pulse(source)
+  const heartbeat = setInterval(() => progress.pulse(source), 500)
   try {
     await fsp.rename(source, target)
-    progress.tick(path.basename(target))
+    progress.tick(target)
     progress.finish()
     return { path: target }
   } catch (e) {
@@ -487,35 +485,44 @@ async function planTransfer(
 }
 
 /** Count files (and empty directories) under paths — used as progress work units. */
-async function countWorkUnits(roots: string[]): Promise<number> {
+async function countWorkUnits(roots: string[], progress?: OpReporter | null): Promise<number> {
   let n = 0
-  const walk = async (p: string): Promise<void> => {
+  const stack = [...roots]
+  const seen = new Set<string>()
+  while (stack.length > 0) {
+    progress?.throwIfCancelled()
+    const p = stack.pop()!
+    const key = p.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
     let st: fs.Stats
     try {
       st = await fsp.lstat(p)
     } catch {
-      return
+      continue
     }
     if (st.isDirectory()) {
-      let ents: string[]
+      let ents: fs.Dirent[]
       try {
-        ents = await fsp.readdir(p)
+        ents = await fsp.readdir(p, { withFileTypes: true })
       } catch {
         n++
-        return
+        continue
       }
       if (ents.length === 0) {
         n++
-        return
+        continue
       }
-      for (const name of ents) {
-        await walk(path.join(p, name))
+      for (const e of ents) {
+        if (e.isDirectory()) stack.push(path.join(p, e.name))
+        else n++
       }
     } else {
       n++
     }
+    if (progress && n > 0 && n % 250 === 0) progress.setDone(n, p)
   }
-  for (const root of roots) await walk(root)
+  progress?.setDone(n, roots[0])
   return Math.max(n, 1)
 }
 
@@ -587,9 +594,10 @@ async function copyTree(
   source: string,
   target: string,
   progress: OpReporter | null,
-  opts?: { notifyParentOnCreate?: boolean }
+  opts?: { notifyParentOnCreate?: boolean; discover?: boolean }
 ): Promise<void> {
   progress?.throwIfCancelled()
+  const discover = opts?.discover !== false
   let st: fs.Stats
   try {
     st = await fsp.lstat(source)
@@ -602,19 +610,35 @@ async function copyTree(
     if (opts?.notifyParentOnCreate) {
       emitFsChanged(path.dirname(target), { bypassMute: true })
     }
-    let ents: string[]
+    let ents: fs.Dirent[]
     try {
-      ents = await fsp.readdir(source)
+      ents = await fsp.readdir(source, { withFileTypes: true })
     } catch (e) {
       throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: true })
     }
     if (ents.length === 0) {
-      progress?.tick(path.basename(source))
+      if (discover) progress?.addToTotal(1, source)
+      progress?.tick(source)
       return
     }
-    for (const name of ents) {
+    const files: string[] = []
+    const dirs: string[] = []
+    for (const e of ents) {
+      if (e.isDirectory()) dirs.push(e.name)
+      else files.push(e.name)
+    }
+    if (discover && files.length > 0) progress?.addToTotal(files.length, source)
+    for (const name of files) {
       progress?.throwIfCancelled()
-      await copyTree(path.join(source, name), path.join(target, name), progress)
+      await copyTree(path.join(source, name), path.join(target, name), progress, {
+        discover: false
+      })
+    }
+    for (const name of dirs) {
+      progress?.throwIfCancelled()
+      await copyTree(path.join(source, name), path.join(target, name), progress, {
+        discover
+      })
     }
     return
   }
@@ -625,12 +649,12 @@ async function copyTree(
       try {
         await fsp.symlink(link, target)
       } catch {
-        await copyFileWithProgress(source, target, st.size, progress, path.basename(source))
+        await copyFileWithProgress(source, target, st.size, progress, source)
         return
       }
-      progress?.tick(path.basename(source))
+      progress?.tick(source)
     } else {
-      await copyFileWithProgress(source, target, st.size, progress, path.basename(source))
+      await copyFileWithProgress(source, target, st.size, progress, source)
     }
   } catch (e) {
     throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })
@@ -662,14 +686,14 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
     } catch (e) {
       throw await appErrorFromFsFailure(e, { action: 'delete', path: target, isDir: true })
     }
-    if (ents.length === 0) progress?.tick(path.basename(target))
+    if (ents.length === 0) progress?.tick(target)
     return
   }
 
   try {
-    progress?.pulse(path.basename(target))
+    progress?.pulse(target)
     await fsp.unlink(target)
-    progress?.tick(path.basename(target))
+    progress?.tick(target)
   } catch (e) {
     throw await appErrorFromFsFailure(e, { action: 'delete', path: target, isDir: false })
   }
@@ -701,7 +725,7 @@ async function copyWithRemotes(
       const name = source.toLowerCase().startsWith('mfe-remote://')
         ? remoteBasename(parseRemoteLocation(source)?.remotePath ?? '') || 'file'
         : path.basename(source)
-      progress.pulse(name)
+      progress.pulse(source)
       try {
         const destIsRemote = destinationDir.toLowerCase().startsWith('mfe-remote://')
         const srcIsRemote = source.toLowerCase().startsWith('mfe-remote://')
@@ -718,7 +742,7 @@ async function copyWithRemotes(
           const exists = (await remoteStatKind(destFull)) != null
           if (exists && policy === 'skip') {
             skipped.push(source)
-            progress.tick(name)
+            progress.tick(source)
             continue
           }
           if (exists && policy === 'fail') {
@@ -729,7 +753,7 @@ async function copyWithRemotes(
               dest: destFull,
               message: `"${name}" already exists on the remote`
             })
-            progress.tick(name)
+            progress.tick(source)
             continue
           }
           if (exists && policy === 'replace') {
@@ -767,7 +791,7 @@ async function copyWithRemotes(
           if (await pathExists(target)) {
             if (policy === 'skip') {
               skipped.push(source)
-              progress.tick(name)
+              progress.tick(source)
               continue
             }
             if (policy === 'fail') {
@@ -780,7 +804,7 @@ async function copyWithRemotes(
                 sourceMtimeMs: await mtimeMsOf(source),
                 destMtimeMs: await mtimeMsOf(target)
               })
-              progress.tick(name)
+              progress.tick(source)
               continue
             }
             if (policy === 'replace') {
@@ -797,11 +821,11 @@ async function copyWithRemotes(
           await remoteDownloadFile(source, target)
           copied.push(target)
         }
-        progress.tick(name)
+        progress.tick(source)
       } catch (e) {
         if (isCancelled(e)) throw e
         issues.push(await toIssue(e, 'copy', source))
-        progress.tick(name)
+        progress.tick(source)
       }
     }
     progress.finish()
@@ -830,14 +854,11 @@ export async function copyEntries(
   const copied: string[] = []
   const skipped: string[] = []
   const issues: OpIssue[] = []
-  const workSources: string[] = []
   for (const item of plan) {
     if ('skip' in item) skipped.push(item.skip)
-    else if (!('conflict' in item)) workSources.push(item.source)
   }
 
-  const total = workSources.length > 0 ? await countWorkUnits(workSources) : plan.length
-  const progress = beginOp('copy', Math.max(total, 1), 'Copying…')
+  const progress = beginOp('copy', 0, 'Copying…')
   let fatal = false
   try {
     for (const item of plan) {
@@ -898,12 +919,12 @@ export async function copyEntries(
 async function relocateOne(
   source: string,
   target: string,
-  progress: OpReporter | null,
-  units: number
+  progress: OpReporter | null
 ): Promise<void> {
   progress?.throwIfCancelled()
   if (source === target) {
-    progress?.advance(units, path.basename(source))
+    progress?.addToTotal(1, source)
+    progress?.tick(source)
     return
   }
   const caseOnly =
@@ -926,21 +947,41 @@ async function relocateOne(
   // Close watches on the item and ancestors (parent listing watch blocks rename).
   releaseWatchersAffecting([source])
   muteWatchers(400)
-  const name = path.basename(source)
-  progress?.pulse(name)
-  // Heartbeat only for long same-volume renames (cloud / network volumes).
+
+  let counted = 0
+  if (isDir && progress) {
+    counted = await countWorkUnits([source], progress)
+    progress.setTotal(counted, source)
+    progress.setDone(0, source)
+  }
+
+  progress?.pulse(source)
   const heartbeat = progress
-    ? setInterval(() => progress.pulse(name), 500)
+    ? setInterval(() => progress.pulse(source), 500)
     : null
   try {
     try {
       await fsp.rename(source, target)
-      // Same-volume rename is atomic — jump by this root's work units.
-      progress?.advance(units, path.basename(target))
+      if (isDir && counted > 0) progress?.setDone(counted, target)
+      else {
+        progress?.addToTotal(1, target)
+        progress?.tick(target)
+      }
     } catch (e) {
       const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
       if (code === 'EXDEV') {
-        await copyTree(source, target, progress, { notifyParentOnCreate: true })
+        if (heartbeat) {
+          clearInterval(heartbeat)
+        }
+        if (isDir && counted > 0) {
+          progress?.setDone(0, source)
+          await copyTree(source, target, progress, {
+            notifyParentOnCreate: true,
+            discover: false
+          })
+        } else {
+          await copyTree(source, target, progress, { notifyParentOnCreate: true })
+        }
         await deleteTree(source, null)
       } else {
         throw await appErrorFromFsFailure(e, { action: 'move', path: source, isDir })
@@ -956,8 +997,7 @@ export async function relocateEntries(
   pairs: { from: string; to: string }[]
 ): Promise<{ moved: string[] }> {
   const moved: string[] = []
-  // Same-volume moves are one rename per root — don't pre-walk trees for progress.
-  const progress = beginOp('relocate', Math.max(pairs.length, 1), 'Moving…')
+  const progress = beginOp('relocate', 0, 'Moving…')
   suspendWatching()
   muteWatchers(1500)
   try {
@@ -969,7 +1009,7 @@ export async function relocateEntries(
         throw new AppError('not-found', `Not found: ${source}`)
       }
       assertTransferLegal(source, path.dirname(target))
-      await relocateOne(source, target, progress, 1)
+      await relocateOne(source, target, progress)
       moved.push(target)
     }
     progress.finish()
@@ -1025,13 +1065,11 @@ export async function moveEntries(
   const moves: { from: string; to: string }[] = []
   const skipped: string[] = []
   const issues: OpIssue[] = []
-  let workCount = 0
   for (const item of plan) {
     if ('skip' in item) skipped.push(item.skip)
-    else if (!('conflict' in item)) workCount++
   }
 
-  const progress = beginOp('move', Math.max(workCount, 1), 'Moving…')
+  const progress = beginOp('move', 0, 'Moving…')
   suspendWatching()
   muteWatchers(1500)
   let fatal = false
@@ -1065,7 +1103,7 @@ export async function moveEntries(
         if (policy === 'replace' && (await pathExists(item.target))) {
           await fsp.rm(item.target, { recursive: true, force: true })
         }
-        await relocateOne(item.source, item.target, progress, 1)
+        await relocateOne(item.source, item.target, progress)
         moved.push(item.target)
         moves.push({ from: item.source, to: item.target })
       } catch (e) {
@@ -1121,8 +1159,7 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
   try {
     for (const p of absolute) {
       progress.throwIfCancelled()
-      const name = path.basename(p)
-      progress.pulse(name)
+      progress.pulse(p)
       try {
         if (process.platform === 'win32') {
           try {
@@ -1131,7 +1168,7 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
             if (e instanceof AppError && e.code === 'validation') throw e
             if (!fs.existsSync(p)) {
               trashed.push(p)
-              progress.tick(name)
+              progress.tick(p)
               continue
             }
             await new Promise<void>((r) => setTimeout(r, 40))
@@ -1141,11 +1178,11 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
           await shell.trashItem(p)
         }
         trashed.push(p)
-        progress.tick(name)
+        progress.tick(p)
       } catch (e) {
         if (isCancelled(e)) throw e
         issues.push(await toIssue(e, 'delete', p))
-        progress.tick(name)
+        progress.tick(p)
       }
     }
     progress.finish()
