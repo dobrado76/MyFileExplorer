@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DirEntry } from '../shared/schemas/fs'
 import {
   patchDirEntriesForRename,
+  renameDestOccupied,
   renameShouldFollow,
   rewritePathAfterRename
 } from '../renderer/lib/renameListing'
@@ -27,7 +28,32 @@ describe('rewritePathAfterRename', () => {
   })
 })
 
+describe('renameDestOccupied', () => {
+  it('is true when another sibling already has the dest path', () => {
+    const dir = 'C:\\lib'
+    const test = { path: `${dir}\\Test` }
+    const test2 = { path: `${dir}\\Test2` }
+    expect(renameDestOccupied([test, test2], test2.path, test.path)).toBe(true)
+    expect(renameDestOccupied([test, test2], test2.path, `${dir}\\Test3`)).toBe(false)
+    expect(renameDestOccupied([test], test.path, test.path)).toBe(false)
+  })
+})
+
 describe('patchDirEntriesForRename', () => {
+  it('does not alias two folders onto one path when the new name exists', () => {
+    const dir = 'C:\\lib'
+    const test = { ...file('Test', dir), kind: 'dir' as const, ext: '' }
+    const test2 = { ...file('Test2', dir), kind: 'dir' as const, ext: '' }
+    const next = patchDirEntriesForRename([test, test2], test2.path, test.path, 'Test')
+    expect(next.map((e) => e.name).sort()).toEqual(['Test', 'Test'])
+    expect(next.map((e) => e.path).sort()).toEqual([test.path, test2.path].sort())
+    const source = next.find((e) => e.path === test2.path)
+    expect(source?.name).toBe('Test')
+    const existing = next.find((e) => e.path === test.path)
+    expect(existing?.name).toBe('Test')
+    expect(existing?.path).toBe(test.path)
+  })
+
   it('shows the new name immediately', () => {
     const entries = [file('Adventureland (2009) [Part 1].avi'), file('Adventureland (2009) [Part 2].avi')]
     const from = entries[0]!.path

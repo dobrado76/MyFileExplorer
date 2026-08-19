@@ -28,10 +28,10 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:compressToZip`   | `{ paths[] }`                                    | `{ zipPath }` — sibling `.zip` (Compress to ZIP file) |
 | `fs:extractZip`      | `{ paths[] }` (`.zip` files)                     | `{ extractedDirs[] }` — sibling folders (Extract All…) |
 | `fs:trash`           | `{ paths[] }`                                    | `{ trashed[], issues: OpIssue[], aborted? }`  |
-| `fs:restoreFromTrash`| `{ paths[] }` (original full paths)              | `{ restored[], missing[] }` (Recycle Bin)     |
+| `fs:restoreFromTrash`| `{ paths[] }` (`recyclePath` or original path)   | `{ restored[], missing[] }` (Recycle Bin)     |
 | `fs:listRecycleBin`  | —                                                | `{ items[], truncated? }`                     |
 | `fs:emptyRecycleBin` | —                                                | `{ emptied: true }`                           |
-| `fs:deleteFromRecycleBin` | `{ paths[] }` (original full paths)         | `{ deleted[], missing[] }`                    |
+| `fs:deleteFromRecycleBin` | `{ paths[] }` (`recyclePath` or original)   | `{ deleted[], missing[] }`                    |
 | `fs:deletePermanent` | `{ paths[] }`                                    | `{ deleted[], issues: OpIssue[], aborted? }`  |
 | `fs:cancelOp`        | —                                                | `{ cancelled: boolean }` — stop in-flight copy/move/trash/delete/vid-thumbs |
 | `fs:exists`          | `{ path }`                                       | `{ exists: boolean }`                         |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { matchRecycleOriginal } from '../main/fs/recycleMatch'
+import { matchRecycleOriginal, pickRecycleBinTargets } from '../main/fs/recycleMatch'
 
 describe('matchRecycleOriginal', () => {
   const folder = 'C:\\libs\\MyPack'
@@ -27,5 +27,38 @@ describe('matchRecycleOriginal', () => {
 
   it('rejects DeletedFrom=full path when Name is a different child', () => {
     expect(matchRecycleOriginal(folder, 'a.png', wantedFolder)).toBeNull()
+  })
+})
+
+describe('pickRecycleBinTargets', () => {
+  const older = {
+    recyclePath: 'C:\\$Recycle.Bin\\S-1\\$R1',
+    originalPath: 'D:\\repo\\file.ext',
+    dateDeletedMs: 100
+  }
+  const newer = {
+    recyclePath: 'C:\\$Recycle.Bin\\S-1\\$R2',
+    originalPath: 'D:\\repo\\file.ext',
+    dateDeletedMs: 200
+  }
+  const other = {
+    recyclePath: 'C:\\$Recycle.Bin\\S-1\\$R3',
+    originalPath: 'D:\\repo\\other.txt',
+    dateDeletedMs: 150
+  }
+
+  it('picks one row by recyclePath when the same original exists twice', () => {
+    const got = pickRecycleBinTargets([older, newer, other], [older.recyclePath])
+    expect(got).toEqual([older])
+  })
+
+  it('undo by original path restores only the newest delete', () => {
+    const got = pickRecycleBinTargets([older, newer, other], ['D:\\repo\\file.ext'])
+    expect(got).toEqual([newer])
+  })
+
+  it('can restore both copies when both recyclePaths are selected', () => {
+    const got = pickRecycleBinTargets([older, newer], [older.recyclePath, newer.recyclePath])
+    expect(got).toHaveLength(2)
   })
 })

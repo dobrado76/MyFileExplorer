@@ -3,9 +3,9 @@ import { z } from 'zod'
 /** One item currently in the Windows Recycle Bin. */
 export const recycleBinItemSchema = z.object({
   name: z.string(),
-  /** Original full path before delete — identity for restore. */
+  /** Original full path before delete. Not unique: two deletes can share it. */
   originalPath: z.string().min(1),
-  /** Path under `$Recycle.Bin` (shell item path). */
+  /** Path under `$Recycle.Bin` (shell item / `$R…`) — unique row identity. */
   recyclePath: z.string().min(1),
   /** Original parent folder. */
   deletedFrom: z.string(),

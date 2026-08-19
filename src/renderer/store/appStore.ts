@@ -55,6 +55,7 @@ import { formatBytes } from '../lib/format'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
 import {
   patchDirEntriesForRename,
+  renameDestOccupied,
   renameShouldFollow,
   rewritePathAfterRename
 } from '../lib/renameListing'
@@ -1967,8 +1968,14 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   /** Keep the typed name on screen while the network rename + re-list catch up. */
   function applyListingRename(from: string, to: string, newName: string): void {
-    const rewrite = (p: string): string => rewritePathAfterRename(p, from, to)
+    const destTaken = (entries: { path: string }[]): boolean =>
+      renameDestOccupied(entries, from, to)
+    const rewrite = (p: string, occupied: boolean): string =>
+      occupied ? p : rewritePathAfterRename(p, from, to)
     set((s) => {
+      const occupied =
+        destTaken(s.listing.entries) ||
+        Object.values(s.listingsByTabId).some((L) => destTaken(L.entries))
       const listingsByTabId: Record<string, Listing> = {}
       for (const [tid, L] of Object.entries(s.listingsByTabId)) {
         const t = s.tabs.find((x) => x.id === tid)
@@ -1998,21 +2005,21 @@ export const useAppStore = create<AppState>()((set, get) => {
       })()
       const tabs = s.tabs.map((t) => ({
         ...t,
-        path: rewrite(t.path),
-        rootPath: t.rootPath ? rewrite(t.rootPath) : null,
-        selected: t.selected.map(rewrite),
-        treeExpanded: t.treeExpanded.map(rewrite),
+        path: rewrite(t.path, occupied),
+        rootPath: t.rootPath ? rewrite(t.rootPath, occupied) : null,
+        selected: t.selected.map((p) => rewrite(p, occupied)),
+        treeExpanded: t.treeExpanded.map((p) => rewrite(p, occupied)),
         search: t.search.active
           ? {
               ...t.search,
               results: t.search.results.map((r) => ({
                 ...r,
-                path: rewrite(r.path),
+                path: rewrite(r.path, occupied),
                 name: samePath(r.path, from) ? newName : r.name
               })),
               walkItems: t.search.walkItems.map((r) => ({
                 ...r,
-                path: rewrite(r.path),
+                path: rewrite(r.path, occupied),
                 name: samePath(r.path, from) ? newName : r.name
               }))
             }
@@ -2029,9 +2036,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         listing,
         tabs,
         search: activeSearch,
-        focusedPath: s.focusedPath ? rewrite(s.focusedPath) : null,
-        selectionAnchor: s.selectionAnchor ? rewrite(s.selectionAnchor) : null,
-        treeFocusPath: s.treeFocusPath ? rewrite(s.treeFocusPath) : null
+        focusedPath: s.focusedPath ? rewrite(s.focusedPath, occupied) : null,
+        selectionAnchor: s.selectionAnchor ? rewrite(s.selectionAnchor, occupied) : null,
+        treeFocusPath: s.treeFocusPath ? rewrite(s.treeFocusPath, occupied) : null
       }
     })
     const after = get()
@@ -4162,7 +4169,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       const parent = parentOf(path)
       const dest = parent ? joinPath(parent, trimmed) : path
-      applyListingRename(path, dest, trimmed)
+      // Don't rewrite Test2 → Test while Test is already a sibling — that aliases
+      // both rows onto one path and the conflict revert then labels both Test2.
+      const destOccupied = renameDestOccupied(get().listing.entries, path, dest)
+      if (!destOccupied) applyListingRename(path, dest, trimmed)
       try {
         await releaseMediaLocks()
         const res = await withBusyFeedback('relocate', 'Renaming…', trimmed, () =>
@@ -4213,7 +4223,11 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         }
       } catch (e) {
-        applyListingRename(dest, path, oldName)
+        if (!destOccupied) {
+          const stillAtSource = get().listing.entries.some((en) => samePath(en.path, path))
+          if (stillAtSource) applyListingRename(path, path, oldName)
+          else applyListingRename(dest, path, oldName)
+        }
         set({ mediaHold: false })
         if (e instanceof IpcError && e.code === 'conflict') {
           openOpIssuesReview({
@@ -6233,8 +6247,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         recycleBin: { active: false, loading: false, items: [], truncated: false }
       })
-      // Bin selection uses original paths — clear so the folder view isn't left
-      // with a selection that doesn't exist in the current listing.
+      // Bin selection uses recyclePath — clear so the folder view isn't left
+      // with a $Recycle.Bin path that isn't in the current listing.
       updateActiveTab({ selected: [] })
       set({ selectionAnchor: null, focusedPath: null })
     },
@@ -6266,7 +6280,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         const res = await withBusyFeedback(
           'trash',
           'Restoring…',
-          target.length === 1 ? basename(target[0]!) : `${target.length} items`,
+          target.length === 1
+            ? (s.recycleBin.items.find(
+                (i) => samePath(i.recyclePath, target[0]!) || samePath(i.originalPath, target[0]!)
+              )?.name ?? basename(target[0]!))
+            : `${target.length} items`,
           () => call(api.fs.restoreFromTrash({ paths: target }))
         )
         const msg =
@@ -6310,7 +6328,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       const target = paths ?? s.activeTab().selected
       if (target.length === 0) return
       const anyDir = target.some((p) => {
-        const it = s.recycleBin.items.find((i) => samePath(i.originalPath, p))
+        const it = s.recycleBin.items.find(
+          (i) => samePath(i.recyclePath, p) || samePath(i.originalPath, p)
+        )
         return it?.isDir ?? true
       })
       const needsConfirm = target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
@@ -6332,7 +6352,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         const res = await withBusyFeedback(
           'delete',
           'Deleting from Recycle Bin…',
-          paths.length === 1 ? basename(paths[0]!) : `${paths.length} items`,
+          paths.length === 1
+            ? (get().recycleBin.items.find(
+                (i) => samePath(i.recyclePath, paths[0]!) || samePath(i.originalPath, paths[0]!)
+              )?.name ?? basename(paths[0]!))
+            : `${paths.length} items`,
           () => call(api.fs.deleteFromRecycleBin({ paths }))
         )
         get().notify(

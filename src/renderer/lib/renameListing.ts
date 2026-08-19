@@ -27,12 +27,25 @@ function extFromFileName(name: string): string {
   return d > 0 ? name.slice(d + 1).toLowerCase() : ''
 }
 
+/** True when `to` is already another row — rewriting `from` onto it aliases both items. */
+export function renameDestOccupied(
+  entries: readonly Pick<DirEntry, 'path'>[],
+  from: string,
+  to: string
+): boolean {
+  if (samePath(from, to)) return false
+  return entries.some((e) => samePath(e.path, to) && !samePath(e.path, from))
+}
+
 export function patchDirEntriesForRename(
   entries: DirEntry[],
   from: string,
   to: string,
   newName: string
 ): DirEntry[] {
+  // Never move two siblings onto one path (rename Test2 → existing Test).
+  // Keep the source row's path; only show the typed name until the FS op finishes.
+  const pathRewrite = !renameDestOccupied(entries, from, to)
   let changed = false
   const next = entries.map((e) => {
     if (samePath(e.path, from)) {
@@ -40,11 +53,11 @@ export function patchDirEntriesForRename(
       return {
         ...e,
         name: newName,
-        path: to,
+        path: pathRewrite ? to : e.path,
         ext: e.kind === 'dir' ? '' : extFromFileName(newName)
       }
     }
-    if (isUnderPath(e.path, from)) {
+    if (pathRewrite && isUnderPath(e.path, from)) {
       changed = true
       return { ...e, path: to + e.path.slice(from.length) }
     }
