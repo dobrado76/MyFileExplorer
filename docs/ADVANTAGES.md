@@ -15,9 +15,9 @@ Features are deliberately patterned after tools people already trust — then fo
 | **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, compiled file lists for large libraries, image-list cache. |
 | **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
 | **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
-| **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / Python / cmd / bash on the folder or selection you are looking at, with a saved library and optional AI that never reads files. Explorer only opens a prompt. |
+| **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / Python / cmd / bash on the folder or selection you are looking at. Saved scripts become context-menu verbs with live output, dry-run, and Stop. Optional AI drafts source and **never reads your files**. Explorer only opens a prompt. Guide: [SCRIPTS.md](SCRIPTS.md). |
 
-Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27).
+Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md).
 
 ---
 
@@ -34,7 +34,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](NETWORKS.md). |
 | **NAS folders reopen instantly** | Last listing for UNC / mapped / remotes is kept in memory for the session — paint immediately, then revalidate (D49). Explorer re-walks every time. |
 | **Opt-in FTP / FTPS / SFTP remotes** | Bookmark hosts, browse, upload/download, and open/preview via local scratch — without leaving the file manager. Not Explorer parity over the wire. Details: [REMOTE_FTP.md](REMOTE_FTP.md). |
-| **Portable settings backup** | Export / import full preferences — theme, named layouts, **context-menu customization**, network hosts, remote connection metadata, … — without window position. Move to a new PC or survive an OS reinstall in one file. |
+| **Portable settings backup** | Export / import full preferences — theme, named layouts, **context-menu customization**, **script library** (source yes, API keys no), network hosts, remote connection metadata, … — without window position. Move to a new PC or survive an OS reinstall in one file. |
 | **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Configurable Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings — not a fixed Home-centric strip. |
@@ -84,13 +84,29 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. |
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
 | **In-app Power Rename** | Search/replace (literal or regex) across a selection with live preview and per-item include — no PowerToys shell extension required. |
-| **Custom context commands** | Settings → Context menu: hide/reorder built-ins; **Discover** static shell verbs (tick to enable + order under Built-in); add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders — without dumping every Explorer shell verb. All of it exports with settings (D45). |
+| **Custom context commands** | Settings → Context menu: hide/reorder built-ins; **Discover** static shell verbs (tick to enable + order under Built-in); add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders — without dumping every Explorer shell verb. All of it exports with settings (D45). For captured output, parameters, and dry-run, use the **script runner** instead of a detached exe. |
 | **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses userData scratch, AV uses byte-range streaming so `<video>` actually plays. |
 | **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
 | **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |
 | **ZIP contents preview** | Select a `.zip` and see an expand/collapse file tree in the preview pane (inspect before extract) — Explorer’s preview rarely shows a useful archive tree. |
 | **Unity package preview** | Select a `.unitypackage` and see the packaged `Assets/…` tree (GUID folders mapped via `pathname`) without extracting. |
 | **CHM help preview** | Select a `.chm` for Contents + topic HTML in the preview pane (decompile under userData; no scripts in the iframe). |
+
+---
+
+## Scripts — the command set is yours
+
+Explorer’s verbs are fixed. MyFileExplorer ships a **universal local runner** so the next job does not wait on the next app release. A saved script is a first-class command on the folder or selection you are looking at — inventory CSVs, caption joins, ffmpeg queues, hash manifests, junk cleanup, robocopy previews, whatever you can write in PowerShell, Python, cmd, or bash. Capabilities grow with **your** library. Details and copy-paste examples: [SCRIPTS.md](SCRIPTS.md).
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Scripts on the current view** | Folder mode passes `--root` (optional `--recursive`). Selection mode passes a temp UTF-8 `--input-list`. You do not retype paths or `cd` a console to the tab you already have open. |
+| **Context menu Scripts >** | Eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. Same script, any folder, forever. |
+| **Live Run window** | Stdout/stderr, elapsed time, **Stop**, copy output, remembered size/position. Explorer’s “Open in Terminal” is a detached prompt with no capture. D41 custom commands (`shell:exec`) stay for “open Photoshop” — not for jobs you need to watch. |
+| **Dry-run + first-run ack** | Preview-only flag when the script supports it. Destructive-looking source (`Remove-Item`, `os.remove`, `rm -rf`, …) shows a banner. Scripts run as you — the app does not pretend otherwise. |
+| **Library stays out of your folders** | Managed scripts live under `%APPDATA%\MyFileExplorer\scripts\` (D2). Share a `.mfescript` or point at an external `.ps1` / `.py` already in a repo. No hidden `.bat` next to the photos. |
+| **Optional AI that never sees your disk** | Generate / modify / repair send **task text and source only**. Saved scripts rerun with **zero** AI calls. No provider required. Keys are `safeStorage`, not `settings.json`. |
+| **Almost infinite surface** | We will not ship a button for every library job. You save “Folder inventory”, “SHA-256 selection”, “Join captions”, “ffmpeg CRF queue” once — and the file manager grew those features without a release. |
 
 ---
 
@@ -106,8 +122,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
 | **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
 | **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |
-| **No junk written into browsed folders** | App state, icon/thumb caches, image originals, and search DB live under `%APPDATA%\MyFileExplorer` only (video strips use an existing `!VIDTHUMB_CACHE` convention when you generate them). |
-| **Universal script runner (D51)** | Saved PowerShell / Python / cmd / bash scripts run on the current folder or selection (live output, Stop, dry-run) and appear on the context menu. Optional AI writes source without seeing your files. The command set is no longer limited to what we ship. Guide: [SCRIPTS.md](SCRIPTS.md). |
+| **No junk written into browsed folders** | App state, icon/thumb caches, image originals, search DB, and the **script library** live under `%APPDATA%\MyFileExplorer` only (video strips use an existing `!VIDTHUMB_CACHE` convention when you generate them). |
 
 ---
 
@@ -130,7 +145,7 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
 - [DECISIONS.md](DECISIONS.md) — locked choices (through D51)  
-- [SCRIPTS.md](SCRIPTS.md) — universal script runner + optional AI (D51)  
+- [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
 - [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  
