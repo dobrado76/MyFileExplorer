@@ -44,8 +44,9 @@ type ScriptModalProps = {
 function useScriptModalEscape(onClose: () => void, busy?: boolean): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape' && !busy) onClose()
+      if (e.key !== 'Escape') return
       e.stopPropagation()
+      if (!busy) onClose()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)

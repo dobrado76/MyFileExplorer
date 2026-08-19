@@ -172,3 +172,9 @@ Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linu
 ---
 
 Open **this folder** as the workspace. Everything needed to build and ship lives here.
+
+---
+
+## Acknowledgements
+
+Thank you **[ghiscoding](https://github.com/ghiscoding)** — for Linux support, icon-size settings, back-navigation polish, and a stream of ideas that made the app better (plus the bug reports, and the patience — yes, really).

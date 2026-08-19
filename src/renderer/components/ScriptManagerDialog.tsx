@@ -500,6 +500,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               <label className="settings-field" title={T.name}>
                 <span>Name</span>
                 <input
+                  type="text"
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value)
@@ -527,6 +528,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               <label className="settings-field script-meta-wide" title={T.description}>
                 <span>Description</span>
                 <input
+                  type="text"
                   value={description}
                   onChange={(e) => {
                     setDescription(e.target.value)
@@ -537,6 +539,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               <label className="settings-field" title={T.category}>
                 <span>Category</span>
                 <input
+                  type="text"
                   value={category}
                   onChange={(e) => {
                     setCategory(e.target.value)

@@ -37,6 +37,7 @@ textarea {
   border-radius: 4px;
   padding: 4px 8px;
   outline: none;
+  user-select: text;
 }
 
 input:focus,
@@ -6929,10 +6930,13 @@ html.idle-cursor-hidden * {
 .script-editor {
   display: grid;
   grid-template-columns: auto 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  position: relative;
+  isolation: isolate;
   border: 1px solid var(--border);
   border-radius: 6px;
-  min-height: 220px;
-  flex: 1;
+  min-height: 0;
+  flex: 1 1 0;
   overflow: hidden;
   font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
   font-size: 12px;
@@ -6947,6 +6951,7 @@ html.idle-cursor-hidden * {
   text-align: right;
   user-select: none;
   overflow: hidden;
+  min-height: 0;
   white-space: pre;
   line-height: inherit;
 }
@@ -6954,6 +6959,7 @@ html.idle-cursor-hidden * {
   position: relative;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 .script-editor-highlight,
 .script-editor-input {

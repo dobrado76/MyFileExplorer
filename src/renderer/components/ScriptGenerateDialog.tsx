@@ -537,6 +537,7 @@ export function ScriptGenerateDialog(props: {
           >
             <span>Modify instruction</span>
             <input
+              type="text"
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               placeholder="Optional — otherwise Modify uses Task"
@@ -550,7 +551,7 @@ export function ScriptGenerateDialog(props: {
               title="Display name the model chose. Edit before Save if you want. Clash with an existing script becomes Name (2)."
             >
               <span>Name</span>
-              <input value={name} onChange={(e) => setName(e.target.value)} />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
             </label>
             <label
               className="settings-field"
