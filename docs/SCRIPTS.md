@@ -107,11 +107,13 @@ Treat unknown flags as errors. Write progress to **stdout**; errors to **stderr*
 | Language | Typical spawn (then your CLI flags) |
 | -------- | ----------------------------------- |
 | PowerShell | `powershell.exe -NoProfile -ExecutionPolicy Bypass -File <script.ps1>` (or `pwsh`) |
-| Python | `python <script.py>` or `py -3 <script.py>` |
+| Python | `python <script.py>` or `py -3 <script.py>` — **Python 3.x only** |
 | cmd | `cmd.exe /d /s /c <script.cmd>` |
 | bash | `bash <script.sh>` |
 
 Interpreters are detected on PATH. Optional absolute overrides: **Settings → Scripting and AI → Script runner**. A missing interpreter is an error on Run, not a silent fallback to `cmd /c`.
+
+**Python 2.x is not supported.** Generated and hand-written scripts are Python 3 (`print(…, file=sys.stderr)`, `argparse`, etc.). If Run fails with `SyntaxError` on `file=`, the machine’s `python` on PATH is 2.7 — install Python 3, or set the Script runner override to `py` / a Python 3 `python.exe`. The app does not ship a Python runtime.
 
 PowerShell’s `param($Root)` does **not** bind `--root`. Parse `$args` (examples below). Python should use `argparse`.
 

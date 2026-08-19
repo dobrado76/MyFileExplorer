@@ -13,6 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Mix folders and files in media libraries** is **off** on a first install. When on, it applies only in icon/thumbnail views — List and Details still follow Settings → Behavior → Folders first.
 - **AI script names** — generate/modify ask for a Title Case display label (spaces OK). The on-disk file remains `managed/<id>.<ext>`.
+- **Python 2.x is not supported** — docs and Settings → Scripting and AI say so explicitly (PATH `python` on another PC is often 2.7).
 - **External file** — ticking it hides the Script Manager editor (path + Browse only). Save records the path and no longer writes over the file.
 - **Modify with AI** — carries name, description, recursive, and target into the generate dialog. **Modify** uses Task when Modify instruction is empty. Save keeps existing parameters and category.
 - **Generate / Modify AI window** — wider default (same class as Script Manager: drag, resize, maximize). Empty provider replies now say why (token limit, filter, refusal) instead of a blank “empty completion”.

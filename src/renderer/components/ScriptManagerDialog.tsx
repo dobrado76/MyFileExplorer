@@ -28,7 +28,7 @@ const T = {
   listItem: 'Open this script to edit or run. Saved scripts rerun locally with no AI.',
   name: 'How the script appears in this list and in the context menu.',
   language:
-    'Interpreter used on Run: PowerShell, Python, cmd, or bash. Must be on PATH (or set under Settings → Scripting and AI → Script runner).',
+    'Interpreter used on Run: PowerShell, Python 3 (not 2.x), cmd, or bash. Must be on PATH (or set under Settings → Scripting and AI → Script runner).',
   description: 'Optional note for you. Also used when searching the library.',
   category:
     'Optional group name. Context menu Scripts lists items under this heading when set.',

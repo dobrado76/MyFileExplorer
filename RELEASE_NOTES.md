@@ -19,7 +19,7 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Scripts: [docs/SCRIPTS.md](docs/SCRIP
 Explorer stops at “open this folder in a terminal.” MyFileExplorer **is** the runner.
 
 - **Off by default.** Settings → **Scripting and AI → Enable scripting** shows the toolbar Scripts button and context **Scripts**. Saved library under app data — no sidecars in your folders.
-- **PowerShell, Python, cmd, bash** on PATH (or Settings → Scripting and AI → Script runner overrides).
+- **PowerShell, Python 3 (not 2.x), cmd, bash** on PATH (or Settings → Scripting and AI → Script runner overrides).
 - **Folder** (`--root`) or **selection** (`--input-list` UTF-8 manifest). Recursive and dry-run when the script supports them.
 - Live stdout/stderr, elapsed time, **Stop**. The run window is movable/resizable and remembers size.
 - Script Manager: editor with highlighting, parameters, categories, extension / min-selection filters, import/export `.mfescript`, external file refs. Maximize for a two-column field layout and a taller editor.

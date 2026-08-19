@@ -53,7 +53,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
-| Universal scripts (D51) | **Opt-in** (Settings → Scripting and AI, off by default). PowerShell / Python / cmd / bash on the current folder or selection; saved library; context **Scripts**; optional AI that never sends files — [SCRIPTS.md](SCRIPTS.md) |
+| Universal scripts (D51) | **Opt-in** (Settings → Scripting and AI, off by default). PowerShell / **Python 3** (not 2.x) / cmd / bash on the current folder or selection; saved library; context **Scripts**; optional AI that never sends files — [SCRIPTS.md](SCRIPTS.md) |
 | Media metadata (D50) | Opt-in Plex / TMDB / OMDb cards on the file or folder (NTFS streams). Show poster on the show folder; episode `SxxExx` tiles; Change cover; consolidate Subs; watched / genre toolbar — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | This PC tools | Right-click **Drives** → Computer Manager / Device Manager / Control Panel / Properties |
 | Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |

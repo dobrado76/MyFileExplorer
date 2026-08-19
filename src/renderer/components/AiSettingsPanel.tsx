@@ -134,7 +134,10 @@ export function AiSettingsPanel(): JSX.Element {
       {scriptingOn ? (
         <>
       <h3>Script runner</h3>
-      <p className="settings-field-hint">Optional interpreter paths when PATH is not enough.</p>
+      <p className="settings-field-hint">
+        Optional interpreter paths when PATH is not enough. Python must be <strong>3.x</strong> —
+        Python 2.7 is not supported (`print(…, file=sys.stderr)` will SyntaxError).
+      </p>
       {(['powershell', 'pwsh', 'python', 'cmd', 'bash'] as const).map((k) => (
         <label key={k} className="settings-field">
           <span>{k}</span>
