@@ -137,7 +137,10 @@ export function ExplorerShell(): JSX.Element {
         s.closeRecycleBinView()
         return
       }
-      void s.goUp()
+      // Match the toolbar / mouse Back action when history exists so the
+      // saved sort, scroll position, and focused row are restored together.
+      if (s.activeTab().back.length > 0) void s.goBack()
+      else void s.goUp()
     } else if (key === 'F5' || (ctrl && !shift && !alt && key.toLowerCase() === 'r')) {
       // F5 and Ctrl+R — same in-app full refresh (not Chromium page reload).
       e.preventDefault()
