@@ -1,7 +1,8 @@
 /**
- * Windows pack: electron-vite + electron-builder, never Authenticode-sign.
- * Local Windows cert auto-discovery made `dist` wait minutes on signtool.
- * Public installers come from GitHub Actions and are also unsigned.
+ * Windows pack: electron-vite + electron-builder.
+ * Signing is off via electron-builder.yml `win.signExecutable: false`.
+ * CSC_IDENTITY_AUTO_DISCOVERY only affects macOS; we still strip CSC_* so a
+ * leftover WIN_CSC_LINK cannot re-enable signing if that flag is removed.
  */
 import { execSync } from 'node:child_process'
 import path from 'node:path'

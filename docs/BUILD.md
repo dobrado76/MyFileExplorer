@@ -73,7 +73,7 @@ When the workflow finishes, download from:
 
 ## Notes
 
-- Local `npm run build:win` / `dist` and CI both set `CSC_IDENTITY_AUTO_DISCOVERY=false`. Installers are **unsigned**. A machine-wide Windows code-signing cert must not be auto-applied (that was the multi-minute `signtool` hang on `elevate.exe` / `7za.exe` / `ffmpeg.exe`).
+- Installers are **unsigned**. `electron-builder.yml` sets `win.signExecutable: false` so Windows packs skip `signtool` (icon/metadata still applied). `CSC_IDENTITY_AUTO_DISCOVERY=false` is macOS-only and does **not** stop Windows signing.
 - `electron-builder --publish never` — Releases are attached by Actions, not electron-builder.
 - Never commit `dist/*.exe` — `dist/` is in `.gitignore` on purpose.
 - No `actions/upload-artifact` — avoids Actions artifact storage quota.

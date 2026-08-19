@@ -23,8 +23,10 @@ asarUnpack:
   - node_modules/node-unrar-js/**
 win:
   icon: build/icon.ico
-  # Unsigned. `scripts/build-win.mjs` sets CSC_IDENTITY_AUTO_DISCOVERY=false so a
-  # local Windows cert is not applied (signtool + timestamp hung the pack for minutes).
+  # Skip Authenticode. CSC_IDENTITY_AUTO_DISCOVERY is macOS-only — without this,
+  # electron-builder still logs/runs signtool on every packed exe (and timestamps
+  # each one if a local cert exists — minutes of DigiCert waits).
+  signExecutable: false
   target:
     - nsis
 linux:
