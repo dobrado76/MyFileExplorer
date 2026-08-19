@@ -23,6 +23,7 @@ export function isExcludedByMediaLibrary(
 /** Folders-first for the current file list (media libraries can mix tiles). */
 export function listingFoldersFirst(opts: {
   foldersFirst: boolean
+  sortKey?: string
   mediaEnabled: boolean
   mixFilesAndFolders: boolean
   isContainer: boolean
@@ -30,6 +31,7 @@ export function listingFoldersFirst(opts: {
   containerPath: string
 }): boolean {
   if (
+    opts.sortKey !== 'name' &&
     mediaContainerIgnoresFoldersFirst(opts.mediaEnabled, opts.mixFilesAndFolders, opts.isContainer) &&
     opts.listingPath &&
     opts.containerPath &&

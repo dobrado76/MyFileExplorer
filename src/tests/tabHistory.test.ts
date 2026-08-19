@@ -17,9 +17,7 @@ describe('tabHistory', () => {
       folderHistory('D:\\')
     ])
     expect(
-      coerceHistoryList([
-        { kind: 'search', query: 'a.txt', scopePath: 'C:\\', indexedOnly: true }
-      ])
+      coerceHistoryList([{ kind: 'search', query: 'a.txt', scopePath: 'C:\\', indexedOnly: true }])
     ).toEqual([searchHistory('a.txt', 'C:\\', true)])
   })
 
@@ -45,6 +43,15 @@ describe('tabHistory', () => {
     expect(persistHistoryEntry(e)).toEqual(e)
     expect(coerceHistoryList([e])).toEqual([e])
     expect(folderHistory('C:\\Data', 0)).toEqual({ kind: 'folder', path: 'C:\\Data' })
+  })
+
+  it('stores and rewrites the row to focus when returning to a folder', () => {
+    const e = folderHistory('C:\\Data', 1400, 'C:\\Data\\Photos')
+    expect(persistHistoryEntry(e)).toEqual(e)
+    expect(coerceHistoryList([e])).toEqual([e])
+    expect(rewriteHistoryEntry(e, (p) => p.replace('C:\\Data', 'D:\\Archive'))).toEqual(
+      folderHistory('D:\\Archive', 1400, 'D:\\Archive\\Photos')
+    )
   })
 
   it('persistHistoryEntry is a plain clone', () => {

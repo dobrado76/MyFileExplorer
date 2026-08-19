@@ -610,8 +610,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     const foldersFirst =
       recycleMode || searchMode
         ? settings.foldersFirst
-        : listingFoldersFirst({
-            foldersFirst: settings.foldersFirst,
+          : listingFoldersFirst({
+              foldersFirst: settings.foldersFirst,
+              sortKey: effectiveSort.key,
             mediaEnabled: settings.mediaMetadata.enabled,
             mixFilesAndFolders: settings.mediaMetadata.mixFilesAndFolders !== false,
             isContainer: mediaLibrary.isContainer,
@@ -2070,4 +2071,3 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     </div>
   )
 }
-

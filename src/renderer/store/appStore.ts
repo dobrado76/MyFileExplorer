@@ -62,11 +62,7 @@ import { clearFileViewScroll, liveFileViewScroll } from '../lib/fileViewScroll'
 import { tabRootDeletePrompt, tabsWhoseRootIsDeleted } from '../lib/tabRootDelete'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
 import { isNetworkHostUnc } from '@shared/networkPaths'
-import {
-  ListingLru,
-  driveTypeForPath,
-  isListingCacheEligible
-} from '@shared/listingCache'
+import { ListingLru, driveTypeForPath, isListingCacheEligible } from '@shared/listingCache'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
 import {
@@ -95,11 +91,7 @@ import {
   searchResultsToEntries
 } from '../lib/searchEntries'
 import { formatSearchProgress } from '@shared/searchProgress'
-import {
-  isIncompleteSearchQuery,
-  isSearchNarrowing,
-  narrowSearchItems
-} from '@shared/searchQuery'
+import { isIncompleteSearchQuery, isSearchNarrowing, narrowSearchItems } from '@shared/searchQuery'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
 import { invalidateThumbMemory, invalidateThumbMemoryMany, thumbPathKey } from '../lib/thumbMemory'
@@ -178,7 +170,11 @@ function currentLocation(tab: Tab): HistoryEntry {
   if (tab.search.active && tab.search.query.trim()) {
     return searchHistory(tab.search.query.trim(), tab.path, tab.search.indexedOnly)
   }
-  return folderHistory(tab.path, liveFileViewScroll(tab.id) ?? tab.scrollOffset)
+  return folderHistory(
+    tab.path,
+    liveFileViewScroll(tab.id) ?? tab.scrollOffset,
+    tab.selected[tab.selected.length - 1]
+  )
 }
 
 export type Listing = {
@@ -334,7 +330,11 @@ export type NetworkNeighborhoodState = {
   /** Cached shares keyed by lowercased server name. */
   sharesByHost: Record<
     string,
-    { status: 'idle' | 'loading' | 'done' | 'error'; shares: { name: string; unc: string; remark?: string }[]; message?: string }
+    {
+      status: 'idle' | 'loading' | 'done' | 'error'
+      shares: { name: string; unc: string; remark?: string }[]
+      message?: string
+    }
   >
   generation: number
   message?: string
@@ -436,7 +436,7 @@ function softReloadMinGapMs(n: number): number {
   if (n >= WATCH_THROTTLED_MAX) return Number.POSITIVE_INFINITY
   if (n >= WATCH_FAST_MAX) return SOFT_RELOAD_GAP_THROTTLED_MS
   return SOFT_RELOAD_GAP_FAST_MS
-}/**
+} /**
  * Cached view order for delete-next selection. Rebuilding via localeCompare on
  * 20k rows every Del is a multi-hundred-ms hitch; prune updates this in place.
  */
@@ -745,12 +745,18 @@ type AppState = {
    * Conflict dialog result: cancel, one batch policy for all, or per-name decisions.
    * Non-conflicting sources always transfer.
    */
-  resolveConflict(
-    choice: null | ConflictDecision | Record<string, ConflictDecision>
-  ): Promise<void>
+  resolveConflict(choice: null | ConflictDecision | Record<string, ConflictDecision>): Promise<void>
   /** End-of-op review: apply per-item or skip remaining (null). */
   resolveOpIssues(
-    items: null | { source: string; dest?: string; decision: IssueDecision; sourceMtimeMs?: number; destMtimeMs?: number }[]
+    items:
+      | null
+      | {
+          source: string
+          dest?: string
+          decision: IssueDecision
+          sourceMtimeMs?: number
+          destMtimeMs?: number
+        }[]
   ): Promise<void>
   /** Delete file-view selection, or explicit `paths` (e.g. tree-focused folder). */
   deleteSelection(permanent: boolean, paths?: string[]): Promise<void>
@@ -1022,7 +1028,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     persistSession()
   }
 
-  function syncActiveListing(listingsByTabId: Record<string, Listing>, activeTabId: string): Listing {
+  function syncActiveListing(
+    listingsByTabId: Record<string, Listing>,
+    activeTabId: string
+  ): Listing {
     return listingsByTabId[activeTabId] ?? emptyListing()
   }
 
@@ -1037,9 +1046,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     await Promise.all(
       ids.map((tabId) => {
         const tab = s.tabs.find((t) => t.id === tabId)
-        return tab
-          ? loadListing(tab.path, { ...opts, tabId })
-          : Promise.resolve()
+        return tab ? loadListing(tab.path, { ...opts, tabId }) : Promise.resolve()
       })
     )
   }
@@ -1120,10 +1127,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!(e instanceof IpcError)) return true
     // Unmounted / encrypted / network volumes usually surface as these.
     return (
-      e.code === 'not-found' ||
-      e.code === 'not-allowed' ||
-      e.code === 'busy' ||
-      e.code === 'io'
+      e.code === 'not-found' || e.code === 'not-allowed' || e.code === 'busy' || e.code === 'io'
     )
   }
 
@@ -1158,6 +1162,15 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
     try {
       const res = await call(api.mediaMetadata.folderLibrary({ path: folderPath }))
+      // A slow metadata request for a folder we already left must not change
+      // the current folder's grouping or resort its listing.
+      const current = get()
+      if (
+        !samePath(current.activeTab().path, folderPath) ||
+        !samePath(current.listing.path, folderPath)
+      ) {
+        return
+      }
       const prev = get().mediaLibrary
       const same = prev.folderPath !== '' && samePath(prev.folderPath, folderPath)
       const items: Record<string, MediaLibraryItemFlags> = {}
@@ -1177,7 +1190,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       }
       const genreStill =
-        same && prev.genreFilter && [...genreSet].some((g) => g.toLowerCase() === prev.genreFilter!.toLowerCase())
+        same &&
+        prev.genreFilter &&
+        [...genreSet].some((g) => g.toLowerCase() === prev.genreFilter!.toLowerCase())
           ? prev.genreFilter
           : null
       set({
@@ -1394,7 +1409,9 @@ export const useAppStore = create<AppState>()((set, get) => {
             : 'No media metadata to update'
         )
       } else {
-        get().notify(res.done === 1 ? 'Media metadata saved' : `Media metadata saved for ${res.done} items`)
+        get().notify(
+          res.done === 1 ? 'Media metadata saved' : `Media metadata saved for ${res.done} items`
+        )
       }
     } catch (e) {
       if (isMediaApiLimitError(e)) {
@@ -1457,7 +1474,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     })
   }
 
-  async function nameConflictIssue(source: string, dest: string, message: string): Promise<OpIssue> {
+  async function nameConflictIssue(
+    source: string,
+    dest: string,
+    message: string
+  ): Promise<OpIssue> {
     let sourceMtimeMs: number | undefined
     let destMtimeMs: number | undefined
     try {
@@ -1668,10 +1689,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
-  function currentListingFoldersFirst(listingPath?: string): boolean {
+  function currentListingFoldersFirst(listingPath?: string, sortKey?: string): boolean {
     const s = get()
     return listingFoldersFirst({
       foldersFirst: s.settings.foldersFirst,
+      sortKey,
       mediaEnabled: s.settings.mediaMetadata.enabled,
       mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
       isContainer: s.mediaLibrary.isContainer,
@@ -1688,7 +1710,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!listing.path || listing.entries.length === 0) return
     const owning = resolveFolderView(tab.path, s.settings.folderViews)
     const sort = owning?.sort ?? tab.sort
-    const sorted = sortEntries(listing.entries, sort, currentListingFoldersFirst())
+    const sorted = sortEntries(
+      listing.entries,
+      sort,
+      currentListingFoldersFirst(listing.path, sort.key)
+    )
     viewOrderCache = null
     const nextListing = { ...listing, entries: sorted }
     set({
@@ -1707,7 +1733,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     const owning = resolveFolderView(tab.path, get().settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const sortedEntries = dedupeDirEntries(
-      sortEntries(entries, sort, currentListingFoldersFirst(listedPath))
+      sortEntries(entries, sort, currentListingFoldersFirst(listedPath, sort.key))
     )
     const nextListing: Listing = {
       path: listedPath,
@@ -1731,7 +1757,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
       return {
         listingsByTabId,
-        listing: tabId === s.activeTabId ? nextListing : syncActiveListing(listingsByTabId, s.activeTabId),
+        listing:
+          tabId === s.activeTabId ? nextListing : syncActiveListing(listingsByTabId, s.activeTabId),
         tabs,
         ...(opts?.clearRemoteBusy && s.remoteBusyDialog?.status === 'working'
           ? { remoteBusyDialog: null }
@@ -1775,10 +1802,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         : undefined
     const paintFromCache = cached != null
     const showRemoteBusy =
-      isRemoteLocation(path) &&
-      !opts?.soft &&
-      !paintFromCache &&
-      tabId === get().activeTabId
+      isRemoteLocation(path) && !opts?.soft && !paintFromCache && tabId === get().activeTabId
     const remoteLabel = (() => {
       const loc = parseRemoteLocation(path)
       if (!loc) return 'folder'
@@ -1919,7 +1943,20 @@ export const useAppStore = create<AppState>()((set, get) => {
       scrollOffset: entry.kind === 'folder' ? (entry.scrollOffset ?? 0) : 0,
       search: emptyTabSearch(tab.search.indexedOnly)
     })
+    if (tabId === get().activeTabId) {
+      set({ selectionAnchor: null, focusedPath: null })
+      get().clearFileListScrollRequest()
+    }
     await loadListing(path, { tabId })
+    if (entry.kind === 'folder' && entry.focusPath) {
+      const current = get()
+      const owner = current.tabs.find((t) => t.id === tabId)
+      const listing = current.listingsByTabId[tabId]
+      const focused = listing?.entries.find((e) => samePath(e.path, entry.focusPath!))
+      if (owner && samePath(owner.path, path) && focused) {
+        get().setSelection([focused.path], focused.path, focused.path, tabId)
+      }
+    }
   }
 
   /** Always surface FS failures in a modal — never status-bar-only. */
@@ -1979,23 +2016,25 @@ export const useAppStore = create<AppState>()((set, get) => {
           entries: sortEntries(
             patchDirEntriesForRename(L.entries, from, to, newName),
             sort,
-            currentListingFoldersFirst(L.path)
+            currentListingFoldersFirst(L.path, sort.key)
           )
         }
       }
-      const listing = listingsByTabId[s.activeTabId] ?? (() => {
-        const tab = s.tabs.find((x) => x.id === s.activeTabId)
-        const owning = tab ? resolveFolderView(tab.path, s.settings.folderViews) : undefined
-        const sort = owning?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const }
-        return {
-          ...s.listing,
-          entries: sortEntries(
-            patchDirEntriesForRename(s.listing.entries, from, to, newName),
-            sort,
-            currentListingFoldersFirst(s.listing.path)
-          )
-        }
-      })()
+      const listing =
+        listingsByTabId[s.activeTabId] ??
+        (() => {
+          const tab = s.tabs.find((x) => x.id === s.activeTabId)
+          const owning = tab ? resolveFolderView(tab.path, s.settings.folderViews) : undefined
+          const sort = owning?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const }
+          return {
+            ...s.listing,
+            entries: sortEntries(
+              patchDirEntriesForRename(s.listing.entries, from, to, newName),
+              sort,
+              currentListingFoldersFirst(s.listing.path, sort.key)
+            )
+          }
+        })()
       const tabs = s.tabs.map((t) => ({
         ...t,
         path: rewrite(t.path),
@@ -2070,8 +2109,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     let targets = s.tabs.filter(
       (t) =>
         s.paneTabIds.includes(t.id) &&
-        (samePath(t.path, dirPath) ||
-          samePath(s.listingsByTabId[t.id]?.path ?? '', dirPath))
+        (samePath(t.path, dirPath) || samePath(s.listingsByTabId[t.id]?.path ?? '', dirPath))
     )
     if (targets.length === 0) {
       // Fallback: active tab only (e.g. layout 1).
@@ -2118,8 +2156,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   function syncImageViewerAfterDelete(removed: string[]): void {
     const v = get().imageViewer
     if (!v) return
-    const gone = (p: string): boolean =>
-      removed.some((r) => samePath(p, r) || isUnderPath(p, r))
+    const gone = (p: string): boolean => removed.some((r) => samePath(p, r) || isUnderPath(p, r))
     const siblings = v.siblings.filter((p) => !gone(p))
     if (!gone(v.path)) {
       if (siblings.length !== v.siblings.length) {
@@ -2174,14 +2211,16 @@ export const useAppStore = create<AppState>()((set, get) => {
       viewOrderCache.listingRef === listingRef &&
       viewOrderCache.sortKey === sort.key &&
       viewOrderCache.sortDir === sort.dir &&
-      viewOrderCache.foldersFirst === listingFoldersFirst({
-        foldersFirst: s.settings.foldersFirst,
-        mediaEnabled: s.settings.mediaMetadata.enabled,
-        mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
-        isContainer: s.mediaLibrary.isContainer,
-        listingPath: s.listing.path,
-        containerPath: s.mediaLibrary.folderPath
-      }) &&
+      viewOrderCache.foldersFirst ===
+        listingFoldersFirst({
+          foldersFirst: s.settings.foldersFirst,
+          sortKey: sort.key,
+          mediaEnabled: s.settings.mediaMetadata.enabled,
+          mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+          isContainer: s.mediaLibrary.isContainer,
+          listingPath: s.listing.path,
+          containerPath: s.mediaLibrary.folderPath
+        }) &&
       viewOrderCache.filterKey === filterKey
     ) {
       return viewOrderCache.paths
@@ -2193,8 +2232,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       samePath(s.listing.path, s.mediaLibrary.folderPath)
     const foldersFirst = tab.search.active
       ? s.settings.foldersFirst
-      : listingFoldersFirst({
-          foldersFirst: s.settings.foldersFirst,
+        : listingFoldersFirst({
+            foldersFirst: s.settings.foldersFirst,
+            sortKey: sort.key,
           mediaEnabled: s.settings.mediaMetadata.enabled,
           mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
           isContainer: s.mediaLibrary.isContainer,
@@ -2203,7 +2243,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         })
     const before = sortEntries(
       sourceEntries.filter((e) => {
-        if (isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)) {
+        if (
+          isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
+        ) {
           return false
         }
         if (applyMedia && isExcludedByMediaLibrary(e.path, s.mediaLibrary)) return false
@@ -2325,8 +2367,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     const tab = get().activeTab()
     const current = tab.path
-    const primary =
-      removed.find((p) => samePath(p, current) || isUnderPath(current, p)) ?? null
+    const primary = removed.find((p) => samePath(p, current) || isUnderPath(current, p)) ?? null
 
     if (!primary) {
       // Stay in-folder: listing was already pruned + selection updated before trash.
@@ -2334,9 +2375,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       pruneListingRemoved(removed)
       const focused = get().focusedPath
       const nextPath =
-        focused && get().listing.entries.some((e) => samePath(e.path, focused))
-          ? focused
-          : null
+        focused && get().listing.entries.some((e) => samePath(e.path, focused)) ? focused : null
       if (nextPath) {
         updateActiveTab({ selected: [nextPath] })
         set({ selectionAnchor: nextPath, focusedPath: nextPath })
@@ -2382,8 +2421,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     await get().navigate(nextPath)
     // Don't leave deleted folders in back/forward history.
-    const gone = (p: string): boolean =>
-      removed.some((r) => samePath(p, r) || isUnderPath(p, r))
+    const gone = (p: string): boolean => removed.some((r) => samePath(p, r) || isUnderPath(p, r))
     const t = get().activeTab()
     updateActiveTab({
       back: t.back.filter((e) => !gone(historyLocationPath(e))),
@@ -2442,9 +2480,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     } else {
       await get().refresh()
     }
-    const existing = paths.filter((p) =>
-      get().listing.entries.some((e) => samePath(e.path, p))
-    )
+    const existing = paths.filter((p) => get().listing.entries.some((e) => samePath(e.path, p)))
     if (existing.length > 0) {
       get().setSelection(existing, existing[0], existing[0])
     } else {
@@ -2456,11 +2492,8 @@ export const useAppStore = create<AppState>()((set, get) => {
   async function applyHistoryEntry(entry: UndoEntry, direction: 'undo' | 'redo'): Promise<void> {
     if (entry.kind === 'trash') {
       if (direction === 'undo') {
-        const res = await withBusyFeedback(
-          'trash',
-          'Restoring…',
-          entry.label,
-          () => call(api.fs.restoreFromTrash({ paths: entry.paths }))
+        const res = await withBusyFeedback('trash', 'Restoring…', entry.label, () =>
+          call(api.fs.restoreFromTrash({ paths: entry.paths }))
         )
         if (res.restored.length === 0) {
           throw new IpcError({
@@ -2478,9 +2511,9 @@ export const useAppStore = create<AppState>()((set, get) => {
             true
           )
         }
-        await selectPathsPreferParent(pathsAfterUndo(entry).filter((p) =>
-          res.restored.some((r) => samePath(r, p))
-        ))
+        await selectPathsPreferParent(
+          pathsAfterUndo(entry).filter((p) => res.restored.some((r) => samePath(r, p)))
+        )
         return
       }
       await withBusyFeedback('trash', 'Moving to Recycle Bin…', entry.label, () =>
@@ -2520,7 +2553,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         removed: [pairs[0]!.from],
         reloadParents: parentsOfPaths([pairs[0]!.from, pairs[0]!.to])
       })
-      await selectPathsPreferParent(direction === 'undo' ? pathsAfterUndo(entry) : pathsAfterRedo(entry))
+      await selectPathsPreferParent(
+        direction === 'undo' ? pathsAfterUndo(entry) : pathsAfterRedo(entry)
+      )
       return
     }
 
@@ -2539,7 +2574,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       removed: pairs.map((p) => p.from),
       reloadParents: parentsOfPaths(pairs.flatMap((p) => [p.from, p.to]))
     })
-    await selectPathsPreferParent(direction === 'undo' ? pathsAfterUndo(entry) : pathsAfterRedo(entry))
+    await selectPathsPreferParent(
+      direction === 'undo' ? pathsAfterUndo(entry) : pathsAfterRedo(entry)
+    )
   }
 
   const slideshowActions = createSlideshowActions(
@@ -2765,10 +2802,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         tabIds,
         activeTabId
       )
-      let focusedPaneIndex = Math.min(
-        viewLayout - 1,
-        Math.max(0, session.focusedPaneIndex ?? 0)
-      )
+      let focusedPaneIndex = Math.min(viewLayout - 1, Math.max(0, session.focusedPaneIndex ?? 0))
       if (paneTabIds[focusedPaneIndex] !== activeTabId) {
         const idx = paneTabIds.indexOf(activeTabId)
         if (idx >= 0) focusedPaneIndex = idx
@@ -2859,8 +2893,8 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         } else if (event.type === 'search-progress') {
           const p = event.payload
-          const owner = get().tabs.find((t) =>
-            t.search.running && (p.gen == null || p.gen === t.search.gen)
+          const owner = get().tabs.find(
+            (t) => t.search.running && (p.gen == null || p.gen === t.search.gen)
           )
           if (!owner) return
           const st = owner.search
@@ -2888,9 +2922,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         } else if (event.type === 'op-progress') {
           const p = event.payload
           if (p.phase === 'done') {
-            set((state) =>
-              state.fileOp?.opId === p.opId ? { fileOp: null } : {}
-            )
+            set((state) => (state.fileOp?.opId === p.opId ? { fileOp: null } : {}))
           } else {
             set({
               fileOp: {
@@ -2976,11 +3008,7 @@ export const useAppStore = create<AppState>()((set, get) => {
                 ...state.network,
                 generation: Math.max(state.network.generation, p.generation),
                 status:
-                  p.status === 'running'
-                    ? 'running'
-                    : p.status === 'error'
-                      ? 'error'
-                      : 'done',
+                  p.status === 'running' ? 'running' : p.status === 'error' ? 'error' : 'done',
                 hosts,
                 message: p.message
               }
@@ -3048,11 +3076,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           get().setSelection([selectFile], selectFile, selectFile)
           get().requestFileListScrollTo(selectFile)
         }
-        get().notify(
-          selectFile
-            ? `Revealed ${basename(selectFile)}`
-            : `Opened ${basename(folder)}`
-        )
+        get().notify(selectFile ? `Revealed ${basename(selectFile)}` : `Opened ${basename(folder)}`)
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
@@ -3093,7 +3117,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           thumbRevByPath[key] = (thumbRevByPath[key] ?? 0) + 1
         }
         return {
-          columnMetaBump: { rev: s.columnMetaBump.rev + 1, path: paths[0] ?? s.columnMetaBump.path },
+          columnMetaBump: {
+            rev: s.columnMetaBump.rev + 1,
+            path: paths[0] ?? s.columnMetaBump.path
+          },
           thumbRevByPath,
           videoThumbRev: s.videoThumbRev + 1
         }
@@ -3119,8 +3146,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (push && (!samePath(old, path) || leavingSearch)) {
         const here = currentLocation(tab)
         const last = tab.back[tab.back.length - 1]
-        const back =
-          last && sameHistoryEntry(last, here) ? tab.back : [...tab.back, here]
+        const back = last && sameHistoryEntry(last, here) ? tab.back : [...tab.back, here]
         updateTab(tabId, {
           path,
           back,
@@ -3142,7 +3168,8 @@ export const useAppStore = create<AppState>()((set, get) => {
           focusedPath: null,
           renamingPath: null,
           renameSource: null,
-          addressEditing: false
+          addressEditing: false,
+          fileListScrollRequest: null
         })
       }
       if (!samePath(old, path)) {
@@ -3164,7 +3191,17 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tab = get().activeTab()
       const prev = tab.back[tab.back.length - 1]
       if (!prev) return
-      await applyTabHistoryEntry(tab.id, prev, {
+      // Older sessions and locations opened from the tree have no stored
+      // focus. In the common parent/child case, Explorer focuses the child
+      // folder when Back returns to its parent.
+      const parent = parentOf(tab.path)
+      const fallbackFocus =
+        prev.kind === 'folder' && parent && samePath(parent, prev.path) ? tab.path : undefined
+      const target =
+        prev.kind === 'folder' && !prev.focusPath && fallbackFocus
+          ? { ...prev, focusPath: fallbackFocus }
+          : prev
+      await applyTabHistoryEntry(tab.id, target, {
         back: tab.back.slice(0, -1),
         forward: [currentLocation(tab), ...tab.forward]
       })
@@ -3526,9 +3563,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tab = s.tabs.find((t) => t.id === id)
       if (!tab) return
       const existingPane =
-        s.paneTabIds[s.focusedPaneIndex] === id
-          ? s.focusedPaneIndex
-          : s.paneTabIds.indexOf(id)
+        s.paneTabIds[s.focusedPaneIndex] === id ? s.focusedPaneIndex : s.paneTabIds.indexOf(id)
       if (existingPane >= 0) {
         if (s.activeTabId === id && s.focusedPaneIndex === existingPane) return
         const focus = focusFromSelection(tab.selected)
@@ -3803,7 +3838,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         listing.entries.length > 0 &&
         !(id === s.activeTabId && (s.search.active || s.recycleBin.active))
       ) {
-        const sorted = sortEntries(listing.entries, sort, currentListingFoldersFirst())
+        const sorted = sortEntries(
+          listing.entries,
+          sort,
+          currentListingFoldersFirst(listing.path, sort.key)
+        )
         set((st) => {
           const nextListing = { ...listing, entries: sorted }
           const listingsByTabId = { ...st.listingsByTabId, [id]: nextListing }
@@ -4134,8 +4173,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (isVolumeRootPath(path)) {
         set({ renamingPath: null, renameSource: null })
         const name = newName.trim()
-        const prev =
-          get().drives.find((d) => samePath(d.path, path))?.volumeName ?? ''
+        const prev = get().drives.find((d) => samePath(d.path, path))?.volumeName ?? ''
         if (name === prev) return
         try {
           await withBusyFeedback('relocate', 'Renaming…', name || 'volume', () =>
@@ -4504,29 +4542,21 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async createShortcutsHere(sources, destinationDir) {
       if (sources.length === 0) return
-      const label =
-        sources.length === 1 ? basename(sources[0]!) : `${sources.length} items`
+      const label = sources.length === 1 ? basename(sources[0]!) : `${sources.length} items`
       try {
-        const res = await withBusyFeedback(
-          'relocate',
-          'Creating shortcuts…',
-          label,
-          () => call(api.fs.createShortcuts({ sources, destinationDir }))
+        const res = await withBusyFeedback('relocate', 'Creating shortcuts…', label, () =>
+          call(api.fs.createShortcuts({ sources, destinationDir }))
         )
         recordUndo({
           kind: 'create',
           paths: res.created,
           label:
-            res.created.length === 1
-              ? basename(res.created[0]!)
-              : `${res.created.length} shortcuts`
+            res.created.length === 1 ? basename(res.created[0]!) : `${res.created.length} shortcuts`
         })
         // Refresh every visible pane — dest may be a non-focused view.
         await get().refresh()
         get().notify(
-          res.created.length === 1
-            ? 'Created shortcut'
-            : `Created ${res.created.length} shortcuts`
+          res.created.length === 1 ? 'Created shortcut' : `Created ${res.created.length} shortcuts`
         )
       } catch (e) {
         reportOperationError('Create shortcut failed', e)
@@ -4534,11 +4564,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async compressToZip(paths) {
-      const selected =
-        paths && paths.length > 0 ? paths : get().activeTab().selected
+      const selected = paths && paths.length > 0 ? paths : get().activeTab().selected
       if (selected.length === 0) return
-      const label =
-        selected.length === 1 ? basename(selected[0]!) : `${selected.length} items`
+      const label = selected.length === 1 ? basename(selected[0]!) : `${selected.length} items`
       try {
         const res = await withBusyFeedback('zip', 'Compressing…', label, () =>
           call(api.fs.compressToZip({ paths: selected }))
@@ -4560,11 +4588,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async extractZip(paths) {
-      const selected =
-        paths && paths.length > 0 ? paths : get().activeTab().selected
+      const selected = paths && paths.length > 0 ? paths : get().activeTab().selected
       if (selected.length === 0) return
-      const label =
-        selected.length === 1 ? basename(selected[0]!) : `${selected.length} archives`
+      const label = selected.length === 1 ? basename(selected[0]!) : `${selected.length} archives`
       try {
         const res = await withBusyFeedback('zip', 'Extracting…', label, () =>
           call(api.fs.extractZip({ paths: selected }))
@@ -4632,12 +4658,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
         await withBusyFeedback(dialog.op, busyLabel, busyCurrent, async () => {
           if (replaceSources.length > 0) {
-            const r = await runTransfer(
-              dialog.op,
-              replaceSources,
-              dialog.destinationDir,
-              'replace'
-            )
+            const r = await runTransfer(dialog.op, replaceSources, dialog.destinationDir, 'replace')
             copied += r.copied
             moved += r.moved
             skipped += r.skipped
@@ -4645,12 +4666,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             movePairs.push(...r.movePairs)
           }
           if (renameSources.length > 0) {
-            const r = await runTransfer(
-              dialog.op,
-              renameSources,
-              dialog.destinationDir,
-              'rename'
-            )
+            const r = await runTransfer(dialog.op, renameSources, dialog.destinationDir, 'rename')
             copied += r.copied
             moved += r.moved
             skipped += r.skipped
@@ -5535,13 +5551,10 @@ export const useAppStore = create<AppState>()((set, get) => {
                 files: mergedPatch.contextMenu.files ?? s.settings.contextMenu.files,
                 folders: mergedPatch.contextMenu.folders ?? s.settings.contextMenu.folders,
                 hiddenBuiltins:
-                  mergedPatch.contextMenu.hiddenBuiltins ??
-                  s.settings.contextMenu.hiddenBuiltins,
+                  mergedPatch.contextMenu.hiddenBuiltins ?? s.settings.contextMenu.hiddenBuiltins,
                 builtinLayout:
-                  mergedPatch.contextMenu.builtinLayout ??
-                  s.settings.contextMenu.builtinLayout,
-                discovered:
-                  mergedPatch.contextMenu.discovered ?? s.settings.contextMenu.discovered
+                  mergedPatch.contextMenu.builtinLayout ?? s.settings.contextMenu.builtinLayout,
+                discovered: mergedPatch.contextMenu.discovered ?? s.settings.contextMenu.discovered
               }
             : s.settings.contextMenu
         },
@@ -5660,8 +5673,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         quickAccessPins: [],
         quickAccessHiddenDefaults: []
       })
-      const label =
-        s.knownFolders.find((k) => samePath(k.path, path))?.label ?? basename(path)
+      const label = s.knownFolders.find((k) => samePath(k.path, path))?.label ?? basename(path)
       get().notify(`Pinned to Quick access: ${label}`)
     },
 
@@ -5921,8 +5933,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       if (!ok) return
       try {
-        const res = await withBusyFeedback('media-metadata', 'Consolidating subtitles…', undefined, () =>
-          call(api.mediaMetadata.consolidateSubtitles({ paths }))
+        const res = await withBusyFeedback(
+          'media-metadata',
+          'Consolidating subtitles…',
+          undefined,
+          () => call(api.mediaMetadata.consolidateSubtitles({ paths }))
         )
         const folder = get().listing.path
         if (folder) void get().refresh()
@@ -6447,9 +6462,7 @@ export function sortEntries(
 }
 
 /** Prefer in-app clipboard; otherwise read CF_HDROP from the OS (Explorer → MFE paste). */
-async function resolveClipboard(
-  get: () => { clipboard: ClipboardState }
-): Promise<ClipboardState> {
+async function resolveClipboard(get: () => { clipboard: ClipboardState }): Promise<ClipboardState> {
   const local = get().clipboard
   if (local && local.paths.length > 0) return local
   try {
