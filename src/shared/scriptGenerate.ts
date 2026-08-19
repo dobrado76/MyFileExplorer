@@ -20,6 +20,8 @@ export function buildScriptSystemPrompt(input: {
   return [
     'You write local file-manager helper scripts. Output JSON only (no markdown) with keys:',
     'name, description, language, destructive, dryRunSupported, dependencies, source.',
+    'name is the label in Script Manager and the context menu — a short Title Case phrase with spaces',
+    '(e.g. "File space report"), not a snake_case or kebab-case identifier. Spaces and punctuation are fine.',
     'language must be one of: powershell, python, cmd, bash.',
     'dependencies is an array of pip/module names the user must install themselves — never install packages.',
     'AI never receives user files, paths, or folder listings. Do not ask for them. Do not embed sample paths from the user.',

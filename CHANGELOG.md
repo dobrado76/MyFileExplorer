@@ -12,12 +12,16 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Changed
 
 - **Mix folders and files in media libraries** is **off** on a first install. When on, it applies only in icon/thumbnail views — List and Details still follow Settings → Behavior → Folders first.
+- **AI script names** — generate/modify ask for a Title Case display label (spaces OK). The on-disk file remains `managed/<id>.<ext>`.
+- **External file** — ticking it hides the Script Manager editor (path + Browse only). Save records the path and no longer writes over the file.
 
 ### Fixed
 
 - **Ask AI to fix** — decode the returned JSON (`source`, `language: "Python"`, …) into the script editor instead of pasting the metadata envelope into the code block.
 - **Copy folder into another drive** — the dest folder appears in the tree as soon as it exists (same as the file list), not only when the copy finishes.
 - **Import script** — Script Manager Import accepts `.ps1` / `.py` / `.cmd` / `.sh` as well as `.mfescript`.
+- **Script Manager list** — the open script is highlighted (the old `--hover` token was undefined, so the selected row looked the same as the others).
+- **Script Manager Revert** — grayed out until an AI modify leaves a previous version (the button was already disabled; `.btn` had no disabled style).
 
 ## [0.9.0] - 2026-08-19
 

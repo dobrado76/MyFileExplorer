@@ -170,7 +170,7 @@ Toolbar **Scripts** or context **Scripts → Manage Scripts…** (only after scr
 - **Generate with AI…** — optional; task text only.
 - **Import** / **Export** — Import a `.ps1` / `.py` / `.cmd` / `.sh` (copied into the library) or a `.mfescript` JSON export. Export writes `.mfescript`.
 - Write or paste source. Set language, folder vs selection, recursive default, filters, parameters, dependencies.
-- **External file** — run a `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` on disk instead of copying source into app data.
+- **External file** — run a `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` on disk. Hides the in-app editor (one or the other). The file is not copied into app data.
 - **Save** writes `%APPDATA%\MyFileExplorer\scripts\library.json` plus `managed/<id>.<ext>`. Later runs are local.
 
 ### Run window
@@ -716,7 +716,7 @@ Settings → **Scripting and AI** (after scripting is on):
 **Generate script with AI…** (Script Manager or context menu):
 
 1. Describe the task in plain language (“CSV of extension counts under the current folder, honor --recursive and --dry-run”).
-2. Review/edit source in the highlighted editor (PowerShell, Python, cmd, bash).
+2. Review/edit source in the highlighted editor (PowerShell, Python, cmd, bash). The **Name** field is a display label (Title Case with spaces); the file on disk is `managed/<id>.<ext>`, not the name.
 3. Save. Later runs are **local** — generating again is optional.
 
 Also:
@@ -742,7 +742,7 @@ No provider → **Open AI Settings**, not a hard error on the runner. Hand-writt
 
 - Import a raw `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` (copied into the managed library) or a `.mfescript` JSON (`format: myfileexplorer-script`). Import warns that the file is **untrusted** — read the source.
 - Settings export includes the script library (source yes) and AI provider metadata (keys no). Dialog geometry is stripped.
-- External file references: tick **External file** and browse to a `.ps1` / `.py` / `.cmd` / `.sh`.
+- External file references: tick **External file** and browse to a `.ps1` / `.py` / `.cmd` / `.sh`. The in-app editor hides; Save stores the path only and does not overwrite the file.
 - **Revert** restores the previous **managed** source after an AI modify (not after a normal Save, and not for external files).
 
 Library on disk:

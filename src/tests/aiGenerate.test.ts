@@ -76,5 +76,6 @@ describe('system prompt privacy', () => {
     expect(prompt).not.toMatch(/\\\\/)
     expect(prompt).toMatch(/--input-list/)
     expect(prompt).toMatch(/--root/)
+    expect(prompt).toMatch(/Title Case/)
   })
 })

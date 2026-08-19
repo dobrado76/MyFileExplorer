@@ -5634,15 +5634,19 @@ html.idle-cursor-hidden * {
   justify-content: center;
   box-sizing: border-box;
 }
-.btn:hover {
+.btn:hover:not(:disabled) {
   border-color: var(--text-dim);
+}
+.btn:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-.btn.primary:hover {
+.btn.primary:hover:not(:disabled) {
   filter: brightness(1.1);
 }
 .btn.danger {
@@ -6754,9 +6758,13 @@ html.idle-cursor-hidden * {
   padding: 6px 8px;
   cursor: pointer;
 }
-.script-manager-list li button.active,
 .script-manager-list li button:hover {
-  background: var(--hover);
+  background: var(--bg-elevated);
+}
+.script-manager-list li button.active {
+  background: var(--accent-dim);
+  color: var(--text);
+  font-weight: 600;
 }
 .script-manager-list-actions {
   display: flex;
@@ -6771,6 +6779,13 @@ html.idle-cursor-hidden * {
   text-decoration: underline dotted;
   text-underline-offset: 3px;
   text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.script-external-hint {
+  margin: 0;
+  padding: 12px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  line-height: 1.45;
 }
 .script-manager-editor {
   display: flex;

@@ -158,7 +158,7 @@ export async function upsertScript(input: {
     if (!next.externalPath) throw new AppError('validation', 'External script path is required')
     const abs = requireAbsolute(next.externalPath)
     next.externalPath = abs
-    await fsp.writeFile(abs, input.source, 'utf8')
+    // Path only — do not overwrite the file from the (hidden) in-app editor.
   } else {
     if (existing && existing.language !== next.language) {
       try {

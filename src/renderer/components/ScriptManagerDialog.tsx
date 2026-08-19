@@ -53,15 +53,15 @@ const T = {
   dryRun:
     'Script understands --dry-run (preview only, no writes). Enables the Dry run button so you can test safely.',
   external:
-    'Run a .ps1 / .py / .cmd / .sh on disk instead of the editor source. The file is not copied into app data.',
-  externalPath: 'Absolute path to the script file to execute.',
+    'Run a .ps1 / .py / .cmd / .sh on disk instead of in-app source. Hides the editor. The file is not copied into app data.',
+  externalPath: 'Absolute path to the script file to execute. Edit that file in your own editor.',
   browse: 'Pick an existing .ps1, .py, .cmd, .bat, or .sh on disk.',
   duplicate: 'Save a copy of this script in the library and open the copy.',
   revert:
     'Restore the previous editor source (after an AI modify). Does not undo Save. Disabled if there is no previous version.',
   delete: 'Remove this script from the library. Does not delete an External file on disk.',
   modifyAi:
-    'Send the current source plus your instruction to AI. Files and paths are never sent. Review the result before Save.',
+    'Send the current source plus your instruction to AI. Files and paths are never sent. Review the result before Save. Not available for External file scripts.',
   openAi:
     'Turn on AI in Settings to generate or modify scripts. Hand-written scripts still run without AI.',
   save: 'Write this script to the library under app data. Later runs are local — no AI.',
@@ -325,6 +325,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                 type="button"
                 className="btn"
                 title={T.modifyAi}
+                disabled={sourceKind === 'external'}
                 onClick={() => {
                   closeDialog()
                   openDialog({
@@ -424,6 +425,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                 <button
                   type="button"
                   className={s.id === currentId ? 'active' : ''}
+                  aria-current={s.id === currentId ? 'true' : undefined}
                   title={s.description.trim() ? `${s.description}\n\n${T.listItem}` : T.listItem}
                   onClick={() => void load(s.id).catch((e) => setError(formatError(e)))}
                 >
@@ -698,7 +700,10 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               </button>
             </div>
           )}
-          <DestructiveBanner source={source} flagged={destructive} />
+          <DestructiveBanner
+            source={sourceKind === 'external' ? '' : source}
+            flagged={destructive}
+          />
           <CopyInstall
             language={language}
             deps={dependencies
@@ -706,14 +711,21 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               .map((x) => x.trim())
               .filter(Boolean)}
           />
-          <SourceEditor
-            language={language}
-            value={source}
-            onChange={(v) => {
-              setSource(v)
-              setDirty(true)
-            }}
-          />
+          {sourceKind === 'external' ? (
+            <p className="dim script-external-hint">
+              This script runs the file on disk. Edit it in your own editor. Untick External file
+              to write managed source in the app instead.
+            </p>
+          ) : (
+            <SourceEditor
+              language={language}
+              value={source}
+              onChange={(v) => {
+                setSource(v)
+                setDirty(true)
+              }}
+            />
+          )}
         </div>
       </div>
     </ScriptModal>
