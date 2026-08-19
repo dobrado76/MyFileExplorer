@@ -46,6 +46,7 @@
     "src/renderer/lib/model3dUrl.ts",
     "src/renderer/lib/tabRootDelete.ts",
     "src/renderer/lib/renameListing.ts",
+    "src/renderer/lib/treeFromListing.ts",
     "src/renderer/lib/thumbMemory.ts"
   ]
 }

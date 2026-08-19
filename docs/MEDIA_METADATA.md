@@ -34,7 +34,7 @@ Episode **files** keep `!VIDTHUMB_CACHE` strip thumbs — never the show poster.
 | ------- | ------- |
 | **Cover art size** | Preview poster height, 56–240 px (default **120**). Width follows 2:3. |
 | **Show season/episode and title on icon tiles** | On (default): icon views show `S02E01` and the episode title. Off: the filename. Details / List always use the filename. |
-| **Mix folders and files in media libraries** | On (default): in a `media_metadata_container` folder, one A–Z tile list (covers on folders sit next to movie files). Off: keep Settings → Behavior → Folders first. |
+| **Mix folders and files in media libraries** | Off by default. On: in **icon/thumbnail** views only, a `media_metadata_container` folder is one A–Z tile list (covers sit next to movie files). List and Details follow Settings → Behavior → Folders first. |
 | **Plex URL** | Local server, default `http://127.0.0.1:32400`. `localhost` is mapped to `127.0.0.1`. |
 | **Plex token** | Optional override. If empty, the app reads it from Plex `Preferences.xml`. |
 | **Plex data folder** | Optional override of the on-disk library (`Metadata` bundles + SQLite). Leave empty to auto-detect. |

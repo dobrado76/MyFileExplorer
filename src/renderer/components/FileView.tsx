@@ -616,10 +616,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           : listingFoldersFirst({
               foldersFirst: settings.foldersFirst,
               mediaEnabled: settings.mediaMetadata.enabled,
-              mixFilesAndFolders: settings.mediaMetadata.mixFilesAndFolders !== false,
+              mixFilesAndFolders: settings.mediaMetadata.mixFilesAndFolders === true,
               isContainer: mediaLibrary.isContainer,
               listingPath: folderPath,
-              containerPath: mediaLibrary.folderPath
+              containerPath: mediaLibrary.folderPath,
+              viewMode
             })
     if (recycleMode) {
       const dirMul = recycleSort.dir === 'asc' ? 1 : -1
@@ -681,6 +682,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     settings.foldersFirst,
     settings.mediaMetadata.enabled,
     settings.mediaMetadata.mixFilesAndFolders,
+    viewMode,
     isExcluded,
     viewFilterOn,
     viewPatterns.length,

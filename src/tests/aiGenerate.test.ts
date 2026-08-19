@@ -24,6 +24,42 @@ describe('AI script extract', () => {
     expect(g.source).toContain('print(1)')
     expect(g.language).toBe('python')
   })
+
+  it('accepts capitalized language and unwraps the source field', () => {
+    const g = extractGeneratedScript(
+      JSON.stringify({
+        name: 'file_space_report',
+        description: 'Scans files from a folder or UTF-8 absolute-path manifest.',
+        language: 'Python',
+        destructive: false,
+        dryRunSupported: true,
+        dependencies: [],
+        source: 'import os\nprint("Largest file: %s" % human(0))\n'
+      })
+    )
+    expect(g.language).toBe('python')
+    expect(g.name).toBe('file_space_report')
+    expect(g.source).toMatch(/^import os/)
+    expect(g.source).not.toMatch(/^\s*\{/)
+    expect(g.source).toContain('Largest file')
+  })
+
+  it('unwraps the exact Ask-AI-to-fix envelope the model returned', () => {
+    const raw = [
+      '{"name":"file_space_report","description":"Scans files from a folder or UTF-8 absolute-path manifest and prints a space-usage report.","language":"Python","destructive":false,"dryRunSupported":true,"dependencies":[],"source":"import os\\nprint(\\"Largest file: %s\\" % human(max((x[\\"size\\"] for x in records), default=0)))\\n"}'
+    ].join('')
+    const g = extractGeneratedScript(raw)
+    expect(g.language).toBe('python')
+    expect(g.source.startsWith('import os')).toBe(true)
+    expect(g.source).toContain('Largest file')
+    expect(g.source).not.toContain('"language"')
+  })
+
+  it('does not treat the metadata envelope as script source', () => {
+    expect(() =>
+      extractGeneratedScript('{"name":"file_space_report","description":"Scans","language":"Python"}')
+    ).toThrow(/could not be decoded/i)
+  })
 })
 
 describe('system prompt privacy', () => {

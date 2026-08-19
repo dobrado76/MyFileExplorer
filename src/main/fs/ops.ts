@@ -30,7 +30,13 @@ import { isVolumeRootPath } from '@shared/paths'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { recyclePathWin32Robust } from './trashWin32'
-import { muteWatchers, releaseWatchersAffecting, suspendWatching, resumeWatching } from './watch'
+import {
+  emitFsChanged,
+  muteWatchers,
+  releaseWatchersAffecting,
+  suspendWatching,
+  resumeWatching
+} from './watch'
 import { appErrorFromFsFailure } from './fsErrors'
 import { beginOp, type OpReporter } from './opProgress'
 
@@ -580,7 +586,8 @@ async function copyFileWithProgress(
 async function copyTree(
   source: string,
   target: string,
-  progress: OpReporter | null
+  progress: OpReporter | null,
+  opts?: { notifyParentOnCreate?: boolean }
 ): Promise<void> {
   progress?.throwIfCancelled()
   let st: fs.Stats
@@ -592,6 +599,9 @@ async function copyTree(
 
   if (st.isDirectory()) {
     await fsp.mkdir(target, { recursive: true })
+    if (opts?.notifyParentOnCreate) {
+      emitFsChanged(path.dirname(target), { bypassMute: true })
+    }
     let ents: string[]
     try {
       ents = await fsp.readdir(source)
@@ -867,7 +877,7 @@ export async function copyEntries(
         if (policy === 'replace' && (await pathExists(item.target))) {
           await fsp.rm(item.target, { recursive: true, force: true })
         }
-        await copyTree(item.source, item.target, progress)
+        await copyTree(item.source, item.target, progress, { notifyParentOnCreate: true })
         copied.push(item.target)
       } catch (e) {
         if (isCancelled(e)) throw e
@@ -930,7 +940,7 @@ async function relocateOne(
     } catch (e) {
       const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
       if (code === 'EXDEV') {
-        await copyTree(source, target, progress)
+        await copyTree(source, target, progress, { notifyParentOnCreate: true })
         await deleteTree(source, null)
       } else {
         throw await appErrorFromFsFailure(e, { action: 'move', path: source, isDir })

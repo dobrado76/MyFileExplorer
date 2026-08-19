@@ -30,6 +30,7 @@ import {
   handleLabelClickForRename
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
+import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { ShellIcon } from './ShellIcon'
@@ -131,6 +132,11 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const setDragPaths = useAppStore((s) => s.setDragPaths)
   const openContextMenu = useAppStore((s) => s.openContextMenu)
   const treeMutation = useAppStore((s) => s.treeMutation)
+  const listingForTab = useAppStore((s) => {
+    const L = s.listingsByTabId[tabId]
+    if (L) return L
+    return s.activeTabId === tabId ? s.listing : null
+  })
   const treeRefreshRev = useAppStore((s) => s.treeRefreshRev)
   const treeCollapseRequest = useAppStore((s) => s.treeCollapseRequest)
   const pinQuickAccess = useAppStore((s) => s.pinQuickAccess)
@@ -238,16 +244,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       }, tabId)
       try {
         const res = await call(api.fs.list({ path, includeHidden: true }))
-        const dirEntries = res.entries
-          .filter((e) => e.kind === 'dir')
-          .sort((a, b) =>
-            a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-          )
-        const dirs = dirEntries.map((e) => e.path)
-        const childHidden: Record<string, boolean> = {}
-        for (const e of dirEntries) {
-          if (e.isHidden) childHidden[e.path.toLowerCase()] = true
-        }
+        const { dirs, childHidden } = dirChildrenFromListing(res.entries)
         setNodes(
           (n) => {
             const prev = n[path]
@@ -541,6 +538,28 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       void loadChildren(parent, tabId, { preserveExpanded: true })
     }
   }, [treeMutation.rev, treeMutation.removed, treeMutation.reloadParents, treeMutation.renamed, loadChildren])
+
+  // File list already re-listed this folder (e.g. dest mkdir mid-copy). Keep the
+  // expanded tree row in lockstep so a new folder is not delayed until copy ends.
+  useEffect(() => {
+    const listed = listingForTab?.path
+    if (!listed || listingForTab.loading) return
+    const map = nodesRef.current
+    const key = Object.keys(map).find((k) => samePath(k, listed)) ?? listed
+    const prev = map[key]
+    if (!prev || (prev.children === null && !prev.expanded)) return
+    const { dirs, childHidden } = dirChildrenFromListing(listingForTab.entries)
+    if (sameDirChildList(prev.children, dirs)) return
+    setNodes((n) => {
+      const cur = n[key]
+      if (!cur || (cur.children === null && !cur.expanded)) return n
+      if (sameDirChildList(cur.children, dirs)) return n
+      return {
+        ...n,
+        [key]: { ...cur, children: dirs, loading: false, childHidden }
+      }
+    })
+  }, [listingForTab?.path, listingForTab?.entries, listingForTab?.loading, setNodes])
 
   // Refresh (F5): re-list every folder this tab has already loaded in the tree.
   useEffect(() => {

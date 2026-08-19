@@ -195,7 +195,7 @@ describe('settings export / import', () => {
     expect(parsed.settings.mediaMetadata.showEpisodeIconLabels).toBe(false)
     expect(parsed.settings.mediaMetadata.mixFilesAndFolders).toBe(false)
     expect(defaultSettings.mediaMetadata.showEpisodeIconLabels).toBe(true)
-    expect(defaultSettings.mediaMetadata.mixFilesAndFolders).toBe(true)
+    expect(defaultSettings.mediaMetadata.mixFilesAndFolders).toBe(false)
   })
 
   it('round-trips remote connection metadata and strips hasPassword', () => {

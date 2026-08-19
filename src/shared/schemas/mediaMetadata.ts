@@ -22,10 +22,11 @@ export const mediaMetadataSettingsSchema = z.object({
    */
   showEpisodeIconLabels: z.boolean().catch(true),
   /**
-   * In a `media_metadata_container` folder, sort files and folders in one list
-   * (ignore Settings → Behavior → Folders first).
+   * In a `media_metadata_container` folder, icon/thumbnail views sort files and
+   * folders in one list (ignore Settings → Behavior → Folders first). List and
+   * Details still follow that Folders first checkbox. Off by default.
    */
-  mixFilesAndFolders: z.boolean().catch(true),
+  mixFilesAndFolders: z.boolean().catch(false),
   plexUrl: z.string().catch('http://127.0.0.1:32400'),
   plexToken: z.string().catch(''),
   plexDataDir: z.string().catch('')

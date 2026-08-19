@@ -33,34 +33,85 @@ export function buildScriptSystemPrompt(input: {
   ].join('\n')
 }
 
+export function coerceScriptLanguage(raw: unknown): ScriptLanguage | undefined {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+  if (s === 'python' || s === 'py') return 'python'
+  if (s === 'powershell' || s === 'pwsh' || s === 'ps1') return 'powershell'
+  if (s === 'cmd' || s === 'bat' || s === 'batch') return 'cmd'
+  if (s === 'bash' || s === 'sh' || s === 'zsh') return 'bash'
+  return undefined
+}
+
+function sourceFromUnknown(raw: unknown): string | undefined {
+  if (typeof raw === 'string' && raw.trim()) return raw
+  if (Array.isArray(raw) && raw.every((line) => typeof line === 'string')) {
+    const joined = raw.join('\n').trim()
+    return joined || undefined
+  }
+  return undefined
+}
+
+function fromEnvelope(obj: Record<string, unknown>): GeneratedScript | null {
+  const source = sourceFromUnknown(obj.source)
+  if (!source) return null
+  const language = coerceScriptLanguage(obj.language) ?? guessLanguage(source)
+  const name =
+    typeof obj.name === 'string' && obj.name.trim()
+      ? obj.name.trim().slice(0, 120)
+      : 'Generated script'
+  const description = typeof obj.description === 'string' ? obj.description.slice(0, 2000) : ''
+  const dependencies = Array.isArray(obj.dependencies)
+    ? obj.dependencies.filter((d): d is string => typeof d === 'string').slice(0, 40)
+    : []
+  return generatedScriptSchema.parse({
+    name,
+    description,
+    language,
+    destructive: Boolean(obj.destructive),
+    dryRunSupported: Boolean(obj.dryRunSupported),
+    dependencies,
+    source
+  })
+}
+
+function isScriptEnvelope(obj: Record<string, unknown>): boolean {
+  return 'name' in obj || 'language' in obj || 'source' in obj || 'dryRunSupported' in obj
+}
+
 export function extractGeneratedScript(raw: string): GeneratedScript {
   const trimmed = raw.trim()
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)
   const candidate = fenced?.[1]?.trim() ?? trimmed
   const start = candidate.indexOf('{')
   const end = candidate.lastIndexOf('}')
+  let envelopeWithoutSource = false
   if (start >= 0 && end > start) {
     try {
-      return generatedScriptSchema.parse(JSON.parse(candidate.slice(start, end + 1)))
+      const parsed: unknown = JSON.parse(candidate.slice(start, end + 1))
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const obj = parsed as Record<string, unknown>
+        const fromJson = fromEnvelope(obj)
+        if (fromJson) return fromJson
+        if (isScriptEnvelope(obj)) envelopeWithoutSource = true
+      }
     } catch {
       /* fall through to source-only */
     }
   }
+  const looksLikeEnvelope = /"source"\s*:/.test(candidate) && candidate.trimStart().startsWith('{')
   const codeFence = trimmed.match(
     /```(powershell|python|py|pwsh|bash|cmd|bat|json)?\s*([\s\S]*?)```/i
   )
-  const source = (codeFence?.[2] ?? trimmed).trim()
   const fenceLang = (codeFence?.[1] ?? '').toLowerCase()
-  const language =
-    fenceLang === 'python' || fenceLang === 'py'
-      ? 'python'
-      : fenceLang === 'bash'
-        ? 'bash'
-        : fenceLang === 'cmd' || fenceLang === 'bat'
-          ? 'cmd'
-          : fenceLang === 'powershell' || fenceLang === 'pwsh'
-            ? 'powershell'
-            : guessLanguage(source)
+  if (fenceLang === 'json' || envelopeWithoutSource || (looksLikeEnvelope && !codeFence)) {
+    throw new Error(
+      'AI returned script metadata JSON that could not be decoded. Try Ask AI to fix again.'
+    )
+  }
+  const source = (codeFence?.[2] ?? trimmed).trim()
+  const language = coerceScriptLanguage(fenceLang) ?? guessLanguage(source)
   return generatedScriptSchema.parse({
     name: 'Generated script',
     description: '',

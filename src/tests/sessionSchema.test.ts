@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sessionSchema, defaultSession } from '../shared/schemas/session'
+import { sessionSchema, defaultSession, isThumbnailViewMode } from '../shared/schemas/session'
 import { settingsSchema, defaultSettings } from '../shared/schemas/settings'
 
 describe('session schema migration', () => {
@@ -214,6 +214,18 @@ describe('session schema migration', () => {
     expect(parsed.paneTabIds).toEqual(['tab_a', 'tab_b'])
     expect(parsed.focusedPaneIndex).toBe(1)
     expect(parsed.paneSplitCols).toBe(0.4)
+  })
+})
+
+describe('isThumbnailViewMode', () => {
+  it('is true for icon grids and false for list/details', () => {
+    expect(isThumbnailViewMode('extraLargeIconsNoName')).toBe(true)
+    expect(isThumbnailViewMode('extraLargeIcons')).toBe(true)
+    expect(isThumbnailViewMode('largeIcons')).toBe(true)
+    expect(isThumbnailViewMode('mediumIcons')).toBe(true)
+    expect(isThumbnailViewMode('smallIcons')).toBe(true)
+    expect(isThumbnailViewMode('list')).toBe(false)
+    expect(isThumbnailViewMode('details')).toBe(false)
   })
 })
 

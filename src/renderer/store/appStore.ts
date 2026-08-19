@@ -279,6 +279,9 @@ export type DialogState =
       scriptId?: string
       source?: string
       language?: import('@shared/schemas/scripts').ScriptLanguage
+      name?: string
+      description?: string
+      reviewFix?: boolean
     }
   | null
 
@@ -1692,13 +1695,16 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   function currentListingFoldersFirst(listingPath?: string): boolean {
     const s = get()
+    const tab = s.activeTab()
+    const owning = resolveFolderView(tab.path, s.settings.folderViews)
     return listingFoldersFirst({
       foldersFirst: s.settings.foldersFirst,
       mediaEnabled: s.settings.mediaMetadata.enabled,
-      mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+      mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders === true,
       isContainer: s.mediaLibrary.isContainer,
       listingPath: listingPath ?? s.listing.path,
-      containerPath: s.mediaLibrary.folderPath
+      containerPath: s.mediaLibrary.folderPath,
+      viewMode: owning?.viewMode ?? tab.viewMode
     })
   }
 
@@ -2221,10 +2227,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         listingFoldersFirst({
           foldersFirst: s.settings.foldersFirst,
           mediaEnabled: s.settings.mediaMetadata.enabled,
-          mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+          mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders === true,
           isContainer: s.mediaLibrary.isContainer,
           listingPath: s.listing.path,
-          containerPath: s.mediaLibrary.folderPath
+          containerPath: s.mediaLibrary.folderPath,
+          viewMode: owning?.viewMode ?? tab.viewMode
         }) &&
       viewOrderCache.filterKey === filterKey
     ) {
@@ -2240,10 +2247,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         : listingFoldersFirst({
             foldersFirst: s.settings.foldersFirst,
             mediaEnabled: s.settings.mediaMetadata.enabled,
-            mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders !== false,
+            mixFilesAndFolders: s.settings.mediaMetadata.mixFilesAndFolders === true,
             isContainer: s.mediaLibrary.isContainer,
             listingPath: s.listing.path,
-            containerPath: s.mediaLibrary.folderPath
+            containerPath: s.mediaLibrary.folderPath,
+            viewMode: owning?.viewMode ?? tab.viewMode
           })
     const before = sortEntries(
       sourceEntries.filter((e) => {
@@ -3820,6 +3828,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       updateTab(id, { viewMode: mode })
+      viewOrderCache = null
+      if (id === get().activeTabId) resortCurrentListing()
     },
 
     setSort(sort, tabId) {
@@ -5637,6 +5647,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         } else if (
           patch.foldersFirst !== undefined ||
+          patch.folderViews !== undefined ||
           (patch.mediaMetadata && typeof patch.mediaMetadata.mixFilesAndFolders === 'boolean')
         ) {
           resortCurrentListing()

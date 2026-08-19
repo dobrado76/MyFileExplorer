@@ -1,3 +1,5 @@
+import { isThumbnailViewMode, type ViewMode } from './schemas/session'
+
 /** NTFS ADS names for experimental media metadata (DEV-gated). */
 export const MEDIA_METADATA_ADS = 'media_metadata'
 export const MEDIA_METADATA_THUMB_ADS = 'media_metadata_thumbnail'
@@ -55,9 +57,15 @@ export type MediaLibraryItemFlags = {
 export function mediaContainerIgnoresFoldersFirst(
   mediaEnabled: boolean,
   mixFilesAndFolders: boolean,
-  isContainer: boolean
+  isContainer: boolean,
+  viewMode: ViewMode
 ): boolean {
-  return mediaEnabled && mixFilesAndFolders && isContainer
+  return (
+    mediaEnabled &&
+    mixFilesAndFolders &&
+    isContainer &&
+    isThumbnailViewMode(viewMode)
+  )
 }
 
 export function matchesMediaLibraryFilter(

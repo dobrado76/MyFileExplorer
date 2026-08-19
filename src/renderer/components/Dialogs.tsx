@@ -282,6 +282,9 @@ export function Dialogs(): JSX.Element | null {
           scriptId={dialog.scriptId}
           source={dialog.source}
           language={dialog.language}
+          name={dialog.name}
+          description={dialog.description}
+          reviewFix={dialog.reviewFix}
         />
       )
   }
@@ -1816,8 +1819,8 @@ function MediaMetadataSettingsPanel(): JSX.Element {
       <SettingsToggle
         id="set-mm-mix-tiles"
         label="Mix folders and files in media libraries"
-        hint="On (default): in a folder tagged as a media container, sort tiles in one A–Z list so cover folders sit next to movie files. Off: keep Settings → Behavior → Folders first."
-        checked={mm.mixFilesAndFolders !== false}
+        hint="Off by default. On: in icon/thumbnail views only, a media-container folder sorts tiles in one A–Z list so cover folders sit next to movie files. List and Details still follow Settings → Behavior → Folders first."
+        checked={mm.mixFilesAndFolders}
         onChange={(v) => void applySettingsPatch({ mediaMetadata: { mixFilesAndFolders: v } })}
       />
       <p className="settings-help">

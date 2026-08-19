@@ -21,6 +21,9 @@ export function ScriptGenerateDialog(props: {
   scriptId?: string
   source?: string
   language?: ScriptLanguage
+  name?: string
+  description?: string
+  reviewFix?: boolean
 }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
   const openDialog = useAppStore((s) => s.openDialog)
@@ -41,11 +44,11 @@ export function ScriptGenerateDialog(props: {
     props.mode ?? (selected.length > 0 ? 'selection' : 'folder')
   )
   const [recursive, setRecursive] = useState(false)
-  const [name, setName] = useState('Generated script')
-  const [description, setDescription] = useState('')
+  const [name, setName] = useState(props.name?.trim() || 'Generated script')
+  const [description, setDescription] = useState(props.description ?? '')
   const [source, setSource] = useState(props.source ?? '')
-  const [destructive, setDestructive] = useState(false)
-  const [dryRunSupported, setDryRunSupported] = useState(false)
+  const [destructive, setDestructive] = useState(() => looksDestructive(props.source ?? ''))
+  const [dryRunSupported, setDryRunSupported] = useState(() => /--dry-run/.test(props.source ?? ''))
   const [dependencies, setDependencies] = useState<string[]>([])
   const [busy, setBusy] = useState<null | 'generate' | 'modify'>(null)
   const [error, setError] = useState<string | null>(null)
@@ -227,7 +230,7 @@ export function ScriptGenerateDialog(props: {
   return (
     <ScriptModal
       className="modal-script-generate"
-      title="Generate script with AI"
+      title={props.reviewFix ? 'Review AI fix' : 'Generate script with AI'}
       onClose={closeDialog}
       busy={!!busy}
       busyTitle={busy === 'modify' ? 'Modifying…' : 'Generating…'}
@@ -324,6 +327,12 @@ export function ScriptGenerateDialog(props: {
       }
     >
       <RiskBanner />
+      {props.reviewFix ? (
+        <div className="script-banner">
+          AI returned a revised script. Review the source below, then Save to replace the library
+          copy.
+        </div>
+      ) : null}
       <div className={`script-banner ${isLocal ? '' : 'script-banner-warn'}`}>
         {isLocal
           ? 'Local provider — requests stay on this machine.'

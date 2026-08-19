@@ -3,6 +3,7 @@ import type { WebContents } from 'electron'
 import { EVENT_CHANNEL } from '@shared/ipc/contract'
 import { isNetworkHostUnc } from '@shared/networkPaths'
 import { isSameOrUnder, pathKey } from '../security/paths'
+import { broadcast } from '../ipc/events'
 import { requireAbsolute } from './list'
 
 type WatcherEntry = { watcher: fs.FSWatcher; timer: NodeJS.Timeout | null; path: string }
@@ -14,6 +15,17 @@ const watchers = new Map<number, Map<string, WatcherEntry>>()
 let mutedUntil = 0
 export function muteWatchers(ms = 400): void {
   mutedUntil = Date.now() + ms
+}
+
+/** Tell renderers a directory changed. Copy mkdir uses bypass so the tree/list update while muted. */
+export function emitFsChanged(dirPath: string, opts?: { bypassMute?: boolean }): void {
+  if (!opts?.bypassMute && Date.now() < mutedUntil) return
+  try {
+    const dir = requireAbsolute(dirPath)
+    broadcast({ type: 'fs-changed', payload: { path: dir, reason: 'change' } })
+  } catch {
+    /* ignore */
+  }
 }
 
 /**

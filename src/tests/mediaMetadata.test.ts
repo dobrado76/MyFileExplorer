@@ -33,6 +33,7 @@ import {
   formatMediaRatingCopyLine,
   formatMediaRatingScore
 } from '../shared/mediaRatings'
+import { defaultMediaMetadataSettings } from '../shared/schemas/mediaMetadata'
 import { isMediaApiLimitPayload, mediaApiLimitMessage } from '../shared/mediaApiLimit'
 import {
   appendPlexToken,
@@ -497,11 +498,19 @@ describe('matchesMediaLibraryFilter', () => {
 })
 
 describe('mediaContainerIgnoresFoldersFirst', () => {
-  it('mixes tiles only in an enabled media container', () => {
-    expect(mediaContainerIgnoresFoldersFirst(true, true, true)).toBe(true)
-    expect(mediaContainerIgnoresFoldersFirst(true, true, false)).toBe(false)
-    expect(mediaContainerIgnoresFoldersFirst(true, false, true)).toBe(false)
-    expect(mediaContainerIgnoresFoldersFirst(false, true, true)).toBe(false)
+  it('mixes tiles only in an enabled media container thumbnail view', () => {
+    expect(mediaContainerIgnoresFoldersFirst(true, true, true, 'largeIcons')).toBe(true)
+    expect(mediaContainerIgnoresFoldersFirst(true, true, true, 'extraLargeIcons')).toBe(true)
+    expect(mediaContainerIgnoresFoldersFirst(true, true, true, 'smallIcons')).toBe(true)
+    expect(mediaContainerIgnoresFoldersFirst(true, true, false, 'largeIcons')).toBe(false)
+    expect(mediaContainerIgnoresFoldersFirst(true, false, true, 'largeIcons')).toBe(false)
+    expect(mediaContainerIgnoresFoldersFirst(false, true, true, 'largeIcons')).toBe(false)
+    expect(mediaContainerIgnoresFoldersFirst(true, true, true, 'list')).toBe(false)
+    expect(mediaContainerIgnoresFoldersFirst(true, true, true, 'details')).toBe(false)
+  })
+
+  it('defaults off so Folders first stays in force', () => {
+    expect(defaultMediaMetadataSettings.mixFilesAndFolders).toBe(false)
   })
 })
 

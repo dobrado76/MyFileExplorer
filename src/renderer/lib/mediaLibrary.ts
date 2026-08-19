@@ -5,6 +5,7 @@ import {
   type MediaWatchedFilter
 } from '@shared/mediaMetadata'
 import { samePath } from '@shared/paths'
+import type { ViewMode } from '@shared/schemas/session'
 
 export function isExcludedByMediaLibrary(
   path: string,
@@ -28,9 +29,15 @@ export function listingFoldersFirst(opts: {
   isContainer: boolean
   listingPath: string
   containerPath: string
+  viewMode: ViewMode
 }): boolean {
   if (
-    mediaContainerIgnoresFoldersFirst(opts.mediaEnabled, opts.mixFilesAndFolders, opts.isContainer) &&
+    mediaContainerIgnoresFoldersFirst(
+      opts.mediaEnabled,
+      opts.mixFilesAndFolders,
+      opts.isContainer,
+      opts.viewMode
+    ) &&
     opts.listingPath &&
     opts.containerPath &&
     samePath(opts.listingPath, opts.containerPath)

@@ -311,8 +311,11 @@ export function ScriptRunnerDialog(props: {
                         scriptId: props.scriptId,
                         source: res.script.source,
                         language: res.script.language,
+                        name: res.script.name,
+                        description: res.script.description,
                         mode: props.mode,
-                        folderPath: props.root
+                        folderPath: props.root,
+                        reviewFix: true
                       })
                     })
                     .catch((e) => notify(formatError(e), true))

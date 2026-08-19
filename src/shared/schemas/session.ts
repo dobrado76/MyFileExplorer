@@ -13,6 +13,11 @@ export const viewModeSchema = z.enum([
 ])
 export type ViewMode = z.infer<typeof viewModeSchema>
 
+/** Icon/thumbnail grids. List and Details follow Behavior → Folders first. */
+export function isThumbnailViewMode(mode: ViewMode): boolean {
+  return mode !== 'list' && mode !== 'details'
+}
+
 export const sortKeySchema = z.enum(['name', ...DETAILS_COLUMN_IDS])
 export type SortKey = z.infer<typeof sortKeySchema>
 

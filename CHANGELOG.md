@@ -9,6 +9,15 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Changed
+
+- **Mix folders and files in media libraries** is **off** on a first install. When on, it applies only in icon/thumbnail views — List and Details still follow Settings → Behavior → Folders first.
+
+### Fixed
+
+- **Ask AI to fix** — decode the returned JSON (`source`, `language: "Python"`, …) into the script editor instead of pasting the metadata envelope into the code block.
+- **Copy folder into another drive** — the dest folder appears in the tree as soon as it exists (same as the file list), not only when the copy finishes.
+
 ## [0.9.0] - 2026-08-19
 
 Ninth product release: **D51 local scripts** (opt-in) turn the file manager into a universal runner (PowerShell / Python / cmd / bash) with optional AI that never sees your files, plus **D50 media metadata** and a large polish pass. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
@@ -53,7 +62,7 @@ Ninth product release: **D51 local scripts** (opt-in) turn the file manager into
 - **Back scroll** — Back / Forward restore the file-list scroll position for that folder (it used to jump to the top).
 - **Rename flash** — Enter keeps the new name on the tile immediately. The old name only comes back if the rename fails (network re-list no longer paints the previous name first).
 - **`.rmvb` / `.rm` video** — treated as video for Media Metadata, search `video:`, icon strips, and strip-only preview (same as AVI — Chromium cannot play RealVideo).
-- **Media library sort** — Settings → Media Metadata → **Mix folders and files in media libraries** (on by default). In a folder tagged `media_metadata_container`, tiles sort in one A–Z list so cover folders sit next to movie files (overrides Folders first).
+- **Media library sort** — Settings → Media Metadata → **Mix folders and files in media libraries** (off by default). When on, icon/thumbnail views of a `media_metadata_container` folder sort tiles in one A–Z list (List and Details follow Behavior → Folders first).
 - **Plex covers on extract** — Extract copies the same local Plex posters Change cover lists (largest portrait). A movie in a mixed folder is no longer treated as an episode (that skipped the poster). Extract / Download run again when the title is stored but the cover is missing.
 - **CD-split movies** — a folder whose videos are `[Part 1]` / `[Part 2]` (or `CD1` / `Disc 1`) is the movie. Metadata and the cover go on the folder, not each part. TV shows are unchanged.
 - **Media name parsing** — rip tags and the release group after the last hyphen (`Dexter.S02E01.BDRip.x265-ION265`) are no longer treated as part of the show title (TMDB was searching “Dexter -ION265”). Hyphenated titles like `Spider-Man` are unchanged.
