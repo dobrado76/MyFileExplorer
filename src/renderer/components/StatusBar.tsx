@@ -149,9 +149,8 @@ export function StatusBar(): JSX.Element {
             type="button"
             className="status-op-cancel"
             onClick={() => {
-              void api.fs.cancelOp().then((res) => {
-                if (res.ok && res.value.cancelled) notify('Cancelling…')
-              })
+              notify('Cancelling…')
+              void api.fs.cancelOp()
             }}
           >
             Cancel

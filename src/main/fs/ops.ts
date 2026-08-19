@@ -40,6 +40,22 @@ import {
 import { appErrorFromFsFailure } from './fsErrors'
 import { beginOp, type OpReporter } from './opProgress'
 
+/** Keep listings from refreshing for the whole copy/move, not just the first 1.5s. */
+const OP_MUTE_MS = 3_600_000
+
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve))
+}
+
+async function ensureLocalDir(dir: string): Promise<void> {
+  if (dir.toLowerCase().startsWith('mfe-remote://')) return
+  await fsp.mkdir(dir, { recursive: true }).catch((e: unknown) => {
+    const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
+    if ((code === 'EPERM' || code === 'EEXIST') && fs.existsSync(dir)) return
+    throw e
+  })
+}
+
 const IMAGE_DIM_EXTS = new Set([
   'jpg',
   'jpeg',
@@ -397,6 +413,12 @@ type TransferPlanItem =
   | { skip: string }
   | { conflict: true; source: string; target: string }
 
+function plannedWork(plan: TransferPlanItem[]): Array<{ source: string; target: string }> {
+  return plan.filter(
+    (item): item is { source: string; target: string } => !('skip' in item) && !('conflict' in item)
+  )
+}
+
 function nodeErrno(e: unknown): string | null {
   if (e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string') {
     return (e as { code: string }).code
@@ -446,11 +468,15 @@ function isCancelled(e: unknown): boolean {
 async function planTransfer(
   sources: string[],
   destinationDir: string,
-  policy: ConflictPolicy
+  policy: ConflictPolicy,
+  progress?: OpReporter | null
 ): Promise<TransferPlanItem[]> {
   const dest = requireAbsolute(destinationDir)
   const items: TransferPlanItem[] = []
-  for (const raw of sources) {
+  for (let i = 0; i < sources.length; i++) {
+    progress?.throwIfCancelled()
+    if (i > 0 && i % 16 === 0) await yieldEventLoop()
+    const raw = sources[i]!
     const source = requireAbsolute(raw)
     assertTransferLegal(source, dest)
     const name = path.basename(source)
@@ -520,9 +546,8 @@ async function countWorkUnits(roots: string[], progress?: OpReporter | null): Pr
     } else {
       n++
     }
-    if (progress && n > 0 && n % 250 === 0) progress.setDone(n, p)
+    if (progress && n > 0 && n % 250 === 0) progress.pulse(p)
   }
-  progress?.setDone(n, roots[0])
   return Math.max(n, 1)
 }
 
@@ -850,20 +875,24 @@ export async function copyEntries(
     return copyWithRemotes(absSources, dest, policy)
   }
 
-  const plan = await planTransfer(sources, destinationDir, policy)
+  const progress = beginOp('copy', absSources.length, 'Copying…')
+  muteWatchers(OP_MUTE_MS)
   const copied: string[] = []
   const skipped: string[] = []
   const issues: OpIssue[] = []
-  for (const item of plan) {
-    if ('skip' in item) skipped.push(item.skip)
-  }
-
-  const progress = beginOp('copy', 0, 'Copying…')
   let fatal = false
   try {
+    const plan = await planTransfer(sources, destinationDir, policy, progress)
+    for (const item of plan) {
+      if ('skip' in item) skipped.push(item.skip)
+    }
+    progress.setTotal(plannedWork(plan).length)
+    let i = 0
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
+      if (i > 0 && i % 16 === 0) await yieldEventLoop()
+      if (!('conflict' in item)) i++
       if (fatal) {
         const src = item.source
         const dest = item.target
@@ -898,7 +927,7 @@ export async function copyEntries(
         if (policy === 'replace' && (await pathExists(item.target))) {
           await fsp.rm(item.target, { recursive: true, force: true })
         }
-        await copyTree(item.source, item.target, progress, { notifyParentOnCreate: true })
+        await copyTree(item.source, item.target, progress)
         copied.push(item.target)
       } catch (e) {
         if (isCancelled(e)) throw e
@@ -919,77 +948,67 @@ export async function copyEntries(
 async function relocateOne(
   source: string,
   target: string,
-  progress: OpReporter | null
+  progress: OpReporter | null,
+  opts?: { destReady?: boolean; watchesHeld?: boolean; totalIncludesThis?: boolean }
 ): Promise<void> {
   progress?.throwIfCancelled()
   if (source === target) {
-    progress?.addToTotal(1, source)
     progress?.tick(source)
     return
   }
   const caseOnly =
     process.platform === 'win32' && source.toLowerCase() === target.toLowerCase()
-  if (!caseOnly && (await pathExists(target))) {
+  if (!opts?.destReady && !caseOnly && (await pathExists(target))) {
     throw new AppError('conflict', `"${path.basename(target)}" already exists`)
   }
-  await fsp.mkdir(path.dirname(target), { recursive: true }).catch((e: unknown) => {
+  if (!opts?.destReady) await ensureLocalDir(path.dirname(target))
+  if (!opts?.watchesHeld) {
+    releaseWatchersAffecting([source])
+    muteWatchers(400)
+  }
+
+  try {
+    await fsp.rename(source, target)
+    progress?.tick(target)
+    return
+  } catch (e) {
     const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
-    // Drive roots (Z:\) exist but mkdir is EPERM on Windows — ignore if parent is there.
-    if ((code === 'EPERM' || code === 'EEXIST') && fs.existsSync(path.dirname(target))) return
-    throw e
-  })
+    if (code !== 'EXDEV') {
+      let isDir = false
+      try {
+        isDir = (await fsp.lstat(source)).isDirectory()
+      } catch {
+        /* ignore */
+      }
+      throw await appErrorFromFsFailure(e, { action: 'move', path: source, isDir })
+    }
+  }
+
+  // Cross-volume: copy then delete. Same-volume rename above is one syscall per item.
   let isDir = false
   try {
-    isDir = (await fsp.stat(source)).isDirectory()
+    isDir = (await fsp.lstat(source)).isDirectory()
   } catch {
     /* ignore */
   }
-  // Close watches on the item and ancestors (parent listing watch blocks rename).
-  releaseWatchersAffecting([source])
-  muteWatchers(400)
-
-  let counted = 0
   if (isDir && progress) {
-    counted = await countWorkUnits([source], progress)
-    progress.setTotal(counted, source)
-    progress.setDone(0, source)
-  }
-
-  progress?.pulse(source)
-  const heartbeat = progress
-    ? setInterval(() => progress.pulse(source), 500)
-    : null
-  try {
-    try {
-      await fsp.rename(source, target)
-      if (isDir && counted > 0) progress?.setDone(counted, target)
-      else {
-        progress?.addToTotal(1, target)
-        progress?.tick(target)
-      }
-    } catch (e) {
-      const code = e && typeof e === 'object' && 'code' in e ? (e as { code: string }).code : ''
-      if (code === 'EXDEV') {
-        if (heartbeat) {
-          clearInterval(heartbeat)
-        }
-        if (isDir && counted > 0) {
-          progress?.setDone(0, source)
-          await copyTree(source, target, progress, {
-            notifyParentOnCreate: true,
-            discover: false
-          })
-        } else {
-          await copyTree(source, target, progress, { notifyParentOnCreate: true })
-        }
-        await deleteTree(source, null)
-      } else {
-        throw await appErrorFromFsFailure(e, { action: 'move', path: source, isDir })
-      }
+    const counted = await countWorkUnits([source], progress)
+    if (opts?.totalIncludesThis) {
+      if (counted > 1) progress.addToTotal(counted - 1, source)
+    } else {
+      progress.setTotal(counted, source)
+      progress.setDone(0, source)
     }
-  } finally {
-    if (heartbeat) clearInterval(heartbeat)
+    const heartbeat = setInterval(() => progress.pulse(source), 500)
+    try {
+      await copyTree(source, target, progress, { discover: false })
+    } finally {
+      clearInterval(heartbeat)
+    }
+  } else {
+    await copyTree(source, target, progress, { discover: !opts?.totalIncludesThis })
   }
+  await deleteTree(source, null)
 }
 
 /** Move each path to an exact destination (used for undo/redo of moves & renames). */
@@ -997,19 +1016,24 @@ export async function relocateEntries(
   pairs: { from: string; to: string }[]
 ): Promise<{ moved: string[] }> {
   const moved: string[] = []
-  const progress = beginOp('relocate', 0, 'Moving…')
+  const progress = beginOp('relocate', pairs.length, 'Moving…')
   suspendWatching()
-  muteWatchers(1500)
+  muteWatchers(OP_MUTE_MS)
   try {
-    for (const pair of pairs) {
+    for (let i = 0; i < pairs.length; i++) {
       progress.throwIfCancelled()
+      if (i > 0 && i % 16 === 0) await yieldEventLoop()
+      const pair = pairs[i]!
       const source = requireAbsolute(pair.from)
       const target = requireAbsolute(pair.to)
       if (!(await pathExists(source))) {
         throw new AppError('not-found', `Not found: ${source}`)
       }
       assertTransferLegal(source, path.dirname(target))
-      await relocateOne(source, target, progress)
+      await relocateOne(source, target, progress, {
+        watchesHeld: true,
+        totalIncludesThis: true
+      })
       moved.push(target)
     }
     progress.finish()
@@ -1060,20 +1084,22 @@ export async function moveEntries(
     return { moved, moves, skipped, issues, aborted }
   }
 
-  const plan = await planTransfer(sources, destinationDir, policy)
+  const progress = beginOp('move', absSources.length, 'Moving…')
+  suspendWatching()
+  muteWatchers(OP_MUTE_MS)
   const moved: string[] = []
   const moves: { from: string; to: string }[] = []
   const skipped: string[] = []
   const issues: OpIssue[] = []
-  for (const item of plan) {
-    if ('skip' in item) skipped.push(item.skip)
-  }
-
-  const progress = beginOp('move', 0, 'Moving…')
-  suspendWatching()
-  muteWatchers(1500)
   let fatal = false
   try {
+    const plan = await planTransfer(sources, destinationDir, policy, progress)
+    for (const item of plan) {
+      if ('skip' in item) skipped.push(item.skip)
+    }
+    await ensureLocalDir(dest)
+    progress.setTotal(plannedWork(plan).length)
+    let i = 0
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
@@ -1099,11 +1125,17 @@ export async function moveEntries(
         })
         continue
       }
+      if (i > 0 && i % 16 === 0) await yieldEventLoop()
+      i++
       try {
         if (policy === 'replace' && (await pathExists(item.target))) {
           await fsp.rm(item.target, { recursive: true, force: true })
         }
-        await relocateOne(item.source, item.target, progress)
+        await relocateOne(item.source, item.target, progress, {
+          destReady: true,
+          watchesHeld: true,
+          totalIncludesThis: true
+        })
         moved.push(item.target)
         moves.push({ from: item.source, to: item.target })
       } catch (e) {
