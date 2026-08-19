@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { AppError } from '../shared/result'
 import { resolveIssuesRequestSchema } from '../shared/schemas/fs'
-import { renameEntry, uniqueTargetName } from '../main/fs/ops'
+import { mergeDirectoryInto, renameEntry, uniqueTargetName } from '../main/fs/ops'
 
 describe('rename name clashes', () => {
   const dirs: string[] = []
@@ -69,6 +69,34 @@ describe('rename name clashes', () => {
     })
     expect(parsed.op).toBe('rename')
     expect(parsed.items[0]!.decision).toBe('rename')
+  })
+
+  it('replace merges folder into the existing name (Test2 → Test)', async () => {
+    const dir = await tempDir()
+    const dest = path.join(dir, 'Test')
+    const source = path.join(dir, 'Test2')
+    await fsp.mkdir(dest)
+    await fsp.mkdir(source)
+    await fsp.writeFile(path.join(dest, 'kept.txt'), 'dest')
+    await fsp.writeFile(path.join(source, 'added.txt'), 'src')
+    const res = await renameEntry(source, 'Test', 'replace')
+    expect(res.path).toBe(dest)
+    await expect(fsp.readFile(path.join(dest, 'kept.txt'), 'utf8')).resolves.toBe('dest')
+    await expect(fsp.readFile(path.join(dest, 'added.txt'), 'utf8')).resolves.toBe('src')
+    await expect(fsp.access(source)).rejects.toBeTruthy()
+  })
+
+  it('mergeDirectoryInto overwrites a same-named file in the dest folder', async () => {
+    const dir = await tempDir()
+    const dest = path.join(dir, 'Test')
+    const source = path.join(dir, 'Test2')
+    await fsp.mkdir(dest)
+    await fsp.mkdir(source)
+    await fsp.writeFile(path.join(dest, 'same.txt'), 'old')
+    await fsp.writeFile(path.join(source, 'same.txt'), 'new')
+    await mergeDirectoryInto(source, dest)
+    await expect(fsp.readFile(path.join(dest, 'same.txt'), 'utf8')).resolves.toBe('new')
+    await expect(fsp.access(source)).rejects.toBeTruthy()
   })
 
   it('AppError conflict stays the review kind', () => {

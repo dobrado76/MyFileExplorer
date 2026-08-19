@@ -106,6 +106,33 @@ export async function renameEntry(
     if (policy === 'rename') {
       target = path.join(parent, await uniqueTargetName(parent, newName))
     } else if (policy === 'replace') {
+      let srcDir = false
+      let dstDir = false
+      try {
+        srcDir = (await fsp.stat(source)).isDirectory()
+        dstDir = (await fsp.stat(target)).isDirectory()
+      } catch {
+        /* rename / merge will surface not-found */
+      }
+      if (srcDir && dstDir) {
+        releaseWatchersAffecting([source, target])
+        muteWatchers(400)
+        const progress = beginOp('relocate', 1, 'Merging…')
+        const name = path.basename(source)
+        progress.pulse(name)
+        const heartbeat = setInterval(() => progress.pulse(name), 500)
+        try {
+          await mergeDirectoryInto(source, target)
+          progress.tick(path.basename(target))
+          progress.finish()
+          return { path: target }
+        } catch (e) {
+          progress.fail()
+          throw await appErrorFromFsFailure(e, { action: 'rename', path: source, isDir: true })
+        } finally {
+          clearInterval(heartbeat)
+        }
+      }
       await fsp.rm(target, { recursive: true, force: true })
     } else {
       throw new AppError('conflict', `"${newName}" already exists`, 'Choose a different name.')
@@ -167,6 +194,58 @@ async function renameRemoteEntry(
   }
   const { remoteRename } = await import('../remote/sessionPool')
   return { path: await remoteRename(source, finalName) }
+}
+
+/** Explorer-style folder merge: move children into dest, then remove the empty source. */
+export async function mergeDirectoryInto(source: string, target: string): Promise<void> {
+  const src = requireAbsolute(source)
+  const dest = requireAbsolute(target)
+  if (src.toLowerCase() === dest.toLowerCase()) return
+  if (isSameOrUnder(dest, src)) {
+    throw new AppError('validation', 'Cannot merge a folder into itself')
+  }
+  let names: string[]
+  try {
+    names = await fsp.readdir(src)
+  } catch (e) {
+    throw await appErrorFromFsFailure(e, { action: 'rename', path: src, isDir: true })
+  }
+  for (const name of names) {
+    const from = path.join(src, name)
+    const to = path.join(dest, name)
+    let fromDir: boolean
+    try {
+      fromDir = (await fsp.lstat(from)).isDirectory()
+    } catch (e) {
+      throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: false })
+    }
+    let toExists = false
+    let toDir = false
+    try {
+      const st = await fsp.lstat(to)
+      toExists = true
+      toDir = st.isDirectory()
+    } catch {
+      /* dest child missing — rename into place */
+    }
+    if (toExists && fromDir && toDir) {
+      await mergeDirectoryInto(from, to)
+      continue
+    }
+    if (toExists) {
+      await fsp.rm(to, { recursive: true, force: true })
+    }
+    try {
+      await fsp.rename(from, to)
+    } catch (e) {
+      throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: fromDir })
+    }
+  }
+  try {
+    await fsp.rmdir(src)
+  } catch (e) {
+    throw await appErrorFromFsFailure(e, { action: 'rename', path: src, isDir: true })
+  }
 }
 
 /** Generate "name (2).ext", "name (3).ext", … that does not exist in dir. */

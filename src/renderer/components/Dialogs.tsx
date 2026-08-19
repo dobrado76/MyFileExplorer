@@ -717,6 +717,13 @@ function ConfirmEmptyRecycleBin(): JSX.Element {
 
 function ConfirmDeleteFromRecycleBin({ paths }: { paths: string[] }): JSX.Element {
   const confirmDeleteFromRecycleBin = useAppStore((s) => s.confirmDeleteFromRecycleBin)
+  const binItems = useAppStore((s) => s.recycleBin.items)
+  const singleName =
+    paths.length === 1
+      ? (binItems.find(
+          (i) => samePath(i.recyclePath, paths[0]!) || samePath(i.originalPath, paths[0]!)
+        )?.name ?? basename(paths[0]!))
+      : null
   return (
     <Modal
       title="Delete from Recycle Bin?"
@@ -737,8 +744,8 @@ function ConfirmDeleteFromRecycleBin({ paths }: { paths: string[] }): JSX.Elemen
       }
     >
       <p>
-        {paths.length === 1
-          ? `"${basename(paths[0]!)}" will be permanently removed from the Recycle Bin.`
+        {singleName
+          ? `“${singleName}” will be permanently removed from the Recycle Bin.`
           : `${paths.length} items will be permanently removed from the Recycle Bin.`}
       </p>
       <p className="dim">This cannot be undone.</p>
@@ -1111,6 +1118,9 @@ function OpIssuesDialog(): JSX.Element | null {
   const existing =
     compare?.destination ??
     (focused?.dest ? sideFromPath(focused.dest, focused.destMtimeMs) : null)
+  const renameOp = dialog?.kind === 'op-issues' && dialog.op === 'rename'
+  const folderMerge =
+    renameOp && incoming?.kind === 'dir' && existing?.kind === 'dir'
 
   return (
     <Modal
@@ -1138,8 +1148,18 @@ function OpIssuesDialog(): JSX.Element | null {
       }
     >
       <p className="conflict-lead">
-        Everything that could proceed already did. Decide what to do with the rest — apply to all
-        similar, or expand a group to choose per item.
+        {renameOp && focused?.dest ? (
+          <>
+            Rename <code>{basename(focused.source)}</code> to{' '}
+            <code>{basename(focused.dest)}</code> — that name is already used. Incoming is the
+            item you renamed; existing is the name you typed.
+          </>
+        ) : (
+          <>
+            Everything that could proceed already did. Decide what to do with the rest — apply to all
+            similar, or expand a group to choose per item.
+          </>
+        )}
       </p>
 
       <div className="op-issues-groups">
@@ -1160,17 +1180,25 @@ function OpIssuesDialog(): JSX.Element | null {
                   </span>
                 </button>
                 <div className="op-issues-group-actions">
-                  {actions.map((a) => (
+                  {actions.map((a) => {
+                    const label =
+                      folderMerge && a.decision === 'replace' ? 'Merge' : a.label
+                    return (
                     <button
                       key={a.decision}
                       type="button"
                       className={`btn${a.decision === 'replace' || a.decision === 'retry' ? ' primary' : ''}`}
-                      title={`Apply “${a.label}” to all ${g.label.toLowerCase()}`}
+                      title={
+                        folderMerge && a.decision === 'replace'
+                          ? 'Move contents into the existing folder, then remove the one you renamed'
+                          : `Apply “${label}” to all ${g.label.toLowerCase()}`
+                      }
                       onClick={() => applyItems(g.items, a.decision)}
                     >
-                      {a.label} all
+                      {label} all
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               </header>
               {open && (
@@ -1185,24 +1213,38 @@ function OpIssuesDialog(): JSX.Element | null {
                           className={`op-issues-row${active ? ' active' : ''}`}
                           onClick={() => setFocusKey(key)}
                         >
-                          <span className="op-issues-row-name" title={it.source}>
-                            {basename(it.source)}
+                          <span
+                            className="op-issues-row-name"
+                            title={it.dest ? `${it.source} → ${it.dest}` : it.source}
+                          >
+                            {renameOp && it.dest
+                              ? `${basename(it.source)} → ${basename(it.dest)}`
+                              : basename(it.source)}
                           </span>
                           <span className="op-issues-row-msg" title={it.message}>
                             {it.message}
                           </span>
                         </button>
                         <div className="op-issues-row-actions">
-                          {actions.map((a) => (
+                          {actions.map((a) => {
+                            const label =
+                              folderMerge && a.decision === 'replace' ? 'Merge' : a.label
+                            return (
                             <button
                               key={a.decision}
                               type="button"
                               className="btn"
+                              title={
+                                folderMerge && a.decision === 'replace'
+                                  ? 'Move contents into the existing folder, then remove the one you renamed'
+                                  : undefined
+                              }
                               onClick={() => applyItems([it], a.decision)}
                             >
-                              {a.label}
+                              {label}
                             </button>
-                          ))}
+                            )
+                          })}
                         </div>
                       </li>
                     )
@@ -1216,11 +1258,19 @@ function OpIssuesDialog(): JSX.Element | null {
 
       {showCompare && incoming && existing && (
         <div className="conflict-compare">
-          <ConflictSideCard label="Incoming" side={incoming} peer={existing} />
+          <ConflictSideCard
+            label={renameOp ? 'Renaming this' : 'Incoming'}
+            side={incoming}
+            peer={existing}
+          />
           <div className="conflict-vs" aria-hidden>
             vs
           </div>
-          <ConflictSideCard label="Existing in destination" side={existing} peer={incoming} />
+          <ConflictSideCard
+            label={renameOp ? 'Already using that name' : 'Existing in destination'}
+            side={existing}
+            peer={incoming}
+          />
         </div>
       )}
     </Modal>

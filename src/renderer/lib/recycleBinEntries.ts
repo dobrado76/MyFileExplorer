@@ -3,17 +3,21 @@ import type { RecycleBinItem } from '@shared/schemas/recycle'
 
 /**
  * Map recycle-bin rows into DirEntry so FileView can treat them like a listing.
- * Dedupes by originalPath (keep newest dateDeleted) — Shell/NAS bins sometimes
- * emit duplicate rows, which break React keys and look like “ghost” lines.
+ *
+ * Identity is `recyclePath` (the `$R…` / shell item), not `originalPath`.
+ * Windows keeps two deletes of the same source path as two bin items; Explorer
+ * shows both (same name, different Date deleted). Deduping by originalPath hid
+ * the older copy. True Shell duplicates (same recyclePath twice) still collapse.
  */
 export function recycleBinItemsToEntries(items: RecycleBinItem[]): DirEntry[] {
-  const byPath = new Map<string, RecycleBinItem>()
+  const byRecycle = new Map<string, RecycleBinItem>()
   for (const item of items) {
-    const k = item.originalPath.toLowerCase()
-    const prev = byPath.get(k)
-    if (!prev || item.dateDeletedMs >= prev.dateDeletedMs) byPath.set(k, item)
+    const k = item.recyclePath.replace(/[/\\]+$/g, '').toLowerCase()
+    if (!k) continue
+    const prev = byRecycle.get(k)
+    if (!prev || item.dateDeletedMs >= prev.dateDeletedMs) byRecycle.set(k, item)
   }
-  return [...byPath.values()].map((item) => {
+  return [...byRecycle.values()].map((item) => {
     const dot = item.name.lastIndexOf('.')
     const ext =
       !item.isDir && dot > 0 && dot < item.name.length - 1
@@ -21,7 +25,7 @@ export function recycleBinItemsToEntries(items: RecycleBinItem[]): DirEntry[] {
         : ''
     return {
       name: item.name,
-      path: item.originalPath,
+      path: item.recyclePath,
       kind: item.isDir ? 'dir' : 'file',
       size: item.size,
       mtimeMs: item.dateDeletedMs,

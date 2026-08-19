@@ -6,6 +6,7 @@ import { promisify } from 'node:util'
 import { AppError } from '@shared/result'
 import type { RecycleBinItem, RecycleBinListResponse } from '@shared/schemas/recycle'
 import { requireAbsolute, pathExists } from './list'
+import { pickRecycleBinTargets } from './recycleMatch'
 import { logMain } from '../logging'
 
 const execFileAsync = promisify(execFile)
@@ -29,28 +30,6 @@ function Invoke-MfeBinVerb($item, [string[]]$names) {
     } catch {}
   }
   return $false
-}
-`
-
-/**
- * Resolve a bin item to a wanted original path.
- * Must stay in sync with matchRecycleOriginal() — do NOT match DeletedFrom alone
- * (that wrongly restores every file previously deleted from a folder when undoing
- * only the folder trash).
- */
-const PS_RESOLVE_WANTED = `
-function Resolve-MfeWantedOriginal([string]$locStr, [string]$name, [string[]]$wanted) {
-  $locNorm = $locStr.TrimEnd('\\')
-  $combined = [System.IO.Path]::Combine($locNorm, $name)
-  $combinedKey = $combined.ToLowerInvariant()
-  foreach ($w in $wanted) { if ($w -eq $combinedKey) { return $combined } }
-  # Shell quirk: DeletedFrom is sometimes already the full original path.
-  $locKey = $locNorm.ToLowerInvariant()
-  $base = [System.IO.Path]::GetFileName($locNorm).ToLowerInvariant()
-  if ($base -eq $name.ToLowerInvariant()) {
-    foreach ($w in $wanted) { if ($w -eq $locKey) { return $locNorm } }
-  }
-  return $null
 }
 `
 
@@ -156,25 +135,48 @@ async function waitPathExists(filePath: string, attempts = 25): Promise<boolean>
   return false
 }
 
+function normalizeWantedPath(p: string): string {
+  try {
+    return requireAbsolute(p)
+  } catch {
+    return p.trim()
+  }
+}
+
 /**
- * Restore items from the Windows Recycle Bin by original full path.
- * Matches Shell.Application namespace 0xA (Recycle Bin) via PowerShell COM.
+ * Restore selected Recycle Bin rows.
+ * `paths` may be a shell `recyclePath` (in-app bin view) or the original full
+ * path (Ctrl+Z after Del). Same original path can exist twice — recyclePath
+ * picks one row; original path picks the newest Date deleted only.
  */
 export async function restoreFromRecycleBin(
-  originalPaths: string[]
+  paths: string[]
 ): Promise<{ restored: string[]; missing: string[] }> {
   assertWin32()
-  const wanted = originalPaths.map((p) => requireAbsolute(p))
+  const wanted = paths.map(normalizeWantedPath).filter(Boolean)
   if (wanted.length === 0) return { restored: [], missing: [] }
 
+  const listed = await listRecycleBin()
+  const targets = pickRecycleBinTargets(listed.items, wanted)
+  const missing: string[] = []
+  for (const w of wanted) {
+    const key = w.replace(/[/\\]+$/g, '').toLowerCase()
+    const hit = targets.some(
+      (t) =>
+        t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase() === key ||
+        t.originalPath.replace(/[/\\]+$/g, '').toLowerCase() === key
+    )
+    if (!hit) missing.push(w)
+  }
+  if (targets.length === 0) return { restored: [], missing }
+
   const listFile = path.join(os.tmpdir(), `mfe-restore-${process.pid}-${Date.now()}.txt`)
-  await fsp.writeFile(listFile, wanted.join('\n'), 'utf8')
+  await fsp.writeFile(listFile, targets.map((t) => t.recyclePath).join('\n'), 'utf8')
 
   const listLiteral = listFile.replace(/'/g, "''")
   const ps = `
 $ErrorActionPreference = 'Continue'
 ${PS_INVOKE_VERB}
-${PS_RESOLVE_WANTED}
 $wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $shell = New-Object -ComObject Shell.Application
 $rb = $shell.NameSpace(0xA)
@@ -182,14 +184,10 @@ if (-not $rb) { throw 'Recycle Bin namespace unavailable' }
 $restored = New-Object System.Collections.Generic.List[string]
 foreach ($item in @($rb.Items())) {
   try {
-    $loc = $item.ExtendedProperty('System.Recycle.DeletedFrom')
-    if (-not $loc) { $loc = $rb.GetDetailsOf($item, 1) }
-    if (-not $loc) { continue }
-    $name = [string]$item.Name
-    $full = Resolve-MfeWantedOriginal ([string]$loc) $name $wanted
-    if (-not $full) { continue }
+    $rp = ([string]$item.Path).Trim().ToLowerInvariant()
+    if (-not $rp -or ($wanted -notcontains $rp)) { continue }
     if (Invoke-MfeBinVerb $item @('restore','wiederherstellen','restaurer','restablecer','ripristina')) {
-      [void]$restored.Add($full)
+      [void]$restored.Add(([string]$item.Path).Trim())
     }
   } catch {}
 }
@@ -198,20 +196,22 @@ $restored | ForEach-Object { $_ }
 
   try {
     const stdout = await runPowerShell(ps, 90_000)
-    const reported = stdout
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const reported = new Set(
+      stdout
+        .split(/\r?\n/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    )
 
     const restored: string[] = []
-    const missing: string[] = []
-    for (const original of wanted) {
-      const claimed = reported.some((r) => r.toLowerCase() === original.toLowerCase())
-      if (claimed || (await pathExists(original))) {
-        if (await waitPathExists(original)) restored.push(original)
-        else missing.push(original)
+    for (const t of targets) {
+      const rp = t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase()
+      const claimed = reported.has(rp)
+      if (claimed || (await pathExists(t.originalPath))) {
+        if (await waitPathExists(t.originalPath)) restored.push(t.originalPath)
+        else missing.push(t.recyclePath)
       } else {
-        missing.push(original)
+        missing.push(t.recyclePath)
       }
     }
     return { restored, missing }
@@ -224,22 +224,35 @@ $restored | ForEach-Object { $_ }
 }
 
 /**
- * Permanently remove selected items from the Recycle Bin (by original path).
+ * Permanently remove selected Recycle Bin rows (recyclePath or original path).
  */
 export async function deleteFromRecycleBin(
-  originalPaths: string[]
+  paths: string[]
 ): Promise<{ deleted: string[]; missing: string[] }> {
   assertWin32()
-  const wanted = originalPaths.map((p) => requireAbsolute(p))
+  const wanted = paths.map(normalizeWantedPath).filter(Boolean)
   if (wanted.length === 0) return { deleted: [], missing: [] }
 
+  const listed = await listRecycleBin()
+  const targets = pickRecycleBinTargets(listed.items, wanted)
+  const missing: string[] = []
+  for (const w of wanted) {
+    const key = w.replace(/[/\\]+$/g, '').toLowerCase()
+    const hit = targets.some(
+      (t) =>
+        t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase() === key ||
+        t.originalPath.replace(/[/\\]+$/g, '').toLowerCase() === key
+    )
+    if (!hit) missing.push(w)
+  }
+  if (targets.length === 0) return { deleted: [], missing }
+
   const listFile = path.join(os.tmpdir(), `mfe-rbdel-${process.pid}-${Date.now()}.txt`)
-  await fsp.writeFile(listFile, wanted.join('\n'), 'utf8')
+  await fsp.writeFile(listFile, targets.map((t) => t.recyclePath).join('\n'), 'utf8')
   const listLiteral = listFile.replace(/'/g, "''")
   const ps = `
 $ErrorActionPreference = 'Continue'
 ${PS_INVOKE_VERB}
-${PS_RESOLVE_WANTED}
 $wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
 $shell = New-Object -ComObject Shell.Application
 $rb = $shell.NameSpace(0xA)
@@ -247,14 +260,10 @@ if (-not $rb) { throw 'Recycle Bin namespace unavailable' }
 $deleted = New-Object System.Collections.Generic.List[string]
 foreach ($item in @($rb.Items())) {
   try {
-    $loc = $item.ExtendedProperty('System.Recycle.DeletedFrom')
-    if (-not $loc) { $loc = $rb.GetDetailsOf($item, 1) }
-    if (-not $loc) { continue }
-    $name = [string]$item.Name
-    $full = Resolve-MfeWantedOriginal ([string]$loc) $name $wanted
-    if (-not $full) { continue }
+    $rp = ([string]$item.Path).Trim().ToLowerInvariant()
+    if (-not $rp -or ($wanted -notcontains $rp)) { continue }
     if (Invoke-MfeBinVerb $item @('delete','löschen','supprimer','eliminar','elimina')) {
-      [void]$deleted.Add($full)
+      [void]$deleted.Add(([string]$item.Path).Trim())
     }
   } catch {}
 }
@@ -269,10 +278,10 @@ $deleted | ForEach-Object { $_ }
         .filter(Boolean)
     )
     const deleted: string[] = []
-    const missing: string[] = []
-    for (const original of wanted) {
-      if (reported.has(original.toLowerCase())) deleted.push(original)
-      else missing.push(original)
+    for (const t of targets) {
+      const rp = t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase()
+      if (reported.has(rp)) deleted.push(t.originalPath)
+      else missing.push(t.recyclePath)
     }
     return { deleted, missing }
   } catch (e) {

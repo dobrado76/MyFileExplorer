@@ -520,7 +520,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const recycleByPath = useMemo(() => {
     const m = new Map<string, RecycleBinItem>()
-    for (const it of recycleBin.items) m.set(it.originalPath.toLowerCase(), it)
+    for (const it of recycleBin.items) {
+      const k = it.recyclePath.replace(/[/\\]+$/g, '').toLowerCase()
+      if (k) m.set(k, it)
+    }
     return m
   }, [recycleBin.items])
 
