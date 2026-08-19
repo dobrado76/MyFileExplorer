@@ -234,7 +234,7 @@ v0.8.0 plus: **D51** universal local script runner (PowerShell / Python / cmd / 
 
 - [x] Script runner IPC (`script:run` / cancel / detect), argv contract, temp manifests
 - [x] Script library + manager + context **Scripts** submenu
-- [x] Settings → AI (OpenAI-compatible, `safeStorage` keys)
+- [x] Settings → Scripting and AI (Enable scripting off by default; optional AI with `safeStorage` keys)
 - [x] Generate / modify / review-before-run (never send files)
 - [x] Dry-run, deps copy-command, Ask AI to Fix confirm, `.mfescript` import/export
 

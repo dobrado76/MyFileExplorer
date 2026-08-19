@@ -10,7 +10,17 @@ import {
 } from './library'
 import { cancelScriptRun, runScriptProcess, writeTempScript } from './runner'
 import { interpreterOverridesFromSettings } from './runtimes'
+import { getSettings } from '../settings/store'
 import fs from 'node:fs'
+
+export function assertScriptingEnabled(): void {
+  if (!getSettings().scripts.enabled) {
+    throw new AppError(
+      'not-allowed',
+      'Scripting is disabled. Enable it in Settings → Scripting and AI.'
+    )
+  }
+}
 
 export async function executeScriptRun(req: ScriptRunRequest): Promise<{
   runId: string
@@ -19,6 +29,7 @@ export async function executeScriptRun(req: ScriptRunRequest): Promise<{
   elapsedMs: number
   output: string
 }> {
+  assertScriptingEnabled()
   let language: ScriptLanguage
   let scriptPath: string
   let tempFile: string | null = null

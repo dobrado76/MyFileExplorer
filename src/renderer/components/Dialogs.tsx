@@ -1757,7 +1757,7 @@ const SETTINGS_NAV: { id: SettingsSection; label: string }[] = [
   { id: 'remoterepos', label: 'Remote repositories' },
   { id: 'slideshow', label: 'Slideshow' },
   { id: 'mediametadata', label: 'Media Metadata' },
-  { id: 'ai', label: 'AI' },
+  { id: 'ai', label: 'Scripting and AI' },
   { id: 'advanced', label: 'Advanced' },
   { id: 'about', label: 'About' }
 ]

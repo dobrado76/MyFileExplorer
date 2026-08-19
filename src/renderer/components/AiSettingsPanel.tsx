@@ -106,8 +106,55 @@ export function AiSettingsPanel(): JSX.Element {
     }
   }
 
+  const scriptingOn = settings.scripts.enabled
+
   return (
     <div className="settings-stack">
+      <label className="settings-toggle">
+        <input
+          type="checkbox"
+          checked={scriptingOn}
+          onChange={(e) => void applySettingsPatch({ scripts: { enabled: e.target.checked } })}
+        />
+        <span className="settings-toggle-text">
+          <span className="settings-toggle-label">Enable scripting</span>
+          <span className="settings-toggle-hint">
+            Off by default. On: Script Manager on the toolbar and Scripts on the context menu.
+            Scripts run as your Windows user and can change or delete files.
+          </span>
+        </span>
+      </label>
+      {!scriptingOn ? (
+        <p className="settings-field-hint">
+          This is an advanced feature. A first install stays a plain file manager until you turn
+          scripting on.
+        </p>
+      ) : null}
+
+      {scriptingOn ? (
+        <>
+      <h3>Script runner</h3>
+      <p className="settings-field-hint">Optional interpreter paths when PATH is not enough.</p>
+      {(['powershell', 'pwsh', 'python', 'cmd', 'bash'] as const).map((k) => (
+        <label key={k} className="settings-field">
+          <span>{k}</span>
+          <input
+            value={settings.scripts.interpreterOverrides[k] ?? ''}
+            onChange={(e) =>
+              void applySettingsPatch({
+                scripts: {
+                  interpreterOverrides: {
+                    ...settings.scripts.interpreterOverrides,
+                    [k]: e.target.value
+                  }
+                }
+              })
+            }
+          />
+        </label>
+      ))}
+
+      <h3>AI (optional)</h3>
       <label className="settings-toggle">
         <input
           type="checkbox"
@@ -117,7 +164,7 @@ export function AiSettingsPanel(): JSX.Element {
         <span className="settings-toggle-text">
           <span className="settings-toggle-label">Enable AI</span>
           <span className="settings-toggle-hint">
-            Off = no outbound AI HTTP. Scripts still run locally.
+            Off = no outbound AI HTTP. Hand-written scripts still run locally.
           </span>
         </span>
       </label>
@@ -366,27 +413,8 @@ export function AiSettingsPanel(): JSX.Element {
         </button>
       </div>
       {status && <div className="settings-field-hint">{status}</div>}
-
-      <h3>Script runner</h3>
-      <p className="settings-field-hint">Optional interpreter paths when PATH is not enough.</p>
-      {(['powershell', 'pwsh', 'python', 'cmd', 'bash'] as const).map((k) => (
-        <label key={k} className="settings-field">
-          <span>{k}</span>
-          <input
-            value={settings.scripts.interpreterOverrides[k] ?? ''}
-            onChange={(e) =>
-              void applySettingsPatch({
-                scripts: {
-                  interpreterOverrides: {
-                    ...settings.scripts.interpreterOverrides,
-                    [k]: e.target.value
-                  }
-                }
-              })
-            }
-          />
-        </label>
-      ))}
+        </>
+      ) : null}
     </div>
   )
 }

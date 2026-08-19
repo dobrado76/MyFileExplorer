@@ -86,7 +86,7 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   {
     id: 'scripts',
     label: 'Scripts',
-    hint: 'Saved local scripts + Generate / Manage (D51)'
+    hint: 'Saved local scripts + Generate / Manage (D51). Only appears when Settings → Scripting and AI is on.'
   },
   { id: 'rename', label: 'Rename' },
   { id: 'power-rename', label: 'Power Rename…' },

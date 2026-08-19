@@ -304,14 +304,16 @@ export function Toolbar(): JSX.Element {
           <PanelIcon />
         </button>
         <LayoutsMenu />
-        <button
-          className="icon-btn"
-          aria-label="Scripts"
-          title="Script Manager"
-          onClick={() => openDialog({ kind: 'script-manager' })}
-        >
-          <ScriptIcon />
-        </button>
+        {settings.scripts.enabled && (
+          <button
+            className="icon-btn"
+            aria-label="Scripts"
+            title="Script Manager"
+            onClick={() => openDialog({ kind: 'script-manager' })}
+          >
+            <ScriptIcon />
+          </button>
+        )}
         <button
           className="icon-btn"
           aria-label="Settings"

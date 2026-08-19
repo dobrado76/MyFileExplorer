@@ -49,6 +49,8 @@ export type AiSettings = z.infer<typeof aiSettingsSchema>
 export const defaultAiSettings: AiSettings = aiSettingsSchema.parse({})
 
 export const scriptsSettingsSchema = z.object({
+  /** Master switch (D51). Off by default — hide Script Manager / context Scripts. */
+  enabled: z.boolean().catch(false),
   /** First-run warning: scripts run as the signed-in user and can delete files. */
   acknowledgedRisk: z.boolean().catch(false),
   interpreterOverrides: z

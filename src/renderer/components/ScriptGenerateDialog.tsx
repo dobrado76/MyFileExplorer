@@ -359,7 +359,7 @@ export function ScriptGenerateDialog(props: {
             value={model}
             models={listed.models}
             loading={listed.loading}
-            emptyHint="Refresh models in Settings → AI"
+            emptyHint="Refresh models in Settings → Scripting and AI"
             onChange={(next) => {
               setModel(next)
               const p = providers.find((x) => x.id === providerId)

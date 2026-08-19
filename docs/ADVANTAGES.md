@@ -96,12 +96,12 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 
 ## Scripts — the command set is yours
 
-Explorer’s verbs are fixed. MyFileExplorer ships a **universal local runner** so the next job does not wait on the next app release. A saved script is a first-class command on the folder or selection you are looking at — inventory CSVs, caption joins, ffmpeg queues, hash manifests, junk cleanup, robocopy previews, whatever you can write in PowerShell, Python, cmd, or bash. Capabilities grow with **your** library. Details and copy-paste examples: [SCRIPTS.md](SCRIPTS.md).
+Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local runner (Settings → Scripting and AI, off by default) so the next job does not wait on the next app release. A saved script is a first-class command on the folder or selection you are looking at — inventory CSVs, caption joins, ffmpeg queues, hash manifests, junk cleanup, robocopy previews, whatever you can write in PowerShell, Python, cmd, or bash. Capabilities grow with **your** library. Details and copy-paste examples: [SCRIPTS.md](SCRIPTS.md).
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
 | **Scripts on the current view** | Folder mode passes `--root` (optional `--recursive`). Selection mode passes a temp UTF-8 `--input-list`. You do not retype paths or `cd` a console to the tab you already have open. |
-| **Context menu Scripts >** | Eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. Same script, any folder, forever. |
+| **Context menu Scripts >** | After Enable scripting: eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. Same script, any folder, forever. Hidden until you opt in. |
 | **Live Run window** | Stdout/stderr, elapsed time, **Stop**, copy output, remembered size/position. Explorer’s “Open in Terminal” is a detached prompt with no capture. D41 custom commands (`shell:exec`) stay for “open Photoshop” — not for jobs you need to watch. |
 | **Dry-run + first-run ack** | Preview-only flag when the script supports it. Destructive-looking source (`Remove-Item`, `os.remove`, `rm -rf`, …) shows a banner. Scripts run as you — the app does not pretend otherwise. |
 | **Library stays out of your folders** | Managed scripts live under `%APPDATA%\MyFileExplorer\scripts\` (D2). Share a `.mfescript` or point at an external `.ps1` / `.py` already in a repo. No hidden `.bat` next to the photos. |

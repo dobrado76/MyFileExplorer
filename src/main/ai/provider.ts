@@ -16,8 +16,17 @@ import { deleteAiApiKey, getAiApiKey, hasAiApiKey, setAiApiKey } from './secrets
 export type AiProviderPublic = AiProviderProfile & { hasApiKey: boolean }
 
 function assertAiEnabled(): void {
+  if (!getSettings().scripts.enabled) {
+    throw new AppError(
+      'not-allowed',
+      'Scripting is disabled. Enable it in Settings → Scripting and AI.'
+    )
+  }
   if (!getSettings().ai.enabled) {
-    throw new AppError('not-allowed', 'AI is disabled. Enable it in Settings → AI.')
+    throw new AppError(
+      'not-allowed',
+      'AI is disabled. Enable it in Settings → Scripting and AI.'
+    )
   }
 }
 

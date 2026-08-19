@@ -44,6 +44,18 @@ describe('settings export / import', () => {
     expect(parsed.networkHosts).toEqual([{ name: 'NEWONYX', unc: '\\\\NEWONYX' }])
   })
 
+  it('round-trips scripts.enabled via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        scripts: { ...defaultSettings.scripts, enabled: true }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.scripts.enabled).toBe(true)
+  })
+
   it('round-trips new nested prefs (showLocalComputer) via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: {
@@ -144,6 +156,7 @@ describe('settings export / import', () => {
       networkHosts: []
     })
     const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.scripts.enabled).toBe(false)
     expect(parsed.settings.ai.enabled).toBe(true)
     expect(parsed.settings.ai.defaultModel).toBe('gpt-4.1-mini')
     expect(parsed.settings.ai.providers[0]?.baseUrl).toContain('127.0.0.1')

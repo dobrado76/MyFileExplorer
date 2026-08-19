@@ -4,7 +4,7 @@
 **Tag:** `v0.9.0` (package **0.9.0**)  
 **Previous product baseline:** [v0.8.0](CHANGELOG.md#080---2026-08-16)
 
-Ninth product release (**v0.9**): a **universal local script runner** in the file manager. PowerShell, Python, cmd, and bash run against the current folder or selection with live output. Save a script once and it is a first-class command forever. Optional AI can **write** scripts; it **never reads** your files.
+Ninth product release (**v0.9**): an **opt-in universal local script runner** in the file manager. PowerShell, Python, cmd, and bash run against the current folder or selection with live output. Save a script once and it is a first-class command forever. Optional AI can **write** scripts; it **never reads** your files.
 
 Also in this line: **opt-in movie/TV metadata** (D50), This PC tools from the Drives header, and a large metadata / rename / ADS polish pass.
 
@@ -18,8 +18,8 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Scripts: [docs/SCRIPTS.md](docs/SCRIP
 
 Explorer stops at “open this folder in a terminal.” MyFileExplorer **is** the runner.
 
-- Toolbar **Scripts** / context **Scripts**. Saved library under app data — no sidecars in your folders.
-- **PowerShell, Python, cmd, bash** on PATH (or Settings → AI → Script runner overrides).
+- **Off by default.** Settings → **Scripting and AI → Enable scripting** shows the toolbar Scripts button and context **Scripts**. Saved library under app data — no sidecars in your folders.
+- **PowerShell, Python, cmd, bash** on PATH (or Settings → Scripting and AI → Script runner overrides).
 - **Folder** (`--root`) or **selection** (`--input-list` UTF-8 manifest). Recursive and dry-run when the script supports them.
 - Live stdout/stderr, elapsed time, **Stop**. The run window is movable/resizable and remembers size.
 - Script Manager: editor with highlighting, parameters, categories, extension / min-selection filters, import/export `.mfescript`, external file refs. Maximize for a two-column field layout and a taller editor.
@@ -30,7 +30,7 @@ That is the infinite part: any job you can express in a script — reports, rena
 
 ### Optional AI that never sees your files
 
-Settings → **AI** (off by default): OpenAI-compatible providers, including LM Studio.
+Settings → **Scripting and AI** → Enable AI (off by default; requires scripting on): OpenAI-compatible providers, including LM Studio.
 
 - Generate or modify from a **task description + source only**. No paths, listings, or file bytes.
 - Model dropdown from `GET /v1/models` (cached). OpenAI catalogs hide embeddings/TTS/image.

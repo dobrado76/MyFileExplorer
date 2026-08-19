@@ -34,4 +34,15 @@ describe('AI settings patch', () => {
   it('default settings start with no providers', () => {
     expect(defaultSettings.ai.providers).toEqual([])
   })
+
+  it('scripting chrome is off on a first install', () => {
+    expect(defaultSettings.scripts.enabled).toBe(false)
+    expect(defaultSettings.ai.enabled).toBe(false)
+  })
+
+  it('patches scripts.enabled without dropping interpreter overrides', () => {
+    const parsed = settingsPatchSchema.parse({ scripts: { enabled: true } })
+    expect(parsed.scripts?.enabled).toBe(true)
+    expect(parsed.scripts?.interpreterOverrides).toBeUndefined()
+  })
 })

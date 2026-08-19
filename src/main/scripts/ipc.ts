@@ -24,7 +24,7 @@ import {
   revertScriptSource,
   upsertScript
 } from './library'
-import { cancelScriptRun, executeScriptRun } from './execute'
+import { assertScriptingEnabled, cancelScriptRun, executeScriptRun } from './execute'
 
 const emptySchema = z.union([z.undefined(), z.null(), z.object({}).strict()]).optional()
 
@@ -49,6 +49,7 @@ export function registerScriptIpc(handle: Handle): void {
     return { script, source, hasPrevious: hasPreviousSource(req.id) }
   })
   handle(IPC.scriptUpsert, upsertWithBackupSchema, async (req) => {
+    assertScriptingEnabled()
     const script = await upsertScript({
       script: req.script,
       source: req.source,
@@ -57,15 +58,18 @@ export function registerScriptIpc(handle: Handle): void {
     return { script }
   })
   handle(IPC.scriptDelete, scriptIdRequestSchema, async (req) => {
+    assertScriptingEnabled()
     await deleteScript(req.id)
     return { deleted: true as const }
   })
   handle(IPC.scriptDuplicate, scriptDuplicateRequestSchema, async (req) => {
+    assertScriptingEnabled()
     return { script: await duplicateScript(req.id, req.name) }
   })
   handle(IPC.scriptRun, scriptRunRequestSchema, (req) => executeScriptRun(req))
   handle(IPC.scriptCancel, scriptCancelRequestSchema, (req) => cancelScriptRun(req.runId))
   handle(IPC.scriptImportFile, emptySchema, async (_req, event) => {
+    assertScriptingEnabled()
     const win = BrowserWindow.fromWebContents(event.sender)
     const opts = {
       title: 'Import script',
@@ -84,6 +88,7 @@ export function registerScriptIpc(handle: Handle): void {
     return { imported: true as const, script }
   })
   handle(IPC.scriptExportFile, scriptExportRequestSchema, async (req, event) => {
+    assertScriptingEnabled()
     const { json, suggestedName } = await exportScriptDocument(req.id)
     const win = BrowserWindow.fromWebContents(event.sender)
     const opts = {
@@ -99,6 +104,7 @@ export function registerScriptIpc(handle: Handle): void {
     return { saved: true as const, path: picked.filePath }
   })
   handle(IPC.scriptPickExternal, emptySchema, async (_req, event) => {
+    assertScriptingEnabled()
     const win = BrowserWindow.fromWebContents(event.sender)
     const opts = {
       title: 'Choose script file',
@@ -116,7 +122,10 @@ export function registerScriptIpc(handle: Handle): void {
     languageForExternalPath(file)
     return { path: file }
   })
-  handle(IPC.scriptRevert, scriptIdRequestSchema, (req) => revertScriptSource(req.id))
+  handle(IPC.scriptRevert, scriptIdRequestSchema, (req) => {
+    assertScriptingEnabled()
+    return revertScriptSource(req.id)
+  })
   handle(IPC.scriptHasPrevious, scriptIdRequestSchema, (req) => ({
     hasPrevious: hasPreviousSource(req.id)
   }))

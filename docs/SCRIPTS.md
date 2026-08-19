@@ -111,7 +111,7 @@ Treat unknown flags as errors. Write progress to **stdout**; errors to **stderr*
 | cmd | `cmd.exe /d /s /c <script.cmd>` |
 | bash | `bash <script.sh>` |
 
-Interpreters are detected on PATH. Optional absolute overrides: **Settings → AI → Script runner**. A missing interpreter is an error on Run, not a silent fallback to `cmd /c`.
+Interpreters are detected on PATH. Optional absolute overrides: **Settings → Scripting and AI → Script runner**. A missing interpreter is an error on Run, not a silent fallback to `cmd /c`.
 
 PowerShell’s `param($Root)` does **not** bind `--root`. Parse `$args` (examples below). Python should use `argparse`.
 
@@ -150,11 +150,19 @@ The schema allows a `choice` list; Script Manager’s line format currently stor
 
 ---
 
+## Turn it on
+
+**Settings → Scripting and AI → Enable scripting** (`scripts.enabled`, default **off**).
+
+A first install stays a plain file manager. The toolbar Scripts button and context **Scripts** menu appear only when this is on. Interpreter overrides and optional AI live on the same settings page.
+
+---
+
 ## Using the product
 
 ### Script Manager
 
-Toolbar **Scripts** or context **Scripts → Manage Scripts…**.
+Toolbar **Scripts** or context **Scripts → Manage Scripts…** (only after scripting is enabled).
 
 - Movable and resizable. **Maximize** (and the restored size) persist. Maximized uses a two-column field layout so the editor is taller.
 - Every field and button has a hover tip.
@@ -698,7 +706,7 @@ Export each as `.mfescript` into a backup folder you actually sync. Settings →
 
 ## AI (optional)
 
-Settings → **AI**:
+Settings → **Scripting and AI** (after scripting is on):
 
 - Enable AI (off = no outbound AI HTTP).
 - Providers: OpenAI, OpenRouter, LM Studio, custom OpenAI-compatible base URL.

@@ -2,13 +2,13 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.9.0** — **D51** universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped; drive free space; detached preview; `.ics` / `.eml`; D49 remote listing cache; Power Search; continue-then-review (D18); per-tab search; Network (D44/D3); settings export (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.9.0** — **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped; drive free space; detached preview; `.ics` / `.eml`; D49 remote listing cache; Power Search; continue-then-review (D18); per-tab search; Network (D44/D3); settings export (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## What we are building
 
-A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), a **universal local script runner** (D51 — PowerShell / Python / cmd / bash on the current folder or selection), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, and **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38).
+A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), an **opt-in universal local script runner** (D51 — Settings → Scripting and AI; PowerShell / Python / cmd / bash on the current folder or selection), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, and **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38).
 
 ## Stack (locked)
 

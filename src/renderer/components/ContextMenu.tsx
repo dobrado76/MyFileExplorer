@@ -74,6 +74,7 @@ function scriptsSubmenu(
   s: ReturnType<typeof useAppStore.getState>,
   ctx: ScriptMenuContext
 ): MenuItem | null {
+  if (!s.settings.scripts.enabled) return null
   if (isRemoteLocation(ctx.folderPath) || ctx.selectedPaths.some((p) => isRemoteLocation(p))) {
     return null
   }

@@ -56,8 +56,8 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - **Open Command Line here** (Shift = Administrator)
 
 **Run anything on the folder in front of you**
-- **Universal script runner** (D51) — PowerShell, Python, cmd, or bash against the current folder or selection. Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs. That is how the app’s capabilities grow without waiting for a release.
-- Optional **AI** writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](docs/SCRIPTS.md)**
+- **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, Python, cmd, or bash against the current folder or selection. Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
+- Optional **AI** (same settings page) writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](docs/SCRIPTS.md)**
 
 **Find things on purpose**
 - **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, content scan, filters/bookmarks
@@ -108,7 +108,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
 14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover, Mark as Watched, and the Watched / Genre toolbar.
-16. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
+16. (Optional / advanced) Settings → Scripting and AI → Enable scripting. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · [docs/SCRIPTS.md](docs/SCRIPTS.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 

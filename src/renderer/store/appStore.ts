@@ -5396,6 +5396,16 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     openDialog(dialog) {
+      if (!dialog) return
+      if (
+        (dialog.kind === 'script-manager' ||
+          dialog.kind === 'script-run' ||
+          dialog.kind === 'script-generate') &&
+        !get().settings.scripts.enabled
+      ) {
+        get().notify('Enable scripting in Settings → Scripting and AI', true)
+        return
+      }
       set({ dialog })
     },
 
@@ -5596,6 +5606,17 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
         if (patch.slideshowFeaturesEnabled === false) {
           get().resetSlideshowForGateOff()
+        }
+        if (patch.scripts && patch.scripts.enabled === false) {
+          const d = get().dialog
+          if (
+            d &&
+            (d.kind === 'script-manager' ||
+              d.kind === 'script-run' ||
+              d.kind === 'script-generate')
+          ) {
+            set({ dialog: null })
+          }
         }
         if (patch.mediaMetadata && typeof patch.mediaMetadata.enabled === 'boolean') {
           const folder = get().listing.path

@@ -438,7 +438,7 @@ export const settingsSchema = z.object({
     if (!raw || typeof raw !== 'object') return defaultMediaMetadataSettings
     return { ...defaultMediaMetadataSettings, ...(raw as object) }
   }, mediaMetadataSettingsSchema),
-  /** Local script runner prefs (interpreter overrides, first-run ack). */
+  /** Local script runner prefs (enable chrome, interpreter overrides, first-run ack). */
   scripts: z.preprocess((raw) => {
     if (!raw || typeof raw !== 'object') return defaultScriptsSettings
     return { ...defaultScriptsSettings, ...(raw as object) }
