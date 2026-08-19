@@ -42,7 +42,8 @@ const historyEntrySchema = z.union([
   z.object({
     kind: z.literal('folder'),
     path: z.string().min(1),
-    scrollOffset: z.number().nonnegative().optional()
+    scrollOffset: z.number().nonnegative().optional(),
+    focusPath: z.string().min(1).optional()
   }),
   z.object({
     kind: z.literal('search'),
@@ -107,7 +108,11 @@ function clampRatio(n: number): number {
   return Math.min(0.85, Math.max(0.15, n))
 }
 
-function sanitizePaneTabIds(raw: unknown, layout: ViewLayout, activeTabId: string | null): (string | null)[] {
+function sanitizePaneTabIds(
+  raw: unknown,
+  layout: ViewLayout,
+  activeTabId: string | null
+): (string | null)[] {
   const arr = Array.isArray(raw) ? raw : []
   const out: (string | null)[] = []
   for (let i = 0; i < layout; i++) {
@@ -122,45 +127,43 @@ function sanitizePaneTabIds(raw: unknown, layout: ViewLayout, activeTabId: strin
   return out
 }
 
-export const sessionSchema = z.preprocess((raw) => {
-  if (!raw || typeof raw !== 'object') return raw
-  const o = raw as Record<string, unknown>
-  const layoutRaw = o.viewLayout
-  const layout: ViewLayout =
-    layoutRaw === 2 || layoutRaw === 4 || layoutRaw === 1 ? layoutRaw : 1
-  const activeTabId =
-    typeof o.activeTabId === 'string' && o.activeTabId.length > 0 ? o.activeTabId : null
-  return {
-    ...o,
-    viewLayout: layout,
-    paneTabIds: sanitizePaneTabIds(o.paneTabIds, layout, activeTabId),
-    focusedPaneIndex:
-      typeof o.focusedPaneIndex === 'number' && Number.isFinite(o.focusedPaneIndex)
-        ? Math.min(layout - 1, Math.max(0, Math.floor(o.focusedPaneIndex)))
-        : 0,
-    paneSplitCols: clampRatio(
-      typeof o.paneSplitCols === 'number' ? o.paneSplitCols : 0.5
-    ),
-    paneSplitRows: clampRatio(
-      typeof o.paneSplitRows === 'number' ? o.paneSplitRows : 0.5
-    )
-  }
-}, z.object({
-  version: z.literal(1).catch(1),
-  activeTabId: z.string().nullable().catch(null),
-  tabs: z.array(tabStateSchema).catch([]),
-  splitters: splittersSchema.catch({
-    treeWidthPx: 240,
-    previewWidthPx: 320,
-    treeCollapsed: false,
-    previewCollapsed: false
-  }),
-  viewLayout: viewLayoutSchema.catch(1),
-  paneTabIds: z.array(z.string().nullable()).catch([]),
-  focusedPaneIndex: z.number().int().min(0).catch(0),
-  paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
-  paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5)
-}))
+export const sessionSchema = z.preprocess(
+  (raw) => {
+    if (!raw || typeof raw !== 'object') return raw
+    const o = raw as Record<string, unknown>
+    const layoutRaw = o.viewLayout
+    const layout: ViewLayout = layoutRaw === 2 || layoutRaw === 4 || layoutRaw === 1 ? layoutRaw : 1
+    const activeTabId =
+      typeof o.activeTabId === 'string' && o.activeTabId.length > 0 ? o.activeTabId : null
+    return {
+      ...o,
+      viewLayout: layout,
+      paneTabIds: sanitizePaneTabIds(o.paneTabIds, layout, activeTabId),
+      focusedPaneIndex:
+        typeof o.focusedPaneIndex === 'number' && Number.isFinite(o.focusedPaneIndex)
+          ? Math.min(layout - 1, Math.max(0, Math.floor(o.focusedPaneIndex)))
+          : 0,
+      paneSplitCols: clampRatio(typeof o.paneSplitCols === 'number' ? o.paneSplitCols : 0.5),
+      paneSplitRows: clampRatio(typeof o.paneSplitRows === 'number' ? o.paneSplitRows : 0.5)
+    }
+  },
+  z.object({
+    version: z.literal(1).catch(1),
+    activeTabId: z.string().nullable().catch(null),
+    tabs: z.array(tabStateSchema).catch([]),
+    splitters: splittersSchema.catch({
+      treeWidthPx: 240,
+      previewWidthPx: 320,
+      treeCollapsed: false,
+      previewCollapsed: false
+    }),
+    viewLayout: viewLayoutSchema.catch(1),
+    paneTabIds: z.array(z.string().nullable()).catch([]),
+    focusedPaneIndex: z.number().int().min(0).catch(0),
+    paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
+    paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5)
+  })
+)
 export type SessionState = z.infer<typeof sessionSchema>
 
 export const defaultSession: SessionState = {

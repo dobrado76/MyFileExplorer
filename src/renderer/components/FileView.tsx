@@ -613,14 +613,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     const foldersFirst =
       recycleMode || searchMode
         ? settings.foldersFirst
-        : listingFoldersFirst({
-            foldersFirst: settings.foldersFirst,
-            mediaEnabled: settings.mediaMetadata.enabled,
-            mixFilesAndFolders: settings.mediaMetadata.mixFilesAndFolders !== false,
-            isContainer: mediaLibrary.isContainer,
-            listingPath: folderPath,
-            containerPath: mediaLibrary.folderPath
-          })
+          : listingFoldersFirst({
+              foldersFirst: settings.foldersFirst,
+              mediaEnabled: settings.mediaMetadata.enabled,
+              mixFilesAndFolders: settings.mediaMetadata.mixFilesAndFolders !== false,
+              isContainer: mediaLibrary.isContainer,
+              listingPath: folderPath,
+              containerPath: mediaLibrary.folderPath
+            })
     if (recycleMode) {
       const dirMul = recycleSort.dir === 'asc' ? 1 : -1
       return [...filtered].sort((a, b) => {
@@ -2073,4 +2073,3 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     </div>
   )
 }
-
