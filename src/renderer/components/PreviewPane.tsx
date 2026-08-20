@@ -17,6 +17,8 @@ export function PreviewPane(): JSX.Element {
   const mediaHold = useAppStore((s) => s.mediaHold)
   const previewWindowOpen = useAppStore((s) => s.previewWindowOpen)
   const previewVideoAutoplay = useAppStore((s) => s.settings.previewVideoAutoplay)
+  const textWordWrap = useAppStore((s) => s.settings.previewTextWordWrap === true)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
   const drawCaption = useAppStore((s) => s.devGateActive && s.settings.slideshow.drawCaption)
@@ -138,6 +140,8 @@ export function PreviewPane(): JSX.Element {
       previewWindowOpen={previewWindowOpen}
       previewVideoAutoplay={previewVideoAutoplay}
       captionPosterUrl={captionPosterUrl}
+      textWordWrap={textWordWrap}
+      onToggleTextWordWrap={() => void applySettingsPatch({ previewTextWordWrap: !textWordWrap })}
       banner={versionBanner}
       onOpenPath={(path) => void openPath(path)}
       onExtractZip={(paths) => void extractZip(paths)}

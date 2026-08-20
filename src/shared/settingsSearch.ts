@@ -67,7 +67,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'preview',
     label: 'Preview',
-    keywords: 'preview pane text markdown html max bytes truncate code'
+    keywords: 'preview pane text markdown html max bytes truncate code wrap word wrap'
   },
   {
     id: 'search',

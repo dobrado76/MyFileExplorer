@@ -271,6 +271,8 @@ export const settingsSchema = z.object({
   previewVideoAutoplay: z.boolean().catch(false),
   /** Detached preview window: hide metadata / details and show only the visualization. */
   previewWindowZen: z.boolean().catch(false),
+  /** Wrap long lines in text / code / markdown / HTML source preview. */
+  previewTextWordWrap: z.boolean().catch(false),
   /**
    * Search / index exclude patterns (view-filter language): folder names, file
    * names, extensions (`.tmp` / `*.log`), wildcards, or absolute paths.
@@ -579,6 +581,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
   previewVideoAutoplay: false,
   previewWindowZen: false,
+  previewTextWordWrap: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   searchIndexedOnly: false,
   searchMatchPath: false,

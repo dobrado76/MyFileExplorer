@@ -50,6 +50,7 @@ import { episodeIconLabel, episodeIconTitle, isEpisodeListEntry } from '@shared/
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
+import { visibleIndexRange } from '@shared/visibleIndexRange'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
 import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
@@ -286,12 +287,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  /** Scroll node in state so TanStack rebinds after the callback ref attaches. */
+  const [scrollEl, setScrollElState] = useState<HTMLDivElement | null>(null)
   /** True after the user (or a follow-selection scroll) moved the list — skip Back-style restore. */
   const userScrolledRef = useRef(false)
   const detailsHeaderRef = useRef<HTMLDivElement>(null)
   const resizeObserverRef = useRef<ResizeObserver | null>(null)
   const typeaheadRef = useRef<{ buffer: string; timer: number }>({ buffer: '', timer: 0 })
   const [width, setWidth] = useState(800)
+  const [scrollBoxH, setScrollBoxH] = useState(0)
   // Whole-view outline is for multi-pane drop targeting only (single-pane: noise).
   const bgDropActive = !!(
     viewLayout > 1 &&
@@ -471,14 +475,17 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   // element is actually mounted. Transient 0 widths (detach/hide) are ignored.
   const setScrollEl = useCallback((el: HTMLDivElement | null): void => {
     scrollRef.current = el
+    setScrollElState(el)
     resizeObserverRef.current?.disconnect()
     resizeObserverRef.current = null
     if (!el) return
     const ro = new ResizeObserver(() => {
       if (el.clientWidth > 0) setWidth(el.clientWidth)
+      if (el.clientHeight > 0) setScrollBoxH(el.clientHeight)
     })
     ro.observe(el)
     if (el.clientWidth > 0) setWidth(el.clientWidth)
+    if (el.clientHeight > 0) setScrollBoxH(el.clientHeight)
     resizeObserverRef.current = ro
   }, [])
 
@@ -718,7 +725,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const virtualizer = useVirtualizer({
     count: rowCount,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => scrollEl,
     estimateSize: () => rowHeight,
     // Keep a small buffer for scroll smoothness; ThumbImage also gates
     // network/decode work with IntersectionObserver (~180px margin).
@@ -729,7 +736,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   // estimateSize changes (e.g. switching view modes / leaving Recycle Bin).
   useLayoutEffect(() => {
     virtualizer.measure()
-  }, [rowHeight, columns, overlayMode, viewMode, virtualizer])
+  }, [rowHeight, columns, overlayMode, viewMode, virtualizer, rowCount, width, scrollBoxH, scrollEl])
 
   const ensureRowVisible = useCallback(
     (rowIdx: number): void => {
@@ -751,8 +758,22 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   )
 
   // Only the virtual rows — never the whole listing (Size used to enqueue every file).
-  const visibleRangeStart = virtualizer.range?.startIndex ?? 0
-  const visibleRangeEnd = virtualizer.range?.endIndex ?? -1
+  // Prefer painted items; fall back / widen with scroll-box geometry when TanStack
+  // has not measured yet (short lists) or lags one wheel tick behind.
+  const virtualItems = virtualizer.getVirtualItems()
+  const visibleSpan = visibleIndexRange({
+    rangeStart: virtualItems[0]?.index ?? virtualizer.range?.startIndex,
+    rangeEnd: virtualItems.length
+      ? virtualItems[virtualItems.length - 1]!.index
+      : virtualizer.range?.endIndex,
+    rowCount,
+    scrollTop: scrollEl?.scrollTop ?? 0,
+    clientHeight: scrollBoxH || scrollEl?.clientHeight || 0,
+    rowHeight,
+    overscan: 2
+  })
+  const visibleRangeStart = visibleSpan?.start ?? 0
+  const visibleRangeEnd = visibleSpan?.end ?? -1
   useEffect(() => {
     if (metaFetchColumns.length === 0 || visibleRangeEnd < visibleRangeStart) return
     const needed: string[] = []
@@ -778,18 +799,16 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       }
     }
     if (needed.length === 0) return
-    let cancelled = false
     void (async () => {
       const res = await api.meta.getMany({ paths: needed, columns: metaFetchColumns })
-      if (cancelled || !res.ok) {
+      if (!res.ok) {
         for (const p of needed) requestedMetaRef.current.delete(p)
         return
       }
+      // Apply even if this effect was superseded. Clearing requested + dropping
+      // the payload left newly visible rows blank until the next wheel tick.
       setMetaByPath((prev) => ({ ...prev, ...res.value.values }))
     })()
-    return () => {
-      cancelled = true
-    }
   }, [
     visibleRangeStart,
     visibleRangeEnd,
@@ -798,7 +817,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     columns,
     metaFetchColumns,
     fileMetaColumns,
-    dirMetaColumns
+    dirMetaColumns,
+    scrollBoxH,
+    rowCount,
+    rowHeight
   ])
 
   useEffect(() => {

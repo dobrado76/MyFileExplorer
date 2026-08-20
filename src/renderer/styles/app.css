@@ -1663,8 +1663,15 @@ body.right-dragging * {
 }
 .preview-edit-btn,
 .preview-popout-btn,
-.preview-zen-btn {
+.preview-zen-btn,
+.preview-wrap-btn {
   flex-shrink: 0;
+}
+.preview.preview-text-wrap .preview-text,
+.preview.preview-text-wrap .preview-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .preview.preview-zen .preview-header-compact {
   justify-content: flex-end;

@@ -9,7 +9,8 @@ import {
   AudioFileIcon,
   VideoFileIcon,
   PdfFileIcon,
-  SpinnerIcon
+  SpinnerIcon,
+  WrapTextIcon
 } from '../../lib/icons'
 import {
   AudioPreview,
@@ -132,6 +133,9 @@ export type PreviewViewProps = {
   captionPosterUrl?: string | null
   /** Pop-out only: hide metadata / details and fill with the visualization. */
   zen?: boolean
+  /** Wrap long lines in text / code previews. */
+  textWordWrap?: boolean
+  onToggleTextWordWrap?: () => void
   headerActions?: ReactNode
   banner?: ReactNode
   onOpenPath: (path: string) => void
@@ -152,6 +156,8 @@ export function PreviewView({
   previewVideoAutoplay = false,
   captionPosterUrl = null,
   zen = false,
+  textWordWrap = false,
+  onToggleTextWordWrap,
   headerActions,
   banner,
   onOpenPath,
@@ -187,8 +193,14 @@ export function PreviewView({
               ? ' preview-kind-model3d'
               : ''
 
+  const showWrapToggle =
+    !!onToggleTextWordWrap &&
+    (model?.kind === 'text' || model?.kind === 'markdown' || model?.kind === 'html')
+
   return (
-    <div className={`preview${kindClass}${zen ? ' preview-zen' : ''}`}>
+    <div
+      className={`preview${kindClass}${zen ? ' preview-zen' : ''}${textWordWrap ? ' preview-text-wrap' : ''}`}
+    >
       <div className="preview-header preview-header-compact">
         {!zen ? (
           <div className="preview-sub">
@@ -201,7 +213,23 @@ export function PreviewView({
             {headerSub}
           </div>
         ) : null}
-        {headerActions ? <div className="preview-header-actions">{headerActions}</div> : null}
+        {showWrapToggle || headerActions ? (
+          <div className="preview-header-actions">
+            {showWrapToggle ? (
+              <button
+                type="button"
+                className={`icon-btn preview-wrap-btn${textWordWrap ? ' active' : ''}`}
+                aria-label={textWordWrap ? 'Disable word wrap' : 'Enable word wrap'}
+                aria-pressed={textWordWrap}
+                title={textWordWrap ? 'Word wrap on' : 'Word wrap off'}
+                onClick={onToggleTextWordWrap}
+              >
+                <WrapTextIcon size={16} />
+              </button>
+            ) : null}
+            {headerActions}
+          </div>
+        ) : null}
       </div>
 
       {!zen ? banner : null}

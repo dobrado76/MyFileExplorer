@@ -700,7 +700,14 @@ function ConfirmPermanentDelete({ paths }: { paths: string[] }): JSX.Element {
 
 function ConfirmEmptyRecycleBin(): JSX.Element {
   const confirmEmptyRecycleBin = useAppStore((s) => s.confirmEmptyRecycleBin)
-  const count = useAppStore((s) => s.recycleBin.items.length)
+  const recycleBin = useAppStore((s) => s.recycleBin)
+  const known = recycleBin.active && !recycleBin.loading
+  const count = recycleBin.items.length
+  const body = !known
+    ? 'Permanently delete all items in the Recycle Bin?'
+    : count === 1
+      ? 'Permanently delete the 1 item in the Recycle Bin?'
+      : `Permanently delete all ${count} items in the Recycle Bin?`
   return (
     <Modal
       title="Empty Recycle Bin?"
@@ -720,11 +727,7 @@ function ConfirmEmptyRecycleBin(): JSX.Element {
         </>
       }
     >
-      <p>
-        {count === 1
-          ? 'Permanently delete the 1 item in the Recycle Bin?'
-          : `Permanently delete all ${count} items in the Recycle Bin?`}
-      </p>
+      <p>{body}</p>
       <p className="dim">This cannot be undone.</p>
     </Modal>
   )
@@ -3067,6 +3070,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 How much of a text, code, Markdown, or HTML file to show (default 2 MiB). Larger
                 files are truncated with a warning.
               </p>
+              <SettingsToggle
+                id="set-preview-wordwrap"
+                label="Word wrap text preview"
+                hint="Wrap long lines in text, code, Markdown, and HTML source. Also on the preview header."
+                checked={settings.previewTextWordWrap === true}
+                onChange={(v) => void applySettingsPatch({ previewTextWordWrap: v })}
+              />
             </div>
           )}
 

@@ -65,6 +65,7 @@ export function PreviewWindowApp(): JSX.Element {
   const [target, setTarget] = useState<PreviewWindowTarget>({ path: null })
   const [autoplay, setAutoplay] = useState(false)
   const [zen, setZen] = useState(false)
+  const [textWordWrap, setTextWordWrap] = useState(false)
 
   useEffect(() => {
     void call(api.settings.get())
@@ -72,6 +73,7 @@ export function PreviewWindowApp(): JSX.Element {
         applyChromeSettings(s)
         setAutoplay(s.previewVideoAutoplay)
         setZen(s.previewWindowZen === true)
+        setTextWordWrap(s.previewTextWordWrap === true)
       })
       .catch(() => {
         document.documentElement.dataset['theme'] = 'dark'
@@ -82,6 +84,12 @@ export function PreviewWindowApp(): JSX.Element {
     const next = !zen
     setZen(next)
     void api.settings.set({ previewWindowZen: next })
+  }
+
+  const toggleWordWrap = (): void => {
+    const next = !textWordWrap
+    setTextWordWrap(next)
+    void api.settings.set({ previewTextWordWrap: next })
   }
 
   useEffect(() => {
@@ -118,6 +126,8 @@ export function PreviewWindowApp(): JSX.Element {
         previewPath={target.path}
         previewVideoAutoplay={autoplay}
         zen={zen}
+        textWordWrap={textWordWrap}
+        onToggleTextWordWrap={toggleWordWrap}
         headerActions={
           <button
             type="button"

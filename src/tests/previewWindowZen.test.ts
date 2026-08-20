@@ -26,3 +26,17 @@ describe('previewWindowZen setting', () => {
     expect(loaded.previewWindowZen).toBe(true)
   })
 })
+
+describe('previewTextWordWrap setting', () => {
+  it('defaults to false', () => {
+    expect(settingsSchema.parse({}).previewTextWordWrap).toBe(false)
+    expect(defaultSettings.previewTextWordWrap).toBe(false)
+  })
+
+  it('round-trips true through patch + full schema', () => {
+    const patch = settingsPatchSchema.parse({ previewTextWordWrap: true })
+    expect(patch).toEqual({ previewTextWordWrap: true })
+    const next = settingsSchema.parse({ ...defaultSettings, ...patch })
+    expect(next.previewTextWordWrap).toBe(true)
+  })
+})

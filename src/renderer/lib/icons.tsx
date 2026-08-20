@@ -386,6 +386,14 @@ export const CompressIcon = svg(
     <path d="M3 21l7-7" />
   </>
 )
+/** Word wrap on/off in text preview. */
+export const WrapTextIcon = svg(
+  <>
+    <path d="M3 6h18" />
+    <path d="M3 12h13a3 3 0 0 1 0 6h-5" />
+    <path d="M8 15l-3 3 3 3" />
+  </>
+)
 /** Detach the preview pane into a peer window. */
 export const PopOutIcon = svg(
   <>

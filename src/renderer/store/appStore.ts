@@ -6380,9 +6380,11 @@ export const useAppStore = create<AppState>()((set, get) => {
           call(api.fs.emptyRecycleBin())
         )
         get().notify('Recycle Bin emptied')
-        await get().refreshRecycleBinView()
-        updateActiveTab({ selected: [] })
-        set({ selectionAnchor: null, focusedPath: null })
+        if (get().recycleBin.active) {
+          await get().refreshRecycleBinView()
+          updateActiveTab({ selected: [] })
+          set({ selectionAnchor: null, focusedPath: null })
+        }
       } catch (e) {
         reportOperationError('Empty Recycle Bin failed', e)
       }

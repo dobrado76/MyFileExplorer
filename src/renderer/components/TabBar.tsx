@@ -11,7 +11,9 @@ import {
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
-type TabMenuState = { tabId: string; x: number; y: number }
+type TabBarMenu =
+  | { kind: 'tab'; tabId: string; x: number; y: number }
+  | { kind: 'recycle'; x: number; y: number }
 
 const EDGE_SCROLL_PX = 28
 const EDGE_SCROLL_STEP = 18
@@ -33,12 +35,16 @@ export function TabBar(): JSX.Element {
   const setDragPaths = useAppStore((s) => s.setDragPaths)
   const openRecycleBinView = useAppStore((s) => s.openRecycleBinView)
   const closeRecycleBinView = useAppStore((s) => s.closeRecycleBinView)
+  const emptyRecycleBinView = useAppStore((s) => s.emptyRecycleBinView)
+  const recycleBinKnownEmpty = useAppStore(
+    (s) => s.recycleBin.active && !s.recycleBin.loading && s.recycleBin.items.length === 0
+  )
   const openDialog = useAppStore((s) => s.openDialog)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [dropTabId, setDropTabId] = useState<string | null>(null)
-  const [menu, setMenu] = useState<TabMenuState | null>(null)
+  const [menu, setMenu] = useState<TabBarMenu | null>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
@@ -245,7 +251,7 @@ export function TabBar(): JSX.Element {
     edgeScrollRaf.current = requestAnimationFrame(step)
   }
 
-  const menuTab = menu ? tabs.find((t) => t.id === menu.tabId) : null
+  const menuTab = menu?.kind === 'tab' ? tabs.find((t) => t.id === menu.tabId) : null
   const menuPos = menu
     ? {
         left: Math.min(menu.x, window.innerWidth - 200),
@@ -375,7 +381,7 @@ export function TabBar(): JSX.Element {
                 ) {
                   return
                 }
-                setMenu({ tabId: tab.id, x: e.clientX, y: e.clientY })
+                setMenu({ kind: 'tab', tabId: tab.id, x: e.clientX, y: e.clientY })
               }}
             >
               {editingId === tab.id ? (
@@ -437,14 +443,56 @@ export function TabBar(): JSX.Element {
         className={`tabbar-recycle${recycleBinActive ? ' active' : ''}`}
         aria-label="Recycle Bin"
         aria-pressed={recycleBinActive}
+        aria-haspopup="menu"
         title={recycleBinActive ? 'Close Recycle Bin' : 'Open Recycle Bin'}
         onClick={onRecycleClick}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setMenu({ kind: 'recycle', x: e.clientX, y: e.clientY })
+        }}
       >
         <RecycleBinIcon size={16} />
         <span className="tabbar-recycle-label">Recycle Bin</span>
       </button>
 
-      {menu && menuTab && menuPos
+      {menu?.kind === 'recycle' && menuPos
+        ? createPortal(
+            <div
+              className="context-menu tab-context-menu"
+              role="menu"
+              style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null)
+                  onRecycleClick()
+                }}
+              >
+                {recycleBinActive ? 'Close' : 'Open'}
+              </button>
+              <button
+                type="button"
+                className="menu-item danger"
+                role="menuitem"
+                disabled={recycleBinKnownEmpty}
+                onClick={() => {
+                  setMenu(null)
+                  emptyRecycleBinView()
+                }}
+              >
+                Empty Recycle Bin
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
+
+      {menu?.kind === 'tab' && menuTab && menuPos
         ? createPortal(
             <div
               className="context-menu tab-context-menu"
