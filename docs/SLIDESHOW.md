@@ -97,13 +97,13 @@ Interrupt autoplay first (any nav key, wheel, etc.), then:
 | ---- | ---------------- | --------- |
 | **Numpad0**, **Enter** | Resume autoplay | Save crop to disk (single encode from pristine `$DATA`) and exit crop |
 | **Numpad5**, **Esc** | — | Abandon crop (no save) and exit crop |
-| **Numpad2** | Enter crop + trim bottom 10% | +10% bottom (height) |
-| **Numpad8** | Enter crop + trim top 10% | +10% top |
-| **Numpad4** | Enter crop + trim left 10% | +10% left |
-| **Numpad6** | Enter crop + trim right 10% | +10% right |
-| **Shift** held | 5% step | 5% step |
-| **Ctrl** held | 2% step | 2% step |
-| **Shift+Ctrl** | 1% step | 1% step |
+| **Numpad2** | Enter crop + trim bottom 5% | +5% bottom (height) |
+| **Numpad8** | Enter crop + trim top 5% | +5% top |
+| **Numpad4** | Enter crop + trim left 5% | +5% left |
+| **Numpad6** | Enter crop + trim right 5% | +5% right |
+| **Shift** held | 2.5% step | 2.5% step |
+| **Ctrl** held | 1% step | 1% step |
+| **Shift+Ctrl** | 0.5% step | 0.5% step |
 | **← ↑ PageUp**, **→ ↓ PageDown**, **Home**, **End** | Normal navigation | Save crop (if any) and go prev / next / first / last |
 | **Backspace** | — | Discard crop and go **previous** |
 | **Delete** | — | Discard crop and go **next** |

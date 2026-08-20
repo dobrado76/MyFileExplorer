@@ -684,7 +684,7 @@ export function SlideshowOverlay(): JSX.Element | null {
         {caption && !showCropPreview && <div className="slideshow-caption">{caption}</div>}
         {cropMode && (
           <div className="slideshow-hint slideshow-crop-hint">
-            Crop — 2/4/6/8 trim (10%; Shift 5%; Ctrl 2%; Shift+Ctrl 1%) · Enter/0 save · Esc/5 cancel ·
+            Crop — 2/4/6/8 trim (5%; Shift 2.5%; Ctrl 1%; Shift+Ctrl 0.5%) · Enter/0 save · Esc/5 cancel ·
             arrows/PgUp/PgDn/Home/End save &amp; go · Backspace/Delete discard &amp; go
           </div>
         )}

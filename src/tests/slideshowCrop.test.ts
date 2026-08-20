@@ -9,11 +9,11 @@ import {
 import { isSlideshowCropNumpadKey } from '../shared/slideshow/keys'
 
 describe('numpadCropStepPct', () => {
-  it('returns 10/5/2/1 percent for modifiers', () => {
-    expect(numpadCropStepPct(false, false)).toBe(0.1)
-    expect(numpadCropStepPct(true, false)).toBe(0.05)
-    expect(numpadCropStepPct(false, true)).toBe(0.02)
-    expect(numpadCropStepPct(true, true)).toBe(0.01)
+  it('returns 5/2.5/1/0.5 percent for modifiers', () => {
+    expect(numpadCropStepPct(false, false)).toBe(0.05)
+    expect(numpadCropStepPct(true, false)).toBe(0.025)
+    expect(numpadCropStepPct(false, true)).toBe(0.01)
+    expect(numpadCropStepPct(true, true)).toBe(0.005)
   })
 })
 

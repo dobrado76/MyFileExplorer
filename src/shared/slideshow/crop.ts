@@ -21,10 +21,10 @@ export function hasSlideshowCrop(acc: SlideshowAccumulatedCrop): boolean {
 
 /** Numpad crop step size from modifier keys. */
 export function numpadCropStepPct(shiftKey: boolean, ctrlKey: boolean): number {
-  if (shiftKey && ctrlKey) return 0.01
-  if (ctrlKey) return 0.02
-  if (shiftKey) return 0.05
-  return 0.1
+  if (shiftKey && ctrlKey) return 0.005
+  if (ctrlKey) return 0.01
+  if (shiftKey) return 0.025
+  return 0.05
 }
 
 export function applyCropStep(
