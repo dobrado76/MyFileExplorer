@@ -1,5 +1,12 @@
 import type { CategorizerMapRow } from '@shared/slideshow/categorizerMap'
 
+export {
+  slideshowFirstIndex,
+  slideshowLastIndex,
+  slideshowLength,
+  slideshowNextIndex
+} from '@shared/slideshow/playlist'
+
 export type SlideshowStatus = 'building' | 'playing' | 'manual'
 
 export type SlideshowAction =
@@ -34,6 +41,11 @@ export type SlideshowState = {
   buildFound: number
   buildCurrent: string
   actions: SlideshowAction[]
+  /**
+   * Folder/cache playlist: indexes removed this session (virtual delete / skip).
+   * Mutated in place — do not clone `paths` on each delete.
+   */
+  skipped?: Set<number>
   /** Playing from compiled !!Lists / .dat indexes (virtual playlist in main). */
   compiledMode?: boolean
   /** Logical length of virtual compiled playlist (C# int scale). */
@@ -65,12 +77,6 @@ export function emptySlideshowSession(): SlideshowSession {
     active: null,
     imageRevision: 0
   }
-}
-
-/** Effective playlist length (virtual compiled or flat paths). */
-export function slideshowLength(a: SlideshowState): number {
-  if (a.compiledMode) return a.compiledTotal ?? 0
-  return a.paths.length
 }
 
 /** Current image path for overlay / categorizer. */

@@ -15,7 +15,14 @@ import {
 import { SLIDESHOW_IMAGE_LIST_CAP } from '@shared/slideshow/constants'
 import { api, call, IpcError } from '../lib/ipc'
 import type { SlideshowAction, SlideshowSession, SlideshowState } from '../lib/slideshowTypes'
-import { emptySlideshowSession, slideshowLength, slideshowCurrentPath } from '../lib/slideshowTypes'
+import {
+  emptySlideshowSession,
+  slideshowLength,
+  slideshowCurrentPath,
+  slideshowNextIndex,
+  slideshowFirstIndex,
+  slideshowLastIndex
+} from '../lib/slideshowTypes'
 import { basename, samePath, isUnderPath } from '../lib/paths'
 
 type Get = () => SlideshowHost
@@ -120,6 +127,29 @@ function persistSlideshowCache(get: Get): void {
       imageListCache: session.imageListCache
     }
   })
+}
+
+/** Paths dropped from the image-list cache this session — flushed once on stop. */
+const pendingCacheDrops = new Set<string>()
+
+function queueCacheDrop(filePath: string): void {
+  pendingCacheDrops.add(filePath.toLowerCase())
+}
+
+function flushPendingCacheDrops(get: Get, set: Set): void {
+  if (pendingCacheDrops.size === 0) return
+  const cache = get().slideshow.imageListCache
+  const next =
+    cache.length === 0 ? cache : cache.filter((p) => !pendingCacheDrops.has(p.toLowerCase()))
+  pendingCacheDrops.clear()
+  if (next === cache) return
+  set({ slideshow: { ...get().slideshow, imageListCache: next } })
+  persistSlideshowCache(get)
+}
+
+function markSkipped(a: SlideshowState, index: number): void {
+  if (!a.skipped) a.skipped = new Set()
+  a.skipped.add(index)
 }
 
 function persistCategorizerMap(get: Get, rows: CategorizerMapRow[]): void {
@@ -353,6 +383,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       const a = get().slideshow.active
       if (!builtFromCache && (!a || a.status !== 'building')) return
 
+      pendingCacheDrops.clear()
       const active: SlideshowState = {
         status: 'playing',
         paths,
@@ -361,6 +392,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         buildFound: paths.length,
         buildCurrent: '',
         actions: [],
+        skipped: new Set(),
         compiledMode: false
       }
       set({ slideshow: { ...get().slideshow, active } })
@@ -597,25 +629,19 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!a || a.status !== 'playing') return
       const n = slideshowLength(a)
       if (n <= 0) return
-      const next = a.index + 1
-      if (next >= n) {
-        if (get().settings.slideshow.loop) {
-          void actions.setCompiledPlayIndex(0)
-          if (!a.compiledMode) {
-            set({
-              slideshow: {
-                ...get().slideshow,
-                active: { ...a, index: 0 }
-              }
-            })
-          }
-        } else {
-          void actions.stopSlideshow()
+      if (a.compiledMode) {
+        const next = a.index + 1
+        if (next >= n) {
+          if (get().settings.slideshow.loop) void actions.setCompiledPlayIndex(0)
+          else void actions.stopSlideshow()
+          return
         }
+        void actions.setCompiledPlayIndex(next)
         return
       }
-      if (a.compiledMode) {
-        void actions.setCompiledPlayIndex(next)
+      const next = slideshowNextIndex(a, a.index, 1, get().settings.slideshow.loop)
+      if (next == null) {
+        void actions.stopSlideshow()
         return
       }
       set({
@@ -628,7 +654,8 @@ export function createSlideshowActions(get: Get, set: Set) {
 
     /**
      * Unloadable / undecodable current image:
-     * - remove from active list + image-list cache (persisted)
+     * - skip current index (paths array stays put)
+     * - queue a cache drop (flushed on stop)
      * - move into `invalidImagesDir` when configured (not a soft skip)
      */
     slideshowSkipUnloadable() {
@@ -639,13 +666,10 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (a.compiledMode) {
         const badPath = a.currentPath
         if (!badPath) return
-        const imageListCache = get().slideshow.imageListCache.filter((p) => !samePath(p, badPath))
+        queueCacheDrop(badPath)
         void call(api.slideshow.compiledPathAt({ index: a.index })).catch(() => {})
-        // Soft-skip: advance; main keeps virtual list intact.
-        const n = a.compiledTotal ?? 0
-        persistSlideshowCache(get)
         void moveInvalidSlideshowImage(get, badPath)
-        set({ slideshow: { ...get().slideshow, imageListCache } })
+        const n = a.compiledTotal ?? 0
         if (n <= 0) return
         const next = a.index + 1
         if (next >= n) {
@@ -661,52 +685,27 @@ export function createSlideshowActions(get: Get, set: Set) {
       const badPath = a.paths[a.index]
       if (!badPath) return
       const removeIdx = a.index
+      markSkipped(a, removeIdx)
+      queueCacheDrop(badPath)
+      void moveInvalidSlideshowImage(get, badPath)
 
-      const paths = a.paths.filter((_, i) => i !== removeIdx)
-      const imageListCache = get().slideshow.imageListCache.filter((p) => !samePath(p, badPath))
-
-      if (paths.length === 0) {
-        set({
-          slideshow: {
-            ...get().slideshow,
-            active: null,
-            imageListCache
-          }
-        })
-        persistSlideshowCache(get)
-        void moveInvalidSlideshowImage(get, badPath)
+      if (slideshowLength(a) === 0) {
+        set({ slideshow: { ...get().slideshow, active: null } })
         get().notify('No displayable images left — slideshow stopped', true)
         return
       }
 
-      let index: number
-      if (removeIdx >= paths.length) {
-        if (a.status === 'playing' && !get().settings.slideshow.loop) {
-          set({
-            slideshow: {
-              ...get().slideshow,
-              active: null,
-              imageListCache
-            }
-          })
-          persistSlideshowCache(get)
-          void moveInvalidSlideshowImage(get, badPath)
-          return
-        }
-        index = 0
-      } else {
-        index = removeIdx
+      const index = slideshowNextIndex(a, removeIdx, 1, true)
+      if (index == null) {
+        set({ slideshow: { ...get().slideshow, active: null } })
+        return
       }
-
       set({
         slideshow: {
           ...get().slideshow,
-          imageListCache,
-          active: { ...a, paths, index }
+          active: { ...a, index }
         }
       })
-      persistSlideshowCache(get)
-      void moveInvalidSlideshowImage(get, badPath)
     },
 
     slideshowNavigate(dir: -1 | 1 | 'first' | 'last') {
@@ -715,18 +714,20 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!a) return
       const n = slideshowLength(a)
       if (n <= 0) return
-      let index: number
-      if (dir === 'first') index = 0
-      else if (dir === 'last') index = n - 1
-      else if (get().settings.slideshow.loop) {
-        index = (((a.index + dir) % n) + n) % n
-      } else {
-        index = Math.max(0, Math.min(n - 1, a.index + dir))
-      }
+      const loop = get().settings.slideshow.loop
+      let index: number | null
       if (a.compiledMode) {
+        if (dir === 'first') index = 0
+        else if (dir === 'last') index = n - 1
+        else if (loop) index = (((a.index + dir) % n) + n) % n
+        else index = Math.max(0, Math.min(n - 1, a.index + dir))
         void actions.setCompiledPlayIndex(index, a.status === 'building' ? a.status : 'manual')
         return
       }
+      if (dir === 'first') index = slideshowFirstIndex(a)
+      else if (dir === 'last') index = slideshowLastIndex(a)
+      else index = slideshowNextIndex(a, a.index, dir, loop)
+      if (index == null) return
       set({
         slideshow: {
           ...get().slideshow,
@@ -784,8 +785,8 @@ export function createSlideshowActions(get: Get, set: Set) {
       }
 
       if (a.paths.length === 0) return
-      const paths = a.paths.filter((_, i) => i !== a.index)
-      const nextIndex = Math.min(insertIndex, Math.max(0, paths.length - 1))
+      markSkipped(a, insertIndex)
+      const nextIndex = slideshowNextIndex(a, insertIndex, 1, true)
       let action: SlideshowAction
       if (isDeleteMapRow(row)) {
         action = {
@@ -813,13 +814,12 @@ export function createSlideshowActions(get: Get, set: Set) {
           active: {
             ...a,
             status: 'manual',
-            paths,
-            index: paths.length === 0 ? 0 : nextIndex,
+            index: nextIndex ?? insertIndex,
             actions: [...a.actions, action]
           }
         }
       })
-      if (paths.length === 0) {
+      if (slideshowLength(a) === 0) {
         get().notify('List empty — stop to commit pending actions')
       }
     },
@@ -845,16 +845,14 @@ export function createSlideshowActions(get: Get, set: Set) {
         })
         return
       }
-      const paths = [...a.paths]
-      const idx = Math.min(last.insertIndex, paths.length)
-      paths.splice(idx, 0, last.path)
+      a.skipped?.delete(last.insertIndex)
+      const idx = Math.min(last.insertIndex, Math.max(0, a.paths.length - 1))
       set({
         slideshow: {
           ...get().slideshow,
           active: {
             ...a,
             status: 'manual',
-            paths,
             index: idx,
             actions: stack
           }
@@ -873,6 +871,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       }
       const pending = [...a.actions]
       set({ slideshow: { ...get().slideshow, active: null } })
+      flushPendingCacheDrops(get, set)
       void call(api.slideshow.clearVirtualPlaylist()).catch(() => {})
       // Lists window and slideshow are paired — closing either ends both.
       void call(api.slideshow.closeCompiledListsWindow()).catch(() => {})
@@ -906,6 +905,7 @@ export function createSlideshowActions(get: Get, set: Set) {
 
     resetSlideshowForGateOff() {
       invalidateSlideshowBuild()
+      pendingCacheDrops.clear()
       void api.slideshow.clearVirtualPlaylist().catch(() => {})
       void api.slideshow.closeCompiledListsWindow().catch(() => {})
       set({ slideshow: emptySlideshowSession() })

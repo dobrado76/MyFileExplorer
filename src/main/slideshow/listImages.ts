@@ -34,7 +34,24 @@ function throwIfListStale(gen: number): void {
   }
 }
 
-async function walkImages(root: string, out: ImageEntry[], gen: number): Promise<void> {
+let lastProgressMs = 0
+
+function emitListProgress(found: number, current: string, force = false): void {
+  const now = Date.now()
+  if (!force && now - lastProgressMs < 100) return
+  lastProgressMs = now
+  broadcast({
+    type: 'slideshow-list-progress',
+    payload: { found, current }
+  })
+}
+
+async function walkImages(
+  root: string,
+  out: ImageEntry[],
+  gen: number,
+  needSize: boolean
+): Promise<void> {
   if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
   let dirents
   try {
@@ -42,27 +59,31 @@ async function walkImages(root: string, out: ImageEntry[], gen: number): Promise
   } catch {
     return
   }
+  const dirs: string[] = []
   for (const d of dirents) {
     if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
     const full = path.join(root, d.name)
     if (d.isDirectory()) {
-      await walkImages(full, out, gen)
+      dirs.push(full)
       continue
     }
     if (!d.isFile() || !isSlideshowImagePath(full)) continue
-    let size: number
-    try {
-      size = (await fsp.stat(full)).size
-    } catch {
-      continue
+    let size = 0
+    if (needSize) {
+      try {
+        size = (await fsp.stat(full)).size
+      } catch {
+        continue
+      }
     }
     out.push({ path: full, name: d.name, size, width: 0, height: 0 })
-    if (out.length % 200 === 0) {
-      broadcast({
-        type: 'slideshow-list-progress',
-        payload: { found: out.length, current: full }
-      })
-    }
+    emitListProgress(out.length, full)
+  }
+  const CONC = 8
+  for (let i = 0; i < dirs.length; i += CONC) {
+    if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
+    const batch = dirs.slice(i, i + CONC)
+    await Promise.all(batch.map((dir) => walkImages(dir, out, gen, needSize)))
   }
 }
 
@@ -182,9 +203,11 @@ export async function listSlideshowImages(
   }
 
   const entries: ImageEntry[] = []
+  lastProgressMs = 0
+  const needSize = req.order === 'size'
   for (const root of roots) {
     throwIfListStale(gen)
-    await walkImages(root, entries, gen)
+    await walkImages(root, entries, gen, needSize)
   }
   const truncated = entries.length >= LIST_CAP
 

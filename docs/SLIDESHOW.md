@@ -8,7 +8,7 @@ When **on**:
 
 - Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder, **Compiled file lists folder** + Update Lists…
 - Toolbar: Start (folder/cache walk), optional **Compiled lists** button (when compiled folder is set), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
-- Folder context menu: **Start Slideshow**. **Stop** cancels an in-flight image-list build so a cancelled walk cannot later replace the playlist.
+- Folder context menu: **Start Slideshow**. **Stop** cancels an in-flight image-list build so a cancelled walk cannot later replace the playlist. Folder walks collect paths from directory listings; `stat` / decode runs only when Settings order is **size** or **dimensions**. Virtual delete/categorize during play marks the current index skipped (does not copy the path array).
 - **Categorizer map** — **Mapping Manager…** (Settings → Slideshow); Import/Export `.map` files there. Rows persist in `settings.slideshow.categorizerMap` (included in Settings → About → Export/Import). Deleting an exported file does not clear mappings.
 
 ## Compiled file lists (D39)
@@ -67,7 +67,7 @@ Exact line shape (blank lines allowed):
 | Item | Action |
 | ---- | ------ |
 | Categorize | Submenu of folder mappings from the categorizer map (virtual move; commit on stop) |
-| Delete | Virtual delete (commit on stop) |
+| Delete | Virtual delete (O(1) skip in the in-memory list; commit on stop) |
 | Undo | Undo last buffer action |
 | Edit image… | Same in-app editor as Tab / context **Edit image…** |
 | Reveal in Explorer | Exit slideshow (commit), open parent folder in a **new tab**, select the file |

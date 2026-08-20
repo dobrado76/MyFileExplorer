@@ -24,7 +24,7 @@ import {
   type SlideshowKeyLike
 } from '@shared/slideshow/keys'
 import { SpinnerIcon } from '../lib/icons'
-import { slideshowCurrentPath, slideshowLength } from '../lib/slideshowTypes'
+import { slideshowCurrentPath, slideshowLength, slideshowNextIndex } from '../lib/slideshowTypes'
 import { useIdleCursorHide } from '../lib/useIdleCursorHide'
 import { tryCaptionPosterUrl } from '../lib/captionPoster'
 import {
@@ -49,6 +49,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     (s) => s.devGateActive && s.settings.slideshow.drawCaption
   )
   const delayMs = useAppStore((s) => s.settings.slideshow.delayMs)
+  const loop = useAppStore((s) => s.settings.slideshow.loop)
   const stopSlideshow = useAppStore((s) => s.stopSlideshow)
   const slideshowInterrupt = useAppStore((s) => s.slideshowInterrupt)
   const slideshowResumePlaying = useAppStore((s) => s.slideshowResumePlaying)
@@ -128,7 +129,13 @@ export function SlideshowOverlay(): JSX.Element | null {
       setPrefetchPath(null)
       return
     }
-    const nextIdx = (active.index + 1) % listLen
+    const nextIdx = active.compiledMode
+      ? (active.index + 1) % listLen
+      : slideshowNextIndex(active, active.index, 1, loop)
+    if (nextIdx == null) {
+      setPrefetchPath(null)
+      return
+    }
     if (active.compiledMode) {
       let cancelled = false
       void call(api.slideshow.compiledPathAt({ index: nextIdx }))
@@ -143,7 +150,16 @@ export function SlideshowOverlay(): JSX.Element | null {
       }
     }
     setPrefetchPath(active.paths[nextIdx] ?? null)
-  }, [enabled, active, active?.index, active?.compiledMode, listLen, active?.currentPath])
+  }, [
+    enabled,
+    active,
+    active?.index,
+    active?.compiledMode,
+    active?.skipped?.size,
+    listLen,
+    loop,
+    active?.currentPath
+  ])
 
   // Present `path` via back buffer → decode → double-rAF swap (V-Sync).
   // Unloadable / undecodable images are skipped (do not interrupt autoplay).
