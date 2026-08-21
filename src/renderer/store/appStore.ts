@@ -65,7 +65,7 @@ import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/r
 import { isNetworkHostUnc } from '@shared/networkPaths'
 import { ListingLru, driveTypeForPath, isListingCacheEligible } from '@shared/listingCache'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
-import { isScriptDialogKind, shouldPushScriptDialog } from '@shared/scriptDialogStack'
+import { shouldPopStackedDialog, shouldPushDialog } from '@shared/scriptDialogStack'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
 import {
   createSlideshowActions,
@@ -213,6 +213,7 @@ export type DialogState =
     }
   | { kind: 'new-file'; parent: string }
   | { kind: 'properties'; path: string }
+  | { kind: 'usn-manager'; path: string }
   | { kind: 'settings'; section?: string }
   | { kind: 'categorizer-map'; returnSection?: string }
   | { kind: 'compiled-lists-config'; returnSection?: string }
@@ -5440,7 +5441,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       const cur = get().dialog
-      if (cur && shouldPushScriptDialog(cur.kind, dialog.kind)) {
+      if (cur && shouldPushDialog(cur.kind, dialog.kind)) {
         set({ dialog, dialogStack: [...get().dialogStack, cur] })
         return
       }
@@ -5450,7 +5451,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     closeDialog() {
       const cur = get().dialog
       const stack = get().dialogStack
-      if (cur && isScriptDialogKind(cur.kind) && stack.length > 0) {
+      if (cur && shouldPopStackedDialog(cur.kind) && stack.length > 0) {
         set({ dialog: stack[stack.length - 1]!, dialogStack: stack.slice(0, -1) })
         return
       }

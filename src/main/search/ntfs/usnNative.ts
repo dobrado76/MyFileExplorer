@@ -4,9 +4,11 @@
  */
 import koffi from 'koffi'
 import { Buffer } from 'node:buffer'
+import { fileTimeToUnixMs } from '@shared/usn/format'
 import { logMain } from '../../logging'
 
 const GENERIC_READ = 0x80000000
+const GENERIC_WRITE = 0x40000000
 const FILE_SHARE_READ = 0x00000001
 const FILE_SHARE_WRITE = 0x00000002
 const OPEN_EXISTING = 3
@@ -16,6 +18,20 @@ const INVALID_HANDLE_VALUE = -1n
 const FSCTL_ENUM_USN_DATA = 0x000900b3
 const FSCTL_QUERY_USN_JOURNAL = 0x000900f4
 const FSCTL_READ_USN_JOURNAL = 0x000900bb
+const FSCTL_CREATE_USN_JOURNAL = 0x000900e7
+const FSCTL_DELETE_USN_JOURNAL = 0x000900f8
+const USN_DELETE_FLAG_DELETE = 0x00000001
+
+export const WINERR_ACCESS_DENIED = 5
+export const WINERR_INVALID_HANDLE = 6
+/** ERROR_JOURNAL_DELETE_IN_PROGRESS */
+export const WINERR_JOURNAL_DELETE_IN_PROGRESS = 1178
+/** ERROR_JOURNAL_NOT_ACTIVE */
+export const WINERR_JOURNAL_NOT_ACTIVE = 1179
+/** ERROR_JOURNAL_ENTRY_DELETED */
+export const WINERR_JOURNAL_ENTRY_DELETED = 1181
+export const WINERR_PRIVILEGE_NOT_HELD = 1314
+const FILE_SHARE_DELETE = 0x00000004
 
 const FILE_ATTRIBUTE_DIRECTORY = 0x10
 
@@ -66,6 +82,7 @@ let native: {
     overlapped: null
   ) => boolean
   GetLastError: () => number
+  SetLastError: (err: number) => void
 } | null = null
 
 function ensureNative(): typeof native {
@@ -73,16 +90,19 @@ function ensureNative(): typeof native {
   if (process.platform !== 'win32') return null
   const kernel32 = koffi.load('kernel32.dll')
   native = {
+    // HANDLE is pointer-sized but not a real pointer — pass as int64 so DeviceIoControl
+    // does not get a boxed koffi pointer that Windows rejects (ERROR_INVALID_HANDLE / 6).
     CreateFileW: kernel32.func(
-      'void * __stdcall CreateFileW(str16 lpFileName, uint32 dwDesiredAccess, uint32 dwShareMode, void *lpSecurityAttributes, uint32 dwCreationDisposition, uint32 dwFlagsAndAttributes, void *hTemplateFile)'
+      'int64 __stdcall CreateFileW(str16 lpFileName, uint32 dwDesiredAccess, uint32 dwShareMode, void *lpSecurityAttributes, uint32 dwCreationDisposition, uint32 dwFlagsAndAttributes, void *hTemplateFile)'
     ) as typeof native extends null ? never : NonNullable<typeof native>['CreateFileW'],
-    CloseHandle: kernel32.func('bool __stdcall CloseHandle(void *hObject)') as (
+    CloseHandle: kernel32.func('bool __stdcall CloseHandle(int64 hObject)') as (
       h: unknown
     ) => boolean,
     DeviceIoControl: kernel32.func(
-      'bool __stdcall DeviceIoControl(void *hDevice, uint32 dwIoControlCode, void *lpInBuffer, uint32 nInBufferSize, void *lpOutBuffer, uint32 nOutBufferSize, void *lpBytesReturned, void *lpOverlapped)'
+      'bool __stdcall DeviceIoControl(int64 hDevice, uint32 dwIoControlCode, void *lpInBuffer, uint32 nInBufferSize, void *lpOutBuffer, uint32 nOutBufferSize, void *lpBytesReturned, void *lpOverlapped)'
     ) as typeof native extends null ? never : NonNullable<typeof native>['DeviceIoControl'],
-    GetLastError: kernel32.func('uint32 __stdcall GetLastError()') as () => number
+    GetLastError: kernel32.func('uint32 __stdcall GetLastError()') as () => number,
+    SetLastError: kernel32.func('void __stdcall SetLastError(uint32 dwErrCode)') as (err: number) => void
   }
   return native
 }
@@ -98,6 +118,10 @@ export type UsnJournalInfo = {
   journalId: bigint
   nextUsn: bigint
   firstUsn: bigint
+  lowestValidUsn: bigint
+  maxUsn: bigint
+  maximumSize: bigint
+  allocationDelta: bigint
 }
 
 export type UsnEntry = {
@@ -107,6 +131,7 @@ export type UsnEntry = {
   isDir: boolean
   reason: number
   usn: bigint
+  timeMs: number | null
 }
 
 function volumeDevicePath(volumeLetter: string): string {
@@ -114,23 +139,45 @@ function volumeDevicePath(volumeLetter: string): string {
   return `\\\\.\\${letter}:`
 }
 
-export function openVolumeHandle(volumeLetter: string): unknown | null {
+export function openVolumeHandle(
+  volumeLetter: string,
+  write = false
+): { handle: unknown | null; err: number } {
   const api = ensureNative()
-  if (!api) return null
-  const h = api.CreateFileW(
-    volumeDevicePath(volumeLetter),
-    GENERIC_READ,
-    FILE_SHARE_READ | FILE_SHARE_WRITE,
-    null,
-    OPEN_EXISTING,
-    FILE_FLAG_BACKUP_SEMANTICS,
-    null
-  )
-  if (handleInvalid(h)) {
-    logMain('warn', `USN: CreateFile failed for ${volumeLetter} (err=${api.GetLastError()})`)
-    return null
+  if (!api) return { handle: null, err: 1 }
+  const letter = volumeLetter.replace(/:\\?$/, '').toUpperCase()
+  const access = write ? GENERIC_READ | GENERIC_WRITE : GENERIC_READ
+  const share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+  const attempts: Array<{ path: string; flags: number }> = [
+    { path: volumeDevicePath(letter), flags: 0 },
+    { path: volumeDevicePath(letter), flags: FILE_FLAG_BACKUP_SEMANTICS },
+    { path: `${letter}:\\`, flags: FILE_FLAG_BACKUP_SEMANTICS }
+  ]
+  let lastErr = WINERR_ACCESS_DENIED
+  for (const attempt of attempts) {
+    api.SetLastError(0)
+    const h = api.CreateFileW(attempt.path, access, share, null, OPEN_EXISTING, attempt.flags, null)
+    const err = api.GetLastError()
+    if (!handleInvalid(h)) return { handle: h, err: 0 }
+    lastErr = err || lastErr
   }
-  return h
+  logMain('warn', `USN: CreateFile failed for ${letter}: (err=${lastErr})`)
+  return { handle: null, err: lastErr }
+}
+
+export function lastWinError(): number {
+  return ensureNative()?.GetLastError() ?? 0
+}
+
+export function needsUsnElevation(err: number): boolean {
+  return (
+    err === WINERR_ACCESS_DENIED ||
+    err === WINERR_PRIVILEGE_NOT_HELD ||
+    err === WINERR_INVALID_HANDLE ||
+    err === 5 ||
+    err === 6 ||
+    err === 1314
+  )
 }
 
 export function closeHandle(h: unknown): void {
@@ -143,18 +190,88 @@ export function closeHandle(h: unknown): void {
   }
 }
 
-export function queryUsnJournal(h: unknown): UsnJournalInfo | null {
+export function queryUsnJournalEx(h: unknown): { info: UsnJournalInfo | null; err: number } {
   const api = ensureNative()
-  if (!api) return null
+  if (!api) return { info: null, err: 1 }
   const out = Buffer.alloc(64)
   const ret = Buffer.alloc(8)
+  api.SetLastError(0)
   const ok = api.DeviceIoControl(h, FSCTL_QUERY_USN_JOURNAL, null, 0, out, out.length, ret, null)
-  if (!ok) return null
-  return {
-    journalId: out.readBigUInt64LE(0),
-    firstUsn: out.readBigInt64LE(8),
-    nextUsn: out.readBigInt64LE(16)
+  const err = api.GetLastError()
+  if (!ok) {
+    if (err !== WINERR_JOURNAL_NOT_ACTIVE && err !== WINERR_JOURNAL_DELETE_IN_PROGRESS) {
+      logMain('warn', `USN: QUERY_USN_JOURNAL failed (err=${err})`)
+    }
+    return { info: null, err: err || WINERR_JOURNAL_NOT_ACTIVE }
   }
+  return {
+    info: {
+      journalId: out.readBigUInt64LE(0),
+      firstUsn: out.readBigInt64LE(8),
+      nextUsn: out.readBigInt64LE(16),
+      lowestValidUsn: out.readBigInt64LE(24),
+      maxUsn: out.readBigInt64LE(32),
+      maximumSize: out.readBigUInt64LE(40),
+      allocationDelta: out.readBigUInt64LE(48)
+    },
+    err: 0
+  }
+}
+
+export function queryUsnJournal(h: unknown): UsnJournalInfo | null {
+  return queryUsnJournalEx(h).info
+}
+
+export function createUsnJournal(
+  h: unknown,
+  maxBytes: bigint,
+  deltaBytes: bigint
+): { ok: boolean; err: number } {
+  const api = ensureNative()
+  if (!api) return { ok: false, err: 1 }
+  const inBuf = Buffer.alloc(16)
+  inBuf.writeBigUInt64LE(maxBytes, 0)
+  inBuf.writeBigUInt64LE(deltaBytes, 8)
+  const out = Buffer.alloc(8)
+  const ret = Buffer.alloc(8)
+  api.SetLastError(0)
+  const ok = api.DeviceIoControl(
+    h,
+    FSCTL_CREATE_USN_JOURNAL,
+    inBuf,
+    inBuf.length,
+    out,
+    out.length,
+    ret,
+    null
+  )
+  const err = api.GetLastError()
+  if (!ok) logMain('warn', `USN: CREATE_USN_JOURNAL failed (err=${err})`)
+  return { ok, err }
+}
+
+export function deleteUsnJournal(h: unknown, journalId: bigint): { ok: boolean; err: number } {
+  const api = ensureNative()
+  if (!api) return { ok: false, err: 1 }
+  const inBuf = Buffer.alloc(16)
+  inBuf.writeBigUInt64LE(journalId, 0)
+  inBuf.writeUInt32LE(USN_DELETE_FLAG_DELETE, 8)
+  const out = Buffer.alloc(8)
+  const ret = Buffer.alloc(8)
+  api.SetLastError(0)
+  const ok = api.DeviceIoControl(
+    h,
+    FSCTL_DELETE_USN_JOURNAL,
+    inBuf,
+    inBuf.length,
+    out,
+    out.length,
+    ret,
+    null
+  )
+  const err = api.GetLastError()
+  if (!ok) logMain('warn', `USN: DELETE_USN_JOURNAL failed (err=${err})`)
+  return { ok, err }
 }
 
 function parseUsnRecords(buf: Buffer, start: number, end: number): UsnEntry[] {
@@ -171,6 +288,7 @@ function parseUsnRecords(buf: Buffer, start: number, end: number): UsnEntry[] {
     const frn = buf.readBigUInt64LE(offset + 8)
     const parentFrn = buf.readBigUInt64LE(offset + 16)
     const usn = buf.readBigInt64LE(offset + 24)
+    const timeStamp = buf.readBigInt64LE(offset + 32)
     const reason = buf.readUInt32LE(offset + 40)
     const attrs = buf.readUInt32LE(offset + 52)
     const nameLen = buf.readUInt16LE(offset + 56)
@@ -183,7 +301,8 @@ function parseUsnRecords(buf: Buffer, start: number, end: number): UsnEntry[] {
       name,
       isDir: (attrs & FILE_ATTRIBUTE_DIRECTORY) !== 0,
       reason,
-      usn
+      usn,
+      timeMs: fileTimeToUnixMs(timeStamp)
     })
     offset += recordLength
   }
@@ -229,7 +348,7 @@ export function readUsnJournal(
   h: unknown,
   journalId: bigint,
   startUsn: bigint
-): { nextUsn: bigint; entries: UsnEntry[] } | null {
+): { nextUsn: bigint; entries: UsnEntry[]; err: number } | null {
   const api = ensureNative()
   if (!api) return null
   const inBuf = Buffer.alloc(40)
@@ -252,10 +371,11 @@ export function readUsnJournal(
     null
   )
   const bytes = Number(retBuf.readUInt32LE(0))
-  if (!ok || bytes < 8) return { nextUsn: startUsn, entries: [] }
+  const err = api.GetLastError()
+  if (!ok || bytes < 8) return { nextUsn: startUsn, entries: [], err }
   const nextUsn = outBuf.readBigInt64LE(0)
   const entries = parseUsnRecords(outBuf, 8, bytes)
-  return { nextUsn, entries }
+  return { nextUsn, entries, err: 0 }
 }
 
 /** Build absolute paths from FRN parent links. Root FRN maps to volume root. */

@@ -169,6 +169,13 @@ const api: MyFileExplorerApi = {
     writeBytes: invoke(IPC.adsWriteBytes),
     copy: invoke(IPC.adsCopy)
   },
+  usn: {
+    query: invoke(IPC.usnQuery),
+    enable: invoke(IPC.usnEnable),
+    disable: invoke(IPC.usnDisable),
+    clear: invoke(IPC.usnClear),
+    recent: invoke(IPC.usnRecent)
+  },
   network: {
     startDiscovery: invokeVoid(IPC.networkStartDiscovery),
     cancelDiscovery: invokeVoid(IPC.networkCancelDiscovery),

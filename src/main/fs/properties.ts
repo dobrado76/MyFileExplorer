@@ -30,7 +30,7 @@ const DRIVE_TYPES: Record<number, string> = {
   6: 'RAM Disk'
 }
 
-function isDriveRoot(abs: string): boolean {
+export function isDriveRoot(abs: string): boolean {
   if (process.platform === 'win32') {
     return /^[a-zA-Z]:\\?$/.test(abs)
   }
@@ -97,6 +97,11 @@ export function setPathAttributes(
     archive: next.archive,
     system: next.system
   }
+}
+
+export async function readVolumeFileSystem(root: string): Promise<string | null> {
+  const meta = await readVolumeMeta(root)
+  return meta.fileSystem
 }
 
 async function readVolumeMeta(root: string): Promise<{

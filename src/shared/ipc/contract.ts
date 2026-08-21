@@ -161,6 +161,13 @@ export const IPC = {
   adsWriteBytes: 'ads:writeBytes',
   adsCopy: 'ads:copy',
 
+  /** NTFS USN journal (drive roots only; D52). */
+  usnQuery: 'usn:query',
+  usnEnable: 'usn:enable',
+  usnDisable: 'usn:disable',
+  usnClear: 'usn:clear',
+  usnRecent: 'usn:recent',
+
   /** Network neighborhood (async discovery; native map/disconnect dialogs). */
   networkStartDiscovery: 'network:startDiscovery',
   networkCancelDiscovery: 'network:cancelDiscovery',

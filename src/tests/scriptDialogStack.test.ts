@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { isScriptDialogKind, shouldPushScriptDialog } from '../shared/scriptDialogStack'
+import {
+  isScriptDialogKind,
+  shouldPopStackedDialog,
+  shouldPushDialog,
+  shouldPushScriptDialog
+} from '../shared/scriptDialogStack'
 
 describe('script dialog stack', () => {
   it('pushes Manager under Run and Generate', () => {
@@ -17,5 +22,12 @@ describe('script dialog stack', () => {
   it('recognizes script dialog kinds', () => {
     expect(isScriptDialogKind('script-run')).toBe(true)
     expect(isScriptDialogKind('confirm')).toBe(false)
+  })
+
+  it('stacks USN manager over Drive Properties', () => {
+    expect(shouldPushDialog('properties', 'usn-manager')).toBe(true)
+    expect(shouldPushDialog('usn-manager', 'properties')).toBe(false)
+    expect(shouldPopStackedDialog('usn-manager')).toBe(true)
+    expect(shouldPopStackedDialog('properties')).toBe(false)
   })
 })

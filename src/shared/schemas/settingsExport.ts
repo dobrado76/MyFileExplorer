@@ -19,6 +19,8 @@ export const SETTINGS_EXPORT_FORMAT_VERSION = 1 as const
 
 /** Dialog / floating-window geometry — not transferred between machines. */
 const WINDOW_LIKE_KEYS = [
+  'propertiesBounds',
+  'usnManagerBounds',
   'adsManagerBounds',
   'powerRenameBounds',
   'remoteConnectionBounds',
@@ -31,12 +33,14 @@ const WINDOW_LIKE_KEYS = [
 
 /**
  * Settings suitable for backup / another PC: full prefs (theme, layouts, …)
- * with dialog geometry cleared. Main window state lives in `window-state.json`
+ * with dialog geometry cleared (`usnManagerBounds`, `adsManagerBounds`, …). Main window state lives in `window-state.json`
  * and is never part of this document.
  */
 export function settingsForPortableExport(settings: Settings): Settings {
   return settingsSchema.parse({
     ...settings,
+    propertiesBounds: null,
+    usnManagerBounds: null,
     adsManagerBounds: null,
     powerRenameBounds: null,
     remoteConnectionBounds: null,

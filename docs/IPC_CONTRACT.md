@@ -138,6 +138,18 @@ Win32/NTFS only; soft-fail empty/false off-platform or on access errors. Paths v
 | `ads:writeBytes`  | `{ path, name, dataBase64 }` | `{ ok: true }` |
 | `ads:copy`        | `{ source, dest, ignoreNames? }` | `{ copied }` — copy named streams file↔file or dir↔dir |
 
+### `usn.*` (NTFS USN journal — D52)
+
+Drive-root paths only (`C:\` / `C:`). Soft-fail `unsupported` off win32. Native `DeviceIoControl`; `elevate: true` runs `fsutil usn` via UAC.
+
+| Channel        | Request | Response |
+| -------------- | ------- | -------- |
+| `usn:query`    | `{ path }` | `{ status, letter, fileSystem, journal, needsElevation }` — `status`: active / absent / deleting / not-ntfs / access-denied / unsupported |
+| `usn:enable`   | `{ path, maxBytes, deltaBytes, elevate? }` | query snapshot (create or resize); first-time Enable may include `probeName` after a create+delete test file |
+| `usn:disable`  | `{ path, elevate? }` | `{ disabled: true }` |
+| `usn:clear`    | `{ path, maxBytes, deltaBytes, elevate? }` | query snapshot (delete + create); may include `probeName` |
+| `usn:recent`   | `{ path, limit? }` | `{ entries: { usn, name, isDir, reason, timeMs }[] }` |
+
 ### `network.*` (LAN neighborhood — D44)
 
 Discovery runs in a worker thread; results arrive on `mfe-event` `network-discovery`. Map/Disconnect open native Windows dialogs.

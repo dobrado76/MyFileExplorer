@@ -1,11 +1,13 @@
 import {
   createElement,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type JSX,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from 'react'
 import type {
@@ -54,6 +56,7 @@ import { TabIconPickerDialog } from './TabIconPickerDialog'
 import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
+import { UsnManager } from './UsnManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
 import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
@@ -74,6 +77,33 @@ import {
 } from '@shared/settingsSearch'
 import { applySettingsPaneFilter } from '../lib/settingsSearchDom'
 
+type DialogBounds = { x: number; y: number; width: number; height: number }
+type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
+
+function clampDialogBounds(b: DialogBounds, minW: number, minH: number): DialogBounds {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const maxW = Math.max(minW, Math.floor(vw * 0.96))
+  const maxH = Math.max(minH, Math.floor(vh * 0.92))
+  const width = Math.min(Math.max(Math.round(b.width), minW), maxW)
+  const height = Math.min(Math.max(Math.round(b.height), minH), maxH)
+  const x = Math.min(Math.max(Math.round(b.x), 0), Math.max(0, vw - width))
+  const y = Math.min(Math.max(Math.round(b.y), 0), Math.max(0, vh - height))
+  return { x, y, width, height }
+}
+
+function centeredDialogBounds(width: number, height: number, minW: number, minH: number): DialogBounds {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const w = Math.min(width, Math.floor(vw * 0.96))
+  const h = Math.min(height, Math.floor(vh * 0.92))
+  return clampDialogBounds(
+    { x: (vw - w) / 2, y: (vh - h) / 2, width: w, height: h },
+    minW,
+    minH
+  )
+}
+
 function Modal({
   title,
   children,
@@ -81,7 +111,8 @@ function Modal({
   wide,
   className,
   bodyClassName,
-  onClose
+  onClose,
+  floating
 }: {
   title: string
   children: ReactNode
@@ -90,7 +121,27 @@ function Modal({
   className?: string
   bodyClassName?: string
   onClose(): void
+  floating?: {
+    bounds: DialogBounds
+    onBoundsLive: (next: DialogBounds) => void
+    onBoundsCommit: (next: DialogBounds) => void
+    minWidth: number
+    minHeight: number
+  }
 }): JSX.Element {
+  const boundsRef = useRef(floating?.bounds)
+  const dragRef = useRef<{
+    kind: 'move' | ResizeEdge
+    startX: number
+    startY: number
+    orig: DialogBounds
+  } | null>(null)
+  const endDragRef = useRef<() => void>(() => {})
+
+  useEffect(() => {
+    boundsRef.current = floating?.bounds
+  }, [floating?.bounds])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -100,19 +151,121 @@ function Modal({
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  const modalClass = ['modal', wide ? 'modal-wide' : '', className].filter(Boolean).join(' ')
+  const onPointerMove = useCallback(
+    (e: PointerEvent): void => {
+      const drag = dragRef.current
+      const fl = floating
+      if (!drag || !fl) return
+      const dx = e.clientX - drag.startX
+      const dy = e.clientY - drag.startY
+      const o = drag.orig
+      let next = { ...o }
+      if (drag.kind === 'move') {
+        next = { ...o, x: o.x + dx, y: o.y + dy }
+      } else {
+        const edge = drag.kind
+        if (edge.includes('e')) next.width = o.width + dx
+        if (edge.includes('s')) next.height = o.height + dy
+        if (edge.includes('w')) {
+          next.width = o.width - dx
+          next.x = o.x + dx
+        }
+        if (edge.includes('n')) {
+          next.height = o.height - dy
+          next.y = o.y + dy
+        }
+        if (edge.includes('w') && next.width < fl.minWidth) {
+          next.x = o.x + o.width - fl.minWidth
+          next.width = fl.minWidth
+        }
+        if (edge.includes('n') && next.height < fl.minHeight) {
+          next.y = o.y + o.height - fl.minHeight
+          next.height = fl.minHeight
+        }
+      }
+      fl.onBoundsLive(clampDialogBounds(next, fl.minWidth, fl.minHeight))
+    },
+    [floating]
+  )
+
+  const onPointerUp = useCallback((): void => {
+    endDragRef.current()
+  }, [])
+
+  useEffect(() => {
+    endDragRef.current = (): void => {
+      if (!dragRef.current || !floating) return
+      dragRef.current = null
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+      if (boundsRef.current) floating.onBoundsCommit(boundsRef.current)
+    }
+  }, [onPointerMove, onPointerUp, floating])
+
+  const beginDrag = (kind: 'move' | ResizeEdge, e: ReactPointerEvent): void => {
+    if (!floating) return
+    e.preventDefault()
+    e.stopPropagation()
+    dragRef.current = {
+      kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      orig: boundsRef.current ?? floating.bounds
+    }
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
+  }
+
+  const modalClass = [
+    'modal',
+    wide ? 'modal-wide' : '',
+    className,
+    floating ? 'is-floating' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
   const bodyClass = ['modal-body', bodyClassName].filter(Boolean).join(' ')
+  const edges: ResizeEdge[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={modalClass} role="dialog" aria-label={title}>
-        <div className="modal-title modal-title-chrome">
+      <div
+        className={modalClass}
+        role="dialog"
+        aria-label={title}
+        style={
+          floating
+            ? {
+                left: floating.bounds.x,
+                top: floating.bounds.y,
+                width: floating.bounds.width,
+                height: floating.bounds.height
+              }
+            : undefined
+        }
+        onMouseDown={(e) => floating && e.stopPropagation()}
+      >
+        {floating &&
+          edges.map((edge) => (
+            <div
+              key={edge}
+              className={`modal-resize-handle ${edge}`}
+              onPointerDown={(e) => beginDrag(edge, e)}
+            />
+          ))}
+        <div
+          className="modal-title modal-title-chrome"
+          onPointerDown={floating ? (e) => beginDrag('move', e) : undefined}
+        >
           <span className="modal-title-text">{title}</span>
           <button
             type="button"
             className="modal-title-btn"
             aria-label="Close"
             title="Close"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={onClose}
           >
             <CloseIcon size={18} />
@@ -202,6 +355,8 @@ export function Dialogs(): JSX.Element | null {
       return <NewFileDialog parent={dialog.parent} />
     case 'properties':
       return <PropertiesDialog path={dialog.path} />
+    case 'usn-manager':
+      return <UsnManager path={dialog.path} />
     case 'settings':
       return <SettingsDialog initialSection={dialog.section} />
     case 'categorizer-map':
@@ -1374,9 +1529,29 @@ function PropsValue({ value }: { value: string }): JSX.Element {
   )
 }
 
+const PROPS_MIN_W = 420
+const PROPS_MIN_H = 360
+const PROPS_DEFAULT_W = 520
+const PROPS_DEFAULT_H = 560
+
 function PropertiesDialog({ path }: { path: string }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
+  const openDialog = useAppStore((s) => s.openDialog)
+  const platform = useAppStore((s) => s.platform)
   const refresh = useAppStore((s) => s.refresh)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const savedBounds = useAppStore((s) => s.settings.propertiesBounds)
+  const [bounds, setBounds] = useState<DialogBounds>(() =>
+    savedBounds
+      ? clampDialogBounds(savedBounds, PROPS_MIN_W, PROPS_MIN_H)
+      : centeredDialogBounds(PROPS_DEFAULT_W, PROPS_DEFAULT_H, PROPS_MIN_W, PROPS_MIN_H)
+  )
+
+  useEffect(() => {
+    const onResize = (): void => setBounds((b) => clampDialogBounds(b, PROPS_MIN_W, PROPS_MIN_H))
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   const [model, setModel] = useState<PropertiesModel | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [measure, setMeasure] = useState<FolderMeasureResult | null>(null)
@@ -1427,7 +1602,8 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
     ? `${model.kind === 'drive' ? 'Drive' : model.kind === 'dir' ? 'Folder' : 'File'} Properties`
     : 'Properties'
 
-  const attrsEditable = model != null && model.kind !== 'drive' && model.kind !== 'missing'
+  const showAttributes = model != null && model.kind !== 'drive' && model.kind !== 'missing'
+  const attrsEditable = showAttributes
   const has = (label: string): boolean => !!model?.attributes.includes(label)
 
   const applyAttributes = async (patch: {
@@ -1501,19 +1677,42 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
       title={title}
       className="modal-properties"
       onClose={closeDialog}
+      floating={{
+        bounds,
+        onBoundsLive: setBounds,
+        onBoundsCommit: (next) => {
+          const clamped = clampDialogBounds(next, PROPS_MIN_W, PROPS_MIN_H)
+          setBounds(clamped)
+          void applySettingsPatch({ propertiesBounds: clamped })
+        },
+        minWidth: PROPS_MIN_W,
+        minHeight: PROPS_MIN_H
+      }}
       actions={
         <>
           {model && model.kind !== 'missing' && (
             <div className="modal-action-start props-sys-actions">
-              <button
-                type="button"
-                className="btn"
-                disabled={sysPropsBusy}
-                title="Open the Windows Explorer Properties window (Security, Sharing, …)"
-                onClick={() => void openWindowsProperties()}
-              >
-                Windows Properties…
-              </button>
+              <div className="props-sys-actions-row">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={sysPropsBusy}
+                  title="Open the Windows Explorer Properties window (Security, Sharing, …)"
+                  onClick={() => void openWindowsProperties()}
+                >
+                  Windows Properties…
+                </button>
+                {model.kind === 'drive' && platform === 'win32' && (
+                  <button
+                    type="button"
+                    className="btn"
+                    title="View and manage the NTFS USN change journal for this drive"
+                    onClick={() => openDialog({ kind: 'usn-manager', path: model.path })}
+                  >
+                    USN…
+                  </button>
+                )}
+              </div>
               {sysPropsError && <div className="props-attr-error">{sysPropsError}</div>}
             </div>
           )}
@@ -1611,93 +1810,93 @@ function PropertiesDialog({ path }: { path: string }): JSX.Element {
                   </td>
                 </tr>
               )}
-              <tr>
-                <td>Attributes</td>
-                <td>
-                  {attrsEditable ? (
-                    <div className="props-attrs">
-                      <label className="props-attr">
-                        <input
-                          type="checkbox"
-                          checked={has('Read-only')}
-                          disabled={attrBusy}
-                          onChange={(e) => void applyAttributes({ readOnly: e.target.checked })}
-                        />
-                        Read-only
-                      </label>
-                      <label className="props-attr">
-                        <input
-                          type="checkbox"
-                          checked={has('Hidden')}
-                          disabled={attrBusy}
-                          onChange={(e) => void applyAttributes({ hidden: e.target.checked })}
-                        />
-                        Hidden
-                      </label>
-                      <label className="props-attr">
-                        <input
-                          type="checkbox"
-                          checked={has('Archive')}
-                          disabled={attrBusy}
-                          onChange={(e) => void applyAttributes({ archive: e.target.checked })}
-                        />
-                        Archive
-                      </label>
-                      <label className="props-attr">
-                        <input
-                          type="checkbox"
-                          checked={has('System')}
-                          disabled={attrBusy}
-                          onChange={(e) => void applyAttributes({ system: e.target.checked })}
-                        />
-                        System
-                      </label>
-                      {attrError && <div className="props-attr-error">{attrError}</div>}
-                    </div>
-                  ) : (
-                    <PropsValue value={model.attributes.join(', ') || '—'} />
-                  )}
-                </td>
-              </tr>
+              {showAttributes && (
+                <tr>
+                  <td>Attributes</td>
+                  <td>
+                    {attrsEditable ? (
+                      <div className="props-attrs">
+                        <label className="props-attr">
+                          <input
+                            type="checkbox"
+                            checked={has('Read-only')}
+                            disabled={attrBusy}
+                            onChange={(e) => void applyAttributes({ readOnly: e.target.checked })}
+                          />
+                          Read-only
+                        </label>
+                        <label className="props-attr">
+                          <input
+                            type="checkbox"
+                            checked={has('Hidden')}
+                            disabled={attrBusy}
+                            onChange={(e) => void applyAttributes({ hidden: e.target.checked })}
+                          />
+                          Hidden
+                        </label>
+                        <label className="props-attr">
+                          <input
+                            type="checkbox"
+                            checked={has('Archive')}
+                            disabled={attrBusy}
+                            onChange={(e) => void applyAttributes({ archive: e.target.checked })}
+                          />
+                          Archive
+                        </label>
+                        <label className="props-attr">
+                          <input
+                            type="checkbox"
+                            checked={has('System')}
+                            disabled={attrBusy}
+                            onChange={(e) => void applyAttributes({ system: e.target.checked })}
+                          />
+                          System
+                        </label>
+                        {attrError && <div className="props-attr-error">{attrError}</div>}
+                      </div>
+                    ) : (
+                      <PropsValue value={model.attributes.join(', ') || '—'} />
+                    )}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
 
           {model.drive && (
             <div className="props-drive">
               <div className="form-section">Capacity</div>
-              <table className="props-table">
-                <tbody>
-                  {model.drive.fileSystem && (
+              {model.drive.fileSystem && (
+                <table className="props-table">
+                  <tbody>
                     <tr>
                       <td>File system</td>
                       <td>
                         <PropsValue value={model.drive.fileSystem} />
                       </td>
                     </tr>
-                  )}
+                  </tbody>
+                </table>
+              )}
+              <table className="props-capacity-cols">
+                <tbody>
                   <tr>
                     <td>Used space</td>
-                    <td>
-                      <PropsValue
-                        value={`${formatBytes(model.drive.usedBytes)} (${model.drive.usedBytes.toLocaleString()} bytes) — ${percent(model.drive.usedBytes, model.drive.capacityBytes).toFixed(1)}%`}
-                      />
-                    </td>
+                    <td>{formatBytes(model.drive.usedBytes)}</td>
+                    <td>{model.drive.usedBytes.toLocaleString()} bytes</td>
+                    <td>{percent(model.drive.usedBytes, model.drive.capacityBytes).toFixed(1)}%</td>
                   </tr>
                   <tr>
                     <td>Free space</td>
-                    <td>
-                      <PropsValue
-                        value={`${formatBytes(model.drive.freeBytes)} (${model.drive.freeBytes.toLocaleString()} bytes) — ${percent(model.drive.freeBytes, model.drive.capacityBytes).toFixed(1)}%`}
-                      />
-                    </td>
+                    <td>{formatBytes(model.drive.freeBytes)}</td>
+                    <td>{model.drive.freeBytes.toLocaleString()} bytes</td>
+                    <td>{percent(model.drive.freeBytes, model.drive.capacityBytes).toFixed(1)}%</td>
                   </tr>
                   <tr>
                     <td>Capacity</td>
-                    <td>
-                      <PropsValue
-                        value={`${formatBytes(model.drive.capacityBytes)} (${model.drive.capacityBytes.toLocaleString()} bytes)`}
-                      />
-                    </td>
+                    <td>{formatBytes(model.drive.capacityBytes)}</td>
+                    <td>{model.drive.capacityBytes.toLocaleString()} bytes</td>
+                    <td />
                   </tr>
                 </tbody>
               </table>

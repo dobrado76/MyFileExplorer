@@ -104,6 +104,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
 | NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |
+| NTFS USN journal | D52 — Drive Properties **USN…** manager (enable / view / clear / disable) |
 | Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
 | Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence; empty pane Open Computer / Browse |
 | Tab icons | D32 — Lucide icon + color; tab context menu |

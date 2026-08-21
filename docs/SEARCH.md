@@ -5,7 +5,7 @@
 Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 
 1. **Folder roots** — mark a directory; recursive walk + **debounced FS watch** for incremental upserts
-2. **Volume roots** — **Index this drive** on a fixed NTFS volume: MFT/USN bootstrap (`FSCTL_ENUM_USN_DATA`) + **USN journal** monitor when available; otherwise fall back to a full walk (`monitor: walk`)
+2. **Volume roots** — **Index this drive** on a fixed NTFS volume: MFT/USN bootstrap (`FSCTL_ENUM_USN_DATA`) + **USN journal** monitor when available; otherwise fall back to a full walk (`monitor: walk`). The indexer **does not create** a journal. Drive Properties → **USN…** (D52) can enable / resize / clear / disable the journal (Enable typically needs a UAC prompt); clearing or deleting it requires a volume **Reindex** for incremental USN updates to resume.
 
 **Live walk** remains the default when no ready root covers the folder (D15: progress + cancel; never claim indexed speed). The walk yields the main thread every ~12 ms and streams progress at most every 250 ms so preview/icon IPC stays responsive. Basic name queries `stat` hits only.
 

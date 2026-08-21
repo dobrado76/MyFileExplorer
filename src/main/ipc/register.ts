@@ -55,6 +55,13 @@ import {
   adsCopySchema,
   adsInvalidateMetaSchema
 } from '@shared/schemas/ads'
+import {
+  usnQueryRequestSchema,
+  usnEnableRequestSchema,
+  usnDisableRequestSchema,
+  usnClearRequestSchema,
+  usnRecentRequestSchema
+} from '@shared/schemas/usn'
 import { networkListSharesRequestSchema } from '@shared/schemas/network'
 import { listDirectory, statPath, pathExists, requireAbsolute } from '../fs/list'
 import { listDrives, setVolumeLabel, disconnectMappedNetworkDrive } from '../fs/drives'
@@ -971,6 +978,27 @@ export function registerIpcHandlers(): void {
     const copied = await copyStreams(source, dest, req.ignoreNames)
     await invalidateColumnMetaPaths([dest])
     return { copied }
+  })
+
+  handle(IPC.usnQuery, usnQueryRequestSchema, async (req) => {
+    const { queryUsnJournalForPath } = await import('../fs/usnJournal')
+    return queryUsnJournalForPath(req.path)
+  })
+  handle(IPC.usnEnable, usnEnableRequestSchema, async (req) => {
+    const { enableUsnJournal } = await import('../fs/usnJournal')
+    return enableUsnJournal(req.path, req.maxBytes, req.deltaBytes, req.elevate === true)
+  })
+  handle(IPC.usnDisable, usnDisableRequestSchema, async (req) => {
+    const { disableUsnJournal } = await import('../fs/usnJournal')
+    return disableUsnJournal(req.path, req.elevate === true)
+  })
+  handle(IPC.usnClear, usnClearRequestSchema, async (req) => {
+    const { clearUsnJournal } = await import('../fs/usnJournal')
+    return clearUsnJournal(req.path, req.maxBytes, req.deltaBytes, req.elevate === true)
+  })
+  handle(IPC.usnRecent, usnRecentRequestSchema, async (req) => {
+    const { recentUsnEntries } = await import('../fs/usnJournal')
+    return { entries: await recentUsnEntries(req.path, req.limit ?? 200) }
   })
 
   handle(IPC.networkStartDiscovery, emptySchema, async () => startNetworkDiscovery())

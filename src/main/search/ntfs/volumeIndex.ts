@@ -37,7 +37,7 @@ export async function bootstrapVolumeUsn(
   const letter = volumeLetterFromRoot(rootPath)
   if (!letter) return { ok: false, processed: 0, journalId: null, nextUsn: 0, mode: 'failed' }
 
-  const h = openVolumeHandle(letter)
+  const h = openVolumeHandle(letter).handle
   if (!h) return { ok: false, processed: 0, journalId: null, nextUsn: 0, mode: 'failed' }
 
   try {
@@ -114,7 +114,7 @@ export async function pollVolumeUsn(
 ): Promise<{ journalId: string; nextUsn: number; changed: number } | null> {
   const letter = volumeLetterFromRoot(rootPath)
   if (!letter) return null
-  const h = openVolumeHandle(letter)
+  const h = openVolumeHandle(letter).handle
   if (!h) return null
   try {
     const journal = queryUsnJournal(h)

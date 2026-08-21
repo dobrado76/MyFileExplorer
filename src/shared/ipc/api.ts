@@ -546,6 +546,26 @@ export type MyFileExplorerApi = {
       ignoreNames?: string[]
     }): Promise<Result<{ copied: number }>>
   }
+  usn: {
+    query(req: { path: string }): Promise<Result<import('../schemas/usn').UsnQueryResponse>>
+    enable(req: {
+      path: string
+      maxBytes: number
+      deltaBytes: number
+      elevate?: boolean
+    }): Promise<Result<import('../schemas/usn').UsnQueryResponse>>
+    disable(req: { path: string; elevate?: boolean }): Promise<Result<{ disabled: true }>>
+    clear(req: {
+      path: string
+      maxBytes: number
+      deltaBytes: number
+      elevate?: boolean
+    }): Promise<Result<import('../schemas/usn').UsnQueryResponse>>
+    recent(req: {
+      path: string
+      limit?: number
+    }): Promise<Result<{ entries: import('../schemas/usn').UsnRecentEntry[] }>>
+  }
   network: {
     startDiscovery(): Promise<Result<{ generation: number }>>
     cancelDiscovery(): Promise<Result<{ cancelled: boolean }>>

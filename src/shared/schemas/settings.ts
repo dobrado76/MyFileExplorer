@@ -62,6 +62,14 @@ import {
 } from './shellVerbs'
 import { DEFAULT_UPDATES_SOURCE } from '../updatesSource'
 import { normalizeFolderStatsSkipPaths } from '../folderStatsSkip'
+import {
+  DEFAULT_USN_JOURNAL_DELTA_BYTES,
+  DEFAULT_USN_JOURNAL_MAX_BYTES,
+  USN_JOURNAL_DELTA_BYTES_MAX,
+  USN_JOURNAL_DELTA_BYTES_MIN,
+  USN_JOURNAL_MAX_BYTES_MAX,
+  USN_JOURNAL_MAX_BYTES_MIN
+} from '../usn/format'
 
 /** Settings → Appearance font size (px). */
 export const FONT_SIZE_PX_MIN = 9
@@ -455,6 +463,39 @@ export const settingsSchema = z.object({
       providers: Array.isArray(o.providers) ? o.providers : defaultAiSettings.providers
     }
   }, aiSettingsSchema),
+  /** Last USN Manager createjournal sizes (D52). */
+  usnJournalMaxBytes: z
+    .number()
+    .int()
+    .min(USN_JOURNAL_MAX_BYTES_MIN)
+    .max(USN_JOURNAL_MAX_BYTES_MAX)
+    .catch(DEFAULT_USN_JOURNAL_MAX_BYTES),
+  usnJournalDeltaBytes: z
+    .number()
+    .int()
+    .min(USN_JOURNAL_DELTA_BYTES_MIN)
+    .max(USN_JOURNAL_DELTA_BYTES_MAX)
+    .catch(DEFAULT_USN_JOURNAL_DELTA_BYTES),
+  /** Last in-app Properties dialog geometry (null = centered defaults). */
+  propertiesBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(380).max(10000),
+      height: z.number().min(280).max(10000)
+    })
+    .nullable()
+    .catch(null),
+  /** Last USN Manager dialog geometry (null = centered defaults). */
+  usnManagerBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(480).max(10000),
+      height: z.number().min(360).max(10000)
+    })
+    .nullable()
+    .catch(null),
   /** Last ADS Manager dialog geometry (null = centered defaults). */
   adsManagerBounds: z
     .object({
@@ -613,6 +654,10 @@ export const defaultSettings: Settings = settingsSchema.parse({
   networkDiscovery: defaultNetworkDiscoverySettings,
   remoteRepos: defaultRemoteReposSettings,
   mediaMetadata: defaultMediaMetadataSettings,
+  propertiesBounds: null,
+  usnJournalMaxBytes: DEFAULT_USN_JOURNAL_MAX_BYTES,
+  usnJournalDeltaBytes: DEFAULT_USN_JOURNAL_DELTA_BYTES,
+  usnManagerBounds: null,
   adsManagerBounds: null,
   powerRenameBounds: null,
   remoteConnectionBounds: null,
