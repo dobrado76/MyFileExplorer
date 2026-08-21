@@ -16,12 +16,21 @@ import {
   COLUMN_GROUP_LABELS,
   COLUMN_GROUP_ORDER,
   DETAILS_COLUMN_IDS,
-  DETAILS_COLUMN_META,
+  adsFieldColumnId,
+  adsFieldDisplayLabel,
+  adsFieldNamesFromColumnIds,
+  adsFieldStreamNames,
+  columnMeta,
   filterDirectoryMetaFetchColumns,
   filterFileMetaFetchColumns,
+  isAdsFieldColumnId,
   isFolderStatsColumnId,
+  mergeAdsFieldColumnNames,
+  mergeAdsFieldColumns,
+  parseAdsFieldColumnName,
   type EntryColumnValues
 } from '@shared/schemas/columns'
+import { ADS_LIST_NAMES_MANY_MAX_PATHS } from '@shared/schemas/ads'
 import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
@@ -190,7 +199,7 @@ function compareColumnValues(id: DetailsColumnId, a: string, b: string): number 
     const nb = parseDurationSort(b)
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
   }
-  if (DETAILS_COLUMN_META[id].numeric) {
+  if (columnMeta(id).numeric) {
     const na = Number(a.replace(/,/g, ''))
     const nb = Number(b.replace(/,/g, ''))
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
@@ -251,6 +260,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [setScrollOffsetRaw, tabId]
   )
   const patchDetailsLayout = useAppStore((s) => s.patchDetailsLayout)
+  const openDialog = useAppStore((s) => s.openDialog)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const search = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.search ?? s.search)
   const recycleBin = useAppStore((s) => s.recycleBin)
   const restoreFromRecycleBinView = useAppStore((s) => s.restoreFromRecycleBinView)
@@ -337,7 +348,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const detailsColumnsBase = owningView?.detailsColumns ?? settings.detailsColumns
   /** Session-only width for the search Folder column (never written to settings). */
   const [searchFolderWidth, setSearchFolderWidth] = useState(
-    DETAILS_COLUMN_META.folder.defaultWidth
+    columnMeta('folder').defaultWidth
   )
   /**
    * Folder column is search-only. Strip any legacy persisted `folder` entry from
@@ -374,7 +385,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const colWidth = (id: DetailsColumnId): number =>
     liveWidths?.[id] ??
     detailsColumns.find((c) => c.id === id)?.width ??
-    DETAILS_COLUMN_META[id].defaultWidth
+    columnMeta(id).defaultWidth
 
   const startColResize = useCallback(
     (e: React.PointerEvent, id: 'name' | DetailsColumnId): void => {
@@ -390,7 +401,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           ? nameW
           : id === 'folder'
             ? searchFolderWidth
-            : (cols.find((c) => c.id === id)?.width ?? DETAILS_COLUMN_META[id].defaultWidth)
+            : (cols.find((c) => c.id === id)?.width ?? columnMeta(id).defaultWidth)
       const min = id === 'name' ? 120 : 50
       let w = startW
       const onMove = (ev: PointerEvent): void => {
@@ -447,12 +458,69 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter(
         (c) => c.id !== 'folder'
       )
-      const next = cur.some((c) => c.id === id)
-        ? cur.filter((c) => c.id !== id)
-        : [...cur, { id, width: DETAILS_COLUMN_META[id].defaultWidth }]
+      const enabling = !cur.some((c) => c.id === id)
+      const next = enabling
+        ? [...cur, { id, width: columnMeta(id).defaultWidth }]
+        : cur.filter((c) => c.id !== id)
+      if (enabling && isAdsFieldColumnId(id)) {
+        const name = parseAdsFieldColumnName(id)
+        if (name) {
+          void applySettingsPatch({
+            adsFieldColumns: mergeAdsFieldColumns(s.settings.adsFieldColumns, [name])
+          })
+        }
+      }
       void patchDetailsLayout({ detailsColumns: next })
     },
-    [patchDetailsLayout]
+    [applySettingsPatch, patchDetailsLayout]
+  )
+
+  const adsFieldCatalog = useMemo(
+    () =>
+      mergeAdsFieldColumns(
+        settings.adsFieldColumns,
+        adsFieldNamesFromColumnIds(settings.detailsColumns.map((c) => c.id)),
+        ...settings.folderViews.map((v) =>
+          adsFieldNamesFromColumnIds(v.detailsColumns.map((c) => c.id))
+        )
+      ),
+    [settings.adsFieldColumns, settings.detailsColumns, settings.folderViews]
+  )
+
+  const [listingAdsNames, setListingAdsNames] = useState<string[]>([])
+  const [listingAdsLoading, setListingAdsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!headerMenu) return
+    const paths = listing.entries.map((e) => e.path).slice(0, ADS_LIST_NAMES_MANY_MAX_PATHS)
+    let cancelled = false
+    setListingAdsLoading(true)
+    void (async () => {
+      if (paths.length === 0) {
+        if (!cancelled) {
+          setListingAdsNames([])
+          setListingAdsLoading(false)
+        }
+        return
+      }
+      try {
+        const res = await api.ads.listNamesMany({ paths })
+        if (cancelled) return
+        setListingAdsNames(res.ok ? res.value.names : [])
+      } catch {
+        if (!cancelled) setListingAdsNames([])
+      } finally {
+        if (!cancelled) setListingAdsLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [headerMenu, listing.entries])
+
+  const streamValueMenuNames = useMemo(
+    () => mergeAdsFieldColumnNames(listingAdsNames, adsFieldStreamNames(adsFieldCatalog)),
+    [listingAdsNames, adsFieldCatalog]
   )
 
   useEffect(() => {
@@ -1725,7 +1793,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             />
           </div>
           {detailsColumns.map((c) => {
-            const meta = DETAILS_COLUMN_META[c.id]
+            const meta = columnMeta(c.id, adsFieldCatalog)
             const pinnedSearchFolder = c.id === 'folder'
             return (
               <div
@@ -1789,8 +1857,48 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           </button>
           {COLUMN_GROUP_ORDER.map((group) => {
             if (group === 'folderStats' && !showFolderStatistics) return null
+            if (group === 'adsFields') {
+              return (
+                <div key={group}>
+                  <div className="menu-hint">{COLUMN_GROUP_LABELS[group]}</div>
+                  {listingAdsLoading && streamValueMenuNames.length === 0 ? (
+                    <button className="menu-item" disabled>
+                      Scanning…
+                    </button>
+                  ) : null}
+                  {streamValueMenuNames.map((name) => {
+                    const id = adsFieldColumnId(name)
+                    return (
+                      <button
+                        key={id}
+                        className="menu-item"
+                        onClick={() => toggleColumn(id)}
+                        role="menuitem"
+                      >
+                        <span className="menu-check">
+                          {detailsColumns.some((c) => c.id === id) ? '✓' : ''}
+                        </span>
+                        {adsFieldDisplayLabel(adsFieldCatalog, name)}
+                      </button>
+                    )
+                  })}
+                  <button
+                    className="menu-item"
+                    role="menuitem"
+                    title="Add a stream value column…"
+                    onClick={() => {
+                      setHeaderMenu(null)
+                      openDialog({ kind: 'ads-field-column' })
+                    }}
+                  >
+                    <span className="menu-check" />
+                    ...
+                  </button>
+                </div>
+              )
+            }
             const ids = DETAILS_COLUMN_IDS.filter(
-              (id) => id !== 'folder' && DETAILS_COLUMN_META[id].group === group
+              (id) => id !== 'folder' && columnMeta(id).group === group
             )
             return (
               <div key={group}>
@@ -1805,7 +1913,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     <span className="menu-check">
                       {detailsColumns.some((c) => c.id === id) ? '✓' : ''}
                     </span>
-                    {DETAILS_COLUMN_META[id].label}
+                    {columnMeta(id).label}
                   </button>
                 ))}
               </div>
@@ -2079,7 +2187,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   detailsColumns.map((c) => (
                     <span
                       key={c.id}
-                      className={`col${DETAILS_COLUMN_META[c.id].numeric ? ' col-num' : ''}`}
+                      className={`col${columnMeta(c.id).numeric ? ' col-num' : ''}`}
                       style={{ width: colWidth(c.id) }}
                       title={
                         detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics) ||

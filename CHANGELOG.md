@@ -12,6 +12,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Added
 
 - **Search Show hidden** (off by default) — index and folder search hide Windows Hidden items, `!VIDTHUMB_CACHE`, and files inside hidden folders. Toggle in search options or Settings → Search; `attrib:h` still finds them.
+- **Stream-value Details columns** — header menu **Stream values** lists streams found in the current folder (tick/untick). **...** opens a dialog for an optional display name plus stream name. Cells show that stream’s text (same preview rules as the ADS Manager).
 
 ### Fixed
 

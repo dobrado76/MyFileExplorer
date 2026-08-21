@@ -118,7 +118,7 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 | **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
 | **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
-| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column plus a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. |
+| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column (names) plus per-stream **value** columns, and a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. |
 | **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
 | **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
 | **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |

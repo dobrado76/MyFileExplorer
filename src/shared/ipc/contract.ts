@@ -153,6 +153,7 @@ export const IPC = {
 
   /** NTFS Alternate Data Streams (win32; soft-fail elsewhere). */
   adsList: 'ads:list',
+  adsListNamesMany: 'ads:listNamesMany',
   adsExists: 'ads:exists',
   adsReadText: 'ads:readText',
   adsWriteText: 'ads:writeText',

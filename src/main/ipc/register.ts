@@ -53,7 +53,8 @@ import {
   adsWriteTextSchema,
   adsWriteBytesSchema,
   adsCopySchema,
-  adsInvalidateMetaSchema
+  adsInvalidateMetaSchema,
+  adsListNamesManySchema
 } from '@shared/schemas/ads'
 import {
   usnQueryRequestSchema,
@@ -933,6 +934,18 @@ export function registerIpcHandlers(): void {
     const { listStreams } = await import('../fs/adsWin32')
     const streams = listStreams(p).map((s) => ({ name: s.name, size: s.size }))
     return { streams }
+  })
+  handle(IPC.adsListNamesMany, adsListNamesManySchema, async (req) => {
+    const paths: string[] = []
+    for (const raw of req.paths) {
+      try {
+        paths.push(requireAbsolute(raw))
+      } catch {
+        /* skip invalid */
+      }
+    }
+    const { listStreamNamesMany } = await import('../fs/adsWin32')
+    return { names: await listStreamNamesMany(paths) }
   })
   handle(IPC.adsExists, adsNamedSchema, async (req) => {
     const p = requireAbsolute(req.path)

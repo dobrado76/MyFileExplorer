@@ -2,8 +2,14 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import type { DetailsColumnId, EntryColumnValues } from '@shared/schemas/columns'
 import { FOLDER_STATS_COLUMN_IDS, FOLDER_STATS_STREAM_BY_COLUMN, FOLDER_STAT_TOTAL_SIZE } from '@shared/folderStats'
-import { formatAdsColumnValue } from '@shared/ads/paths'
-import { listStreamNames, readStreamText } from '../fs/adsWin32'
+import {
+  ADS_VALUE_PREVIEW_MAX_BYTES,
+  buildStreamPath,
+  formatAdsColumnValue,
+  formatAdsValuePreview
+} from '@shared/ads/paths'
+import { parseAdsFieldColumnName } from '@shared/schemas/columns'
+import { listStreamNames, readStreamText, streamExists } from '../fs/adsWin32'
 import { settingsStore } from '../settings/store'
 import { parseA1111Parameters } from '../preview/a1111'
 import { resolveGenerationParametersText } from '../preview/genFields'
@@ -335,6 +341,32 @@ async function extractAv(file: string, wanted: Set<DetailsColumnId>): Promise<En
   return out
 }
 
+async function extractAdsFieldColumns(
+  file: string,
+  wanted: Set<DetailsColumnId>
+): Promise<EntryColumnValues> {
+  const out: EntryColumnValues = {}
+  for (const id of wanted) {
+    const name = parseAdsFieldColumnName(id)
+    if (!name) continue
+    try {
+      if (!streamExists(file, name)) continue
+      const streamPath = buildStreamPath(file, name)
+      const st = await fsp.stat(streamPath)
+      if (st.size > ADS_VALUE_PREVIEW_MAX_BYTES) {
+        out[id] = '[...]'
+        continue
+      }
+      const text = await readStreamText(file, name)
+      const preview = formatAdsValuePreview(text)
+      if (preview) out[id] = preview
+    } catch {
+      /* soft-fail */
+    }
+  }
+  return out
+}
+
 export async function extractColumnValues(
   file: string,
   columns: DetailsColumnId[]
@@ -357,6 +389,10 @@ export async function extractColumnValues(
     } catch {
       /* soft-fail */
     }
+  }
+
+  if (st.isFile() || st.isDirectory()) {
+    Object.assign(out, await extractAdsFieldColumns(file, wanted))
   }
 
   if (st.isDirectory()) {

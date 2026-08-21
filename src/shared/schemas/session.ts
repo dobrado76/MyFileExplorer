@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DETAILS_COLUMN_IDS } from './columns'
+import { isAdsFieldColumnId, isBuiltinDetailsColumnId, type DetailsColumnId } from './columns'
 import { coerceHistoryList, persistHistoryEntry } from '../tabHistory'
 
 export const viewModeSchema = z.enum([
@@ -18,8 +18,12 @@ export function isThumbnailViewMode(mode: ViewMode): boolean {
   return mode !== 'list' && mode !== 'details'
 }
 
-export const sortKeySchema = z.enum(['name', ...DETAILS_COLUMN_IDS])
-export type SortKey = z.infer<typeof sortKeySchema>
+export const sortKeySchema = z.string().refine(
+  (key): key is SortKey =>
+    key === 'name' || isBuiltinDetailsColumnId(key) || isAdsFieldColumnId(key),
+  { message: 'Invalid sort key' }
+)
+export type SortKey = 'name' | DetailsColumnId
 
 export const sortSchema = z.object({
   key: sortKeySchema.catch('name'),

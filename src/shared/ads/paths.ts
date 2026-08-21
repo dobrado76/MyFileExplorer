@@ -52,6 +52,19 @@ export function validateStreamName(streamName: string): void {
   }
 }
 
+/** Skip reading huge streams for Details / ADS Manager value preview. */
+export const ADS_VALUE_PREVIEW_MAX_BYTES = 64 * 1024
+
+export function isValidAdsStreamName(name: string): boolean {
+  if (!name || name.length > 255) return false
+  try {
+    validateStreamName(name)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Display string for Details column: comma-separated alternate stream names. */
 export function formatAdsColumnValue(names: string[]): string {
   return names.filter((n) => n.length > 0).join(', ')

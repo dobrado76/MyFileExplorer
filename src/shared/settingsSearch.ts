@@ -57,7 +57,8 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'folderviews',
     label: 'Folder views',
-    keywords: 'folder views customize columns sort details recursive tree per-folder'
+    keywords:
+      'folder views customize columns sort details recursive tree per-folder ads stream value alternate AUTOV2'
   },
   {
     id: 'filter',

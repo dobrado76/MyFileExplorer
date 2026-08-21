@@ -213,6 +213,30 @@ export function listStreamNames(filePath: string): string[] {
   return listStreams(filePath).map((s) => s.name)
 }
 
+/** Union of alternate stream names on many paths (names only; soft-fail per path). */
+export async function listStreamNamesMany(paths: string[]): Promise<string[]> {
+  const seen = new Set<string>()
+  const names: string[] = []
+  let n = 0
+  for (const filePath of paths) {
+    n += 1
+    if (n % 32 === 0) await new Promise<void>((resolve) => setImmediate(resolve))
+    try {
+      for (const name of listStreamNames(filePath)) {
+        if (!name) continue
+        const key = name.toLowerCase()
+        if (seen.has(key)) continue
+        seen.add(key)
+        names.push(name)
+      }
+    } catch {
+      /* soft-fail */
+    }
+  }
+  names.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+  return names
+}
+
 export function streamExists(filePath: string, streamName: string): boolean {
   const n = ensureApi()
   if (!n) return false

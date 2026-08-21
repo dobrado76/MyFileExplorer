@@ -81,6 +81,29 @@ describe('settings export / import', () => {
     })
   })
 
+  it('round-trips adsFieldColumns via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        adsFieldColumns: [
+          { stream: 'AUTOV2', label: 'AutoV2 hash' },
+          { stream: 'Caption' }
+        ],
+        detailsColumns: [
+          ...defaultSettings.detailsColumns,
+          { id: 'adsField:AUTOV2', width: 140 }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.adsFieldColumns).toEqual([
+      { stream: 'AUTOV2', label: 'AutoV2 hash' },
+      { stream: 'Caption' }
+    ])
+    expect(parsed.settings.detailsColumns.some((c) => c.id === 'adsField:AUTOV2')).toBe(true)
+  })
+
   it('round-trips showFolderStatistics via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: { ...defaultSettings, showFolderStatistics: false },

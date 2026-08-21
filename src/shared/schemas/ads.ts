@@ -34,6 +34,13 @@ export const adsInvalidateMetaSchema = z.object({
   paths: z.array(z.string().min(1)).min(1).max(50)
 })
 
+/** Paths scanned when adding a stream-value column (current listing only). */
+export const ADS_LIST_NAMES_MANY_MAX_PATHS = 2000
+
+export const adsListNamesManySchema = z.object({
+  paths: z.array(z.string().min(1)).max(ADS_LIST_NAMES_MANY_MAX_PATHS)
+})
+
 export const adsStreamInfoSchema = z.object({
   name: z.string(),
   size: z.number().nonnegative()

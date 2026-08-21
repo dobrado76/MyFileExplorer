@@ -1,5 +1,12 @@
 import { z } from 'zod'
+import { isValidAdsStreamName } from '../ads/paths'
 import { FOLDER_STATS_COLUMN_IDS } from '../folderStats'
+
+export const ADS_FIELD_COLUMN_PREFIX = 'adsField:'
+export const ADS_FIELD_COLUMN_DEFAULT_WIDTH = 140
+export const MAX_ADS_FIELD_COLUMNS = 32
+/** Built-in async columns plus room for user stream-value columns. */
+export const MAX_META_FETCH_COLUMNS = 80
 
 /** Built-in file columns filled from DirEntry (sync), plus opt-in async ADS. */
 export const FILE_COLUMN_IDS = ['folder', 'mtime', 'ctime', 'type', 'size', 'ext', 'ads'] as const
@@ -64,11 +71,152 @@ export const DETAILS_COLUMN_IDS = [
   ...GEN_COLUMN_IDS
 ] as const
 
-export type DetailsColumnId = (typeof DETAILS_COLUMN_IDS)[number]
+export type BuiltinDetailsColumnId = (typeof DETAILS_COLUMN_IDS)[number]
+export type AdsFieldColumnId = `${typeof ADS_FIELD_COLUMN_PREFIX}${string}`
+export type DetailsColumnId = BuiltinDetailsColumnId | AdsFieldColumnId
 
-export const detailsColumnIdSchema = z.enum(DETAILS_COLUMN_IDS)
+export function isBuiltinDetailsColumnId(id: string): id is BuiltinDetailsColumnId {
+  return (DETAILS_COLUMN_IDS as readonly string[]).includes(id)
+}
 
-export type ColumnGroup = 'file' | 'folderStats' | 'image' | 'media' | 'tags' | 'generation'
+export function parseAdsFieldColumnName(id: string): string | null {
+  if (!id.startsWith(ADS_FIELD_COLUMN_PREFIX)) return null
+  const name = id.slice(ADS_FIELD_COLUMN_PREFIX.length)
+  return isValidAdsStreamName(name) ? name : null
+}
+
+export function isAdsFieldColumnId(id: string): id is AdsFieldColumnId {
+  return parseAdsFieldColumnName(id) != null
+}
+
+export function adsFieldColumnId(name: string): AdsFieldColumnId {
+  return `${ADS_FIELD_COLUMN_PREFIX}${name}`
+}
+
+export type AdsFieldColumnDef = {
+  stream: string
+  /** Pretty header; omitted or empty → use `stream`. */
+  label?: string
+}
+
+export const adsFieldColumnDefSchema = z.object({
+  stream: z.string().min(1).max(255),
+  label: z.string().min(1).max(80).optional()
+})
+
+export const ADS_FIELD_LABEL_MAX = 80
+
+function normalizeAdsFieldLabel(label: string | undefined, stream: string): string | undefined {
+  const t = label?.trim()
+  if (!t || t === stream) return undefined
+  return t.slice(0, ADS_FIELD_LABEL_MAX)
+}
+
+export function adsFieldDisplayLabel(
+  catalog: readonly AdsFieldColumnDef[],
+  stream: string
+): string {
+  const key = stream.toLowerCase()
+  const hit = catalog.find((c) => c.stream.toLowerCase() === key)
+  return hit?.label?.trim() || hit?.stream || stream
+}
+
+export function adsFieldStreamNames(catalog: readonly AdsFieldColumnDef[]): string[] {
+  return catalog.map((c) => c.stream)
+}
+
+export function sanitizeAdsFieldColumns(raw: unknown): AdsFieldColumnDef[] {
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const out: AdsFieldColumnDef[] = []
+  for (const item of raw) {
+    let stream = ''
+    let label: string | undefined
+    if (typeof item === 'string') {
+      stream = item.trim()
+    } else if (item && typeof item === 'object') {
+      const o = item as { stream?: unknown; name?: unknown; label?: unknown }
+      const s = typeof o.stream === 'string' ? o.stream : typeof o.name === 'string' ? o.name : ''
+      stream = s.trim()
+      if (typeof o.label === 'string') label = o.label
+    } else {
+      continue
+    }
+    if (!isValidAdsStreamName(stream)) continue
+    const key = stream.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    const pretty = normalizeAdsFieldLabel(label, stream)
+    out.push(pretty ? { stream, label: pretty } : { stream })
+    if (out.length >= MAX_ADS_FIELD_COLUMNS) break
+  }
+  return out
+}
+
+export function mergeAdsFieldColumns(
+  catalog: readonly AdsFieldColumnDef[],
+  ...extras: readonly (readonly string[] | readonly AdsFieldColumnDef[])[]
+): AdsFieldColumnDef[] {
+  const byKey = new Map<string, AdsFieldColumnDef>()
+  const add = (stream: string, label?: string): void => {
+    if (!isValidAdsStreamName(stream)) return
+    const key = stream.toLowerCase()
+    const existing = byKey.get(key)
+    const pretty = normalizeAdsFieldLabel(label, existing?.stream ?? stream)
+    if (!existing) {
+      byKey.set(key, pretty ? { stream, label: pretty } : { stream })
+      return
+    }
+    if (pretty) byKey.set(key, { stream: existing.stream, label: pretty })
+  }
+  for (const item of catalog) add(item.stream, item.label)
+  for (const list of extras) {
+    for (const item of list) {
+      if (typeof item === 'string') add(item)
+      else add(item.stream, item.label)
+    }
+  }
+  return [...byKey.values()].slice(0, MAX_ADS_FIELD_COLUMNS)
+}
+
+export function mergeAdsFieldColumnNames(...lists: readonly (readonly string[])[]): string[] {
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const list of lists) {
+    for (const name of list) {
+      if (!isValidAdsStreamName(name)) continue
+      const key = name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(name)
+      if (out.length >= MAX_ADS_FIELD_COLUMNS) return out
+    }
+  }
+  return out
+}
+
+export function adsFieldNamesFromColumnIds(ids: readonly string[]): string[] {
+  const names: string[] = []
+  for (const id of ids) {
+    const name = parseAdsFieldColumnName(id)
+    if (name) names.push(name)
+  }
+  return names
+}
+
+export const detailsColumnIdSchema = z.string().refine(
+  (id): id is DetailsColumnId => isBuiltinDetailsColumnId(id) || isAdsFieldColumnId(id),
+  { message: 'Invalid column id' }
+)
+
+export type ColumnGroup =
+  | 'file'
+  | 'adsFields'
+  | 'folderStats'
+  | 'image'
+  | 'media'
+  | 'tags'
+  | 'generation'
 
 export type DetailsColumnMeta = {
   id: DetailsColumnId
@@ -81,7 +229,7 @@ export type DetailsColumnMeta = {
   async?: boolean
 }
 
-export const DETAILS_COLUMN_META: Record<DetailsColumnId, DetailsColumnMeta> = {
+export const DETAILS_COLUMN_META: Record<BuiltinDetailsColumnId, DetailsColumnMeta> = {
   /** Search results only — never shown in normal folder Details / column picker. */
   folder: {
     id: 'folder',
@@ -332,6 +480,7 @@ export const DETAILS_COLUMN_META: Record<DetailsColumnId, DetailsColumnMeta> = {
 
 export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
   file: 'File',
+  adsFields: 'Stream values',
   folderStats: 'Folder statistics',
   image: 'Image',
   media: 'Audio / video',
@@ -341,12 +490,30 @@ export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
 
 export const COLUMN_GROUP_ORDER: ColumnGroup[] = [
   'file',
+  'adsFields',
   'folderStats',
   'image',
   'media',
   'tags',
   'generation'
 ]
+
+export function columnMeta(
+  id: DetailsColumnId,
+  adsFields: readonly AdsFieldColumnDef[] = []
+): DetailsColumnMeta {
+  if (isAdsFieldColumnId(id)) {
+    const name = parseAdsFieldColumnName(id) ?? id.slice(ADS_FIELD_COLUMN_PREFIX.length)
+    return {
+      id,
+      label: adsFieldDisplayLabel(adsFields, name),
+      group: 'adsFields',
+      defaultWidth: ADS_FIELD_COLUMN_DEFAULT_WIDTH,
+      async: true
+    }
+  }
+  return DETAILS_COLUMN_META[id]
+}
 
 export type MetaFetchOptions = {
   /** When false, do not fetch or treat Size / Files / Folders as directory meta. */
@@ -362,7 +529,7 @@ export function isDirectoryMetaColumn(
   id: DetailsColumnId,
   opts?: MetaFetchOptions
 ): boolean {
-  if (id === 'ads') return true
+  if (id === 'ads' || isAdsFieldColumnId(id)) return true
   if (opts?.showFolderStatistics === false) return false
   return columnNeedsDirectoryMeta(id) || id === 'size'
 }
@@ -401,15 +568,15 @@ export function filterDirectoryMetaFetchColumns(
 
 /** Columns that need directory rows in async metadata fetch (ADS, folder stats). */
 export function columnNeedsDirectoryMeta(id: DetailsColumnId): boolean {
-  return id === 'ads' || isFolderStatsColumnId(id)
+  return id === 'ads' || isAdsFieldColumnId(id) || isFolderStatsColumnId(id)
 }
 
 /** Columns that need main-process metadata extraction. */
 export function isAsyncColumn(id: DetailsColumnId): boolean {
-  return DETAILS_COLUMN_META[id].async === true
+  return columnMeta(id).async === true
 }
 
 export const ASYNC_COLUMN_IDS = DETAILS_COLUMN_IDS.filter(isAsyncColumn)
 
 /** Sparse string map of column id → display value. */
-export type EntryColumnValues = Partial<Record<DetailsColumnId, string>>
+export type EntryColumnValues = Partial<Record<string, string>>

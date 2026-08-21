@@ -130,6 +130,7 @@ Win32/NTFS only; soft-fail empty/false off-platform or on access errors. Paths v
 | Channel           | Request | Response |
 | ----------------- | ------- | -------- |
 | `ads:list`        | `{ path }` | `{ streams: { name, size }[] }` |
+| `ads:listNamesMany` | `{ paths }` (max 2000) | `{ names }` — unique stream names on those paths (listing scan for stream-value columns) |
 | `ads:exists`      | `{ path, name }` | `{ exists }` |
 | `ads:readText`    | `{ path, name }` | `{ text }` (UTF-8; NUL/CRLF trim) |
 | `ads:writeText`   | `{ path, name, value, writeEmpty? }` | `{ ok: true }` — empty value deletes unless `writeEmpty` |
@@ -242,7 +243,7 @@ window.myFileExplorer = {
   search: { query, addRoot, removeRoot, reindex, listRoots, cancel },
   thumbs: { get, generateVidCache },
   meta: { getMany, invalidate },
-  ads: { list, exists, readText, writeText, delete, readBytes, writeBytes, copy },
+  ads: { list, listNamesMany, exists, readText, writeText, delete, readBytes, writeBytes, copy },
   mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
   slideshow: { listImages, updateCompiledLists, openCompiledListsWindow, … },
   app: { getPath, pickFolder, ready, … },

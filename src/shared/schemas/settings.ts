@@ -1,5 +1,14 @@
 import { z } from 'zod'
-import { DETAILS_COLUMN_IDS, detailsColumnIdSchema, type DetailsColumnId } from './columns'
+import {
+  DETAILS_COLUMN_IDS,
+  adsFieldNamesFromColumnIds,
+  detailsColumnIdSchema,
+  isAdsFieldColumnId,
+  adsFieldColumnDefSchema,
+  mergeAdsFieldColumns,
+  sanitizeAdsFieldColumns,
+  type DetailsColumnId
+} from './columns'
 import { viewModeSchema, sortSchema } from './session'
 import { MAX_FOLDER_VIEWS, type FolderView } from '../folderViews'
 import { MAX_LAYOUTS, workspaceLayoutSchema, type WorkspaceLayout } from '../layouts'
@@ -222,7 +231,8 @@ function sanitizeDetailsColumns(raw: unknown): { id: string; width: number }[] {
     const width = (item as { width?: unknown }).width
     // `folder` is search-results-only — never persist in folder/global column layout.
     if (id === 'folder') continue
-    if (typeof id !== 'string' || !allowedColumnIds.has(id) || seen.has(id)) continue
+    if (typeof id !== 'string' || seen.has(id)) continue
+    if (!allowedColumnIds.has(id) && !isAdsFieldColumnId(id)) continue
     seen.add(id)
     out.push({
       id,
@@ -244,7 +254,30 @@ export const folderViewSchema = z.object({
   detailsNameWidth: z.number().int().min(120).max(1600).catch(320)
 })
 
-export const settingsSchema = z.object({
+function mergeAdsFieldCatalogFromLayouts<
+  T extends {
+    adsFieldColumns: { stream: string; label?: string }[]
+    detailsColumns: { id: string }[]
+    folderViews: { detailsColumns: { id: string }[] }[]
+  }
+>(data: T): T {
+  const fromLayouts = [
+    ...adsFieldNamesFromColumnIds(data.detailsColumns.map((c) => c.id)),
+    ...data.folderViews.flatMap((v) => adsFieldNamesFromColumnIds(v.detailsColumns.map((c) => c.id)))
+  ]
+  const adsFieldColumns = mergeAdsFieldColumns(data.adsFieldColumns, fromLayouts)
+  if (
+    adsFieldColumns.length === data.adsFieldColumns.length &&
+    adsFieldColumns.every(
+      (n, i) => n.stream === data.adsFieldColumns[i]?.stream && n.label === data.adsFieldColumns[i]?.label
+    )
+  ) {
+    return data
+  }
+  return { ...data, adsFieldColumns }
+}
+
+const settingsFieldsSchema = z.object({
   version: z.literal(1).catch(1),
   theme: themeModeSchema.catch('dark'),
   customTheme: customThemeSchema.catch(defaultCustomTheme),
@@ -374,6 +407,15 @@ export const settingsSchema = z.object({
   detailsColumns: z.preprocess(
     sanitizeDetailsColumns,
     z.array(detailsColumnEntrySchema).catch(defaultDetailsColumns)
+  ),
+  /**
+   * Named NTFS streams shown as Details value columns (`adsField:<stream>`).
+   * Catalog for the Stream values header menu (D38). Optional `label` is the
+   * pretty header; omitted → stream name. Case-preserving; de-duped.
+   */
+  adsFieldColumns: z.preprocess(
+    sanitizeAdsFieldColumns,
+    z.array(adsFieldColumnDefSchema).catch([])
   ),
   /**
    * Per-folder view overrides (exact or recursive). Cap enforced on write.
@@ -606,6 +648,8 @@ export const settingsSchema = z.object({
   }, contextMenuSettingsSchema)
 })
 
+export const settingsSchema = settingsFieldsSchema.transform(mergeAdsFieldCatalogFromLayouts)
+
 export type DetailsColumn = { id: DetailsColumnId; width: number }
 export type Settings = z.infer<typeof settingsSchema>
 
@@ -648,6 +692,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,
+  adsFieldColumns: [],
   folderViews: [] satisfies FolderView[],
   layouts: [] satisfies WorkspaceLayout[],
   quickAccess: [],
@@ -677,7 +722,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   contextMenu: defaultContextMenuSettings
 })
 
-export const settingsPatchSchema = settingsSchema
+export const settingsPatchSchema = settingsFieldsSchema
   .partial()
   .omit({ version: true })
   .extend({

@@ -218,6 +218,7 @@ export type DialogState =
   | { kind: 'categorizer-map'; returnSection?: string }
   | { kind: 'compiled-lists-config'; returnSection?: string }
   | { kind: 'ads-manager'; path: string }
+  | { kind: 'ads-field-column' }
   | {
       kind: 'layout-name'
       mode: 'save' | 'rename'

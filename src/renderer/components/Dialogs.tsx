@@ -76,6 +76,14 @@ import {
   type SettingsSection
 } from '@shared/settingsSearch'
 import { applySettingsPaneFilter } from '../lib/settingsSearchDom'
+import { isValidAdsStreamName } from '@shared/ads/paths'
+import { resolveFolderView } from '@shared/folderViews'
+import {
+  ADS_FIELD_COLUMN_DEFAULT_WIDTH,
+  adsFieldColumnId,
+  mergeAdsFieldColumns
+} from '@shared/schemas/columns'
+import { ADS_LIST_NAMES_MANY_MAX_PATHS } from '@shared/schemas/ads'
 
 type DialogBounds = { x: number; y: number; width: number; height: number }
 type ResizeEdge = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw'
@@ -368,6 +376,8 @@ export function Dialogs(): JSX.Element | null {
       ) : null
     case 'ads-manager':
       return <AdsManager path={dialog.path} />
+    case 'ads-field-column':
+      return <AdsFieldColumnDialog />
     case 'layout-name':
       return (
         <LayoutNameDialog
@@ -1457,6 +1467,150 @@ const FILE_TYPES = [
   { ext: '.json', label: 'JSON (.json)' },
   { ext: '', label: 'Custom (type full name)' }
 ]
+
+function AdsFieldColumnDialog(): JSX.Element {
+  const closeDialog = useAppStore((s) => s.closeDialog)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const patchDetailsLayout = useAppStore((s) => s.patchDetailsLayout)
+  const listing = useAppStore((s) => s.listing)
+  const [label, setLabel] = useState('')
+  const [name, setName] = useState('')
+  const [found, setFound] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const paths = listing.entries.map((e) => e.path).slice(0, ADS_LIST_NAMES_MANY_MAX_PATHS)
+    if (paths.length === 0) {
+      setFound([])
+      setLoading(false)
+      return
+    }
+    void (async () => {
+      try {
+        const res = await api.ads.listNamesMany({ paths })
+        if (cancelled) return
+        if (res.ok) setFound(res.value.names)
+        else setFound([])
+      } catch {
+        if (!cancelled) setFound([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [listing.entries])
+
+  const submit = (): void => {
+    const trimmed = name.trim()
+    if (!isValidAdsStreamName(trimmed)) {
+      setError('Enter a valid stream name (no < > : " / \\ | ? *).')
+      return
+    }
+    const id = adsFieldColumnId(trimmed)
+    const s = useAppStore.getState()
+    const pretty = label.trim()
+    const rest = s.settings.adsFieldColumns.filter((c) => c.stream.toLowerCase() !== trimmed.toLowerCase())
+    const catalog = mergeAdsFieldColumns(rest, [
+      pretty ? { stream: trimmed, label: pretty } : { stream: trimmed }
+    ])
+    const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+    const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter((c) => c.id !== 'folder')
+    const next = cur.some((c) => c.id === id)
+      ? cur
+      : [...cur, { id, width: ADS_FIELD_COLUMN_DEFAULT_WIDTH }]
+    void (async () => {
+      await applySettingsPatch({ adsFieldColumns: catalog })
+      if (next !== cur) await patchDetailsLayout({ detailsColumns: next })
+      closeDialog()
+    })()
+  }
+
+  return (
+    <Modal
+      title="Single Alternate Data Stream value column"
+      onClose={closeDialog}
+      actions={
+        <>
+          <button className="btn" onClick={closeDialog}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={submit} disabled={!name.trim()}>
+            Add column
+          </button>
+        </>
+      }
+    >
+      <div className="form-row">
+        <label htmlFor="ads-field-label">Display name</label>
+        <input
+          id="ads-field-label"
+          type="text"
+          autoFocus
+          value={label}
+          spellCheck={false}
+          placeholder="Optional — defaults to the stream name"
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+          }}
+        />
+      </div>
+      <div className="form-row">
+        <label htmlFor="ads-field-name">Stream name</label>
+        <input
+          id="ads-field-name"
+          type="text"
+          list="ads-field-found"
+          value={name}
+          spellCheck={false}
+          placeholder={loading ? 'Scanning this folder…' : 'e.g. AUTOV2'}
+          onChange={(e) => {
+            setName(e.target.value)
+            setError(null)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit()
+          }}
+        />
+      </div>
+      <div className="form-row">
+        <label htmlFor="ads-field-pick">Found in this folder</label>
+        <select
+          id="ads-field-pick"
+          value={found.includes(name) ? name : ''}
+          disabled={loading || found.length === 0}
+          onChange={(e) => {
+            setName(e.target.value)
+            setError(null)
+          }}
+        >
+          <option value="">
+            {loading
+              ? 'Scanning…'
+              : found.length === 0
+                ? 'No alternate streams found'
+                : 'Choose a stream…'}
+          </option>
+          {found.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </div>
+      <datalist id="ads-field-found">
+        {found.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
+      {error ? <p className="dim">{error}</p> : null}
+    </Modal>
+  )
+}
 
 function NewFileDialog({ parent }: { parent: string }): JSX.Element {
   const createNewFile = useAppStore((s) => s.createNewFile)

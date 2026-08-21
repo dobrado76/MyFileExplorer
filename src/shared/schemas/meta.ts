@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { detailsColumnIdSchema, ASYNC_COLUMN_IDS } from './columns'
+import { detailsColumnIdSchema, MAX_META_FETCH_COLUMNS } from './columns'
 
 export const metaGetManyRequestSchema = z.object({
   paths: z.array(z.string().min(1)).max(200),
   /** Which async columns are needed (drives what we extract). */
-  columns: z.array(detailsColumnIdSchema).min(1).max(ASYNC_COLUMN_IDS.length)
+  columns: z.array(detailsColumnIdSchema).min(1).max(MAX_META_FETCH_COLUMNS)
 })
 export type MetaGetManyRequest = z.infer<typeof metaGetManyRequestSchema>
 

@@ -525,6 +525,7 @@ export type MyFileExplorerApi = {
   }
   ads: {
     list(req: { path: string }): Promise<Result<{ streams: { name: string; size: number }[] }>>
+    listNamesMany(req: { paths: string[] }): Promise<Result<{ names: string[] }>>
     exists(req: { path: string; name: string }): Promise<Result<{ exists: boolean }>>
     readText(req: { path: string; name: string }): Promise<Result<{ text: string }>>
     writeText(req: {

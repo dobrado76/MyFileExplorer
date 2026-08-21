@@ -17,6 +17,13 @@ Decision lock: [DECISIONS.md](DECISIONS.md) **D38**. IPC: [IPC_CONTRACT.md](IPC_
 - Primary data stream is omitted.
 - After manager edits, main invalidates column meta (`meta:invalidate`) and the Details row refreshes.
 
+**Stream-value columns** (header menu group **Stream values**):
+
+- When the column menu opens, lists unique stream names found on **all entries in the current listing** (plus any already-added catalog names). Tick/untick like other columns.
+- **...** opens a dialog: optional **Display name** plus **Stream name** (or pick from the same listing scan). Empty display name uses the stream name.
+- Each enabled stream is catalog id `adsField:<name>`. Settings `adsFieldColumns` remembers stream + optional label.
+- Cell: same text preview as the ADS Manager Value column (single-line text; `[...]` if multiline, binary, or larger than 64 KiB; blank if the stream is missing). Reads `path:name:$DATA` only — does not list every stream unless the names column is also visible.
+
 Do **not** enumerate ADS inside `fs:list` — that would slow every browse.
 
 ### Context menu
@@ -83,6 +90,7 @@ The standard **Size** column shows `TotalSize` for folders when that stream exis
 | Channel | Role |
 | ------- | ---- |
 | `ads:list` | `{ name, size }[]` |
+| `ads:listNamesMany` | unique names on many paths (stream-value column dialog) |
 | `ads:exists` | boolean |
 | `ads:readText` / `ads:writeText` | UTF-8 text |
 | `ads:delete` | remove named stream |
@@ -96,6 +104,7 @@ All paths go through `requireAbsolute` in main. Full request/response shapes: [I
 | Key | Meaning |
 | --- | ------- |
 | `adsManagerBounds` | `{ x, y, width, height }` or `null` for centered defaults |
+| `adsFieldColumns` | Stream names in the Details **Stream values** catalog (`adsField:<name>` columns) |
 
 Column visibility / order live with the rest of the Details layout in settings (see [PROJECT_FORMAT.md](PROJECT_FORMAT.md)).
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from 'react'
-import { formatAdsValuePreview } from '@shared/ads/paths'
+import { ADS_VALUE_PREVIEW_MAX_BYTES, formatAdsValuePreview } from '@shared/ads/paths'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import type { Settings } from '@shared/schemas/settings'
@@ -14,9 +14,6 @@ const MIN_W = 420
 const MIN_H = 320
 const DEFAULT_W = 720
 const DEFAULT_H = 560
-/** Skip reading huge streams for the Value preview column. */
-const VALUE_PREVIEW_MAX_BYTES = 64 * 1024
-
 function formatSizeParts(n: number): { value: string; unit: string } {
   if (!Number.isFinite(n) || n < 0) return { value: '', unit: '' }
   if (n < 1024) return { value: String(n), unit: 'B' }
@@ -122,7 +119,7 @@ export function AdsManager({ path }: { path: string }): JSX.Element {
       const rows: StreamRow[] = await Promise.all(
         res.streams.map(async (s) => {
           if (s.size <= 0) return { ...s, valuePreview: '' }
-          if (s.size > VALUE_PREVIEW_MAX_BYTES) return { ...s, valuePreview: '[...]' }
+          if (s.size > ADS_VALUE_PREVIEW_MAX_BYTES) return { ...s, valuePreview: '[...]' }
           try {
             const { text } = await call(api.ads.readText({ path, name: s.name }))
             return { ...s, valuePreview: formatAdsValuePreview(text) }

@@ -161,6 +161,7 @@ const api: MyFileExplorerApi = {
   },
   ads: {
     list: invoke(IPC.adsList),
+    listNamesMany: invoke(IPC.adsListNamesMany),
     exists: invoke(IPC.adsExists),
     readText: invoke(IPC.adsReadText),
     writeText: invoke(IPC.adsWriteText),
