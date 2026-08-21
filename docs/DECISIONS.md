@@ -1,8 +1,8 @@
 # Locked decisions
 
-**Version:** 0.9.0
+**Version:** 0.10.0
 
-All notable locked product/tech decisions. Through **D46** for the v0.6 product line; **v0.7.0** added Power Search, continue-then-review bulk ops (D18 amended), per-tab search (D29), PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, and nested custom context submenus (no new D-number). **v0.8.0** adds drive free space, detached preview, `.ics`/`.eml` preview, and **D49** (session-only remote listing memory cache). **v0.8.1** added **D50** opt-in media metadata — [MEDIA_METADATA.md](MEDIA_METADATA.md). **v0.9.0** ships **D51** as a universal local script runner + optional AI authoring — [SCRIPTS.md](SCRIPTS.md). **D52** adds a drive-only NTFS USN journal manager from Drive Properties.
+All notable locked product/tech decisions. Through **D46** for the v0.6 product line; **v0.7.0** added Power Search, continue-then-review bulk ops (D18 amended), per-tab search (D29), PowerPoint slide preview, folder-statistics depth-first tagging, slideshow crop, and nested custom context submenus (no new D-number). **v0.8.0** adds drive free space, detached preview, `.ics`/`.eml` preview, and **D49** (session-only remote listing memory cache). **v0.8.1** added **D50** opt-in media metadata — [MEDIA_METADATA.md](MEDIA_METADATA.md). **v0.9.0** ships **D51** as a universal local script runner + optional AI authoring — [SCRIPTS.md](SCRIPTS.md). **v0.10.0** ships **D52** — drive-only NTFS USN journal manager from Drive Properties.
 
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 

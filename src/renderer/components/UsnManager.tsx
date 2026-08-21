@@ -441,7 +441,7 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
                   <p className="usn-probe-note">
                     Windows is scanning every file on {letter} to reset USN attributes
                     {deletingSince ? ` (${formatElapsed(nowMs - deletingSince)} so far)` : ''}.
-                    That is a volume-wide MFT walk, not a 64 MiB file delete. Tens of millions of
+                    That is a volume-wide MFT walk, not a 64 MiB file delete. Tens of millions of
                     files can take many hours. You can close this dialog; it continues in the
                     background and cannot be cancelled. Enable only works after the badge becomes
                     Not present.

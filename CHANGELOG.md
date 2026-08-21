@@ -9,6 +9,16 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-08-21
+
+Tenth product release: **D52 NTFS USN journal manager** from Drive Properties, plus a stability pass on scripts, copy/move progress, preview, slideshow, and Details ADS. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+### Added
+
+- **NTFS USN journal manager** (D52) — Drive Properties **USN…** (win32) shows journal status, size, and recent records. Enable / resize (UAC when needed), first-time Enable writes then deletes a unique `testing USN *.txt` so Recent shows Create + Delete immediately. **Delete journal…** / Clear warn that Windows walks the whole volume (can take minutes to hours; cannot be cancelled). Deleting… badge + elapsed time; VeraCrypt / virtual NTFS treated as normal NTFS.
+- **Settings search** — filter the Settings tree/pages from the Settings window.
+- **Preview word wrap** — header button on text / Markdown / HTML source (remembered; off by default).
+
 ### Changed
 
 - **Mix folders and files in media libraries** is **off** on a first install. When on, it applies only in icon/thumbnail views — List and Details still follow Settings → Behavior → Folders first.
@@ -20,8 +30,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Script name clashes** — a new or renamed script whose display name is already in the library is saved as `Name (2)`, `Name (3)`, … The existing list is never sent to AI.
 - **Generate / Modify AI** — Name and Description are not asked up front (the model overwrote them). They appear after a result so you can tweak before Save.
 - **Dry run / Run** — Close returns to Script Manager or Generate instead of dismissing the whole script flow.
-- **Copy / move / delete progress** — the status bar shows the full current path (ellipsis from the left so the folder and name stay visible). Hover still shows the complete path.
-- **Copy / move progress counts files**, not top-level folders. Copying or moving one folder with 100k items no longer sticks at “1 of 1”.
+- **Copy / move / delete progress** — the status bar shows the full current path (ellipsis from the left so the folder and name stay visible). Hover still shows the complete path. Counts **files**, not top-level folders (one folder with 100k items no longer sticks at “1 of 1”).
+- **Properties** — moveable / resizable (persisted). Drive Properties hide file Attributes; capacity is size / bytes / percent columns. **USN…** sits next to Windows Properties….
+- **Slideshow crop** — numpad steps halved (5% / 2.5% / 1% / 0.5%).
 
 ### Fixed
 
@@ -30,6 +41,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Import script** — Script Manager Import accepts `.ps1` / `.py` / `.cmd` / `.sh` as well as `.mfescript`.
 - **Script Manager list** — the open script is highlighted (the old `--hover` token was undefined, so the selected row looked the same as the others).
 - **Script Manager Revert** — grayed out until an AI modify leaves a previous version (the button was already disabled; `.btn` had no disabled style).
+- **Details ADS / meta columns** — visible rows fill without needing a mouse-wheel scroll (short listings and newly scrolled-in rows).
+- **Start Slideshow** — no longer a long stall before the first frame on large folders.
+- **List refresh after a script** — folder listing updates when a script creates or deletes files.
+- **Back / mouse back** — keeps scroll position and focus.
+- **USN Enable** — unelevated create offers Retry as administrator; delete-in-progress is shown as Deleting… instead of a generic “Could not create”.
 
 ## [0.9.0] - 2026-08-19
 

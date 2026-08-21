@@ -3,7 +3,7 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.9.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back. And then you realize how many things you never knew you needed — and what a real file manager should feel like.
+**v0.10.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back. And then you realize how many things you never knew you needed — and what a real file manager should feel like.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
@@ -71,6 +71,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Per-folder view overrides, view filters, Details columns for media & generation fields
 - Optional gated **slideshow / categorizer** (manual crop, draw caption) and **compiled file lists** for media libraries
 - NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts (depth-first subtree tagging)
+- Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
 - Optional “disable hardware acceleration” when you need the GPU for training
 
 ---
@@ -109,6 +110,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover, Mark as Watched, and the Watched / Genre toolbar.
 16. (Optional / advanced) Settings → Scripting and AI → Enable scripting. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
+17. (Optional / advanced) Drive Properties → **USN…** — Enable on a spare NTFS volume (UAC). Confirm Recent shows the test file Create/Delete. Do **not** Delete journal on a huge library unless you mean a full-volume scan.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · [docs/SCRIPTS.md](docs/SCRIPTS.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
@@ -124,7 +126,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D51 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D52 |
 | **[docs/NETWORKS.md](docs/NETWORKS.md)** | Network neighborhood & mapped drives |
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
@@ -135,7 +137,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)** | Opt-in movie/TV metadata (D50) |
 | **[docs/SCRIPTS.md](docs/SCRIPTS.md)** | Universal script runner — use cases and copy-paste examples (D51) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.9.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.10.0 product-release summary |
 
 ---
 

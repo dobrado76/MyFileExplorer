@@ -1,6 +1,6 @@
 # Implementation plan
 
-**Version:** 0.9.0 (implemented)
+**Version:** 0.10.0 (implemented)
 
 Work through phases in order unless a dependency allows parallelizing UI polish. Check off in PRs / commits as you go.
 
@@ -131,6 +131,7 @@ Canonical overview: [../PLAN.md](../PLAN.md).
 - [x] v0.7.0 Power Search + continue-then-review bulk ops + per-tab search + PowerPoint slides + folder statistics depth-first + slideshow crop + search progress UX + tab/splitter polish; RELEASE_NOTES / docs aligned to **0.7.0** for tag `v0.7.0`
 - [x] v0.8.0 drive free space + detached preview + `.ics`/`.eml` + D49 listing cache + preview-type / large-folder polish; RELEASE_NOTES / docs aligned to **0.8.0** for tag `v0.8.0`
 - [x] v0.9.0 D51 universal script runner + optional AI + D50 media metadata + polish; README / CHANGELOG / RELEASE_NOTES / SCRIPTS / docs aligned to **0.9.0** for tag `v0.9.0`
+- [x] v0.10.0 D52 NTFS USN journal manager + script/preview/copy/slideshow polish; README / CHANGELOG / RELEASE_NOTES / docs aligned to **0.10.0** for tag `v0.10.0`
 
 ---
 
@@ -216,6 +217,10 @@ v0.7.0 plus: drive free space (status bar + Drives pies, mapped + offline); deta
 ## Definition of done (v0.9.0 product)
 
 v0.8.0 plus: **D51** universal local script runner (PowerShell / Python / cmd / bash on folder or selection; library; context Scripts; optional AI that never sends files); **D50** opt-in media metadata; This PC tools on Drives; ADS ChangeTime restore; Script Manager / Run window geometry; README / CHANGELOG / RELEASE_NOTES / SCRIPTS / docs aligned to **0.9.0** for tag `v0.9.0`. ✅
+
+## Definition of done (v0.10.0 product)
+
+v0.9.0 plus: **D52** drive Properties USN journal manager (enable/resize/recent/delete-with-volume-scan warning); Settings search; preview word wrap; Properties geometry; copy/move file-count progress; Details ADS visible-range fill; slideshow start + crop polish; README / CHANGELOG / RELEASE_NOTES / SEARCH / docs aligned to **0.10.0** for tag `v0.10.0`. ✅
 
 ---
 

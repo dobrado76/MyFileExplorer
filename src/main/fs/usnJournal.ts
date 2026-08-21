@@ -27,7 +27,6 @@ import {
   queryUsnJournalEx,
   readUsnJournal,
   volumeLetterFromRoot,
-  WINERR_ACCESS_DENIED,
   WINERR_JOURNAL_DELETE_IN_PROGRESS,
   WINERR_JOURNAL_ENTRY_DELETED,
   WINERR_JOURNAL_NOT_ACTIVE,

@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.9.0** — universal local script runner (D51) + media metadata (D50). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D51**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.10.0** — NTFS USN journal manager (D52) + script / preview / copy polish. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D52**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -31,7 +31,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D51               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D52               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
@@ -48,6 +48,18 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [FUTURE_IDEAS.md](FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 
 ---
+
+## Recent behavior (v0.10.0)
+
+| Area | Spec |
+| ---- | ---- |
+| NTFS USN journal (D52) | Drive Properties **USN…** — status, enable/resize (UAC), recent records, probe file on first Enable. **Delete journal…** is a full-volume MFT scan (cannot cancel). — [SEARCH.md](SEARCH.md) |
+| Settings search | Filter Settings pages from the Settings window |
+| Preview word wrap | Text / Markdown / HTML source wrap toggle (off by default) — [PREVIEW.md](PREVIEW.md) |
+| Properties | Moveable/resizable; drive capacity columns; Attributes hidden on drives |
+| Copy/move progress | File counts + left-ellipsis current path |
+| Details ADS | On-screen rows fill without a dummy scroll |
+| Slideshow | Faster start on large folders; crop steps 5% / 2.5% / 1% / 0.5% |
 
 ## Recent behavior (v0.9.0)
 
@@ -104,7 +116,6 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
 | NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |
-| NTFS USN journal | D52 — Drive Properties **USN…** manager (enable / view / clear / disable) |
 | Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
 | Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence; empty pane Open Computer / Browse |
 | Tab icons | D32 — Lucide icon + color; tab context menu |

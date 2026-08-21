@@ -1,6 +1,6 @@
 # Linux setup for MyFileExplorer (experimental)
 
-**Version:** 0.9.0 · Windows remains the primary product target.
+**Version:** 0.10.0 · Windows remains the primary product target.
 
 This project is **Windows-first**. Linux packaging and launch scripts are experimental helpers for contributors; they are not a supported product matrix yet. Windows features that depend on Win32 APIs (shell icons, Recycle Bin, ADS, NTFS search, **Network neighborhood**, mapped-drive dialogs, etc.) degrade or no-op on Linux — the Win32 network module is lazy-loaded and never initialized on Linux builds.
 

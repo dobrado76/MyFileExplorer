@@ -211,7 +211,7 @@ function Modal({
       kind,
       startX: e.clientX,
       startY: e.clientY,
-      orig: boundsRef.current ?? floating.bounds
+      orig: floating.bounds
     }
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
@@ -252,6 +252,7 @@ function Modal({
             <div
               key={edge}
               className={`modal-resize-handle ${edge}`}
+              // eslint-disable-next-line react-hooks/refs -- pointer handler; refs are written on drag start
               onPointerDown={(e) => beginDrag(edge, e)}
             />
           ))}
