@@ -25,6 +25,8 @@ Nested roots: **parent-covers-child** (same as before). Volume root `D:\` absorb
 
 Exclude from crawl (Settings → Search index): view-filter patterns — folder names, file names, extensions (`.tmp` / `*.log`), wildcards, or an absolute path. Defaults: `node_modules`, `.git`, `.hg`, `.svn`, `Thumbs.db`. Indexed hits already stored are hidden immediately; Reindex drops them from the database.
 
+**Show hidden** (search options menu / Settings → Search, off by default): index and folder search omit Windows Hidden files, `!VIDTHUMB_CACHE`, and anything inside a hidden folder. Turn the toggle on, or use `attrib:h`, to see them. This is independent of the listing View filter eye.
+
 Offline volumes: keep rows; mark root `offline` until the volume returns (aligns with D3 tab offline).
 
 ---

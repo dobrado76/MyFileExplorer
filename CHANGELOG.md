@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Search Show hidden** (off by default) — index and folder search hide Windows Hidden items, `!VIDTHUMB_CACHE`, and files inside hidden folders. Toggle in search options or Settings → Search; `attrib:h` still finds them.
+
 ### Fixed
 
 - **USN Recent records** — listing records needs administrator (Windows error 5). **Load recent records as administrator…** re-runs the native reader in a short-lived elevated process (the previous `fsutil` helper exited 1).

@@ -110,6 +110,11 @@ describe('isExcludedByViewFilter', () => {
     expect(
       isExcludedByViewFilter({ path: 'C:\\pagefile.sys', isHidden: true }, [], false)
     ).toBe(false)
+    expect(
+      isExcludedByViewFilter({ path: 'C:\\pagefile.sys', isHidden: true }, [], true, {
+        ignoreHiddenAttr: true
+      })
+    ).toBe(false)
   })
 
   it('still applies patterns when enabled', () => {

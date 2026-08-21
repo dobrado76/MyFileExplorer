@@ -295,6 +295,11 @@ export const settingsSchema = z.object({
   searchMatchCase: z.boolean().catch(false),
   searchWholeWord: z.boolean().catch(false),
   searchRegex: z.boolean().catch(false),
+  /**
+   * When false (default), search hides Windows-hidden items, `!VIDTHUMB_CACHE`,
+   * and anything inside a hidden folder. `attrib:h` in the query still finds them.
+   */
+  searchShowHidden: z.boolean().catch(false),
   searchFilters: z.preprocess((raw) => {
     if (!Array.isArray(raw)) return []
     const out: SearchFilter[] = []
@@ -629,6 +634,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   searchMatchCase: false,
   searchWholeWord: false,
   searchRegex: false,
+  searchShowHidden: false,
   searchFilters: [],
   searchBookmarks: [],
   powerSearchSaved: [],

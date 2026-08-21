@@ -894,7 +894,10 @@ export function ContextMenuSettingsPanel(): JSX.Element {
               <h3 className="settings-subheading">
                 {list.some((c) => c.id === editing.id) ? 'Edit command' : 'New command'}
               </h3>
-              <label className="settings-field context-menu-edit-field">
+              <label
+                className="settings-field context-menu-edit-field"
+                title="Menu text. Use backslash (\\) to nest under a submenu, e.g. My Tools \\ Option 1"
+              >
                 <span>Label</span>
                 <input
                   type="text"
@@ -906,7 +909,10 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   autoFocus
                 />
               </label>
-              <label className="settings-field context-menu-edit-field">
+              <label
+                className="settings-field context-menu-edit-field"
+                title="Absolute path to the .exe (environment variables like %ProgramFiles% are OK)"
+              >
                 <span>Program</span>
                 <div className="settings-inline">
                   <input
@@ -927,7 +933,10 @@ export function ContextMenuSettingsPanel(): JSX.Element {
                   </button>
                 </div>
               </label>
-              <label className="settings-field context-menu-edit-field">
+              <label
+                className="settings-field context-menu-edit-field"
+                title="Command-line arguments. Prefer {path}; %1 also works. .bat/.cmd are supported"
+              >
                 <span>Arguments</span>
                 <input
                   type="text"

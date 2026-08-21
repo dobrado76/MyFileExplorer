@@ -629,18 +629,6 @@ textarea:focus {
   margin-top: 2px;
   flex-shrink: 0;
 }
-.search-options-row span {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.search-options-hint {
-  font-size: 11px;
-  color: var(--text-dim);
-  line-height: 1.35;
-  font-weight: 400;
-}
 .search-options-chips {
   display: flex;
   flex-wrap: wrap;
@@ -6227,6 +6215,11 @@ html.idle-cursor-hidden * {
 .settings-check input:disabled + span {
   opacity: 0.55;
 }
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .settings-toggle {
   display: flex;
   align-items: center;
@@ -6324,25 +6317,27 @@ html.idle-cursor-hidden * {
   margin: 0;
 }
 .settings-action-card {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  column-gap: 16px;
+  row-gap: 10px;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
 }
-.settings-action-card > :first-child {
-  flex: 1 1 220px;
+.settings-action-card > .settings-action-card-title {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+.settings-action-card > :first-child:not(.settings-action-card-title) {
   min-width: 0;
 }
 .settings-action-card > .btn,
 .settings-action-card > .settings-inline,
 .settings-action-card > .settings-btn-stack {
-  flex: 0 0 auto;
-  flex-wrap: wrap;
+  align-self: end;
 }
 .settings-action-card > a.btn {
   white-space: nowrap;

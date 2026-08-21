@@ -3,14 +3,14 @@ import { createPortal } from 'react-dom'
 import { useAppStore } from '../store/appStore'
 import { ChevronDown } from '../lib/icons'
 
-const TYPE_CHIPS: { label: string; insert: string }[] = [
-  { label: 'Folder', insert: 'folder:' },
-  { label: 'Picture', insert: 'pic:' },
-  { label: 'Video', insert: 'video:' },
-  { label: 'Audio', insert: 'audio:' },
-  { label: 'Document', insert: 'doc:' },
-  { label: 'Executable', insert: 'exe:' },
-  { label: 'Archive', insert: 'zip:' }
+const TYPE_CHIPS: { label: string; insert: string; title: string }[] = [
+  { label: 'Folder', insert: 'folder:', title: 'Insert folder: — folders only' },
+  { label: 'Picture', insert: 'pic:', title: 'Insert pic: — image types (jpg, png, …)' },
+  { label: 'Video', insert: 'video:', title: 'Insert video: — video types (mp4, mkv, …)' },
+  { label: 'Audio', insert: 'audio:', title: 'Insert audio: — audio types (mp3, flac, …)' },
+  { label: 'Document', insert: 'doc:', title: 'Insert doc: — documents (pdf, docx, …)' },
+  { label: 'Executable', insert: 'exe:', title: 'Insert exe: — executables and installers' },
+  { label: 'Archive', insert: 'zip:', title: 'Insert zip: — archives (zip, 7z, rar, …)' }
 ]
 
 /** Popover for search scope + match options (keeps the search field clean). */
@@ -31,7 +31,8 @@ export function SearchOptionsMenu(): JSX.Element {
     (settings.searchMatchPath ? 1 : 0) +
     (settings.searchMatchCase ? 1 : 0) +
     (settings.searchWholeWord ? 1 : 0) +
-    (settings.searchRegex ? 1 : 0)
+    (settings.searchRegex ? 1 : 0) +
+    (settings.searchShowHidden ? 1 : 0)
 
   useEffect(() => {
     if (!open) {
@@ -77,7 +78,10 @@ export function SearchOptionsMenu(): JSX.Element {
     }
   }, [open])
 
-  const patchMatch = (key: 'searchMatchPath' | 'searchMatchCase' | 'searchWholeWord' | 'searchRegex', v: boolean): void => {
+  const patchMatch = (
+    key: 'searchMatchPath' | 'searchMatchCase' | 'searchWholeWord' | 'searchRegex' | 'searchShowHidden',
+    v: boolean
+  ): void => {
     void applySettingsPatch({ [key]: v }).then(() => {
       if (search.query.trim()) void runSearch()
     })
@@ -109,22 +113,23 @@ export function SearchOptionsMenu(): JSX.Element {
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="menu-hint">Scope</div>
-            <label className="search-options-row">
+            <label
+              className="search-options-row"
+              title="On: search indexed roots. Off: current folder and subfolders (index still used when that folder is covered)."
+            >
               <input
                 type="checkbox"
                 checked={search.indexedOnly}
                 onChange={(e) => setSearchIndexedOnly(e.target.checked)}
               />
-              <span>
-                <strong>Search indexed roots</strong>
-                <span className="search-options-hint">
-                  Off = current folder (and subfolders). Index accelerates when covered.
-                </span>
-              </span>
+              <span>Search indexed roots</span>
             </label>
 
             <div className="menu-hint">Match</div>
-            <label className="search-options-row">
+            <label
+              className="search-options-row"
+              title="Also match the full path, not just the file name. Same as path: in the query."
+            >
               <input
                 type="checkbox"
                 checked={settings.searchMatchPath}
@@ -132,7 +137,10 @@ export function SearchOptionsMenu(): JSX.Element {
               />
               <span>Match path</span>
             </label>
-            <label className="search-options-row">
+            <label
+              className="search-options-row"
+              title="Case-sensitive names. Same as case: in the query."
+            >
               <input
                 type="checkbox"
                 checked={settings.searchMatchCase}
@@ -140,7 +148,10 @@ export function SearchOptionsMenu(): JSX.Element {
               />
               <span>Match case</span>
             </label>
-            <label className="search-options-row">
+            <label
+              className="search-options-row"
+              title="Match whole words only. Same as ww: in the query."
+            >
               <input
                 type="checkbox"
                 checked={settings.searchWholeWord}
@@ -148,13 +159,27 @@ export function SearchOptionsMenu(): JSX.Element {
               />
               <span>Whole word</span>
             </label>
-            <label className="search-options-row">
+            <label
+              className="search-options-row"
+              title="Treat the query as a regular expression. Same as regex: in the query."
+            >
               <input
                 type="checkbox"
                 checked={settings.searchRegex}
                 onChange={(e) => patchMatch('searchRegex', e.target.checked)}
               />
               <span>Regular expression</span>
+            </label>
+            <label
+              className="search-options-row"
+              title="Off: skip Hidden files, !VIDTHUMB_CACHE, and items inside hidden folders. attrib:h still finds them."
+            >
+              <input
+                type="checkbox"
+                checked={settings.searchShowHidden}
+                onChange={(e) => patchMatch('searchShowHidden', e.target.checked)}
+              />
+              <span>Show hidden</span>
             </label>
 
             <div className="menu-hint">Type filters</div>
@@ -164,7 +189,7 @@ export function SearchOptionsMenu(): JSX.Element {
                   key={c.insert}
                   type="button"
                   className="search-options-chip"
-                  title={`Insert ${c.insert}`}
+                  title={c.title}
                   onClick={() => insertChip(c.insert)}
                 >
                   {c.label}

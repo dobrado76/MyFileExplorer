@@ -35,10 +35,11 @@ function predicateFor(patterns: string[]): ViewFilterPredicate {
 export function isExcludedByViewFilter(
   entry: { path: string; isHidden: boolean },
   patterns: string[],
-  enabled: boolean
+  enabled: boolean,
+  opts?: { ignoreHiddenAttr?: boolean }
 ): boolean {
   if (!enabled) return false
-  if (entry.isHidden) return true
+  if (!opts?.ignoreHiddenAttr && entry.isHidden) return true
   if (patterns.length === 0) return false
   return predicateFor(patterns)(entry.path)
 }

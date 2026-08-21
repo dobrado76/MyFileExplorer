@@ -1974,7 +1974,11 @@ function MediaMetadataSettingsPanel(): JSX.Element {
         checked={mm.enabled === true}
         onChange={(v) => void applySettingsPatch({ mediaMetadata: { enabled: v } })}
       />
-      <label className="settings-field settings-field-narrow" htmlFor="set-mm-cover">
+      <label
+        className="settings-field settings-field-narrow"
+        htmlFor="set-mm-cover"
+        title="Preview poster height in pixels"
+      >
         <span>Cover art size</span>
         <div className="settings-inline">
           <SettingsClampedNumber
@@ -2009,13 +2013,19 @@ function MediaMetadataSettingsPanel(): JSX.Element {
         extracts missing ones from Plex.
       </p>
       <div className="settings-field">
-        <span>Plex Media Server</span>
+        <span title="Local Plex install used to extract movie/TV metadata onto files as NTFS streams.">
+          Plex Media Server
+        </span>
         <p className="dim" style={{ margin: '4px 0 8px' }}>
           {plex
             ? `${plex.installed ? 'Found' : 'Not found'}${plex.running ? ' · running' : ' · not running'}${plex.tokenFound ? ' · token available' : ' · no token'}${plex.dataDir ? ` · ${plex.dataDir}` : ''}`
             : 'Checking…'}
         </p>
-        <label className="settings-labeled-row" htmlFor="set-mm-plex-url">
+        <label
+          className="settings-labeled-row"
+          htmlFor="set-mm-plex-url"
+          title="Plex server URL (usually http://127.0.0.1:32400)"
+        >
           <span>URL</span>
           <input
             id="set-mm-plex-url"
@@ -2024,7 +2034,11 @@ function MediaMetadataSettingsPanel(): JSX.Element {
             onChange={(e) => void applySettingsPatch({ mediaMetadata: { plexUrl: e.target.value } })}
           />
         </label>
-        <label className="settings-labeled-row" htmlFor="set-mm-plex-token">
+        <label
+          className="settings-labeled-row"
+          htmlFor="set-mm-plex-token"
+          title="Optional. Leave empty to read the token from Preferences.xml"
+        >
           <span>Token override</span>
           <input
             id="set-mm-plex-token"
@@ -2037,7 +2051,11 @@ function MediaMetadataSettingsPanel(): JSX.Element {
             }
           />
         </label>
-        <label className="settings-labeled-row" htmlFor="set-mm-plex-dir">
+        <label
+          className="settings-labeled-row"
+          htmlFor="set-mm-plex-dir"
+          title="Plex data directory. Empty = %LOCALAPPDATA%\Plex Media Server"
+        >
           <span>Data folder</span>
           <input
             id="set-mm-plex-dir"
@@ -2051,13 +2069,19 @@ function MediaMetadataSettingsPanel(): JSX.Element {
         </label>
       </div>
       <div className="settings-field">
-        <span>Internet sources</span>
+        <span title="TMDB is preferred; OMDb is the IMDb-data fallback. Both need a free API key and are rate-limited.">
+          Internet sources
+        </span>
         <p className="dim" style={{ margin: '4px 0 8px' }}>
           TMDB (themoviedb.org) is preferred. OMDb (omdbapi.com) is the IMDb-data fallback. Both
           need a free API key. Free keys are rate-limited (OMDb about 1,000/day; TMDB also has a
           short burst limit). If a limit is hit, download stops and a message explains why.
         </p>
-        <label className="settings-labeled-row" htmlFor="set-mm-src">
+        <label
+          className="settings-labeled-row"
+          htmlFor="set-mm-src"
+          title="Which internet catalog to try first when downloading metadata"
+        >
           <span>Preferred</span>
           <select
             id="set-mm-src"
@@ -2072,7 +2096,11 @@ function MediaMetadataSettingsPanel(): JSX.Element {
             <option value="omdb">OMDb</option>
           </select>
         </label>
-        <label className="settings-labeled-row" htmlFor="set-mm-tmdb">
+        <label
+          className="settings-labeled-row"
+          htmlFor="set-mm-tmdb"
+          title="themoviedb.org API key (stored in settings)"
+        >
           <span>TMDB API key</span>
           <input
             id="set-mm-tmdb"
@@ -2084,7 +2112,11 @@ function MediaMetadataSettingsPanel(): JSX.Element {
             }
           />
         </label>
-        <label className="settings-labeled-row" htmlFor="set-mm-omdb">
+        <label
+          className="settings-labeled-row"
+          htmlFor="set-mm-omdb"
+          title="omdbapi.com API key (stored in settings)"
+        >
           <span>OMDb API key</span>
           <input
             id="set-mm-omdb"
@@ -2124,7 +2156,7 @@ function SettingsToggle({
     <label
       className={className ?? 'settings-toggle'}
       htmlFor={id}
-      title={hintAsTooltip ? hint : undefined}
+      title={hint}
       data-settings-search={searchTerms}
     >
       <span className="settings-toggle-text">
@@ -2396,6 +2428,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
             spellCheck={false}
             placeholder="Search settings"
             aria-label="Search settings"
+            title="Filter settings pages and fields by name"
             onChange={(e) => setSearchDraft(e.target.value)}
           />
           {searchDraft ? (
@@ -2437,7 +2470,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
           <>
           {section === 'appearance' && (
             <div className="settings-grid">
-              <label className="settings-field" htmlFor="set-theme">
+              <label
+                className="settings-field"
+                htmlFor="set-theme"
+                title="Dark, Light, or Custom color tokens below"
+              >
                 <span>Theme</span>
                 <select
                   id="set-theme"
@@ -2451,7 +2488,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <option value="custom">Custom</option>
                 </select>
               </label>
-              <label className="settings-field" htmlFor="set-font">
+              <label
+                className="settings-field"
+                htmlFor="set-font"
+                title="CSS font-family for the shell (e.g. Segoe UI, Consolas)"
+              >
                 <span>Font family</span>
                 <input
                   id="set-font"
@@ -2460,7 +2501,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   onChange={(e) => void applySettingsPatch({ fontFamily: e.target.value })}
                 />
               </label>
-              <label className="settings-field settings-field-narrow" htmlFor="set-fontsize">
+              <label
+                className="settings-field settings-field-narrow"
+                htmlFor="set-fontsize"
+                title="UI font size in pixels"
+              >
                 <span>Font size</span>
                 <div className="settings-inline">
                   <SettingsClampedNumber
@@ -2473,7 +2518,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <span className="dim">px</span>
                 </div>
               </label>
-              <label className="settings-field settings-field-narrow" htmlFor="set-iconsize">
+              <label
+                className="settings-field settings-field-narrow"
+                htmlFor="set-iconsize"
+                title="File and folder icon size in pixels"
+              >
                 <span>Icon size</span>
                 <div className="settings-inline">
                   <SettingsClampedNumber
@@ -2503,7 +2552,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               {settings.theme === 'custom' && (
                 <div className="settings-theme-tokens">
                   {THEME_TOKENS.map(({ key, label }) => (
-                    <label className="settings-token" key={key} htmlFor={`theme-${key}`}>
+                    <label
+                      className="settings-token"
+                      key={key}
+                      htmlFor={`theme-${key}`}
+                      title={`Custom theme: ${label}`}
+                    >
                       <span>{label}</span>
                       <input
                         id={`theme-${key}`}
@@ -2538,7 +2592,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.networkDiscovery.enabled !== false}
                 onChange={(v) => void applySettingsPatch({ networkDiscovery: { enabled: v } })}
               />
-              <label className="settings-field" htmlFor="set-net-mode">
+              <label
+                className="settings-field"
+                htmlFor="set-net-mode"
+                title="Manual: launch and Refresh only. Automatic: also rediscovers on a timer."
+              >
                 <span>Discovery mode</span>
                 <select
                   id="set-net-mode"
@@ -2560,7 +2618,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 </span>
               </label>
               {settings.networkDiscovery.mode === 'auto' ? (
-                <label className="settings-field settings-field-narrow" htmlFor="set-net-interval">
+                <label
+                  className="settings-field settings-field-narrow"
+                  htmlFor="set-net-interval"
+                  title="Minutes between automatic LAN rediscovery (default 5)"
+                >
                   <span>Auto refresh every (minutes)</span>
                   <SettingsClampedNumber
                     id="set-net-interval"
@@ -2595,6 +2657,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <button
                   type="button"
                   className="btn"
+                  title="Run one discovery pass now (up to about 20 seconds)"
                   disabled={
                     settings.networkDiscovery.enabled === false || networkStatus === 'running'
                   }
@@ -2602,12 +2665,18 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 >
                   {networkStatus === 'running' ? 'Discovering…' : 'Discover now'}
                 </button>
-                <button type="button" className="btn" onClick={() => void openMapNetworkDrive()}>
+                <button
+                  type="button"
+                  className="btn"
+                  title="Assign a drive letter to a network share"
+                  onClick={() => void openMapNetworkDrive()}
+                >
                   Map network drive…
                 </button>
                 <button
                   type="button"
                   className="btn"
+                  title="Disconnect a mapped network drive"
                   onClick={() => void openDisconnectNetworkDrive()}
                 >
                   Disconnect…
@@ -2714,7 +2783,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 onChange={(v) => void applySettingsPatch({ slideshow: { drawCaption: v } })}
               />
               <div className="settings-field">
-                <span>Invalid images folder</span>
+                <span title="Unloadable slideshow images are moved here (name conflicts rename). Empty = skip only.">
+                  Invalid images folder
+                </span>
                 <p className="dim" style={{ margin: '4px 0 8px' }}>
                   Unloadable / undecodable slideshow images are moved here and removed from the
                   image-list cache so you can review, re-encode, or delete them. Set a folder to
@@ -2758,7 +2829,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 </div>
               </div>
               <div className="settings-field">
-                <span>Compiled file lists folder</span>
+                <span title="Root for named .dat indexes and !!Lists. When set, a second toolbar slideshow button appears.">
+                  Compiled file lists folder
+                </span>
                 <p className="dim" style={{ margin: '4px 0 8px' }}>
                   Root for named .dat indexes and <code>!!Lists</code> composites (
                   <code>last.txt</code> for resume; Load/Save additional named lists there). When
@@ -2817,7 +2890,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </>
               )}
               <div className="settings-field settings-field-separator">
-                <span>Categorizer map</span>
+                <span title="Key-to-folder mappings for the slideshow categorizer. Edits save automatically.">
+                  Categorizer map
+                </span>
                 <p className="dim" style={{ margin: '4px 0 8px' }}>
                   {categorizerMap.length > 0
                     ? `${categorizerMap.length} mapping${categorizerMap.length === 1 ? '' : 's'} saved in app settings`
@@ -2846,7 +2921,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
           {section === 'behavior' && (
             <div className="settings-stack">
-              <label className="settings-field" htmlFor="set-newtab">
+              <label
+                className="settings-field"
+                htmlFor="set-newtab"
+                title="Folder opened by New tab. Empty = your home folder."
+              >
                 <span>Default new-tab path</span>
                 <div className="settings-inline">
                   <input
@@ -2875,7 +2954,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.itemCheckboxes}
                 onChange={(v) => void applySettingsPatch({ itemCheckboxes: v })}
               />
-              <label className="settings-field settings-field-narrow" htmlFor="set-vidthumbms">
+              <label
+                className="settings-field settings-field-narrow"
+                htmlFor="set-vidthumbms"
+                title="How long each !VIDTHUMB_CACHE strip frame is shown in icon views (default 300 ms)"
+              >
                 <span>Video thumbnail frame delay (ms)</span>
                 <input
                   id="set-vidthumbms"
@@ -2914,7 +2997,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 searchTerms="recycle bin trash shift+del"
                 onChange={(v) => void applySettingsPatch({ confirmPermanentDeleteAlways: v })}
               />
-              <label className="settings-field" htmlFor="set-hide-exts">
+              <label
+                className="settings-field"
+                htmlFor="set-hide-exts"
+                title="One extension per line (no dot). Hides “.ext” in the file view only — rename still uses the full name."
+              >
                 <span>Hide extensions in names</span>
                 <textarea
                   id="set-hide-exts"
@@ -2939,7 +3026,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 onChange={(v) => void applySettingsPatch({ showFolderStatistics: v })}
               />
               <div className="settings-field settings-field-separator">
-                <span>Calculate Statistics skip list</span>
+                <span title="Folders omitted from Calculate Statistics. They stay visible in the file list.">
+                  Calculate Statistics skip list
+                </span>
                 <p className="settings-help">
                   Folders omitted from Calculate Statistics (Skip folder or Skip all on a
                   permission error). They stay visible in the file list. Remove a path here to tag
@@ -2986,10 +3075,20 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   a folder on the Quick access header.
                 </p>
                 <div className="settings-inline">
-                  <button type="button" className="btn" onClick={() => void addQuickAccessFolder()}>
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Pin a folder to Quick access"
+                    onClick={() => void addQuickAccessFolder()}
+                  >
                     Add folder…
                   </button>
-                  <button type="button" className="btn" onClick={() => void resetQuickAccess()}>
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Restore the default Quick access list"
+                    onClick={() => void resetQuickAccess()}
+                  >
                     Reset defaults
                   </button>
                 </div>
@@ -3066,10 +3165,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 separate.
               </p>
               <div className="settings-qa-actions" style={{ justifyContent: 'flex-start' }}>
-                <button
-                  type="button"
-                  className="btn primary"
-                  onClick={() =>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    title="Save the current tabs, panes, and splitters as a named workspace"
+                    onClick={() =>
                     openDialog({
                       kind: 'layout-name',
                       mode: 'save',
@@ -3227,12 +3327,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <SettingsToggle
                 id="set-filter-enabled"
                 label="Enable view filter"
+                hint="When on, hide Windows Hidden items and matching patterns from the file view, tree, and search. Attributes are not changed."
                 checked={settings.viewFilterEnabled}
                 onChange={(v) => void applySettingsPatch({ viewFilterEnabled: v })}
               />
               <textarea
                 className="filter-textarea"
                 aria-label="View filter patterns"
+                title="One pattern per line. * = any chars, ? = one char. Examples: .tmp, *cache*, *\\node_modules, D:\\folder"
                 placeholder={'.tmp\n*.log\n*cache*\n*\\node_modules\nD:\\folder\\foldername'}
                 spellCheck={false}
                 rows={10}
@@ -3252,7 +3354,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.previewVisibleDefault}
                 onChange={(v) => void applySettingsPatch({ previewVisibleDefault: v })}
               />
-              <label className="settings-field settings-field-narrow" htmlFor="set-maxbytes">
+              <label
+                className="settings-field settings-field-narrow"
+                htmlFor="set-maxbytes"
+                title="How much of a text, code, Markdown, or HTML file to show (default 2 MiB). Larger files are truncated."
+              >
                 <span>Max text preview bytes</span>
                 <input
                   id="set-maxbytes"
@@ -3289,10 +3395,20 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                     : `${indexRoots.length} indexed root${indexRoots.length === 1 ? '' : 's'} (folder + volume).`}
                 </p>
                 <div className="settings-inline">
-                  <button type="button" className="btn" onClick={() => void addRoot()}>
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Index a folder (watched for changes)"
+                    onClick={() => void addRoot()}
+                  >
                     Add folder…
                   </button>
-                  <button type="button" className="btn" onClick={() => void addDrive()}>
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Index a whole NTFS volume (USN when available)"
+                    onClick={() => void addDrive()}
+                  >
                     Index drive…
                   </button>
                 </div>
@@ -3314,6 +3430,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       <button
                         type="button"
                         className="btn"
+                        title="Rebuild this root’s index"
                         onClick={() => void reindexAction(root.path)}
                       >
                         Reindex
@@ -3321,6 +3438,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       <button
                         type="button"
                         className="btn"
+                        title="Stop indexing this root and drop its rows"
                         onClick={() => void removeIndexRootAction(root.path)}
                       >
                         Remove
@@ -3329,6 +3447,27 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   ))
                 )}
               </div>
+              <label
+                className="checkbox-row"
+                title="Off: skip Hidden files, !VIDTHUMB_CACHE, and items inside hidden folders. attrib:h still finds them."
+              >
+                <input
+                  type="checkbox"
+                  checked={settings.searchShowHidden}
+                  onChange={(e) => {
+                    void applySettingsPatch({ searchShowHidden: e.target.checked }).then(() => {
+                      void runSearch()
+                    })
+                  }}
+                />
+                Show hidden files in search
+              </label>
+              <p className="settings-help">
+                Off by default — same as Explorer. Hides Windows Hidden items (for example
+                subtitles), <code>!VIDTHUMB_CACHE</code>, and anything inside a hidden folder.
+                Turn on here or under the search options menu. <code>attrib:h</code> in a query
+                still matches hidden files.
+              </p>
               <div className="form-section">Exclude from search</div>
               <p className="settings-help">
                 Skipped while indexing and live-folder search (same pattern language as View
@@ -3341,6 +3480,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <textarea
                 className="filter-textarea"
                 aria-label="Search exclude patterns"
+                title="One pattern per line. Skipped while indexing and folder search. Already-indexed hits hide immediately; Reindex drops them from the database."
                 placeholder={'node_modules\n.git\n*.log\nThumbs.db\nD:\\folder\\skip'}
                 spellCheck={false}
                 rows={8}
@@ -3387,7 +3527,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               ))}
               {addingFilter ? (
                 <div className="settings-add-form">
-                  <label className="settings-field" htmlFor="set-filter-name">
+                  <label
+                    className="settings-field"
+                    htmlFor="set-filter-name"
+                    title="Display name for this saved filter"
+                  >
                     <span>Name</span>
                     <input
                       id="set-filter-name"
@@ -3398,7 +3542,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       onChange={(e) => setFilterName(e.target.value)}
                     />
                   </label>
-                  <label className="settings-field" htmlFor="set-filter-query">
+                  <label
+                    className="settings-field"
+                    htmlFor="set-filter-query"
+                    title="Everything-style query, e.g. ext:jpg;png"
+                  >
                     <span>Query</span>
                     <input
                       id="set-filter-query"
@@ -3409,7 +3557,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       onChange={(e) => setFilterQuery(e.target.value)}
                     />
                   </label>
-                  <label className="settings-field" htmlFor="set-filter-macro">
+                  <label
+                    className="settings-field"
+                    htmlFor="set-filter-macro"
+                    title="Optional alias — type alias: in the search box to run this filter"
+                  >
                     <span>Macro alias (optional)</span>
                     <input
                       id="set-filter-macro"
@@ -3501,7 +3653,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               ))}
               {addingBookmark ? (
                 <div className="settings-add-form">
-                  <label className="settings-field" htmlFor="set-bookmark-name">
+                  <label
+                    className="settings-field"
+                    htmlFor="set-bookmark-name"
+                    title="Display name for this bookmark"
+                  >
                     <span>Name</span>
                     <input
                       id="set-bookmark-name"
@@ -3512,7 +3668,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       onChange={(e) => setBookmarkName(e.target.value)}
                     />
                   </label>
-                  <label className="settings-field" htmlFor="set-bookmark-query">
+                  <label
+                    className="settings-field"
+                    htmlFor="set-bookmark-query"
+                    title="Query to run when you open this bookmark"
+                  >
                     <span>Query</span>
                     <input
                       id="set-bookmark-query"
@@ -3618,7 +3778,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.searchHttpEnabled}
                 onChange={(v) => void applySettingsPatch({ searchHttpEnabled: v })}
               />
-              <label className="settings-field settings-field-narrow" htmlFor="set-search-http-port">
+              <label
+                className="settings-field settings-field-narrow"
+                htmlFor="set-search-http-port"
+                title="Loopback port for GET /search (1024–65535)"
+              >
                 <span>Port</span>
                 <input
                   id="set-search-http-port"
@@ -3632,7 +3796,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   }}
                 />
               </label>
-              <label className="settings-field" htmlFor="set-search-http-token">
+              <label
+                className="settings-field"
+                htmlFor="set-search-http-token"
+                title="Required query token (?token=). Leave empty to allow unauthenticated local requests."
+              >
                 <span>Auth token</span>
                 <input
                   id="set-search-http-token"
@@ -3646,7 +3814,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
               <div className="settings-action-card">
                 <div>
-                  <div className="settings-toggle-label">App data</div>
+                  <div
+                    className="settings-toggle-label"
+                    title="Settings, session, and caches for this app. Reinstalling does not clear this folder."
+                  >
+                    App data
+                  </div>
                   <div className="settings-toggle-hint">
                     Settings, session, and caches live here for both <code>npm run dev</code> and
                     the installed app. Reinstalling does not clear this folder.
@@ -3672,7 +3845,12 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
               <div className="settings-action-card">
                 <div>
-                  <div className="settings-toggle-label">Icon & thumbnail cache</div>
+                  <div
+                    className="settings-toggle-label"
+                    title="Windows shell icons and image thumbs under app data. They rebuild as you browse."
+                  >
+                    Icon & thumbnail cache
+                  </div>
                   <div className="settings-toggle-hint">
                     Clears Windows shell icons and image thumbs under app data. They rebuild as you
                     browse.
@@ -3689,14 +3867,21 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
             <div className="settings-stack">
               <div className="settings-action-card">
                 <div>
-                  <div className="settings-toggle-label">Current version</div>
+                  <div className="settings-toggle-label" title="Installed MyFileExplorer version">
+                    Current version
+                  </div>
                   <div className="settings-version-value">{appVersion || '…'}</div>
                 </div>
               </div>
 
               <div className="settings-action-card">
                 <div>
-                  <div className="settings-toggle-label">Help & documentation</div>
+                  <div
+                    className="settings-toggle-label"
+                    title="README, feature guides, and issue tracker on GitHub"
+                  >
+                    Help & documentation
+                  </div>
                   <div className="settings-toggle-hint">
                     README, feature guides, and issue tracker on the project GitHub page.
                   </div>
@@ -3714,12 +3899,21 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
               <div className="settings-action-card">
                 <div className="settings-updates-body">
-                  <div className="settings-toggle-label">Updates</div>
+                  <div
+                    className="settings-toggle-label"
+                    title="Check GitHub Releases or a local folder of installers"
+                  >
+                    Updates
+                  </div>
                   <div className="settings-toggle-hint">
                     Leave empty (or use the default GitHub Releases URL), or point at a local folder
                     of installers.
                   </div>
-                  <label className="settings-labeled-row settings-updates-source" htmlFor="set-updates-folder">
+                  <label
+                    className="settings-labeled-row settings-updates-source"
+                    htmlFor="set-updates-folder"
+                    title="Empty or the default GitHub Releases URL, or a local folder of installers"
+                  >
                     <span>Folder or URL</span>
                     <input
                       id="set-updates-folder"
@@ -3763,6 +3957,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <button
                     type="button"
                     className="btn"
+                    title="Look for a newer installer at the source above"
                     disabled={updateBusy}
                     onClick={() => {
                       void (async () => {
@@ -3838,25 +4033,38 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </div>
 
               <div className="settings-action-card">
-                <div>
-                  <div className="settings-toggle-label">Export / import settings</div>
-                  <div className="settings-toggle-hint">
-                    Save a portable JSON backup of all preferences — including context menu
-                    customization (built-in show/hide and order, Discover scan catalog and enabled
-                    verbs, Custom files/folders commands), theme, named layouts, folder views,
-                    slideshow, network discovery, remembered Network hosts, remote repository
-                    connections without passwords, saved scripts (source yes), AI provider
-                    metadata (not API keys), and everything else in Settings. Dialog and
-                    main-window positions are not included. Import replaces current settings; open
-                    tabs are unchanged (apply a named layout to restore a workspace). Re-enter
-                    remote passwords and AI keys after import.
-                  </div>
+                <div
+                  className="settings-toggle-label settings-action-card-title"
+                  title="Portable JSON of preferences. Window positions and secrets (passwords, AI keys) are not included."
+                >
+                  Export / import settings
+                </div>
+                <div className="settings-toggle-hint">
+                  Save a portable JSON backup of all preferences — including context menu
+                  customization (built-in show/hide and order, Discover scan catalog and enabled
+                  verbs, Custom files/folders commands), theme, named layouts, folder views,
+                  slideshow, network discovery, remembered Network hosts, remote repository
+                  connections without passwords, saved scripts (source yes), AI provider
+                  metadata (not API keys), and everything else in Settings. Dialog and
+                  main-window positions are not included. Import replaces current settings; open
+                  tabs are unchanged (apply a named layout to restore a workspace). Re-enter
+                  remote passwords and AI keys after import.
                 </div>
                 <div className="settings-btn-stack">
-                  <button type="button" className="btn" onClick={() => void exportSettingsFile()}>
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Save settings to a JSON file"
+                    onClick={() => void exportSettingsFile()}
+                  >
                     Export…
                   </button>
-                  <button type="button" className="btn" onClick={() => void importSettingsFile()}>
+                  <button
+                    type="button"
+                    className="btn"
+                    title="Replace current settings from a JSON file"
+                    onClick={() => void importSettingsFile()}
+                  >
                     Import…
                   </button>
                 </div>

@@ -31,6 +31,8 @@ export type SearchResultItem = {
   mtimeMs: number
   size: number
   isDir: boolean
+  /** Windows Hidden (or under a hidden / `!VIDTHUMB_CACHE` folder). */
+  isHidden?: boolean
   score?: number
 }
 

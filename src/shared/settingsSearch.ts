@@ -73,7 +73,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'search',
     label: 'Search index',
     keywords:
-      'search index everything roots drive volume reindex exclude node_modules bookmarks filters macro indexed'
+      'search index everything roots drive volume reindex exclude node_modules bookmarks filters macro indexed hidden vidthumb show hidden subtitle attrib'
   },
   {
     id: 'network',

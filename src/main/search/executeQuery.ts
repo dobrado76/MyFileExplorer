@@ -14,6 +14,7 @@ import {
   type StructuredQuery
 } from './everythingQuery'
 import { compilePathPatterns } from '@shared/pathPatterns'
+import { isHiddenSearchHit, normalizeSearchPathKey } from '@shared/searchHidden'
 import { settingsStore } from '../settings/store'
 import { nameMatches } from './queryBuilder'
 import { buildSearchSql } from './searchSql'
@@ -32,14 +33,38 @@ const CONTENT_MAX_FILES = 80
 const CONTENT_MAX_BYTES = 512 * 1024
 const CONTENT_HARD_MS = 8000
 
-function rowsToItems(rows: FileRow[]): SearchResultItem[] {
+function rowsToItems(rows: FileRow[], hiddenDirs?: ReadonlySet<string>): SearchResultItem[] {
   return rows.map((r) => ({
     path: r.path,
     name: r.name,
     size: Number(r.size),
     mtimeMs: Number(r.mtime_ms),
-    isDir: Number(r.is_dir) === 1
+    isDir: Number(r.is_dir) === 1,
+    isHidden: isHiddenSearchHit({ path: r.path, attrs: r.attrs, hiddenDirs })
   }))
+}
+
+function loadHiddenDirKeys(pathPrefix: string | null): Set<string> {
+  const db = searchDb()
+  let rows: { path: string }[]
+  try {
+    if (pathPrefix) {
+      rows = db
+        .prepare(
+          `SELECT path FROM files WHERE is_dir = 1 AND attrs IS NOT NULL AND (attrs & 2) != 0 AND path LIKE ?`
+        )
+        .all(`${pathPrefix}%`) as { path: string }[]
+    } else {
+      rows = db
+        .prepare(
+          `SELECT path FROM files WHERE is_dir = 1 AND attrs IS NOT NULL AND (attrs & 2) != 0`
+        )
+        .all() as { path: string }[]
+    }
+  } catch {
+    return new Set()
+  }
+  return new Set(rows.map((r) => normalizeSearchPathKey(r.path)))
 }
 
 async function filterContent(
@@ -116,9 +141,14 @@ export async function queryIndexStructured(
   const db = searchDb()
   const rows = db.prepare(sql).all(...params, pull) as unknown as FileRow[]
 
-  const excluded = compilePathPatterns(settingsStore().get().searchExcludeDirNames)
-  let items = rowsToItems(rows).filter((it) => {
+  const settings = settingsStore().get()
+  const excluded = compilePathPatterns(settings.searchExcludeDirNames)
+  const showHidden = settings.searchShowHidden === true || q.attrib?.hidden === true
+  const hiddenDirs = showHidden ? undefined : loadHiddenDirKeys(pathPrefix)
+  const attrsByPath = new Map(rows.map((r) => [r.path, r.attrs]))
+  let items = rowsToItems(rows, hiddenDirs).filter((it) => {
     if (excluded(it.path)) return false
+    if (!showHidden && it.isHidden) return false
     return basic
       ? nameMatches(it.name, query)
       : rowMatchesStructured(
@@ -128,7 +158,7 @@ export async function queryIndexStructured(
             size: it.size,
             mtimeMs: it.mtimeMs,
             isDir: it.isDir,
-            attrs: rows.find((r) => r.path === it.path)?.attrs ?? null
+            attrs: attrsByPath.get(it.path) ?? null
           },
           q,
           { rootPrefix: pathPrefix }

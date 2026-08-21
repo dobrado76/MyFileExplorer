@@ -988,11 +988,19 @@ function poolEntriesForTab(s: AppState, tabId: string): { path: string; isHidden
 
 function selectablePathsForTab(s: AppState, tabId: string): string[] {
   const listingPath = s.listingsByTabId[tabId]?.path ?? ''
+  const searchActive = s.tabs.find((t) => t.id === tabId)?.search.active === true
   const applyMedia =
-    s.mediaLibrary.isContainer && listingPath && samePath(listingPath, s.mediaLibrary.folderPath)
+    !searchActive &&
+    s.mediaLibrary.isContainer &&
+    listingPath &&
+    samePath(listingPath, s.mediaLibrary.folderPath)
   return poolEntriesForTab(s, tabId)
     .filter((e) => {
-      if (isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)) {
+      if (
+        isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled, {
+          ignoreHiddenAttr: searchActive
+        })
+      ) {
         return false
       }
       if (applyMedia && isExcludedByMediaLibrary(e.path, s.mediaLibrary)) return false
@@ -2261,7 +2269,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     const before = sortEntries(
       sourceEntries.filter((e) => {
         if (
-          isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
+          isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled, {
+            ignoreHiddenAttr: tab.search.active
+          })
         ) {
           return false
         }

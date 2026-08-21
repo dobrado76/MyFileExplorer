@@ -110,7 +110,10 @@ export function AiSettingsPanel(): JSX.Element {
 
   return (
     <div className="settings-stack">
-      <label className="settings-toggle">
+      <label
+        className="settings-toggle"
+        title="Off by default. On: Script Manager on the toolbar and Scripts on the context menu. Scripts run as your Windows user."
+      >
         <input
           type="checkbox"
           checked={scriptingOn}
@@ -139,7 +142,11 @@ export function AiSettingsPanel(): JSX.Element {
         Python 2.7 is not supported (`print(…, file=sys.stderr)` will SyntaxError).
       </p>
       {(['powershell', 'pwsh', 'python', 'cmd', 'bash'] as const).map((k) => (
-        <label key={k} className="settings-field">
+        <label
+          key={k}
+          className="settings-field"
+          title={`Optional full path to ${k} when it is not on PATH`}
+        >
           <span>{k}</span>
           <input
             value={settings.scripts.interpreterOverrides[k] ?? ''}
@@ -158,7 +165,10 @@ export function AiSettingsPanel(): JSX.Element {
       ))}
 
       <h3>AI (optional)</h3>
-      <label className="settings-toggle">
+      <label
+        className="settings-toggle"
+        title="Off = no outbound AI HTTP. Hand-written scripts still run locally. AI never receives file names or bytes."
+      >
         <input
           type="checkbox"
           checked={ai.enabled}
@@ -176,7 +186,7 @@ export function AiSettingsPanel(): JSX.Element {
         API keys are stored with OS encryption (safeStorage), not in settings.json. Settings export
         includes provider URLs and models, not keys.
       </p>
-      <label className="settings-field">
+      <label className="settings-field" title="Provider used when you ask AI to write or fix a script">
         <span>Default provider</span>
         <select
           value={ai.defaultProviderId}
@@ -190,7 +200,7 @@ export function AiSettingsPanel(): JSX.Element {
           ))}
         </select>
       </label>
-      <label className="settings-field">
+      <label className="settings-field" title="Model id from the default provider’s catalog">
         <span>Default model</span>
         <AiModelSelect
           value={ai.defaultModel}
@@ -209,7 +219,10 @@ export function AiSettingsPanel(): JSX.Element {
         Models come from the default provider’s catalog (GET /v1/models). Switch to a cheaper id
         whenever you want — the list is cached after the first refresh.
       </p>
-      <label className="settings-field">
+      <label
+        className="settings-field"
+        title="Language the AI should prefer when generating scripts"
+      >
         <span>Preferred script language</span>
         <select
           value={ai.preferredScriptLanguage}
@@ -226,7 +239,7 @@ export function AiSettingsPanel(): JSX.Element {
           <option value="bash">bash</option>
         </select>
       </label>
-      <label className="settings-field">
+      <label className="settings-field" title="0 = deterministic, higher = more variation (0–2)">
         <span>Temperature</span>
         <input
           type="number"
@@ -239,7 +252,7 @@ export function AiSettingsPanel(): JSX.Element {
           }
         />
       </label>
-      <label className="settings-field">
+      <label className="settings-field" title="Maximum tokens in an AI reply">
         <span>Max tokens</span>
         <input
           type="number"
@@ -283,11 +296,11 @@ export function AiSettingsPanel(): JSX.Element {
         ))}
       </div>
       <div className="script-meta-grid">
-        <label className="settings-field">
+        <label className="settings-field" title="Display name in the provider list">
           <span>Name</span>
           <input value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="settings-field">
+        <label className="settings-field" title="API dialect (OpenAI, OpenRouter, LM Studio, or custom)">
           <span>Type</span>
           <select
             value={type}
@@ -305,14 +318,14 @@ export function AiSettingsPanel(): JSX.Element {
             ))}
           </select>
         </label>
-        <label className="settings-field script-meta-wide">
+        <label className="settings-field script-meta-wide" title="API root, e.g. http://127.0.0.1:1234/v1">
           <span>Base URL</span>
           <input value={baseUrl} onChange={(e) => {
             setBaseUrl(e.target.value)
             setLocal(providerLooksLocal(type, e.target.value))
           }} />
         </label>
-        <label className="settings-field">
+        <label className="settings-field" title="Model id for this provider (refresh after saving a key)">
           <span>Model</span>
           <AiModelSelect
             value={model}
@@ -323,7 +336,7 @@ export function AiSettingsPanel(): JSX.Element {
             onChange={setModel}
           />
         </label>
-        <label className="settings-field">
+        <label className="settings-field" title="HTTP timeout for this provider (5–600 seconds)">
           <span>Timeout (sec)</span>
           <input
             type="number"
@@ -333,7 +346,7 @@ export function AiSettingsPanel(): JSX.Element {
             onChange={(e) => setTimeoutSec(Number(e.target.value) || 60)}
           />
         </label>
-        <label className="settings-field">
+        <label className="settings-field" title="Stored with OS encryption. Leave blank to keep the existing key.">
           <span>API key</span>
           <input
             type="password"
@@ -343,7 +356,10 @@ export function AiSettingsPanel(): JSX.Element {
             autoComplete="off"
           />
         </label>
-        <label className="settings-toggle">
+        <label
+          className="settings-toggle"
+          title="Local providers skip the first-use cloud warning"
+        >
           <input type="checkbox" checked={local} onChange={(e) => setLocal(e.target.checked)} />
           <span>Treat as local (no cloud first-use warning)</span>
         </label>

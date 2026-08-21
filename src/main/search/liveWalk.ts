@@ -10,6 +10,10 @@ import {
   type StructuredQuery
 } from './everythingQuery'
 import { compilePathPatterns } from '@shared/pathPatterns'
+import { isHiddenSearchHit } from '@shared/searchHidden'
+import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
+import { pathIsHidden } from '../fs/winAttrs'
+import { settingsStore } from '../settings/store'
 import { nameMatches } from './queryBuilder'
 
 export type CancelToken = { cancelled: boolean }
@@ -35,6 +39,8 @@ export async function liveWalkSearch(
   const basic = isBasicNameQuery(query)
   const q = basic ? null : parseEverythingQuery(query, parseOpts)
   const excluded = compilePathPatterns(excludePatterns)
+  const showHidden =
+    settingsStore().get().searchShowHidden === true || q?.attrib?.hidden === true
   const items: SearchResultItem[] = []
   const stack: string[] = [rootDir]
   let scanned = 0
@@ -82,6 +88,11 @@ export async function liveWalkSearch(
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
       if (excluded(full)) continue
+      const hidden =
+        d.name.toLowerCase() === VID_THUMB_CACHE_DIR.toLowerCase() ||
+        pathIsHidden(full) ||
+        isHiddenSearchHit({ path: full })
+      if (!showHidden && hidden) continue
 
       const nameHit = basic ? nameMatches(d.name, query) : null
       // Basic name search: skip stat on misses so the walk does not monopolize main.
@@ -107,7 +118,7 @@ export async function liveWalkSearch(
           )
 
       if (hit) {
-        items.push({ path: full, name: d.name, size, mtimeMs, isDir })
+        items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
       }
       if (isDir) stack.push(full)
       scanned++

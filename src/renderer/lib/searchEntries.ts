@@ -20,7 +20,7 @@ export function searchResultsToEntries(items: SearchResultItem[]): DirEntry[] {
         mtimeMs: item.mtimeMs,
         birthtimeMs: 0,
         ext,
-        isHidden: false
+        isHidden: item.isHidden === true
       }
     })
   )

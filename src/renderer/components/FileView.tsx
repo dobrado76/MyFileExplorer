@@ -498,10 +498,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const isExcluded = useMemo(
     () => (e: { path: string; isHidden: boolean }) => {
       if (!viewFilterOn) return false
-      if (e.isHidden) return true
+      // Search uses Settings → Search “Show hidden”; do not also hide by attribute here.
+      if (!searchMode && e.isHidden) return true
       return compiledFilter(e.path)
     },
-    [viewFilterOn, compiledFilter]
+    [viewFilterOn, compiledFilter, searchMode]
   )
   const fileMetaColumns = useMemo(
     () =>
@@ -601,7 +602,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     // Avoid copying 20k entries when the filter cannot hide anything.
     let filtered = sourceEntries
     if (viewFilterOn) {
-      if (viewPatterns.length === 0) {
+      if (searchMode) {
+        if (viewPatterns.length > 0) {
+          filtered = sourceEntries.filter((e) => !compiledFilter(e.path))
+        }
+      } else if (viewPatterns.length === 0) {
         const hasHidden = sourceEntries.some((e) => e.isHidden)
         if (hasHidden) filtered = sourceEntries.filter((e) => !e.isHidden)
       } else {
@@ -691,6 +696,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     settings.mediaMetadata.mixFilesAndFolders,
     viewMode,
     isExcluded,
+    compiledFilter,
     viewFilterOn,
     viewPatterns.length,
     metaForSort,
