@@ -90,15 +90,16 @@ async function runLiveWalk(
   const token: CancelToken = { cancelled: false }
   activeWalk = token
   try {
-    const excludes = settingsStore().get().searchExcludeDirNames
+    const settings = settingsStore().get()
     const { items, partial, contentSlow } = await liveWalkSearch(
       dir,
       query,
-      excludes,
+      settings.searchExcludeDirNames,
       limit,
       token,
       parseOptsFromReq(req),
-      req.gen ?? 0
+      req.gen ?? 0,
+      settings.searchShowHidden === true
     )
     return { items, partial, source: 'walk', contentSlow }
   } finally {

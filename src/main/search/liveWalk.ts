@@ -13,7 +13,6 @@ import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit } from '@shared/searchHidden'
 import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
 import { pathIsHidden } from '../fs/winAttrs'
-import { settingsStore } from '../settings/store'
 import { nameMatches } from './queryBuilder'
 
 export type CancelToken = { cancelled: boolean }
@@ -34,13 +33,13 @@ export async function liveWalkSearch(
   limit: number,
   token: CancelToken,
   parseOpts: ParseOptions = {},
-  gen = 0
+  gen = 0,
+  showHiddenPref = false
 ): Promise<{ items: SearchResultItem[]; partial: boolean; contentSlow?: boolean }> {
   const basic = isBasicNameQuery(query)
   const q = basic ? null : parseEverythingQuery(query, parseOpts)
   const excluded = compilePathPatterns(excludePatterns)
-  const showHidden =
-    settingsStore().get().searchShowHidden === true || q?.attrib?.hidden === true
+  const showHidden = showHiddenPref || q?.attrib?.hidden === true
   const items: SearchResultItem[] = []
   const stack: string[] = [rootDir]
   let scanned = 0
