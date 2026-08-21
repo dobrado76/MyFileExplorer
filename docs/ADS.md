@@ -104,7 +104,7 @@ All paths go through `requireAbsolute` in main. Full request/response shapes: [I
 | Key | Meaning |
 | --- | ------- |
 | `adsManagerBounds` | `{ x, y, width, height }` or `null` for centered defaults |
-| `adsFieldColumns` | Stream names in the Details **Stream values** catalog (`adsField:<name>` columns) |
+| `adsFieldColumns` | `{ stream, label? }[]` — Details **Stream values** catalog (`adsField:<stream>` columns) |
 
 Column visibility / order live with the rest of the Details layout in settings (see [PROJECT_FORMAT.md](PROJECT_FORMAT.md)).
 

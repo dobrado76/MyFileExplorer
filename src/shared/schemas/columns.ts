@@ -130,7 +130,7 @@ export function sanitizeAdsFieldColumns(raw: unknown): AdsFieldColumnDef[] {
   const seen = new Set<string>()
   const out: AdsFieldColumnDef[] = []
   for (const item of raw) {
-    let stream = ''
+    let stream: string
     let label: string | undefined
     if (typeof item === 'string') {
       stream = item.trim()
