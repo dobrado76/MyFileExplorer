@@ -49,7 +49,6 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/SEARCH.md](docs/SEARCH.md)                           | Indexing & search             |
 | [docs/SECURITY.md](docs/SECURITY.md)                       | Path guards & deletes         |
 | [docs/INTEGRATION.md](docs/INTEGRATION.md)                 | CLI / `mfe://` from other apps |
-| [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) | Phased build order            |
 | [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)                   | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | [docs/SLIDESHOW.md](docs/SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [docs/NETWORKS.md](docs/NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |

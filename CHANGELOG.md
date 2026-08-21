@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- **USN Recent records** — listing records needs administrator (Windows error 5). **Load recent records as administrator…** re-runs the native reader in a short-lived elevated process (the previous `fsutil` helper exited 1).
+
 ## [0.10.0] - 2026-08-21
 
 Tenth product release: **D52 NTFS USN journal manager** from Drive Properties, plus a stability pass on scripts, copy/move progress, preview, slideshow, and Details ADS. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

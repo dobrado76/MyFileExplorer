@@ -28,6 +28,7 @@ import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
 import { closePreviewWindow } from './preview/previewWindow'
 import { configureUserData } from './userData'
+import { parseUsnRecentCli, runUsnRecentCli } from './fs/usnRecentCli'
 
 // ============================================================================
 // SAFELY ISOLATE CRASHING WINDOWS INITIALIZATIONS ON LINUX
@@ -43,6 +44,13 @@ if (process.platform === 'win32') {
     // Fail silently if directory exists or permissions alter
   }
   app.setPath('userData', defaultLinuxPath)
+}
+
+// Elevated helper: dump recent USN records and exit (must skip single-instance lock).
+if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
+  const usnRecentCli = parseUsnRecentCli(process.argv)
+  if (!usnRecentCli) process.exit(1)
+  process.exit(runUsnRecentCli(usnRecentCli.letter, usnRecentCli.outFile))
 }
 
 // Single instance: later launches forward their argv to this process and quit.

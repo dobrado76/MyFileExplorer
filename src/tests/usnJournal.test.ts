@@ -12,11 +12,14 @@ import {
   isUsnProbeFileName,
   mibToBytes,
   parseFsutilUsnQuery,
+  parseFsutilUsnReadJournal,
   resolveUsnProbeDir,
   sameVolumePrefix,
   usnJournalFillRatio,
   usnProbeFileName
 } from '../shared/usn/format'
+import { parseUsnRecords } from '../main/search/ntfs/usnRecords'
+import { parseUsnRecentCli } from '../main/fs/usnRecentCli'
 
 function isWinDriveRootPath(path: string): boolean {
   return /^[a-zA-Z]:\\?$/.test(path.trim())
@@ -86,6 +89,68 @@ Allocation Delta        : 0x0000000000800000
       true
     )
     expect(isUsnJournalDeletingMessage('The volume change journal is not active.')).toBe(false)
+  })
+
+  it('parses fsutil usn readjournal text records newest-first', () => {
+    const parsed = parseFsutilUsnReadJournal(
+      `
+Usn                         : 100
+File name                   : older.txt
+File name length            : 18
+Reason                      : 0x00000100: File create
+Time stamp                  : 7/12/2018 11:04:30
+File attributes             : 0x00000020: Archive
+
+Usn                         : 200
+File name                   : newer.txt
+File name length            : 18
+Reason                      : 0x80000200: File delete | Close
+Time stamp                  : 7/12/2018 11:05:30
+File attributes             : 0x00000010: Directory
+`,
+      200
+    )
+    expect(parsed).toHaveLength(2)
+    expect(parsed[0]!.name).toBe('newer.txt')
+    expect(parsed[0]!.isDir).toBe(true)
+    expect(parsed[0]!.reason).toBe(0x80000200)
+    expect(parsed[1]!.name).toBe('older.txt')
+    expect(parsed[1]!.isDir).toBe(false)
+  })
+
+  it('parses USN_RECORD_V2 from a DeviceIoControl payload', () => {
+    const name = 'hello.txt'
+    const nameBytes = Buffer.from(name, 'utf16le')
+    const recLen = 60 + nameBytes.length
+    const rec = Buffer.alloc(recLen)
+    rec.writeUInt32LE(recLen, 0)
+    rec.writeUInt16LE(2, 4)
+    rec.writeBigUInt64LE(0x11n, 8)
+    rec.writeBigUInt64LE(0x22n, 16)
+    rec.writeBigInt64LE(0x1000n, 24)
+    rec.writeBigInt64LE(132000000000000000n, 32)
+    rec.writeUInt32LE(0x100, 40)
+    rec.writeUInt32LE(0, 52)
+    rec.writeUInt16LE(nameBytes.length, 56)
+    rec.writeUInt16LE(60, 58)
+    nameBytes.copy(rec, 60)
+    const parsed = parseUsnRecords(rec, 0, rec.length)
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0]!.name).toBe('hello.txt')
+    expect(parsed[0]!.reason).toBe(0x100)
+    expect(parsed[0]!.usn).toBe(0x1000n)
+  })
+})
+
+describe('USN recent CLI argv', () => {
+  it('requires --usn-recent, a drive letter, and an absolute json path', () => {
+    expect(parseUsnRecentCli(['electron.exe', '--usn-recent', 'C:', 'C:\\temp\\usn-recent-C.json'])).toEqual({
+      letter: 'C:',
+      outFile: 'C:\\temp\\usn-recent-C.json'
+    })
+    expect(parseUsnRecentCli(['electron.exe', '--usn-recent', 'C:\\', 'C:\\temp\\usn.json'])).toBeNull()
+    expect(parseUsnRecentCli(['electron.exe', '--usn-recent', 'C:', 'usn.json'])).toBeNull()
+    expect(parseUsnRecentCli(['electron.exe'])).toBeNull()
   })
 })
 

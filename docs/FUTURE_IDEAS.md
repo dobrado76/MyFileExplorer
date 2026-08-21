@@ -2,7 +2,7 @@
 
 **Status:** parking lot only. **Do not implement from this file.** These are candidates for later, independent evaluation — not a roadmap, not a batch spec, and not part of current v0.10.0 work.
 
-Canonical plan: [../PLAN.md](../PLAN.md). Locked product decisions: [DECISIONS.md](DECISIONS.md). Near-term Phase 11 leftovers stay in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md); this document is a longer-horizon list.
+Canonical plan: [../PLAN.md](../PLAN.md). Locked product decisions: [DECISIONS.md](DECISIONS.md). This document is a longer-horizon list, not current work.
 
 If one idea is chosen later, it needs its own focused plan, impact analysis, testing strategy, and scope decision **before** any code changes. Prefer a new D-number in DECISIONS.md when locking behavior.
 

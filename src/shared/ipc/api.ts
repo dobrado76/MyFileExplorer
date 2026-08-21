@@ -564,7 +564,8 @@ export type MyFileExplorerApi = {
     recent(req: {
       path: string
       limit?: number
-    }): Promise<Result<{ entries: import('../schemas/usn').UsnRecentEntry[] }>>
+      elevate?: boolean
+    }): Promise<Result<import('../schemas/usn').UsnRecentResponse>>
   }
   network: {
     startDiscovery(): Promise<Result<{ generation: number }>>

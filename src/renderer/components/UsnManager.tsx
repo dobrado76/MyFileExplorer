@@ -114,6 +114,8 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [recentNote, setRecentNote] = useState<string | null>(null)
+  const [recentNeedsElevation, setRecentNeedsElevation] = useState(false)
   const [probeNote, setProbeNote] = useState<string | null>(null)
   const [deletingSince, setDeletingSince] = useState<number | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -168,13 +170,19 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
       if (q.status === 'active') {
         const rec = await call(api.usn.recent({ path, limit: 200 }))
         setEntries(rec.entries)
+        setRecentNote(rec.note ?? null)
+        setRecentNeedsElevation(rec.needsElevation === true && rec.entries.length === 0)
       } else {
         setEntries([])
+        setRecentNote(null)
+        setRecentNeedsElevation(false)
       }
     } catch (e) {
       notify(e instanceof Error ? e.message : String(e), true)
       setQuery(null)
       setEntries([])
+      setRecentNote(null)
+      setRecentNeedsElevation(false)
     } finally {
       if (!opts?.silent) setLoading(false)
     }
@@ -306,6 +314,26 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
       }
       notify(`Cleared USN journal on ${letter}`)
     })
+  }
+
+  const onLoadRecentElevated = (): void => {
+    setBusy(true)
+    setActionError(null)
+    void (async () => {
+      try {
+        const rec = await call(api.usn.recent({ path, limit: 200, elevate: true }))
+        setEntries(rec.entries)
+        setRecentNote(rec.note ?? null)
+        setRecentNeedsElevation(rec.needsElevation === true && rec.entries.length === 0)
+        if (rec.entries.length) notify(`Loaded ${rec.entries.length} USN records from ${letter}`)
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        setActionError(message)
+        notify(message, true)
+      } finally {
+        setBusy(false)
+      }
+    })()
   }
 
   const onDisable = (): void => {
@@ -571,8 +599,23 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
                             ? 'Cannot read the journal with the current permissions.'
                             : 'USN journal management is Windows / NTFS only.'}
                   </p>
+                ) : recentNeedsElevation ? (
+                  <div className="usn-recent-elevate">
+                    <p className="dim">
+                      Windows lets this app see that the journal is active, but listing records needs
+                      administrator permission.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      disabled={busy}
+                      onClick={onLoadRecentElevated}
+                    >
+                      Load recent records as administrator…
+                    </button>
+                  </div>
                 ) : entries.length === 0 ? (
-                  <p className="dim">No recent records in the readable window.</p>
+                  <p className="dim">{recentNote ?? 'No recent records in the readable window.'}</p>
                 ) : (
                   <div className="usn-table-wrap">
                     <table className="usn-table">

@@ -62,7 +62,8 @@ export const usnClearRequestSchema = usnEnableRequestSchema
 
 export const usnRecentRequestSchema = z.object({
   path: z.string().min(1),
-  limit: z.number().int().min(1).max(500).optional()
+  limit: z.number().int().min(1).max(500).optional(),
+  elevate: z.boolean().optional()
 })
 
 export const usnRecentEntrySchema = z.object({
@@ -74,9 +75,12 @@ export const usnRecentEntrySchema = z.object({
 })
 
 export const usnRecentResponseSchema = z.object({
-  entries: z.array(usnRecentEntrySchema)
+  entries: z.array(usnRecentEntrySchema),
+  note: z.string().optional(),
+  needsElevation: z.boolean().optional()
 })
 
 export type UsnRecentEntry = z.infer<typeof usnRecentEntrySchema>
+export type UsnRecentResponse = z.infer<typeof usnRecentResponseSchema>
 
 export { DEFAULT_USN_JOURNAL_MAX_BYTES, DEFAULT_USN_JOURNAL_DELTA_BYTES }

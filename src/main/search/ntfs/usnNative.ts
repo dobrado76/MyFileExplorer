@@ -4,7 +4,7 @@
  */
 import koffi from 'koffi'
 import { Buffer } from 'node:buffer'
-import { fileTimeToUnixMs } from '@shared/usn/format'
+import { parseUsnRecords } from './usnRecords'
 import { logMain } from '../../logging'
 
 const GENERIC_READ = 0x80000000
@@ -31,9 +31,8 @@ export const WINERR_JOURNAL_NOT_ACTIVE = 1179
 /** ERROR_JOURNAL_ENTRY_DELETED */
 export const WINERR_JOURNAL_ENTRY_DELETED = 1181
 export const WINERR_PRIVILEGE_NOT_HELD = 1314
+export const WINERR_INVALID_PARAMETER = 87
 const FILE_SHARE_DELETE = 0x00000004
-
-const FILE_ATTRIBUTE_DIRECTORY = 0x10
 
 koffi.struct('MfeUsnJournalData', {
   UsnJournalID: 'uint64',
@@ -274,41 +273,6 @@ export function deleteUsnJournal(h: unknown, journalId: bigint): { ok: boolean; 
   return { ok, err }
 }
 
-function parseUsnRecords(buf: Buffer, start: number, end: number): UsnEntry[] {
-  const out: UsnEntry[] = []
-  let offset = start
-  while (offset + 60 <= end) {
-    const recordLength = buf.readUInt32LE(offset)
-    if (recordLength < 60 || offset + recordLength > end) break
-    const major = buf.readUInt16LE(offset + 4)
-    if (major !== 2 && major !== 3) {
-      offset += recordLength
-      continue
-    }
-    const frn = buf.readBigUInt64LE(offset + 8)
-    const parentFrn = buf.readBigUInt64LE(offset + 16)
-    const usn = buf.readBigInt64LE(offset + 24)
-    const timeStamp = buf.readBigInt64LE(offset + 32)
-    const reason = buf.readUInt32LE(offset + 40)
-    const attrs = buf.readUInt32LE(offset + 52)
-    const nameLen = buf.readUInt16LE(offset + 56)
-    const nameOff = buf.readUInt16LE(offset + 58)
-    const nameStart = offset + nameOff
-    const name = buf.toString('utf16le', nameStart, nameStart + nameLen)
-    out.push({
-      frn,
-      parentFrn,
-      name,
-      isDir: (attrs & FILE_ATTRIBUTE_DIRECTORY) !== 0,
-      reason,
-      usn,
-      timeMs: fileTimeToUnixMs(timeStamp)
-    })
-    offset += recordLength
-  }
-  return out
-}
-
 /**
  * Enumerate MFT via FSCTL_ENUM_USN_DATA. Yields batches of USN records.
  * Caller builds FRN→path map.
@@ -344,6 +308,21 @@ export function* enumUsnData(h: unknown): Generator<UsnEntry[]> {
   }
 }
 
+function buildReadUsnInput(startUsn: bigint, journalId: bigint, v1: boolean): Buffer {
+  const inBuf = Buffer.alloc(v1 ? 44 : 40)
+  inBuf.writeBigInt64LE(startUsn, 0)
+  inBuf.writeUInt32LE(0xffffffff, 8)
+  inBuf.writeUInt32LE(0, 12)
+  inBuf.writeBigUInt64LE(0n, 16)
+  inBuf.writeBigUInt64LE(0n, 24)
+  inBuf.writeBigUInt64LE(journalId, 32)
+  if (v1) {
+    inBuf.writeUInt16LE(2, 40)
+    inBuf.writeUInt16LE(4, 42)
+  }
+  return inBuf
+}
+
 export function readUsnJournal(
   h: unknown,
   journalId: bigint,
@@ -351,30 +330,36 @@ export function readUsnJournal(
 ): { nextUsn: bigint; entries: UsnEntry[]; err: number } | null {
   const api = ensureNative()
   if (!api) return null
-  const inBuf = Buffer.alloc(40)
-  inBuf.writeBigInt64LE(startUsn, 0)
-  inBuf.writeUInt32LE(0xffffffff, 8) // all reasons
-  inBuf.writeUInt32LE(0, 12)
-  inBuf.writeBigUInt64LE(0n, 16)
-  inBuf.writeBigUInt64LE(0n, 24)
-  inBuf.writeBigUInt64LE(journalId, 32)
   const outBuf = Buffer.alloc(1024 * 128)
   const retBuf = Buffer.alloc(8)
-  const ok = api.DeviceIoControl(
-    h,
-    FSCTL_READ_USN_JOURNAL,
-    inBuf,
-    inBuf.length,
-    outBuf,
-    outBuf.length,
-    retBuf,
-    null
-  )
-  const bytes = Number(retBuf.readUInt32LE(0))
-  const err = api.GetLastError()
-  if (!ok || bytes < 8) return { nextUsn: startUsn, entries: [], err }
+  const tryRead = (v1: boolean): { ok: boolean; bytes: number; err: number } => {
+    const inBuf = buildReadUsnInput(startUsn, journalId, v1)
+    api.SetLastError(0)
+    const ok = api.DeviceIoControl(
+      h,
+      FSCTL_READ_USN_JOURNAL,
+      inBuf,
+      inBuf.length,
+      outBuf,
+      outBuf.length,
+      retBuf,
+      null
+    )
+    return { ok, bytes: Number(retBuf.readUInt32LE(0)), err: api.GetLastError() }
+  }
+  // Windows 8.1+ typically wants READ_USN_JOURNAL_DATA_V1 (44 bytes).
+  let result = tryRead(true)
+  if (!result.ok && (result.err === WINERR_INVALID_PARAMETER || result.err === 0)) {
+    result = tryRead(false)
+  }
+  if (!result.ok || result.bytes < 8) {
+    if (result.err && result.err !== WINERR_JOURNAL_ENTRY_DELETED) {
+      logMain('warn', `USN: READ_USN_JOURNAL failed (err=${result.err}, bytes=${result.bytes})`)
+    }
+    return { nextUsn: startUsn, entries: [], err: result.err || 1 }
+  }
   const nextUsn = outBuf.readBigInt64LE(0)
-  const entries = parseUsnRecords(outBuf, 8, bytes)
+  const entries = parseUsnRecords(outBuf, 8, result.bytes)
   return { nextUsn, entries, err: 0 }
 }
 

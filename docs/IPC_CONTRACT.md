@@ -148,7 +148,7 @@ Drive-root paths only (`C:\` / `C:`). Soft-fail `unsupported` off win32. Native 
 | `usn:enable`   | `{ path, maxBytes, deltaBytes, elevate? }` | query snapshot (create or resize); first-time Enable may include `probeName` after a create+delete test file |
 | `usn:disable`  | `{ path, elevate? }` | `{ disabled: true }` |
 | `usn:clear`    | `{ path, maxBytes, deltaBytes, elevate? }` | query snapshot (delete + create); may include `probeName` |
-| `usn:recent`   | `{ path, limit? }` | `{ entries: { usn, name, isDir, reason, timeMs }[] }` |
+| `usn:recent`   | `{ path, limit?, elevate? }` | `{ entries: { usn, name, isDir, reason, timeMs }[], note?, needsElevation? }` |
 
 ### `network.*` (LAN neighborhood — D44)
 

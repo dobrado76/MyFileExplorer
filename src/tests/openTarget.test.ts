@@ -45,4 +45,15 @@ describe('userArgv', () => {
     ])
     expect(cleaned).toEqual(['--reveal', 'D:\\x'])
   })
+
+  it('drops the elevated USN helper argv', () => {
+    expect(
+      userArgv([
+        'C:\\electron.exe',
+        '--usn-recent',
+        'C:',
+        'C:\\Users\\me\\AppData\\Roaming\\MyFileExplorer\\scratch\\usn-recent-C.json'
+      ])
+    ).toEqual([])
+  })
 })

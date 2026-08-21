@@ -181,3 +181,61 @@ export function parseFsutilUsnQuery(stdout: string): ParsedFsutilUsnQuery | null
   }
   return { journalId, firstUsn, nextUsn, lowestValidUsn, maxUsn, maximumSize, allocationDelta }
 }
+
+export type ParsedFsutilUsnRecord = {
+  usn: string
+  name: string
+  isDir: boolean
+  reason: number
+  timeMs: number | null
+}
+
+const FILE_ATTRIBUTE_DIRECTORY = 0x10
+
+function grabFsutilField(block: string, label: string): string | null {
+  const re = new RegExp(`^\\s*${label}\\s*:\\s*(.+?)\\s*$`, 'im')
+  const m = re.exec(block)
+  return m?.[1]?.trim() || null
+}
+
+function parseFsutilHex(raw: string | null): number {
+  if (!raw) return 0
+  const m = /0x([0-9a-f]+)/i.exec(raw)
+  if (m) return Number.parseInt(m[1]!, 16)
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) ? n : 0
+}
+
+function parseFsutilUsnTime(raw: string | null): number | null {
+  if (!raw) return null
+  const ms = Date.parse(raw)
+  return Number.isFinite(ms) ? ms : null
+}
+
+/** Parse `fsutil usn readjournal` text records (oldest first). Returns newest-first, capped. */
+export function parseFsutilUsnReadJournal(stdout: string, limit = 200): ParsedFsutilUsnRecord[] {
+  const cap = Math.min(500, Math.max(1, limit))
+  const blocks = stdout.split(/(?=^\s*Usn\s*:)/im)
+  const out: ParsedFsutilUsnRecord[] = []
+  for (const block of blocks) {
+    const usnRaw = grabFsutilField(block, 'Usn')
+    const name = grabFsutilField(block, 'File name')
+    if (!usnRaw || !name) continue
+    let usn: bigint
+    try {
+      usn = BigInt(usnRaw)
+    } catch {
+      continue
+    }
+    const attrs = parseFsutilHex(grabFsutilField(block, 'File attributes'))
+    out.push({
+      usn: usn.toString(),
+      name,
+      isDir: (attrs & FILE_ATTRIBUTE_DIRECTORY) !== 0,
+      reason: parseFsutilHex(grabFsutilField(block, 'Reason')),
+      timeMs: parseFsutilUsnTime(grabFsutilField(block, 'Time stamp'))
+    })
+  }
+  if (out.length > cap) return out.slice(out.length - cap).reverse()
+  return out.reverse()
+}

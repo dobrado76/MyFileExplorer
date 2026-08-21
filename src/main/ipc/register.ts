@@ -998,7 +998,7 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.usnRecent, usnRecentRequestSchema, async (req) => {
     const { recentUsnEntries } = await import('../fs/usnJournal')
-    return { entries: await recentUsnEntries(req.path, req.limit ?? 200) }
+    return recentUsnEntries(req.path, req.limit ?? 200, req.elevate === true)
   })
 
   handle(IPC.networkStartDiscovery, emptySchema, async () => startNetworkDiscovery())

@@ -14,9 +14,8 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 2. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (shareable vs Explorer)
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
-5. [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)
-6. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
-7. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
+5. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+6. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
 
 ---
 
@@ -39,7 +38,6 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [NETWORKS.md](NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
-| [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) | Phased implementation                 |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) / compiled lists (D39) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |

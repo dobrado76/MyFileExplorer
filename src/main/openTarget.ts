@@ -24,6 +24,10 @@ export function userArgv(argv: string[] = process.argv): string[] {
     if (a.endsWith('electron.exe') || a.endsWith('electron')) continue
     if (a.endsWith('main') || a.endsWith('index.js') || a.includes('electron-vite')) continue
     if (a === '--allow-file-access-from-files') continue
+    if (a === '--usn-recent') {
+      i += 2
+      continue
+    }
     if (a.startsWith('--inspect') || a.startsWith('--remote-debugging')) continue
     out.push(a)
   }

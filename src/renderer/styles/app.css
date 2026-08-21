@@ -5336,6 +5336,12 @@ html.idle-cursor-hidden * {
   font-size: 13px;
   font-weight: 600;
 }
+.usn-recent-elevate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
 .usn-table-wrap {
   max-height: 280px;
   overflow: auto;

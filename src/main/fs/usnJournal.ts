@@ -1,6 +1,7 @@
+import { app } from 'electron'
 import { randomBytes } from 'node:crypto'
 import { spawn } from 'node:child_process'
-import { unlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { AppError } from '@shared/result'
@@ -25,13 +26,13 @@ import {
   openVolumeHandle,
   queryUsnJournal,
   queryUsnJournalEx,
-  readUsnJournal,
   volumeLetterFromRoot,
   WINERR_JOURNAL_DELETE_IN_PROGRESS,
-  WINERR_JOURNAL_ENTRY_DELETED,
   WINERR_JOURNAL_NOT_ACTIVE,
   type UsnJournalInfo
 } from '../search/ntfs/usnNative'
+import { readRecentFromHandle } from '../search/ntfs/usnRecentRead'
+import { USN_RECENT_CLI_FLAG } from './usnRecentCli'
 import { logMain } from '../logging'
 
 function requireDriveRoot(raw: string): { abs: string; letter: string } {
@@ -234,6 +235,44 @@ export async function queryUsnJournalForPath(rawPath: string): Promise<UsnQueryR
   }
 }
 
+function runElevatedUsnRecent(outFile: string, letter: string): Promise<void> {
+  const exe = process.execPath.replace(/'/g, "''")
+  const cwd = (app.isPackaged ? path.dirname(process.execPath) : process.cwd()).replace(/'/g, "''")
+  const args = app.isPackaged
+    ? [USN_RECENT_CLI_FLAG, letter, outFile]
+    : [path.resolve(process.argv[1] ?? '.'), USN_RECENT_CLI_FLAG, letter, outFile]
+  const argList = args.map((a) => `'${a.replace(/'/g, "''")}'`).join(',')
+  const ps = `$p = Start-Process -FilePath '${exe}' -ArgumentList @(${argList}) -WorkingDirectory '${cwd}' -Verb RunAs -Wait -WindowStyle Hidden -PassThru; if ($null -eq $p) { exit 1 }; exit $p.ExitCode`
+  return new Promise((resolve, reject) => {
+    const child = spawn('powershell.exe', ['-NoProfile', '-STA', '-Command', ps], {
+      windowsHide: true
+    })
+    child.on('error', (e) => {
+      reject(
+        new AppError(
+          'io',
+          e instanceof Error ? e.message : String(e),
+          'Retry as administrator'
+        )
+      )
+    })
+    child.on('exit', (code) => {
+      if (code === 0) resolve()
+      else {
+        reject(
+          new AppError(
+            'not-allowed',
+            code == null
+              ? 'Administrator USN read failed or was cancelled'
+              : `Administrator USN read failed or was cancelled (exit ${code})`,
+            'Retry as administrator'
+          )
+        )
+      }
+    })
+  })
+}
+
 function runFsutilElevated(args: string[]): Promise<void> {
   const argList = args.map((a) => `'${a.replace(/'/g, "''")}'`).join(',')
   // -PassThru + exit $p.ExitCode: Start-Process -Wait alone exits 0 even when fsutil fails.
@@ -421,62 +460,115 @@ export async function clearUsnJournal(
   return enableUsnJournal(rawPath, maxBytes, deltaBytes, elevate)
 }
 
-export async function recentUsnEntries(rawPath: string, limit = 200): Promise<UsnRecentEntry[]> {
-  if (process.platform !== 'win32') return []
-  const { letter } = requireDriveRoot(rawPath)
+async function resolveJournalInfo(letter: string): Promise<UsnJournalInfo | null> {
   const opened = openVolumeHandle(letter, false)
-  if (!opened.handle) return []
-  const h = opened.handle
-  try {
-    let info = queryUsnJournal(h)
-    if (!info) return []
-    const cap = Math.min(500, Math.max(1, limit))
-    let lookback = 512_000n
-    const maxLook = 8_000_000n
-    let ring: UsnRecentEntry[] = []
-    while (lookback <= maxLook) {
-      const floor = info.lowestValidUsn > info.firstUsn ? info.lowestValidUsn : info.firstUsn
-      let start = info.nextUsn > lookback + floor ? info.nextUsn - lookback : floor
-      if (start < floor) start = floor
-      const startedAt = start
-      ring = []
-      let deleted = false
-      for (let i = 0; i < 80; i++) {
-        const batch = readUsnJournal(h, info.journalId, start)
-        if (!batch) break
-        if (batch.err === WINERR_JOURNAL_ENTRY_DELETED) {
-          deleted = true
-          break
-        }
-        if (batch.entries.length === 0) break
-        for (const e of batch.entries) {
-          ring.push({
-            usn: e.usn.toString(),
-            name: e.name,
-            isDir: e.isDir,
-            reason: e.reason,
-            timeMs: e.timeMs
-          })
-        }
-        if (ring.length > cap) ring.splice(0, ring.length - cap)
-        if (batch.nextUsn <= start) break
-        start = batch.nextUsn
-      }
-      if (deleted) {
-        const again = queryUsnJournal(h)
-        if (again) info = again
-        lookback *= 2n
-        continue
-      }
-      if (ring.length >= cap || startedAt <= floor || lookback >= maxLook) break
-      lookback *= 2n
+  if (opened.handle) {
+    try {
+      const info = queryUsnJournal(opened.handle)
+      if (info) return info
+    } finally {
+      closeHandle(opened.handle)
     }
-    ring.reverse()
-    return ring.slice(0, cap)
+  }
+  const via = await queryUsnJournalViaFsutil(letter)
+  if (via && via !== 'absent' && via !== 'deleting') return via
+  return null
+}
+
+async function recentUsnEntriesElevated(
+  letter: string,
+  cap: number
+): Promise<{ entries: UsnRecentEntry[]; note?: string }> {
+  const scratch = path.join(app.getPath('userData'), 'scratch')
+  await mkdir(scratch, { recursive: true })
+  const outFile = path.join(scratch, `usn-recent-${letter.replace(':', '')}.json`)
+  try {
+    await unlink(outFile)
+  } catch {
+    /* first run */
+  }
+  try {
+    await runElevatedUsnRecent(outFile, letter)
+  } catch (e) {
+    let detail = ''
+    try {
+      const dumped = JSON.parse(await readFile(outFile, 'utf8')) as { error?: string }
+      if (dumped.error) detail = dumped.error
+    } catch {
+      /* no dump */
+    }
+    if (detail) {
+      throw new AppError('not-allowed', detail, 'Retry as administrator')
+    }
+    throw e
+  }
+  let dumped: { entries?: UsnRecentEntry[]; error?: string; err?: number }
+  try {
+    dumped = JSON.parse(await readFile(outFile, 'utf8')) as {
+      entries?: UsnRecentEntry[]
+      error?: string
+      err?: number
+    }
+  } finally {
+    try {
+      await unlink(outFile)
+    } catch {
+      /* keep scratch if delete fails */
+    }
+  }
+  const entries = Array.isArray(dumped.entries) ? dumped.entries.slice(0, cap) : []
+  if (entries.length) return { entries }
+  return {
+    entries: [],
+    note: dumped.error ?? `Administrator read on ${letter} returned no records.`
+  }
+}
+
+export async function recentUsnEntries(
+  rawPath: string,
+  limit = 200,
+  elevate = false
+): Promise<{ entries: UsnRecentEntry[]; note?: string; needsElevation?: boolean }> {
+  if (process.platform !== 'win32') return { entries: [] }
+  const { letter } = requireDriveRoot(rawPath)
+  const cap = Math.min(500, Math.max(1, limit))
+  const info = await resolveJournalInfo(letter)
+  if (!info) {
+    return { entries: [], note: `Could not query the USN journal on ${letter}.` }
+  }
+
+  if (elevate) {
+    return recentUsnEntriesElevated(letter, cap)
+  }
+
+  const writeOpen = openVolumeHandle(letter, true)
+  const opened = writeOpen.handle ? writeOpen : openVolumeHandle(letter, false)
+  if (!opened.handle) {
+    if (needsUsnElevation(opened.err)) {
+      return { entries: [], needsElevation: true }
+    }
+    return { entries: [], note: `Could not open ${letter} to read the journal (Windows error ${opened.err}).` }
+  }
+  try {
+    const { entries, err } = readRecentFromHandle(opened.handle, info, cap)
+    if (entries.length) return { entries }
+    if (needsUsnElevation(err) || (!writeOpen.handle && needsUsnElevation(writeOpen.err))) {
+      return { entries: [], needsElevation: true }
+    }
+    if (info.nextUsn <= (info.lowestValidUsn > info.firstUsn ? info.lowestValidUsn : info.firstUsn)) {
+      return { entries: [], note: 'The journal is empty — no file changes have been recorded yet.' }
+    }
+    if (err) {
+      return {
+        entries: [],
+        note: `The journal is active but records could not be read (Windows error ${err}).`
+      }
+    }
+    return { entries: [], note: `The journal on ${letter} is active, but no records were readable.` }
   } catch (e) {
     logMain('warn', `USN recent read failed: ${e instanceof Error ? e.message : String(e)}`)
-    return []
+    return { entries: [], note: e instanceof Error ? e.message : String(e) }
   } finally {
-    closeHandle(h)
+    closeHandle(opened.handle)
   }
 }
