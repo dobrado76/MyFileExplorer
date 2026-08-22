@@ -7,6 +7,7 @@ import { ChevronDown } from '../lib/icons'
 const MODES: { mode: ViewLayout; label: string; title: string }[] = [
   { mode: 1, label: '1', title: 'Single view' },
   { mode: 2, label: '2', title: 'Side-by-side (2 panes)' },
+  { mode: 3, label: '3', title: 'Wide top + 2 bottom' },
   { mode: 4, label: '4', title: '2×2 grid (4 panes)' }
 ]
 
@@ -14,7 +15,7 @@ function LayoutIcon({ mode }: { mode: ViewLayout }): JSX.Element {
   return <span className={`view-layout-icon layout-${mode}`} aria-hidden />
 }
 
-/** Toolbar dropdown: switch 1 / 2 / 4 file panes (D31). */
+/** Toolbar dropdown: switch 1 / 2 / 3 / 4 file panes (D31). */
 export function ViewLayoutSelector(): JSX.Element {
   const viewLayout = useAppStore((s) => s.viewLayout)
   const setViewLayout = useAppStore((s) => s.setViewLayout)

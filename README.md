@@ -29,7 +29,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 
 **Workspace that sticks**
 - Multi-tab browsing with session restore — paths, views, selection, scroll, tree expand, tab icons
-- Multi-pane layouts (1 / 2 / 4) and named layouts you can switch in one click
+- Multi-pane layouts (1 / 2 / 3 / 4) and named layouts you can switch in one click
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
 - **NAS / UNC folders reopen instantly** (session listing cache) — **[docs/NETWORKS.md](docs/NETWORKS.md)**

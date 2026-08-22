@@ -109,8 +109,28 @@ export const splittersSchema = z.object({
 export type Splitters = z.infer<typeof splittersSchema>
 
 /** Multi-pane file view layout (D31). */
-export const viewLayoutSchema = z.union([z.literal(1), z.literal(2), z.literal(4)])
+export const viewLayoutSchema = z.union([
+  z.literal(1),
+  z.literal(2),
+  z.literal(3),
+  z.literal(4)
+])
 export type ViewLayout = z.infer<typeof viewLayoutSchema>
+
+export function coerceViewLayout(n: unknown): ViewLayout {
+  return n === 2 || n === 3 || n === 4 ? n : 1
+}
+
+export function sanitizePaneTreeCollapsed(
+  raw: unknown,
+  layout: ViewLayout,
+  fallback = false
+): boolean[] {
+  const arr = Array.isArray(raw) ? raw : []
+  return Array.from({ length: layout }, (_, i) =>
+    typeof arr[i] === 'boolean' ? arr[i]! : fallback
+  )
+}
 
 function clampRatio(n: number): number {
   if (!Number.isFinite(n)) return 0.5
@@ -140,14 +160,19 @@ export const sessionSchema = z.preprocess(
   (raw) => {
     if (!raw || typeof raw !== 'object') return raw
     const o = raw as Record<string, unknown>
-    const layoutRaw = o.viewLayout
-    const layout: ViewLayout = layoutRaw === 2 || layoutRaw === 4 || layoutRaw === 1 ? layoutRaw : 1
+    const layout = coerceViewLayout(o.viewLayout)
     const activeTabId =
       typeof o.activeTabId === 'string' && o.activeTabId.length > 0 ? o.activeTabId : null
+    const splittersRaw =
+      o.splitters && typeof o.splitters === 'object'
+        ? (o.splitters as { treeCollapsed?: unknown })
+        : {}
+    const treeFallback = splittersRaw.treeCollapsed === true
     return {
       ...o,
       viewLayout: layout,
       paneTabIds: sanitizePaneTabIds(o.paneTabIds, layout, activeTabId),
+      paneTreeCollapsed: sanitizePaneTreeCollapsed(o.paneTreeCollapsed, layout, treeFallback),
       focusedPaneIndex:
         typeof o.focusedPaneIndex === 'number' && Number.isFinite(o.focusedPaneIndex)
           ? Math.min(layout - 1, Math.max(0, Math.floor(o.focusedPaneIndex)))
@@ -168,6 +193,7 @@ export const sessionSchema = z.preprocess(
     }),
     viewLayout: viewLayoutSchema.catch(1),
     paneTabIds: z.array(z.string().nullable()).catch([]),
+    paneTreeCollapsed: z.array(z.boolean()).catch([]),
     focusedPaneIndex: z.number().int().min(0).catch(0),
     paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
     paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5)
@@ -187,6 +213,7 @@ export const defaultSession: SessionState = {
   },
   viewLayout: 1,
   paneTabIds: [null],
+  paneTreeCollapsed: [false],
   focusedPaneIndex: 0,
   paneSplitCols: 0.5,
   paneSplitRows: 0.5

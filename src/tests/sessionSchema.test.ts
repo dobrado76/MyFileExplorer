@@ -119,8 +119,22 @@ describe('session schema migration', () => {
     })
     expect(parsed.viewLayout).toBe(1)
     expect(parsed.paneTabIds).toEqual(['tab_a'])
+    expect(parsed.paneTreeCollapsed).toEqual([false])
     expect(parsed.focusedPaneIndex).toBe(0)
     expect(parsed.paneSplitCols).toBe(0.5)
+  })
+
+  it('keeps 3-pane layout and migrates global treeCollapsed onto each pane', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 'tab_a',
+      tabs: [{ id: 'tab_a', path: 'C:\\' }],
+      viewLayout: 3,
+      paneTabIds: ['tab_a', null, null],
+      splitters: { treeCollapsed: true }
+    })
+    expect(parsed.viewLayout).toBe(3)
+    expect(parsed.paneTreeCollapsed).toEqual([true, true, true])
   })
 
   it('migrates legacy historyBack path strings to folder entries', () => {

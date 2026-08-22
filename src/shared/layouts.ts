@@ -6,6 +6,8 @@ import {
   tabIconSchema,
   viewLayoutSchema,
   viewModeSchema,
+  coerceViewLayout,
+  sanitizePaneTreeCollapsed,
   type SortSpec,
   type Splitters,
   type TabIcon,
@@ -51,6 +53,8 @@ export const workspaceLayoutSchema = z.object({
   viewLayout: viewLayoutSchema.catch(1),
   /** Index into `tabs`, or null for empty pane. Length matches viewLayout. */
   paneTabIndexes: z.array(z.number().int().min(0).nullable()).catch([]),
+  /** Per-pane folder-tree collapsed (length matches viewLayout). */
+  paneTreeCollapsed: z.array(z.boolean()).catch([]),
   paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
   paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5),
   tabs: z.array(layoutTabSchema).min(1)
@@ -73,6 +77,7 @@ export type LayoutSnapshotSource = {
   viewLayout: ViewLayout
   /** Parallel to panes; tab id or null — converted to indexes on capture. */
   paneTabIds: (string | null)[]
+  paneTreeCollapsed: boolean[]
   paneSplitCols: number
   paneSplitRows: number
   /** Live tab ids in the same order as `tabs` for index mapping. */
@@ -130,7 +135,7 @@ export function buildLayoutFromSnapshot(
   if (source.tabs.length === 0) throw new Error('Layout needs at least one tab')
   const tabs = captureLayoutTabs(source.tabs)
   const activeTabIndex = Math.min(Math.max(0, source.activeTabIndex), tabs.length - 1)
-  const viewLayout = source.viewLayout === 2 || source.viewLayout === 4 ? source.viewLayout : 1
+  const viewLayout = coerceViewLayout(source.viewLayout)
   return workspaceLayoutSchema.parse({
     id: existingId ?? newLayoutId(),
     name: cleanName,
@@ -139,6 +144,7 @@ export function buildLayoutFromSnapshot(
     splitters: source.splitters,
     viewLayout,
     paneTabIndexes: paneTabIdsToIndexes(source.paneTabIds, source.tabIds, viewLayout),
+    paneTreeCollapsed: sanitizePaneTreeCollapsed(source.paneTreeCollapsed, viewLayout),
     paneSplitCols: clampRatio(source.paneSplitCols),
     paneSplitRows: clampRatio(source.paneSplitRows),
     tabs

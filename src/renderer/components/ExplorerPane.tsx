@@ -7,7 +7,7 @@ import { Breadcrumb } from './Breadcrumb'
 import { FolderTree } from './FolderTree'
 import { FileView } from './FileView'
 import { Splitter } from './Splitter'
-import { ArrowLeft, ArrowRight, ArrowUp, RefreshIcon } from '../lib/icons'
+import { ArrowLeft, ArrowRight, ArrowUp, RefreshIcon, TreePanelIcon } from '../lib/icons'
 import { parentOf, samePath } from '../lib/paths'
 
 const VIEW_MODES: { mode: ViewMode; label: string }[] = [
@@ -31,7 +31,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const tabId = useAppStore((s) => s.paneTabIds[paneIndex] ?? null)
   const focused = useAppStore((s) => s.focusedPaneIndex === paneIndex)
   const viewLayout = useAppStore((s) => s.viewLayout)
-  /** Focus ring only when comparing panes (2 / 4); useless in single view. */
+  /** Focus ring only when comparing panes (2 / 3 / 4); useless in single view. */
   const showFocusRing = focused && viewLayout > 1
   const focusPane = useAppStore((s) => s.focusPane)
   const duplicateTabIntoPane = useAppStore((s) => s.duplicateTabIntoPane)
@@ -39,6 +39,8 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const tab = useAppStore((s) => (tabId ? s.tabs.find((t) => t.id === tabId) : undefined))
   const splitters = useAppStore((s) => s.splitters)
   const setSplitters = useAppStore((s) => s.setSplitters)
+  const treeCollapsed = useAppStore((s) => s.paneTreeCollapsed[paneIndex] === true)
+  const togglePaneTree = useAppStore((s) => s.togglePaneTree)
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const goBack = useAppStore((s) => s.goBack)
   const goForward = useAppStore((s) => s.goForward)
@@ -132,7 +134,6 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
 
   const owning = resolveFolderView(tab.path, folderViews)
   const viewMode = owning?.viewMode ?? tab.viewMode
-  const treeCollapsed = splitters.treeCollapsed
   const treeWidth = splitters.treeWidthPx
 
   return (
@@ -220,6 +221,18 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
           <RefreshIcon />
         </button>
         <Breadcrumb tabId={tabId} />
+        <button
+          className={`icon-btn${treeCollapsed ? '' : ' active'}`}
+          aria-label="Toggle folder tree"
+          title="Toggle folder tree"
+          onClick={(e) => {
+            e.stopPropagation()
+            focusPane(paneIndex)
+            togglePaneTree(paneIndex)
+          }}
+        >
+          <TreePanelIcon />
+        </button>
         <select
           aria-label="View mode"
           value={viewMode}

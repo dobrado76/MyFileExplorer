@@ -133,7 +133,8 @@ Notes:
 - `icon` — optional Lucide tab glyph `{ name: PascalCase, color: "#rrggbb" }` or `null` (D32). Missing field → `null`.
 - `treeExpanded` — absolute folder paths (and drive roots) that were expanded in that tab’s tree; restored on launch (capped; see schema). Missing field → `[]`.
 - `rootPath` — when set, tab is scoped to that folder as tree root
-- `viewLayout` — `1` | `2` | `4` multi-pane mode (D31); `paneTabIds` length matches (null = empty drop target)
+- `viewLayout` — `1` | `2` | `3` | `4` multi-pane mode (D31); `paneTabIds` length matches (null = empty drop target)
+- `paneTreeCollapsed` — per-pane folder-tree hidden flags (length matches `viewLayout`)
 - `paneSplitCols` / `paneSplitRows` — fraction for column/row splitters in multi-pane (0–1)
 - Write debounced on change; flush on `before-quit`
 

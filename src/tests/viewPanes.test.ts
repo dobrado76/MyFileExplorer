@@ -30,4 +30,10 @@ describe('viewPanes', () => {
     const r = remapPanesOnLayoutChange(2, ['t1'], 0, ['t1', 't2'])
     expect(r.paneTabIds).toEqual(['t1', 't2'])
   })
+
+  it('expands 2→3 and fills a third pane', () => {
+    const r = remapPanesOnLayoutChange(3, ['t1', 't2'], 0, ['t1', 't2', 't3'])
+    expect(r.paneTabIds).toEqual(['t1', 't2', 't3'])
+    expect(r.focusedPaneIndex).toBe(0)
+  })
 })

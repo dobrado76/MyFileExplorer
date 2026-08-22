@@ -11,7 +11,7 @@ Features are deliberately patterned after tools people already trust — then fo
 | Inspiration | What we borrow |
 | ----------- | -------------- |
 | **[Everything](https://www.voidtools.com/)** (voidtools) | Instant, operator-rich search over an opt-in index (folder roots + optional NTFS USN volume index), as-you-type, match toggles, filters/bookmarks — without forcing whole-disk indexing. |
-| **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 4** panes in one window — side-by-side or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
+| **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 3 / 4** panes in one window — side-by-side, wide-top + two bottom, or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
 | **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, compiled file lists for large libraries, image-list cache. |
 | **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
 | **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
@@ -28,7 +28,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
 | **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. |
 | **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
-| **Q-Dir-style multi-pane (1 / 2 / 4)** | Side-by-side or 2×2 mini-explorers in one window; drag tabs into panes; shared preview follows focus. |
+| **Q-Dir-style multi-pane (1 / 2 / 3 / 4)** | Side-by-side, wide-top + two bottom, or 2×2 mini-explorers in one window; per-pane folder tree; drag tabs into panes; shared preview follows focus. |
 | **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
 | **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |
 | **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](NETWORKS.md). |

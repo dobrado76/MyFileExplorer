@@ -71,9 +71,38 @@ export function ViewGrid(): JSX.Element {
     )
   }
 
-  // 2×2
   const colPct = paneSplitCols * 100
   const rowPct = paneSplitRows * 100
+
+  // Wide top + two bottom (the top row of a 2×2, merged)
+  if (viewLayout === 3) {
+    return (
+      <div className="view-grid layout-3" ref={gridRef}>
+        <div className="view-grid-row" style={{ flex: `0 0 ${rowPct}%` }}>
+          <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
+            {focusedPaneIndex === 0 && <RecycleBinBanner />}
+            <SearchBanner paneIndex={0} />
+            <ExplorerPane paneIndex={0} />
+          </div>
+        </div>
+        <Splitter orientation="horizontal" onDrag={onRowDrag} />
+        <div className="view-grid-row" style={{ flex: '1 1 0', minHeight: 0 }}>
+          <div className="view-grid-cell" style={{ flex: `0 0 ${colPct}%` }}>
+            {focusedPaneIndex === 1 && <RecycleBinBanner />}
+            <SearchBanner paneIndex={1} />
+            <ExplorerPane paneIndex={1} />
+          </div>
+          <Splitter onDrag={onColDrag} />
+          <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
+            {focusedPaneIndex === 2 && <RecycleBinBanner />}
+            <SearchBanner paneIndex={2} />
+            <ExplorerPane paneIndex={2} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="view-grid layout-4" ref={gridRef}>
       <div className="view-grid-row" style={{ flex: `0 0 ${rowPct}%` }}>

@@ -1,6 +1,8 @@
-import type { ViewLayout } from './schemas/session'
+import { coerceViewLayout, type ViewLayout } from './schemas/session'
 
-/** Remap pane→tab assignments when the user changes 1 / 2 / 4 layout (D31). */
+export { coerceViewLayout }
+
+/** Remap pane→tab assignments when the user changes 1 / 2 / 3 / 4 layout (D31). */
 export function remapPanesOnLayoutChange(
   nextLayout: ViewLayout,
   prevSlots: (string | null)[],

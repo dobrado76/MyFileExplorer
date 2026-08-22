@@ -115,7 +115,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
 | NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |
 | Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
-| Multi-pane | D31 — 1 / 2 / 4 panes + layout persistence; empty pane Open Computer / Browse |
+| Multi-pane | D31 — 1 / 2 / 3 / 4 panes + per-pane tree + layout persistence; empty pane Open Computer / Browse |
 | Tab icons | D32 — Lucide icon + color; tab context menu |
 | In-pane video | D33 — byte-range media; MKV remux; AVI strip-only |
 | Richer previews | HTML/Markdown Preview·Raw; Unity; PE; ZIP/7z/RAR/TAR/APK/MSI/ISO; `.chm` (D35); `.ttf` (D36) — [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |

@@ -779,6 +779,14 @@ textarea:focus {
   padding: 2px;
   border: 1.5px solid currentColor;
 }
+.view-layout-icon.layout-3 {
+  background-image:
+    linear-gradient(currentColor, currentColor),
+    linear-gradient(currentColor, currentColor);
+  background-size: 100% 1.5px, 1.5px 48%;
+  background-position: center 48%, 50% 100%;
+  background-repeat: no-repeat;
+}
 .view-layout-icon.layout-4 {
   background:
     linear-gradient(to right, transparent 46%, currentColor 46%, currentColor 54%, transparent 54%),
@@ -838,6 +846,7 @@ textarea:focus {
 .view-grid.layout-2 {
   flex-direction: row;
 }
+.view-grid.layout-3,
 .view-grid.layout-4 {
   flex-direction: column;
 }

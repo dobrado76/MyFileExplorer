@@ -3336,7 +3336,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <p className="settings-help">
                 Named workspaces for different tasks (AI training, book editing, a coding project…).
                 Each layout stores the full tab set — folders, custom titles, view/sort, tree
-                expand, scoped roots — plus tree/preview widths, multi-pane mode (1 / 2 / 4), which
+                expand, scoped roots — plus tree/preview widths, multi-pane mode (1 / 2 / 3 / 4), which
                 tab sits in each pane, and the 2- and 4-pane splitter positions. Applying a layout
                 replaces the current tabs. Per-folder Details customizations (Folder views) stay
                 separate.

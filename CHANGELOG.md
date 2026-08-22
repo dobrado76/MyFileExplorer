@@ -13,7 +13,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Search Show hidden** (off by default) — index and folder search hide Windows Hidden items, `!VIDTHUMB_CACHE`, and files inside hidden folders. Toggle in search options or Settings → Search; `attrib:h` still finds them.
 - **Stream-value Details columns** — header menu **Stream values** lists streams found in the current folder (tick/untick). **...** adds a named column (optional display name) and is the only way into the saved catalog. **Clear** removes saved stream columns. Cells show that stream’s text (same preview rules as the ADS Manager).
-- **Toggle folder tree** — toolbar button (preview icon flipped) immediately left of Toggle preview; collapsed state persists with the session like the preview pane.
+- **3-pane layout** — wide view on top, two smaller views below (the top row of a 2×2, merged). View-layout control is **1 / 2 / 3 / 4**.
+- **Per-pane folder tree** — tree toggle is on each pane toolbar (left of the view-mode dropdown), not the global chrome, so a split can hide one tree and leave the others.
 
 ### Changed
 

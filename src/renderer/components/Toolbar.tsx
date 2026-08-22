@@ -5,7 +5,6 @@ import {
   SlidersIcon,
   CloseIcon,
   PanelIcon,
-  TreePanelIcon,
   SettingsIcon,
   ScriptIcon,
   EyeIcon,
@@ -295,14 +294,6 @@ export function Toolbar(): JSX.Element {
           onClick={() => void applySettingsPatch({ viewFilterEnabled: !settings.viewFilterEnabled })}
         >
           {settings.viewFilterEnabled ? <EyeOffIcon /> : <EyeIcon />}
-        </button>
-        <button
-          className={`icon-btn${splitters.treeCollapsed ? '' : ' active'}`}
-          aria-label="Toggle folder tree"
-          title="Toggle folder tree"
-          onClick={() => setSplitters({ treeCollapsed: !splitters.treeCollapsed })}
-        >
-          <TreePanelIcon />
         </button>
         <button
           className={`icon-btn${splitters.previewCollapsed ? '' : ' active'}`}

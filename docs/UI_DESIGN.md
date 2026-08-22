@@ -30,7 +30,7 @@ Custom theme = user-editable map of these tokens in settings.
 
 ### Multi-view panes (D31)
 
-- Layout modes: single, side-by-side, 2×2 grid
+- Layout modes: single, side-by-side, wide-top + two bottom, 2×2 grid
 - Focused pane gets a clear focus ring; empty panes show “Drop a tab here” plus **Open Computer** (new tab at default/home path) and **Browse…** (folder picker → open as root in that pane) — drag-tab still works
 - Per-pane mini toolbar: Back / Forward / Up / Refresh / breadcrumb / view mode
 - Breadcrumb: click segment to jump; **click empty address area** (or Ctrl+L) to edit the path
@@ -38,7 +38,7 @@ Custom theme = user-editable map of these tokens in settings.
 ### Splitters
 
 - Vertical between tree and files (per pane); between pane grid and preview
-- Horizontal between pane rows when layout is 2×2; vertical between pane columns when layout is 2 or 4
+- Horizontal between pane rows when layout is 3 or 2×2; vertical between pane columns when layout is 2, 3 (bottom row), or 4
 - Persist px widths, pane split ratios, + collapsed flags in `session.json`
 - Minimum widths so panes don’t crush
 

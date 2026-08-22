@@ -24,13 +24,13 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 ```
 ┌─ Tab bar (reorder, rename, icon, close, new) ───────────────────┐
 ├─ New · Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
-├─ Pane grid (1 / side-by-side / 2×2) ──────────── Preview (opt) ─┤
+├─ Pane grid (1 / 2 / 3 / 2×2) ─────────────────── Preview (opt) ─┤
 │  each pane: Nav + Breadcrumb + View | Tree | Files              │
 └─────────────────────────────────────────────────────────────────┘
 └─ Status: selection count, free space optional ──────────────────┘
 ```
 
-- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Toolbar search, keyboard nav, and **one shared preview** follow the **focused** pane; each tab keeps its own search results so you can drag hits onto another pane.
+- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), **3** (wide top + two bottom), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). The folder-tree toggle lives on that pane’s toolbar so you can hide one tree in a split. Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Toolbar search, keyboard nav, and **one shared preview** follow the **focused** pane; each tab keeps its own search results so you can drag hits onto another pane.
 - Preview pane **collapsible**; collapsed state + widths persisted.
 - Pane split ratios persisted in session.
 - **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.

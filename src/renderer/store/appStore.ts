@@ -17,6 +17,7 @@ import type {
   ViewLayout,
   Splitters
 } from '@shared/schemas/session'
+import { coerceViewLayout, sanitizePaneTreeCollapsed } from '@shared/schemas/session'
 import { issueKey } from '@shared/opIssues'
 import { defaultTabIcon } from '@shared/tabIcons'
 import type { HistoryEntry } from '@shared/tabHistory'
@@ -479,10 +480,12 @@ type AppState = {
   tabs: Tab[]
   activeTabId: string
   splitters: Splitters
-  /** Multi-pane layout (D31): 1 | 2 side-by-side | 4 (2×2). */
+  /** Multi-pane layout (D31): 1 | 2 side-by-side | 3 wide-top | 4 (2×2). */
   viewLayout: ViewLayout
   /** Tab id per pane slot; null = empty drop target. Length === viewLayout. */
   paneTabIds: (string | null)[]
+  /** Folder tree hidden per pane (length === viewLayout). */
+  paneTreeCollapsed: boolean[]
   focusedPaneIndex: number
   paneSplitCols: number
   paneSplitRows: number
@@ -666,6 +669,7 @@ type AppState = {
   ): Promise<void>
   setPaneSplitCols(ratio: number): void
   setPaneSplitRows(ratio: number): void
+  togglePaneTree(paneIndex: number): void
   /** Listing for a tab (pane); falls back to empty. */
   listingForTab(tabId: string): Listing
 
@@ -1026,6 +1030,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       splitters: s.splitters,
       viewLayout: s.viewLayout,
       paneTabIds: s.paneTabIds,
+      paneTreeCollapsed: s.paneTreeCollapsed,
       focusedPaneIndex: s.focusedPaneIndex,
       paneSplitCols: s.paneSplitCols,
       paneSplitRows: s.paneSplitRows
@@ -2636,6 +2641,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
     viewLayout: 1,
     paneTabIds: [],
+    paneTreeCollapsed: [false],
     focusedPaneIndex: 0,
     paneSplitCols: 0.5,
     paneSplitRows: 0.5,
@@ -2822,8 +2828,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           ? { ...session.splitters, previewCollapsed: !settings.previewVisibleDefault }
           : session.splitters
 
-      const viewLayout: ViewLayout =
-        session.viewLayout === 2 || session.viewLayout === 4 ? session.viewLayout : 1
+      const viewLayout = coerceViewLayout(session.viewLayout)
+      const paneTreeCollapsed = sanitizePaneTreeCollapsed(
+        session.paneTreeCollapsed,
+        viewLayout,
+        session.splitters.treeCollapsed === true
+      )
       const tabIds = tabs.map((t) => t.id)
       let paneTabIds = fillPaneSlots(
         viewLayout,
@@ -2854,6 +2864,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         splitters,
         viewLayout,
         paneTabIds,
+        paneTreeCollapsed,
         focusedPaneIndex,
         paneSplitCols: clampPaneRatio(session.paneSplitCols ?? 0.5),
         paneSplitRows: clampPaneRatio(session.paneSplitRows ?? 0.5),
@@ -3641,6 +3652,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         viewLayout: mode,
         paneTabIds,
+        paneTreeCollapsed: sanitizePaneTreeCollapsed(s.paneTreeCollapsed, mode),
         focusedPaneIndex,
         activeTabId: activeTabId || s.activeTabId,
         search: tab?.search ?? s.search,
@@ -3781,6 +3793,18 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setPaneSplitRows(ratio) {
       set({ paneSplitRows: clampPaneRatio(ratio) })
+      scheduleSessionSave()
+    },
+
+    togglePaneTree(paneIndex) {
+      const s = get()
+      if (paneIndex < 0 || paneIndex >= s.viewLayout) return
+      const next = sanitizePaneTreeCollapsed(s.paneTreeCollapsed, s.viewLayout)
+      next[paneIndex] = !next[paneIndex]
+      set({
+        paneTreeCollapsed: next,
+        splitters: { ...s.splitters, treeCollapsed: next[0] === true }
+      })
       scheduleSessionSave()
     },
 
@@ -3961,6 +3985,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           splitters: s.splitters,
           viewLayout: s.viewLayout,
           paneTabIds: s.paneTabIds,
+          paneTreeCollapsed: s.paneTreeCollapsed,
           tabIds: s.tabs.map((t) => t.id),
           paneSplitCols: s.paneSplitCols,
           paneSplitRows: s.paneSplitRows
@@ -3996,6 +4021,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             splitters: s.splitters,
             viewLayout: s.viewLayout,
             paneTabIds: s.paneTabIds,
+            paneTreeCollapsed: s.paneTreeCollapsed,
             tabIds: s.tabs.map((t) => t.id),
             paneSplitCols: s.paneSplitCols,
             paneSplitRows: s.paneSplitRows
@@ -4057,8 +4083,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }))
       const idx = Math.min(Math.max(0, layout.activeTabIndex), tabs.length - 1)
       const active = tabs[idx]!
-      const viewLayout: ViewLayout =
-        layout.viewLayout === 2 || layout.viewLayout === 4 ? layout.viewLayout : 1
+      const viewLayout = coerceViewLayout(layout.viewLayout)
       const indexes = layout.paneTabIndexes ?? []
       let paneTabIds: (string | null)[] = Array.from({ length: viewLayout }, (_, i) => {
         const ti = indexes[i]
@@ -4081,6 +4106,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         splitters: { ...layout.splitters },
         viewLayout,
         paneTabIds,
+        paneTreeCollapsed: sanitizePaneTreeCollapsed(
+          layout.paneTreeCollapsed,
+          viewLayout,
+          layout.splitters.treeCollapsed === true
+        ),
         focusedPaneIndex,
         paneSplitCols: clampPaneRatio(layout.paneSplitCols ?? 0.5),
         paneSplitRows: clampPaneRatio(layout.paneSplitRows ?? 0.5),

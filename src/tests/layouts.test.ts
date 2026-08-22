@@ -40,6 +40,7 @@ const sampleSource = {
   },
   viewLayout: 1 as const,
   paneTabIds: ['tab_a', 'tab_b'],
+  paneTreeCollapsed: [false],
   tabIds: ['tab_a', 'tab_b'],
   paneSplitCols: 0.5,
   paneSplitRows: 0.5
@@ -69,10 +70,12 @@ describe('layouts', () => {
       ...sampleSource,
       viewLayout: 4,
       paneTabIds: ['tab_a', 'tab_b', null, null],
+      paneTreeCollapsed: [false, true, false, false],
       paneSplitCols: 0.35,
       paneSplitRows: 0.62
     })
     expect(layout.viewLayout).toBe(4)
+    expect(layout.paneTreeCollapsed).toEqual([false, true, false, false])
     expect(layout.paneSplitCols).toBe(0.35)
     expect(layout.paneSplitRows).toBe(0.62)
 
