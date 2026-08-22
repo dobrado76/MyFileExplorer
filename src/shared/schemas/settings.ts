@@ -1,11 +1,9 @@
 import { z } from 'zod'
 import {
   DETAILS_COLUMN_IDS,
-  adsFieldNamesFromColumnIds,
   detailsColumnIdSchema,
   isAdsFieldColumnId,
   adsFieldColumnDefSchema,
-  mergeAdsFieldColumns,
   sanitizeAdsFieldColumns,
   type DetailsColumnId
 } from './columns'
@@ -254,29 +252,6 @@ export const folderViewSchema = z.object({
   detailsNameWidth: z.number().int().min(120).max(1600).catch(320)
 })
 
-function mergeAdsFieldCatalogFromLayouts<
-  T extends {
-    adsFieldColumns: { stream: string; label?: string }[]
-    detailsColumns: { id: string }[]
-    folderViews: { detailsColumns: { id: string }[] }[]
-  }
->(data: T): T {
-  const fromLayouts = [
-    ...adsFieldNamesFromColumnIds(data.detailsColumns.map((c) => c.id)),
-    ...data.folderViews.flatMap((v) => adsFieldNamesFromColumnIds(v.detailsColumns.map((c) => c.id)))
-  ]
-  const adsFieldColumns = mergeAdsFieldColumns(data.adsFieldColumns, fromLayouts)
-  if (
-    adsFieldColumns.length === data.adsFieldColumns.length &&
-    adsFieldColumns.every(
-      (n, i) => n.stream === data.adsFieldColumns[i]?.stream && n.label === data.adsFieldColumns[i]?.label
-    )
-  ) {
-    return data
-  }
-  return { ...data, adsFieldColumns }
-}
-
 const settingsFieldsSchema = z.object({
   version: z.literal(1).catch(1),
   theme: themeModeSchema.catch('dark'),
@@ -396,6 +371,11 @@ const settingsFieldsSchema = z.object({
    */
   showFolderStatistics: z.boolean().catch(true),
   /**
+   * Console for **Open Command Line here**: Command Prompt (`cmd`) or PowerShell.
+   * Click = current user; Shift+click = Administrator (UAC).
+   */
+  commandLineShell: z.enum(['cmd', 'powershell']).catch('cmd'),
+  /**
    * Extensions whose “.ext” is omitted from file-view / search labels (display only).
    * Values without a leading dot, e.g. `lnk`. Default includes `lnk`.
    */
@@ -409,9 +389,9 @@ const settingsFieldsSchema = z.object({
     z.array(detailsColumnEntrySchema).catch(defaultDetailsColumns)
   ),
   /**
-   * Named NTFS streams shown as Details value columns (`adsField:<stream>`).
-   * Catalog for the Stream values header menu (D38). Optional `label` is the
-   * pretty header; omitted → stream name. Case-preserving; de-duped.
+   * User-added stream-value columns from the Details **...** dialog only
+   * (`adsField:<stream>`). Never filled from folder scans. Optional `label`
+   * is the pretty header; omitted → stream name. Case-preserving; de-duped.
    */
   adsFieldColumns: z.preprocess(
     sanitizeAdsFieldColumns,
@@ -648,7 +628,7 @@ const settingsFieldsSchema = z.object({
   }, contextMenuSettingsSchema)
 })
 
-export const settingsSchema = settingsFieldsSchema.transform(mergeAdsFieldCatalogFromLayouts)
+export const settingsSchema = settingsFieldsSchema
 
 export type DetailsColumn = { id: DetailsColumnId; width: number }
 export type Settings = z.infer<typeof settingsSchema>
@@ -689,6 +669,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   viewFilterPatterns: [],
   folderStatsSkipPaths: [],
   showFolderStatistics: true,
+  commandLineShell: 'cmd',
   hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,

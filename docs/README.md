@@ -110,7 +110,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [NETWORKS.md](NETWORKS.md) |
 | Settings export / import | D45 — portable prefs + Network hosts + remote connection metadata + **full context-menu customization** (no passwords / window geometry) |
 | Context menu Discover / layout | D41 — HKCR verb scan (persist + tick to enable); Built-in drag order & separators; Custom files/folders |
-| Open Command Line | Folder context; Terminal / PS / cmd; Shift = Admin |
+| Open Command Line | Folder context; cmd or PowerShell (Settings); click = current user; Shift = Admin |
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
 | Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
 | NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |

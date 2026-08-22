@@ -100,7 +100,7 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   {
     id: 'open-command-line',
     label: 'Open Command Line here',
-    hint: 'Folders — Terminal / PowerShell; Shift+click = Administrator'
+    hint: 'Folders — cmd or PowerShell (Settings → Behavior); click = current user; Shift+click = Administrator'
   },
   { id: 'hide-from-view', label: 'Hide from view' },
   { id: 'search-index', label: 'Search index actions', hint: 'Add / remove / index this drive' },

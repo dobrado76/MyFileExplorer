@@ -36,7 +36,7 @@ Related: [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [DECISIONS.md](DECISIONS.md) · [
 | Network section header | Map network drive… · Disconnect… · Refresh Network |
 | Drives section header | Computer Manager · Device Manager · Control Panel · Map… · Disconnect… · Properties (This PC) |
 | Host / share folder | Map… · Refresh shares (host) · Open in new tab · … |
-| Folder (tree / list / empty pane) | **Open Command Line here** (Terminal / PowerShell / cmd; **Shift+click** = Administrator) |
+| Folder (tree / list / empty pane) | **Open Command Line here** (cmd or PowerShell from Settings; **Shift+click** = Administrator) |
 
 Map / Disconnect open the native Windows WNet dialogs.
 
@@ -134,7 +134,7 @@ MyFileExplorer does the same **in the renderer only**, session-scoped:
 | `mfe-event` `network-discovery` | `{ generation, status, hosts?, message? }` progress / result |
 | `fs:listDrives` | DriveInfo including `offline`, `remotePath` |
 | `fs:list` | On drive-letter paths, attempts mapped reconnect first |
-| `shell:openCommandLine` | `{ path, elevated? }` — Terminal / PS / cmd |
+| `shell:openCommandLine` | `{ path, elevated? }` — cmd or PowerShell (`commandLineShell`); `elevated` = UAC |
 
 Schemas: `src/shared/schemas/network.ts`, `networkDiscovery.ts`, `networkPaths.ts`.
 

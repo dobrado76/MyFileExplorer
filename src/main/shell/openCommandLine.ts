@@ -1,15 +1,15 @@
 /**
- * Open an external console (Windows Terminal / PowerShell / cmd) in a folder.
+ * Open a console in a folder (Settings → Behavior: cmd or PowerShell).
  * Uses ShellExecuteW so a real visible window appears (CreateProcess + windowsHide
- * hides consoles; WindowsApps wt.exe stubs often fail under CreateProcess).
- * Shift+click / elevated → ShellExecute "runas" (UAC), Explorer-style.
+ * hides consoles). Click → current user (`open`). Shift+click → UAC (`runas`).
  */
-import { spawnSync } from 'node:child_process'
 import fsp from 'node:fs/promises'
 import koffi from 'koffi'
 import { requireAbsolute } from '../fs/list'
 import { AppError } from '@shared/result'
 import { logMain } from '../logging'
+import { settingsStore } from '../settings/store'
+import type { Settings } from '@shared/schemas/settings'
 
 const SW_SHOWNORMAL = 1
 /** ShellExecute success threshold — return values ≤ 32 are errors. */
@@ -79,28 +79,22 @@ export function shellExecuteOpen(file: string, parameters?: string | null): bool
   return shellExecute('open', file, parameters ?? null, null)
 }
 
-function wtAvailable(): boolean {
-  const whereWt = spawnSync('where.exe', ['wt.exe'], {
-    windowsHide: true,
-    encoding: 'utf8',
-    timeout: 3_000
-  })
-  return whereWt.status === 0 && !!(whereWt.stdout ?? '').trim()
-}
-
-function quoteCmdArg(s: string): string {
-  if (!/[ \t"]/u.test(s)) return s
-  return `"${s.replace(/"/g, '\\"')}"`
-}
-
 export type OpenCommandLineOptions = {
   /** Launch elevated (UAC) — Explorer Shift+“Open … as administrator”. */
   elevated?: boolean
 }
 
+function commandLineShell(): Settings['commandLineShell'] {
+  try {
+    return settingsStore().get().commandLineShell === 'powershell' ? 'powershell' : 'cmd'
+  } catch {
+    return 'cmd'
+  }
+}
+
 /**
  * Open a detached console in `dirPath`.
- * Prefers Windows Terminal, then PowerShell, then cmd.
+ * Shell from settings (`cmd` default). Click is never elevated; `elevated` is Shift+click only.
  */
 export async function openCommandLineHere(
   dirPath: string,
@@ -123,42 +117,41 @@ export async function openCommandLineHere(
   const isUnc = n.startsWith('\\\\')
   // UNC cannot be ShellExecute lpDirectory.
   const workDir = isUnc ? null : n
-  const psLiteral = n.replace(/'/g, "''")
   const escaped = n.replace(/"/g, '')
+  const shell = commandLineShell()
+  const label = shell === 'powershell' ? 'PowerShell' : 'Command Prompt'
 
-  if (wtAvailable()) {
-    // -d sets starting directory (works for drive letters and UNC).
-    if (shellExecute(verb, 'wt.exe', `-d ${quoteCmdArg(n)}`, workDir)) {
+  if (shell === 'powershell') {
+    const psLiteral = n.replace(/'/g, "''")
+    const psParams = `-NoExit -Command Set-Location -LiteralPath '${psLiteral}'`
+    if (shellExecute(verb, 'powershell.exe', psParams, workDir)) {
       return { opened: true }
     }
-  }
-
-  const psParams = `-NoExit -Command Set-Location -LiteralPath '${psLiteral}'`
-  if (shellExecute(verb, 'powershell.exe', psParams, workDir)) {
-    return { opened: true }
-  }
-
-  const cmdParams = isUnc ? `/k pushd "${escaped}"` : `/k cd /d "${escaped}"`
-  if (shellExecute(verb, 'cmd.exe', cmdParams, workDir)) {
-    return { opened: true }
-  }
-
-  // Last resort: cmd start (always creates a visible console for non-elevated).
-  if (!elevated) {
-    const startArgs = wtAvailable()
-      ? `/c start "" wt.exe -d ${quoteCmdArg(n)}`
-      : isUnc
+    if (!elevated) {
+      const startArgs = `/c start "" powershell.exe ${psParams}`
+      if (shellExecute('open', 'cmd.exe', startArgs, workDir)) {
+        return { opened: true }
+      }
+    }
+  } else {
+    const cmdParams = isUnc ? `/k pushd "${escaped}"` : `/k cd /d "${escaped}"`
+    if (shellExecute(verb, 'cmd.exe', cmdParams, workDir)) {
+      return { opened: true }
+    }
+    if (!elevated) {
+      const startArgs = isUnc
         ? `/c start "" cmd.exe /k pushd "${escaped}"`
         : `/c start "" cmd.exe /k cd /d "${escaped}"`
-    if (shellExecute('open', 'cmd.exe', startArgs, workDir)) {
-      return { opened: true }
+      if (shellExecute('open', 'cmd.exe', startArgs, workDir)) {
+        return { opened: true }
+      }
     }
   }
 
   throw new AppError(
     'io',
     elevated
-      ? 'Could not open an elevated command line (UAC cancelled or ShellExecute failed)'
-      : 'Could not open command line'
+      ? `Could not open an elevated ${label} (UAC cancelled or ShellExecute failed)`
+      : `Could not open ${label}`
   )
 }

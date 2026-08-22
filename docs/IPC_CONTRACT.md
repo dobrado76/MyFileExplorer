@@ -58,7 +58,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | --------------------------- | ------------------------------- |
 | `shell:openPath`            | OS default open                 |
 | `shell:showItemInFolder`    | System Explorer select          |
-| `shell:openCommandLine`     | Open wt / PowerShell / cmd in folder |
+| `shell:openCommandLine`     | Open cmd or PowerShell (Settings `commandLineShell`) in folder; `elevated` = UAC |
 | `shell:showProperties`      | Open Explorer’s property sheet (`ShellExecute` “properties” verb) |
 | `shell:openWindowsTool`     | Allowlisted This PC tools: Computer Management, Device Manager, Control Panel, This PC Properties |
 | `shell:openRecycleBin`      | Legacy: open Windows Recycle Bin in Explorer (prefer in-app view) |
@@ -178,7 +178,7 @@ Discovery runs in a worker thread; results arrive on `mfe-event` `network-discov
 | `slideshow:readCompositeList` / `writeCompositeList` | `{ path, lines? }` | any `!!Lists/*.txt` |
 | `slideshow:lastListUsable` | `{ compiledRoot }` | `{ usable }` |
 | `slideshow:expandComposite` | `{ lines, order?, ascending? }` | `{ paths[] }` — flat expand (refuses >500k; debug/legacy) |
-| `slideshow:applyCompiledLines` | `{ lines, order, ascending, preferPath?, preferIndex?, rev? }` | `{ total, index, path, truncated }` — builds main virtual playlist; broadcasts meta |
+| `slideshow:applyCompiledLines` | `{ lines, order, ascending, preferPath?, preferIndex?, rev? }` | `{ total, index, path, truncated, listCounts? }` — builds main virtual playlist; `.txt` expand writes ADS Count; broadcasts meta |
 | `slideshow:compiledPathAt` | `{ index }` | `{ path }` — resolve play position |
 | `slideshow:clearVirtualPlaylist` | — | clears main virtual session |
 | `slideshow:openCompiledListsWindow` / `close…` | — | detached BrowserWindow |

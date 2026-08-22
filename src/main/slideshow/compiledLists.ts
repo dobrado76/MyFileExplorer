@@ -404,10 +404,8 @@ async function fileCountForList(filePath: string, kind: 'dat' | 'txt'): Promise<
   fileCount: number
   indexPresent: boolean
 }> {
-  // `.txt` never uses Index/Count ADS (play expands from body); don't walk here.
-  if (kind === 'txt') {
-    return { fileCount: 0, indexPresent: false }
-  }
+  // Nb. Files: always prefer on-disk Count / Index ADS (.dat and .txt, including !!Lists).
+  // Play still expands `.txt` from the body; Update Lists does not rewrite !!Lists.
   const indexPresent = streamExists(filePath, COMPILED_INDEX_STREAM)
   if (streamExists(filePath, COMPILED_COUNT_STREAM)) {
     const t = await readStreamText(filePath, COMPILED_COUNT_STREAM)
@@ -420,6 +418,10 @@ async function fileCountForList(filePath: string, kind: 'dat' | 'txt'): Promise<
       fileCount: idx.split(/\r?\n/).filter((l) => l.trim()).length,
       indexPresent
     }
+  }
+  // No ADS: `.dat` can fall back to body image lines; `.txt` body is refs/folders — do not walk.
+  if (kind === 'txt') {
+    return { fileCount: 0, indexPresent: false }
   }
   const body = await readBodyText(filePath)
   return { fileCount: parseDatImageLines(body).length, indexPresent: false }
@@ -523,10 +525,31 @@ export async function listCompiledDats(
 }
 
 /**
+ * Write ADS Count after an on-the-fly `.txt` expand (play / virtual playlist).
+ * Skips the write when the stored value already matches. Does not write Index.
+ */
+async function persistTxtCompiledCount(filePath: string, count: number): Promise<void> {
+  const n = Math.max(0, Math.floor(count))
+  try {
+    if (streamExists(filePath, COMPILED_COUNT_STREAM)) {
+      const t = await readStreamText(filePath, COMPILED_COUNT_STREAM)
+      const prev = Number.parseInt(t.trim(), 10)
+      if (Number.isFinite(prev) && prev === n) return
+    }
+    await writeStreamText(filePath, COMPILED_COUNT_STREAM, String(n), true)
+  } catch (e) {
+    logMain(
+      'warn',
+      `compiled Count ADS write failed (${filePath}): ${e instanceof Error ? e.message : String(e)}`
+    )
+  }
+}
+
+/**
  * Resolve image full paths for one list file:
  * - `.dat`: ADS Index if present, else body = image paths (legacy) or empty until Update Lists
  * - `.txt`: always expand from body — folders (jpg/png walk) and nested `.dat`/`.txt`
- *   refs with `|=>` counts. Never reads Index ADS (Update Lists does not write it for `.txt`).
+ *   refs with `|=>` counts. After expand, refresh ADS Count so Nb. Files stays accurate.
  *   Cycles (A→B→A) yield no further expansion at the repeated node.
  */
 export async function readDatIndex(listPath: string): Promise<string[]> {
@@ -562,7 +585,9 @@ async function expandListToImages(
       return parseDatImageLines(await readBodyText(abs))
     }
     if (ext === '.txt') {
-      return expandTxtBodyToImages(abs, visiting, opts)
+      const paths = await expandTxtBodyToImages(abs, visiting, opts)
+      await persistTxtCompiledCount(abs, paths.length)
+      return paths
     }
     return []
   } finally {

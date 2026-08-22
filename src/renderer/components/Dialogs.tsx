@@ -3109,6 +3109,29 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 onChange={(v) => void applySettingsPatch({ itemCheckboxes: v })}
               />
               <label
+                className="settings-field"
+                htmlFor="set-cmdline-shell"
+                title="Console opened by Open Command Line here. Click = current user; Shift+click = Administrator (UAC)."
+                data-settings-search="cmd powershell console terminal uac admin shell command prompt"
+              >
+                <span>Open Command Line</span>
+                <select
+                  id="set-cmdline-shell"
+                  value={settings.commandLineShell === 'powershell' ? 'powershell' : 'cmd'}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      commandLineShell: e.target.value === 'powershell' ? 'powershell' : 'cmd'
+                    })
+                  }
+                >
+                  <option value="cmd">Command Prompt (cmd.exe)</option>
+                  <option value="powershell">PowerShell</option>
+                </select>
+                <span className="settings-field-hint">
+                  Click opens as the current user. Shift+click requests Administrator (UAC).
+                </span>
+              </label>
+              <label
                 className="settings-field settings-field-narrow"
                 htmlFor="set-vidthumbms"
                 title="How long each !VIDTHUMB_CACHE strip frame is shown in icon views (default 300 ms)"

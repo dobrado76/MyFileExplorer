@@ -230,7 +230,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 ## Acceptance highlights (v1)
 
 - [ ] Launch restores previous tabs and active folder
-- [ ] Splitter positions and preview collapsed state restore
+- [ ] Splitter positions and tree / preview collapsed state restore
 - [ ] Del trashes; Shift+Del permanently deletes with confirm rules
 - [ ] DnD move vs copy respects modifiers
 - [ ] Lengthy copy/move/delete shows status-bar progress

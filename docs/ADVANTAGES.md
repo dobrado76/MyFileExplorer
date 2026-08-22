@@ -114,7 +114,7 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git overlays. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). **Open Command Line here** opens a real Terminal/PowerShell window; **Shift+click** = Administrator. |
+| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git overlays. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). **Open Command Line here** opens cmd or PowerShell (Settings → Behavior); click = current user; **Shift+click** = Administrator. |
 | **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
 | **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |

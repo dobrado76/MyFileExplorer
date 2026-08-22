@@ -142,7 +142,7 @@ export type MyFileExplorerApi = {
   shell: {
     openPath(req: PathRequest): Promise<Result<{ opened: boolean; message?: string }>>
     showItemInFolder(req: PathRequest): Promise<Result<{ shown: true }>>
-    /** Open Windows Terminal / PowerShell / cmd in a folder. Shift = elevated. */
+    /** Open cmd or PowerShell (Settings) in a folder. Shift = elevated (UAC). */
     openCommandLine(req: PathRequest & { elevated?: boolean }): Promise<Result<{ opened: true }>>
     /** Open Explorer’s property sheet (NTFS Security, Sharing, etc.). */
     showProperties(req: PathRequest): Promise<Result<{ shown: true }>>
@@ -512,7 +512,14 @@ export type MyFileExplorerApi = {
       /** Compiled lists Play — force status back to autoplay. */
       resumePlaying?: boolean
     }): Promise<
-      Result<{ total: number; index: number; path: string | null; truncated: boolean; rev?: number | null }>
+      Result<{
+        total: number
+        index: number
+        path: string | null
+        truncated: boolean
+        listCounts?: { path: string; fileCount: number }[]
+        rev?: number | null
+      }>
     >
     compiledPathAt(req: { index: number }): Promise<Result<{ path: string | null }>>
     clearVirtualPlaylist(): Promise<Result<{ ok: true }>>

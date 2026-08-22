@@ -876,6 +876,7 @@ export function registerIpcHandlers(): void {
         index: snap.index,
         path: snap.path,
         truncated: snap.truncated,
+        listCounts: built.listCounts ?? [],
         rev: req.rev ?? null,
         resumePlaying: req.resumePlaying === true
       }

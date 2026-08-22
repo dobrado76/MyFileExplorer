@@ -820,7 +820,7 @@ type AppState = {
   /** Delete the image currently shown in the viewer (Del → trash, Shift+Del → permanent). */
   imageViewerDelete(permanent: boolean): Promise<void>
   showInExplorer(path: string): Promise<void>
-  /** Open wt / PowerShell / cmd with cwd = folder. Pass elevated for UAC (Shift+click). */
+  /** Open cmd or PowerShell (Settings) with cwd = folder. Pass elevated for UAC (Shift+click). */
   openCommandLineHere(path: string, opts?: { elevated?: boolean }): Promise<void>
   copyPathsToClipboard(paths: string[], nameOnly: boolean): Promise<void>
 

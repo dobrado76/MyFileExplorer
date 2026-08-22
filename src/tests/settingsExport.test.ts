@@ -104,6 +104,15 @@ describe('settings export / import', () => {
     expect(parsed.settings.detailsColumns.some((c) => c.id === 'adsField:AUTOV2')).toBe(true)
   })
 
+  it('round-trips commandLineShell via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, commandLineShell: 'powershell' },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.commandLineShell).toBe('powershell')
+  })
+
   it('round-trips showFolderStatistics via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: { ...defaultSettings, showFolderStatistics: false },

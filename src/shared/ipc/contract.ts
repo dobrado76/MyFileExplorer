@@ -51,7 +51,7 @@ export const IPC = {
 
   shellOpenPath: 'shell:openPath',
   shellShowItemInFolder: 'shell:showItemInFolder',
-  /** Open wt / PowerShell / cmd in a folder. */
+  /** Open cmd or PowerShell (Settings → Behavior) in a folder. */
   shellOpenCommandLine: 'shell:openCommandLine',
   /** Open the Windows Explorer property sheet (Security / Sharing / …). */
   shellShowProperties: 'shell:showProperties',

@@ -19,14 +19,12 @@ import {
   adsFieldColumnId,
   adsFieldDisplayLabel,
   adsFieldNamesFromColumnIds,
-  adsFieldStreamNames,
   columnMeta,
   filterDirectoryMetaFetchColumns,
   filterFileMetaFetchColumns,
   isAdsFieldColumnId,
   isFolderStatsColumnId,
   mergeAdsFieldColumnNames,
-  mergeAdsFieldColumns,
   parseAdsFieldColumnName,
   type EntryColumnValues
 } from '@shared/schemas/columns'
@@ -462,12 +460,16 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const next = enabling
         ? [...cur, { id, width: columnMeta(id).defaultWidth }]
         : cur.filter((c) => c.id !== id)
-      if (enabling && isAdsFieldColumnId(id)) {
+      if (!enabling && isAdsFieldColumnId(id)) {
         const name = parseAdsFieldColumnName(id)
         if (name) {
-          void applySettingsPatch({
-            adsFieldColumns: mergeAdsFieldColumns(s.settings.adsFieldColumns, [name])
-          })
+          const key = name.toLowerCase()
+          const adsFieldColumns = s.settings.adsFieldColumns.filter(
+            (c) => c.stream.toLowerCase() !== key
+          )
+          if (adsFieldColumns.length !== s.settings.adsFieldColumns.length) {
+            void applySettingsPatch({ adsFieldColumns })
+          }
         }
       }
       void patchDetailsLayout({ detailsColumns: next })
@@ -475,17 +477,20 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [applySettingsPatch, patchDetailsLayout]
   )
 
-  const adsFieldCatalog = useMemo(
-    () =>
-      mergeAdsFieldColumns(
-        settings.adsFieldColumns,
-        adsFieldNamesFromColumnIds(settings.detailsColumns.map((c) => c.id)),
-        ...settings.folderViews.map((v) =>
-          adsFieldNamesFromColumnIds(v.detailsColumns.map((c) => c.id))
-        )
-      ),
-    [settings.adsFieldColumns, settings.detailsColumns, settings.folderViews]
-  )
+  const adsFieldCatalog = settings.adsFieldColumns
+
+  const clearAdsFieldColumns = useCallback((): void => {
+    const s = useAppStore.getState()
+    void applySettingsPatch({
+      adsFieldColumns: [],
+      detailsColumns: s.settings.detailsColumns.filter((c) => !isAdsFieldColumnId(c.id)),
+      folderViews: s.settings.folderViews.map((v) => ({
+        ...v,
+        detailsColumns: v.detailsColumns.filter((c) => !isAdsFieldColumnId(c.id))
+      }))
+    })
+    setHeaderMenu(null)
+  }, [applySettingsPatch])
 
   const [listingAdsNames, setListingAdsNames] = useState<string[]>([])
   const [listingAdsLoading, setListingAdsLoading] = useState(false)
@@ -519,8 +524,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }, [headerMenu, listing.entries])
 
   const streamValueMenuNames = useMemo(
-    () => mergeAdsFieldColumnNames(listingAdsNames, adsFieldStreamNames(adsFieldCatalog)),
-    [listingAdsNames, adsFieldCatalog]
+    () =>
+      mergeAdsFieldColumnNames(
+        listingAdsNames,
+        adsFieldNamesFromColumnIds(detailsColumns.map((c) => c.id))
+      ),
+    [listingAdsNames, detailsColumns]
   )
 
   useEffect(() => {
@@ -1893,6 +1902,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   >
                     <span className="menu-check" />
                     ...
+                  </button>
+                  <button
+                    className="menu-item"
+                    role="menuitem"
+                    title="Remove saved stream-value columns and custom labels"
+                    onClick={clearAdsFieldColumns}
+                  >
+                    <span className="menu-check" />
+                    Clear
                   </button>
                 </div>
               )

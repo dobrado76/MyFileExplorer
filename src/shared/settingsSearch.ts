@@ -36,7 +36,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'behavior',
     label: 'Behavior',
     keywords:
-      'folders first checkbox checkboxes explorer default new tab path home video thumbnail thumb frame delay vidthumb autoplay preview confirm delete recycle bin trash permanent shift+del hide extension lnk url shortcut folder statistics size files columns calculate skip'
+      'folders first checkbox checkboxes explorer default new tab path home video thumbnail thumb frame delay vidthumb autoplay preview confirm delete recycle bin trash permanent shift+del hide extension lnk url shortcut folder statistics size files columns calculate skip command line cmd powershell administrator uac admin'
   },
   {
     id: 'contextmenu',

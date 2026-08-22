@@ -19,9 +19,10 @@ Decision lock: [DECISIONS.md](DECISIONS.md) **D38**. IPC: [IPC_CONTRACT.md](IPC_
 
 **Stream-value columns** (header menu group **Stream values**):
 
-- When the column menu opens, lists unique stream names found on **all entries in the current listing** (plus any already-added catalog names). Tick/untick like other columns.
-- **...** opens a dialog: optional **Display name** plus **Stream name** (or pick from the same listing scan). Empty display name uses the stream name.
-- Each enabled stream is catalog id `adsField:<name>`. Settings `adsFieldColumns` remembers stream + optional label.
+- When the column menu opens, lists unique stream names found on **all entries in the current listing**, plus stream-value columns that are already visible. Tick/untick like other columns. The saved catalog is **not** listed here and is **not** filled from folder scans.
+- **...** is the only way to add a catalog entry (optional **Display name** plus **Stream name**). Empty display name uses the stream name.
+- **Clear** drops the catalog and hides every stream-value column (all folder views).
+- Each enabled stream is catalog id `adsField:<name>`. Settings `adsFieldColumns` only stores streams the user added via **...**.
 - Cell: same text preview as the ADS Manager Value column (single-line text; `[...]` if multiline, binary, or larger than 64 KiB; blank if the stream is missing). Reads `path:name:$DATA` only — does not list every stream unless the names column is also visible.
 
 Do **not** enumerate ADS inside `fs:list` — that would slow every browse.

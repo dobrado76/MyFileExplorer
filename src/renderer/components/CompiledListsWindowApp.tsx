@@ -91,6 +91,18 @@ export function CompiledListsWindowApp(): JSX.Element {
           resumePlaying: opts?.resumePlaying === true
         })
       )
+      if (snap.listCounts && snap.listCounts.length > 0) {
+        const map = new Map(snap.listCounts.map((c) => [c.path.toLowerCase(), c.fileCount]))
+        setTabs((prev) =>
+          prev.map((t) => ({
+            ...t,
+            rows: t.rows.map((r) => {
+              const n = map.get(r.path.toLowerCase())
+              return n === undefined || n === r.fileCount ? r : { ...r, fileCount: n }
+            })
+          }))
+        )
+      }
       if (lines.some((l) => l.count > 0) && snap.total === 0) {
         setStatus('No images resolved — check .dat Index / nested .txt refs (or run Update Lists on .dat)')
       } else if (snap.truncated) {

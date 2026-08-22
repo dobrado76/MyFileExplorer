@@ -198,6 +198,13 @@ export const PanelIcon = svg(
     <path d="M15 4v16" />
   </>
 )
+/** Same as PanelIcon, flipped — left rail (folder tree). */
+export const TreePanelIcon = svg(
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16" />
+  </>
+)
 /** Named workspace layouts (tabs + chrome). */
 export const LayoutsIcon = svg(
   <>

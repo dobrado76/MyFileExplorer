@@ -26,7 +26,7 @@ Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; *
 
 - `.dat` — body = **source folder path(s)** (one per line; optional `folder|=>n` is ignored by Update Lists; a line that looks like a jpg/png path is treated as a single Index entry). ADS **Index** / **Count** = crawled image list after Update Lists (body is not rewritten). Slideshow prefers Index when present; otherwise body-as-images (legacy).
 - `.txt` — body = **folders** and/or **other `.dat`/`.txt` list refs** (optional `path|=>count`). **Never** uses ADS Index; slideshow always expands the body live (nested refs + folder walks; cycles break).
-- `!!Lists/` — own tab for selectable `.dat`/`.txt`; **Update Lists** does not recompile here. `last.txt` is resume-only (hidden from the grid); user-saved composites also live here.
+- `!!Lists/` — own tab for selectable `.dat`/`.txt`; **Update Lists** does not recompile here. `last.txt` is resume-only (hidden from the grid); user-saved composites also live here. **Nb. Files** reads ADS **Count** (then Index) when present. Playing a `.txt` expands it on the fly and **rewrites Count** to the expanded image total (not Index).
 
 **Update Lists** walks the compiled root, skips `!!Lists`, processes **`.dat` only** (one file at a time; no in-memory folder cache), overwrites Index + Count, and reports progress (files done / total, current list, images found, current folder) with Cancel.
 

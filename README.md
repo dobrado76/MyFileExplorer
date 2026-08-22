@@ -53,7 +53,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app Recycle Bin (restore / empty) — never forced into system Explorer
 - Undo / redo for the ops you expect (Ctrl+Z / Ctrl+Y)
 - Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
-- **Open Command Line here** (Shift = Administrator)
+- **Open Command Line here** (cmd or PowerShell from Settings; Shift = Administrator)
 
 **Run anything on the folder in front of you**
 - **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder or selection. Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.

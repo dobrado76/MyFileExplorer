@@ -12,11 +12,18 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Added
 
 - **Search Show hidden** (off by default) — index and folder search hide Windows Hidden items, `!VIDTHUMB_CACHE`, and files inside hidden folders. Toggle in search options or Settings → Search; `attrib:h` still finds them.
-- **Stream-value Details columns** — header menu **Stream values** lists streams found in the current folder (tick/untick). **...** opens a dialog for an optional display name plus stream name. Cells show that stream’s text (same preview rules as the ADS Manager).
+- **Stream-value Details columns** — header menu **Stream values** lists streams found in the current folder (tick/untick). **...** adds a named column (optional display name) and is the only way into the saved catalog. **Clear** removes saved stream columns. Cells show that stream’s text (same preview rules as the ADS Manager).
+- **Toggle folder tree** — toolbar button (preview icon flipped) immediately left of Toggle preview; collapsed state persists with the session like the preview pane.
+
+### Changed
+
+- **Open Command Line here** uses Settings → Behavior (**Command Prompt** by default, or PowerShell). Click opens as the current user; **Shift+click** requests Administrator (UAC). Not Windows Terminal.
 
 ### Fixed
 
+- **Compiled lists Nb. Files** — `!!Lists` `.txt` rows always showed `0` because the grid skipped ADS. It now reads the on-disk **Count** stream (then Index) like category `.dat` files. Playing a `.txt` expands it on the fly and updates **Count** (and the grid) to that image total. Update Lists still does not rewrite `!!Lists`.
 - **USN Recent records** — listing records needs administrator (Windows error 5). **Load recent records as administrator…** re-runs the native reader in a short-lived elevated process (the previous `fsutil` helper exited 1).
+- **Empty Recycle Bin** — uses Windows `SHEmptyRecycleBin` (no per-item COM list). The old PowerShell path killed the job at 3 minutes, then tried to delete every row one-by-one (races if you keep sending files to the bin).
 
 ## [0.10.0] - 2026-08-21
 

@@ -328,7 +328,7 @@ function openCommandLineMenuItem(
     builtin: 'open-command-line',
     action: (ev) => {
       close()
-      void s.openCommandLineHere(folderPath, { elevated: !!ev?.shiftKey })
+      void s.openCommandLineHere(folderPath, { elevated: !!(ev?.shiftKey || shiftHeld) })
     }
   }
 }

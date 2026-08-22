@@ -131,6 +131,8 @@ export type CompiledPlaylistSnapshot = {
   index: number
   path: string | null
   truncated: boolean
+  /** Expanded image counts per list file (for Nb. Files after on-the-fly compile). */
+  listCounts?: { path: string; fileCount: number }[]
 }
 
 export function clearVirtualPlaylist(): void {
@@ -179,6 +181,7 @@ export async function buildVirtualPlaylist(
   ascending: boolean
 ): Promise<CompiledPlaylistSnapshot & { built: true }> {
   const segments: Segment[] = []
+  const listCounts: { path: string; fileCount: number }[] = []
   let total = 0
   let truncated = false
 
@@ -190,6 +193,7 @@ export async function buildVirtualPlaylist(
     } catch {
       continue
     }
+    listCounts.push({ path: line.datPath, fileCount: paths.length })
     if (paths.length === 0) continue
 
     // Own copy — same list file may appear in multiple lines.
@@ -253,7 +257,7 @@ export async function buildVirtualPlaylist(
     `Virtual compiled playlist: ${total} entries, ${segments.length} segment(s), order=${order}${perm ? ', Uint32 shuffle' : order === 'random' ? ', Feistel' : ''}`
   )
 
-  return { ...snapshotAt(0), built: true }
+  return { ...snapshotAt(0), built: true, listCounts }
 }
 
 /** Prefer keeping the same image path when rebuilding; else clamp play index. */

@@ -12,6 +12,26 @@ import { logMain } from '../logging'
 const execFileAsync = promisify(execFile)
 
 const LIST_CAP = 5000
+/** SHERB_NOCONFIRMATION | SHERB_NOSOUND — Windows may still show progress. */
+const SHERB_NOCONFIRMATION = 0x00000001
+const SHERB_NOSOUND = 0x00000004
+const SHERB_EMPTY_FLAGS = SHERB_NOCONFIRMATION | SHERB_NOSOUND
+const E_UNEXPECTED = 0x8000ffff
+const HRESULT_CANCELLED = 0x800704c7
+const ERROR_CANCELLED = 1223
+
+/**
+ * Classify SHEmptyRecycleBin HRESULT. Already-empty often returns S_OK or
+ * E_UNEXPECTED; a 3-minute execFile kill is not used (large bins take longer).
+ */
+export function classifyEmptyRecycleHresult(code: number): 'ok' | 'cancelled' | 'failed' {
+  const hr = code | 0
+  if (hr === 0 || hr === 1) return 'ok'
+  const u = hr >>> 0
+  if (u === E_UNEXPECTED) return 'ok'
+  if (u === HRESULT_CANCELLED || (u & 0xffff) === ERROR_CANCELLED) return 'cancelled'
+  return 'failed'
+}
 
 /**
  * FolderItem.InvokeVerb('restore'|'delete') is a no-op in several Windows /
@@ -292,29 +312,51 @@ $deleted | ForEach-Object { $_ }
   }
 }
 
-/** Empty the entire Recycle Bin (all volumes). */
+/**
+ * Empty the Recycle Bin on every volume (Explorer’s SHEmptyRecycleBin).
+ * Does not list items first — listing via COM races if files are still arriving
+ * and times out on a large bin. Runs in a child process so main stays responsive.
+ */
 export async function emptyRecycleBin(): Promise<{ emptied: true }> {
   assertWin32()
+  const flags = SHERB_EMPTY_FLAGS
   const ps = `
 $ErrorActionPreference = 'Stop'
-try {
-  Clear-RecycleBin -Force -ErrorAction Stop
-} catch {
-  # Already empty or cmdlet unavailable — try COM delete-all
-  $shell = New-Object -ComObject Shell.Application
-  $rb = $shell.NameSpace(0xA)
-  if ($rb) {
-    foreach ($item in @($rb.Items())) {
-      try { $item.InvokeVerb('delete') } catch {}
-    }
-  }
+if (-not ([System.Management.Automation.PSTypeName]'MfeEmptyRecycleBin').Type) {
+  Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class MfeEmptyRecycleBin {
+  [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+  public static extern int SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
 }
+'@
+}
+$code = [MfeEmptyRecycleBin]::SHEmptyRecycleBin([IntPtr]::Zero, $null, ${flags})
+Write-Output $code
 `
   try {
-    await runPowerShell(ps, 180_000)
-    return { emptied: true }
+    // timeout 0 = no kill. A large bin can take longer than the old 180s cap.
+    const stdout = await runPowerShell(ps, 0)
+    const line = stdout
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .find((s) => /^-?\d+$/.test(s))
+    const code = line != null ? Number(line) : 0
+    const kind = classifyEmptyRecycleHresult(code)
+    if (kind === 'ok') return { emptied: true }
+    if (kind === 'cancelled') {
+      throw new AppError('io', 'Empty Recycle Bin was cancelled')
+    }
+    throw new AppError('io', `Could not empty Recycle Bin (HRESULT 0x${(code >>> 0).toString(16)})`)
   } catch (e) {
+    if (e instanceof AppError) throw e
     const message = e instanceof Error ? e.message : String(e)
-    throw new AppError('io', `Could not empty Recycle Bin: ${message}`)
+    try {
+      await runPowerShell('Clear-RecycleBin -Force -ErrorAction Stop', 0)
+      return { emptied: true }
+    } catch {
+      throw new AppError('io', `Could not empty Recycle Bin: ${message}`)
+    }
   }
 }

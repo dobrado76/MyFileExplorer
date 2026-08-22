@@ -67,7 +67,7 @@ describe('adsField column ids', () => {
     expect(adsFieldDisplayLabel([{ stream: 'AUTOV2', label: 'Hash' }], 'autov2')).toBe('Hash')
   })
 
-  it('keeps adsField columns in settings layout and merges them into the catalog', () => {
+  it('keeps adsField columns in the layout without adding them to the catalog', () => {
     const parsed = settingsSchema.parse({
       ...defaultSettings,
       detailsColumns: [
@@ -77,7 +77,19 @@ describe('adsField column ids', () => {
       ]
     })
     expect(parsed.detailsColumns.map((c) => c.id)).toEqual(['mtime', 'adsField:AUTOV2'])
-    expect(parsed.adsFieldColumns).toEqual([{ stream: 'AUTOV2' }])
+    expect(parsed.adsFieldColumns).toEqual([])
+  })
+
+  it('does not invent catalog entries from folder stream names', () => {
+    const parsed = settingsSchema.parse({
+      ...defaultSettings,
+      adsFieldColumns: [{ stream: 'AUTOV2', label: 'Hash' }],
+      detailsColumns: [
+        { id: 'mtime', width: 150 },
+        { id: 'adsField:FileTotCount', width: 140 }
+      ]
+    })
+    expect(parsed.adsFieldColumns).toEqual([{ stream: 'AUTOV2', label: 'Hash' }])
   })
 
   it('collects names from column ids', () => {
