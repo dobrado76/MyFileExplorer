@@ -498,7 +498,7 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
             {rows.map((row) => {
               const changed = row.willRename && !row.error
               return (
-                <label
+                <div
                   key={row.path}
                   className={[
                     'power-rename-row',
@@ -512,6 +512,7 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
                 >
                   <input
                     type="checkbox"
+                    aria-label={`Select ${row.originalName}`}
                     checked={checked[row.path] !== false}
                     onChange={() => toggle(row.path)}
                   />
@@ -527,7 +528,7 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
                   >
                     {row.error ? `(${row.error})` : row.newName}
                   </span>
-                </label>
+                </div>
               )
             })}
           </div>

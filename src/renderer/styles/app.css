@@ -4447,7 +4447,7 @@ html.idle-cursor-hidden * {
   border-bottom: 1px solid var(--border);
   font-family: ui-monospace, Consolas, 'Cascadia Mono', monospace;
   font-size: 12px;
-  cursor: pointer;
+  cursor: default;
 }
 .power-rename-row:last-child {
   border-bottom: none;
@@ -4460,6 +4460,11 @@ html.idle-cursor-hidden * {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  user-select: text;
+  cursor: text;
+}
+.power-rename-row input[type='checkbox'] {
+  cursor: pointer;
 }
 .power-rename-arrow {
   color: var(--muted);
