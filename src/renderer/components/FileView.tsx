@@ -975,6 +975,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         s.contextMenu ||
         s.imageViewer ||
         s.imageEditor ||
+        s.slideshow.active ||
         s.renamingPath ||
         s.addressEditing
       ) {

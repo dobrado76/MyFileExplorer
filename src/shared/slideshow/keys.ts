@@ -277,8 +277,45 @@ export function isSlideshowCropNumpadKey(e: SlideshowKeyLike): boolean {
   )
 }
 
+/** Electron `before-input-event` often uses `Space` / `Left` / `Esc` instead of DOM names. */
+const ELECTRON_KEY_ALIASES: Record<string, string> = {
+  Space: ' ',
+  Spacebar: ' ',
+  Esc: 'Escape',
+  Left: 'ArrowLeft',
+  Up: 'ArrowUp',
+  Right: 'ArrowRight',
+  Down: 'ArrowDown',
+  Return: 'Enter',
+  Del: 'Delete',
+  Back: 'Backspace'
+}
+
+const ELECTRON_CODE_ALIASES: Record<string, string> = {
+  Left: 'ArrowLeft',
+  Up: 'ArrowUp',
+  Right: 'ArrowRight',
+  Down: 'ArrowDown',
+  Spacebar: 'Space',
+  Esc: 'Escape'
+}
+
+export function normalizeSlideshowKeyLike(e: SlideshowKeyLike): SlideshowKeyLike {
+  let key = e.key
+  let code = e.code
+  if (key === 'Space' || code === 'Space' || code === 'Spacebar') key = ' '
+  else {
+    const aliasedKey = ELECTRON_KEY_ALIASES[key]
+    if (aliasedKey) key = aliasedKey
+  }
+  const aliasedCode = ELECTRON_CODE_ALIASES[code]
+  if (aliasedCode) code = aliasedCode
+  return { ...e, key, code }
+}
+
 export function isSlideshowStopKey(e: SlideshowKeyLike): boolean {
-  return e.key === 'Escape' || e.key === ' '
+  const key = normalizeSlideshowKeyLike(e).key
+  return key === 'Escape' || key === ' '
 }
 
 /** Tab — open in-app image editor during slideshow. */

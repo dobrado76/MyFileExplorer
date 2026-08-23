@@ -47,6 +47,8 @@
     "src/renderer/lib/tabRootDelete.ts",
     "src/renderer/lib/renameListing.ts",
     "src/renderer/lib/treeFromListing.ts",
-    "src/renderer/lib/thumbMemory.ts"
+    "src/renderer/lib/thumbMemory.ts",
+    "src/renderer/lib/slideshowTypes.ts",
+    "src/renderer/lib/slideshowRelay.ts"
   ]
 }

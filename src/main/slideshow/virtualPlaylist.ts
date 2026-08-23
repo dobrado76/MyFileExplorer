@@ -135,8 +135,25 @@ export type CompiledPlaylistSnapshot = {
   listCounts?: { path: string; fileCount: number }[]
 }
 
+/** Renderer play index — main virtual list has no cursor; kept for rebuild-without-reset. */
+let currentPlayIndex = 0
+
+export function getCurrentPlayIndex(): number {
+  return currentPlayIndex
+}
+
+export function setCurrentPlayIndex(index: number): void {
+  const vp = session
+  if (!vp || vp.total <= 0) {
+    currentPlayIndex = 0
+    return
+  }
+  currentPlayIndex = Math.max(0, Math.min(Math.floor(index), vp.total - 1))
+}
+
 export function clearVirtualPlaylist(): void {
   session = null
+  currentPlayIndex = 0
 }
 
 export function getVirtualPlaylistTotal(): number {
@@ -248,6 +265,7 @@ export async function buildVirtualPlaylist(
     order,
     skip: new Set()
   }
+  currentPlayIndex = 0
 
   if (truncated) {
     logMain('warn', `Compiled playlist truncated to ${COMPILED_PLAYLIST_MAX} (C# int max)`)

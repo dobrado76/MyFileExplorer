@@ -154,6 +154,8 @@ const api: MyFileExplorerApi = {
     openCompiledListsWindow: invokeVoid(IPC.slideshowOpenCompiledListsWindow),
     closeCompiledListsWindow: invokeVoid(IPC.slideshowCloseCompiledListsWindow),
     relayKey: invoke(IPC.slideshowRelayKey),
+    relayPointer: invoke(IPC.slideshowRelayPointer),
+    setListsTyping: invoke(IPC.slideshowSetListsTyping),
     applyCompiledLines: invoke(IPC.slideshowApplyCompiledLines),
     compiledPathAt: invoke(IPC.slideshowCompiledPathAt),
     clearVirtualPlaylist: invokeVoid(IPC.slideshowClearVirtualPlaylist),

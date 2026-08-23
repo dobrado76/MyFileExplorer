@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   codeToKeyToken,
+  isSlideshowStopKey,
   keyTokenToCode,
-  normalizeKeyToken
+  normalizeKeyToken,
+  normalizeSlideshowKeyLike
 } from '../shared/slideshow/keys'
 import { parseCategorizerMap, serializeCategorizerMap } from '../shared/slideshow/categorizerMap'
 
@@ -41,5 +43,17 @@ describe('Forms.Keys mapping', () => {
     expect(out).toContain('Keys.OemMinus')
     expect(out).toContain('Keys.Oemplus')
     expect(out).toContain('Keys.Back')
+  })
+
+  it('normalizes Electron before-input Space / Esc / arrows', () => {
+    expect(normalizeSlideshowKeyLike({ key: 'Space', code: 'Space' }).key).toBe(' ')
+    expect(normalizeSlideshowKeyLike({ key: 'Esc', code: 'Escape' }).key).toBe('Escape')
+    expect(normalizeSlideshowKeyLike({ key: 'Left', code: 'Left' })).toMatchObject({
+      key: 'ArrowLeft',
+      code: 'ArrowLeft'
+    })
+    expect(isSlideshowStopKey({ key: 'Space', code: 'Space' })).toBe(true)
+    expect(isSlideshowStopKey({ key: ' ', code: 'Space' })).toBe(true)
+    expect(isSlideshowStopKey({ key: 'Escape', code: 'Escape' })).toBe(true)
   })
 })

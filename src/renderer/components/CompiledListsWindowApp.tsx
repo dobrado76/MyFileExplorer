@@ -12,7 +12,7 @@ import {
 } from '../lib/icons'
 import { api, call } from '../lib/ipc'
 import { useIdleCursorHide } from '../lib/useIdleCursorHide'
-import { isSlideshowCropNumpadKey } from '@shared/slideshow/keys'
+import { isSlideshowCropNumpadKey, isSlideshowStopKey } from '@shared/slideshow/keys'
 
 type DatRow = {
   path: string
@@ -161,8 +161,7 @@ export function CompiledListsWindowApp(): JSX.Element {
   // (focus often stays on lists while watching the main overlay).
   useIdleCursorHide(true)
 
-  // No slideshow shortcuts here — relay keystrokes to the main slideshow overlay.
-  // Keep typing in count fields local; Load/Save filename entry uses OS dialogs.
+  // Relay keys / wheel / clicks to the main slideshow (overlay cannot take click-focus).
   useEffect(() => {
     const isEditableTarget = (t: EventTarget | null): boolean => {
       if (!(t instanceof HTMLElement)) return false
@@ -172,8 +171,26 @@ export function CompiledListsWindowApp(): JSX.Element {
       return Boolean(t.closest('input, textarea, select, [contenteditable="true"]'))
     }
 
+    const isListsChrome = (t: EventTarget | null): boolean => {
+      if (!(t instanceof HTMLElement)) return false
+      if (isEditableTarget(t)) return true
+      return Boolean(
+        t.closest(
+          'button, a, input, textarea, select, label, [role="tab"], .compiled-lists-tab, .compiled-count-input'
+        )
+      )
+    }
+
     const onKey = (e: KeyboardEvent): void => {
-      if (isEditableTarget(e.target)) return
+      const stopKey = isSlideshowStopKey({
+        key: e.key,
+        code: e.code,
+        ctrlKey: e.ctrlKey,
+        altKey: e.altKey,
+        shiftKey: e.shiftKey,
+        metaKey: e.metaKey
+      })
+      if (!stopKey && isEditableTarget(e.target)) return
       const cropNumpad = isSlideshowCropNumpadKey(e)
       if ((e.ctrlKey || e.metaKey || e.altKey) && !cropNumpad) return
       e.preventDefault()
@@ -188,8 +205,44 @@ export function CompiledListsWindowApp(): JSX.Element {
       })
     }
 
+    const onWheel = (e: WheelEvent): void => {
+      if (isEditableTarget(e.target)) return
+      e.preventDefault()
+      e.stopPropagation()
+      void api.slideshow.relayPointer({
+        kind: 'wheel',
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+        ctrlKey: e.ctrlKey,
+        metaKey: e.metaKey
+      })
+    }
+
+    const onClick = (e: MouseEvent): void => {
+      if (e.button !== 0) return
+      if (isListsChrome(e.target)) return
+      e.preventDefault()
+      e.stopPropagation()
+      void api.slideshow.relayPointer({ kind: 'click' })
+    }
+
+    const onContextMenu = (e: MouseEvent): void => {
+      if (isListsChrome(e.target)) return
+      e.preventDefault()
+      e.stopPropagation()
+      void api.slideshow.relayPointer({ kind: 'contextmenu' })
+    }
+
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    window.addEventListener('wheel', onWheel, { capture: true, passive: false })
+    window.addEventListener('click', onClick, true)
+    window.addEventListener('contextmenu', onContextMenu, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('wheel', onWheel, true)
+      window.removeEventListener('click', onClick, true)
+      window.removeEventListener('contextmenu', onContextMenu, true)
+    }
   }, [])
 
   const setRowCount = async (tabIdx: number, rowIdx: number, count: number): Promise<void> => {
@@ -209,18 +262,24 @@ export function CompiledListsWindowApp(): JSX.Element {
   // Persist last.txt and always push playlist (window exists only for a live compiled session).
   useEffect(() => {
     if (!compiledRoot || tabs.length === 0) return
+    let applyGen = 0
     const lines = collectLines()
     const t = window.setTimeout(() => {
+      const gen = ++applyGen
       void (async () => {
         try {
           await persistLast(lines)
+          if (gen !== applyGen) return
           await rebuildAndApply(lines)
         } catch {
           /* ignore */
         }
       })()
     }, 200)
-    return () => window.clearTimeout(t)
+    return () => {
+      window.clearTimeout(t)
+      applyGen += 1
+    }
   }, [tabs, compiledRoot, persistLast, collectLines, rebuildAndApply])
 
   const bump = async (tabIdx: number, rowIdx: number, delta: number): Promise<void> => {

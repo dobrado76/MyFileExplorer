@@ -418,10 +418,23 @@ export function createSlideshowActions(get: Get, set: Set) {
 
       try {
         await call(api.slideshow.openCompiledListsWindow())
-        actions.applyCompiledVirtual(
-          { total: 0, index: 0, path: null, truncated: false },
-          startRev
-        )
+        set({
+          slideshow: {
+            ...get().slideshow,
+            active: {
+              status: 'playing',
+              paths: [],
+              index: 0,
+              builtFromCache: true,
+              buildFound: 0,
+              buildCurrent: '',
+              actions: [],
+              compiledMode: true,
+              compiledTotal: 0,
+              currentPath: null
+            }
+          }
+        })
 
         const { lines } = await call(api.slideshow.readLastList({ compiledRoot: root }))
         const ss = get().settings.slideshow
@@ -447,12 +460,6 @@ export function createSlideshowActions(get: Get, set: Set) {
           get().notify('Compiled playlist truncated at 2,147,483,647 entries')
         }
       } catch (e) {
-        if (!get().slideshow.active?.compiledMode) {
-          actions.applyCompiledVirtual(
-            { total: 0, index: 0, path: null },
-            nextCompiledApplyRev()
-          )
-        }
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
     },
@@ -485,6 +492,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         compiledApplyRev += 1
       }
       const a = get().slideshow.active
+      if (!a?.compiledMode) return
       const status =
         meta.resumePlaying === true
           ? 'playing'
@@ -580,8 +588,8 @@ export function createSlideshowActions(get: Get, set: Set) {
             }
           }
         })
-      } catch {
-        /* ignore */
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
     },
 
