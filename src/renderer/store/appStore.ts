@@ -412,6 +412,8 @@ function emptyListing(path = ''): Listing {
 
 /** Session-only last listing for UNC / mapped / `mfe-remote://` (D49). */
 const remoteListingCache = new ListingLru<DirEntry>()
+/** Short-lived snapshots used specifically to paint Back/Forward immediately. */
+const historyListingCache = new ListingLru<DirEntry>()
 
 function listingCacheOk(path: string, drives: DriveInfo[]): boolean {
   return isListingCacheEligible(path, { driveType: driveTypeForPath(path, drives) })
@@ -1816,14 +1818,21 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   async function loadListing(
     path: string,
-    opts?: { preserveSelection?: boolean; soft?: boolean; tabId?: string; force?: boolean }
+    opts?: {
+      preserveSelection?: boolean
+      soft?: boolean
+      tabId?: string
+      force?: boolean
+      history?: boolean
+    }
   ): Promise<void> {
     const tabId = opts?.tabId ?? get().activeTabId
     if (!tabId) return
     const seq = nextListSeq(tabId)
     const cached =
-      !opts?.soft && !opts?.force && listingCacheOk(path, get().drives)
-        ? remoteListingCache.get(path)
+      !opts?.soft && !opts?.force
+        ? (listingCacheOk(path, get().drives) ? remoteListingCache.get(path) : undefined) ??
+          (opts?.history ? historyListingCache.get(path) : undefined)
         : undefined
     const paintFromCache = cached != null
     const showRemoteBusy =
@@ -1874,6 +1883,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         clearRemoteBusy: showRemoteBusy
       })
       rememberRemoteListing(res.path, sortedEntries, get().drives)
+      historyListingCache.set(res.path, sortedEntries)
       afterListingPainted(tabId, path, sortedEntries)
       // Clear “(Disconnected)” in the tree as soon as a mapped letter is reachable again.
       const driveRoot = /^([a-zA-Z]:)\\/i.exec(path)
@@ -1960,28 +1970,25 @@ export const useAppStore = create<AppState>()((set, get) => {
       await get().runSearch(tabId)
       return
     }
+    const focusPath = entry.kind === 'folder' ? entry.focusPath : undefined
     updateTab(tabId, {
       path,
       back: stacks.back,
       forward: stacks.forward,
-      selected: [],
+      // Set the history target before the NAS request completes. The row can
+      // highlight as soon as a cached/current listing is painted.
+      selected: focusPath ? [focusPath] : [],
       scrollOffset: entry.kind === 'folder' ? (entry.scrollOffset ?? 0) : 0,
       search: emptyTabSearch(tab.search.indexedOnly)
     })
     if (tabId === get().activeTabId) {
-      set({ selectionAnchor: null, focusedPath: null })
+      set({
+        selectionAnchor: focusPath ?? null,
+        focusedPath: focusPath ?? null
+      })
       get().clearFileListScrollRequest()
     }
-    await loadListing(path, { tabId })
-    if (entry.kind === 'folder' && entry.focusPath) {
-      const current = get()
-      const owner = current.tabs.find((t) => t.id === tabId)
-      const listing = current.listingsByTabId[tabId]
-      const focused = listing?.entries.find((e) => samePath(e.path, entry.focusPath!))
-      if (owner && samePath(owner.path, path) && focused) {
-        get().setSelection([focused.path], focused.path, focused.path, tabId)
-      }
-    }
+    await loadListing(path, { tabId, history: true })
   }
 
   /** Always surface FS failures in a modal — never status-bar-only. */
@@ -3186,6 +3193,20 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (get().recycleBin.active) get().closeRecycleBinView()
       }
       flushPendingRename()
+      // Keep the rows that are already on screen as a history snapshot. This
+      // covers mapped NAS drives whose remote type is not known yet and avoids
+      // making Back wait for a fresh directory enumeration.
+      const currentTab = get().tabs.find((t) => t.id === tabId)
+      const currentListing =
+        get().listingsByTabId[tabId] ?? (tabId === get().activeTabId ? get().listing : undefined)
+      if (
+        currentTab &&
+        currentListing &&
+        samePath(currentListing.path, currentTab.path) &&
+        currentListing.entries.length > 0
+      ) {
+        historyListingCache.set(currentTab.path, currentListing.entries)
+      }
       const leavingSearch = tab.search.active
       if (push && (!samePath(old, path) || leavingSearch)) {
         const here = currentLocation(tab)
