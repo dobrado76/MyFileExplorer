@@ -13,10 +13,13 @@ Built for people who live in folders all day: media libraries, project trees, AI
 | **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
 | **License** | MIT |
 
-| Multi-pane workspace | Context menu |
-| --- | --- |
-| ![Tabs, details, video thumbs, and a live preview](docs/image/screenshot-workspace.jpg) | ![Settings → Context menu — hide, reorder, Discover, custom commands](docs/image/screenshot-context-menu.png) |
-| ![Power Search visual query builder](docs/image/screenshot-power-search.png) | ![Script Manager — run Python / PowerShell on the folder in front of you](docs/image/screenshot-script-manager.png) |
+![Tabs, details, video thumbs, and a live preview](docs/image/screenshot-workspace.jpg)
+
+![Settings → Context menu — hide, reorder, Discover, custom commands](docs/image/screenshot-context-menu.png)
+
+![Power Search visual query builder](docs/image/screenshot-power-search.png)
+
+![Script Manager — run Python / PowerShell on the folder in front of you](docs/image/screenshot-script-manager.png)
 
 ---
 
