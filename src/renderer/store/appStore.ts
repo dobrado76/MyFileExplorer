@@ -1529,7 +1529,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   async function runPermanentDelete(toDelete: string[]): Promise<void> {
     try {
-      selectAfterDelete(toDelete)
+      const autoSelectedPath = selectAfterDelete(toDelete)
       await releaseMediaLocks()
       const res = await withBusyFeedback(
         'delete',
@@ -1538,7 +1538,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         () => call(api.fs.deletePermanent({ paths: toDelete }))
       )
       if (res.deleted.length > 0) {
-        await afterPathsRemoved(res.deleted)
+        await afterPathsRemoved(res.deleted, {
+          expectedSelection: autoSelectedPath ? [autoSelectedPath] : []
+        })
       }
       if (res.issues.length > 0) {
         get().notify(
@@ -2392,7 +2394,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   }
 
-  async function afterPathsRemoved(removed: string[]): Promise<void> {
+  async function afterPathsRemoved(
+    removed: string[],
+    opts?: { expectedSelection?: string[] }
+  ): Promise<void> {
     syncImageViewerAfterDelete(removed)
     notifyTreeRemoved(removed)
     const activeDoomed = tabsWhoseRootIsDeleted(get().tabs, removed).some(
@@ -2413,15 +2418,44 @@ export const useAppStore = create<AppState>()((set, get) => {
       // Stay in-folder: listing was already pruned + selection updated before trash.
       // Do NOT full-refresh — readdir+stat of large folders is multi-second.
       pruneListingRemoved(removed)
-      const focused = get().focusedPath
-      const nextPath =
-        focused && get().listing.entries.some((e) => samePath(e.path, focused)) ? focused : null
-      if (nextPath) {
-        updateActiveTab({ selected: [nextPath] })
-        set({ selectionAnchor: nextPath, focusedPath: nextPath })
+      const currentSelection = get().activeTab().selected
+      const expectedSelection = opts?.expectedSelection
+      const selectionChangedDuringRemoval =
+        expectedSelection !== undefined &&
+        (currentSelection.length !== expectedSelection.length ||
+          currentSelection.some(
+            (path, index) => !expectedSelection[index] || !samePath(path, expectedSelection[index]!)
+          ))
+      if (selectionChangedDuringRemoval) {
+        const stillSelected = currentSelection.filter(
+          (path) =>
+            !removed.some(
+              (removedPath) => samePath(path, removedPath) || isUnderPath(path, removedPath)
+            )
+        )
+        const currentAnchor = get().selectionAnchor
+        const currentFocus = get().focusedPath
+        const anchor =
+          currentAnchor && stillSelected.some((path) => samePath(path, currentAnchor))
+            ? currentAnchor
+            : stillSelected[0] ?? null
+        const focused =
+          currentFocus && stillSelected.some((path) => samePath(path, currentFocus))
+            ? currentFocus
+            : stillSelected[stillSelected.length - 1] ?? null
+        updateActiveTab({ selected: stillSelected })
+        set({ selectionAnchor: anchor, focusedPath: focused })
       } else {
-        updateActiveTab({ selected: [] })
-        set({ selectionAnchor: null, focusedPath: null })
+        const focused = get().focusedPath
+        const nextPath =
+          focused && get().listing.entries.some((e) => samePath(e.path, focused)) ? focused : null
+        if (nextPath) {
+          updateActiveTab({ selected: [nextPath] })
+          set({ selectionAnchor: nextPath, focusedPath: nextPath })
+        } else {
+          updateActiveTab({ selected: [] })
+          set({ selectionAnchor: null, focusedPath: null })
+        }
       }
       clearMediaHold()
       // Trash/move suspend closes ReadDirectoryChanges handles — re-arm without re-list.
@@ -4979,7 +5013,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (!permanent) {
         try {
           // Select the survivor first so the preview keeps painting while we trash.
-          selectAfterDelete(target)
+          const autoSelectedPath = selectAfterDelete(target)
           await releaseMediaLocks()
           const res = await withBusyFeedback(
             'trash',
@@ -4993,7 +5027,9 @@ export const useAppStore = create<AppState>()((set, get) => {
               paths: res.trashed,
               label: basename(res.trashed[0]!)
             })
-            await afterPathsRemoved(res.trashed)
+            await afterPathsRemoved(res.trashed, {
+              expectedSelection: autoSelectedPath ? [autoSelectedPath] : []
+            })
           }
           if (res.issues.length > 0) {
             get().notify(
