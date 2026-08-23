@@ -27,6 +27,14 @@ const MIN_H = 420
 const DEFAULT_W = 1040
 const DEFAULT_H = 720
 
+/** Keep option checkboxes stable if the dialog briefly remounts after an apply/refresh. */
+let powerRenameFlagsDraft = {
+  regex: false,
+  matchAll: false,
+  caseSensitive: false,
+  applyTo: 'name' as PowerRenameApplyTo
+}
+
 function clampBounds(b: Bounds): Bounds {
   const vw = window.innerWidth
   const vh = window.innerHeight
@@ -321,10 +329,12 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
 
   const [search, setSearch] = useState('')
   const [replace, setReplace] = useState('')
-  const [regex, setRegex] = useState(false)
-  const [matchAll, setMatchAll] = useState(false)
-  const [caseSensitive, setCaseSensitive] = useState(false)
-  const [applyTo, setApplyTo] = useState<PowerRenameApplyTo>('full')
+  const [regex, setRegex] = useState(() => powerRenameFlagsDraft.regex)
+  const [matchAll, setMatchAll] = useState(() => powerRenameFlagsDraft.matchAll)
+  const [caseSensitive, setCaseSensitive] = useState(
+    () => powerRenameFlagsDraft.caseSensitive
+  )
+  const [applyTo, setApplyTo] = useState<PowerRenameApplyTo>(() => powerRenameFlagsDraft.applyTo)
   const [checked, setChecked] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(paths.map((p) => [p, true]))
   )
@@ -335,6 +345,10 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
     () => ({ search, replace, regex, matchAll, caseSensitive, applyTo }),
     [search, replace, regex, matchAll, caseSensitive, applyTo]
   )
+
+  useEffect(() => {
+    powerRenameFlagsDraft = { regex, matchAll, caseSensitive, applyTo }
+  }, [regex, matchAll, caseSensitive, applyTo])
 
   const rows = useMemo(() => previewPowerRename(items, opts), [items, opts])
 
