@@ -3,7 +3,7 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**v0.10.0** — A Windows file manager that feels like Explorer… until you notice you never want to go back. And then you realize how many things you never knew you needed — and what a real file manager should feel like.
+A modern, open-source Windows File Explorer alternative built for persistent workspaces, rich file inspection, powerful search, and user-extensible automation. And then you realize how many things you never knew you needed — and what a real file manager should feel like.
 
 Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
 
