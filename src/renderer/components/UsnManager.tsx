@@ -256,28 +256,19 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
     }
   }
 
-  const onEnableOrResize = (forceElevate = false): void => {
+  const onEnableOrResize = (): void => {
     const sizes = parsedSizes()
     persistSizes(sizes.maxBytes, sizes.deltaBytes)
     const active = query?.status === 'active'
-    const startElevated =
-      forceElevate || query?.status === 'access-denied' || query?.needsElevation === true
-    if (startElevated && !forceElevate) {
-      if (
-        !window.confirm(
-          `Changing the USN journal on ${letter} needs administrator permission.\n\nWindows will show a UAC prompt.`
-        )
-      ) {
-        return
-      }
-    }
-    void runMutate(async (elevate) => {
+    // Creating a journal needs admin on data volumes — go straight to UAC instead of try-then-fail.
+    const elevate = !active
+    void runMutate(async (useElevate) => {
       const result = await call(
         api.usn.enable({
           path,
           maxBytes: sizes.maxBytes,
           deltaBytes: sizes.deltaBytes,
-          elevate
+          elevate: useElevate
         })
       )
       if (result.probeName) {
@@ -289,7 +280,7 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
         setProbeNote(null)
         notify(active ? `Updated USN journal size on ${letter}` : `Enabled USN journal on ${letter}`)
       }
-    }, startElevated)
+    }, elevate)
   }
 
   const onClear = (): void => {
@@ -460,10 +451,11 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
                   </button>
                 </div>
                 <p className="usn-hint">
-                  The USN journal is a circular NTFS change log. Creating or resizing it usually
-                  needs a one-time Windows administrator (UAC) prompt. After it is Active, copy a
-                  file on this same drive and click Refresh to see new records. When the journal
-                  fills, Windows drops the oldest records in allocation-delta chunks.
+                  The USN journal is a circular NTFS change log. Enable journal shows a Windows
+                  administrator (UAC) prompt. Apply size tries without elevation first, then UAC
+                  if needed. After it is Active, copy a file on this same drive and click Refresh to
+                  see new records. When the journal fills, Windows drops the oldest records in
+                  allocation-delta chunks.
                 </p>
                 {status === 'deleting' && (
                   <p className="usn-probe-note">
@@ -552,20 +544,10 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
                     type="button"
                     className="btn primary"
                     disabled={busy || !canMutate}
-                    onClick={() => onEnableOrResize()}
+                    onClick={onEnableOrResize}
                   >
                     {status === 'active' ? 'Apply size' : 'Enable journal'}
                   </button>
-                  {status !== 'active' && (
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={busy || !canMutate}
-                      onClick={() => onEnableOrResize(true)}
-                    >
-                      Enable as administrator…
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="btn"
