@@ -500,17 +500,7 @@ export type MyFileExplorerApi = {
       altKey: boolean
       shiftKey: boolean
       metaKey: boolean
-      phase?: 'down' | 'up'
     }): Promise<Result<{ ok: true }>>
-    /** Wheel / click / right-click from the Compiled lists window. */
-    relayPointer(
-      req:
-        | { kind: 'wheel'; deltaX: number; deltaY: number; ctrlKey: boolean; metaKey: boolean }
-        | { kind: 'click' }
-        | { kind: 'contextmenu' }
-    ): Promise<Result<{ ok: true }>>
-    /** Count-field focus — main skips before-input key relay while typing. */
-    setListsTyping(req: { typing: boolean }): Promise<Result<{ ok: true }>>
     /** Build main-process virtual playlist from last.txt lines; broadcast meta. */
     applyCompiledLines(req: {
       lines: { datPath: string; count: number }[]

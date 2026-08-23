@@ -171,9 +171,7 @@ Discovery runs in a worker thread; results arrive on `mfe-event` `network-discov
 | ------- | ------- | -------- |
 | `slideshow:updateCompiledLists` | `{ compiledRoot, entries[] }` | `{ updated, totalFiles, datUpdated, txtUpdated }` — crawl `.dat` source folders; write Index/Count ADS (skips `!!Lists`; `txtUpdated` always 0) |
 | `slideshow:validateCompiledLists` | `{ compiledRoot }` | `{ ok, checkedLists, issueCount, issues[] }` — missing folders / nested lists (skips `!!Lists`) |
-| `slideshow:relayKey` | `{ key, code, ctrlKey, altKey, shiftKey, metaKey, phase? }` | `{ ok }` — Compiled lists → slideshow key (broadcast to main renderer) |
-| `slideshow:relayPointer` | `{ kind: wheel\|click\|contextmenu, … }` | `{ ok }` — Compiled lists wheel / click / right-click (broadcast) |
-| `slideshow:setListsTyping` | `{ typing }` | `{ ok }` — legacy no-op (count fields use local capture) |
+| `slideshow:relayKey` | `{ key, code, ctrlKey, altKey, shiftKey, metaKey }` | `{ ok }` — Compiled lists window → main slideshow keystroke |
 | `slideshow:listCompiledDats` | `{ compiledRoot, entries[] }` | `{ tabs: { name, dats[] }[] }` |
 | `slideshow:readDatIndex` | `{ path }` | `{ paths[] }` |
 | `slideshow:readLastList` / `writeLastList` | root + lines | resume file `!!Lists/last.txt` |

@@ -73,25 +73,7 @@ export const slideshowRelayKeySchema = z.object({
   ctrlKey: z.boolean(),
   altKey: z.boolean(),
   shiftKey: z.boolean(),
-  metaKey: z.boolean(),
-  /** Omit / `down` = treat as keydown. `up` only updates crop modifiers. */
-  phase: z.enum(['down', 'up']).optional()
-})
-
-export const slideshowRelayPointerSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('wheel'),
-    deltaX: z.number(),
-    deltaY: z.number(),
-    ctrlKey: z.boolean(),
-    metaKey: z.boolean()
-  }),
-  z.object({ kind: z.literal('click') }),
-  z.object({ kind: z.literal('contextmenu') })
-])
-
-export const slideshowSetListsTypingSchema = z.object({
-  typing: z.boolean()
+  metaKey: z.boolean()
 })
 
 export const compiledPathAtRequestSchema = z.object({

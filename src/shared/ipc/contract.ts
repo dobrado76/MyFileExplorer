@@ -146,8 +146,6 @@ export const IPC = {
   slideshowOpenCompiledListsWindow: 'slideshow:openCompiledListsWindow',
   slideshowCloseCompiledListsWindow: 'slideshow:closeCompiledListsWindow',
   slideshowRelayKey: 'slideshow:relayKey',
-  slideshowRelayPointer: 'slideshow:relayPointer',
-  slideshowSetListsTyping: 'slideshow:setListsTyping',
   slideshowApplyCompiledPlaylist: 'slideshow:applyCompiledPlaylist',
   slideshowApplyCompiledLines: 'slideshow:applyCompiledLines',
   slideshowCompiledPathAt: 'slideshow:compiledPathAt',
@@ -313,16 +311,7 @@ export type MfeEvent =
         altKey: boolean
         shiftKey: boolean
         metaKey: boolean
-        phase?: 'down' | 'up'
       }
-    }
-  | {
-      type: 'slideshow-pointer'
-      /** Mouse / wheel from the Compiled lists window (overlay cannot take click-focus). */
-      payload:
-        | { kind: 'wheel'; deltaX: number; deltaY: number; ctrlKey: boolean; metaKey: boolean }
-        | { kind: 'click' }
-        | { kind: 'contextmenu' }
     }
   | {
       type: 'network-discovery'

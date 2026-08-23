@@ -45,8 +45,6 @@ import {
   expandCompositeRequestSchema,
   applyCompiledLinesRequestSchema,
   slideshowRelayKeySchema,
-  slideshowRelayPointerSchema,
-  slideshowSetListsTypingSchema,
   compiledPathAtRequestSchema
 } from '@shared/schemas/compiledLists'
 import {
@@ -133,15 +131,12 @@ import {
 } from '../slideshow/compiledLists'
 import {
   openCompiledListsWindow,
-  closeCompiledListsWindow,
-  setCompiledListsTyping
+  closeCompiledListsWindow
 } from '../slideshow/compiledListsWindow'
 import {
   buildVirtualPlaylist,
   clearVirtualPlaylist,
-  getCurrentPlayIndex,
   pathAtPlayIndex,
-  setCurrentPlayIndex,
   snapshotPreferPath
 } from '../slideshow/virtualPlaylist'
 import {
@@ -856,25 +851,15 @@ export function registerIpcHandlers(): void {
     )
   }))
   handleDev(IPC.slideshowOpenCompiledListsWindow, emptySchema, () => openCompiledListsWindow())
-  handleDev(IPC.slideshowCloseCompiledListsWindow, emptySchema, () =>
-    closeCompiledListsWindow()
-  )
+  handleDev(IPC.slideshowCloseCompiledListsWindow, emptySchema, () => {
+    clearVirtualPlaylist()
+    return closeCompiledListsWindow()
+  })
   handle(IPC.slideshowRelayKey, slideshowRelayKeySchema, (req) => {
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
       win.webContents.send(EVENT_CHANNEL, { type: 'slideshow-key', payload: req })
     }
-    return { ok: true as const }
-  })
-  handle(IPC.slideshowRelayPointer, slideshowRelayPointerSchema, (req) => {
-    const win = getMainWindow()
-    if (win && !win.isDestroyed()) {
-      win.webContents.send(EVENT_CHANNEL, { type: 'slideshow-pointer', payload: req })
-    }
-    return { ok: true as const }
-  })
-  handle(IPC.slideshowSetListsTyping, slideshowSetListsTypingSchema, (req) => {
-    setCompiledListsTyping(req.typing)
     return { ok: true as const }
   })
   handleDev(
@@ -885,7 +870,7 @@ export function registerIpcHandlers(): void {
       const snap =
         req.preferPath || req.preferIndex != null
           ? snapshotPreferPath(req.preferPath ?? null, req.preferIndex ?? 0)
-          : snapshotPreferPath(null, getCurrentPlayIndex())
+          : built
       const payload = {
         total: snap.total,
         index: snap.index,
@@ -899,10 +884,9 @@ export function registerIpcHandlers(): void {
       return payload
     }
   )
-  handleDev(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => {
-    setCurrentPlayIndex(req.index)
-    return { path: pathAtPlayIndex(req.index) }
-  })
+  handleDev(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => ({
+    path: pathAtPlayIndex(req.index)
+  }))
   handleDev(IPC.slideshowClearVirtualPlaylist, emptySchema, () => {
     clearVirtualPlaylist()
     return { ok: true as const }

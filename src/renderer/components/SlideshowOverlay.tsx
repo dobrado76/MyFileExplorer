@@ -18,7 +18,6 @@ import {
   isSlideshowCropCancelKey,
   isSlideshowCropSaveKey,
   isSlideshowStopKey,
-  normalizeSlideshowKeyLike,
   numpadCropEdgeFromCode,
   codeToKeyToken,
   normalizeKeyToken,
@@ -408,8 +407,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       slideshowNavigate(nav)
     }
 
-    const handleKey = (raw: SlideshowKeyLike): void => {
-      const e = normalizeSlideshowKeyLike(raw)
+    const handleKey = (e: SlideshowKeyLike): void => {
       syncCropMods(e)
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
 
@@ -541,6 +539,12 @@ export function SlideshowOverlay(): JSX.Element | null {
       syncCropMods(e)
     }
 
+    // Keys from the Compiled lists window (it keeps focus while the slideshow runs).
+    const unsubRelay = api.onEvent((event) => {
+      if (event.type !== 'slideshow-key') return
+      handleKey(event.payload)
+    })
+
     // Wheel = Up/Down arrows: interrupt auto → manual, then prev/next.
     let wheelLock = false
     const onWheel = (e: WheelEvent): void => {
@@ -570,6 +574,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('keyup', onKeyUp, true)
       window.removeEventListener('wheel', onWheel, true)
+      unsubRelay()
     }
   }, [
     enabled,

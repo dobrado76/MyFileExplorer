@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   codeToKeyToken,
-  isSlideshowStopKey,
+  isPipeUndoKey,
   keyTokenToCode,
-  normalizeKeyToken,
-  normalizeSlideshowKeyLike
+  normalizeKeyToken
 } from '../shared/slideshow/keys'
 import { parseCategorizerMap, serializeCategorizerMap } from '../shared/slideshow/categorizerMap'
 
@@ -30,6 +29,14 @@ describe('Forms.Keys mapping', () => {
     expect(codeToKeyToken('Comma')).toBe('Oemcomma')
     expect(codeToKeyToken('Numpad1')).toBeNull()
     expect(codeToKeyToken('Tab')).toBeNull() // reserved: slideshow Edit image
+    expect(codeToKeyToken('Backslash')).toBeNull() // reserved: slideshow undo
+  })
+
+  it('treats the physical OemPipe / Backslash key as slideshow undo', () => {
+    expect(isPipeUndoKey({ key: '\\', code: 'Backslash' })).toBe(true)
+    expect(isPipeUndoKey({ key: '|', code: 'Backslash', shiftKey: true })).toBe(true)
+    expect(isPipeUndoKey({ key: '\\', code: 'IntlBackslash' })).toBe(true)
+    expect(isPipeUndoKey({ key: 'ArrowRight', code: 'ArrowRight' })).toBe(false)
   })
 
   it('parses and saves Oem keys in map files', () => {
@@ -43,17 +50,5 @@ describe('Forms.Keys mapping', () => {
     expect(out).toContain('Keys.OemMinus')
     expect(out).toContain('Keys.Oemplus')
     expect(out).toContain('Keys.Back')
-  })
-
-  it('normalizes Electron before-input Space / Esc / arrows', () => {
-    expect(normalizeSlideshowKeyLike({ key: 'Space', code: 'Space' }).key).toBe(' ')
-    expect(normalizeSlideshowKeyLike({ key: 'Esc', code: 'Escape' }).key).toBe('Escape')
-    expect(normalizeSlideshowKeyLike({ key: 'Left', code: 'Left' })).toMatchObject({
-      key: 'ArrowLeft',
-      code: 'ArrowLeft'
-    })
-    expect(isSlideshowStopKey({ key: 'Space', code: 'Space' })).toBe(true)
-    expect(isSlideshowStopKey({ key: ' ', code: 'Space' })).toBe(true)
-    expect(isSlideshowStopKey({ key: 'Escape', code: 'Escape' })).toBe(true)
   })
 })

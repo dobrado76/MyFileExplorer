@@ -100,6 +100,9 @@ function nextCompiledApplyRev(): number {
 /** Folder-list build generation — Esc/stop must not apply a walk that is still running. */
 let slideshowBuildSeq = 0
 
+/** Latest compiledPathAt wins — undo / nav must not be overwritten by an older fetch. */
+let compiledPlayGen = 0
+
 function invalidateSlideshowBuild(): void {
   slideshowBuildSeq += 1
   compiledApplyRev += 1
@@ -418,23 +421,10 @@ export function createSlideshowActions(get: Get, set: Set) {
 
       try {
         await call(api.slideshow.openCompiledListsWindow())
-        set({
-          slideshow: {
-            ...get().slideshow,
-            active: {
-              status: 'playing',
-              paths: [],
-              index: 0,
-              builtFromCache: true,
-              buildFound: 0,
-              buildCurrent: '',
-              actions: [],
-              compiledMode: true,
-              compiledTotal: 0,
-              currentPath: null
-            }
-          }
-        })
+        actions.applyCompiledVirtual(
+          { total: 0, index: 0, path: null, truncated: false },
+          startRev
+        )
 
         const { lines } = await call(api.slideshow.readLastList({ compiledRoot: root }))
         const ss = get().settings.slideshow
@@ -460,6 +450,12 @@ export function createSlideshowActions(get: Get, set: Set) {
           get().notify('Compiled playlist truncated at 2,147,483,647 entries')
         }
       } catch (e) {
+        if (!get().slideshow.active?.compiledMode) {
+          actions.applyCompiledVirtual(
+            { total: 0, index: 0, path: null },
+            nextCompiledApplyRev()
+          )
+        }
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
     },
@@ -492,7 +488,6 @@ export function createSlideshowActions(get: Get, set: Set) {
         compiledApplyRev += 1
       }
       const a = get().slideshow.active
-      if (!a?.compiledMode) return
       const status =
         meta.resumePlaying === true
           ? 'playing'
@@ -562,6 +557,7 @@ export function createSlideshowActions(get: Get, set: Set) {
     async setCompiledPlayIndex(index: number, status?: SlideshowState['status']) {
       const a = get().slideshow.active
       if (!a?.compiledMode) return
+      const gen = ++compiledPlayGen
       const n = a.compiledTotal ?? 0
       if (n <= 0) {
         set({
@@ -575,6 +571,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       const i = Math.max(0, Math.min(index, n - 1))
       try {
         const { path } = await call(api.slideshow.compiledPathAt({ index: i }))
+        if (gen !== compiledPlayGen) return
         const cur = get().slideshow.active
         if (!cur?.compiledMode) return
         set({
@@ -588,8 +585,8 @@ export function createSlideshowActions(get: Get, set: Set) {
             }
           }
         })
-      } catch (e) {
-        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      } catch {
+        /* ignore */
       }
     },
 
@@ -845,12 +842,13 @@ export function createSlideshowActions(get: Get, set: Set) {
             active: {
               ...a,
               status: 'manual',
-              actions: stack,
-              currentPath: last.path,
-              index: Math.min(last.insertIndex, Math.max(0, (a.compiledTotal ?? 1) - 1))
+              actions: stack
             }
           }
         })
+        const n = a.compiledTotal ?? 0
+        const idx = n <= 0 ? 0 : Math.min(last.insertIndex, Math.max(0, n - 1))
+        void actions.setCompiledPlayIndex(idx, 'manual')
         return
       }
       a.skipped?.delete(last.insertIndex)

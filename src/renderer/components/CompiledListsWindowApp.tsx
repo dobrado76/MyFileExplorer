@@ -12,7 +12,7 @@ import {
 } from '../lib/icons'
 import { api, call } from '../lib/ipc'
 import { useIdleCursorHide } from '../lib/useIdleCursorHide'
-import { isSlideshowCropNumpadKey, isSlideshowStopKey } from '@shared/slideshow/keys'
+import { isSlideshowCropNumpadKey } from '@shared/slideshow/keys'
 
 type DatRow = {
   path: string
@@ -67,6 +67,13 @@ export function CompiledListsWindowApp(): JSX.Element {
     return lines
   }, [tabs])
 
+  /** Playlist counts only — Nb. Files (`fileCount`) must not re-trigger apply. */
+  const playlistLinesKey = useMemo(
+    () => collectLines().map((l) => `${l.datPath.toLowerCase()}\0${l.count}`).join('\n'),
+    [collectLines]
+  )
+  const hasListTabs = tabs.length > 0
+
   const persistLast = useCallback(
     async (lines: { datPath: string; count: number }[]): Promise<void> => {
       if (!compiledRoot) return
@@ -93,15 +100,22 @@ export function CompiledListsWindowApp(): JSX.Element {
       )
       if (snap.listCounts && snap.listCounts.length > 0) {
         const map = new Map(snap.listCounts.map((c) => [c.path.toLowerCase(), c.fileCount]))
-        setTabs((prev) =>
-          prev.map((t) => ({
-            ...t,
-            rows: t.rows.map((r) => {
+        setTabs((prev) => {
+          let changed = false
+          const next = prev.map((t) => {
+            let rowsChanged = false
+            const rows = t.rows.map((r) => {
               const n = map.get(r.path.toLowerCase())
-              return n === undefined || n === r.fileCount ? r : { ...r, fileCount: n }
+              if (n === undefined || n === r.fileCount) return r
+              rowsChanged = true
+              return { ...r, fileCount: n }
             })
-          }))
-        )
+            if (!rowsChanged) return t
+            changed = true
+            return { ...t, rows }
+          })
+          return changed ? next : prev
+        })
       }
       if (lines.some((l) => l.count > 0) && snap.total === 0) {
         setStatus('No images resolved — check .dat Index / nested .txt refs (or run Update Lists on .dat)')
@@ -161,7 +175,8 @@ export function CompiledListsWindowApp(): JSX.Element {
   // (focus often stays on lists while watching the main overlay).
   useIdleCursorHide(true)
 
-  // Relay keys / wheel / clicks to the main slideshow (overlay cannot take click-focus).
+  // No slideshow shortcuts here — relay keystrokes to the main slideshow overlay.
+  // Keep typing in count fields local; Load/Save filename entry uses OS dialogs.
   useEffect(() => {
     const isEditableTarget = (t: EventTarget | null): boolean => {
       if (!(t instanceof HTMLElement)) return false
@@ -171,26 +186,8 @@ export function CompiledListsWindowApp(): JSX.Element {
       return Boolean(t.closest('input, textarea, select, [contenteditable="true"]'))
     }
 
-    const isListsChrome = (t: EventTarget | null): boolean => {
-      if (!(t instanceof HTMLElement)) return false
-      if (isEditableTarget(t)) return true
-      return Boolean(
-        t.closest(
-          'button, a, input, textarea, select, label, [role="tab"], .compiled-lists-tab, .compiled-count-input'
-        )
-      )
-    }
-
     const onKey = (e: KeyboardEvent): void => {
-      const stopKey = isSlideshowStopKey({
-        key: e.key,
-        code: e.code,
-        ctrlKey: e.ctrlKey,
-        altKey: e.altKey,
-        shiftKey: e.shiftKey,
-        metaKey: e.metaKey
-      })
-      if (!stopKey && isEditableTarget(e.target)) return
+      if (isEditableTarget(e.target)) return
       const cropNumpad = isSlideshowCropNumpadKey(e)
       if ((e.ctrlKey || e.metaKey || e.altKey) && !cropNumpad) return
       e.preventDefault()
@@ -205,44 +202,8 @@ export function CompiledListsWindowApp(): JSX.Element {
       })
     }
 
-    const onWheel = (e: WheelEvent): void => {
-      if (isEditableTarget(e.target)) return
-      e.preventDefault()
-      e.stopPropagation()
-      void api.slideshow.relayPointer({
-        kind: 'wheel',
-        deltaX: e.deltaX,
-        deltaY: e.deltaY,
-        ctrlKey: e.ctrlKey,
-        metaKey: e.metaKey
-      })
-    }
-
-    const onClick = (e: MouseEvent): void => {
-      if (e.button !== 0) return
-      if (isListsChrome(e.target)) return
-      e.preventDefault()
-      e.stopPropagation()
-      void api.slideshow.relayPointer({ kind: 'click' })
-    }
-
-    const onContextMenu = (e: MouseEvent): void => {
-      if (isListsChrome(e.target)) return
-      e.preventDefault()
-      e.stopPropagation()
-      void api.slideshow.relayPointer({ kind: 'contextmenu' })
-    }
-
     window.addEventListener('keydown', onKey, true)
-    window.addEventListener('wheel', onWheel, { capture: true, passive: false })
-    window.addEventListener('click', onClick, true)
-    window.addEventListener('contextmenu', onContextMenu, true)
-    return () => {
-      window.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('wheel', onWheel, true)
-      window.removeEventListener('click', onClick, true)
-      window.removeEventListener('contextmenu', onContextMenu, true)
-    }
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
   const setRowCount = async (tabIdx: number, rowIdx: number, count: number): Promise<void> => {
@@ -260,27 +221,22 @@ export function CompiledListsWindowApp(): JSX.Element {
   }
 
   // Persist last.txt and always push playlist (window exists only for a live compiled session).
+  // Depend on playlistLinesKey, not `tabs` — 37d67c0's listCounts setTabs used to retrigger this.
   useEffect(() => {
-    if (!compiledRoot || tabs.length === 0) return
-    let applyGen = 0
+    if (!compiledRoot || !hasListTabs) return
     const lines = collectLines()
     const t = window.setTimeout(() => {
-      const gen = ++applyGen
       void (async () => {
         try {
           await persistLast(lines)
-          if (gen !== applyGen) return
           await rebuildAndApply(lines)
         } catch {
           /* ignore */
         }
       })()
     }, 200)
-    return () => {
-      window.clearTimeout(t)
-      applyGen += 1
-    }
-  }, [tabs, compiledRoot, persistLast, collectLines, rebuildAndApply])
+    return () => window.clearTimeout(t)
+  }, [playlistLinesKey, hasListTabs, compiledRoot, persistLast, collectLines, rebuildAndApply])
 
   const bump = async (tabIdx: number, rowIdx: number, delta: number): Promise<void> => {
     const row = tabs[tabIdx]?.rows[rowIdx]

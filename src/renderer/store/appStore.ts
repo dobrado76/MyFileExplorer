@@ -68,7 +68,6 @@ import { ListingLru, driveTypeForPath, isListingCacheEligible } from '@shared/li
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { shouldPopStackedDialog, shouldPushDialog } from '@shared/scriptDialogStack'
 import { emptySlideshowSession, type SlideshowSession } from '../lib/slideshowTypes'
-import { handleSlideshowRelayEvent } from '../lib/slideshowRelay'
 import {
   createSlideshowActions,
   loadCategorizerMapFromPath,
@@ -3019,8 +3018,6 @@ export const useAppStore = create<AppState>()((set, get) => {
         } else if (event.type === 'compiled-lists-window-closed') {
           const a = get().slideshow.active
           if (a?.compiledMode) void get().stopSlideshow()
-        } else if (event.type === 'slideshow-key' || event.type === 'slideshow-pointer') {
-          handleSlideshowRelayEvent(event, get)
         } else if (event.type === 'network-discovery') {
           const p = event.payload
           set((state) => {

@@ -217,6 +217,8 @@ export function keyTokenToCode(token: string): string | null {
 export function codeToKeyToken(code: string): string | null {
   if (isNumpadCode(code)) return null
   if (code === 'Tab') return null // reserved: open image editor during slideshow
+  // Reserved: physical \ | (OemPipe) undoes the last buffered categorize/delete.
+  if (code === 'Backslash' || code === 'IntlBackslash') return null
   return CODE_TO_NET[code] ?? null
 }
 
@@ -277,45 +279,8 @@ export function isSlideshowCropNumpadKey(e: SlideshowKeyLike): boolean {
   )
 }
 
-/** Electron `before-input-event` often uses `Space` / `Left` / `Esc` instead of DOM names. */
-const ELECTRON_KEY_ALIASES: Record<string, string> = {
-  Space: ' ',
-  Spacebar: ' ',
-  Esc: 'Escape',
-  Left: 'ArrowLeft',
-  Up: 'ArrowUp',
-  Right: 'ArrowRight',
-  Down: 'ArrowDown',
-  Return: 'Enter',
-  Del: 'Delete',
-  Back: 'Backspace'
-}
-
-const ELECTRON_CODE_ALIASES: Record<string, string> = {
-  Left: 'ArrowLeft',
-  Up: 'ArrowUp',
-  Right: 'ArrowRight',
-  Down: 'ArrowDown',
-  Spacebar: 'Space',
-  Esc: 'Escape'
-}
-
-export function normalizeSlideshowKeyLike(e: SlideshowKeyLike): SlideshowKeyLike {
-  let key = e.key
-  let code = e.code
-  if (key === 'Space' || code === 'Space' || code === 'Spacebar') key = ' '
-  else {
-    const aliasedKey = ELECTRON_KEY_ALIASES[key]
-    if (aliasedKey) key = aliasedKey
-  }
-  const aliasedCode = ELECTRON_CODE_ALIASES[code]
-  if (aliasedCode) code = aliasedCode
-  return { ...e, key, code }
-}
-
 export function isSlideshowStopKey(e: SlideshowKeyLike): boolean {
-  const key = normalizeSlideshowKeyLike(e).key
-  return key === 'Escape' || key === ' '
+  return e.key === 'Escape' || e.key === ' '
 }
 
 /** Tab — open in-app image editor during slideshow. */
@@ -329,6 +294,8 @@ export function isStopSlideshowKey(e: SlideshowKeyLike): boolean {
 }
 
 export function isPipeUndoKey(e: SlideshowKeyLike): boolean {
-  // | is typically Shift+\ — key is '|' (OemPipe alone without Shift is Backslash)
-  return e.key === '|' || ((e.code === 'Backslash' || e.code === 'IntlBackslash') && !!e.shiftKey)
+  // Physical key under Backspace / above Enter (US ANSI \ |, Forms Keys.OemPipe).
+  // Shift is not required — C# treated OemPipe as that key, not only `|`.
+  if (e.code === 'Backslash' || e.code === 'IntlBackslash') return true
+  return e.key === '\\' || e.key === '|'
 }

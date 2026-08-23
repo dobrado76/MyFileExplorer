@@ -105,7 +105,6 @@ export function ExplorerShell(): JSX.Element {
 
   const onKeyDown = useCallback((e: KeyboardEvent): void => {
     const s = useAppStore.getState()
-    if (s.slideshow.active) return
     if (s.dialog || s.contextMenu) return
     const editing = isEditingTarget(e.target) || s.renamingPath !== null || s.addressEditing
 
