@@ -227,6 +227,18 @@ export type MyFileExplorerApi = {
     >
     customIconUrl(req: { id: string }): Promise<Result<{ mediaUrl: string | null }>>
   }
+  quickLaunch: {
+    pickProgram(): Promise<
+      Result<{ cancelled: true } | { cancelled: false; path: string; name: string }>
+    >
+    importIcon(): Promise<
+      Result<{ cancelled: true } | { cancelled: false; id: string; mediaUrl: string }>
+    >
+    iconUrl(req: { id: string }): Promise<Result<{ mediaUrl: string | null }>>
+    deleteIcon(req: { id: string }): Promise<Result<{ ok: true }>>
+    launch(req: { id: string }): Promise<Result<{ launched: true }>>
+    reveal(req: { id: string }): Promise<Result<{ shown: true }>>
+  }
   session: {
     get(): Promise<Result<SessionState>>
     set(session: SessionState): Promise<Result<SessionState>>
@@ -755,6 +767,7 @@ export type MyFileExplorerApi = {
       source: string
       instruction: string
       language?: import('../schemas/scripts').ScriptLanguage
+      target?: import('../schemas/scripts').ScriptRunMode
       providerId?: string
       model?: string
     }): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>
@@ -766,6 +779,7 @@ export type MyFileExplorerApi = {
       os?: string
       runtime?: string
       redactPaths: boolean
+      target?: import('../schemas/scripts').ScriptRunMode
       providerId?: string
       model?: string
     }): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>

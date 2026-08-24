@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
-import type { ScriptDefinition, ScriptLanguage } from '@shared/schemas/scripts'
-import { defaultScriptDefinition, scriptFileExtension } from '@shared/schemas/scripts'
+import type { ScriptDefinition, ScriptLanguage, ScriptScope } from '@shared/schemas/scripts'
+import {
+  defaultScriptDefinition,
+  isGlobalScript,
+  scriptFileExtension
+} from '@shared/schemas/scripts'
 import { looksDestructive } from '@shared/scriptDestructive'
 import { useAppStore } from '../store/appStore'
 import {
@@ -35,7 +39,9 @@ const T = {
   extensions:
     'For Selection scope: only offer this script when every selected file has one of these extensions (e.g. jpg, png). Leave empty to allow any type.',
   minSelection:
-    'For Selection scope: hide the script in the context menu unless at least this many items are selected. 0 = no minimum.',
+    'For Selection scope: hide the script in the context menu unless at least this many items are selected. 0 = no minimum. Ignored when Global is on.',
+  global:
+    'Run from its toolbar button with no folder and no selection (the strip is hidden until you save a global script). Turns off Folder, Selection, Recursive, and Context menu. External file can stay on.',
   parameters:
     'One parameter per line: name|type|label|required. Types: string, int, float, bool, file, folder, choice. Required is 1 or 0. At run time each value is passed as --name value.',
   dependencies:
@@ -67,7 +73,7 @@ const T = {
   save: 'Write this script to the library under app data. Later runs are local — no AI.',
   dryRunBtn:
     'Save if needed, then run with --dry-run. Use this when the script supports a preview pass.',
-  run: 'Save if needed, then execute as your Windows user on the current folder or selection. Live output and Stop are in the next dialog.',
+  run: 'Save if needed, then execute as your Windows user. Folder/selection scripts use the current view; Global scripts do not. Live output and Stop are in the next dialog.',
   close: 'Close Script Manager. Unsaved edits are discarded. After Dry run / Run, Close on that window returns here.'
 } as const
 
@@ -93,7 +99,8 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
   const [name, setName] = useState('New script')
   const [description, setDescription] = useState('')
   const [language, setLanguage] = useState<ScriptLanguage>('powershell')
-  const [scopes, setScopes] = useState<Array<'folder' | 'selection'>>(['folder'])
+  const [scopes, setScopes] = useState<ScriptScope[]>(['folder'])
+  const global = isGlobalScript({ scopes })
   const [recursive, setRecursive] = useState(false)
   const [contextMenuEnabled, setContextMenuEnabled] = useState(true)
   const [destructive, setDestructive] = useState(false)
@@ -117,8 +124,8 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
     return library.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
+        (s.description ?? '').toLowerCase().includes(q) ||
+        (s.category ?? '').toLowerCase().includes(q)
     )
   }, [library, query])
 
@@ -246,10 +253,14 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
       kind: 'script-run',
       scriptId: id,
       name,
-      mode: selected.length > 0 && scopes.includes('selection') ? 'selection' : 'folder',
-      root: tab.path,
-      paths: selected,
-      recursive,
+      mode: global
+        ? 'global'
+        : selected.length > 0 && scopes.includes('selection')
+          ? 'selection'
+          : 'folder',
+      root: global ? undefined : tab.path,
+      paths: global ? undefined : selected,
+      recursive: global ? false : recursive,
       dryRun
     })
   }
@@ -342,12 +353,13 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                     language,
                     name,
                     description,
-                    mode:
-                      selected.length > 0 && scopes.includes('selection')
+                    mode: global
+                      ? 'global'
+                      : selected.length > 0 && scopes.includes('selection')
                         ? 'selection'
                         : 'folder',
-                    recursive,
-                    folderPath: tab.path
+                    recursive: global ? false : recursive,
+                    folderPath: global ? undefined : tab.path
                   })
                 }}
               >
@@ -552,6 +564,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                 <input
                   value={matchExtensions}
                   placeholder="jpg, png"
+                  disabled={global}
                   onChange={(e) => {
                     setMatchExtensions(e.target.value)
                     setDirty(true)
@@ -566,11 +579,36 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                   type="number"
                   min={0}
                   value={minSelection}
+                  disabled={global}
                   onChange={(e) => {
                     setMinSelection(Number(e.target.value) || 0)
                     setDirty(true)
                   }}
                 />
+              </label>
+              <label className="settings-field script-global-field" title={T.global}>
+                <span>Global</span>
+                <span className="script-global-tick">
+                  <input
+                    type="checkbox"
+                    checked={global}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setScopes(['global'])
+                        setRecursive(false)
+                        setContextMenuEnabled(false)
+                        setDestructive(false)
+                        setDryRunSupported(false)
+                        setMatchExtensions('')
+                        setMinSelection(0)
+                      } else {
+                        setScopes(['folder'])
+                      }
+                      setDirty(true)
+                    }}
+                  />
+                  No folder or selection
+                </span>
               </label>
               <label className="settings-field script-meta-wide" title={T.parameters}>
                 <span>Parameters (name|type|label|required)</span>
@@ -598,14 +636,15 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             </div>
           </div>
           <div className="script-check-row">
-            <label title={T.folder}>
+            <label title={T.folder} className={global ? 'is-disabled' : undefined}>
               <input
                 type="checkbox"
-                checked={scopes.includes('folder')}
+                checked={!global && scopes.includes('folder')}
+                disabled={global}
                 onChange={(e) => {
                   setScopes((cur) => {
                     const next = e.target.checked
-                      ? [...new Set([...cur, 'folder' as const])]
+                      ? [...new Set([...cur.filter((x) => x !== 'global'), 'folder' as const])]
                       : cur.filter((x) => x !== 'folder')
                     return next.length > 0 ? next : ['folder']
                   })
@@ -614,14 +653,15 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Folder
             </label>
-            <label title={T.selection}>
+            <label title={T.selection} className={global ? 'is-disabled' : undefined}>
               <input
                 type="checkbox"
-                checked={scopes.includes('selection')}
+                checked={!global && scopes.includes('selection')}
+                disabled={global}
                 onChange={(e) => {
                   setScopes((cur) => {
                     const next = e.target.checked
-                      ? [...new Set([...cur, 'selection' as const])]
+                      ? [...new Set([...cur.filter((x) => x !== 'global'), 'selection' as const])]
                       : cur.filter((x) => x !== 'selection')
                     return next.length > 0 ? next : ['selection']
                   })
@@ -630,10 +670,11 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Selection
             </label>
-            <label title={T.recursive}>
+            <label title={T.recursive} className={global ? 'is-disabled' : undefined}>
               <input
                 type="checkbox"
-                checked={recursive}
+                checked={!global && recursive}
+                disabled={global}
                 onChange={(e) => {
                   setRecursive(e.target.checked)
                   setDirty(true)
@@ -641,10 +682,11 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Recursive default
             </label>
-            <label title={T.contextMenu}>
+            <label title={T.contextMenu} className={global ? 'is-disabled' : undefined}>
               <input
                 type="checkbox"
-                checked={contextMenuEnabled}
+                checked={!global && contextMenuEnabled}
+                disabled={global}
                 onChange={(e) => {
                   setContextMenuEnabled(e.target.checked)
                   setDirty(true)
@@ -652,10 +694,11 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Context menu
             </label>
-            <label title={T.destructive}>
+            <label title={T.destructive} className={global ? 'is-disabled' : undefined}>
               <input
                 type="checkbox"
                 checked={destructive}
+                disabled={global}
                 onChange={(e) => {
                   setDestructive(e.target.checked)
                   setDirty(true)
@@ -663,10 +706,11 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               />{' '}
               Destructive
             </label>
-            <label title={T.dryRun}>
+            <label title={T.dryRun} className={global ? 'is-disabled' : undefined}>
               <input
                 type="checkbox"
                 checked={dryRunSupported}
+                disabled={global}
                 onChange={(e) => {
                   setDryRunSupported(e.target.checked)
                   setDirty(true)

@@ -87,7 +87,7 @@ export const aiProviderIdSchema = z.object({
 export const aiGenerateRequestSchema = z.object({
   task: z.string().min(1).max(20_000),
   language: z.enum(['auto', ...SCRIPT_LANGUAGES]).catch('auto'),
-  target: z.enum(['folder', 'selection']).catch('folder'),
+  target: z.enum(['folder', 'selection', 'global']).catch('folder'),
   recursive: z.boolean().catch(false),
   providerId: z.string().max(80).optional(),
   model: z.string().max(200).optional()
@@ -99,6 +99,7 @@ export const aiModifyRequestSchema = z.object({
   source: z.string().min(1).max(2_000_000),
   instruction: z.string().min(1).max(20_000),
   language: z.enum(SCRIPT_LANGUAGES).optional(),
+  target: z.enum(['folder', 'selection', 'global']).optional(),
   providerId: z.string().max(80).optional(),
   model: z.string().max(200).optional()
 })
@@ -111,6 +112,7 @@ export const aiFixRequestSchema = z.object({
   os: z.string().max(80).optional(),
   runtime: z.string().max(200).optional(),
   redactPaths: z.boolean().catch(true),
+  target: z.enum(['folder', 'selection', 'global']).optional(),
   providerId: z.string().max(80).optional(),
   model: z.string().max(200).optional()
 })

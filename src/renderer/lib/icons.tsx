@@ -378,6 +378,13 @@ export const SaveIcon = svg(
 export const FolderOpenIcon = svg(
   <path d="M5 4h5l2 2h7a2 2 0 0 1 2 2v1H4V6a2 2 0 0 1 2-2zm-1 5h18l-1.5 10H5.5L4 9z" />
 )
+export const GlobeIcon = svg(
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M2 12h20" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </>
+)
 export const ScriptIcon = svg(
   <>
     <path d="M8 4h8a2 2 0 0 1 2 2v14l-4-2-4 2V6a2 2 0 0 1 2-2z" />

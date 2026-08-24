@@ -38,6 +38,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed)
 - Multi-pane layouts (1 / 2 / 3 / 4) and named layouts you can switch in one click
 - **View presets** — save icon size, columns, and sort; apply without jumping folder
+- **Quick Launch** — toolbar icons for Photoshop, Visual Studio, and any other program you pin
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
 - **NAS / UNC folders reopen instantly** (session listing cache) — **[docs/NETWORKS.md](docs/NETWORKS.md)**
@@ -68,7 +69,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - **Grouped Quick access** — color and collapse pin groups in the tree
 
 **Run anything on the folder in front of you**
-- **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder or selection. Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
+- **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder, selection, or **global** (its own toolbar button when one exists, no folder needed). Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
 - Optional **AI** (same settings page) writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](docs/SCRIPTS.md)**
 
 **Find things on purpose**
@@ -143,7 +144,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D62 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D63 |
 | **[docs/NETWORKS.md](docs/NETWORKS.md)** | Network neighborhood & mapped drives |
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |

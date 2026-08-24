@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type JSX } from 'react'
-import type { ScriptLanguage } from '@shared/schemas/scripts'
+import { isGlobalScript, type ScriptLanguage, type ScriptRunMode } from '@shared/schemas/scripts'
 import type { AiProviderProfile } from '@shared/schemas/ai'
 import { uniqueScriptName } from '@shared/scriptNames'
 import { resolveModifyInstruction } from '@shared/scriptGenerate'
@@ -18,7 +18,7 @@ import {
 } from './scriptUi'
 
 export function ScriptGenerateDialog(props: {
-  mode?: 'folder' | 'selection'
+  mode?: ScriptRunMode
   folderPath?: string
   scriptId?: string
   source?: string
@@ -50,9 +50,10 @@ export function ScriptGenerateDialog(props: {
   const [language, setLanguage] = useState<'auto' | ScriptLanguage>(
     props.language ?? settings.ai.preferredScriptLanguage
   )
-  const [target, setTarget] = useState<'folder' | 'selection'>(
+  const [target, setTarget] = useState<ScriptRunMode>(
     props.mode ?? (selected.length > 0 ? 'selection' : 'folder')
   )
+  const global = target === 'global'
   const [recursive, setRecursive] = useState(props.recursive ?? false)
   const [name, setName] = useState(props.name?.trim() || 'Generated script')
   const [description, setDescription] = useState(props.description ?? '')
@@ -93,6 +94,7 @@ export function ScriptGenerateDialog(props: {
     if (!props.name?.trim()) setName(s.name)
     if (props.description == null) setDescription(s.description)
     if (props.recursive === undefined) setRecursive(s.recursive)
+    if (isGlobalScript(s)) setTarget('global')
   }, [props.scriptId, props.name, props.description, props.recursive])
 
   useEffect(() => {
@@ -181,7 +183,7 @@ export function ScriptGenerateDialog(props: {
           task: task.trim(),
           language,
           target,
-          recursive,
+          recursive: global ? false : recursive,
           providerId,
           model: model || undefined
         })
@@ -208,6 +210,7 @@ export function ScriptGenerateDialog(props: {
           source,
           instruction: how,
           language: language === 'auto' ? undefined : language,
+          target,
           providerId,
           model: model || undefined
         })
@@ -239,16 +242,16 @@ export function ScriptGenerateDialog(props: {
             language: language === 'auto' ? 'powershell' : language,
             interpreter: prior?.interpreter ?? 'auto',
             scopes: [target],
-            recursive,
+            recursive: global ? false : recursive,
             parameters: prior?.parameters ?? [],
-            contextMenuEnabled: prior?.contextMenuEnabled ?? true,
+            contextMenuEnabled: global ? false : (prior?.contextMenuEnabled ?? true),
             destructive,
             dryRunSupported,
             sourceKind: 'managed',
             externalPath: undefined,
             category: prior?.category ?? '',
-            matchExtensions: prior?.matchExtensions ?? [],
-            minSelection: prior?.minSelection ?? 0,
+            matchExtensions: global ? [] : (prior?.matchExtensions ?? []),
+            minSelection: global ? 0 : (prior?.minSelection ?? 0),
             dependencies
           },
           source,
@@ -350,9 +353,9 @@ export function ScriptGenerateDialog(props: {
                     scriptId: id,
                     name,
                     mode: target,
-                    root: props.folderPath,
-                    paths: selected,
-                    recursive,
+                    root: global ? undefined : props.folderPath,
+                    paths: global ? undefined : selected,
+                    recursive: global ? false : recursive,
                     dryRun: true
                   })
                 })
@@ -364,7 +367,11 @@ export function ScriptGenerateDialog(props: {
           <button
             type="button"
             className="btn primary"
-            title="Save to the library, then execute as you on the current folder or selection."
+            title={
+              global
+                ? 'Save to the library, then execute with no folder or selection.'
+                : 'Save to the library, then execute as you on the current folder or selection.'
+            }
             disabled={!!busy || !source}
             onClick={() => {
               void save().then((id) => {
@@ -389,9 +396,9 @@ export function ScriptGenerateDialog(props: {
                   scriptId: id,
                   name,
                   mode: target,
-                  root: props.folderPath,
-                  paths: selected,
-                  recursive,
+                  root: global ? undefined : props.folderPath,
+                  paths: global ? undefined : selected,
+                  recursive: global ? false : recursive,
                   dryRun: false
                 })
               })
@@ -495,21 +502,32 @@ export function ScriptGenerateDialog(props: {
         </label>
         <label
           className="settings-field"
-          title="Folder: script gets --root. Selection: selected paths go in a temp --input-list. AI is not told your paths."
+          title="Folder: script gets --root. Selection: selected paths go in a temp --input-list. Global: no folder or selection — its own toolbar button. AI is not told your paths."
         >
           <span>Target</span>
-          <select value={target} onChange={(e) => setTarget(e.target.value as 'folder' | 'selection')}>
+          <select
+            value={target}
+            onChange={(e) => setTarget(e.target.value as ScriptRunMode)}
+          >
             <option value="folder">Current folder</option>
             <option value="selection">Selected items</option>
+            <option value="global">Global (no folder or selection)</option>
           </select>
         </label>
-        <label
-          className="settings-toggle"
-          title="When the target is the current folder, the script should walk subfolders (--recursive)."
-        >
-          <input type="checkbox" checked={recursive} onChange={(e) => setRecursive(e.target.checked)} />
-          <span>Recursive</span>
-        </label>
+        {!global ? (
+          <label
+            className="settings-toggle"
+            title="When the target is the current folder, the script should walk subfolders (--recursive)."
+          >
+            <input type="checkbox" checked={recursive} onChange={(e) => setRecursive(e.target.checked)} />
+            <span>Recursive</span>
+          </label>
+        ) : (
+          <p className="dim script-global-hint">
+            Global scripts get their own toolbar button. Generated source must not require --root or
+            --input-list.
+          </p>
+        )}
         <label
           className="settings-field script-meta-wide"
           title={

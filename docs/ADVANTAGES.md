@@ -39,6 +39,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Named view presets** | Save icon size, columns, and sort; apply without jumping folder or selection. If the folder already has a customization, Apply updates that override. Explorer has no named view catalog. |
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Grouped Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings. Name groups, color them, collapse them in the tree, drop a folder onto a group. Explorer’s Quick access is a flat, harder-to-curate strip. |
+| **Quick Launch toolbar** | Pin Photoshop, Visual Studio, a browser — anything with an `.exe` or shortcut — as toolbar icons. Manage the list in Settings (the strip is hidden until you add one). Click to launch, right-click for location / remove. Explorer’s old Quick Launch is gone; this one exports with your prefs. |
 
 ---
 
@@ -86,7 +87,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
 | **In-app Power Rename** | Search/replace (literal or regex) across a selection with live preview and per-item include — no PowerToys shell extension required. |
 | **Custom context commands** | Settings → Context menu: hide/reorder built-ins; **Discover** static shell verbs (tick to enable + order under Built-in); add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders — without dumping every Explorer shell verb. All of it exports with settings (D45). For captured output, parameters, and dry-run, use the **script runner** instead of a detached exe. |
-| **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses userData scratch, AV uses byte-range streaming so `<video>` actually plays. |
+| **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses a capped userData scratch (wiped on start/quit), AV uses byte-range streaming so `<video>` actually plays. |
 | **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
 | **Smart clipboard paste** | When the clipboard is a screenshot, text, a URL, or HTML (not files), Paste creates a file in the current folder. **Paste Special** picks format. A URL becomes a `.url` shortcut — never downloaded. Explorer pastes nothing useful for a screenshot in a folder. |
 | **New-file templates** | New / Add → **From Template** copies a stub from the app Templates folder. Pretty name = menu label and default filename. Cap 40. Stored under app data, not next to your files. |
@@ -103,8 +104,8 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Scripts on the current view** | Folder mode passes `--root` (optional `--recursive`). Selection mode passes a temp UTF-8 `--input-list`. You do not retype paths or `cd` a console to the tab you already have open. |
-| **Context menu Scripts >** | After Enable scripting: eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. Same script, any folder, forever. Hidden until you opt in. |
+| **Scripts on the current view** | Folder mode passes `--root` (optional `--recursive`). Selection mode passes a temp UTF-8 `--input-list`. **Global** scripts run from the toolbar with no folder or selection. You do not retype paths or `cd` a console to the tab you already have open. |
+| **Context menu Scripts >** | After Enable scripting: eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. **Global** scripts stay off this menu and live on the toolbar instead. Hidden until you opt in. |
 | **Live Run window** | Stdout/stderr, elapsed time, **Stop**, copy output, remembered size/position. Explorer’s “Open in Terminal” is a detached prompt with no capture. D41 custom commands (`shell:exec`) stay for “open Photoshop” — not for jobs you need to watch. |
 | **Dry-run + first-run ack** | Preview-only flag when the script supports it. Destructive-looking source (`Remove-Item`, `os.remove`, `rm -rf`, …) shows a banner. Scripts run as you — the app does not pretend otherwise. |
 | **Library stays out of your folders** | Managed scripts live under `%APPDATA%\MyFileExplorer\scripts\` (D2). Share a `.mfescript` or point at an external `.ps1` / `.py` already in a repo. No hidden `.bat` next to the photos. |
@@ -148,7 +149,7 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D62)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D63)  
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  

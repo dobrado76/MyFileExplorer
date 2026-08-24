@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.11.0** — **D53–D62** daily workflows (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons); **D52** NTFS USN journal manager; **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.11.0** — **D53–D62** daily workflows (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons); **D63** toolbar Quick Launch (Unreleased); **D52** NTFS USN journal manager; **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -41,7 +41,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/BUILD.md](docs/BUILD.md)                             | Local build + tagged GitHub Releases |
 | [docs/LINUX.md](docs/LINUX.md)                             | Experimental Linux AppImage / Wayland |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
-| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D62) |
+| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D63) |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
 | [docs/PROJECT_FORMAT.md](docs/PROJECT_FORMAT.md)           | On-disk `userData` layout     |
 | [docs/UI_DESIGN.md](docs/UI_DESIGN.md)                     | Chrome & themes               |

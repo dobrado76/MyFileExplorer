@@ -88,6 +88,16 @@ import {
   customTabIconMediaUrl
 } from '../tabs/customIcon'
 import {
+  pickQuickLaunchProgram,
+  pickQuickLaunchIconSource,
+  importQuickLaunchIcon,
+  quickLaunchIconFilePath,
+  quickLaunchIconMediaUrl,
+  deleteQuickLaunchIconFile
+} from '../quickLaunch/icons'
+import { launchQuickLaunchItem, revealQuickLaunchItem } from '../quickLaunch/launch'
+import { quickLaunchIdSchema, quickLaunchNameFromPath } from '@shared/schemas/quickLaunch'
+import {
   propertiesRequestSchema,
   setAttributesRequestSchema
 } from '@shared/schemas/properties'
@@ -744,6 +754,37 @@ export function registerIpcHandlers(): void {
     }
     return { mediaUrl: customTabIconMediaUrl(req.id) }
   })
+  handle(IPC.quickLaunchPickProgram, emptySchema, async (_req, event) => {
+    const picked = await pickQuickLaunchProgram(event.sender)
+    if ('cancelled' in picked) return { cancelled: true as const }
+    return {
+      cancelled: false as const,
+      path: picked.path,
+      name: quickLaunchNameFromPath(picked.path)
+    }
+  })
+  handle(IPC.quickLaunchImportIcon, emptySchema, async (_req, event) => {
+    const picked = await pickQuickLaunchIconSource(event.sender)
+    if ('cancelled' in picked) return { cancelled: true as const }
+    const imported = await importQuickLaunchIcon(picked.path)
+    return { cancelled: false as const, ...imported }
+  })
+  handle(IPC.quickLaunchIconUrl, customTabIconIdSchema, async (req) => {
+    const file = quickLaunchIconFilePath(req.id)
+    if (!file) return { mediaUrl: null }
+    try {
+      await fsp.access(file)
+    } catch {
+      return { mediaUrl: null }
+    }
+    return { mediaUrl: quickLaunchIconMediaUrl(req.id) }
+  })
+  handle(IPC.quickLaunchDeleteIcon, customTabIconIdSchema, async (req) => {
+    await deleteQuickLaunchIconFile(req.id)
+    return { ok: true as const }
+  })
+  handle(IPC.quickLaunchLaunch, quickLaunchIdSchema, (req) => launchQuickLaunchItem(req.id))
+  handle(IPC.quickLaunchReveal, quickLaunchIdSchema, (req) => revealQuickLaunchItem(req.id))
   handle(IPC.metaGetMany, metaGetManyRequestSchema, async (req) => ({
     values: await getColumnMetaMany(req.paths, req.columns)
   }))

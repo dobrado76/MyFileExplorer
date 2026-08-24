@@ -1,5 +1,5 @@
 import { normalizeExtensions } from './contextMenuCommands'
-import type { ScriptDefinition, ScriptScope } from './schemas/scripts'
+import { isGlobalScript, type ScriptDefinition, type ScriptScope } from './schemas/scripts'
 
 function extensionOf(path: string): string {
   const base = path.replace(/[\\/]+$/, '')
@@ -19,7 +19,7 @@ export type ScriptMenuContext = {
 }
 
 export function scriptHasScope(script: Pick<ScriptDefinition, 'scopes'>, scope: ScriptScope): boolean {
-  return script.scopes.includes(scope)
+  return Array.isArray(script.scopes) && script.scopes.includes(scope)
 }
 
 /**
@@ -35,6 +35,7 @@ export function scriptMatchesMenu(
   ctx: ScriptMenuContext
 ): boolean {
   if (!script.contextMenuEnabled) return false
+  if (isGlobalScript(script)) return false
 
   if (ctx.selectionKind === 'empty') {
     return scriptHasScope(script, 'folder') && !!ctx.folderPath

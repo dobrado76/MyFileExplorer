@@ -6,6 +6,7 @@ import { AppError } from '@shared/result'
 import { uniqueScriptName } from '@shared/scriptNames'
 import { parseScriptImport } from '@shared/scriptImport'
 import {
+  applyGlobalScriptRules,
   defaultScriptDefinition,
   languageFromExtension,
   MFESCRIPT_FORMAT,
@@ -58,7 +59,7 @@ function persist(scripts: ScriptDefinition[]): ScriptDefinition[] {
 }
 
 export function listScripts(): ScriptDefinition[] {
-  return scriptLibraryFileSchema.parse(libraryStore().get()).scripts
+  return scriptLibraryFileSchema.parse(libraryStore().get()).scripts.map(applyGlobalScriptRules)
 }
 
 export function getScript(id: string): ScriptDefinition {
@@ -146,19 +147,21 @@ export async function upsertScript(input: {
     createdAt: now,
     updatedAt: now
   }
-  const next = scriptDefinitionSchema.parse({
-    ...base,
-    ...input.script,
-    id,
-    createdAt: existing?.createdAt || now,
-    updatedAt: now,
-    name: uniqueScriptName(
-      (input.script.name ?? base.name).trim() || 'Untitled script',
-      listScripts()
-        .filter((s) => s.id !== id)
-        .map((s) => s.name)
-    )
-  })
+  const next = applyGlobalScriptRules(
+    scriptDefinitionSchema.parse({
+      ...base,
+      ...input.script,
+      id,
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+      name: uniqueScriptName(
+        (input.script.name ?? base.name).trim() || 'Untitled script',
+        listScripts()
+          .filter((s) => s.id !== id)
+          .map((s) => s.name)
+      )
+    })
+  )
   if (!next.name) throw new AppError('validation', 'Name is required')
   if (next.sourceKind === 'external') {
     if (!next.externalPath) throw new AppError('validation', 'External script path is required')

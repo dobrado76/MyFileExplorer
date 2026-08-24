@@ -63,7 +63,9 @@ export async function executeScriptRun(req: ScriptRunRequest): Promise<{
     throw new AppError('validation', 'Provide a saved script or source + language')
   }
 
-  if (req.mode === 'folder') {
+  if (req.mode === 'global') {
+    cwd = path.dirname(scriptPath)
+  } else if (req.mode === 'folder') {
     if (!req.root) throw new AppError('validation', 'Folder scripts need a current folder')
     cwd = requireAbsolute(req.root)
   } else {

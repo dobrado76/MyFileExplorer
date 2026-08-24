@@ -92,6 +92,14 @@ export const IPC = {
   /** mfe-media URL for a stored custom tab icon PNG. */
   tabsCustomIconUrl: 'tabs:customIconUrl',
 
+  /** Toolbar Quick Launch (D63). */
+  quickLaunchPickProgram: 'quickLaunch:pickProgram',
+  quickLaunchImportIcon: 'quickLaunch:importIcon',
+  quickLaunchIconUrl: 'quickLaunch:iconUrl',
+  quickLaunchDeleteIcon: 'quickLaunch:deleteIcon',
+  quickLaunchLaunch: 'quickLaunch:launch',
+  quickLaunchReveal: 'quickLaunch:reveal',
+
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   settingsClearThumbCache: 'settings:clearThumbCache',

@@ -34,7 +34,7 @@ That is the point of v0.9: the app ships a **stable place to run code against th
 | ---- | -------- |
 | Saved library of local scripts, run from the toolbar or context **Scripts** | A plugin SDK or marketplace |
 | Live stdout/stderr, elapsed time, Stop | A detached window you lose (`shell:exec` / D41) |
-| Folder (`--root`) or selection (`--input-list`) contract | “Run whatever is in PATH as a shell string” |
+| Folder (`--root`), selection (`--input-list`), or **global** (no path args) | “Run whatever is in PATH as a shell string” |
 | Optional AI that drafts / modifies / repairs **source** | An agent that browses your disk |
 | Dry-run flag + first-run risk ack | Silent `pip install` or auto-elevation |
 | Repeatable verbs you keep forever | File Automator / node-editor pipelines ([FUTURE_IDEAS.md](FUTURE_IDEAS.md)) |
@@ -56,12 +56,13 @@ That is the point of v0.9: the app ships a **stable place to run code against th
 
 ## Mental model
 
-You are always in a **folder**, and you may have a **selection**.
+You are always in a **folder**, and you may have a **selection**. Some jobs need neither.
 
 1. **Folder scope** — “do this to the place I am looking at.” The runner passes `--root` (absolute path of the current tab folder) and, if you tick it, `--recursive`. Working directory is that folder.
 2. **Selection scope** — “do this to what I highlighted.” Paths go in a **temp UTF-8 manifest** (one absolute path per line). The runner passes `--input-list` pointing at that file, then deletes it when the process exits. Working directory is the parent of the first selected path.
+3. **Global scope** — “do this with no current folder or selection.” Tick **Global** in Script Manager (next to Min selection). Folder, Selection, Recursive, Context menu, Destructive, and Dry-run supported turn off and stay disabled; **External file** can stay on. The script appears as its own toolbar button (the strip is hidden when none exist). The runner passes only optional `--dry-run` and named `--params`. Working directory is the folder that contains the script file.
 
-A script can enable **one or both** scopes. Context **Scripts >** only lists items that match:
+A script can enable **folder, selection, or both**. **Global is exclusive** of those. Context **Scripts >** only lists folder/selection items that match:
 
 | Filter | Effect |
 | ------ | ------ |
@@ -85,7 +86,7 @@ Every script must parse **argv**, not a single shell string.
 | `--root <folder>` | Folder mode | Absolute folder to operate on |
 | `--recursive` | Folder mode, optional | Walk subfolders (you still decide what that means) |
 | `--input-list <file>` | Selection mode | UTF-8 text file, one absolute path per line (empty lines ignored) |
-| `--dry-run` | Either, optional | Print what would change; exit 0; **do not write or delete** |
+| `--dry-run` | Optional | Print what would change; exit 0; **do not write or delete** |
 | `--<name> [value]` | When you defined parameters | See [Parameters](#parameters) |
 
 **Folder:**
@@ -99,6 +100,14 @@ script --root "D:\Photos\2026" [--recursive] [--dry-run] [--param …]
 ```text
 script --input-list "C:\Users\…\AppData\Local\Temp\mfe-….txt" [--dry-run] [--param …]
 ```
+
+**Global:**
+
+```text
+script [--dry-run] [--param …]
+```
+
+Generate / Modify with AI uses the same target. If Target is **Global**, the model is told not to emit `--root` or `--input-list`.
 
 Treat unknown flags as errors. Write progress to **stdout**; errors to **stderr**. Do not open a GUI prompt — the Run window is the console.
 
@@ -164,14 +173,14 @@ A first install stays a plain file manager. The toolbar Scripts button and conte
 
 ### Script Manager
 
-Toolbar **Scripts** or context **Scripts → Manage Scripts…** (only after scripting is enabled).
+Toolbar **Scripts** (manager), a global script’s toolbar button (right-click), or context **Scripts → Manage Scripts…** (only after scripting is enabled).
 
 - Movable and resizable. **Maximize** (and the restored size) persist. Maximized uses a two-column field layout so the editor is taller.
 - Every field and button has a hover tip.
 - **New** — blank managed script (nothing sent to AI).
-- **Generate with AI…** — optional; task text only.
+- **Generate with AI…** — optional; task text only. Target **Global** when the script must not take a folder or selection.
 - **Import** / **Export** — Import a `.ps1` / `.py` / `.cmd` / `.sh` (copied into the library) or a `.mfescript` JSON export. Export writes `.mfescript`.
-- Write or paste source. Set language, folder vs selection, recursive default, filters, parameters, dependencies.
+- Write or paste source. Set language, folder vs selection, or **Global** (next to Min selection). Global turns off Folder / Selection / Recursive / Context menu / Destructive / Dry-run; External file can stay. Parameters and dependencies still apply.
 - **External file** — run a `.ps1` / `.py` / `.cmd` / `.bat` / `.sh` on disk. Hides the in-app editor (one or the other). The file is not copied into app data.
 - **Save** writes `%APPDATA%\MyFileExplorer\scripts\library.json` plus `managed/<id>.<ext>`. Later runs are local. If the display name is already used, Save appends ` (2)`, ` (3)`, … (same idea as Explorer). The library list is never sent to AI.
 

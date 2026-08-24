@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.11.0** — daily-workflow closeout **D53–D62** (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D62**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.11.0** — daily-workflow closeout **D53–D62**. **D63** Quick Launch is in tree (Unreleased). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D63**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D62               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D63               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |

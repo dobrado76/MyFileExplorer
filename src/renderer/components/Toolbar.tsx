@@ -31,6 +31,8 @@ import { SearchOptionsMenu } from './SearchOptionsMenu'
 import { ViewLayoutSelector } from './ViewLayoutSelector'
 import { RemoteReposToolbar } from './RemoteReposToolbar'
 import { MediaLibraryToolbar } from './MediaLibraryToolbar'
+import { GlobalScriptsMenu } from './GlobalScriptsMenu'
+import { QuickLaunchToolbar } from './QuickLaunchToolbar'
 import { isVolumeRootPath } from '../lib/rightDrag'
 
 export function Toolbar(): JSX.Element {
@@ -249,6 +251,10 @@ export function Toolbar(): JSX.Element {
         </div>
       )}
 
+      {settings.scripts?.enabled ? <GlobalScriptsMenu /> : null}
+
+      <QuickLaunchToolbar />
+
       <RemoteReposToolbar />
       <MediaLibraryToolbar />
 
@@ -316,7 +322,7 @@ export function Toolbar(): JSX.Element {
           <PanelIcon />
         </button>
         <LayoutsMenu />
-        {settings.scripts.enabled && (
+        {settings.scripts?.enabled && (
           <button
             className="icon-btn"
             aria-label="Scripts"

@@ -10,6 +10,8 @@
  * <=128 MiB seekable: ranges served from an in-memory copy (source closed).
  * Larger seekable: byte-range streams from the allowlisted path (no full
  * scratch copy — multi-GB movies must start without a second disk write).
+ * Larger non-AV: copy into userData/media-scratch (emptied on start/quit;
+ * cap 20, oldest evicted first).
  */
 import { app, protocol } from 'electron'
 import crypto from 'node:crypto'
@@ -20,6 +22,7 @@ import { Readable } from 'node:stream'
 import { isSameOrUnder, protocolAllowlist } from '../security/paths'
 import { MODEL_SCHEME } from './modelProtocol'
 import { ORT_SCHEME } from './ortProtocol'
+import { emptyMediaScratchDir, emptyMediaScratchDirSync, evictOldestMediaScratch } from './scratch'
 
 export const MEDIA_SCHEME = 'mfe-media'
 
@@ -223,6 +226,17 @@ function isSeekable(filePath: string): boolean {
 
 let scratchDir: string | null = null
 const scratchInFlight = new Map<string, Promise<string>>()
+/** Serialize new copies so two large previews cannot both skip the cap. */
+let scratchCreateTail: Promise<unknown> = Promise.resolve()
+
+function enqueueScratchCreate<T>(fn: () => Promise<T>): Promise<T> {
+  const run = scratchCreateTail.then(fn, fn)
+  scratchCreateTail = run.then(
+    () => undefined,
+    () => undefined
+  )
+  return run
+}
 
 function mediaScratchDir(): string {
   if (!scratchDir) {
@@ -259,8 +273,16 @@ async function ensureScratchCopy(
   const pending = scratchInFlight.get(key)
   if (pending) return pending
 
-  const job = (async (): Promise<string> => {
-    await fsp.mkdir(mediaScratchDir(), { recursive: true })
+  const job = enqueueScratchCreate(async (): Promise<string> => {
+    try {
+      await fsp.access(dest)
+      return dest
+    } catch {
+      /* still need copy */
+    }
+    const dir = mediaScratchDir()
+    await fsp.mkdir(dir, { recursive: true })
+    await evictOldestMediaScratch(dir, { keepPath: dest })
     const tmp = `${dest}.tmp`
     try {
       await fsp.copyFile(filePath, tmp)
@@ -269,11 +291,12 @@ async function ensureScratchCopy(
     } catch (e) {
       await fsp.unlink(tmp).catch(() => undefined)
       throw e
-    } finally {
-      scratchInFlight.delete(key)
     }
-  })()
+  })
   scratchInFlight.set(key, job)
+  void job.finally(() => {
+    scratchInFlight.delete(key)
+  })
   return job
 }
 
@@ -462,9 +485,14 @@ export function registerMediaProtocolHandler(): void {
   })
 }
 
-/** Drop scratch copies (Settings → clear caches can call this later). */
+/** Drop scratch copies (start, Settings → clear caches). */
 export async function clearMediaScratch(): Promise<void> {
-  const dir = mediaScratchDir()
-  await fsp.rm(dir, { recursive: true, force: true })
-  await fsp.mkdir(dir, { recursive: true })
+  scratchInFlight.clear()
+  await emptyMediaScratchDir(mediaScratchDir())
+}
+
+/** Drop scratch copies on quit — must finish before the process exits. */
+export function clearMediaScratchSync(): void {
+  scratchInFlight.clear()
+  emptyMediaScratchDirSync(mediaScratchDir())
 }

@@ -87,6 +87,17 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `templates:duplicate` | `{ id }` | template — copies the stored file, inserts after the original with a unique pretty name |
 | `templates:instantiate` | `{ id, destDir }` | `{ path }` — unique-named copy in dest (`name` stem + input extension) |
 
+### `quickLaunch.*` (D63)
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `quickLaunch:pickProgram` | — | `{ cancelled: true }` or `{ cancelled: false, path, name }` — native picker for `.exe` / `.lnk` / `.url` / `.bat` / `.cmd` / `.msc` |
+| `quickLaunch:importIcon` | — | `{ cancelled: true }` or `{ cancelled: false, id, mediaUrl }` — Sharp cover-crop to `userData/quick-launch/{id}.png` |
+| `quickLaunch:iconUrl` | `{ id }` | `{ mediaUrl }` — `mfe-media` URL, or `null` if missing |
+| `quickLaunch:deleteIcon` | `{ id }` | `{ ok: true }` |
+| `quickLaunch:launch` | `{ id }` | `{ launched: true }` — reads the item from settings; `.lnk` via ShellExecute, else `shell:exec` |
+| `quickLaunch:reveal` | `{ id }` | `{ shown: true }` — Explorer “Open file location” |
+
 ### `tabs.*` (custom icons — D54)
 
 | Channel | Request | Response |

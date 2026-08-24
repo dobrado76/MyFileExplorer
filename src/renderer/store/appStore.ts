@@ -286,7 +286,7 @@ export type DialogState =
       source?: string
       language?: import('@shared/schemas/scripts').ScriptLanguage
       name?: string
-      mode: 'folder' | 'selection'
+      mode: import('@shared/schemas/scripts').ScriptRunMode
       root?: string
       paths?: string[]
       recursive?: boolean
@@ -294,7 +294,7 @@ export type DialogState =
     }
   | {
       kind: 'script-generate'
-      mode?: 'folder' | 'selection'
+      mode?: import('@shared/schemas/scripts').ScriptRunMode
       folderPath?: string
       scriptId?: string
       source?: string
@@ -5840,7 +5840,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         (dialog.kind === 'script-manager' ||
           dialog.kind === 'script-run' ||
           dialog.kind === 'script-generate') &&
-        !get().settings.scripts.enabled
+        !get().settings.scripts?.enabled
       ) {
         get().notify('Enable scripting in Settings → Scripting and AI', true)
         return

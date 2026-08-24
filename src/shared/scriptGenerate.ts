@@ -1,5 +1,5 @@
 import { generatedScriptSchema, type GeneratedScript } from './schemas/ai'
-import type { ScriptLanguage } from './schemas/scripts'
+import type { ScriptLanguage, ScriptRunMode } from './schemas/scripts'
 
 /** Modify uses the dedicated instruction, or the Task text if that field is empty. */
 export function resolveModifyInstruction(instruction: string, task: string): string {
@@ -15,13 +15,29 @@ Honor --dry-run by printing what would change and exiting 0 without writing/dele
 Do not prompt for GUI input. Write progress to stdout; errors to stderr.
 `.trim()
 
+export const SCRIPT_CLI_CONTRACT_GLOBAL = `
+CLI contract the script MUST implement (argv, not a shell string):
+- Global target: the script is invoked with optional [--dry-run] [--param value…] only.
+- Do NOT require --root, --recursive, or --input-list. Do not assume a current folder or a file selection.
+Honor --dry-run by printing what would change and exiting 0 without writing/deleting.
+Do not prompt for GUI input. Write progress to stdout; errors to stderr.
+`.trim()
+
+export function scriptCliContract(target: ScriptRunMode): string {
+  return target === 'global' ? SCRIPT_CLI_CONTRACT_GLOBAL : SCRIPT_CLI_CONTRACT
+}
+
 export function buildScriptSystemPrompt(input: {
   os: string
   runtimes: string[]
-  target: 'folder' | 'selection'
+  target: ScriptRunMode
   language: 'auto' | ScriptLanguage
   recursive: boolean
 }): string {
+  const recursiveNote =
+    input.target === 'folder' && input.recursive
+      ? ' (recursive flag will be passed when the user enables it)'
+      : ''
   return [
     'You write local file-manager helper scripts. Output JSON only (no markdown) with keys:',
     'name, description, language, destructive, dryRunSupported, dependencies, source.',
@@ -31,11 +47,13 @@ export function buildScriptSystemPrompt(input: {
     'dependencies is an array of pip/module names the user must install themselves — never install packages.',
     'AI never receives user files, paths, or folder listings. Do not ask for them. Do not embed sample paths from the user.',
     `Host OS: ${input.os}. Available runtimes: ${input.runtimes.join(', ') || 'unknown'}.`,
-    `Target mode: ${input.target}${input.recursive ? ' (recursive flag will be passed when the user enables it)' : ''}.`,
+    input.target === 'global'
+      ? 'Target mode: global. This script runs from the toolbar with no folder and no selection. Do not generate code that needs --root or --input-list.'
+      : `Target mode: ${input.target}${recursiveNote}.`,
     input.language === 'auto'
       ? 'Pick the best language for this OS and the available runtimes.'
       : `Write the script in ${input.language}.`,
-    SCRIPT_CLI_CONTRACT,
+    scriptCliContract(input.target),
     'Keep the script self-contained. Parse argv yourself. Treat unknown flags as errors.'
   ].join('\n')
 }

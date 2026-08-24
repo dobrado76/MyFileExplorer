@@ -106,13 +106,13 @@ export function AiSettingsPanel(): JSX.Element {
     }
   }
 
-  const scriptingOn = settings.scripts.enabled
+  const scriptingOn = settings.scripts?.enabled === true
 
   return (
     <div className="settings-stack">
       <label
         className="settings-toggle"
-        title="Off by default. On: Script Manager on the toolbar and Scripts on the context menu. Scripts run as your Windows user."
+        title="Off by default. On: Script Manager, a toolbar button for each global script, and Scripts on the context menu. Scripts run as your Windows user."
       >
         <input
           type="checkbox"
@@ -122,8 +122,8 @@ export function AiSettingsPanel(): JSX.Element {
         <span className="settings-toggle-text">
           <span className="settings-toggle-label">Enable scripting</span>
           <span className="settings-toggle-hint">
-            Off by default. On: Script Manager on the toolbar and Scripts on the context menu.
-            Scripts run as your Windows user and can change or delete files.
+            Off by default. On: Script Manager, a toolbar button for each global script, and Scripts
+            on the context menu. Scripts run as your Windows user and can change or delete files.
           </span>
         </span>
       </label>
@@ -149,12 +149,12 @@ export function AiSettingsPanel(): JSX.Element {
         >
           <span>{k}</span>
           <input
-            value={settings.scripts.interpreterOverrides[k] ?? ''}
+            value={settings.scripts?.interpreterOverrides[k] ?? ''}
             onChange={(e) =>
               void applySettingsPatch({
                 scripts: {
                   interpreterOverrides: {
-                    ...settings.scripts.interpreterOverrides,
+                    ...settings.scripts?.interpreterOverrides,
                     [k]: e.target.value
                   }
                 }

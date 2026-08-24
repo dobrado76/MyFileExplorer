@@ -5,10 +5,15 @@ export type ScriptLanguage = (typeof SCRIPT_LANGUAGES)[number]
 
 export const scriptLanguageSchema = z.enum(SCRIPT_LANGUAGES)
 
-export const SCRIPT_SCOPES = ['folder', 'selection'] as const
+export const SCRIPT_SCOPES = ['folder', 'selection', 'global'] as const
 export type ScriptScope = (typeof SCRIPT_SCOPES)[number]
 
 export const scriptScopeSchema = z.enum(SCRIPT_SCOPES)
+
+export const SCRIPT_RUN_MODES = ['folder', 'selection', 'global'] as const
+export type ScriptRunMode = (typeof SCRIPT_RUN_MODES)[number]
+
+export const scriptRunModeSchema = z.enum(SCRIPT_RUN_MODES)
 
 export const SCRIPT_PARAM_TYPES = [
   'string',
@@ -62,6 +67,30 @@ export const scriptDefinitionSchema = z.object({
 
 export type ScriptDefinition = z.infer<typeof scriptDefinitionSchema>
 
+export function isGlobalScript(script: Pick<ScriptDefinition, 'scopes'> | null | undefined): boolean {
+  return Array.isArray(script?.scopes) && script.scopes.includes('global')
+}
+
+/** Global is exclusive of folder/selection. */
+export function normalizeScriptScopes(scopes: ScriptScope[] | null | undefined): ScriptScope[] {
+  const list = Array.isArray(scopes) ? scopes : []
+  if (list.includes('global')) return ['global']
+  const next = list.filter((s): s is 'folder' | 'selection' => s === 'folder' || s === 'selection')
+  return next.length > 0 ? next : ['folder']
+}
+
+export function applyGlobalScriptRules<T extends ScriptDefinition>(script: T): T {
+  if (!isGlobalScript(script)) return { ...script, scopes: normalizeScriptScopes(script.scopes) }
+  return {
+    ...script,
+    scopes: ['global'],
+    recursive: false,
+    contextMenuEnabled: false,
+    matchExtensions: [],
+    minSelection: 0
+  }
+}
+
 export const scriptLibraryFileSchema = z.object({
   version: z.literal(1).catch(1),
   scripts: z.array(scriptDefinitionSchema).catch([])
@@ -78,7 +107,7 @@ export const scriptRunRequestSchema = z.object({
   language: scriptLanguageSchema.optional(),
   source: z.string().max(2_000_000).optional(),
   interpreter: z.string().max(500).optional(),
-  mode: z.enum(['folder', 'selection']),
+  mode: scriptRunModeSchema,
   root: z.string().max(1000).optional(),
   paths: z.array(z.string().min(1).max(1000)).max(100_000).optional(),
   recursive: z.boolean().optional(),

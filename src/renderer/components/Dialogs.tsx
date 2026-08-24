@@ -73,6 +73,7 @@ import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { CreateLinkDialog } from './CreateLinkDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
+import { QuickLaunchSettingsPanel } from './QuickLaunchSettingsPanel'
 import { CloseIcon } from '../lib/icons'
 import { CoverPickerDialog } from './CoverPickerDialog'
 import { ScriptManagerDialog } from './ScriptManagerDialog'
@@ -3633,6 +3634,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
           )}
 
           {section === 'contextmenu' && <ContextMenuSettingsPanel />}
+
+          {section === 'quicklaunch' && <QuickLaunchSettingsPanel />}
 
           {section === 'quickaccess' && (
             <div className="settings-stack">

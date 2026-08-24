@@ -3,6 +3,7 @@ export type SettingsSection =
   | 'behavior'
   | 'contextmenu'
   | 'quickaccess'
+  | 'quicklaunch'
   | 'layouts'
   | 'folderviews'
   | 'filter'
@@ -49,6 +50,12 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     label: 'Quick access',
     keywords:
       'quick access pin unpin desktop downloads documents pictures shortcuts tree favorites group groups color'
+  },
+  {
+    id: 'quicklaunch',
+    label: 'Quick Launch',
+    keywords:
+      'quick launch toolbar photoshop visual studio vscode browser chrome firefox pin program exe shortcut icon app dock'
   },
   {
     id: 'layouts',
@@ -102,7 +109,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'ai',
     label: 'Scripting and AI',
     keywords:
-      'scripting scripts ai python powershell pwsh cmd bash interpreter openai openrouter lmstudio provider api key model temperature tokens generate runner'
+      'scripting scripts ai python powershell pwsh cmd bash interpreter openai openrouter lmstudio provider api key model temperature tokens generate runner global'
   },
   {
     id: 'advanced',

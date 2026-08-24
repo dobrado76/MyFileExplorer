@@ -49,6 +49,35 @@ describe('parseScriptImport', () => {
     expect(g.source).toBe(src)
   })
 
+  it('imports a global-scope .mfescript', () => {
+    const g = parseScriptImport(
+      'pack.mfescript',
+      JSON.stringify({
+        format: MFESCRIPT_FORMAT,
+        formatVersion: MFESCRIPT_FORMAT_VERSION,
+        script: {
+          name: 'Ping hosts',
+          language: 'python',
+          interpreter: 'auto',
+          scopes: ['global'],
+          recursive: false,
+          parameters: [],
+          contextMenuEnabled: false,
+          destructive: false,
+          dryRunSupported: false,
+          sourceKind: 'managed',
+          category: '',
+          matchExtensions: [],
+          minSelection: 0,
+          dependencies: []
+        },
+        source: 'print("ok")\n'
+      })
+    )
+    expect(g.script.scopes).toEqual(['global'])
+    expect(g.script.contextMenuEnabled).toBe(false)
+  })
+
   it('rejects an unknown extension that is not JSON', () => {
     expect(() => parseScriptImport('notes.txt', 'hello')).toThrow(/supported script file/i)
   })

@@ -24,6 +24,7 @@ alwaysApply: true
 - Custom media protocol is allowlisted only.
 - Del → Recycle Bin; Shift+Del permanent with confirms for multi/dir.
 - Do not browse or exfiltrate user home/disk “to verify” beyond what the user asked.
+- **HARD RULE:** the live `settings.json` (userData / `.dev-user-data`) is private. Never Read, Grep, or otherwise load it into the model. Local repo scripts may touch it on disk; do not bring the file body (or a dump of it) into chat. See [settings-privacy.mdc](settings-privacy.mdc).
 
 ## Specs vs code
 

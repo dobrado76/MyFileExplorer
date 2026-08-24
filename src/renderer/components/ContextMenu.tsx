@@ -129,7 +129,7 @@ function scriptsSubmenu(
   s: ReturnType<typeof useAppStore.getState>,
   ctx: ScriptMenuContext
 ): MenuItem | null {
-  if (!s.settings.scripts.enabled) return null
+  if (!s.settings.scripts?.enabled) return null
   if (isRemoteLocation(ctx.folderPath) || ctx.selectedPaths.some((p) => isRemoteLocation(p))) {
     return null
   }
@@ -140,7 +140,9 @@ function scriptsSubmenu(
     onRun(script: ScriptDefinition) {
       close()
       const selectionMode =
-        script.scopes.includes('selection') && ctx.selectedPaths.length > 0
+        Array.isArray(script.scopes) &&
+        script.scopes.includes('selection') &&
+        ctx.selectedPaths.length > 0
       s.openDialog({
         kind: 'script-run',
         scriptId: script.id,

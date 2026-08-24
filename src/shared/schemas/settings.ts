@@ -75,6 +75,7 @@ import {
   type QuickAccessItem
 } from './quickAccess'
 import { sanitizeViewPresets, viewPresetSchema, type ViewPreset } from './viewPresets'
+import { sanitizeQuickLaunch, quickLaunchItemSchema, type QuickLaunchItem } from './quickLaunch'
 import { normalizeFolderStatsSkipPaths } from '../folderStatsSkip'
 import {
   DEFAULT_USN_JOURNAL_DELTA_BYTES,
@@ -456,6 +457,10 @@ const settingsFieldsSchema = z.object({
   quickAccessPins: z.array(z.string()).catch([]),
   /** @deprecated Migrated into `quickAccess` on edit. */
   quickAccessHiddenDefaults: z.array(z.string()).catch([]),
+  /** Toolbar Quick Launch apps (D63). Custom icons live under userData/quick-launch/. */
+  quickLaunch: z
+    .preprocess(sanitizeQuickLaunch, z.array(quickLaunchItemSchema).catch([]))
+    .catch([]),
   /** Local folder or GitHub Releases URL for installer updates. */
   updatesFolder: z.string().catch(DEFAULT_UPDATES_SOURCE),
   /**
@@ -695,6 +700,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   quickAccess: [] satisfies QuickAccessItem[],
   quickAccessPins: [],
   quickAccessHiddenDefaults: [],
+  quickLaunch: [] satisfies QuickLaunchItem[],
   updatesFolder: DEFAULT_UPDATES_SOURCE,
   disableHardwareAcceleration: false,
   slideshowFeaturesEnabled: false,

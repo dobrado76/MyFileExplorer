@@ -3,9 +3,9 @@ import type { AiGenerateRequest, GeneratedScript } from '@shared/schemas/ai'
 import type { ScriptLanguage } from '@shared/schemas/scripts'
 import { redactPathsInText } from '@shared/scriptDestructive'
 import {
-  SCRIPT_CLI_CONTRACT,
   buildScriptSystemPrompt,
-  extractGeneratedScript
+  extractGeneratedScript,
+  scriptCliContract
 } from '@shared/scriptGenerate'
 import { detectRuntimes } from '../scripts/runtimes'
 import { completeChat } from './provider'
@@ -28,7 +28,9 @@ export async function generateScript(req: AiGenerateRequest): Promise<GeneratedS
   })
   const user = [
     `Task:\n${req.task.trim()}`,
-    'Remember: do not request or invent user file paths. Use only --root / --input-list at runtime.',
+    req.target === 'global'
+      ? 'Remember: this is a global script. Do not request or invent user file paths. Do not use --root or --input-list.'
+      : 'Remember: do not request or invent user file paths. Use only --root / --input-list at runtime.',
     'Respond with the JSON object only.'
   ].join('\n\n')
   const raw = await completeChat({
@@ -44,17 +46,21 @@ export async function modifyScript(input: {
   source: string
   instruction: string
   language?: ScriptLanguage
+  target?: 'folder' | 'selection' | 'global'
   providerId?: string
   model?: string
 }): Promise<GeneratedScript> {
+  const target = input.target ?? 'folder'
   const system = [
     'You modify an existing local file-manager script. Output JSON only with keys:',
     'name, description, language, destructive, dryRunSupported, dependencies, source.',
     'name is a Title Case display label with spaces (keep the current name unless asked to rename).',
-    'Keep the argv contract: --root / --input-list / --recursive / --dry-run / named --params.',
+    target === 'global'
+      ? 'Keep the global argv contract: optional --dry-run and named --params only. Do not add --root or --input-list.'
+      : 'Keep the argv contract: --root / --input-list / --recursive / --dry-run / named --params.',
     'Do not add network calls that upload user files. Do not ask for paths.',
     'Always include the full revised source. Do not return an empty source field.',
-    SCRIPT_CLI_CONTRACT
+    scriptCliContract(target)
   ].join('\n')
   const user = [
     input.language ? `Language: ${input.language}` : '',
@@ -80,16 +86,20 @@ export async function fixScript(input: {
   os?: string
   runtime?: string
   redactPaths: boolean
+  target?: 'folder' | 'selection' | 'global'
   providerId?: string
   model?: string
 }): Promise<GeneratedScript> {
   const stderr = input.redactPaths ? redactPathsInText(input.stderr) : input.stderr
   const stdout = input.redactPaths ? redactPathsInText(input.stdout ?? '') : (input.stdout ?? '')
+  const target = input.target ?? 'folder'
   const system = [
     'You fix a failed local script. Output JSON only with keys:',
     'name, description, language, destructive, dryRunSupported, dependencies, source.',
-    'Keep the argv contract. Do not request user files or paths.',
-    SCRIPT_CLI_CONTRACT
+    target === 'global'
+      ? 'Keep the global argv contract (no --root / --input-list). Do not request user files or paths.'
+      : 'Keep the argv contract. Do not request user files or paths.',
+    scriptCliContract(target)
   ].join('\n')
   const user = [
     `OS: ${input.os || `${os.platform()} ${os.release()}`}`,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultSettings } from '../shared/schemas/settings'
+import { defaultSettings, settingsSchema } from '../shared/schemas/settings'
 import {
   SETTINGS_EXPORT_FORMAT,
   buildSettingsExportDocument,
@@ -102,6 +102,39 @@ describe('settings export / import', () => {
       { stream: 'Caption' }
     ])
     expect(parsed.settings.detailsColumns.some((c) => c.id === 'adsField:AUTOV2')).toBe(true)
+  })
+
+  it('defaults quickLaunch when the key is omitted', () => {
+    const { quickLaunch: _omit, ...rest } = defaultSettings
+    expect(settingsSchema.parse(rest).quickLaunch).toEqual([])
+  })
+
+  it('round-trips quickLaunch via full settingsSchema (D63)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        quickLaunch: [
+          {
+            id: 'ql_ps1_abcd',
+            name: 'Photoshop',
+            path: '%ProgramFiles%\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe',
+            args: '',
+            iconKind: 'shell'
+          }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.quickLaunch).toEqual([
+      {
+        id: 'ql_ps1_abcd',
+        name: 'Photoshop',
+        path: '%ProgramFiles%\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe',
+        args: '',
+        iconKind: 'shell'
+      }
+    ])
   })
 
   it('round-trips viewPresets via full settingsSchema (D60)', () => {

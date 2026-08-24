@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { defaultScriptDefinition, type ScriptDefinition } from '../shared/schemas/scripts'
+import {
+  applyGlobalScriptRules,
+  defaultScriptDefinition,
+  isGlobalScript,
+  normalizeScriptScopes,
+  type ScriptDefinition
+} from '../shared/schemas/scripts'
 import { groupScriptsByCategory, scriptMatchesMenu } from '../shared/scriptMatch'
 
 function script(partial: Partial<ScriptDefinition>): ScriptDefinition {
@@ -11,6 +17,36 @@ function script(partial: Partial<ScriptDefinition>): ScriptDefinition {
     ...partial
   }
 }
+
+describe('global script scopes', () => {
+  it('collapses mixed scopes to global-only', () => {
+    expect(normalizeScriptScopes(['folder', 'global'])).toEqual(['global'])
+    expect(normalizeScriptScopes(['folder', 'selection'])).toEqual(['folder', 'selection'])
+  })
+
+  it('does not throw when scopes are missing', () => {
+    expect(isGlobalScript(null)).toBe(false)
+    expect(isGlobalScript({ scopes: undefined as unknown as ScriptDefinition['scopes'] })).toBe(false)
+    expect(normalizeScriptScopes(undefined)).toEqual(['folder'])
+  })
+
+  it('clears folder filters when applying global rules', () => {
+    const next = applyGlobalScriptRules(
+      script({
+        scopes: ['global', 'folder'],
+        recursive: true,
+        contextMenuEnabled: true,
+        matchExtensions: ['jpg'],
+        minSelection: 2
+      })
+    )
+    expect(next.scopes).toEqual(['global'])
+    expect(next.recursive).toBe(false)
+    expect(next.contextMenuEnabled).toBe(false)
+    expect(next.matchExtensions).toEqual([])
+    expect(next.minSelection).toBe(0)
+  })
+})
 
 describe('scriptMatchesMenu', () => {
   it('shows folder scripts on empty pane', () => {
@@ -64,6 +100,23 @@ describe('scriptMatchesMenu', () => {
       scriptMatchesMenu(s, {
         folderPath: 'D:\\lib',
         selectedPaths: ['D:\\lib\\a.jpg', 'D:\\lib\\b.png'],
+        selectionKind: 'file'
+      })
+    ).toBe(false)
+  })
+
+  it('never shows global scripts on the context menu', () => {
+    expect(
+      scriptMatchesMenu(script({ scopes: ['global'], contextMenuEnabled: true }), {
+        folderPath: 'D:\\lib',
+        selectedPaths: [],
+        selectionKind: 'empty'
+      })
+    ).toBe(false)
+    expect(
+      scriptMatchesMenu(script({ scopes: ['global'], contextMenuEnabled: true }), {
+        folderPath: 'D:\\lib',
+        selectedPaths: ['D:\\lib\\a.jpg'],
         selectionKind: 'file'
       })
     ).toBe(false)

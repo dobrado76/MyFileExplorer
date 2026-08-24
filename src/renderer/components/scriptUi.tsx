@@ -375,7 +375,7 @@ export function DestructiveBanner({ source, flagged }: { source: string; flagged
 }
 
 export function RiskBanner(): JSX.Element | null {
-  const acknowledged = useAppStore((s) => s.settings.scripts.acknowledgedRisk)
+  const acknowledged = useAppStore((s) => s.settings.scripts?.acknowledgedRisk)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   if (acknowledged) return null
   return (

@@ -44,6 +44,17 @@ describe('script CLI argv', () => {
     expect(() => buildScriptCliArgs({ mode: 'folder' })).toThrow(/--root/)
   })
 
+  it('builds global argv without --root or --input-list', () => {
+    const args = buildScriptCliArgs({
+      mode: 'global',
+      dryRun: true,
+      params: { limit: 10 }
+    })
+    expect(args).toEqual(['--dry-run', '--limit', '10'])
+    expect(args.join(' ')).not.toContain('--root')
+    expect(args.join(' ')).not.toContain('--input-list')
+  })
+
   it('round-trips manifest lines', () => {
     const paths = ['C:\\Users\\x\\a file.txt', 'D:\\日本語\\写真.png']
     const text = formatInputManifest(paths)

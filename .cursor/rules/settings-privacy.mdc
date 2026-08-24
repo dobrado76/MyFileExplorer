@@ -1,0 +1,32 @@
+---
+description: HARD RULE — never load live settings.json into the AI
+alwaysApply: true
+---
+
+# settings.json is private — never send it to the model
+
+**Hard rule. No exceptions. No “just this once.” No debugging override.**
+
+The live app settings file is **private and personal**. It must never enter the model context: not as a Read, Grep, attachment, paste, screenshot of contents, tool dump, or “I need to see what’s in settings.”
+
+## Do not
+
+- **Read**, **Grep**, or otherwise open any live `settings.json` (or its `.tmp`) into this chat.
+- Paths that are always off-limits for content access:
+  - `%APPDATA%\MyFileExplorer\settings.json`
+  - `%APPDATA%\MyFileExplorer\settings.json.tmp`
+  - repo `.dev-user-data/settings.json` (isolated profile)
+  - `$MFE_USER_DATA/settings.json` when that env override is set
+- Quote, summarize, or “sample” keys/values from that file.
+- Ask the user to paste `settings.json` into the chat.
+- Pipe the file through a command whose **stdout is then read back** here (that is still sending it to the AI).
+
+## Allowed
+
+- Edit **repo source** that *defines* settings (`src/shared/schemas/settings.ts`, defaults, export tests, docs). That is not the user’s live file.
+- Run a **local script in this repo** that reads `settings.json` **on the machine only** (validate, migrate, compact). The script may print **aggregates** (`ok`, `parse failed`, counts) — never the document body, never path lists, never preference values.
+- If you need a fixture, use a **synthetic** object in `src/tests/` — never a copy of the user’s file.
+
+## If you need their prefs
+
+Ask them to change it in **Settings**, or to run a repo script themselves. Do not open the file.

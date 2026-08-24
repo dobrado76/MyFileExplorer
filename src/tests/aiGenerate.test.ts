@@ -82,6 +82,21 @@ describe('system prompt privacy', () => {
     expect(prompt).toMatch(/--root/)
     expect(prompt).toMatch(/Title Case/)
   })
+
+  it('tells the model a global script has no folder or selection', () => {
+    const prompt = buildScriptSystemPrompt({
+      os: 'win32 10.0',
+      runtimes: ['python'],
+      target: 'global',
+      language: 'python',
+      recursive: true
+    })
+    expect(prompt).toMatch(/global/i)
+    expect(prompt).toMatch(/Do NOT require --root/)
+    expect(prompt).not.toMatch(/Folder target:/)
+    expect(prompt).not.toMatch(/Selection target:/)
+    expect(prompt).toMatch(/Do not generate code that needs --root or --input-list/)
+  })
 })
 
 describe('resolveModifyInstruction', () => {

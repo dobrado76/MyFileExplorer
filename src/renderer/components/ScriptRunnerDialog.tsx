@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
-import type { ScriptDefinition, ScriptLanguage } from '@shared/schemas/scripts'
+import type { ScriptDefinition, ScriptLanguage, ScriptRunMode } from '@shared/schemas/scripts'
 import { useAppStore } from '../store/appStore'
 import {
   CopyInstall,
@@ -18,7 +18,7 @@ export function ScriptRunnerDialog(props: {
   source?: string
   language?: ScriptLanguage
   name?: string
-  mode: 'folder' | 'selection'
+  mode: ScriptRunMode
   root?: string
   paths?: string[]
   recursive?: boolean
@@ -243,7 +243,7 @@ export function ScriptRunnerDialog(props: {
       {script?.parameters && script.parameters.length > 0 && (
         <ParamsForm parameters={script.parameters} values={params} onChange={setParams} />
       )}
-      {(script?.scopes.includes('folder') || props.mode === 'folder') && (
+      {props.mode !== 'global' && (script?.scopes.includes('folder') || props.mode === 'folder') && (
         <label
           className="settings-toggle"
           title="Pass --recursive so the script walks subfolders of the current folder."
@@ -263,6 +263,7 @@ export function ScriptRunnerDialog(props: {
         {status !== 'idle' ? ` · ${elapsed}` : ''}
         {exitCode != null ? ` · exit ${exitCode}` : ''}
         {props.mode === 'selection' ? ` · ${props.paths?.length ?? 0} selected` : ''}
+        {props.mode === 'global' ? ' · global' : ''}
       </div>
       <pre className="script-output">{output || 'Output appears here.'}</pre>
       {error && <div className="script-banner script-banner-warn">{error}</div>}
@@ -301,7 +302,8 @@ export function ScriptRunnerDialog(props: {
                       source,
                       exitCode: exitCode ?? 1,
                       stderr: stderrRef.current || output,
-                      redactPaths
+                      redactPaths,
+                      target: props.mode
                     })
                   )
                     .then((res) => {

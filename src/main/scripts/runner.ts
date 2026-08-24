@@ -79,7 +79,7 @@ export async function runScriptProcess(input: {
     const paths = (req.paths ?? []).map((p) => requireAbsolute(p))
     if (paths.length === 0) throw new AppError('validation', 'Select at least one file or folder')
     manifestPath = writeInputManifestFile(paths, os.tmpdir())
-  } else if (req.root) {
+  } else if (req.mode === 'folder' && req.root) {
     requireAbsolute(req.root)
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type JSX } from 'react'
 import { useAppStore } from './store/appStore'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { ExplorerShell } from './screens/ExplorerShell'
 
 export function App(): JSX.Element {
@@ -63,5 +64,9 @@ export function App(): JSX.Element {
       </div>
     )
   }
-  return <ExplorerShell />
+  return (
+    <ErrorBoundary>
+      <ExplorerShell />
+    </ErrorBoundary>
+  )
 }

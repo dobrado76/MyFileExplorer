@@ -721,6 +721,96 @@ textarea:focus {
   margin: 0 4px;
   flex-shrink: 0;
 }
+.toolbar-quick-launch {
+  max-width: min(42vw, 520px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  border-radius: 6px;
+}
+.toolbar-quick-launch.drop-hover {
+  outline: 1px dashed var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+/* Program glyph is the control — not a 16px icon inside padded icon-btn chrome. */
+.quick-launch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  line-height: 0;
+  color: var(--text-dim);
+}
+.quick-launch-btn:hover:not(:disabled) {
+  background: var(--bg-elevated);
+}
+.quick-launch-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.quick-launch-btn .shell-icon,
+.quick-launch-btn .quick-launch-custom-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  object-fit: contain;
+}
+.settings-ql-icon .quick-launch-custom-icon {
+  display: block;
+  border-radius: 4px;
+  object-fit: cover;
+}
+.toolbar-global-scripts {
+  max-width: min(28vw, 360px);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.global-script-btn {
+  display: inline-flex;
+  align-items: center;
+  max-width: 140px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.global-script-btn:hover {
+  background: var(--bg-elevated);
+}
+.settings-ql-list {
+  max-height: min(52vh, 440px);
+}
+.settings-ql-row {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.settings-ql-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.settings-ql-path-row {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+.settings-ql-path-input,
+.settings-ql-args-input {
+  flex: 1;
+  min-width: 0;
+}
 .new-item-menu {
   position: relative;
   flex-shrink: 0;
@@ -7546,6 +7636,24 @@ html.idle-cursor-hidden * {
   flex-wrap: wrap;
   gap: 10px 14px;
   align-items: center;
+}
+.script-check-row label.is-disabled {
+  opacity: 0.5;
+}
+.script-global-field .script-global-tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.script-global-hint {
+  margin: 0;
+  align-self: center;
+}
+.context-menu .menu-group-label {
+  padding: 6px 10px 2px;
+  font-size: 11px;
+  opacity: 0.65;
 }
 .script-editor {
   display: grid;

@@ -13,7 +13,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import appIcon from '../../resources/icon.png?asset'
-import { registerMediaSchemeAsPrivileged, registerMediaProtocolHandler } from './media/protocol'
+import {
+  registerMediaSchemeAsPrivileged,
+  registerMediaProtocolHandler,
+  clearMediaScratch,
+  clearMediaScratchSync
+} from './media/protocol'
 import { registerOrtProtocolHandler } from './media/ortProtocol'
 import { registerModelProtocolHandler } from './media/modelProtocol'
 import { registerIpcHandlers } from './ipc/register'
@@ -24,6 +29,7 @@ import { settingsStore } from './settings/store'
 import { thumbCacheDir } from './thumbs'
 import { shellIconCacheDir } from './icons/shell'
 import { ensureTabIconsDir } from './tabs/customIcon'
+import { ensureQuickLaunchIconsDir } from './quickLaunch/icons'
 import { logMain } from './logging'
 import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen'
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
@@ -176,6 +182,12 @@ if (!gotLock) {
       app.setAsDefaultProtocolClient('mfe')
     }
 
+    void clearMediaScratch().catch((e) => {
+      logMain(
+        'warn',
+        `media-scratch start clear failed: ${e instanceof Error ? e.message : String(e)}`
+      )
+    })
     registerMediaProtocolHandler()
     registerOrtProtocolHandler()
     registerModelProtocolHandler()
@@ -183,6 +195,7 @@ if (!gotLock) {
     thumbCacheDir()
     shellIconCacheDir()
     ensureTabIconsDir()
+    ensureQuickLaunchIconsDir()
     void import('./search').then((m) => {
       m.initSearchIndexRuntime()
       void import('./search/httpServer').then((h) => h.syncSearchHttpServer())
@@ -220,6 +233,14 @@ if (!gotLock) {
   })
 
   app.on('before-quit', () => {
+    try {
+      clearMediaScratchSync()
+    } catch (e) {
+      logMain(
+        'warn',
+        `media-scratch quit clear failed: ${e instanceof Error ? e.message : String(e)}`
+      )
+    }
     sessionStore().flush()
     settingsStore().flush()
     void import('./fs/network').then((m) => m.disposeNetworkDiscovery())

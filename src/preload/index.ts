@@ -91,6 +91,14 @@ const api: MyFileExplorerApi = {
     importCustomIcon: invokeVoid(IPC.tabsImportCustomIcon),
     customIconUrl: invoke(IPC.tabsCustomIconUrl)
   },
+  quickLaunch: {
+    pickProgram: invokeVoid(IPC.quickLaunchPickProgram),
+    importIcon: invokeVoid(IPC.quickLaunchImportIcon),
+    iconUrl: invoke(IPC.quickLaunchIconUrl),
+    deleteIcon: invoke(IPC.quickLaunchDeleteIcon),
+    launch: invoke(IPC.quickLaunchLaunch),
+    reveal: invoke(IPC.quickLaunchReveal)
+  },
   session: {
     get: invokeVoid(IPC.sessionGet),
     set: invoke(IPC.sessionSet)

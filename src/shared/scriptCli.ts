@@ -1,6 +1,6 @@
-import type { ScriptLanguage, ScriptParamType } from './schemas/scripts'
+import type { ScriptLanguage, ScriptParamType, ScriptRunMode } from './schemas/scripts'
 
-export type ScriptCliMode = 'folder' | 'selection'
+export type ScriptCliMode = ScriptRunMode
 
 export type ScriptCliOptions = {
   mode: ScriptCliMode
@@ -15,10 +15,13 @@ export type ScriptCliOptions = {
  * Stable argv after the interpreter invocation (script path is prepended by the runner).
  * Folder: `--root <folder> [--recursive] [--dry-run] [--param value…]`
  * Selection: `--input-list <manifest> [--dry-run] [--param value…]`
+ * Global: `[--dry-run] [--param value…]` — no folder or selection.
  */
 export function buildScriptCliArgs(opts: ScriptCliOptions): string[] {
   const args: string[] = []
-  if (opts.mode === 'folder') {
+  if (opts.mode === 'global') {
+    /* no --root / --input-list */
+  } else if (opts.mode === 'folder') {
     if (!opts.root) throw new Error('Folder scripts require --root')
     args.push('--root', opts.root)
     if (opts.recursive) args.push('--recursive')
