@@ -20,10 +20,12 @@ import { parseUnc } from '@shared/networkPaths'
 import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { api, call } from '../lib/ipc'
+import type { ClipboardPasteFormat, ClipboardPeek } from '@shared/schemas/clipboardPaste'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { slideshowCurrentPath } from '../lib/slideshowTypes'
 import { ShellIcon } from './ShellIcon'
 import { buildScriptsMenuItems, isRemoteLocation } from '../lib/scriptsMenu'
+import { itemAdsAvailable } from '../lib/itemAdsUi'
 import type { ScriptDefinition } from '@shared/schemas/scripts'
 import type { ScriptMenuContext } from '@shared/scriptMatch'
 
@@ -68,6 +70,59 @@ type MenuItem =
       builtin?: ContextMenuBuiltinId
       items: SubEntry[]
     }
+
+function pasteSpecialItems(
+  destDir: string,
+  peek: ClipboardPeek | null,
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>
+): SubEntry[] {
+  if (!peek || peek.kind === 'empty' || peek.kind === 'files') return []
+  const paste = (format: ClipboardPasteFormat, name?: string): void => {
+    close()
+    void s.pasteClipboardAs(destDir, format, name)
+  }
+  if (peek.kind === 'image') {
+    return [
+      { label: 'PNG image', action: () => paste('png') },
+      { label: 'JPEG image', action: () => paste('jpeg') },
+      { label: 'WebP image', action: () => paste('webp') }
+    ]
+  }
+  if (peek.kind === 'url') {
+    return [
+      { label: 'Internet shortcut (.url)', action: () => paste('url') },
+      { label: 'Save URL as text', action: () => paste('txt') }
+    ]
+  }
+  if (peek.kind === 'html') {
+    return [
+      { label: 'HTML file', action: () => paste('html') },
+      { label: 'Plain text', action: () => paste('txt') }
+    ]
+  }
+  return [
+    { label: 'Text file', action: () => paste('txt') },
+    {
+      label: 'Text file (choose name)…',
+      action: () => {
+        close()
+        s.openDialog({ kind: 'paste-name', destDir, format: 'txt' })
+      }
+    }
+  ]
+}
+
+function pasteSpecialMenu(
+  destDir: string,
+  peek: ClipboardPeek | null,
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>
+): MenuItem | null {
+  const items = pasteSpecialItems(destDir, peek, close, s)
+  if (items.length === 0) return null
+  return { type: 'submenu', label: 'Paste Special', builtin: 'paste-special', items }
+}
 
 function scriptsSubmenu(
   close: () => void,
@@ -364,6 +419,29 @@ function newSubmenu(
       })),
       { label: '', sep: true, action: () => undefined },
       {
+        label: 'From Template',
+        items: [
+          ...s.settings.templates.map((t) => ({
+            label: t.name,
+            action: () => {
+              close()
+              void s.createFromTemplate(t.id, parent)
+            }
+          })),
+          ...(s.settings.templates.length > 0
+            ? [{ label: '', sep: true, action: () => undefined }]
+            : []),
+          {
+            label: 'Manage Templates…',
+            action: () => {
+              close()
+              s.openDialog({ kind: 'manage-templates' })
+            }
+          }
+        ]
+      },
+      { label: '', sep: true, action: () => undefined },
+      {
         label: 'Other…',
         icon: createElement(FilePlus2, {
           size: 16,
@@ -395,6 +473,7 @@ export function ContextMenu(): JSX.Element | null {
   const [subFocusIdx, setSubFocusIdx] = useState(-1)
   /** Async Version Control state for a single editable image (omit submenu until ready). */
   const [imageVer, setImageVer] = useState<{ path: string; count: number } | null>(null)
+  const [clipPeek, setClipPeek] = useState<ClipboardPeek | null>(null)
   /** Live Shift key — Explorer-style “as administrator” label on Open Command Line. */
   const [shiftHeld, setShiftHeld] = useState(false)
   /** Submenu placement relative to its parent row (after viewport clamp). */
@@ -493,6 +572,25 @@ export function ContextMenu(): JSX.Element | null {
         }
       } catch {
         if (!cancelled) setImageVer(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [menu])
+
+  useEffect(() => {
+    if (!menu || menu.dropTransfer || menu.slideshow) {
+      setClipPeek(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const peek = await call(api.shell.clipboardPeek())
+        if (!cancelled) setClipPeek(peek)
+      } catch {
+        if (!cancelled) setClipPeek({ kind: 'empty' })
       }
     })()
     return () => {
@@ -881,6 +979,10 @@ export function ContextMenu(): JSX.Element | null {
             void s.paste()
           }
         },
+        ...((): MenuItem[] => {
+          const special = pasteSpecialMenu(folderPath, clipPeek, close, s)
+          return special ? [special] : []
+        })(),
         { type: 'sep' },
         {
           type: 'submenu',
@@ -967,6 +1069,28 @@ export function ContextMenu(): JSX.Element | null {
           ]
         },
         ...mediaMetadataMenu([folderPath], close, s, { treatAsFolders: true }),
+        ...(itemAdsAvailable(s.platform, folderPath, s.recycleBin.active)
+          ? [
+              {
+                type: 'item' as const,
+                label: 'Note…',
+                builtin: 'item-note' as const,
+                action: () => {
+                  close()
+                  s.openDialog({ kind: 'item-note', path: folderPath })
+                }
+              },
+              {
+                type: 'item' as const,
+                label: 'Set icon…',
+                builtin: 'item-icon' as const,
+                action: () => {
+                  close()
+                  s.openDialog({ kind: 'item-icon', path: folderPath })
+                }
+              }
+            ]
+          : []),
         {
           type: 'item',
           label: 'Alternate streams…',
@@ -1453,26 +1577,11 @@ export function ContextMenu(): JSX.Element | null {
         builtin: 'paste-into-folder',
         action: () => {
           close()
-          void (async () => {
-            let clip = store.getState().clipboard
-            if (!clip || clip.paths.length === 0) {
-              try {
-                const os = await call(api.shell.clipboardReadFiles())
-                if (os.paths.length > 0) clip = { mode: 'copy', paths: os.paths }
-              } catch {
-                clip = null
-              }
-            }
-            if (!clip || clip.paths.length === 0) return
-            await s.performTransfer(
-              clip.mode === 'cut' ? 'move' : 'copy',
-              clip.paths,
-              single,
-              clip.mode === 'cut'
-            )
-          })()
+          void s.pasteInto(single)
         }
       })
+      const special = pasteSpecialMenu(single, clipPeek, close, s)
+      if (special) result.push(special)
     }
     {
       const toolPaths = menu.inTree && single ? [single] : paths
@@ -1500,6 +1609,15 @@ export function ContextMenu(): JSX.Element | null {
           action: () => {
             close()
             void s.changeFolderIcon(single)
+          }
+        })
+      }
+      if (single) {
+        fileToolsItems.push({
+          label: 'Create link…',
+          action: () => {
+            close()
+            s.openDialog({ kind: 'create-link', source: single })
           }
         })
       }
@@ -1790,6 +1908,28 @@ export function ContextMenu(): JSX.Element | null {
         treatAsFolders: menu.inTree || (isDir && (paths.length <= 1)),
         entries
       }),
+      ...(single && itemAdsAvailable(s.platform, single, s.recycleBin.active)
+        ? [
+            {
+              type: 'item' as const,
+              label: 'Note…',
+              builtin: 'item-note' as const,
+              action: () => {
+                close()
+                s.openDialog({ kind: 'item-note', path: single })
+              }
+            },
+            {
+              type: 'item' as const,
+              label: 'Set icon…',
+              builtin: 'item-icon' as const,
+              action: () => {
+                close()
+                s.openDialog({ kind: 'item-icon', path: single })
+              }
+            }
+          ]
+        : []),
       {
         type: 'item',
         label: 'Alternate streams…',
@@ -1831,7 +1971,7 @@ export function ContextMenu(): JSX.Element | null {
         s.settings.contextMenu.hiddenBuiltins,
         s.settings.contextMenu.builtinLayout
       )
-  }, [menu, closeContextMenu, store, imageVer, shiftHeld])
+  }, [menu, closeContextMenu, store, imageVer, shiftHeld, clipPeek])
 
   // Clamp open submenu into the viewport (flip X, shift Y, scroll if taller than screen).
   useLayoutEffect(() => {

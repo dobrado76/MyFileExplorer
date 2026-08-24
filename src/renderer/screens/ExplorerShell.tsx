@@ -116,7 +116,10 @@ export function ExplorerShell(): JSX.Element {
     // shortcuts that also work while editing are none — bail early
     if (editing) return
 
-    if (ctrl && !shift && key.toLowerCase() === 't') {
+    if (ctrl && shift && !alt && key.toLowerCase() === 't') {
+      e.preventDefault()
+      void s.reopenClosedTab(0)
+    } else if (ctrl && !shift && key.toLowerCase() === 't') {
       e.preventDefault()
       void s.newTab()
     } else if (ctrl && !shift && key.toLowerCase() === 'w') {

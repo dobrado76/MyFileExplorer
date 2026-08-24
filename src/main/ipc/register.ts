@@ -104,6 +104,8 @@ import {
   resolveOpIssues
 } from '../fs/ops'
 import { createShortcuts } from '../fs/shortcuts'
+import { createLink } from '../fs/createLink'
+import { createLinkRequestSchema } from '@shared/schemas/createLink'
 import { compressToZip, extractZips } from '../fs/zip'
 import {
   saveEditedImage,
@@ -157,6 +159,30 @@ import {
   startOsFileDrag,
   execExternal
 } from '../shell'
+import { clipboardPeek, clipboardWriteFile } from '../shell/clipboardPaste'
+import { clipboardWriteFileRequestSchema } from '@shared/schemas/clipboardPaste'
+import {
+  templatesDeleteRequestSchema,
+  templatesInstantiateRequestSchema
+} from '@shared/schemas/templates'
+import {
+  itemAdsGetManySchema,
+  itemAdsSetIconSchema,
+  itemAdsSetNoteSchema
+} from '@shared/schemas/itemAds'
+import {
+  deleteFileTemplate,
+  duplicateFileTemplate,
+  importFileTemplate,
+  instantiateTemplate,
+  replaceFileTemplate
+} from '../templates/store'
+import {
+  getItemAdsMany,
+  importItemCustomIcon,
+  setItemIcon,
+  setItemNote
+} from '../itemAds/store'
 import { sessionStore } from '../session/store'
 import { getSettings, patchSettings, replaceSettings } from '../settings/store'
 import {
@@ -214,7 +240,7 @@ import {
 import { logMain } from '../logging'
 import { ensureLamaModel } from '../images/lamaModel'
 import { lamaModelFetchUrl } from '../media/modelProtocol'
-import { isDevGateActive } from '../devGate'
+import { getDevGateStatus, isDevGateActive, setDevGateEnable } from '../devGate'
 import {
   clearMany,
   downloadInternetMany,
@@ -371,6 +397,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsCreateShortcuts, checkConflictsRequestSchema, async (req) => {
     muteWatchers()
     return createShortcuts(req.sources, req.destinationDir)
+  })
+  handle(IPC.fsCreateLink, createLinkRequestSchema, async (req) => {
+    muteWatchers()
+    return createLink(req)
   })
   handle(IPC.fsCompressToZip, pathsRequestSchema, async (req) => {
     muteWatchers()
@@ -553,6 +583,10 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
+  handle(IPC.shellClipboardPeek, emptySchema, () => clipboardPeek())
+  handle(IPC.shellClipboardWriteFile, clipboardWriteFileRequestSchema, (req) =>
+    clipboardWriteFile(req)
+  )
   // Sync + blocking: startDrag runs DoDragDrop until the OS gesture ends.
   // Called when a left-drag leaves the window (not from HTML5 dragstart).
   ipcMain.on(IPC.shellStartDrag, (event, raw) => {
@@ -675,6 +709,25 @@ export function registerIpcHandlers(): void {
   handle(IPC.iconsGet, iconRequestSchema, (req) =>
     getShellIconUrl(req.path, req.size, req.isDir, { fast: req.fast === true })
   )
+  handle(IPC.templatesImport, emptySchema, (_req, event) => importFileTemplate(event.sender))
+  handle(IPC.templatesDelete, templatesDeleteRequestSchema, (req) => deleteFileTemplate(req.id))
+  handle(IPC.templatesReplace, templatesDeleteRequestSchema, (req, event) =>
+    replaceFileTemplate(event.sender, req.id)
+  )
+  handle(IPC.templatesDuplicate, templatesDeleteRequestSchema, (req) =>
+    duplicateFileTemplate(req.id)
+  )
+  handle(IPC.templatesInstantiate, templatesInstantiateRequestSchema, (req) =>
+    instantiateTemplate(req.id, req.destDir)
+  )
+  handle(IPC.itemAdsGetMany, itemAdsGetManySchema, (req) => getItemAdsMany(req.paths))
+  handle(IPC.itemAdsSetNote, itemAdsSetNoteSchema, (req) => setItemNote(req.path, req.note))
+  handle(IPC.itemAdsSetIcon, itemAdsSetIconSchema, (req) =>
+    setItemIcon(req.path, req.icon, req.imageBase64)
+  )
+  handle(IPC.itemAdsImportCustomIcon, z.object({ path: z.string().min(1) }), (_req, event) =>
+    importItemCustomIcon(event.sender, _req.path)
+  )
   handle(IPC.tabsImportCustomIcon, emptySchema, async (_req, event) => {
     const picked = await pickCustomTabIconSource(event.sender)
     if ('cancelled' in picked) return { cancelled: true as const }
@@ -716,7 +769,12 @@ export function registerIpcHandlers(): void {
     return { ok: true as const, platform: process.platform }
   })
   handle(IPC.appGetVersion, emptySchema, () => ({ version: app.getVersion() }))
-  handle(IPC.appDevGate, emptySchema, () => ({ active: isDevGateActive() }))
+  handle(IPC.appDevGate, emptySchema, () => getDevGateStatus())
+  handle(IPC.appDevGateSetEnable, z.object({ enable: z.boolean() }), (req) => {
+    const status = setDevGateEnable(req.enable)
+    if (!status.active) closeCompiledListsWindow()
+    return status
+  })
   handle(IPC.mediaMetadataExtractPlex, mediaMetadataPathsSchema, (req) => {
     assertMediaMetadataEnabled()
     return extractPlexMany(req.paths, req.kindHints, req.nameHints)
@@ -880,7 +938,7 @@ export function registerIpcHandlers(): void {
     clearVirtualPlaylist()
     return closeCompiledListsWindow()
   })
-  handle(IPC.slideshowRelayKey, slideshowRelayKeySchema, (req) => {
+  handleDev(IPC.slideshowRelayKey, slideshowRelayKeySchema, (req) => {
     const win = getMainWindow()
     if (win && !win.isDestroyed()) {
       win.webContents.send(EVENT_CHANNEL, { type: 'slideshow-key', payload: req })

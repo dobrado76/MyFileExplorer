@@ -15,9 +15,10 @@ import type {
   TabState,
   ViewMode,
   ViewLayout,
-  Splitters
+  Splitters,
+  ClosedTabEntry
 } from '@shared/schemas/session'
-import { coerceViewLayout, sanitizePaneTreeCollapsed } from '@shared/schemas/session'
+import { coerceViewLayout, sanitizePaneTreeCollapsed, MAX_CLOSED_TABS } from '@shared/schemas/session'
 import { issueKey } from '@shared/opIssues'
 import { defaultTabIcon } from '@shared/tabIcons'
 import type { HistoryEntry } from '@shared/tabHistory'
@@ -77,12 +78,19 @@ import {
 import { isVolumeRootPath } from '../lib/rightDrag'
 import {
   buildQuickAccess,
+  materializeQuickAccessList,
   materializeQuickAccessTokens,
   tokenForPath,
   type KnownFolder,
   type KnownFolderId,
   type QuickAccessEntry
 } from '../lib/quickAccess'
+import {
+  isQuickAccessGroup,
+  removeQuickAccessToken,
+  tokenExistsInQuickAccess,
+  type QuickAccessItem
+} from '@shared/schemas/quickAccess'
 import { isMediaApiLimitError } from '@shared/mediaApiLimit'
 import { isMediaNameMissError } from '@shared/mediaMetadata'
 import { type MediaLibraryItemFlags, type MediaWatchedFilter } from '@shared/mediaMetadata'
@@ -97,6 +105,7 @@ import { formatSearchProgress } from '@shared/searchProgress'
 import { isIncompleteSearchQuery, isSearchNarrowing, narrowSearchItems } from '@shared/searchQuery'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
+import { defaultPasteFormat, type ClipboardPasteFormat } from '@shared/schemas/clipboardPaste'
 import { invalidateThumbMemory, invalidateThumbMemoryMany, thumbPathKey } from '../lib/thumbMemory'
 import { nextSelectionAfterDelete } from '../lib/nextSelection'
 import { dedupeDirEntries } from '@shared/dirEntries'
@@ -213,6 +222,10 @@ export type DialogState =
       doneCount: number
     }
   | { kind: 'new-file'; parent: string }
+  | { kind: 'paste-name'; destDir: string; format: ClipboardPasteFormat }
+  | { kind: 'manage-templates' }
+  | { kind: 'create-link'; source: string }
+  | { kind: 'view-preset-name' }
   | { kind: 'properties'; path: string }
   | { kind: 'usn-manager'; path: string }
   | { kind: 'settings'; section?: string }
@@ -230,6 +243,8 @@ export type DialogState =
     }
   | { kind: 'tab-icon'; tabId: string }
   | { kind: 'tab-custom-icon'; tabId: string }
+  | { kind: 'item-note'; path: string }
+  | { kind: 'item-icon'; path: string }
   | {
       kind: 'alert'
       title: string
@@ -482,6 +497,8 @@ type AppState = {
   network: NetworkNeighborhoodState
   tabs: Tab[]
   activeTabId: string
+  /** Last-closed first; persisted in session.json (D55). */
+  closedTabs: ClosedTabEntry[]
   splitters: Splitters
   /** Multi-pane layout (D31): 1 | 2 side-by-side | 3 wide-top | 4 (2×2). */
   viewLayout: ViewLayout
@@ -541,6 +558,10 @@ type AppState = {
   contextMenu: ContextMenuState
   /** Hidden local gate — slideshow and related IPC (main reads DEV.cfg). */
   devGateActive: boolean
+  /** userData DEV.cfg exists — Appearance toggle visibility only. */
+  devGatePresent: boolean
+  /** ENABLE field in DEV.cfg (features still require computer-name match). */
+  devGateEnable: boolean
   search: SearchState
   recycleBin: RecycleBinState
   indexRoots: IndexRootInfo[]
@@ -651,6 +672,10 @@ type AppState = {
   /** Open/reveal a path from CLI or another app (new or existing tab). */
   openExternalTarget(path: string, reveal: boolean): Promise<void>
   closeTab(id: string): Promise<void>
+  /** Restore a closed tab (0 = most recent). No-op when the stack is empty. */
+  reopenClosedTab(index?: number): Promise<void>
+  /** Drop the closed-tab stack (session persist). */
+  clearClosedTabs(): void
   activateTab(id: string): Promise<void>
   nextTab(): Promise<void>
   renameTab(id: string, title: string | null): void
@@ -690,6 +715,10 @@ type AppState = {
   customizeFolderView(path: string, recursive: boolean): Promise<void>
   removeFolderCustomization(path: string): Promise<void>
   setFolderViewRecursive(path: string, recursive: boolean): Promise<void>
+  saveViewPreset(name: string): Promise<void>
+  applyViewPreset(id: string): Promise<void>
+  renameViewPreset(id: string, name: string): Promise<void>
+  removeViewPreset(id: string): Promise<void>
   /** Patch Details layout on owning folder view, or global settings if none. */
   patchDetailsLayout(patch: {
     detailsColumns?: Settings['detailsColumns']
@@ -741,11 +770,19 @@ type AppState = {
   createNewFile(parent: string, name: string): Promise<void>
   /** Create “New …ext” with a unique name and start inline rename. */
   createTypedFile(parent: string, stem: string, ext: string): Promise<void>
+  createFromTemplate(templateId: string, destDir: string): Promise<void>
+  importFileTemplate(): Promise<string | null>
+  replaceFileTemplate(templateId: string): Promise<void>
+  duplicateFileTemplate(templateId: string): Promise<string | null>
+  deleteFileTemplate(templateId: string): Promise<void>
   /** Copy paths to in-app + OS file clipboard. Defaults to the file-view selection. */
   copySelection(paths?: string[]): void
   /** Cut paths to in-app + OS file clipboard. Defaults to the file-view selection. */
   cutSelection(paths?: string[]): void
   paste(): Promise<void>
+  /** Paste into a specific folder (file transfer or D56 clipboard file). */
+  pasteInto(destDir: string): Promise<void>
+  pasteClipboardAs(destDir: string, format: ClipboardPasteFormat, name?: string): Promise<void>
   performTransfer(
     op: 'copy' | 'move',
     sources: string[],
@@ -754,6 +791,12 @@ type AppState = {
   ): Promise<boolean>
   /** Right-drag “Create shortcuts here” — write .lnk files pointing at sources. */
   createShortcutsHere(sources: string[], destinationDir: string): Promise<void>
+  createLink(
+    source: string,
+    destDir: string,
+    type: import('@shared/schemas/createLink').CreateLinkType,
+    name?: string
+  ): Promise<void>
   /** Compress selection (or explicit paths) to a sibling `.zip` like Explorer. */
   compressToZip(paths?: string[]): Promise<void>
   /** Extract selected `.zip` archives into sibling folders (Extract All…). */
@@ -846,6 +889,8 @@ type AppState = {
 
   // settings
   applySettingsPatch(patch: SettingsPatch): Promise<void>
+  /** Write ENABLE in existing DEV.cfg. No-op if the file is absent. */
+  setDevGateEnable(enable: boolean): Promise<void>
   addViewFilterPatterns(patterns: string[]): Promise<void>
   clearThumbCache(): Promise<void>
   /** Portable backup: settings + remembered network hosts (not window geometry). */
@@ -880,10 +925,16 @@ type AppState = {
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
-  pinQuickAccess(path: string): Promise<void>
+  pinQuickAccess(path: string, groupId?: string): Promise<void>
   unpinQuickAccess(path: string): Promise<void>
   reorderQuickAccess(fromIndex: number, toIndex: number): Promise<void>
   resetQuickAccess(): Promise<void>
+  createQuickAccessGroup(name: string): Promise<void>
+  renameQuickAccessGroup(id: string, name: string): Promise<void>
+  deleteQuickAccessGroup(id: string): Promise<void>
+  setQuickAccessGroupColor(id: string, color: string | undefined): Promise<void>
+  setQuickAccessGroupCollapsed(id: string, collapsed: boolean): Promise<void>
+  moveQuickAccessPinToGroup(token: string, groupId: string | null): Promise<void>
 
   // search
   setSearchQuery(q: string): void
@@ -1036,7 +1087,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       paneTreeCollapsed: s.paneTreeCollapsed,
       focusedPaneIndex: s.focusedPaneIndex,
       paneSplitCols: s.paneSplitCols,
-      paneSplitRows: s.paneSplitRows
+      paneSplitRows: s.paneSplitRows,
+      closedTabs: s.closedTabs.slice(0, MAX_CLOSED_TABS)
     }
     void api.session.set(session)
   }
@@ -2675,6 +2727,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
     tabs: [],
     activeTabId: '',
+    closedTabs: [],
     splitters: {
       treeWidthPx: 240,
       previewWidthPx: 320,
@@ -2709,6 +2762,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     previewWindowOpen: false,
     contextMenu: null,
     devGateActive: false,
+    devGatePresent: false,
+    devGateEnable: false,
     search: emptyTabSearch(),
     recycleBin: {
       active: false,
@@ -2903,6 +2958,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         drives: [],
         tabs,
         activeTabId,
+        closedTabs: session.closedTabs ?? [],
         splitters,
         viewLayout,
         paneTabIds,
@@ -2914,6 +2970,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         devGateActive: devGateRes.active === true,
+        devGatePresent: devGateRes.present === true,
+        devGateEnable: devGateRes.enable === true,
         search: activeTab.search,
         slideshow: {
           ...emptySlideshowSession(),
@@ -3060,6 +3118,16 @@ export const useAppStore = create<AppState>()((set, get) => {
         } else if (event.type === 'compiled-lists-window-closed') {
           const a = get().slideshow.active
           if (a?.compiledMode) void get().stopSlideshow()
+        } else if (event.type === 'dev-gate') {
+          const p = event.payload
+          const dialog = get().dialog
+          set({
+            devGateActive: p.active === true,
+            devGatePresent: p.present === true,
+            devGateEnable: p.enable === true,
+            dialog:
+              !p.active && dialog?.kind === 'compiled-lists-config' ? null : dialog
+          })
         } else if (event.type === 'network-discovery') {
           const p = event.payload
           set((state) => {
@@ -3620,10 +3688,20 @@ export const useAppStore = create<AppState>()((set, get) => {
     async closeTab(id) {
       const s = get()
       if (s.tabs.length <= 1) return
+      const closing = s.tabs.find((t) => t.id === id)
+      if (!closing) return
       clearFileViewScroll(id)
       const idx = s.tabs.findIndex((t) => t.id === id)
       const tabs = s.tabs.filter((t) => t.id !== id)
       const tabIds = tabs.map((t) => t.id)
+      const closedPane = s.paneTabIds.indexOf(id)
+      const closedTabs: ClosedTabEntry[] = [
+        {
+          tab: tabToSessionTab(closing),
+          paneIndex: closedPane >= 0 ? closedPane : null
+        },
+        ...s.closedTabs
+      ].slice(0, MAX_CLOSED_TABS)
       let paneTabIds = s.paneTabIds.map((pid) => (pid === id ? null : pid))
       let activeTabId = s.activeTabId
       let focusedPaneIndex = s.focusedPaneIndex
@@ -3644,6 +3722,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         tabs,
         activeTabId,
+        closedTabs,
         search: tabs.find((t) => t.id === activeTabId)?.search ?? emptyTabSearch(),
         paneTabIds,
         focusedPaneIndex,
@@ -3654,6 +3733,46 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       scheduleSessionSave()
       await loadVisiblePaneListings({ preserveSelection: true })
+    },
+
+    async reopenClosedTab(index = 0) {
+      const s = get()
+      if (index < 0 || index >= s.closedTabs.length) return
+      const entry = s.closedTabs[index]!
+      const closedTabs = s.closedTabs.filter((_, i) => i !== index)
+      const tab = sessionTabToTab({ ...entry.tab, id: newTabId() })
+      let paneTabIds = [...s.paneTabIds]
+      while (paneTabIds.length < s.viewLayout) paneTabIds.push(null)
+      let focusedPaneIndex = s.focusedPaneIndex
+      const slot = entry.paneIndex
+      const canReattach =
+        slot != null && slot >= 0 && slot < s.viewLayout && paneTabIds[slot] == null
+      if (canReattach) {
+        paneTabIds[slot] = tab.id
+        focusedPaneIndex = slot
+      } else {
+        paneTabIds[focusedPaneIndex] = tab.id
+      }
+      paneTabIds = paneTabIds.slice(0, s.viewLayout)
+      const focus = focusFromSelection(tab.selected)
+      set({
+        tabs: [...s.tabs, tab],
+        activeTabId: tab.id,
+        closedTabs,
+        search: tab.search,
+        paneTabIds,
+        focusedPaneIndex,
+        selectionAnchor: focus.selectionAnchor,
+        focusedPath: focus.focusedPath
+      })
+      scheduleSessionSave()
+      await loadListing(tab.path, { tabId: tab.id })
+    },
+
+    clearClosedTabs() {
+      if (get().closedTabs.length === 0) return
+      set({ closedTabs: [] })
+      scheduleSessionSave()
     },
 
     async activateTab(id) {
@@ -4005,6 +4124,84 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (!findExactFolderView(path, s.settings.folderViews)) return
       await get().applySettingsPatch({
         folderViews: patchFolderView(s.settings.folderViews, path, { recursive })
+      })
+    },
+
+    async saveViewPreset(name) {
+      const trimmed = name.trim().slice(0, 80)
+      if (!trimmed) return
+      const s = get()
+      if (s.settings.viewPresets.length >= 30) {
+        get().notify('At most 30 view presets', true)
+        return
+      }
+      const tab = s.activeTab()
+      const owning = resolveFolderView(tab.path, s.settings.folderViews)
+      const id = `vp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+      await get().applySettingsPatch({
+        viewPresets: [
+          ...s.settings.viewPresets,
+          {
+            id,
+            name: trimmed,
+            viewMode: owning?.viewMode ?? tab.viewMode,
+            sort: owning?.sort ?? tab.sort,
+            detailsColumns: owning?.detailsColumns ?? s.settings.detailsColumns,
+            detailsNameWidth: owning?.detailsNameWidth ?? s.settings.detailsNameWidth,
+            iconSizePx: s.settings.iconSizePx,
+            foldersFirst: s.settings.foldersFirst
+          }
+        ]
+      })
+      get().notify(`Saved view preset: ${trimmed}`)
+    },
+
+    async applyViewPreset(id) {
+      const s = get()
+      const preset = s.settings.viewPresets.find((p) => p.id === id)
+      if (!preset) return
+      const tab = s.activeTab()
+      const owning = resolveFolderView(tab.path, s.settings.folderViews)
+      const detailsColumns = preset.detailsColumns.filter((c) => c.id !== 'folder') as Settings['detailsColumns']
+      const extra = {
+        detailsNameWidth: preset.detailsNameWidth,
+        ...(preset.iconSizePx != null ? { iconSizePx: preset.iconSizePx } : {}),
+        ...(preset.foldersFirst != null ? { foldersFirst: preset.foldersFirst } : {})
+      }
+      if (owning) {
+        await get().applySettingsPatch({
+          folderViews: patchFolderView(s.settings.folderViews, owning.path, {
+            viewMode: preset.viewMode,
+            sort: preset.sort,
+            detailsColumns,
+            detailsNameWidth: preset.detailsNameWidth
+          }),
+          ...extra
+        })
+      } else {
+        get().setViewMode(preset.viewMode)
+        get().setSort(preset.sort)
+        await get().applySettingsPatch({
+          detailsColumns,
+          ...extra
+        })
+      }
+      get().notify(`Applied view preset: ${preset.name}`)
+    },
+
+    async renameViewPreset(id, name) {
+      const trimmed = name.trim().slice(0, 80)
+      if (!trimmed) return
+      const s = get()
+      await get().applySettingsPatch({
+        viewPresets: s.settings.viewPresets.map((p) => (p.id === id ? { ...p, name: trimmed } : p))
+      })
+    },
+
+    async removeViewPreset(id) {
+      const s = get()
+      await get().applySettingsPatch({
+        viewPresets: s.settings.viewPresets.filter((p) => p.id !== id)
       })
     },
 
@@ -4612,6 +4809,65 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async createFromTemplate(templateId, destDir) {
+      try {
+        if (!samePath(destDir, get().activeTab().path)) await get().navigate(destDir)
+        const res = await call(api.templates.instantiate({ id: templateId, destDir }))
+        recordUndo({ kind: 'create', paths: [res.path], label: basename(res.path) })
+        await get().refresh()
+        get().setSelection([res.path], res.path, res.path)
+        get().startRename(res.path)
+      } catch (e) {
+        reportOperationError('Template failed', e)
+      }
+    },
+
+    async importFileTemplate() {
+      try {
+        const res = await call(api.templates.import())
+        if (res.cancelled) return null
+        const settings = await call(api.settings.get())
+        set({ settings })
+        return res.template.id
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        return null
+      }
+    },
+
+    async replaceFileTemplate(templateId) {
+      try {
+        const res = await call(api.templates.replace({ id: templateId }))
+        if (res.cancelled) return
+        const settings = await call(api.settings.get())
+        set({ settings })
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async duplicateFileTemplate(templateId) {
+      try {
+        const template = await call(api.templates.duplicate({ id: templateId }))
+        const settings = await call(api.settings.get())
+        set({ settings })
+        return template.id
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        return null
+      }
+    },
+
+    async deleteFileTemplate(templateId) {
+      try {
+        await call(api.templates.delete({ id: templateId }))
+        const settings = await call(api.settings.get())
+        set({ settings })
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     copySelection(paths) {
       const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
@@ -4629,15 +4885,52 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async paste() {
+      await get().pasteInto(get().activeTab().path)
+    },
+
+    async pasteInto(destDir) {
+      if (get().recycleBin.active) return
+      if (isRemoteLocation(destDir)) {
+        get().notify('Cannot paste into a remote folder from the clipboard', true)
+        return
+      }
       const clip = await resolveClipboard(get)
-      if (!clip || clip.paths.length === 0) return
-      const dest = get().activeTab().path
-      await get().performTransfer(
-        clip.mode === 'cut' ? 'move' : 'copy',
-        clip.paths,
-        dest,
-        clip.mode === 'cut'
-      )
+      if (clip && clip.paths.length > 0) {
+        await get().performTransfer(
+          clip.mode === 'cut' ? 'move' : 'copy',
+          clip.paths,
+          destDir,
+          clip.mode === 'cut'
+        )
+        return
+      }
+      if (get().settings.pasteNonFileClipboard === false) return
+      try {
+        const peek = await call(api.shell.clipboardPeek())
+        const format = defaultPasteFormat(peek.kind)
+        if (!format) return
+        await get().pasteClipboardAs(destDir, format)
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async pasteClipboardAs(destDir, format, name) {
+      if (get().recycleBin.active) return
+      if (isRemoteLocation(destDir)) {
+        get().notify('Cannot paste into a remote folder from the clipboard', true)
+        return
+      }
+      try {
+        const res = await call(api.shell.clipboardWriteFile({ destDir, format, name }))
+        recordUndo({ kind: 'create', paths: [res.path], label: basename(res.path) })
+        if (!samePath(destDir, get().activeTab().path)) await get().navigate(destDir)
+        else await get().refresh()
+        get().setSelection([res.path], res.path, res.path)
+        get().notify(`Created ${basename(res.path)}`)
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
     },
 
     async performTransfer(op, sources, destinationDir, clearCutAfter = false) {
@@ -4689,6 +4982,19 @@ export const useAppStore = create<AppState>()((set, get) => {
         )
       } catch (e) {
         reportOperationError('Create shortcut failed', e)
+      }
+    },
+
+    async createLink(source, destDir, type, name) {
+      try {
+        const res = await call(api.fs.createLink({ source, destDir, type, name }))
+        recordUndo({ kind: 'create', paths: [res.path], label: basename(res.path) })
+        if (!samePath(destDir, get().activeTab().path)) await get().navigate(destDir)
+        else await get().refresh()
+        get().setSelection([res.path], res.path, res.path)
+        get().notify(`Created link ${basename(res.path)}`)
+      } catch (e) {
+        reportOperationError('Create link failed', e)
       }
     },
 
@@ -5602,6 +5908,22 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async setDevGateEnable(enable) {
+      try {
+        const status = await call(api.app.setDevGateEnable({ enable }))
+        set({
+          devGateActive: status.active === true,
+          devGatePresent: status.present === true,
+          devGateEnable: status.enable === true
+        })
+        if (!status.active && get().dialog?.kind === 'compiled-lists-config') {
+          get().closeDialog()
+        }
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
     async applySettingsPatch(patch) {
       const prev = get().settings
       const mergedPatch: SettingsPatch = { ...patch }
@@ -5809,7 +6131,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       return buildQuickAccess(s.knownFolders, tokens)
     },
 
-    async pinQuickAccess(path) {
+    async pinQuickAccess(path, groupId) {
       try {
         const st = await call(api.fs.stat({ path }))
         if (!st.exists || st.kind !== 'dir') {
@@ -5826,14 +6148,30 @@ export const useAppStore = create<AppState>()((set, get) => {
         get().notify('Already in Quick access')
         return
       }
-      const tokens = materializeQuickAccessTokens(
+      const list = materializeQuickAccessList(
         s.settings.quickAccess,
         s.settings.quickAccessPins,
         s.settings.quickAccessHiddenDefaults
       )
       const token = tokenForPath(path, s.knownFolders)
+      if (tokenExistsInQuickAccess(list, token)) {
+        get().notify('Already in Quick access')
+        return
+      }
+      let next: QuickAccessItem[]
+      if (groupId) {
+        let found = false
+        next = list.map((item) => {
+          if (!isQuickAccessGroup(item) || item.id !== groupId) return item
+          found = true
+          return { ...item, items: [...item.items, token] }
+        })
+        if (!found) next = [...list, token]
+      } else {
+        next = [...list, token]
+      }
       await get().applySettingsPatch({
-        quickAccess: [...tokens, token],
+        quickAccess: next,
         quickAccessPins: [],
         quickAccessHiddenDefaults: []
       })
@@ -5846,13 +6184,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       const entries = s.quickAccessEntries()
       const entry = entries.find((e) => samePath(e.path, path))
       if (!entry) return
-      const tokens = materializeQuickAccessTokens(
+      const list = materializeQuickAccessList(
         s.settings.quickAccess,
         s.settings.quickAccessPins,
         s.settings.quickAccessHiddenDefaults
-      ).filter((t) => t.toLowerCase() !== entry.token.toLowerCase())
+      )
       await get().applySettingsPatch({
-        quickAccess: tokens,
+        quickAccess: removeQuickAccessToken(list, entry.token),
         quickAccessPins: [],
         quickAccessHiddenDefaults: []
       })
@@ -5861,7 +6199,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async reorderQuickAccess(fromIndex, toIndex) {
       const s = get()
-      const tokens = materializeQuickAccessTokens(
+      const list = materializeQuickAccessList(
         s.settings.quickAccess,
         s.settings.quickAccessPins,
         s.settings.quickAccessHiddenDefaults
@@ -5869,16 +6207,133 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (
         fromIndex < 0 ||
         toIndex < 0 ||
-        fromIndex >= tokens.length ||
-        toIndex >= tokens.length ||
+        fromIndex >= list.length ||
+        toIndex >= list.length ||
         fromIndex === toIndex
       ) {
         return
       }
-      const next = [...tokens]
+      const next = [...list]
       const [moved] = next.splice(fromIndex, 1)
       if (!moved) return
       next.splice(toIndex, 0, moved)
+      await get().applySettingsPatch({
+        quickAccess: next,
+        quickAccessPins: [],
+        quickAccessHiddenDefaults: []
+      })
+    },
+
+    async createQuickAccessGroup(name) {
+      const trimmed = name.trim().slice(0, 80)
+      if (!trimmed) return
+      const s = get()
+      const list = materializeQuickAccessList(
+        s.settings.quickAccess,
+        s.settings.quickAccessPins,
+        s.settings.quickAccessHiddenDefaults
+      )
+      const id = `qag_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+      await get().applySettingsPatch({
+        quickAccess: [...list, { kind: 'group', id, name: trimmed, collapsed: false, items: [] }],
+        quickAccessPins: [],
+        quickAccessHiddenDefaults: []
+      })
+    },
+
+    async renameQuickAccessGroup(id, name) {
+      const trimmed = name.trim().slice(0, 80)
+      if (!trimmed) return
+      const s = get()
+      const list = materializeQuickAccessList(
+        s.settings.quickAccess,
+        s.settings.quickAccessPins,
+        s.settings.quickAccessHiddenDefaults
+      )
+      await get().applySettingsPatch({
+        quickAccess: list.map((item) =>
+          isQuickAccessGroup(item) && item.id === id ? { ...item, name: trimmed } : item
+        ),
+        quickAccessPins: [],
+        quickAccessHiddenDefaults: []
+      })
+    },
+
+    async deleteQuickAccessGroup(id) {
+      const s = get()
+      const list = materializeQuickAccessList(
+        s.settings.quickAccess,
+        s.settings.quickAccessPins,
+        s.settings.quickAccessHiddenDefaults
+      )
+      const group = list.find((item) => isQuickAccessGroup(item) && item.id === id)
+      if (!group || !isQuickAccessGroup(group)) return
+      const next = list.flatMap((item) =>
+        isQuickAccessGroup(item) && item.id === id ? group.items : [item]
+      )
+      await get().applySettingsPatch({
+        quickAccess: next,
+        quickAccessPins: [],
+        quickAccessHiddenDefaults: []
+      })
+    },
+
+    async setQuickAccessGroupColor(id, color) {
+      const s = get()
+      const list = materializeQuickAccessList(
+        s.settings.quickAccess,
+        s.settings.quickAccessPins,
+        s.settings.quickAccessHiddenDefaults
+      )
+      await get().applySettingsPatch({
+        quickAccess: list.map((item) =>
+          isQuickAccessGroup(item) && item.id === id
+            ? { ...item, color: color || undefined }
+            : item
+        ),
+        quickAccessPins: [],
+        quickAccessHiddenDefaults: []
+      })
+    },
+
+    async setQuickAccessGroupCollapsed(id, collapsed) {
+      const s = get()
+      const list = materializeQuickAccessList(
+        s.settings.quickAccess,
+        s.settings.quickAccessPins,
+        s.settings.quickAccessHiddenDefaults
+      )
+      await get().applySettingsPatch({
+        quickAccess: list.map((item) =>
+          isQuickAccessGroup(item) && item.id === id ? { ...item, collapsed } : item
+        ),
+        quickAccessPins: [],
+        quickAccessHiddenDefaults: []
+      })
+    },
+
+    async moveQuickAccessPinToGroup(token, groupId) {
+      const s = get()
+      const list = removeQuickAccessToken(
+        materializeQuickAccessList(
+          s.settings.quickAccess,
+          s.settings.quickAccessPins,
+          s.settings.quickAccessHiddenDefaults
+        ),
+        token
+      )
+      let next: QuickAccessItem[]
+      if (!groupId) {
+        next = [...list, token]
+      } else {
+        let found = false
+        next = list.map((item) => {
+          if (!isQuickAccessGroup(item) || item.id !== groupId) return item
+          found = true
+          return { ...item, items: [...item.items, token] }
+        })
+        if (!found) next = [...list, token]
+      }
       await get().applySettingsPatch({
         quickAccess: next,
         quickAccessPins: [],

@@ -1,10 +1,10 @@
 # Optional feature ideas (future evaluation)
 
-**Status:** parking lot only. **Do not implement from this file.** These are candidates for later, independent evaluation — not a roadmap, not a batch spec, and not part of current v0.10.0 work.
+**Status:** parking lot. Closed items stay here so we do not re-propose them. Remaining ideas are still candidates until they get a D-number in [DECISIONS.md](DECISIONS.md).
 
-Canonical plan: [../PLAN.md](../PLAN.md). Locked product decisions: [DECISIONS.md](DECISIONS.md). This document is a longer-horizon list, not current work.
+Canonical plan: [../PLAN.md](../PLAN.md). Locked product decisions: [DECISIONS.md](DECISIONS.md).
 
-If one idea is chosen later, it needs its own focused plan, impact analysis, testing strategy, and scope decision **before** any code changes. Prefer a new D-number in DECISIONS.md when locking behavior.
+# 1 File Automator and #10 script actions are **closed** (D51 Script Manager supersedes both). Do not build a pipeline composer.
 
 ---
 
@@ -33,7 +33,7 @@ Any future feature inspired by this document should preserve:
 
 # 1. File Automator / batch transformation pipelines
 
-**Not D51.** Local scripts + optional AI authoring shipped as [SCRIPTS.md](SCRIPTS.md). This item stays a separate, unevaluated pipeline composer.
+**Closed — do not build.** D51 Script Manager ([SCRIPTS.md](SCRIPTS.md)) already covers repeatable local automation (library, dry-run, live output, context **Scripts**, optional AI). A visual pipeline composer would duplicate that without enough extra value.
 
 ## Idea
 
@@ -88,6 +88,8 @@ Unused: no change to existing ops. User can preview a simple multi-step workflow
 
 # 2. Smart clipboard paste
 
+**Closed — shipped as D56.** Image/text/URL/HTML → file; Paste Special; Behavior toggle; no auto-download.
+
 ## Idea
 
 When the clipboard is **not** filesystem items, `Ctrl+V` could create an appropriate file in the current folder.
@@ -118,6 +120,8 @@ Not a general downloader or content-import framework.
 
 # 3. New-file templates
 
+**Closed — shipped as D57.** `userData/Templates/` + settings catalog; New / Add **From Template**; Manage; no tokens.
+
 ## Idea
 
 Extend **New** with user-defined templates: Markdown with front matter, JSON skeleton, HTML boilerplate, C# class, Python script, README, project notes, CSV with headings.
@@ -145,6 +149,8 @@ Later, simple tokens only (`{date}`, `{time}`, `{folder}`, `{counter}`) — not 
 
 # 4. Reopen recently closed tabs
 
+**Closed — shipped as D55.** `Ctrl+Shift+T`, tab-bar **Reopen closed tab** / **Recently closed** / **Clear recently closed**, stack in `session.json` (cap 25).
+
 ## Idea
 
 Short history of closed tabs; restore with `Ctrl+Shift+T`.
@@ -161,6 +167,8 @@ Undo for tab close — not a general session-history browser.
 
 # 5. Grouped favorites / Quick Access
 
+**Closed — shipped as D58.** Named groups on Quick access (tree + Settings); collapse in settings; ungrouped pins still work.
+
 ## Idea
 
 Named groups on the existing Quick Access list (D20), for example Development / AI / Media, with create/rename/delete group, move pin into group, reorder groups and pins, drag a folder onto a group, optional group icon/color.
@@ -174,6 +182,8 @@ Organizational containers for shortcuts — not virtual query folders.
 ---
 
 # 6. Symbolic link, hard link, and junction creation
+
+**Closed — shipped as D59.** File Tools → Create link… (symlink / hard link / junction).
 
 ## Idea
 
@@ -190,6 +200,8 @@ Advanced filesystem utility — not an alias-management product.
 ---
 
 # 7. Attached notes / lightweight to-do metadata
+
+**Closed — shipped as D61.** NTFS `mfe_note` ADS; context **Note…**; preview block; Details columns Note / Status / Has note. Host timestamps preserved.
 
 ## Idea
 
@@ -208,6 +220,8 @@ Context on filesystem objects — not project management (no deadlines, notifica
 ---
 
 # 8. Named file view presets
+
+**Closed — shipped as D60.** Save/apply view mode, columns, and sort. Orthogonal to D22 / D25.
 
 ## Idea
 
@@ -233,6 +247,8 @@ Reuse the existing renderer. Not a full adaptive layout designer.
 
 # 9. Colored path / folder tags
 
+**Closed — shipped as D62** (expanded): per-item Lucide / custom image / shell+tint overlay via `mfe_icon` ADS — not a color-dot tag. Host timestamps preserved.
+
 ## Idea
 
 A small color marker on files/folders (red urgent, yellow active, green done, …). Menu **Tag Color →** None / palette / Custom. Render as a dot, thin accent, and/or Details column.
@@ -249,7 +265,7 @@ Not a DAM taxonomy.
 
 # 10. First-class user script actions
 
-**Shipped as D51** — [SCRIPTS.md](SCRIPTS.md). This parking-lot item is closed for the runner/library/AI-authoring slice. Remaining “action” ideas (icons) can be evaluated separately. The file list and folder tree refresh after a real run (not dry-run).
+**Closed — shipped as D51** — [SCRIPTS.md](SCRIPTS.md). Runner, library, dry-run, context **Scripts**, and optional AI authoring are the product. Remaining polish (per-script / D41 command icons) can be evaluated separately. The file list and folder tree refresh after a real run (not dry-run).
 
 ## Idea
 

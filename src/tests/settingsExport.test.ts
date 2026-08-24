@@ -104,6 +104,98 @@ describe('settings export / import', () => {
     expect(parsed.settings.detailsColumns.some((c) => c.id === 'adsField:AUTOV2')).toBe(true)
   })
 
+  it('round-trips viewPresets via full settingsSchema (D60)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        viewPresets: [
+          {
+            id: 'vp_dev1_abcd',
+            name: 'Development',
+            viewMode: 'details',
+            sort: { key: 'name', dir: 'asc' },
+            detailsColumns: [{ id: 'size', width: 90 }],
+            detailsNameWidth: 320,
+            foldersFirst: true
+          }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.viewPresets[0]?.name).toBe('Development')
+    expect(parsed.settings.viewPresets[0]?.viewMode).toBe('details')
+  })
+
+  it('round-trips grouped quickAccess via full settingsSchema (D58)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        quickAccess: [
+          'desktop',
+          {
+            kind: 'group',
+            id: 'qag_work1_abcd',
+            name: 'Work',
+            color: '#60a5fa',
+            collapsed: true,
+            items: ['D:\\Projects']
+          }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.quickAccess).toEqual([
+      'desktop',
+      {
+        kind: 'group',
+        id: 'qag_work1_abcd',
+        name: 'Work',
+        color: '#60a5fa',
+        collapsed: true,
+        items: ['D:\\Projects']
+      }
+    ])
+  })
+
+  it('round-trips templates via full settingsSchema (D57)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        templates: [
+          {
+            id: 'tpl_abc1_xyz2',
+            name: 'Markdown Article',
+            suggestedStem: 'Article',
+            inputName: 'article_draft.md',
+            sourceFile: 'tpl_abc1_xyz2.md'
+          }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.templates).toEqual([
+      {
+        id: 'tpl_abc1_xyz2',
+        name: 'Markdown Article',
+        suggestedStem: 'Markdown Article',
+        inputName: 'article_draft.md',
+        sourceFile: 'tpl_abc1_xyz2.md'
+      }
+    ])
+  })
+
+  it('round-trips pasteNonFileClipboard via full settingsSchema (D56)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, pasteNonFileClipboard: false },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.pasteNonFileClipboard).toBe(false)
+  })
+
   it('round-trips commandLineShell via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: { ...defaultSettings, commandLineShell: 'powershell' },

@@ -6,6 +6,8 @@ import { api, call } from '../lib/ipc'
 import { CompressIcon, ExpandIcon } from '../lib/icons'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
 import { PreviewView } from './preview/PreviewView'
+import { ItemNotePreview } from './ItemNotePreview'
+import type { ItemNote } from '@shared/schemas/itemAds'
 
 class PreviewErrorBoundary extends Component<
   { resetKey: string; children: ReactNode },
@@ -66,6 +68,7 @@ export function PreviewWindowApp(): JSX.Element {
   const [autoplay, setAutoplay] = useState(false)
   const [zen, setZen] = useState(false)
   const [textWordWrap, setTextWordWrap] = useState(false)
+  const [itemNote, setItemNote] = useState<ItemNote | null>(null)
 
   useEffect(() => {
     void call(api.settings.get())
@@ -116,6 +119,22 @@ export function PreviewWindowApp(): JSX.Element {
     document.title = target.path ? basename(target.path) : 'Preview'
   }, [target.path])
 
+  useEffect(() => {
+    const p = target.path
+    if (!p) {
+      setItemNote(null)
+      return
+    }
+    let cancelled = false
+    void api.itemAds.getMany({ paths: [p] }).then((res) => {
+      if (cancelled) return
+      setItemNote(res.ok ? (res.value[p]?.note ?? null) : null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [target.path, target.stamp])
+
   const resetKey = `${target.path ?? ''}|${target.ads ?? ''}|${target.stamp ?? ''}`
 
   return (
@@ -143,6 +162,7 @@ export function PreviewWindowApp(): JSX.Element {
         onOpenPath={(path) => void api.shell.openPath({ path })}
         onExtractZip={(paths) => void api.fs.extractZip({ paths })}
         onRetryPlayableForce={retryPlayableForce}
+        extraBeforeFields={itemNote ? <ItemNotePreview note={itemNote} /> : null}
       />
     </PreviewErrorBoundary>
   )

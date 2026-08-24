@@ -8,6 +8,8 @@ import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
 import { getMainWindow } from '../externalOpen'
+import { isDevGateActive } from '../devGate'
+import { AppError } from '@shared/result'
 
 let listsWin: BrowserWindow | null = null
 
@@ -41,6 +43,7 @@ function persistBounds(win: BrowserWindow): void {
 }
 
 export function openCompiledListsWindow(): { opened: true } {
+  if (!isDevGateActive()) throw new AppError('validation', 'Unavailable')
   if (listsWin && !listsWin.isDestroyed()) {
     listsWin.focus()
     return { opened: true }

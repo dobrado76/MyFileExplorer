@@ -35,7 +35,7 @@ export type SortSpec = z.infer<typeof sortSchema>
 export const MAX_TREE_EXPANDED = 400
 
 /** Display sizes for a custom (image) tab icon. */
-export const TAB_CUSTOM_ICON_SIZES = [16, 20, 24, 28, 32, 40, 48] as const
+export const TAB_CUSTOM_ICON_SIZES = [16, 20, 24, 28, 32, 40, 48, 56, 64, 72] as const
 export type TabCustomIconSize = (typeof TAB_CUSTOM_ICON_SIZES)[number]
 
 /** Optional Lucide React icon on a tab (PascalCase name from `lucide-react` `icons`). */
@@ -59,7 +59,7 @@ export const customTabIconSchema = z.object({
     .number()
     .int()
     .min(16)
-    .max(64)
+    .max(72)
     .catch(32)
 })
 export type CustomTabIcon = z.infer<typeof customTabIconSchema>
@@ -122,6 +122,15 @@ export const tabStateSchema = z.object({
     )
 })
 export type TabState = z.infer<typeof tabStateSchema>
+
+/** Cap recently-closed tab stack in session.json (D55). */
+export const MAX_CLOSED_TABS = 25
+
+export const closedTabEntrySchema = z.object({
+  tab: tabStateSchema,
+  paneIndex: z.number().int().min(0).nullable().catch(null)
+})
+export type ClosedTabEntry = z.infer<typeof closedTabEntrySchema>
 
 export const splittersSchema = z.object({
   treeWidthPx: z.number().min(0).catch(240),
@@ -219,7 +228,11 @@ export const sessionSchema = z.preprocess(
     paneTreeCollapsed: z.array(z.boolean()).catch([]),
     focusedPaneIndex: z.number().int().min(0).catch(0),
     paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
-    paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5)
+    paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5),
+    closedTabs: z
+      .array(closedTabEntrySchema)
+      .catch([])
+      .transform((arr) => arr.slice(0, MAX_CLOSED_TABS))
   })
 )
 export type SessionState = z.infer<typeof sessionSchema>
@@ -239,5 +252,6 @@ export const defaultSession: SessionState = {
   paneTreeCollapsed: [false],
   focusedPaneIndex: 0,
   paneSplitCols: 0.5,
-  paneSplitRows: 0.5
+  paneSplitRows: 0.5,
+  closedTabs: []
 }

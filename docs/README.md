@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.10.0** — NTFS USN journal manager (D52) + script / preview / copy polish. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D52**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.11.0** — daily-workflow closeout **D53–D62** (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D62**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D52               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D62               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
@@ -39,13 +39,28 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
-| [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) / compiled lists (D39) |
+| [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
 | [FUTURE_IDEAS.md](FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 
 ---
+
+## Recent behavior (v0.11.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Reopen closed tabs (D55) | `Ctrl+Shift+T` / tab-bar **Recently closed** (cap 25). **Clear recently closed** empties the stack. Search results are not restored. |
+| Smart clipboard paste (D56) | Image / text / URL / HTML → new file. **Paste Special**. Settings → Behavior can disable. URL becomes `.url` — never downloaded. |
+| New-file templates (D57) | New / Add → **From Template**. Manage Templates: pretty name, ↑↓, replace, duplicate. Catalog + files under `userData`. |
+| Grouped Quick access (D58) | Named, colored, collapsible groups in the tree. Flat lists from earlier versions still load. |
+| Create link (D59) | File Tools → **Create link…** — symlink / hard link / junction. |
+| View presets (D60) | Pane view-presets control saves mode / sort / Details columns. Apply patches an existing folder override; never creates one. |
+| Attached notes (D61) | Context **Note…** → `mfe_note` ADS. Preview + Details Note / Status / Has note / Checklist. Power Search `note:` / `notestatus:` / `hasnote:` / `todo:`. Writes restore host times — [ADS.md](ADS.md). |
+| Item icons (D62) | Context **Set icon…** — Lucide / custom PNG / shell+tint. Distinct from File Tools **Change Icon…**. Host times unchanged. |
+| Copy timestamps (D53) | Copy / cross-volume move keeps source Created and Modified. |
+| Custom tab icons (D54) | Cover-crop PNG/JPG/ICO; icon-only tabs hug the image. |
 
 ## Recent behavior (v0.10.0)
 
@@ -95,7 +110,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | PowerPoint preview | `.pptx` approximate slides (text + package images); `.ppt` text-only — [PREVIEW.md](PREVIEW.md) |
 | Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
 | Folder statistics | Depth-first **Calculate Statistics** on full subtrees; Shift+skip tagged trees; columns Files / Total Files / Folders / Total Folders — [ADS.md](ADS.md) |
-| Slideshow crop | Numpad edge trim during slideshow; compiled-lists window relays crop keys |
+| Slideshow crop | Numpad edge trim during slideshow |
 | Draw caption | NTFS Caption ADS poster in slideshow / preview / viewer when enabled |
 | Nested custom context menus | `\` in custom command labels builds submenus |
 | Tab bar | Chrome-like shrink + overflow scroll |
@@ -112,7 +127,6 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Context menu Discover / layout | D41 — HKCR verb scan (persist + tick to enable); Built-in drag order & separators; Custom files/folders |
 | Open Command Line | Folder context; cmd or PowerShell (Settings); click = current user; Shift = Admin |
 | Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](SLIDESHOW.md) |
-| Compiled file lists | D39 — `.dat` Index via Update Lists; `.txt` body expand; virtual playlist |
 | NTFS ADS | D38 — Details column + manager — [ADS.md](ADS.md) |
 | Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
 | Multi-pane | D31 — 1 / 2 / 3 / 4 panes + per-pane tree + layout persistence; empty pane Open Computer / Browse |

@@ -68,6 +68,13 @@ import {
   type ContextMenuDiscoveredSettings
 } from './shellVerbs'
 import { DEFAULT_UPDATES_SOURCE } from '../updatesSource'
+import { fileTemplateSchema, sanitizeFileTemplates, type FileTemplate } from './templates'
+import {
+  quickAccessItemSchema,
+  sanitizeQuickAccess,
+  type QuickAccessItem
+} from './quickAccess'
+import { sanitizeViewPresets, viewPresetSchema, type ViewPreset } from './viewPresets'
 import { normalizeFolderStatsSkipPaths } from '../folderStatsSkip'
 import {
   DEFAULT_USN_JOURNAL_DELTA_BYTES,
@@ -272,6 +279,8 @@ const settingsFieldsSchema = z.object({
    * Off by default.
    */
   itemCheckboxes: z.boolean().catch(false),
+  /** When the clipboard is not file paths, Ctrl+V creates a file (D56). */
+  pasteNonFileClipboard: z.boolean().catch(true),
   defaultNewTabPath: z.string().catch(''),
   confirmPermanentDeleteAlways: z.boolean().catch(false),
   previewVisibleDefault: z.boolean().catch(true),
@@ -416,6 +425,8 @@ const settingsFieldsSchema = z.object({
     }
     return out
   }, z.array(folderViewSchema).catch([])),
+  /** Named view chrome presets (D60) — not path/selection/scroll. Cap 30. */
+  viewPresets: z.preprocess(sanitizeViewPresets, z.array(viewPresetSchema).catch([])),
   /**
    * Named workspace layouts: tab set + per-tab view/sort/tree + chrome splitters.
    * Cap enforced on parse/write.
@@ -434,11 +445,13 @@ const settingsFieldsSchema = z.object({
     }
     return out
   }, z.array(workspaceLayoutSchema).catch([])),
+  /** New-file templates catalog (D57). Files live under userData/Templates/. */
+  templates: z.preprocess(sanitizeFileTemplates, z.array(fileTemplateSchema).catch([])),
   /**
-   * Ordered Quick access: builtin ids (`desktop`, …) or absolute folder paths.
+   * Ordered Quick access (D58): pin tokens (builtin ids / paths) or groups.
    * Empty = factory defaults (Desktop / Downloads / Documents / Pictures).
    */
-  quickAccess: z.array(z.string()).catch([]),
+  quickAccess: z.preprocess(sanitizeQuickAccess, z.array(quickAccessItemSchema).catch([])),
   /** @deprecated Migrated into `quickAccess` on edit. */
   quickAccessPins: z.array(z.string()).catch([]),
   /** @deprecated Migrated into `quickAccess` on edit. */
@@ -644,6 +657,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   showTabIcons: true,
   foldersFirst: true,
   itemCheckboxes: false,
+  pasteNonFileClipboard: true,
   defaultNewTabPath: '',
   confirmPermanentDeleteAlways: false,
   previewVisibleDefault: true,
@@ -675,8 +689,10 @@ export const defaultSettings: Settings = settingsSchema.parse({
   detailsColumns: defaultDetailsColumns,
   adsFieldColumns: [],
   folderViews: [] satisfies FolderView[],
+  viewPresets: [] satisfies ViewPreset[],
   layouts: [] satisfies WorkspaceLayout[],
-  quickAccess: [],
+  templates: [] satisfies FileTemplate[],
+  quickAccess: [] satisfies QuickAccessItem[],
   quickAccessPins: [],
   quickAccessHiddenDefaults: [],
   updatesFolder: DEFAULT_UPDATES_SOURCE,

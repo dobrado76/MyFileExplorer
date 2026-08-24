@@ -1,4 +1,8 @@
 import { samePath } from './paths'
+import {
+  flattenQuickAccessTokens,
+  type QuickAccessItem
+} from '@shared/schemas/quickAccess'
 
 export type KnownFolderId =
   | 'desktop'
@@ -49,11 +53,11 @@ function folderLabel(path: string): string {
  * Resolve the ordered token list from settings.
  * Empty `quickAccess` → factory defaults (or migrate legacy pin/hidden fields).
  */
-export function materializeQuickAccessTokens(
-  quickAccess: string[],
+export function materializeQuickAccessList(
+  quickAccess: QuickAccessItem[],
   legacyPins: string[],
   legacyHidden: string[]
-): string[] {
+): QuickAccessItem[] {
   if (quickAccess.length > 0) return [...quickAccess]
   if (legacyPins.length > 0 || legacyHidden.length > 0) {
     const hidden = new Set(legacyHidden.map((x) => x.toLowerCase()))
@@ -63,6 +67,14 @@ export function materializeQuickAccessTokens(
     ]
   }
   return [...DEFAULT_QUICK_ACCESS_IDS]
+}
+
+export function materializeQuickAccessTokens(
+  quickAccess: QuickAccessItem[],
+  legacyPins: string[],
+  legacyHidden: string[]
+): string[] {
+  return flattenQuickAccessTokens(materializeQuickAccessList(quickAccess, legacyPins, legacyHidden))
 }
 
 export function buildQuickAccess(

@@ -637,7 +637,7 @@ export function PowerSearchDialog(): JSX.Element {
 
         <section className="power-search-section power-search-section-wide">
           <div className="form-section">Advanced</div>
-          <div className="power-search-fields">
+          <div className="power-search-fields power-search-fields-3">
             <label className="power-search-field">
               <span>Duplicates</span>
               <select
@@ -677,6 +677,43 @@ export function PowerSearchDialog(): JSX.Element {
                 onChange={(e) => patchBuilder({ content: e.target.value })}
                 placeholder="slow — scans matching files"
               />
+            </label>
+            <label className="power-search-field">
+              <span>Note</span>
+              <input
+                type="text"
+                value={builder.noteText}
+                onChange={(e) => patchBuilder({ noteText: e.target.value })}
+                placeholder="text in the attached note"
+                title="Searches note text, status, and checklist (NTFS stream; read-only)"
+              />
+            </label>
+            <label className="power-search-field">
+              <span>Note status</span>
+              <input
+                type="text"
+                value={builder.noteStatus}
+                onChange={(e) => patchBuilder({ noteStatus: e.target.value })}
+                placeholder="Needs review"
+              />
+            </label>
+          </div>
+          <div className="power-search-checks">
+            <label className="power-search-check-inline">
+              <input
+                type="checkbox"
+                checked={builder.hasNote}
+                onChange={(e) => patchBuilder({ hasNote: e.target.checked })}
+              />
+              Has a note
+            </label>
+            <label className="power-search-check-inline">
+              <input
+                type="checkbox"
+                checked={builder.openTodos}
+                onChange={(e) => patchBuilder({ openTodos: e.target.checked })}
+              />
+              Open checklist items
             </label>
           </div>
           {builder.content.trim() ? (

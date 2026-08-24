@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.10.0
+**Version:** 0.11.0
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 
@@ -25,6 +25,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:relocate`        | `{ pairs: { from, to }[] }`                      | `{ moved: string[] }` (exact destinations)    |
 | `fs:checkConflicts`  | `{ sources[], destinationDir }`                  | `{ conflicts[], items[] }` (name + both sides’ stats/dims) |
 | `fs:createShortcuts` | `{ sources[], destinationDir }`                  | `{ created: string[] }` — Windows `.lnk` (right-drag) |
+| `fs:createLink`      | `{ type, source, destDir, name? }`               | `{ path }` — symlink / hard / junction (D59) |
 | `fs:compressToZip`   | `{ paths[] }`                                    | `{ zipPath }` — sibling `.zip` (Compress to ZIP file) |
 | `fs:extractZip`      | `{ paths[] }` (`.zip` files)                     | `{ extractedDirs[] }` — sibling folders (Extract All…) |
 | `fs:trash`           | `{ paths[] }`                                    | `{ trashed[], issues: OpIssue[], aborted? }`  |
@@ -64,6 +65,8 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `shell:openRecycleBin`      | Legacy: open Windows Recycle Bin in Explorer (prefer in-app view) |
 | `shell:clipboardWriteFiles` | Cut/copy file list for OS paste |
 | `shell:clipboardReadFiles`  | Read file list if present       |
+| `shell:clipboardPeek`       | Classify clipboard (files / image / url / html / text / empty) — no bytes (D56) |
+| `shell:clipboardWriteFile`  | Write non-file clipboard as a unique-named file in `destDir` (D56) |
 | `shell:startDrag`           | Sync: `webContents.startDrag` with absolute paths (OS export while a drag is active) |
 | `shell:openExternal`        | http(s) only if ever needed     |
 
@@ -73,6 +76,16 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | ------------- | ------------------------------------- |
 | `session:get` | Load `session.json`                   |
 | `session:set` | Replace/patch session (Zod-validated) |
+
+### `templates.*` (D57)
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `templates:import` | — | `{ cancelled: true }` or `{ cancelled: false, template }` — picker copies into `userData/Templates/` and appends `settings.templates` |
+| `templates:delete` | `{ id }` | `{ ok: true }` — removes catalog row and the stored file |
+| `templates:replace` | `{ id }` | `{ cancelled: true }` or `{ cancelled: false, template }` — picker replaces the stored copy; pretty name stays |
+| `templates:duplicate` | `{ id }` | template — copies the stored file, inserts after the original with a unique pretty name |
+| `templates:instantiate` | `{ id, destDir }` | `{ path }` — unique-named copy in dest (`name` stem + input extension) |
 
 ### `tabs.*` (custom icons — D54)
 
@@ -146,6 +159,17 @@ Win32/NTFS only; soft-fail empty/false off-platform or on access errors. Paths v
 | `ads:writeBytes`  | `{ path, name, dataBase64 }` | `{ ok: true }` |
 | `ads:copy`        | `{ source, dest, ignoreNames? }` | `{ copied }` — copy named streams file↔file or dir↔dir |
 
+### `itemAds.*` (attached notes / item icons — D61 / D62)
+
+Win32/NTFS only; remotes rejected. Writes restore host Creation / Access / Write / Change (`withPreservedHostTimes`). Cap 250 paths per `getMany`.
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `itemAds:getMany` | `{ paths[] }` | `Record<path, { note, icon, iconPngBase64 }>` |
+| `itemAds:setNote` | `{ path, note \| null }` | `{ ok: true }` — `mfe_note` JSON; empty deletes |
+| `itemAds:setIcon` | `{ path, icon \| null, imageBase64? }` | `{ ok: true }` — `mfe_icon` / `mfe_icon_img` |
+| `itemAds:importCustomIcon` | `{ path }` | picker + Sharp cover-crop; returns PNG base64 (does not write) |
+
 ### `usn.*` (NTFS USN journal — D52)
 
 Drive-root paths only (`C:\` / `C:`). Soft-fail `unsupported` off win32. Native `DeviceIoControl`; `elevate: true` runs `fsutil usn` via UAC.
@@ -172,24 +196,16 @@ Discovery runs in a worker thread; results arrive on `mfe-event` `network-discov
 | `network:disconnectMappedDrive` | `{ path, force? }` | `{ disconnected, letter, remotePath? }` — cancel + forget persistent map |
 | `network:localComputerName` | — | `{ name }` — display name for Settings → Show local computer |
 
-### `slideshow.*` (compiled lists — D39)
+### `slideshow.*`
+
+Folder slideshow / image-list cache (gated by Settings → Slideshow).
 
 | Channel | Request | Response |
 | ------- | ------- | -------- |
-| `slideshow:updateCompiledLists` | `{ compiledRoot, entries[] }` | `{ updated, totalFiles, datUpdated, txtUpdated }` — crawl `.dat` source folders; write Index/Count ADS (skips `!!Lists`; `txtUpdated` always 0) |
-| `slideshow:validateCompiledLists` | `{ compiledRoot }` | `{ ok, checkedLists, issueCount, issues[] }` — missing folders / nested lists (skips `!!Lists`) |
-| `slideshow:relayKey` | `{ key, code, ctrlKey, altKey, shiftKey, metaKey }` | `{ ok }` — Compiled lists window → main slideshow keystroke |
-| `slideshow:listCompiledDats` | `{ compiledRoot, entries[] }` | `{ tabs: { name, dats[] }[] }` |
-| `slideshow:readDatIndex` | `{ path }` | `{ paths[] }` |
-| `slideshow:readLastList` / `writeLastList` | root + lines | resume file `!!Lists/last.txt` |
-| `slideshow:readCompositeList` / `writeCompositeList` | `{ path, lines? }` | any `!!Lists/*.txt` |
-| `slideshow:lastListUsable` | `{ compiledRoot }` | `{ usable }` |
-| `slideshow:expandComposite` | `{ lines, order?, ascending? }` | `{ paths[] }` — flat expand (refuses >500k; debug/legacy) |
-| `slideshow:applyCompiledLines` | `{ lines, order, ascending, preferPath?, preferIndex?, rev? }` | `{ total, index, path, truncated, listCounts? }` — builds main virtual playlist; `.txt` expand writes ADS Count; broadcasts meta |
-| `slideshow:compiledPathAt` | `{ index }` | `{ path }` — resolve play position |
-| `slideshow:clearVirtualPlaylist` | — | clears main virtual session |
-| `slideshow:openCompiledListsWindow` / `close…` | — | detached BrowserWindow |
-| `slideshow:applyCompiledPlaylist` | `{ paths, preferPath? }` | legacy flat broadcast (prefer `applyCompiledLines`) |
+| `slideshow:listImages` | folder walk request | `{ paths[] }` |
+| `slideshow:cancelList` | — | `{ cancelled }` |
+| `slideshow:pickOpenFile` / `pickSaveFile` | dialog opts | `{ path }` |
+| `slideshow:readTextFile` / `writeTextFile` | `{ path, text? }` | text / `{ ok }` |
 
 ### `mediaMetadata.*`
 
@@ -231,9 +247,8 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `fs-watch-lost`           | `{ path }` — watcher closed; renderer may re-arm |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
-| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/compile-lists/media-metadata; byte fields for large streaming copies |
+| `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/media-metadata; byte fields for large streaming copies |
 | `cover-list`              | `{ path, done, cover? }` — Change cover tiles as previews load |
-| `compiled-playlist-apply` | `{ paths, preferPath? }` — detached lists window → main slideshow |
 | `session-external-change` | rare: multi-window later                      |
 
 ---
@@ -252,7 +267,7 @@ window.myFileExplorer = {
   meta: { getMany, invalidate },
   ads: { list, listNamesMany, exists, readText, writeText, delete, readBytes, writeBytes, copy },
   mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
-  slideshow: { listImages, updateCompiledLists, openCompiledListsWindow, … },
+  slideshow: { listImages, pickOpenFile, … },
   app: { getPath, pickFolder, ready, … },
   onEvent: (handler) => unsubscribe
 }

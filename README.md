@@ -35,7 +35,9 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 
 **Workspace that sticks**
 - Multi-tab browsing with session restore — paths, views, selection, scroll, tree expand, tab icons
+- **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed)
 - Multi-pane layouts (1 / 2 / 3 / 4) and named layouts you can switch in one click
+- **View presets** — save icon size, columns, and sort; apply without jumping folder
 - Drop files onto a tab to sort into that folder
 - Offline tabs wait for encrypted / network drives instead of vanishing
 - **NAS / UNC folders reopen instantly** (session listing cache) — **[docs/NETWORKS.md](docs/NETWORKS.md)**
@@ -51,6 +53,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
 - **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
+- **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete
@@ -60,6 +63,9 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Undo / redo for the ops you expect (Ctrl+Z / Ctrl+Y)
 - Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
 - **Open Command Line here** (cmd or PowerShell from Settings; Shift = Administrator)
+- **Paste a screenshot / URL / text** as a new file; **From Template** for stubs you reuse
+- **Create link…** — symlink, hard link, or junction
+- **Grouped Quick access** — color and collapse pin groups in the tree
 
 **Run anything on the folder in front of you**
 - **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder or selection. Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
@@ -75,7 +81,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Dark / light / custom theme, font size
 - **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
 - Per-folder view overrides, view filters, Details columns for media & generation fields
-- Optional gated **slideshow / categorizer** (manual crop, draw caption) and **compiled file lists** for media libraries
+- Optional gated **slideshow / categorizer** (manual crop, draw caption) for media libraries
 - NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts (depth-first subtree tagging)
 - Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
 - Optional “disable hardware acceleration” when you need the GPU for training
@@ -115,8 +121,13 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
 14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
 15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover, Mark as Watched, and the Watched / Genre toolbar.
-16. (Optional / advanced) Settings → Scripting and AI → Enable scripting. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
-17. (Optional / advanced) Drive Properties → **USN…** — Enable on a spare NTFS volume (UAC). Confirm Recent shows the test file Create/Delete. Do **not** Delete journal on a huge library unless you mean a full-volume scan.
+16. Close a tab, then `Ctrl+Shift+T` (or tab-bar **Recently closed**) — it comes back.
+17. Copy a screenshot, then Paste in a folder — you should get a `.png`. Paste a URL for a `.url` shortcut (the page is not downloaded).
+18. Right-click a file → **Note…** — add a line and a checklist item. Confirm the preview and Details **Checklist** column. Power Search → tick **Has a note** or type `todo:`.
+19. Right-click → **Set icon…** — pick a Lucide glyph (or tint). Confirm Created / Modified on the file did not change.
+20. New / Add → **From Template** (after Manage Templates… imports one). Toolbar view-presets icon → Save current as a preset, then Apply.
+21. (Optional / advanced) Settings → Scripting and AI → Enable scripting. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
+22. (Optional / advanced) Drive Properties → **USN…** — Enable on a spare NTFS volume (UAC). Confirm Recent shows the test file Create/Delete. Do **not** Delete journal on a huge library unless you mean a full-volume scan.
 
 Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md) · [docs/ADVANTAGES.md](docs/ADVANTAGES.md) · [docs/NETWORKS.md](docs/NETWORKS.md) · [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md) · [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · [docs/SCRIPTS.md](docs/SCRIPTS.md) · [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
@@ -132,18 +143,18 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D52 |
+| **[docs/DECISIONS.md](docs/DECISIONS.md)** | Locked choices D1–D62 |
 | **[docs/NETWORKS.md](docs/NETWORKS.md)** | Network neighborhood & mapped drives |
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
 | **[samples/preview-extensions/](samples/preview-extensions/)** | One small file per preview extension (`npm run samples:preview`) |
-| **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer / compiled lists |
+| **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |
 | **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)** | Opt-in movie/TV metadata (D50) |
 | **[docs/SCRIPTS.md](docs/SCRIPTS.md)** | Universal script runner — use cases and copy-paste examples (D51) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.10.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.11.0 product-release summary |
 
 ---
 

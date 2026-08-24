@@ -69,6 +69,10 @@ describe('buildSearchQuery', () => {
       attributes: ['h', 'r'],
       emptyOnly: true,
       content: 'budget',
+      noteText: 'lab',
+      noteStatus: 'Needs review',
+      hasNote: true,
+      openTodos: true,
       dupe: 'name',
       childName: 'readme',
       depth: '<=3'
@@ -87,6 +91,9 @@ describe('buildSearchQuery', () => {
     expect(parsed.attrib?.hidden).toBe(true)
     expect(parsed.empty).toBe(true)
     expect(parsed.content).toBe('budget')
+    expect(parsed.noteText).toBe('lab')
+    expect(parsed.noteStatus).toBe('Needs review')
+    expect(parsed.openTodo).toBe(true)
     expect(parsed.dupe).toBe('name')
     expect(parsed.childName).toBe('readme')
     expect(parsed.depthMax).toBe(3)

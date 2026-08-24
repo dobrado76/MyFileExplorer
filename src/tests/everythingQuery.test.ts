@@ -4,7 +4,8 @@ import {
   matchTextGroups,
   matchTextPred,
   parseEverythingQuery,
-  rowMatchesStructured
+  rowMatchesStructured,
+  searchDecodeMessage
 } from '../main/search/everythingQuery'
 import { fixtureNames } from './searchFixtures'
 
@@ -74,6 +75,29 @@ describe('parseEverythingQuery', () => {
 
     const folders = parseEverythingQuery('folder:')
     expect(folders.folderOnly).toBe(true)
+  })
+
+  it('parses note / hasnote / notestatus / todo', () => {
+    const q = parseEverythingQuery('note:lab notestatus:review todo:')
+    expect(q.noteText).toBe('lab')
+    expect(q.noteStatus).toBe('review')
+    expect(q.openTodo).toBe(true)
+    expect(q.openTodoNeedle).toBeNull()
+
+    const any = parseEverythingQuery('hasnote:')
+    expect(any.hasNote).toBe(true)
+
+    const open = parseEverythingQuery('todo:film')
+    expect(open.openTodo).toBe(true)
+    expect(open.openTodoNeedle).toBe('film')
+
+    const none = parseEverythingQuery('!hasnote:')
+    expect(none.excludeHasNote).toBe(true)
+  })
+
+  it('treats todo: as a valid search by itself', () => {
+    const q = parseEverythingQuery('todo:')
+    expect(searchDecodeMessage('todo:', q)).toBeNull()
   })
 
   it('parses date modified presets and custom ops', () => {

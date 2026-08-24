@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } f
 import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
+import type { ClosedTabEntry } from '@shared/schemas/session'
 import {
   findDropDirAt,
   getLiveRightDragSession,
@@ -14,7 +15,13 @@ import { TabLucideIcon } from './TabLucideIcon'
 
 type TabBarMenu =
   | { kind: 'tab'; tabId: string; x: number; y: number }
+  | { kind: 'bar'; x: number; y: number }
   | { kind: 'recycle'; x: number; y: number }
+
+function closedTabLabel(entry: ClosedTabEntry): string {
+  const title = entry.tab.title?.trim()
+  return title && title.length > 0 ? title : basename(entry.tab.path)
+}
 
 const EDGE_SCROLL_PX = 28
 const EDGE_SCROLL_STEP = 18
@@ -28,6 +35,9 @@ export function TabBar(): JSX.Element {
   const dragPaths = useAppStore((s) => s.dragPaths)
   const activateTab = useAppStore((s) => s.activateTab)
   const closeTab = useAppStore((s) => s.closeTab)
+  const reopenClosedTab = useAppStore((s) => s.reopenClosedTab)
+  const clearClosedTabs = useAppStore((s) => s.clearClosedTabs)
+  const closedTabs = useAppStore((s) => s.closedTabs)
   const newTab = useAppStore((s) => s.newTab)
   const duplicateTab = useAppStore((s) => s.duplicateTab)
   const renameTab = useAppStore((s) => s.renameTab)
@@ -264,7 +274,7 @@ export function TabBar(): JSX.Element {
   const menuPos = menu
     ? {
         left: Math.min(menu.x, window.innerWidth - 200),
-        top: Math.min(menu.y, window.innerHeight - 180)
+        top: Math.min(menu.y, window.innerHeight - 260)
       }
     : null
 
@@ -283,6 +293,12 @@ export function TabBar(): JSX.Element {
       <div
         ref={tabsStripRef}
         className="tabbar-tabs"
+        onContextMenu={(e) => {
+          if (e.target !== e.currentTarget) return
+          e.preventDefault()
+          if (fileDragActive || shouldSuppressContextMenu() || getLiveRightDragSession()) return
+          setMenu({ kind: 'bar', x: e.clientX, y: e.clientY })
+        }}
         onScroll={updateScrollState}
         onWheel={(e) => {
           const el = tabsStripRef.current
@@ -570,10 +586,97 @@ export function TabBar(): JSX.Element {
               >
                 Close
               </button>
+              <div className="menu-sep" />
+              <TabReopenMenuItems
+                closedTabs={closedTabs}
+                onReopen={(i) => {
+                  setMenu(null)
+                  void reopenClosedTab(i)
+                }}
+                onClear={() => {
+                  setMenu(null)
+                  clearClosedTabs()
+                }}
+              />
+            </div>,
+            document.body
+          )
+        : null}
+
+      {menu?.kind === 'bar' && menuPos
+        ? createPortal(
+            <div
+              className="context-menu tab-context-menu"
+              role="menu"
+              style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <TabReopenMenuItems
+                closedTabs={closedTabs}
+                onReopen={(i) => {
+                  setMenu(null)
+                  void reopenClosedTab(i)
+                }}
+                onClear={() => {
+                  setMenu(null)
+                  clearClosedTabs()
+                }}
+              />
             </div>,
             document.body
           )
         : null}
     </div>
+  )
+}
+
+function TabReopenMenuItems(props: {
+  closedTabs: ClosedTabEntry[]
+  onReopen: (index: number) => void
+  onClear: () => void
+}): JSX.Element {
+  const empty = props.closedTabs.length === 0
+  return (
+    <>
+      <button
+        type="button"
+        className="menu-item"
+        role="menuitem"
+        disabled={empty}
+        onClick={() => {
+          if (empty) return
+          props.onReopen(0)
+        }}
+      >
+        Reopen closed tab
+        <span className="menu-hint">Ctrl+Shift+T</span>
+      </button>
+      {!empty ? (
+        <div className="menu-sub-wrap">
+          <button type="button" className="menu-item" role="menuitem" aria-haspopup="menu">
+            Recently closed
+            <span className="menu-hint">▸</span>
+          </button>
+          <div className="context-menu context-submenu" role="menu">
+            {props.closedTabs.map((entry, i) => (
+              <button
+                key={`${entry.tab.id}-${i}`}
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                title={entry.tab.path}
+                onClick={() => props.onReopen(i)}
+              >
+                {closedTabLabel(entry)}
+              </button>
+            ))}
+            <div className="menu-sep" />
+            <button type="button" className="menu-item" role="menuitem" onClick={props.onClear}>
+              Clear recently closed
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }

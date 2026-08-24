@@ -19,6 +19,7 @@ import {
   CollapseAllIcon,
   PlayIcon,
   CompiledListsPlayIcon,
+  CompiledListsUpdateIcon,
   ListPlusIcon,
   SaveIcon,
   FolderOpenIcon,
@@ -176,6 +177,17 @@ export function Toolbar(): JSX.Element {
           >
             <PlayIcon />
           </button>
+          {devGateActive && (
+            <button
+              className="icon-btn"
+              aria-label="Update compiled lists"
+              title="Update compiled lists"
+              disabled={settings.slideshow.compiledFileListsFolder.trim() === ''}
+              onClick={() => openDialog({ kind: 'compiled-lists-config' })}
+            >
+              <CompiledListsUpdateIcon />
+            </button>
+          )}
           {devGateActive && settings.slideshow.compiledFileListsFolder.trim() !== '' && (
             <button
               className="icon-btn"

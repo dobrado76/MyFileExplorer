@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildQuickAccess,
+  materializeQuickAccessList,
   materializeQuickAccessTokens,
   type KnownFolder
 } from '../renderer/lib/quickAccess'
@@ -34,6 +35,26 @@ describe('materializeQuickAccessTokens', () => {
       'home',
       'D:\\Work'
     ])
+  })
+})
+
+describe('grouped quick access (D58)', () => {
+  it('flattens group pins for lookup', () => {
+    const list = materializeQuickAccessList(
+      [
+        'desktop',
+        {
+          kind: 'group',
+          id: 'qag_test1_abcd',
+          name: 'Work',
+          collapsed: false,
+          items: ['D:\\Projects']
+        }
+      ],
+      [],
+      []
+    )
+    expect(materializeQuickAccessTokens(list, [], [])).toEqual(['desktop', 'D:\\Projects'])
   })
 })
 

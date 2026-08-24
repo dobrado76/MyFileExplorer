@@ -9,7 +9,19 @@ export const MAX_ADS_FIELD_COLUMNS = 32
 export const MAX_META_FETCH_COLUMNS = 80
 
 /** Built-in file columns filled from DirEntry (sync), plus opt-in async ADS. */
-export const FILE_COLUMN_IDS = ['folder', 'mtime', 'ctime', 'type', 'size', 'ext', 'ads'] as const
+export const FILE_COLUMN_IDS = [
+  'folder',
+  'mtime',
+  'ctime',
+  'type',
+  'size',
+  'ext',
+  'ads',
+  'itemNote',
+  'itemNoteStatus',
+  'itemHasNote',
+  'itemNoteTodos'
+] as const
 
 /** Image technical columns (Sharp / headers). */
 export const IMAGE_COLUMN_IDS = [
@@ -247,6 +259,34 @@ export const DETAILS_COLUMN_META: Record<BuiltinDetailsColumnId, DetailsColumnMe
     label: 'Alternate streams',
     group: 'file',
     defaultWidth: 180,
+    async: true
+  },
+  itemNote: {
+    id: 'itemNote',
+    label: 'Note',
+    group: 'file',
+    defaultWidth: 200,
+    async: true
+  },
+  itemNoteStatus: {
+    id: 'itemNoteStatus',
+    label: 'Status',
+    group: 'file',
+    defaultWidth: 110,
+    async: true
+  },
+  itemHasNote: {
+    id: 'itemHasNote',
+    label: 'Has note',
+    group: 'file',
+    defaultWidth: 80,
+    async: true
+  },
+  itemNoteTodos: {
+    id: 'itemNoteTodos',
+    label: 'Checklist',
+    group: 'file',
+    defaultWidth: 200,
     async: true
   },
 
@@ -529,7 +569,7 @@ export function isDirectoryMetaColumn(
   id: DetailsColumnId,
   opts?: MetaFetchOptions
 ): boolean {
-  if (id === 'ads' || isAdsFieldColumnId(id)) return true
+  if (id === 'ads' || isItemNoteColumnId(id) || isAdsFieldColumnId(id)) return true
   if (opts?.showFolderStatistics === false) return false
   return columnNeedsDirectoryMeta(id) || id === 'size'
 }
@@ -566,9 +606,22 @@ export function filterDirectoryMetaFetchColumns(
   return columns.filter((id) => isDirectoryMetaColumn(id, opts))
 }
 
-/** Columns that need directory rows in async metadata fetch (ADS, folder stats). */
+export function isItemNoteColumnId(id: string): boolean {
+  return (
+    id === 'itemNote' ||
+    id === 'itemNoteStatus' ||
+    id === 'itemHasNote' ||
+    id === 'itemNoteTodos'
+  )
+}
+
 export function columnNeedsDirectoryMeta(id: DetailsColumnId): boolean {
-  return id === 'ads' || isAdsFieldColumnId(id) || isFolderStatsColumnId(id)
+  return (
+    id === 'ads' ||
+    isItemNoteColumnId(id) ||
+    isAdsFieldColumnId(id) ||
+    isFolderStatsColumnId(id)
+  )
 }
 
 /** Columns that need main-process metadata extraction. */

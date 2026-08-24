@@ -20,6 +20,7 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'cut',
   'copy',
   'paste',
+  'paste-special',
   'paste-into-folder',
   'file-tools',
   'scripts',
@@ -41,6 +42,8 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'map-network-drive',
   'disconnect-network-drive',
   'network-refresh',
+  'item-note',
+  'item-icon',
   'alternate-streams',
   'calculate-folder-statistics',
   'properties'
@@ -77,6 +80,7 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   { id: 'cut', label: 'Cut' },
   { id: 'copy', label: 'Copy' },
   { id: 'paste', label: 'Paste', hint: 'Empty pane background' },
+  { id: 'paste-special', label: 'Paste Special', hint: 'Non-file clipboard formats' },
   { id: 'paste-into-folder', label: 'Paste into folder' },
   {
     id: 'file-tools',
@@ -122,6 +126,8 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   { id: 'map-network-drive', label: 'Map network drive…' },
   { id: 'disconnect-network-drive', label: 'Disconnect network drive', hint: 'Mapped letter or system dialog' },
   { id: 'network-refresh', label: 'Refresh Network', hint: 'Re-run LAN discovery' },
+  { id: 'item-note', label: 'Note…', hint: 'NTFS note on the file or folder' },
+  { id: 'item-icon', label: 'Set icon…', hint: 'Lucide, custom image, or tint the Windows icon' },
   { id: 'alternate-streams', label: 'Alternate streams…' },
   {
     id: 'calculate-folder-statistics',
@@ -210,6 +216,7 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'cut' },
   { type: 'item', id: 'copy' },
   { type: 'item', id: 'paste' },
+  { type: 'item', id: 'paste-special' },
   { type: 'item', id: 'paste-into-folder' },
   { type: 'item', id: 'file-tools' },
   { type: 'item', id: 'scripts' },
@@ -237,6 +244,8 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'disconnect-network-drive' },
   { type: 'item', id: 'network-refresh' },
   { type: 'sep', id: 'sep-default-9' },
+  { type: 'item', id: 'item-note' },
+  { type: 'item', id: 'item-icon' },
   { type: 'item', id: 'alternate-streams' },
   { type: 'item', id: 'calculate-folder-statistics' },
   { type: 'item', id: 'properties' }

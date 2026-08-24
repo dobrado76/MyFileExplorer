@@ -66,6 +66,9 @@ export type MyFileExplorerApi = {
     createShortcuts(
       req: CheckConflictsRequest
     ): Promise<Result<{ created: string[] }>>
+    createLink(
+      req: import('../schemas/createLink').CreateLinkRequest
+    ): Promise<Result<{ path: string }>>
     /** Compress paths into a new `.zip` beside the selection. */
     compressToZip(req: PathsRequest): Promise<Result<{ zipPath: string }>>
     /** Extract `.zip` paths into sibling folders named after each archive. */
@@ -164,6 +167,10 @@ export type MyFileExplorerApi = {
     discoverVerbs(): Promise<Result<import('../schemas/shellVerbs').DiscoverShellVerbsResponse>>
     clipboardWriteFiles(req: PathsRequest): Promise<Result<{ written: boolean }>>
     clipboardReadFiles(): Promise<Result<{ paths: string[] }>>
+    clipboardPeek(): Promise<Result<import('../schemas/clipboardPaste').ClipboardPeek>>
+    clipboardWriteFile(
+      req: import('../schemas/clipboardPaste').ClipboardWriteFileRequest
+    ): Promise<Result<{ path: string }>>
     /**
      * Hand file paths to the OS drag (Explorer / Photoshop / mail / etc.).
      * Synchronous — blocks until the drag ends. Call when a left-drag leaves
@@ -171,6 +178,47 @@ export type MyFileExplorerApi = {
      * startDrag ran.
      */
     startDrag(req: PathsRequest): boolean
+  }
+  templates: {
+    import(): Promise<
+      Result<
+        | { cancelled: true }
+        | { cancelled: false; template: import('../schemas/templates').FileTemplate }
+      >
+    >
+    delete(req: { id: string }): Promise<Result<{ ok: true }>>
+    replace(req: { id: string }): Promise<
+      Result<
+        | { cancelled: true }
+        | { cancelled: false; template: import('../schemas/templates').FileTemplate }
+      >
+    >
+    duplicate(req: { id: string }): Promise<Result<import('../schemas/templates').FileTemplate>>
+    instantiate(req: { id: string; destDir: string }): Promise<Result<{ path: string }>>
+  }
+  itemAds: {
+    getMany(req: { paths: string[] }): Promise<
+      Result<Record<string, import('../schemas/itemAds').ItemAdsRecord>>
+    >
+    setNote(req: {
+      path: string
+      note: import('../schemas/itemAds').ItemNote | null
+    }): Promise<Result<{ ok: true }>>
+    setIcon(req: {
+      path: string
+      icon: import('../schemas/itemAds').ItemIcon | null
+      imageBase64?: string
+    }): Promise<Result<{ ok: true }>>
+    importCustomIcon(req: { path: string }): Promise<
+      Result<
+        | { cancelled: true }
+        | {
+            cancelled: false
+            icon: import('../schemas/itemAds').ItemIcon
+            imageBase64: string
+          }
+      >
+    >
   }
   tabs: {
     /** Open-file dialog; Sharp cover-crops to a square PNG under userData. */
@@ -273,7 +321,11 @@ export type MyFileExplorerApi = {
     /** Tell main the UI is ready for queued external-open requests. */
     ready(): Promise<Result<{ ok: true; platform: string }>>
     getVersion(): Promise<Result<{ version: string }>>
-    devGate(): Promise<Result<{ active: boolean }>>
+    devGate(): Promise<Result<{ active: boolean; present: boolean; enable: boolean }>>
+    /** Write ENABLE in existing userData DEV.cfg. Never creates the file. */
+    setDevGateEnable(req: { enable: boolean }): Promise<
+      Result<{ active: boolean; present: boolean; enable: boolean }>
+    >
     checkUpdate(req: { source: string }): Promise<
       Result<{
         candidate: {

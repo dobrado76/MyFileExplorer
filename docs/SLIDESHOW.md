@@ -6,39 +6,12 @@ When the gate is **off**, the app must not show slideshow toolbar buttons, folde
 
 When **on**:
 
-- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder, **Compiled file lists folder** + Update Lists…
-- Toolbar: Start (folder/cache walk), optional **Compiled lists** button (when compiled folder is set), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
+- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **draw caption** (Caption ADS poster), invalid-images folder
+- Toolbar: Start (folder/cache walk), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
 - Folder context menu: **Start Slideshow**. **Stop** cancels an in-flight image-list build so a cancelled walk cannot later replace the playlist. Folder walks collect paths from directory listings; `stat` / decode runs only when Settings order is **size** or **dimensions**. Virtual delete/categorize during play marks the current index skipped (does not copy the path array).
 - **Categorizer map** — **Mapping Manager…** (Settings → Slideshow); Import/Export `.map` files there. Rows persist in `settings.slideshow.categorizerMap` (included in Settings → About → Export/Import). Deleting an exported file does not clear mappings.
 
-## Compiled file lists (D39)
-
-Parallel path to folder Start — category folders hold `.dat` / `.txt` lists; **Update Lists** crawls source folders from each `.dat` body (outside `!!Lists`) into ADS `Index` + `Count` so `.dat` play does not walk source folders. `|=>` on `.dat` bodies is ignored during Update Lists. `.txt` is **not** indexed — play always expands from the body. Long Update Lists runs show a cancelable progress UI. Composites live under `!!Lists/`.
-
-**Settings**
-
-- `compiledFileListsFolder` — root; empty hides the second toolbar button
-- `compiledListEntries` — `{ name, folder }[]` (config UI tabs / category folder names; drag order)
-- `compiledPlaylistIndex` — resume index within the expanded playlist
-- `compiledListsWindowBounds` — detached lists window geometry
-
-**On disk** (under compiled root):
-
-- `.dat` — body = **source folder path(s)** (one per line; optional `folder|=>n` is ignored by Update Lists; a line that looks like a jpg/png path is treated as a single Index entry). ADS **Index** / **Count** = crawled image list after Update Lists (body is not rewritten). Slideshow prefers Index when present; otherwise body-as-images (legacy).
-- `.txt` — body = **folders** and/or **other `.dat`/`.txt` list refs** (optional `path|=>count`). **Never** uses ADS Index; slideshow always expands the body live (nested refs + folder walks; cycles break).
-- `!!Lists/` — own tab for selectable `.dat`/`.txt`; **Update Lists** does not recompile here. `last.txt` is resume-only (hidden from the grid); user-saved composites also live here. **Nb. Files** reads ADS **Count** (then Index) when present. Playing a `.txt` expands it on the fly and **rewrites Count** to the expanded image total (not Index).
-
-**Update Lists** walks the compiled root, skips `!!Lists`, processes **`.dat` only** (one file at a time; no in-memory folder cache), overwrites Index + Count, and reports progress (files done / total, current list, images found, current folder) with Cancel.
-
-**Validate Lists** (same config dialog) checks every `.dat` / `.txt` outside `!!Lists` and reports: missing source **folders** and missing nested **list** refs (`.dat`/`.txt`).
-
-**Virtual playlist (C#-scale):** Compiled slideshow never materializes `path × count` as a flat string array. Main keeps **segments** (each list’s unique paths once + repeat count). Logical length is `sum(len × count)`, clamped to **2,147,483,647** (`Int32.MaxValue`). Overlay holds `compiledTotal` + `currentPath` and resolves the next path via IPC. **Random:** `Uint32Array` Fisher–Yates when `total ≤ 50_000_000`; Feistel permutation above that (O(1) memory). **Name** (and size/dimensions in compiled mode): per-segment basename sort only — not a global 42M expand. Folder **Start** slideshow remains capped at 100 000 paths.
-
-**Second toolbar button:** always open the detached lists window and enter compiled slideshow mode (empty playlist → blank/black screen). Reload `last.txt` when it has counts, build the virtual playlist with Settings → Slideshow order, resume at `compiledPlaylistIndex`. `#` / ± / Clear rewrite `last.txt` and immediately rebuild the live virtual playlist (including empty). Settings → **Update Lists…** opens the optional order/config dialog (entries are not required to compile).
-
-**Detached lists window** (second BrowserWindow, **child of the main shell**): tabs = entry names; grid = `.dat` / `.txt` rows with # / ± / Nb. Files; Load/Save any `!!Lists/*.txt`; `#` / ± / Clear rewrite `last.txt` and **immediately** rebuild the live slideshow playlist (Clear → empty playlist in place; status stays manual if interrupted). **Play** rebuilds and **resumes autoplay**. Closing the lists window stops the slideshow, and stopping the slideshow closes the lists window. Closing the **main** window also closes the lists window. While the lists window has focus, keystrokes (except typing in count fields / OS Load-Save dialogs) are **relayed to the slideshow**. Overlay controls unchanged.
-
-Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle on the **main overlay and the Compiled lists window** (reappears on move / click / wheel).
+Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle (reappears on move / click / wheel).
 
 **Draw caption:** when Settings → Slideshow → **Draw caption** is on, a file with NTFS ADS `Caption` (JSON array of `{ Caption, Descriptor, Sentence }`) is shown as a demotivational-style poster: the photo (or latest `VER_n` tip) sits in the framed rectangle; one array entry is picked at random each preview / slideshow display. Border and title colors are hashed from the **full Caption ADS stream text** (before the random pick) so every display of that file shares one accent color. Missing or invalid ADS falls back to the photo plus a filename overlay.
 
@@ -78,7 +51,7 @@ Exact line shape (blank lines allowed):
 | Keys | Auto mode | Manual mode |
 | ---- | --------- | ----------- |
 | Esc, Space, click | Stop (commit buffer) | Stop (commit buffer) |
-| Enter | Interrupt → manual | Resume autoplay (same as Compiled Lists **Play**) |
+| Enter | Interrupt → manual | Resume autoplay |
 | Tab | Open in-app image editor (same as context **Edit image…**); interrupt → manual. After Save, frame reloads | Same |
 | Home / End | Interrupt → first / last | First / last |
 | ← ↑ PageUp | Interrupt → previous | Previous (wraps when Loop is on) |

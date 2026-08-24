@@ -205,6 +205,14 @@ export const TreePanelIcon = svg(
     <path d="M9 4v16" />
   </>
 )
+/** Folder view presets (mode / columns / sort) — distinct from LayoutsIcon’s 2×2 panes. */
+export const ViewPresetsIcon = svg(
+  <>
+    <rect x="3" y="4" width="7" height="7" rx="1.5" />
+    <rect x="3" y="13" width="7" height="7" rx="1.5" />
+    <path d="M13 6.5h8M13 17.5h8" />
+  </>
+)
 /** Named workspace layouts (tabs + chrome). */
 export const LayoutsIcon = svg(
   <>
@@ -347,6 +355,13 @@ export const CompiledListsPlayIcon = svg(
     <rect x="14" y="4" width="7" height="7" rx="1" />
     <rect x="3" y="13" width="7" height="7" rx="1" />
     <path d="M15 15l6 3.5L15 22v-7z" fill="currentColor" stroke="none" />
+  </>
+)
+/** Refresh compiled .dat indexes (Update Lists). */
+export const CompiledListsUpdateIcon = svg(
+  <>
+    <path d="M21 12a9 9 0 1 1-2.6-6.3" />
+    <path d="M21 3v6h-6" />
   </>
 )
 export const ListPlusIcon = svg(

@@ -30,6 +30,11 @@ alwaysApply: true
 Until scaffold exists, prefer updating `docs/` + `PLAN.md` when product decisions change; then implement.
 Keep [docs/DECISIONS.md](docs/DECISIONS.md) in sync when locking behavior.
 
+## Unpublished (developer gate)
+
+- **Compiled file lists** is a private feature (D39). Keep every UI entry and IPC channel behind `devGateActive` / `isDevGateActive()`. Never mention it in README, CHANGELOG, RELEASE_NOTES, or `docs/` pages that users or GitHub issues will read. Do not add how-to docs or accept it as a public product request.
+- Appearance **Show DEV-gated items** is visible only when `userData/DEV.cfg` exists. It writes `ENABLE` in that file. Do not create the file. Gated chrome still requires `ENABLE=true` **and** `COMPUTER_NAME` matching this machine. Do not document `DEV.cfg` in user-facing docs.
+
 ## Settings (D45)
 
 - **Every new preference** must be added to `settingsSchema` (or a nested Zod object already under it) so Settings → Export / Import round-trips it automatically.

@@ -112,6 +112,10 @@ export const powerSearchStateSchema = z.object({
   attributes: z.array(z.enum(['h', 's', 'r', 'a'])).catch([]),
   emptyOnly: z.boolean().catch(false),
   content: z.string().catch(''),
+  noteText: z.string().catch(''),
+  noteStatus: z.string().catch(''),
+  hasNote: z.boolean().catch(false),
+  openTodos: z.boolean().catch(false),
   dupe: z.enum(['', 'name', 'size', 'namepart']).catch(''),
   childName: z.string().catch(''),
   depth: z.string().catch('')

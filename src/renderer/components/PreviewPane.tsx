@@ -7,7 +7,9 @@ import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
 import { PreviewView } from './preview/PreviewView'
+import { ItemNotePreview } from './ItemNotePreview'
 import { isVolumeRootPath } from '../lib/rightDrag'
+import type { ItemNote } from '@shared/schemas/itemAds'
 
 export function PreviewPane(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
@@ -23,6 +25,8 @@ export function PreviewPane(): JSX.Element {
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
   const drawCaption = useAppStore((s) => s.devGateActive && s.settings.slideshow.drawCaption)
   const [captionPosterUrl, setCaptionPosterUrl] = useState<string | null>(null)
+  const [itemNote, setItemNote] = useState<ItemNote | null>(null)
+  const columnMetaBump = useAppStore((s) => s.columnMetaBump)
 
   const drives = useAppStore((s) => s.drives)
   const drivesOverview = useAppStore((s) => s.drivesOverview)
@@ -83,6 +87,21 @@ export function PreviewPane(): JSX.Element {
       cancelled = true
     }
   }, [drawCaption, previewPath, selectedStamp, model?.kind, model?.mediaUrl])
+
+  useEffect(() => {
+    if (!previewPath) {
+      setItemNote(null)
+      return
+    }
+    let cancelled = false
+    void api.itemAds.getMany({ paths: [previewPath] }).then((res) => {
+      if (cancelled) return
+      setItemNote(res.ok ? (res.value[previewPath]?.note ?? null) : null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [previewPath, selectedStamp, columnMetaBump.rev, columnMetaBump.path])
 
   const versionBanner =
     versionOverrideAds !== undefined && versionMeta ? (
@@ -147,6 +166,7 @@ export function PreviewPane(): JSX.Element {
       onExtractZip={(paths) => void extractZip(paths)}
       onNotify={notify}
       onRetryPlayableForce={retryPlayableForce}
+      extraBeforeFields={itemNote ? <ItemNotePreview note={itemNote} /> : null}
       headerActions={
         <>
           {model?.kind === 'image' &&

@@ -28,7 +28,7 @@ export function tabIconShowLabel(icon: TabIcon): boolean {
 export function tabCustomIconSizePx(icon: CustomTabIcon): number {
   const n = icon.sizePx
   if (TAB_CUSTOM_ICON_SIZES.includes(n as (typeof TAB_CUSTOM_ICON_SIZES)[number])) return n
-  if (n >= 16 && n <= 64) return n
+  if (n >= 16 && n <= 72) return n
   return 32
 }
 

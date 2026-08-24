@@ -15,6 +15,7 @@ export const IPC = {
   fsCheckConflicts: 'fs:checkConflicts',
   /** Right-drag “Create shortcuts here” — write .lnk files in destination. */
   fsCreateShortcuts: 'fs:createShortcuts',
+  fsCreateLink: 'fs:createLink',
   /** Compress selection to a sibling `.zip` (Explorer “Compress to ZIP file”). */
   fsCompressToZip: 'fs:compressToZip',
   /** Extract `.zip` archives into sibling folders (Explorer “Extract All…”). */
@@ -64,11 +65,27 @@ export const IPC = {
   shellDiscoverVerbs: 'shell:discoverVerbs',
   shellClipboardWriteFiles: 'shell:clipboardWriteFiles',
   shellClipboardReadFiles: 'shell:clipboardReadFiles',
+  /** Classify OS clipboard without sending file/image bytes (D56). */
+  shellClipboardPeek: 'shell:clipboardPeek',
+  /** Write non-file clipboard as a new file (D56). */
+  shellClipboardWriteFile: 'shell:clipboardWriteFile',
   /** Sync: webContents.startDrag — must run during an active drag gesture. */
   shellStartDrag: 'shell:startDrag',
 
   sessionGet: 'session:get',
   sessionSet: 'session:set',
+
+  templatesImport: 'templates:import',
+  templatesDelete: 'templates:delete',
+  templatesReplace: 'templates:replace',
+  templatesDuplicate: 'templates:duplicate',
+  templatesInstantiate: 'templates:instantiate',
+
+  /** NTFS item notes / icon overlays (D61 / D62). */
+  itemAdsGetMany: 'itemAds:getMany',
+  itemAdsSetNote: 'itemAds:setNote',
+  itemAdsSetIcon: 'itemAds:setIcon',
+  itemAdsImportCustomIcon: 'itemAds:importCustomIcon',
 
   /** Native picker + Sharp cover-crop to userData/tab-icons (D54). */
   tabsImportCustomIcon: 'tabs:importCustomIcon',
@@ -117,6 +134,7 @@ export const IPC = {
   appReady: 'app:ready',
   appGetVersion: 'app:getVersion',
   appDevGate: 'app:devGate',
+  appDevGateSetEnable: 'app:devGateSetEnable',
   mediaMetadataExtractPlex: 'mediaMetadata:extractPlex',
   mediaMetadataDownload: 'mediaMetadata:download',
   mediaMetadataRefresh: 'mediaMetadata:refresh',
@@ -374,4 +392,8 @@ export type MfeEvent =
           height: number
         }
       }
+    }
+  | {
+      type: 'dev-gate'
+      payload: { present: boolean; enable: boolean; active: boolean }
     }

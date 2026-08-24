@@ -74,7 +74,7 @@ describe('session schema migration', () => {
         {
           id: 't',
           path: 'C:\\Cats',
-          icon: { kind: 'custom', id: 'ti_abc1_xyz2', showLabel: false, sizePx: 40 }
+          icon: { kind: 'custom', id: 'ti_abc1_xyz2', showLabel: false, sizePx: 72 }
         }
       ],
       splitters: {}
@@ -83,7 +83,7 @@ describe('session schema migration', () => {
       kind: 'custom',
       id: 'ti_abc1_xyz2',
       showLabel: false,
-      sizePx: 40
+      sizePx: 72
     })
   })
 
@@ -145,6 +145,31 @@ describe('session schema migration', () => {
 
   it('default session is stable', () => {
     expect(sessionSchema.parse(defaultSession)).toEqual(defaultSession)
+  })
+
+  it('defaults closedTabs to empty and caps at 25 (D55)', () => {
+    const empty = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [{ id: 't', path: 'C:\\' }],
+      splitters: {}
+    })
+    expect(empty.closedTabs).toEqual([])
+
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      tab: { id: `c${i}`, path: `C:\\d${i}` },
+      paneIndex: 0
+    }))
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [{ id: 't', path: 'C:\\' }],
+      splitters: {},
+      closedTabs: many
+    })
+    expect(parsed.closedTabs).toHaveLength(25)
+    expect(parsed.closedTabs[0]!.tab.path).toBe('C:\\d0')
+    expect(parsed.closedTabs[0]!.paneIndex).toBe(0)
   })
 
   it('defaults multi-view fields and seeds paneTabIds from activeTabId', () => {

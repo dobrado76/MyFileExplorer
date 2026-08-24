@@ -53,6 +53,13 @@ export type StructuredQuery = {
   dupe: 'name' | 'size' | 'namepart' | null
   content: string | null
   contentUtf8: boolean
+  /** Attached note (D61) — ADS `mfe_note`, read-only at search time. */
+  hasNote: boolean
+  excludeHasNote: boolean
+  noteText: string | null
+  noteStatus: string | null
+  openTodo: boolean
+  openTodoNeedle: string | null
   countLimit: number | null
   /** True when query used Everything operators beyond plain tokens. */
   advanced: boolean
@@ -92,6 +99,10 @@ const QUERY_FN_KEYS = new Set([
   'namepartdupe',
   'content',
   'utf8content',
+  'note',
+  'hasnote',
+  'notestatus',
+  'todo',
   'path',
   'nopath',
   'regex',
@@ -134,7 +145,32 @@ export function queryHasPositiveConstraint(q: StructuredQuery): boolean {
     q.childCountMin != null ||
     q.childCountMax != null ||
     q.dupe != null ||
-    q.content != null
+    q.content != null ||
+    q.hasNote ||
+    q.noteText != null ||
+    q.noteStatus != null ||
+    q.openTodo
+  )
+}
+
+export function queryHasNoteFilter(q: StructuredQuery): boolean {
+  return q.hasNote || q.excludeHasNote || q.noteText != null || q.noteStatus != null || q.openTodo
+}
+
+/** Name / size / date / path filters the SQLite index can apply without reading ADS. */
+export function queryHasIndexableConstraint(q: StructuredQuery): boolean {
+  return (
+    q.textGroups.length > 0 ||
+    q.pathPrefixes.length > 0 ||
+    q.pathContains.length > 0 ||
+    q.exts.length > 0 ||
+    q.size != null ||
+    q.dates.length > 0 ||
+    q.empty != null ||
+    q.lenMin != null ||
+    q.lenMax != null ||
+    q.parentName != null ||
+    q.infolder != null
   )
 }
 
@@ -175,6 +211,11 @@ function queryHasStructuredFilters(q: StructuredQuery): boolean {
     q.childCountMax != null ||
     q.dupe != null ||
     q.content != null ||
+    q.hasNote ||
+    q.excludeHasNote ||
+    q.noteText != null ||
+    q.noteStatus != null ||
+    q.openTodo ||
     q.countLimit != null ||
     q.notText.length > 0
   )
@@ -261,6 +302,12 @@ function emptyQuery(opts: ParseOptions): StructuredQuery {
     dupe: null,
     content: null,
     contentUtf8: false,
+    hasNote: false,
+    excludeHasNote: false,
+    noteText: null,
+    noteStatus: null,
+    openTodo: false,
+    openTodoNeedle: null,
     countLimit: null,
     advanced: false
   }
@@ -351,6 +398,19 @@ function tokenize(input: string): string[] {
     }
     let s = ''
     while (i < input.length && !/\s/.test(input[i]!) && input[i] !== '|') {
+      if (input[i] === '"' && s.includes(':')) {
+        i++
+        s += '"'
+        while (i < input.length && input[i] !== '"') {
+          s += input[i]
+          i++
+        }
+        if (i < input.length && input[i] === '"') {
+          s += '"'
+          i++
+        }
+        continue
+      }
       if (input[i] === '<' && !inGroup) {
         // Comparison ops inside function values (depth:<=2) — not group delimiters
         if (s.length === 0 || s[s.length - 1] !== ':') break
@@ -379,10 +439,16 @@ function toTextPred(raw: string, q: StructuredQuery): TextPred {
   return { kind: 'substr', value, wholeWord: q.wholeWord }
 }
 
+function unquoteFnValue(raw: string): string {
+  const v = raw.trim()
+  if (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) return v.slice(1, -1)
+  return v
+}
+
 function applyFunction(q: StructuredQuery, key: string, val: string, macros: Record<string, string[]>): void {
   q.advanced = true
   const k = key.toLowerCase()
-  const v = val
+  const v = unquoteFnValue(val)
 
   if (k === 'size') {
     const named = SIZE_NAMES[v.toLowerCase()]
@@ -521,6 +587,28 @@ function applyFunction(q: StructuredQuery, key: string, val: string, macros: Rec
     q.contentUtf8 = true
     return
   }
+  if (k === 'note') {
+    const t = v.trim()
+    if (t) q.noteText = t
+    else q.hasNote = true
+    return
+  }
+  if (k === 'hasnote') {
+    q.hasNote = true
+    return
+  }
+  if (k === 'notestatus') {
+    const t = v.trim()
+    if (t) q.noteStatus = t
+    else q.hasNote = true
+    return
+  }
+  if (k === 'todo') {
+    q.openTodo = true
+    const t = v.trim()
+    q.openTodoNeedle = t || null
+    return
+  }
   if (k === 'path') {
     q.pathContains.push(v)
     q.matchPath = true
@@ -550,6 +638,10 @@ function applyExcludeFunction(q: StructuredQuery, key: string, val: string, macr
   const k = key.toLowerCase()
   if (k === 'ext') {
     pushExcludeExts(q, val)
+    return
+  }
+  if (k === 'hasnote' || (k === 'note' && !val.trim())) {
+    q.excludeHasNote = true
     return
   }
   const macroExts = macros[k] ?? MACROS[k]

@@ -5,10 +5,12 @@ import { broadcast } from '../ipc/events'
 import {
   isBasicNameQuery,
   parseEverythingQuery,
+  queryHasNoteFilter,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
+import { pathMatchesNoteFilter } from './noteFilter'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit } from '@shared/searchHidden'
 import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
@@ -117,7 +119,11 @@ export async function liveWalkSearch(
           )
 
       if (hit) {
-        items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
+        if (q && queryHasNoteFilter(q) && !(await pathMatchesNoteFilter(full, q))) {
+          /* ADS read-only; host $DATA times unchanged */
+        } else {
+          items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
+        }
       }
       if (isDir) stack.push(full)
       scanned++

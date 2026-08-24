@@ -9,15 +9,19 @@ import {
   isBasicNameQuery,
   matchTextPred,
   parseEverythingQuery,
+  queryHasIndexableConstraint,
+  queryHasNoteFilter,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
+import { filterItemsByNote } from './noteFilter'
+import { noteIndexReady } from './noteIndex'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit, normalizeSearchPathKey } from '@shared/searchHidden'
 import { settingsStore } from '../settings/store'
 import { nameMatches } from './queryBuilder'
-import { buildSearchSql } from './searchSql'
+import { buildNoteIndexSql, buildSearchSql } from './searchSql'
 
 type FileRow = {
   path: string
@@ -131,13 +135,20 @@ export async function queryIndexStructured(
   )
   const effectiveLimit = q.countLimit != null ? Math.min(limit, q.countLimit) : limit
 
-  // Pull a wider candidate set when post-filters (text OR groups, regex, dupe, content) apply
+  // Pull a wider candidate set when post-filters (text OR groups, regex, dupe, content, notes) apply
   const pull = Math.min(
     20000,
-    effectiveLimit * (q.dupe || q.content || q.regex || q.textGroups.some((g) => g.length > 1) ? 8 : 2)
+    effectiveLimit *
+      (q.dupe || q.content || queryHasNoteFilter(q) || q.regex || q.textGroups.some((g) => g.length > 1)
+        ? 8
+        : 2)
   )
 
-  const { sql, params } = buildSearchSql(q, pathPrefix)
+  const noteOnly = queryHasNoteFilter(q) && !queryHasIndexableConstraint(q)
+  if (noteOnly) noteIndexReady()
+  const { sql, params } = noteOnly
+    ? buildNoteIndexSql(q, pathPrefix)
+    : buildSearchSql(q, pathPrefix)
   const db = searchDb()
   const rows = db.prepare(sql).all(...params, pull) as unknown as FileRow[]
 
@@ -190,6 +201,10 @@ export async function queryIndexStructured(
   if (q.content) {
     contentSlow = true
     items = await filterContent(items, q.content, q.contentUtf8)
+  }
+
+  if (queryHasNoteFilter(q)) {
+    items = await filterItemsByNote(items, q)
   }
 
   const partial = items.length > effectiveLimit

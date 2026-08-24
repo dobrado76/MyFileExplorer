@@ -2,7 +2,7 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.10.0** — **D52** NTFS USN journal manager (Drive Properties); **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped; drive free space; detached preview; `.ics` / `.eml`; D49 remote listing cache; Power Search; continue-then-review (D18); per-tab search; Network (D44/D3); settings export (D45); remotes (D46). Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.11.0** — **D53–D62** daily workflows (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons); **D52** NTFS USN journal manager; **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -41,7 +41,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/BUILD.md](docs/BUILD.md)                             | Local build + tagged GitHub Releases |
 | [docs/LINUX.md](docs/LINUX.md)                             | Experimental Linux AppImage / Wayland |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
-| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D52) |
+| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D62) |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
 | [docs/PROJECT_FORMAT.md](docs/PROJECT_FORMAT.md)           | On-disk `userData` layout     |
 | [docs/UI_DESIGN.md](docs/UI_DESIGN.md)                     | Chrome & themes               |
@@ -61,10 +61,10 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 
 ## Immediate next work
 
-1. Ship tag `v0.10.0` (installer + GitHub Release) — [docs/BUILD.md](docs/BUILD.md)
-2. Dogfood **D52** USN… on a spare NTFS volume (Enable + probe rows; avoid Delete journal on huge libraries unless intended)
-3. Dogfood the script library (share a `.mfescript`, context-menu rerun, dry-run, Ask AI to Fix) — [docs/SCRIPTS.md](docs/SCRIPTS.md)
-4. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md) — File Automator stays separate from D51
+1. Ship tag `v0.11.0` (installer + GitHub Release) — [docs/BUILD.md](docs/BUILD.md)
+2. Dogfood notes / item icons on NTFS (THE RULE: host Created / Modified / Change stay put) and Power Search `todo:` / `note:`
+3. Dogfood templates (pretty name + menu order) and grouped Quick access
+4. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)
 
 ## Agent rules
 

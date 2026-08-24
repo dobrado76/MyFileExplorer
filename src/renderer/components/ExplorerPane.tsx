@@ -4,6 +4,7 @@ import type { ViewMode } from '@shared/schemas/session'
 import { dropOperation, useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { Breadcrumb } from './Breadcrumb'
+import { ViewPresetsMenu } from './ViewPresetsMenu'
 import { FolderTree } from './FolderTree'
 import { FileView } from './FileView'
 import { Splitter } from './Splitter'
@@ -233,6 +234,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
         >
           <TreePanelIcon />
         </button>
+        <ViewPresetsMenu />
         <select
           aria-label="View mode"
           value={viewMode}

@@ -23,6 +23,7 @@ const api: MyFileExplorerApi = {
     relocate: invoke(IPC.fsRelocate),
     checkConflicts: invoke(IPC.fsCheckConflicts),
     createShortcuts: invoke(IPC.fsCreateShortcuts),
+    createLink: invoke(IPC.fsCreateLink),
     compressToZip: invoke(IPC.fsCompressToZip),
     extractZip: invoke(IPC.fsExtractZip),
     trash: invoke(IPC.fsTrash),
@@ -64,12 +65,27 @@ const api: MyFileExplorerApi = {
     discoverVerbs: invokeVoid(IPC.shellDiscoverVerbs),
     clipboardWriteFiles: invoke(IPC.shellClipboardWriteFiles),
     clipboardReadFiles: invokeVoid(IPC.shellClipboardReadFiles),
+    clipboardPeek: invokeVoid(IPC.shellClipboardPeek),
+    clipboardWriteFile: invoke(IPC.shellClipboardWriteFile),
     /**
      * Sync: main runs webContents.startDrag during this call (blocks until the
      * OS drag ends). Used when a left-drag leaves the BrowserWindow — not from
      * HTML5 dragstart (that breaks in-app drops on Windows).
      */
     startDrag: (req) => ipcRenderer.sendSync(IPC.shellStartDrag, req) as boolean
+  },
+  templates: {
+    import: invokeVoid(IPC.templatesImport),
+    delete: invoke(IPC.templatesDelete),
+    replace: invoke(IPC.templatesReplace),
+    duplicate: invoke(IPC.templatesDuplicate),
+    instantiate: invoke(IPC.templatesInstantiate)
+  },
+  itemAds: {
+    getMany: invoke(IPC.itemAdsGetMany),
+    setNote: invoke(IPC.itemAdsSetNote),
+    setIcon: invoke(IPC.itemAdsSetIcon),
+    importCustomIcon: invoke(IPC.itemAdsImportCustomIcon)
   },
   tabs: {
     importCustomIcon: invokeVoid(IPC.tabsImportCustomIcon),
@@ -122,6 +138,7 @@ const api: MyFileExplorerApi = {
     ready: invokeVoid(IPC.appReady),
     getVersion: invokeVoid(IPC.appGetVersion),
     devGate: invokeVoid(IPC.appDevGate),
+    setDevGateEnable: invoke(IPC.appDevGateSetEnable),
     checkUpdate: invoke(IPC.appCheckUpdate),
     runUpdate: invoke(IPC.appRunUpdate)
   },

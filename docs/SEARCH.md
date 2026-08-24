@@ -1,6 +1,6 @@
 # Search & indexing
 
-**Version:** 0.10.0 · Decision **D34** (Everything-parity hybrid index) · **D52** (USN journal manager)
+**Version:** 0.11.0 · Decision **D34** (Everything-parity hybrid index) · **D52** (USN journal manager)
 
 Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 
@@ -77,6 +77,7 @@ Versioned subset; grows over releases. Parser: `everythingQuery.ts`.
 | Path tokens | `d:`, `d:\folder\` |
 | Advanced | `attrib:h`, `dupe:`, `sizedupe:`, `child:`, `childcount:`, `depth:` |
 | Content (slow) | `content:`, `utf8content:` — unindexed scan of name/path hits only; hard size/time caps; banner (D15) |
+| Notes (D61) | `note:`, `hasnote:`, `notestatus:`, `todo:` / `todo:buy` — read-only ADS `mfe_note` (does not change host times). Current-folder walk is complete; indexed uses notes saved in this app. `!hasnote:` excludes items that have a note. |
 
 Toolbar toggles (persisted): **Match path**, **Match case**, **Whole word**, **Regex**. Type chips map to macros.
 
@@ -111,7 +112,7 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 ## UI
 
 - **As-you-type** search (500 ms debounce — typing `.obj` is usually one walk). A lone `.` does not search. Extra characters **narrow** the current hits (`.o` ⊃ `.ob` ⊃ `.obj`) instead of restarting. Enter searches immediately. Use `*.jpg` when you need “ends with this extension.”
-- Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced). **Saved searches** (named designs) store the builder + match flags + query — not the target. Run again against the current folder or indexed roots. Cap 80; included in Settings export (D45).
+- Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced including note / status / open checklist). **Saved searches** (named designs) store the builder + match flags + query — not the target. Run again against the current folder or indexed roots. Cap 80; included in Settings export (D45).
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
 - Results in normal **FileView** (D29); Folder column; banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
 - **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results pushes the search onto Back; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.

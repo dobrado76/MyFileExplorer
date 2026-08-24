@@ -111,9 +111,9 @@ Column visibility / order live with the rest of the Details layout in settings (
 
 ## Related uses
 
-Compiled file lists (D39) write ADS **`Index`** (image path list) and **`Count`** on `.dat` under the compiled root (Update Lists). `.txt` lists do not use Index ADS. Same NTFS mechanism; slideshow code calls `adsWin32` helpers directly rather than going through the manager UI.
-
 **Media metadata (D50)** writes `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes — not on episode files), and `media_metadata_container` (library + title folder flag). Same NTFS mechanism; not under `userData`. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
+
+**Attached notes (D61)** use `mfe_note` (UTF-8 JSON: `text`, optional `status` / `checklist`, `updatedAt`). **Item icons (D62)** use `mfe_icon` (JSON: `lucide` / `shell` / `custom`) and `mfe_icon_img` (PNG bytes when custom). Both go through `withPreservedHostTimes` so only the stream changes — host Created / Access / Write / Change stay as they were. Search (`note:` / `todo:` / …) **reads** `mfe_note` only. No sidecars; verbs hidden off NTFS / remotes.
 
 Image-edit history uses `VER_*` / `VER_COUNT` — see below.
 

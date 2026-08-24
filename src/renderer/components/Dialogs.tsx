@@ -46,7 +46,15 @@ import {
   MEDIA_METADATA_COVER_HEIGHT_MIN
 } from '@shared/schemas/mediaMetadata'
 import { parseMediaSourceInput } from '@shared/mediaMetadata'
-import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
+import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
+import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
+import {
+  MAX_FILE_TEMPLATES,
+  sanitizeTemplateStem,
+  templateCreatedName,
+  templateExt,
+  templateInputLabel
+} from '@shared/schemas/templates'
 import { basename, parentOf } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
 import { DEFAULT_UPDATES_SOURCE, GITHUB_REPO_URL, resolveUpdatesSource } from '@shared/updatesSource'
@@ -54,6 +62,8 @@ import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
 import { TabCustomIconDialog } from './TabCustomIconDialog'
+import { ItemNoteDialog } from './ItemNoteDialog'
+import { ItemIconPickerDialog } from './ItemIconPickerDialog'
 import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
@@ -61,6 +71,7 @@ import { UsnManager } from './UsnManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
 import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
+import { CreateLinkDialog } from './CreateLinkDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 import { CloseIcon } from '../lib/icons'
 import { CoverPickerDialog } from './CoverPickerDialog'
@@ -363,6 +374,14 @@ export function Dialogs(): JSX.Element | null {
       return <OpIssuesDialog />
     case 'new-file':
       return <NewFileDialog parent={dialog.parent} />
+    case 'paste-name':
+      return <PasteNameDialog destDir={dialog.destDir} format={dialog.format} />
+    case 'manage-templates':
+      return <ManageTemplatesDialog />
+    case 'create-link':
+      return <CreateLinkDialog source={dialog.source} />
+    case 'view-preset-name':
+      return <ViewPresetNameDialog />
     case 'properties':
       return <PropertiesDialog path={dialog.path} />
     case 'usn-manager':
@@ -392,6 +411,10 @@ export function Dialogs(): JSX.Element | null {
       return <TabIconPickerDialog tabId={dialog.tabId} />
     case 'tab-custom-icon':
       return <TabCustomIconDialog tabId={dialog.tabId} />
+    case 'item-note':
+      return <ItemNoteDialog path={dialog.path} />
+    case 'item-icon':
+      return <ItemIconPickerDialog path={dialog.path} />
     case 'alert':
       return (
         <AlertDialog
@@ -1669,6 +1692,337 @@ function NewFileDialog({ parent }: { parent: string }): JSX.Element {
   )
 }
 
+function PasteNameDialog({
+  destDir,
+  format
+}: {
+  destDir: string
+  format: import('@shared/schemas/clipboardPaste').ClipboardPasteFormat
+}): JSX.Element {
+  const pasteClipboardAs = useAppStore((s) => s.pasteClipboardAs)
+  const closeDialog = useAppStore((s) => s.closeDialog)
+  const [name, setName] = useState('Clipboard.txt')
+
+  const submit = (): void => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const withExt = trimmed.toLowerCase().endsWith(`.${format}`) ? trimmed : `${trimmed}.${format}`
+    closeDialog()
+    void pasteClipboardAs(destDir, format, withExt)
+  }
+
+  return (
+    <Modal
+      title="Paste as file"
+      onClose={closeDialog}
+      actions={
+        <>
+          <button className="btn" onClick={closeDialog}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={submit}>
+            Create
+          </button>
+        </>
+      }
+    >
+      <div className="form-row">
+        <label htmlFor="paste-name">File name</label>
+        <input
+          id="paste-name"
+          type="text"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+      </div>
+    </Modal>
+  )
+}
+
+function ViewPresetNameDialog(): JSX.Element {
+  const saveViewPreset = useAppStore((s) => s.saveViewPreset)
+  const closeDialog = useAppStore((s) => s.closeDialog)
+  const [name, setName] = useState('View preset')
+
+  const submit = (): void => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    closeDialog()
+    void saveViewPreset(trimmed)
+  }
+
+  return (
+    <Modal
+      title="Save view preset"
+      onClose={closeDialog}
+      actions={
+        <>
+          <button className="btn" onClick={closeDialog}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={submit}>
+            Save
+          </button>
+        </>
+      }
+    >
+      <div className="form-row">
+        <label htmlFor="vp-name">Name</label>
+        <input
+          id="vp-name"
+          type="text"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+      </div>
+    </Modal>
+  )
+}
+
+function ManageTemplatesDialog(): JSX.Element {
+  const templates = useAppStore((s) => s.settings.templates)
+  const importFileTemplate = useAppStore((s) => s.importFileTemplate)
+  const replaceFileTemplate = useAppStore((s) => s.replaceFileTemplate)
+  const duplicateFileTemplate = useAppStore((s) => s.duplicateFileTemplate)
+  const deleteFileTemplate = useAppStore((s) => s.deleteFileTemplate)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
+  const closeDialog = useAppStore((s) => s.closeDialog)
+  const [selectedId, setSelectedId] = useState<string | null>(templates[0]?.id ?? null)
+
+  useEffect(() => {
+    if (selectedId && templates.some((t) => t.id === selectedId)) return
+    setSelectedId(templates[0]?.id ?? null)
+  }, [templates, selectedId])
+
+  const selected = templates.find((t) => t.id === selectedId) ?? null
+  const selectedIndex = selected ? templates.findIndex((t) => t.id === selected.id) : -1
+  const atCap = templates.length >= MAX_FILE_TEMPLATES
+
+  const moveSelected = (dir: -1 | 1): void => {
+    if (selectedIndex < 0) return
+    const next = selectedIndex + dir
+    if (next < 0 || next >= templates.length) return
+    const copy = [...templates]
+    const [row] = copy.splice(selectedIndex, 1)
+    if (!row) return
+    copy.splice(next, 0, row)
+    void applySettingsPatch({ templates: copy })
+  }
+
+  const renameSelected = (name: string): void => {
+    if (!selected) return
+    const pretty = name.trim().slice(0, 80)
+    if (!pretty) return
+    void applySettingsPatch({
+      templates: templates.map((x) =>
+        x.id === selected.id
+          ? {
+              ...x,
+              name: pretty,
+              suggestedStem: sanitizeTemplateStem(pretty, x.suggestedStem)
+            }
+          : x
+      )
+    })
+  }
+
+  return (
+    <Modal
+      title="Manage Templates"
+      wide
+      className="modal-templates"
+      bodyClassName="template-manage-body"
+      onClose={closeDialog}
+      actions={
+        <>
+          <span className="dim template-manage-count">
+            {templates.length} / {MAX_FILE_TEMPLATES}
+          </span>
+          <button className="btn primary" onClick={closeDialog}>
+            Done
+          </button>
+        </>
+      }
+    >
+      <p className="dim template-manage-lead">
+        <strong>Input</strong> is the file that gets copied.{' '}
+        <strong>Pretty name</strong> is the From Template menu label and the default filename
+        (extension stays with the input). Stored with the app, not in the folder you browse.
+      </p>
+      <div className="template-manage-toolbar">
+        <button
+          type="button"
+          className="btn"
+          disabled={atCap}
+          title={atCap ? `At most ${MAX_FILE_TEMPLATES} templates` : 'Copy a file into Templates'}
+          onClick={() => {
+            void importFileTemplate().then((id) => {
+              if (id) setSelectedId(id)
+            })
+          }}
+        >
+          Add file…
+        </button>
+        <button
+          type="button"
+          className="btn"
+          title="Move up in the menu"
+          disabled={selectedIndex <= 0}
+          onClick={() => moveSelected(-1)}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          className="btn"
+          title="Move down in the menu"
+          disabled={selectedIndex < 0 || selectedIndex >= templates.length - 1}
+          onClick={() => moveSelected(1)}
+        >
+          ↓
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={!selected || atCap}
+          title="Copy this template (same input, new pretty name)"
+          onClick={() => {
+            if (!selected) return
+            void duplicateFileTemplate(selected.id).then((id) => {
+              if (id) setSelectedId(id)
+            })
+          }}
+        >
+          Duplicate
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={!selected}
+          onClick={() => {
+            if (!selected) return
+            if (!window.confirm(`Delete template “${selected.name}”?`)) return
+            const idx = selectedIndex
+            void deleteFileTemplate(selected.id).then(() => {
+              const remaining = useAppStore.getState().settings.templates
+              setSelectedId(remaining[Math.min(idx, remaining.length - 1)]?.id ?? null)
+            })
+          }}
+        >
+          Delete
+        </button>
+      </div>
+      {templates.length === 0 ? (
+        <p className="dim">No templates yet. Add a file, then set a pretty name.</p>
+      ) : (
+        <div className="template-manage-split">
+          <ul className="template-manage-list" role="listbox" aria-label="Templates">
+            {templates.map((t) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={t.id === selectedId}
+                  className={
+                    'template-manage-item' + (t.id === selectedId ? ' is-selected' : '')
+                  }
+                  onClick={() => setSelectedId(t.id)}
+                >
+                  <span className="template-manage-item-name">{t.name}</span>
+                  <span className="template-manage-item-meta">{templateCreatedName(t)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          {selected ? (
+            <TemplateManageDetail
+              key={selected.id}
+              template={selected}
+              onRename={renameSelected}
+              onReplace={() => void replaceFileTemplate(selected.id)}
+            />
+          ) : null}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+function TemplateManageDetail({
+  template,
+  onRename,
+  onReplace
+}: {
+  template: import('@shared/schemas/templates').FileTemplate
+  onRename: (name: string) => void
+  onReplace: () => void
+}): JSX.Element {
+  const [name, setName] = useState(template.name)
+  useEffect(() => {
+    setName(template.name)
+  }, [template.id, template.name])
+
+  const commit = (): void => {
+    const next = name.trim().slice(0, 80)
+    if (!next) {
+      setName(template.name)
+      return
+    }
+    if (next !== template.name) onRename(next)
+  }
+
+  const preview = templateCreatedName({
+    ...template,
+    name: name.trim() || template.name
+  })
+
+  return (
+    <div className="template-manage-detail">
+      <div className="form-row">
+        <label htmlFor="tpl-pretty">Pretty name</label>
+        <input
+          id="tpl-pretty"
+          type="text"
+          value={name}
+          maxLength={80}
+          autoFocus
+          title="Menu label and default filename (without extension)"
+          onChange={(e) => setName(e.target.value.slice(0, 80))}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              ;(e.target as HTMLInputElement).blur()
+            }
+          }}
+        />
+      </div>
+      <div className="form-row">
+        <label htmlFor="tpl-input">Input file</label>
+        <div className="template-manage-input-row">
+          <span id="tpl-input" className="template-manage-input" title={templateInputLabel(template)}>
+            {templateInputLabel(template)}
+          </span>
+          <button type="button" className="btn" onClick={onReplace} title="Pick a different file">
+            Replace…
+          </button>
+        </div>
+      </div>
+      <div className="form-row">
+        <label>Creates as</label>
+        <span className="template-manage-creates" title={`Extension ${templateExt(template) || '(none)'}`}>
+          {preview}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function percent(part: number, whole: number): number {
   if (whole <= 0) return 0
   return Math.min(100, Math.max(0, (part / whole) * 100))
@@ -2392,8 +2746,16 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const unpinQuickAccess = useAppStore((s) => s.unpinQuickAccess)
   const reorderQuickAccess = useAppStore((s) => s.reorderQuickAccess)
   const resetQuickAccess = useAppStore((s) => s.resetQuickAccess)
+  const createQuickAccessGroup = useAppStore((s) => s.createQuickAccessGroup)
+  const renameQuickAccessGroup = useAppStore((s) => s.renameQuickAccessGroup)
+  const deleteQuickAccessGroup = useAppStore((s) => s.deleteQuickAccessGroup)
+  const setQuickAccessGroupColor = useAppStore((s) => s.setQuickAccessGroupColor)
+  const moveQuickAccessPinToGroup = useAppStore((s) => s.moveQuickAccessPinToGroup)
   const removeFolderCustomization = useAppStore((s) => s.removeFolderCustomization)
   const setFolderViewRecursive = useAppStore((s) => s.setFolderViewRecursive)
+  const applyViewPreset = useAppStore((s) => s.applyViewPreset)
+  const renameViewPreset = useAppStore((s) => s.renameViewPreset)
+  const removeViewPreset = useAppStore((s) => s.removeViewPreset)
   const applyLayout = useAppStore((s) => s.applyLayout)
   const updateLayout = useAppStore((s) => s.updateLayout)
   const removeLayoutAction = useAppStore((s) => s.removeLayout)
@@ -2407,6 +2769,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
 
   const [localComputerName, setLocalComputerName] = useState('')
   const devGateActive = useAppStore((s) => s.devGateActive)
+  const devGatePresent = useAppStore((s) => s.devGatePresent)
+  const devGateEnable = useAppStore((s) => s.devGateEnable)
+  const setDevGateEnable = useAppStore((s) => s.setDevGateEnable)
   const navItems = SETTINGS_NAV
   const startSection = navItems.some((s) => s.id === initialSection)
     ? (initialSection as SettingsSection)
@@ -2475,14 +2840,20 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
       .then((r) => setLocalComputerName(r.name || ''))
       .catch(() => setLocalComputerName(''))
   }, [section])
+  const qaList = useMemo(
+    () =>
+      materializeQuickAccessList(quickAccessSetting, quickAccessPins, quickAccessHiddenDefaults),
+    [quickAccessSetting, quickAccessPins, quickAccessHiddenDefaults]
+  )
   const qaEntries = useMemo(() => {
-    const tokens = materializeQuickAccessTokens(
-      quickAccessSetting,
-      quickAccessPins,
-      quickAccessHiddenDefaults
-    )
-    return buildQuickAccess(knownFolders, tokens)
-  }, [knownFolders, quickAccessSetting, quickAccessPins, quickAccessHiddenDefaults])
+    return buildQuickAccess(knownFolders, flattenQuickAccessTokens(qaList))
+  }, [knownFolders, qaList])
+  const qaByToken = useMemo(() => {
+    const map = new Map<string, (typeof qaEntries)[number]>()
+    for (const e of qaEntries) map.set(e.token.toLowerCase(), e)
+    return map
+  }, [qaEntries])
+  const qaGroups = useMemo(() => qaList.filter(isQuickAccessGroup), [qaList])
 
   const commitFilterPatterns = (): void => {
     void applySettingsPatch({
@@ -2706,6 +3077,15 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showTabIcons}
                 onChange={(v) => void applySettingsPatch({ showTabIcons: v })}
               />
+              {devGatePresent && (
+                <SettingsToggle
+                  id="set-dev-gated-items"
+                  label="Show DEV-gated items"
+                  hint="Writes ENABLE in DEV.cfg. Extra tools still require this computer’s name to match that file."
+                  checked={devGateEnable}
+                  onChange={(v) => void setDevGateEnable(v)}
+                />
+              )}
               {settings.theme === 'custom' && (
                 <div className="settings-theme-tokens">
                   {THEME_TOKENS.map(({ key, label }) => (
@@ -3111,6 +3491,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.itemCheckboxes}
                 onChange={(v) => void applySettingsPatch({ itemCheckboxes: v })}
               />
+              <SettingsToggle
+                id="set-paste-nonfile"
+                label="Paste non-file clipboard as a file"
+                hint="When the clipboard is an image, text, URL, or HTML (not copied files), Ctrl+V creates a file in the current folder. Off: Paste does nothing unless files are on the clipboard."
+                checked={settings.pasteNonFileClipboard}
+                onChange={(v) => void applySettingsPatch({ pasteNonFileClipboard: v })}
+              />
               <label
                 className="settings-field"
                 htmlFor="set-cmdline-shell"
@@ -3266,6 +3653,17 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <button
                     type="button"
                     className="btn"
+                    title="Create a named group"
+                    onClick={() => {
+                      const name = window.prompt('Group name', 'Group')
+                      if (name) void createQuickAccessGroup(name)
+                    }}
+                  >
+                    Add group…
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
                     title="Restore the default Quick access list"
                     onClick={() => void resetQuickAccess()}
                   >
@@ -3273,47 +3671,154 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   </button>
                 </div>
               </div>
-              {qaEntries.length === 0 ? (
+              {qaList.length === 0 ? (
                 <p className="settings-help">No Quick access items. Add a folder or reset defaults.</p>
               ) : (
                 <div className="settings-qa-list">
-                  {qaEntries.map((entry, index) => (
-                    <div className="settings-qa-row" key={entry.token}>
-                      <div className="settings-qa-meta">
-                        <span className="settings-qa-label">{entry.label}</span>
-                        <span className="settings-qa-path" title={entry.path}>
-                          {entry.path}
-                        </span>
+                  {qaList.map((item, index) => {
+                    if (isQuickAccessGroup(item)) {
+                      return (
+                        <div key={item.id} className="settings-qa-group">
+                          <div className="settings-qa-row">
+                            <div className="settings-qa-meta">
+                              <input
+                                type="text"
+                                className="settings-qa-label-input"
+                                value={item.name}
+                                aria-label="Group name"
+                                onChange={(e) => void renameQuickAccessGroup(item.id, e.target.value)}
+                              />
+                              <input
+                                type="color"
+                                value={item.color ?? '#60a5fa'}
+                                title="Group color"
+                                onChange={(e) =>
+                                  void setQuickAccessGroupColor(item.id, e.target.value)
+                                }
+                              />
+                            </div>
+                            <div className="settings-qa-actions">
+                              <button
+                                type="button"
+                                className="btn"
+                                disabled={index === 0}
+                                onClick={() => void reorderQuickAccess(index, index - 1)}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                className="btn"
+                                disabled={index >= qaList.length - 1}
+                                onClick={() => void reorderQuickAccess(index, index + 1)}
+                              >
+                                ↓
+                              </button>
+                              <button
+                                type="button"
+                                className="btn"
+                                onClick={() => void deleteQuickAccessGroup(item.id)}
+                              >
+                                Delete group
+                              </button>
+                            </div>
+                          </div>
+                          {item.items.map((token) => {
+                            const entry = qaByToken.get(token.toLowerCase())
+                            if (!entry) return null
+                            return (
+                              <div className="settings-qa-row settings-qa-nested" key={token}>
+                                <div className="settings-qa-meta">
+                                  <span className="settings-qa-label">{entry.label}</span>
+                                  <span className="settings-qa-path" title={entry.path}>
+                                    {entry.path}
+                                  </span>
+                                </div>
+                                <div className="settings-qa-actions">
+                                  <select
+                                    aria-label={`Move ${entry.label} to group`}
+                                    value={item.id}
+                                    onChange={(e) => {
+                                      const v = e.target.value
+                                      void moveQuickAccessPinToGroup(token, v === '' ? null : v)
+                                    }}
+                                  >
+                                    <option value="">Ungrouped</option>
+                                    {qaGroups.map((g) => (
+                                      <option key={g.id} value={g.id}>
+                                        {g.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    className="btn"
+                                    onClick={() => void unpinQuickAccess(entry.path)}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    }
+                    const entry = qaByToken.get(item.toLowerCase())
+                    if (!entry) return null
+                    return (
+                      <div className="settings-qa-row" key={entry.token}>
+                        <div className="settings-qa-meta">
+                          <span className="settings-qa-label">{entry.label}</span>
+                          <span className="settings-qa-path" title={entry.path}>
+                            {entry.path}
+                          </span>
+                        </div>
+                        <div className="settings-qa-actions">
+                          <select
+                            aria-label={`Move ${entry.label} to group`}
+                            value=""
+                            onChange={(e) => {
+                              const v = e.target.value
+                              if (v) void moveQuickAccessPinToGroup(entry.token, v)
+                            }}
+                          >
+                            <option value="">Ungrouped</option>
+                            {qaGroups.map((g) => (
+                              <option key={g.id} value={g.id}>
+                                {g.name}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={index === 0}
+                            onClick={() => void reorderQuickAccess(index, index - 1)}
+                            aria-label={`Move ${entry.label} up`}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            disabled={index >= qaList.length - 1}
+                            onClick={() => void reorderQuickAccess(index, index + 1)}
+                            aria-label={`Move ${entry.label} down`}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => void unpinQuickAccess(entry.path)}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
-                      <div className="settings-qa-actions">
-                        <button
-                          type="button"
-                          className="btn"
-                          disabled={index === 0}
-                          onClick={() => void reorderQuickAccess(index, index - 1)}
-                          aria-label={`Move ${entry.label} up`}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          disabled={index >= qaEntries.length - 1}
-                          onClick={() => void reorderQuickAccess(index, index + 1)}
-                          aria-label={`Move ${entry.label} down`}
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => void unpinQuickAccess(entry.path)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
               {qaMissingBuiltins.length > 0 && (
@@ -3433,6 +3938,38 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 the context menu “Customize this folder” to add one. Recursive entries also apply to
                 subfolders unless a more specific entry exists.
               </p>
+              <h3 className="form-section">View presets</h3>
+              <p className="settings-help">
+                Named view chrome (mode, sort, columns) — not the folder path. Apply from the pane
+                View menu. If this folder already has a customization, Apply updates that override
+                instead of creating a new one.
+              </p>
+              {(settings.viewPresets ?? []).length === 0 ? (
+                <p className="settings-help">No view presets yet. Save one from the pane View menu.</p>
+              ) : (
+                <div className="settings-qa-list">
+                  {settings.viewPresets.map((p) => (
+                    <div className="settings-qa-row" key={p.id}>
+                      <div className="settings-qa-meta">
+                        <input
+                          type="text"
+                          className="settings-qa-label-input"
+                          value={p.name}
+                          onChange={(e) => void renameViewPreset(p.id, e.target.value)}
+                        />
+                      </div>
+                      <div className="settings-qa-actions">
+                        <button type="button" className="btn" onClick={() => void applyViewPreset(p.id)}>
+                          Apply
+                        </button>
+                        <button type="button" className="btn" onClick={() => void removeViewPreset(p.id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {folderViews.length === 0 ? (
                 <p className="settings-help">No customized folders yet.</p>
               ) : (

@@ -32,6 +32,10 @@ export type PowerSearchState = {
   attributes: Array<'h' | 's' | 'r' | 'a'>
   emptyOnly: boolean
   content: string
+  noteText: string
+  noteStatus: string
+  hasNote: boolean
+  openTodos: boolean
   dupe: PowerSearchDupe
   childName: string
   depth: string
@@ -106,6 +110,10 @@ export function defaultPowerSearchState(): PowerSearchState {
     attributes: [],
     emptyOnly: false,
     content: '',
+    noteText: '',
+    noteStatus: '',
+    hasNote: false,
+    openTodos: false,
     dupe: '',
     childName: '',
     depth: ''
@@ -196,6 +204,18 @@ export function buildSearchQuery(state: PowerSearchState): string {
 
   if (state.content.trim()) {
     out.push(`content:${quoteToken(state.content)}`)
+  }
+
+  if (state.noteText.trim()) {
+    out.push(`note:${quoteToken(state.noteText)}`)
+  } else if (state.hasNote) {
+    out.push('hasnote:')
+  }
+  if (state.noteStatus.trim()) {
+    out.push(`notestatus:${quoteToken(state.noteStatus)}`)
+  }
+  if (state.openTodos) {
+    out.push('todo:')
   }
 
   if (state.dupe) {

@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type JSX,
+  type ReactNode,
   type WheelEvent
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -29,6 +30,10 @@ import {
   type EntryColumnValues
 } from '@shared/schemas/columns'
 import { ADS_LIST_NAMES_MANY_MAX_PATHS } from '@shared/schemas/ads'
+import {
+  noteChecklistPlainText,
+  parseNoteChecklistColumn
+} from '@shared/noteSearch'
 import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
@@ -61,7 +66,8 @@ import { visibleIndexRange } from '@shared/visibleIndexRange'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
 import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
-import { ShellIcon } from './ShellIcon'
+import { ItemGlyph, lookupItemAds } from './ItemGlyph'
+import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
 import { noteFileViewScroll } from '../lib/fileViewScroll'
 
@@ -176,9 +182,25 @@ function detailCellValue(
         const n = Number(raw)
         return Number.isFinite(n) ? n.toLocaleString() : raw
       }
+      if (id === 'itemNoteTodos') return noteChecklistPlainText(parseNoteChecklistColumn(raw))
       return raw
     }
   }
+}
+
+function renderChecklistCell(raw: string): ReactNode {
+  const items = parseNoteChecklistColumn(raw)
+  if (items.length === 0) return ''
+  return (
+    <span className="details-checklist">
+      {items.map((it, i) => (
+        <span key={`${i}:${it.text}`}>
+          {i > 0 ? '; ' : null}
+          <span className={it.done ? 'is-done' : undefined}>{it.text}</span>
+        </span>
+      ))}
+    </span>
+  )
 }
 
 function parseDurationSort(s: string): number {
@@ -268,6 +290,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const viewLayout = useAppStore((s) => s.viewLayout)
   /** This pane’s tab owns its search — stays visible while you work in another pane (drag). */
   const searchMode = Boolean(search.active)
+  const platform = useAppStore((s) => s.platform)
   const recycleMode = recycleBin.active && isFocusedSurface
   const overlayMode = searchMode || recycleMode
   const ensurePaneFocus = useCallback((): void => {
@@ -857,6 +880,28 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   })
   const visibleRangeStart = visibleSpan?.start ?? 0
   const visibleRangeEnd = visibleSpan?.end ?? -1
+  const visibleItemPaths = useMemo(() => {
+    const out: string[] = []
+    if (visibleRangeEnd < visibleRangeStart) return out
+    for (let row = visibleRangeStart; row <= visibleRangeEnd; row++) {
+      if (spec) {
+        const start = row * columns
+        for (let i = 0; i < columns; i++) {
+          const e = entries[start + i]
+          if (e) out.push(e.path)
+        }
+      } else {
+        const e = entries[row]
+        if (e) out.push(e.path)
+      }
+    }
+    return out
+  }, [visibleRangeStart, visibleRangeEnd, entries, spec, columns])
+  const itemAdsByPath = useItemAdsOverlays(
+    visibleItemPaths,
+    platform === 'win32' && !recycleMode,
+    folderPath
+  )
   useEffect(() => {
     if (metaFetchColumns.length === 0 || visibleRangeEnd < visibleRangeStart) return
     const needed: string[] = []
@@ -2066,19 +2111,21 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           mtimeMs={entry.mtimeMs}
                           size={spec.thumb}
                           fallback={
-                            <ShellIcon
+                            <ItemGlyph
                               path={entry.path}
                               size={iconPx}
                               isDir={entry.kind === 'dir'}
+                              overlay={lookupItemAds(entry.path, itemAdsByPath)}
                             />
                           }
                           onHasContent={(has) => noteContentThumb(entry.path, has)}
                         />
                       ) : (
-                        <ShellIcon
+                        <ItemGlyph
                           path={entry.path}
                           size={iconPx}
                           isDir={entry.kind === 'dir'}
+                          overlay={lookupItemAds(entry.path, itemAdsByPath)}
                           renaming={
                             renameSource === 'files' &&
                             renamingPath !== null &&
@@ -2159,10 +2206,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   }
                 >
                   {itemCheck(entry, isSel)}
-                  <ShellIcon
+                  <ItemGlyph
                     path={entry.path}
                     size={16}
                     isDir={entry.kind === 'dir'}
+                    overlay={lookupItemAds(entry.path, itemAdsByPath)}
                     renaming={
                       renameSource === 'files' &&
                       renamingPath !== null &&
@@ -2202,19 +2250,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   })}
                 {viewMode === 'details' &&
                   !recycleMode &&
-                  detailsColumns.map((c) => (
-                    <span
-                      key={c.id}
-                      className={`col${columnMeta(c.id).numeric ? ' col-num' : ''}`}
-                      style={{ width: colWidth(c.id) }}
-                      title={
-                        detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics) ||
-                        undefined
-                      }
-                    >
-                      {detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics)}
-                    </span>
-                  ))}
+                  detailsColumns.map((c) => {
+                    const text = detailCellValue(
+                      c.id,
+                      entry,
+                      metaByPath[entry.path],
+                      showFolderStatistics
+                    )
+                    const raw = metaByPath[entry.path]?.[c.id] ?? ''
+                    return (
+                      <span
+                        key={c.id}
+                        className={`col${columnMeta(c.id).numeric ? ' col-num' : ''}`}
+                        style={{ width: colWidth(c.id) }}
+                        title={text || undefined}
+                      >
+                        {c.id === 'itemNoteTodos' && raw
+                          ? renderChecklistCell(raw)
+                          : text}
+                      </span>
+                    )
+                  })}
               </div>
             )
           })}

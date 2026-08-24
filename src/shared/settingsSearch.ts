@@ -36,18 +36,19 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'behavior',
     label: 'Behavior',
     keywords:
-      'folders first checkbox checkboxes explorer default new tab path home video thumbnail thumb frame delay vidthumb autoplay preview confirm delete recycle bin trash permanent shift+del hide extension lnk url shortcut folder statistics size files columns calculate skip command line cmd powershell administrator uac admin'
+      'folders first checkbox checkboxes explorer default new tab path home video thumbnail thumb frame delay vidthumb autoplay preview confirm delete recycle bin trash permanent shift+del hide extension lnk url shortcut folder statistics size files columns calculate skip command line cmd powershell administrator uac admin paste clipboard image text html url special template templates new file'
   },
   {
     id: 'contextmenu',
     label: 'Context menu',
     keywords:
-      'context menu right-click builtin built-in discover shell verb custom photoshop vlc vscode notepad++ command exe files folders submenu separator order hide'
+      'context menu right-click builtin built-in discover shell verb custom photoshop vlc vscode notepad++ command exe files folders submenu separator order hide note icon overlay'
   },
   {
     id: 'quickaccess',
     label: 'Quick access',
-    keywords: 'quick access pin unpin desktop downloads documents pictures shortcuts tree favorites'
+    keywords:
+      'quick access pin unpin desktop downloads documents pictures shortcuts tree favorites group groups color'
   },
   {
     id: 'layouts',
@@ -58,7 +59,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'folderviews',
     label: 'Folder views',
     keywords:
-      'folder views customize columns sort details recursive tree per-folder ads stream value alternate AUTOV2'
+      'folder views customize columns sort details recursive tree per-folder ads stream value alternate AUTOV2 view preset presets note status'
   },
   {
     id: 'filter',
@@ -89,7 +90,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'slideshow',
     label: 'Slideshow',
-    keywords: 'slideshow categorizer caption compiled lists delay order random loop images photos'
+    keywords: 'slideshow categorizer caption delay order random loop images photos'
   },
   {
     id: 'mediametadata',

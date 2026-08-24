@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.10.0
+**Version:** 0.11.0
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).
@@ -33,7 +33,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 - **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), **3** (wide top + two bottom), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). The folder-tree toggle lives on that pane’s toolbar so you can hide one tree in a split. Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Toolbar search, keyboard nav, and **one shared preview** follow the **focused** pane; each tab keeps its own search results so you can drag hits onto another pane.
 - Preview pane **collapsible**; collapsed state + widths persisted.
 - Pane split ratios persisted in session.
-- **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Manage in Settings → Quick access (add/remove/reorder/reset) or pin/unpin from the context menu / drop on the Quick access header; persisted in settings.
+- **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Optional **named groups** (D58). Manage in Settings → Quick access (add/remove/reorder/reset, groups) or pin/unpin from the context menu / drop on the Quick access header or a group; persisted in settings.
 - **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, **Map / Disconnect network drive**, and **Properties** (This PC) — native Windows windows, not in-app UI.
 - **Network** (D44) — below Drives when LAN discovery is running or hosts were found. Expand a computer → SMB shares (async; does not block folder listing). Open UNC like Explorer; Map / Disconnect / Refresh on the Network header. Tunables in **Settings → Network** (auto vs manual rediscovery + interval). Full detail: [NETWORKS.md](NETWORKS.md).
 
@@ -47,7 +47,8 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 | Persist          | Tabs + active index restored on launch                                                     |
 | Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
 | Icon             | Optional **Lucide** icon + color, or a **custom** .png/.jpg/.ico (cover-cropped square). Right-click → Set icon → Custom icon… for image, label on/off, and size. Icon-only tabs use tight chrome so they work as categorizer drop bins. Session/layouts (D32 / D54) |
-| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Close**                 |
+| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Close**, **Reopen closed tab** / **Recently closed** / **Clear recently closed** |
+| Reopen           | `Ctrl+Shift+T` restores the last closed tab (stack in `session.json`, cap 25). **Clear recently closed** empties the stack (persisted). Empty tab-bar context has the same items (D55) |
 | Reorder          | Drag tabs to reorder; order persisted                                                      |
 | Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
 | Close            | Middle-click / close button / context menu; confirm if that tab has an in-progress destructive op (rare) |
@@ -80,8 +81,8 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Large icons       | Same                                                        |
 | Medium icons      | Same                                                        |
 | Small icons       | Same                                                        |
-| List / Details    | Compact name + Windows shell icon                           |
-| Details           | Columns: Name (pinned) + show/hide catalog via header right-click. Groups: File (modified/created/type/size/ext/**Alternate streams**), Stream values (streams found in the current folder + **...** to type a name), Image (dimensions, width/height, bit depth, color space, orientation, alpha, format), Audio/video (duration, bit rate, sample rate, channels, codec, container, frame rate, media size), Tags (title/artist/album/…), Generation (A1111 seed/model/steps/sampler/CFG/size/prompts). Resizable, reorderable; layout persisted in settings. Media and ADS columns fill asynchronously (ADS lists non-empty stream names for files **and** folders when that column is visible — not on every `fs:list`). Stream-value columns show one named stream’s text preview. Context menu **Alternate streams…** opens a manager to list/add/edit/delete/import/export streams (D38). |
+| List / Details    | Compact name + Windows shell icon (or D62 Lucide / custom / tinted overlay when set) |
+| Details           | Columns: Name (pinned) + show/hide catalog via header right-click. Groups: File (modified/created/type/size/ext/**Alternate streams**, **Note** / **Status** / **Has note** / **Checklist**), Stream values (streams found in the current folder + **...** to type a name), Image (dimensions, width/height, bit depth, color space, orientation, alpha, format), Audio/video (duration, bit rate, sample rate, channels, codec, container, frame rate, media size), Tags (title/artist/album/…), Generation (A1111 seed/model/steps/sampler/CFG/size/prompts). Resizable, reorderable; layout persisted in settings. Media and ADS columns fill asynchronously (ADS lists non-empty stream names for files **and** folders when that column is visible — not on every `fs:list`). Stream-value columns show one named stream’s text preview. Context **Note…** / **Set icon…** (D61 / D62, NTFS). Context menu **Alternate streams…** opens a manager to list/add/edit/delete/import/export streams (D38). |
 
 - Sort by any visible column (incl. media once values load); asc/desc; folders-first toggle in Settings (default on).
 - Virtualize grids/lists for large directories.
@@ -95,11 +96,11 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | Op                 | Behavior                                                                                                                                         |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | New folder         | Inline rename or dialog                                                                                                                          |
-| New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists |
+| New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists. **From Template** copies a user template; the catalog pretty name is the menu label and default filename stem (D57) |
 | Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits**. A name that already exists opens the same D18 review as copy/move (Skip / Keep both `name (2).ext` / Replace / Keep most recent) |
 | Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
 | Scripts            | **Opt-in** (off by default). Settings → Scripting and AI → Enable scripting. Then: universal runner (PowerShell / **Python 3 only — not 2.x** / cmd / bash) on the current folder or selection, live output, Stop. Saved library under `userData` becomes context **Scripts >** verbs. Optional AI generate/modify (never sends files). [SCRIPTS.md](SCRIPTS.md) (D51) |
-| Cut / Copy / Paste | Internal clipboard + OS clipboard of file paths where practical                                                                                  |
+| Cut / Copy / Paste | Internal clipboard + OS file paths. Non-file clipboard creates a file (D56; Settings → Behavior). **Paste Special** for format/name. Never auto-download a URL. |
 | Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
 | Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Tab-bar **Recycle Bin** opens bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer. Right-click the button for **Open** / **Empty Recycle Bin** (Empty confirms without opening the view first). **Drive roots** (`C:\`) are never deleted — Del / Shift+Del / context Delete are ignored with no message. Deleting a folder that is the **scoped root of any open tab** always confirms (Cancel / Delete) and warns those tabs will close; after a successful delete the affected tabs close (a replacement tab opens if that would leave none) |
 | Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory. Same continue-then-review as trash when some items fail |
@@ -129,7 +130,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Delete / Delete permanently
 - Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
 - Extract All… (on `.zip` selection — sibling folder named after the archive)
-- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / Other…
+- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / From Template / Other…
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
@@ -168,7 +169,7 @@ See [PREVIEW.md](PREVIEW.md).
 See [SEARCH.md](SEARCH.md).
 
 - Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
-- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
+- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators, including note / status / open checklist). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
 - **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
 - Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).

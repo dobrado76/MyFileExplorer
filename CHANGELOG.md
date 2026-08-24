@@ -9,9 +9,22 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-08-24
+
+Eleventh product release: daily-workflow closeout **D53–D62** (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons) plus tab-icon and copy-timestamp polish accumulated after 0.10. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
+- **Reopen closed tabs** (D55) — `Ctrl+Shift+T` or tab-bar **Reopen closed tab** / **Recently closed**. Last 25 closed tabs persist in the session (path, view, icon, search query). **Clear recently closed** empties the stack. Search results are not restored — re-run the query.
+- **Smart clipboard paste** (D56) — when the clipboard is an image, text, URL, or HTML (not files), Paste creates a file. Paste Special picks format. Settings → Behavior can turn this off. Never downloads a URL.
+- **New-file templates** (D57) — New / Add → **From Template** copies a file from the app Templates folder and starts rename. **Manage Templates…** sets a pretty name (menu + default filename), reorders with ↑↓, replaces the input file, duplicates, and deletes.
+- **Grouped Quick access** (D58) — name groups in Settings, color them, collapse them in the tree. Drop a folder onto a group to pin it there. Existing flat pin lists still load.
+- **Create link** (D59) — File Tools → **Create link…** makes a symbolic link, hard link, or junction. Directory symlinks may need Developer Mode.
+- **View presets** (D60) — pane view-presets menu saves and reapplies view mode, sort, and Details columns. If the folder already has a customization, Apply updates that override.
+- **Attached notes** (D61) — context **Note…** stores text / status / a small checklist on the file or folder (NTFS). Preview shows it; Details can add Note / Status / Has note / Checklist (semicolon-separated; checked items struck through). Power Search can filter by note text, status, or open checklist items (`note:` / `todo:`). Writes go through THE RULE (host times unchanged); search only reads the stream.
+- **Item icons** (D62) — context **Set icon…** (files and folders): Lucide, a custom image, or tint the Windows icon. One source at a time. Distinct from File Tools **Change Icon…** (Explorer folder icon). Stored on the item; times unchanged.
 - **Custom tab icons** (D54) — Set icon → **Custom icon…** picks a .png / .jpg / .ico, cover-crops it to a square, and can hide the label. Icon-only tabs hug the image (drop files onto them to categorize). Image files stay under `userData/tab-icons`.
+- **Copy timestamps** (D53) — after copy / cross-volume move, destination **Created** and **Modified** match the source (NTFS `FileBasicInfo`). Same-volume move already kept them.
 - **Search Show hidden** (off by default) — index and folder search hide Windows Hidden items, `!VIDTHUMB_CACHE`, and files inside hidden folders. Toggle in search options or Settings → Search; `attrib:h` still finds them.
 - **Stream-value Details columns** — header menu **Stream values** lists streams found in the current folder (tick/untick). **...** adds a named column (optional display name) and is the only way into the saved catalog. **Clear** removes saved stream columns. Cells show that stream’s text (same preview rules as the ADS Manager).
 - **3-pane layout** — wide view on top, two smaller views below (the top row of a 2×2, merged). View-layout control is **1 / 2 / 3 / 4**.
@@ -24,8 +37,6 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Fixed
 
 - **`npm run dist` NSIS pack** — 7-Zip ultra compression (`-mx=9`) was failing on the ~700 MB unpacked app. Pack now uses level 5 and deletes leftover `*.nsis.7z` before rebuild.
-- **Copy / cross-volume move timestamps** — after the data is written, destination **Created** and **Modified** match the source (NTFS `FileBasicInfo`). Same-volume move already kept them.
-- **Compiled lists Nb. Files** — `!!Lists` `.txt` rows always showed `0` because the grid skipped ADS. It now reads the on-disk **Count** stream (then Index) like category `.dat` files. Playing a `.txt` expands it on the fly and updates **Count** (and the grid) to that image total. Update Lists still does not rewrite `!!Lists`.
 - **USN Recent records** — listing records needs administrator (Windows error 5). **Load recent records as administrator…** re-runs the native reader in a short-lived elevated process (the previous `fsutil` helper exited 1).
 - **Empty Recycle Bin** — uses Windows `SHEmptyRecycleBin` (no per-item COM list). The old PowerShell path killed the job at 3 minutes, then tried to delete every row one-by-one (races if you keep sending files to the bin).
 
@@ -215,7 +226,6 @@ Seventh product release: Power Search, continue-then-review bulk file ops, per-t
 - **Custom context commands** — `.bat` / `.cmd` launch via `cmd.exe` (Node `spawn` on the script alone caused `EINVAL` on Windows). Arguments also accept `%1` / `%*` as aliases for `{path}` / `{paths}`.
 - **Search settings** — saved filters and bookmarks **Add** UI visible again.
 - **Breadcrumb** — middle segments no longer collapse with `…` when horizontal space is sufficient.
-- **Slideshow compiled-lists crop** — Ctrl+numpad crop keys work when the lists window has focus; modifier keys captured before async decode.
 - **Linux path normalization** — path helpers detect OS for separator handling (experimental Linux builds).
 
 ## [0.6.3] - 2026-08-12
@@ -270,12 +280,11 @@ Sixth product release: Network neighborhood & mapped-drive reconnect, portable s
 
 ## [0.5.0] - 2026-08-11
 
-Fifth product release: slideshow / categorizer + compiled lists, NTFS ADS tooling, deeper previews, ZIP/compress and multi-pane polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+Fifth product release: slideshow / categorizer, NTFS ADS tooling, deeper previews, ZIP/compress and multi-pane polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ### Added
 
 - **Slideshow / image categorizer (D37)** — gated chrome; fullscreen player; categorizer map; image-list cache; invalid-images folder. See [docs/SLIDESHOW.md](docs/SLIDESHOW.md).
-- **Compiled file lists (D39)** — category `.dat` / `.txt` libraries; Update Lists writes ADS Index/Count on `.dat` only (`|=>` ignored); `.txt` expands from body at play; virtual playlist; Validate Lists; detached lists window.
 - **NTFS Alternate Data Streams (D38)** — opt-in Details column, ADS Manager, `ads:*` IPC. See [docs/ADS.md](docs/ADS.md).
 - **CHM preview (D35)** — `.chm` Contents TOC + sandboxed topic HTML (Windows `hh.exe` decompile under userData).
 - **Font preview (D36)** — `.ttf` sample pangram + name-table metadata in the preview pane.
@@ -289,13 +298,12 @@ Fifth product release: slideshow / categorizer + compiled lists, NTFS ADS toolin
 - **View layout control** — 1 / 2 / 4 pane switcher is a compact toolbar dropdown.
 - **Shell icon extract** — `.exe` / per-file shell icons extract in the background (queued + throttled).
 - **Context submenus** — short close delay + hit-bridge so flyouts (e.g. Hide from view) stay reachable across the parent→submenu gap.
-- **Docs** — README / PLAN / ADVANTAGES / RELEASE_NOTES / SLIDESHOW / ADS / DECISIONS aligned to v0.5.0 (through D39).
+- **Docs** — README / PLAN / ADVANTAGES / RELEASE_NOTES / SLIDESHOW / ADS / DECISIONS aligned to v0.5.0.
 
 ### Fixed
 
 - **File-list / tree rename gesture** — double single-click is two slow clicks on the selected name; a single click no longer starts rename after hover/wait.
 - **CHM preview** — locate `hh.exe` at `%SystemRoot%\hh.exe` (and SysWOW64 fallback); TOC encoding for Windows-1252 titles.
-- **Update Lists OOM** — no longer builds Index for `.txt` or caches every folder scan in memory; processes one `.dat` at a time.
 
 ## [0.4.0] - 2026-08-09
 

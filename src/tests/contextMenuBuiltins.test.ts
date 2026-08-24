@@ -67,6 +67,14 @@ describe('sanitizeBuiltinLayout', () => {
     expect(ids[ids.length - 1]).toBe('properties')
   })
 
+  it('default layout places Note and Set icon above Alternate streams', () => {
+    const itemIds = DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT.filter((e) => e.type === 'item').map(
+      (e) => e.id
+    )
+    expect(itemIds.indexOf('item-note')).toBeLessThan(itemIds.indexOf('item-icon'))
+    expect(itemIds.indexOf('item-icon')).toBeLessThan(itemIds.indexOf('alternate-streams'))
+  })
+
   it('default layout places Calculate Statistics above Properties', () => {
     const itemIds = DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT.filter((e) => e.type === 'item').map(
       (e) => e.id

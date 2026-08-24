@@ -71,6 +71,13 @@ export function searchDb(): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_files_name ON files(name);
     CREATE INDEX IF NOT EXISTS idx_files_ext ON files(ext);
     CREATE INDEX IF NOT EXISTS idx_files_size ON files(size);
+    CREATE TABLE IF NOT EXISTS item_notes (
+      path TEXT PRIMARY KEY,
+      haystack TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT '',
+      open_todo INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_item_notes_open ON item_notes(open_todo);
   `)
   migrateRoots(db)
   try {

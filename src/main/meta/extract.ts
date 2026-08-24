@@ -9,6 +9,8 @@ import {
   formatAdsValuePreview
 } from '@shared/ads/paths'
 import { parseAdsFieldColumnName } from '@shared/schemas/columns'
+import { ITEM_NOTE_STREAM, parseItemNote } from '@shared/schemas/itemAds'
+import { encodeNoteChecklistColumn, itemNoteChecklistItems } from '@shared/noteSearch'
 import { listStreamNames, readStreamText, streamExists } from '../fs/adsWin32'
 import { settingsStore } from '../settings/store'
 import { parseA1111Parameters } from '../preview/a1111'
@@ -341,6 +343,35 @@ async function extractAv(file: string, wanted: Set<DetailsColumnId>): Promise<En
   return out
 }
 
+const ITEM_NOTE_KEYS = new Set(
+  ['itemNote', 'itemNoteStatus', 'itemHasNote', 'itemNoteTodos'] satisfies DetailsColumnId[]
+)
+
+async function extractItemNoteColumns(
+  file: string,
+  wanted: Set<DetailsColumnId>
+): Promise<EntryColumnValues> {
+  const out: EntryColumnValues = {}
+  if (![...ITEM_NOTE_KEYS].some((k) => wanted.has(k))) return out
+  try {
+    if (!streamExists(file, ITEM_NOTE_STREAM)) return out
+    const note = parseItemNote(await readStreamText(file, ITEM_NOTE_STREAM))
+    if (!note) return out
+    if (wanted.has('itemHasNote')) out.itemHasNote = 'Yes'
+    if (wanted.has('itemNote') && note.text.trim()) out.itemNote = truncate(note.text, 200)
+    if (wanted.has('itemNoteStatus') && note.status?.trim()) {
+      out.itemNoteStatus = note.status.trim()
+    }
+    if (wanted.has('itemNoteTodos')) {
+      const encoded = encodeNoteChecklistColumn(itemNoteChecklistItems(note))
+      if (encoded) out.itemNoteTodos = encoded
+    }
+  } catch {
+    /* soft-fail */
+  }
+  return out
+}
+
 async function extractAdsFieldColumns(
   file: string,
   wanted: Set<DetailsColumnId>
@@ -393,6 +424,7 @@ export async function extractColumnValues(
 
   if (st.isFile() || st.isDirectory()) {
     Object.assign(out, await extractAdsFieldColumns(file, wanted))
+    Object.assign(out, await extractItemNoteColumns(file, wanted))
   }
 
   if (st.isDirectory()) {

@@ -144,6 +144,8 @@ export type PreviewViewProps = {
   onRetryPlayableForce: () => void
   /** Volume pies — all drives, or one drive when `focusPath` is set. */
   driveSpace?: { drives: DriveInfo[]; focusPath?: string | null } | null
+  /** Attached item note (D61) shown above file metadata. */
+  extraBeforeFields?: ReactNode
 }
 
 export function PreviewView({
@@ -164,7 +166,8 @@ export function PreviewView({
   onExtractZip,
   onNotify,
   onRetryPlayableForce,
-  driveSpace = null
+  driveSpace = null,
+  extraBeforeFields = null
 }: PreviewViewProps): JSX.Element {
   const headerSub = driveSpace
     ? driveSpace.focusPath
@@ -264,6 +267,7 @@ export function PreviewView({
           onExtractZip={onExtractZip}
           onCopy={copyValue}
           onRetryPlayableForce={onRetryPlayableForce}
+          extraBeforeFields={extraBeforeFields}
         />
       )}
     </div>
@@ -281,7 +285,8 @@ function PreviewBody({
   onOpenPath,
   onExtractZip,
   onCopy,
-  onRetryPlayableForce
+  onRetryPlayableForce,
+  extraBeforeFields
 }: {
   model: PreviewModel
   previewPath: string
@@ -294,6 +299,7 @@ function PreviewBody({
   onExtractZip?: (paths: string[]) => void
   onCopy: (value: string) => Promise<void>
   onRetryPlayableForce: () => void
+  extraBeforeFields?: ReactNode
 }): JSX.Element {
   const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
@@ -510,6 +516,8 @@ function PreviewBody({
         {!zen && model.warnings && model.warnings.length > 0 && (
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
         )}
+
+        {!zen && extraBeforeFields}
 
         {!zen ? (
           <PreviewMetaTabs

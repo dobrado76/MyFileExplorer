@@ -115,3 +115,44 @@ export function buildSearchSql(
     LIMIT ?`
   return { sql, params }
 }
+
+/** Note-only queries: catalog in userData (updated when a note is saved). Verify with ADS after. */
+export function buildNoteIndexSql(
+  q: StructuredQuery,
+  pathPrefix: string | null
+): {
+  sql: string
+  params: (string | number)[]
+} {
+  const clauses: string[] = ['1=1']
+  const params: (string | number)[] = []
+
+  if (pathPrefix) {
+    clauses.push(`f.path LIKE ? ESCAPE '\\'`)
+    params.push(buildPathPrefixLike(pathPrefix))
+  }
+  for (const p of q.pathPrefixes) {
+    clauses.push(`f.path LIKE ? ESCAPE '\\'`)
+    params.push(escapeLike(p) + '%')
+  }
+  if (q.fileOnly) clauses.push('f.is_dir = 0')
+  if (q.folderOnly) clauses.push('f.is_dir = 1')
+  if (q.noteText) {
+    clauses.push(`n.haystack LIKE ? ESCAPE '\\'`)
+    params.push('%' + escapeLike(q.noteText.toLowerCase()) + '%')
+  }
+  if (q.noteStatus) {
+    clauses.push(`lower(n.status) LIKE ? ESCAPE '\\'`)
+    params.push('%' + escapeLike(q.noteStatus.toLowerCase()) + '%')
+  }
+  if (q.openTodo) clauses.push('n.open_todo = 1')
+
+  const sql = `
+    SELECT f.path, f.name, f.size, f.mtime_ms, f.is_dir, f.attrs, f.ext
+    FROM files f
+    INNER JOIN item_notes n ON n.path = f.path
+    WHERE ${clauses.join(' AND ')}
+    ORDER BY f.name
+    LIMIT ?`
+  return { sql, params }
+}

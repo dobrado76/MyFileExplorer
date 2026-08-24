@@ -32,8 +32,10 @@ import {
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
 import { ChevronDown, ChevronRight } from '../lib/icons'
-import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
-import { ShellIcon } from './ShellIcon'
+import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
+import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
+import { ItemGlyph, lookupItemAds } from './ItemGlyph'
+import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
 
 type NodeState = {
@@ -140,6 +142,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const treeRefreshRev = useAppStore((s) => s.treeRefreshRev)
   const treeCollapseRequest = useAppStore((s) => s.treeCollapseRequest)
   const pinQuickAccess = useAppStore((s) => s.pinQuickAccess)
+  const setQuickAccessGroupCollapsed = useAppStore((s) => s.setQuickAccessGroupCollapsed)
   const renamingPath = useAppStore((s) => s.renamingPath)
   const renameSource = useAppStore((s) => s.renameSource)
   const startRename = useAppStore((s) => s.startRename)
@@ -153,18 +156,33 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const quickAccessSetting = useAppStore((s) => s.settings.quickAccess)
   const quickAccessPins = useAppStore((s) => s.settings.quickAccessPins)
   const quickAccessHiddenDefaults = useAppStore((s) => s.settings.quickAccessHiddenDefaults)
+  const qaList = useMemo(
+    () =>
+      materializeQuickAccessList(quickAccessSetting, quickAccessPins, quickAccessHiddenDefaults),
+    [quickAccessSetting, quickAccessPins, quickAccessHiddenDefaults]
+  )
   const quickAccess = useMemo(() => {
-    const tokens = materializeQuickAccessTokens(
-      quickAccessSetting,
-      quickAccessPins,
-      quickAccessHiddenDefaults
-    )
-    return buildQuickAccess(knownFolders, tokens)
-  }, [knownFolders, quickAccessSetting, quickAccessPins, quickAccessHiddenDefaults])
+    return buildQuickAccess(knownFolders, flattenQuickAccessTokens(qaList))
+  }, [knownFolders, qaList])
+  const qaByToken = useMemo(() => {
+    const map = new Map<string, (typeof quickAccess)[number]>()
+    for (const e of quickAccess) map.set(e.token.toLowerCase(), e)
+    return map
+  }, [quickAccess])
 
   // Expansion / children cache is per tab — switching tabs must not share tree UI state.
   const [nodesByTab, setNodesByTab] = useState<Record<string, NodesMap>>({})
   const nodes = useMemo(() => nodesByTab[activeTabId] ?? {}, [nodesByTab, activeTabId])
+  const platform = useAppStore((s) => s.platform)
+  const treeAdsPaths = useMemo(() => {
+    const out: string[] = []
+    for (const [p, n] of Object.entries(nodes)) {
+      out.push(p)
+      if (n.children) out.push(...n.children)
+    }
+    return out
+  }, [nodes])
+  const itemAdsByPath = useItemAdsOverlays(treeAdsPaths, platform === 'win32', `tree:${activeTabId}`)
   const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
   const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   /** Tab id whose session `treeExpanded` has been applied (avoids wiping on tab switch). */
@@ -1002,7 +1020,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           ) : (
             <span className="twisty twisty-spacer" aria-hidden />
           )}
-          <ShellIcon path={path} size={16} isDir renaming={renaming} />
+          <ItemGlyph
+            path={path}
+            size={16}
+            isDir
+            overlay={lookupItemAds(path, itemAdsByPath)}
+            renaming={renaming}
+          />
           {renaming ? (
             <RenameInput
               name={
@@ -1067,10 +1091,47 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       >
         Quick access
       </div>
-      {quickAccess.length === 0 ? (
+      {qaList.length === 0 ? (
         <div className="tree-empty-hint">Pin folders via context menu or drop here</div>
       ) : (
-        quickAccess.map((entry) => renderNode(entry.path, entry.label, 0, 'qa'))
+        qaList.map((item) => {
+          if (!isQuickAccessGroup(item)) {
+            const entry = qaByToken.get(item.toLowerCase())
+            if (!entry) return null
+            return renderNode(entry.path, entry.label, 0, 'qa')
+          }
+          return (
+            <div key={item.id} className="tree-qa-group">
+              <div
+                className="tree-qa-group-head"
+                style={item.color ? { borderLeftColor: item.color } : undefined}
+                title={item.collapsed ? 'Expand group' : 'Collapse group'}
+                onClick={() => void setQuickAccessGroupCollapsed(item.id, !item.collapsed)}
+                onDragOver={(e) => {
+                  if (dragPaths.length === 1) e.preventDefault()
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  const src = dragPaths[0]
+                  if (src) void pinQuickAccess(src, item.id)
+                }}
+              >
+                <span className="tree-qa-group-chevron" aria-hidden>
+                  {item.collapsed ? '▸' : '▾'}
+                </span>
+                <span className="tree-qa-group-name">{item.name}</span>
+              </div>
+              {!item.collapsed
+                ? item.items.map((token) => {
+                    const entry = qaByToken.get(token.toLowerCase())
+                    if (!entry) return null
+                    return renderNode(entry.path, entry.label, 1, 'qa')
+                  })
+                : null}
+            </div>
+          )
+        })
       )}
       <div
         className={`tree-section tree-section-clickable${drivesOverview ? ' selected' : ''}`}
