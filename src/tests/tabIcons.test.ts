@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_TAB_ICONS, defaultTabIcon, isWindowsDriveRoot } from '../shared/tabIcons'
+import {
+  DEFAULT_TAB_ICONS,
+  coverCropRect,
+  defaultTabIcon,
+  isCustomTabIcon,
+  isIconOnlyTab,
+  isWindowsDriveRoot,
+  tabCustomIconSizePx
+} from '../shared/tabIcons'
 
 describe('isWindowsDriveRoot', () => {
   it('accepts drive letters with or without a trailing slash', () => {
@@ -29,5 +37,33 @@ describe('defaultTabIcon', () => {
     expect(defaultTabIcon('C:\\Users\\me\\Pictures', 'C:\\Users\\me\\Pictures')).toEqual(
       DEFAULT_TAB_ICONS.folder
     )
+  })
+})
+
+describe('coverCropRect', () => {
+  it('takes the full frame when the source is already square', () => {
+    expect(coverCropRect(128, 128)).toEqual({ left: 0, top: 0, width: 128, height: 128 })
+  })
+
+  it('crops the wide axis when the image is landscape', () => {
+    expect(coverCropRect(200, 100)).toEqual({ left: 50, top: 0, width: 100, height: 100 })
+  })
+
+  it('crops the tall axis when the image is portrait', () => {
+    expect(coverCropRect(80, 200)).toEqual({ left: 0, top: 60, width: 80, height: 80 })
+  })
+})
+
+describe('custom tab icon helpers', () => {
+  it('treats showLabel false as icon-only chrome', () => {
+    const icon = { kind: 'custom' as const, id: 'ti_abc_1234', showLabel: false, sizePx: 32 }
+    expect(isCustomTabIcon(icon)).toBe(true)
+    expect(isIconOnlyTab(icon)).toBe(true)
+    expect(tabCustomIconSizePx(icon)).toBe(32)
+  })
+
+  it('does not treat Lucide tabs as icon-only', () => {
+    expect(isIconOnlyTab({ name: 'Folder', color: '#fbbf24' })).toBe(false)
+    expect(isIconOnlyTab(null)).toBe(false)
   })
 })

@@ -8,6 +8,7 @@ import {
   isValidDropDest,
   shouldSuppressContextMenu
 } from '../lib/rightDrag'
+import { isCustomTabIcon, isIconOnlyTab, isLucideTabIcon } from '@shared/tabIcons'
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
@@ -81,6 +82,8 @@ export function TabBar(): JSX.Element {
     }
 
     const tabEls = Array.from(el.querySelectorAll<HTMLElement>('[data-tab-id]'))
+    const labeled = tabEls.filter((t) => !t.classList.contains('tab-icon-only'))
+    const iconOnly = tabEls.filter((t) => t.classList.contains('tab-icon-only'))
     const cs = getComputedStyle(el)
     const min = Number.parseFloat(cs.getPropertyValue('--tab-min')) || 90
     const max = Number.parseFloat(cs.getPropertyValue('--tab-max')) || 220
@@ -90,14 +93,20 @@ export function TabBar(): JSX.Element {
     void el.offsetWidth
 
     let naturalMax = 0
-    for (const tabEl of tabEls) {
+    for (const tabEl of labeled) {
       naturalMax = Math.max(naturalMax, tabEl.getBoundingClientRect().width)
+    }
+    let iconOnlyWidth = 0
+    for (const tabEl of iconOnly) {
+      iconOnlyWidth += tabEl.getBoundingClientRect().width
     }
     el.classList.remove('is-measuring')
 
-    const n = tabEls.length
-    const fit = Math.min(max, Math.max(min, Math.ceil(naturalMax)))
-    const needed = n === 0 ? 0 : n * fit + Math.max(0, n - 1) * gap
+    const n = labeled.length
+    const total = tabEls.length
+    const fit = n === 0 ? 0 : Math.min(max, Math.max(min, Math.ceil(naturalMax)))
+    const needed =
+      n * fit + iconOnlyWidth + Math.max(0, total - 1) * gap
     if (n > 0 && needed > el.clientWidth + 0.5) {
       el.classList.add('is-equal')
     } else if (n > 0) {
@@ -293,19 +302,28 @@ export function TabBar(): JSX.Element {
           const active = tab.id === activeTabId && !recycleBinActive
           const offline = active && listingOffline && samePath(tab.path, listingPath)
           const dropTarget = dropTabId === tab.id
+          const iconOnly = isIconOnlyTab(tab.icon)
+          const showCustom = isCustomTabIcon(tab.icon)
+          const showLucide = showTabIcons && isLucideTabIcon(tab.icon)
+          const showGlyph = showCustom || showLucide
+          const renaming = editingId === tab.id
+          const showTitle = renaming || !iconOnly
           return (
             <div
               key={tab.id}
               role="tab"
               data-tab-id={tab.id}
               aria-selected={active}
-              className={`tab${active ? ' active' : ''}${offline ? ' offline' : ''}${dropTarget ? ' drop-target' : ''}`}
+              aria-label={title}
+              className={`tab${active ? ' active' : ''}${offline ? ' offline' : ''}${dropTarget ? ' drop-target' : ''}${iconOnly && !renaming ? ' tab-icon-only' : ''}`}
               title={
                 offline
                   ? `${tab.path} (offline)`
                   : fileDragActive
                     ? `Drop to move/copy into ${tab.path}`
-                    : tab.path
+                    : iconOnly
+                      ? `${title} — ${tab.path}`
+                      : tab.path
               }
               data-drop-dir={tab.path}
               draggable={editingId !== tab.id && !fileDragActive}
@@ -384,7 +402,7 @@ export function TabBar(): JSX.Element {
                 setMenu({ kind: 'tab', tabId: tab.id, x: e.clientX, y: e.clientY })
               }}
             >
-              {editingId === tab.id ? (
+              {renaming ? (
                 <input
                   className="tab-rename-input"
                   autoFocus
@@ -401,9 +419,12 @@ export function TabBar(): JSX.Element {
                 />
               ) : (
                 <>
-                  {showTabIcons && tab.icon ? <TabLucideIcon icon={tab.icon} size={14} /> : null}
-                  <span className="tab-title">{title}</span>
-                  {offline ? <span className="tab-offline-badge">Offline</span> : null}
+                  {showGlyph ? <TabLucideIcon icon={tab.icon} size={14} /> : null}
+                  {showTitle ? <span className="tab-title">{title}</span> : null}
+                  {offline && !iconOnly ? <span className="tab-offline-badge">Offline</span> : null}
+                  {offline && iconOnly ? (
+                    <span className="tab-offline-dot" title="Offline" aria-hidden />
+                  ) : null}
                 </>
               )}
               <button
@@ -528,7 +549,10 @@ export function TabBar(): JSX.Element {
                 role="menuitem"
                 onClick={() => {
                   setMenu(null)
-                  openDialog({ kind: 'tab-icon', tabId: menuTab.id })
+                  openDialog({
+                    kind: isCustomTabIcon(menuTab.icon) ? 'tab-custom-icon' : 'tab-icon',
+                    tabId: menuTab.id
+                  })
                 }}
               >
                 {menuTab.icon ? 'Change icon…' : 'Set icon…'}

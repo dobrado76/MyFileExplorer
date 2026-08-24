@@ -34,15 +34,38 @@ export type SortSpec = z.infer<typeof sortSchema>
 /** Cap persisted tree expand paths per tab (session.json size / restore cost). */
 export const MAX_TREE_EXPANDED = 400
 
+/** Display sizes for a custom (image) tab icon. */
+export const TAB_CUSTOM_ICON_SIZES = [16, 20, 24, 28, 32, 40, 48] as const
+export type TabCustomIconSize = (typeof TAB_CUSTOM_ICON_SIZES)[number]
+
 /** Optional Lucide React icon on a tab (PascalCase name from `lucide-react` `icons`). */
+export const lucideTabIconSchema = z.object({
+  name: z.string().min(1).max(80),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .catch('#60a5fa')
+})
+export type LucideTabIcon = z.infer<typeof lucideTabIconSchema>
+
+/** User image (jpg/png/ico) stored under userData/tab-icons (D54). */
+export const customTabIconSchema = z.object({
+  kind: z.literal('custom'),
+  id: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{4,80}$/),
+  showLabel: z.boolean().catch(false),
+  sizePx: z
+    .number()
+    .int()
+    .min(16)
+    .max(64)
+    .catch(32)
+})
+export type CustomTabIcon = z.infer<typeof customTabIconSchema>
+
 export const tabIconSchema = z
-  .object({
-    name: z.string().min(1).max(80),
-    color: z
-      .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/)
-      .catch('#60a5fa')
-  })
+  .union([customTabIconSchema, lucideTabIconSchema])
   .nullable()
   .catch(null)
 export type TabIcon = z.infer<typeof tabIconSchema>

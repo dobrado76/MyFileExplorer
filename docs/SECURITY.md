@@ -30,6 +30,7 @@ Renderer must not read arbitrary files via `file://`. Use `mfe-media://` (name T
 - Paths under currently open tab directories (and parents as needed for icons)
 - Explicit preview target
 - Thumb cache directory inside userData
+- Custom tab icons directory `userData/tab-icons` (D54)
 
 **Media metadata (D50)** writes NTFS streams on the **user-selected** file/folder (and its parent container flag) only after a context-menu or preview action. Paths go through `requireAbsolute` like other FS IPC. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 

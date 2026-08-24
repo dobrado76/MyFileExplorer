@@ -23,6 +23,7 @@ import { sessionStore } from './session/store'
 import { settingsStore } from './settings/store'
 import { thumbCacheDir } from './thumbs'
 import { shellIconCacheDir } from './icons/shell'
+import { ensureTabIconsDir } from './tabs/customIcon'
 import { logMain } from './logging'
 import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen'
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
@@ -181,6 +182,7 @@ if (!gotLock) {
     registerIpcHandlers()
     thumbCacheDir()
     shellIconCacheDir()
+    ensureTabIconsDir()
     void import('./search').then((m) => {
       m.initSearchIndexRuntime()
       void import('./search/httpServer').then((h) => h.syncSearchHttpServer())

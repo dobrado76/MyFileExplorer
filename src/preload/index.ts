@@ -71,6 +71,10 @@ const api: MyFileExplorerApi = {
      */
     startDrag: (req) => ipcRenderer.sendSync(IPC.shellStartDrag, req) as boolean
   },
+  tabs: {
+    importCustomIcon: invokeVoid(IPC.tabsImportCustomIcon),
+    customIconUrl: invoke(IPC.tabsCustomIconUrl)
+  },
   session: {
     get: invokeVoid(IPC.sessionGet),
     set: invoke(IPC.sessionSet)

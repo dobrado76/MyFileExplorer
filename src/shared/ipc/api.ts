@@ -172,6 +172,13 @@ export type MyFileExplorerApi = {
      */
     startDrag(req: PathsRequest): boolean
   }
+  tabs: {
+    /** Open-file dialog; Sharp cover-crops to a square PNG under userData. */
+    importCustomIcon(): Promise<
+      Result<{ cancelled: true } | { cancelled: false; id: string; mediaUrl: string }>
+    >
+    customIconUrl(req: { id: string }): Promise<Result<{ mediaUrl: string | null }>>
+  }
   session: {
     get(): Promise<Result<SessionState>>
     set(session: SessionState): Promise<Result<SessionState>>

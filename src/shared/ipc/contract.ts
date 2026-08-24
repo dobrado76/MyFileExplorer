@@ -70,6 +70,11 @@ export const IPC = {
   sessionGet: 'session:get',
   sessionSet: 'session:set',
 
+  /** Native picker + Sharp cover-crop to userData/tab-icons (D54). */
+  tabsImportCustomIcon: 'tabs:importCustomIcon',
+  /** mfe-media URL for a stored custom tab icon PNG. */
+  tabsCustomIconUrl: 'tabs:customIconUrl',
+
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   settingsClearThumbCache: 'settings:clearThumbCache',

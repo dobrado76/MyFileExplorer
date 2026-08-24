@@ -66,6 +66,43 @@ describe('session schema migration', () => {
     expect(parsed.tabs[0]!.icon).toEqual({ name: 'Monitor', color: '#60a5fa' })
   })
 
+  it('keeps a custom tab icon (D54)', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\Cats',
+          icon: { kind: 'custom', id: 'ti_abc1_xyz2', showLabel: false, sizePx: 40 }
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.icon).toEqual({
+      kind: 'custom',
+      id: 'ti_abc1_xyz2',
+      showLabel: false,
+      sizePx: 40
+    })
+  })
+
+  it('drops a custom tab icon with a bad id', () => {
+    const parsed = sessionSchema.parse({
+      version: 1,
+      activeTabId: 't',
+      tabs: [
+        {
+          id: 't',
+          path: 'C:\\',
+          icon: { kind: 'custom', id: '../x', showLabel: true, sizePx: 32 }
+        }
+      ],
+      splitters: {}
+    })
+    expect(parsed.tabs[0]!.icon).toBeNull()
+  })
+
   it('keeps tab icon name and color', () => {
     const parsed = sessionSchema.parse({
       version: 1,

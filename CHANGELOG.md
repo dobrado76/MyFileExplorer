@@ -11,6 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Custom tab icons** (D54) — Set icon → **Custom icon…** picks a .png / .jpg / .ico, cover-crops it to a square, and can hide the label. Icon-only tabs hug the image (drop files onto them to categorize). Image files stay under `userData/tab-icons`.
 - **Search Show hidden** (off by default) — index and folder search hide Windows Hidden items, `!VIDTHUMB_CACHE`, and files inside hidden folders. Toggle in search options or Settings → Search; `attrib:h` still finds them.
 - **Stream-value Details columns** — header menu **Stream values** lists streams found in the current folder (tick/untick). **...** adds a named column (optional display name) and is the only way into the saved catalog. **Clear** removes saved stream columns. Cells show that stream’s text (same preview rules as the ADS Manager).
 - **3-pane layout** — wide view on top, two smaller views below (the top row of a 2×2, merged). View-layout control is **1 / 2 / 3 / 4**.

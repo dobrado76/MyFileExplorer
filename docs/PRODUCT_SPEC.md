@@ -46,7 +46,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 | Multiple folders | One path + view state per tab                                                              |
 | Persist          | Tabs + active index restored on launch                                                     |
 | Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
-| Icon             | Optional **Lucide** icon + color on the tab (right-click → Set icon); session/layouts (D32) |
+| Icon             | Optional **Lucide** icon + color, or a **custom** .png/.jpg/.ico (cover-cropped square). Right-click → Set icon → Custom icon… for image, label on/off, and size. Icon-only tabs use tight chrome so they work as categorizer drop bins. Session/layouts (D32 / D54) |
 | Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Close**                 |
 | Reorder          | Drag tabs to reorder; order persisted                                                      |
 | Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
@@ -55,7 +55,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 | Named layouts    | Save/load the whole tab set + chrome as a named workspace (see Settings → Layouts)         |
 | Drop onto pane   | Drag a tab onto a multi-view pane to assign it (moves if already in another pane)          |
 
-Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable Lucide name + color), `treeExpanded` (folder-tree expand/collapse paths).
+Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable Lucide `{ name, color }` or custom `{ kind: 'custom', id, showLabel, sizePx }`), `treeExpanded` (folder-tree expand/collapse paths).
 
 **Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, and **pane split ratios**) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
 

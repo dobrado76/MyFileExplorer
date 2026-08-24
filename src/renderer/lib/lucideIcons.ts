@@ -1,5 +1,6 @@
 import { icons, type LucideIcon, type LucideProps } from 'lucide-react'
 import type { TabIcon } from '@shared/schemas/session'
+import { isCustomTabIcon, isLucideTabIcon } from '@shared/tabIcons'
 
 /** All PascalCase Lucide icon names available in the picker. */
 export const LUCIDE_ICON_NAMES: string[] = Object.keys(icons).sort((a, b) =>
@@ -39,7 +40,9 @@ export function filterLucideIcons(query: string): string[] {
 }
 
 export function isValidTabIcon(icon: TabIcon): icon is NonNullable<TabIcon> {
-  return icon != null && resolveLucideIcon(icon.name) != null
+  if (isCustomTabIcon(icon)) return /^[a-zA-Z0-9_-]{4,80}$/.test(icon.id)
+  if (isLucideTabIcon(icon)) return resolveLucideIcon(icon.name) != null
+  return false
 }
 
 export type { LucideProps }

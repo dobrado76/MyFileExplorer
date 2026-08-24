@@ -1,5 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { isLucideTabIcon } from '@shared/tabIcons'
 import { useAppStore } from '../store/appStore'
 import {
   filterLucideIcons,
@@ -34,11 +35,13 @@ export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element |
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
   const setTabIcon = useAppStore((s) => s.setTabIcon)
   const closeDialog = useAppStore((s) => s.closeDialog)
+  const openDialog = useAppStore((s) => s.openDialog)
 
+  const lucide = tab && isLucideTabIcon(tab.icon) ? tab.icon : null
   const [query, setQuery] = useState('')
-  const [name, setName] = useState(tab?.icon?.name ?? 'FolderOpen')
-  const [color, setColor] = useState(tab?.icon?.color ?? DEFAULT_COLOR)
-  const [colorText, setColorText] = useState(tab?.icon?.color ?? DEFAULT_COLOR)
+  const [name, setName] = useState(lucide?.name ?? 'FolderOpen')
+  const [color, setColor] = useState(lucide?.color ?? DEFAULT_COLOR)
+  const [colorText, setColorText] = useState(lucide?.color ?? DEFAULT_COLOR)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const filtered = useMemo(() => filterLucideIcons(query), [query])
@@ -212,10 +215,18 @@ export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element |
           </div>
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn" onClick={clear} disabled={!tab.icon}>
-            Clear icon
-          </button>
-          <span style={{ flex: 1 }} />
+          <div className="modal-action-start-group">
+            <button type="button" className="btn" onClick={clear} disabled={!tab.icon}>
+              Clear icon
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => openDialog({ kind: 'tab-custom-icon', tabId })}
+            >
+              Custom icon…
+            </button>
+          </div>
           <button type="button" className="btn" onClick={closeDialog}>
             Cancel
           </button>

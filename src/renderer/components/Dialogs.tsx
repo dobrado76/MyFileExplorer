@@ -53,6 +53,7 @@ import { DEFAULT_UPDATES_SOURCE, GITHUB_REPO_URL, resolveUpdatesSource } from '@
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
+import { TabCustomIconDialog } from './TabCustomIconDialog'
 import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
@@ -389,6 +390,8 @@ export function Dialogs(): JSX.Element | null {
       )
     case 'tab-icon':
       return <TabIconPickerDialog tabId={dialog.tabId} />
+    case 'tab-custom-icon':
+      return <TabCustomIconDialog tabId={dialog.tabId} />
     case 'alert':
       return (
         <AlertDialog

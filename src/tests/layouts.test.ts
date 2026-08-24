@@ -115,4 +115,26 @@ describe('layouts', () => {
   it('workspaceLayoutSchema rejects empty tabs', () => {
     expect(workspaceLayoutSchema.safeParse({ id: 'x', name: 'x', tabs: [] }).success).toBe(false)
   })
+
+  it('keeps a custom tab icon on a layout tab', () => {
+    const parsed = workspaceLayoutSchema.parse({
+      id: 'lay_1',
+      name: 'Categorizer',
+      updatedAt: 1,
+      activeTabIndex: 0,
+      splitters: {},
+      tabs: [
+        {
+          path: 'D:\\Cats',
+          icon: { kind: 'custom', id: 'ti_abc1_xyz2', showLabel: false, sizePx: 32 }
+        }
+      ]
+    })
+    expect(parsed.tabs[0]!.icon).toEqual({
+      kind: 'custom',
+      id: 'ti_abc1_xyz2',
+      showLabel: false,
+      sizePx: 32
+    })
+  })
 })

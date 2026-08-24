@@ -229,6 +229,7 @@ export type DialogState =
       returnSection?: string
     }
   | { kind: 'tab-icon'; tabId: string }
+  | { kind: 'tab-custom-icon'; tabId: string }
   | {
       kind: 'alert'
       title: string

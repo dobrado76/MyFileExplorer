@@ -74,6 +74,13 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `session:get` | Load `session.json`                   |
 | `session:set` | Replace/patch session (Zod-validated) |
 
+### `tabs.*` (custom icons — D54)
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `tabs:importCustomIcon` | — | `{ cancelled: true }` or `{ cancelled: false, id, mediaUrl }` — native picker; Sharp cover-crop to `userData/tab-icons/{id}.png` |
+| `tabs:customIconUrl` | `{ id }` | `{ mediaUrl }` — `mfe-media` URL, or `null` if the PNG is missing |
+
 ### `settings.*`
 
 | Channel                    | Purpose         |

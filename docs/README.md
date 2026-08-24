@@ -80,7 +80,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | NAS listing cache | D49 — session-only last listing for UNC / mapped / remotes; paint then revalidate — [NETWORKS.md](NETWORKS.md) |
 | More previews | 3D (`.obj` / `.fbx` / `.3ds`), `.hdr`, Unity / VS text, `.uvw`, subtitles, `.divx`; fixtures in [`samples/preview-extensions/`](../samples/preview-extensions/) |
 | Power Search designs | Name and reload a complex search (params stored; target chosen each run) |
-| Tab chrome | Default Lucide tab icons; Settings → Appearance show icons / equal-width tabs |
+| Tab chrome | Default Lucide tab icons; custom image icons (D54) with icon-only tight chrome; Settings → Appearance show icons / equal-width tabs |
 | Folder statistics toggle | Settings → Behavior — hide calculated Size / Files / Folders columns |
 | Large folders | Details meta only for on-screen rows; Select All no longer rescans 200k listings |
 

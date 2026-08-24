@@ -82,6 +82,12 @@ import { getProperties, measureFolder, setPathAttributes } from '../fs/propertie
 import { calculateFolderStatistics } from '../fs/folderStats'
 import { setFolderCustomIcon } from '../fs/folderIcon'
 import {
+  pickCustomTabIconSource,
+  importCustomTabIcon,
+  tabIconFilePath,
+  customTabIconMediaUrl
+} from '../tabs/customIcon'
+import {
   propertiesRequestSchema,
   setAttributesRequestSchema
 } from '@shared/schemas/properties'
@@ -308,6 +314,9 @@ const generateVidThumbsSchema = z.object({
   paths: z.array(z.string().min(1)).min(1),
   mode: z.enum(['missing', 'all']),
   recursive: z.boolean().optional()
+})
+const customTabIconIdSchema = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9_-]{4,80}$/)
 })
 
 export function registerIpcHandlers(): void {
@@ -666,6 +675,22 @@ export function registerIpcHandlers(): void {
   handle(IPC.iconsGet, iconRequestSchema, (req) =>
     getShellIconUrl(req.path, req.size, req.isDir, { fast: req.fast === true })
   )
+  handle(IPC.tabsImportCustomIcon, emptySchema, async (_req, event) => {
+    const picked = await pickCustomTabIconSource(event.sender)
+    if ('cancelled' in picked) return { cancelled: true as const }
+    const imported = await importCustomTabIcon(picked.path)
+    return { cancelled: false as const, ...imported }
+  })
+  handle(IPC.tabsCustomIconUrl, customTabIconIdSchema, async (req) => {
+    const file = tabIconFilePath(req.id)
+    if (!file) return { mediaUrl: null }
+    try {
+      await fsp.access(file)
+    } catch {
+      return { mediaUrl: null }
+    }
+    return { mediaUrl: customTabIconMediaUrl(req.id) }
+  })
   handle(IPC.metaGetMany, metaGetManyRequestSchema, async (req) => ({
     values: await getColumnMetaMany(req.paths, req.columns)
   }))

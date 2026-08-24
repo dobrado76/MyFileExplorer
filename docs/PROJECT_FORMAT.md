@@ -20,6 +20,7 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   thumbs/                # thumbnail cache files
   image-originals/       # legacy D27 backups (migrated to VER_* ADS on ready; may be empty)
   shell-icons/           # Windows shell icon cache
+  tab-icons/             # D54 custom tab icons (cover-cropped 128px PNG)
   logs/                  # optional main log files
   scripts/               # D51 library.json + managed/*.ps1|py|… (not browsed folders)
   ai-secrets.json        # D51 API keys via safeStorage (never exported)
@@ -84,7 +85,7 @@ Notes:
 - `hideNameExtensions`: extensions (no leading dot) whose “.ext” is omitted from file-view/search **labels** only (default `["lnk"]`). Does not hide files from the listing; rename/tooltips still use the real name.
 - `searchExcludeDirNames`: search/index exclude patterns (view-filter language — folder names, file names, `.tmp` / `*.log`, wildcards, or an absolute path)
 - `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
-- `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, tabs: [{ path, title, icon, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. `paneTabIndexes` are indices into `tabs` (or null). `icon` is `{ name, color }` or `null` (D32).
+- `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, tabs: [{ path, title, icon, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. `paneTabIndexes` are indices into `tabs` (or null). `icon` is `{ name, color }`, `{ kind: 'custom', id, showLabel, sizePx }` (D54; PNG stays in `tab-icons/`), or `null` (D32).
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
@@ -130,7 +131,7 @@ Notes:
 ```
 
 - `title: null` → UI shows basename of `path`
-- `icon` — optional Lucide tab glyph `{ name: PascalCase, color: "#rrggbb" }` or `null` (D32). Missing field → `null`.
+- `icon` — optional Lucide `{ name: PascalCase, color: "#rrggbb" }`, custom `{ kind: "custom", id, showLabel, sizePx }` (D54; image is `userData/tab-icons/{id}.png`), or `null` (D32). Missing / invalid field → `null`.
 - `treeExpanded` — absolute folder paths (and drive roots) that were expanded in that tab’s tree; restored on launch (capped; see schema). Missing field → `[]`.
 - `rootPath` — when set, tab is scoped to that folder as tree root
 - `viewLayout` — `1` | `2` | `3` | `4` multi-pane mode (D31); `paneTabIds` length matches (null = empty drop target)
