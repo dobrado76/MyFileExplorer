@@ -86,7 +86,7 @@ Exact line shape (blank lines allowed):
 | Mouse wheel | Interrupt → prev/next (same sense as ↑/↓) | Prev/next |
 | Map delete keys | Interrupt → virtual delete + advance | Virtual delete + advance |
 | Map folder keys | Interrupt → virtual categorize + advance | Virtual categorize + advance |
-| `\|` | Interrupt → undo last buffer action | Undo last buffer action |
+| `\ |` (key under Backspace / above Enter) | Interrupt → undo last buffer action | Undo last buffer action |
 | Any other key | Interrupt → manual | — |
 
 ### Manual crop (numpad)

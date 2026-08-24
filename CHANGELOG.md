@@ -22,6 +22,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **`npm run dist` NSIS pack** — 7-Zip ultra compression (`-mx=9`) was failing on the ~700 MB unpacked app. Pack now uses level 5 and deletes leftover `*.nsis.7z` before rebuild.
+- **Copy / cross-volume move timestamps** — after the data is written, destination **Created** and **Modified** match the source (NTFS `FileBasicInfo`). Same-volume move already kept them.
 - **Compiled lists Nb. Files** — `!!Lists` `.txt` rows always showed `0` because the grid skipped ADS. It now reads the on-disk **Count** stream (then Index) like category `.dat` files. Playing a `.txt` expands it on the fly and updates **Count** (and the grid) to that image total. Update Lists still does not rewrite `!!Lists`.
 - **USN Recent records** — listing records needs administrator (Windows error 5). **Load recent records as administrator…** re-runs the native reader in a short-lived elevated process (the previous `fsutil` helper exited 1).
 - **Empty Recycle Bin** — uses Windows `SHEmptyRecycleBin` (no per-item COM list). The old PowerShell path killed the job at 3 minutes, then tried to delete every row one-by-one (races if you keep sending files to the bin).

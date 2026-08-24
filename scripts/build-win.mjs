@@ -11,6 +11,12 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
+// 7z ultra (-mx=9) dies on this ~700MB unpacked tree (onnx/ffmpeg/asar).
+// electron-builder.yml `compression: normal` does not change 7z level — only this env does.
+if (!process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL) {
+  process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL = '5'
+}
+
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 delete process.env.CSC_LINK
 delete process.env.WIN_CSC_LINK

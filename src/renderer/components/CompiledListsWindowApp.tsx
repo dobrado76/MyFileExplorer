@@ -67,6 +67,13 @@ export function CompiledListsWindowApp(): JSX.Element {
     return lines
   }, [tabs])
 
+  /** Playlist counts only — Nb. Files (`fileCount`) must not re-trigger apply. */
+  const playlistLinesKey = useMemo(
+    () => collectLines().map((l) => `${l.datPath.toLowerCase()}\0${l.count}`).join('\n'),
+    [collectLines]
+  )
+  const hasListTabs = tabs.length > 0
+
   const persistLast = useCallback(
     async (lines: { datPath: string; count: number }[]): Promise<void> => {
       if (!compiledRoot) return
@@ -93,15 +100,22 @@ export function CompiledListsWindowApp(): JSX.Element {
       )
       if (snap.listCounts && snap.listCounts.length > 0) {
         const map = new Map(snap.listCounts.map((c) => [c.path.toLowerCase(), c.fileCount]))
-        setTabs((prev) =>
-          prev.map((t) => ({
-            ...t,
-            rows: t.rows.map((r) => {
+        setTabs((prev) => {
+          let changed = false
+          const next = prev.map((t) => {
+            let rowsChanged = false
+            const rows = t.rows.map((r) => {
               const n = map.get(r.path.toLowerCase())
-              return n === undefined || n === r.fileCount ? r : { ...r, fileCount: n }
+              if (n === undefined || n === r.fileCount) return r
+              rowsChanged = true
+              return { ...r, fileCount: n }
             })
-          }))
-        )
+            if (!rowsChanged) return t
+            changed = true
+            return { ...t, rows }
+          })
+          return changed ? next : prev
+        })
       }
       if (lines.some((l) => l.count > 0) && snap.total === 0) {
         setStatus('No images resolved — check .dat Index / nested .txt refs (or run Update Lists on .dat)')
@@ -207,8 +221,9 @@ export function CompiledListsWindowApp(): JSX.Element {
   }
 
   // Persist last.txt and always push playlist (window exists only for a live compiled session).
+  // Depend on playlistLinesKey, not `tabs` — 37d67c0's listCounts setTabs used to retrigger this.
   useEffect(() => {
-    if (!compiledRoot || tabs.length === 0) return
+    if (!compiledRoot || !hasListTabs) return
     const lines = collectLines()
     const t = window.setTimeout(() => {
       void (async () => {
@@ -221,7 +236,7 @@ export function CompiledListsWindowApp(): JSX.Element {
       })()
     }, 200)
     return () => window.clearTimeout(t)
-  }, [tabs, compiledRoot, persistLast, collectLines, rebuildAndApply])
+  }, [playlistLinesKey, hasListTabs, compiledRoot, persistLast, collectLines, rebuildAndApply])
 
   const bump = async (tabIdx: number, rowIdx: number, delta: number): Promise<void> => {
     const row = tabs[tabIdx]?.rows[rowIdx]

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   codeToKeyToken,
+  isPipeUndoKey,
   keyTokenToCode,
   normalizeKeyToken
 } from '../shared/slideshow/keys'
@@ -28,6 +29,14 @@ describe('Forms.Keys mapping', () => {
     expect(codeToKeyToken('Comma')).toBe('Oemcomma')
     expect(codeToKeyToken('Numpad1')).toBeNull()
     expect(codeToKeyToken('Tab')).toBeNull() // reserved: slideshow Edit image
+    expect(codeToKeyToken('Backslash')).toBeNull() // reserved: slideshow undo
+  })
+
+  it('treats the physical OemPipe / Backslash key as slideshow undo', () => {
+    expect(isPipeUndoKey({ key: '\\', code: 'Backslash' })).toBe(true)
+    expect(isPipeUndoKey({ key: '|', code: 'Backslash', shiftKey: true })).toBe(true)
+    expect(isPipeUndoKey({ key: '\\', code: 'IntlBackslash' })).toBe(true)
+    expect(isPipeUndoKey({ key: 'ArrowRight', code: 'ArrowRight' })).toBe(false)
   })
 
   it('parses and saves Oem keys in map files', () => {

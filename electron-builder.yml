@@ -3,6 +3,9 @@ productName: MyFileExplorer
 # No publish providers — GitHub Actions attaches installers to Releases.
 # (A git tag would otherwise make electron-builder publish and fail without GH_TOKEN.)
 publish: []
+# NSIS 7z still uses -mx=9 unless ELECTRON_BUILDER_COMPRESSION_LEVEL is set
+# (see scripts/build-win.mjs). `normal` only affects zip / non-7z targets.
+compression: normal
 directories:
   output: dist
   buildResources: build

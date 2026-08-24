@@ -39,6 +39,7 @@ import {
 } from './watch'
 import { appErrorFromFsFailure } from './fsErrors'
 import { beginOp, type OpReporter } from './opProgress'
+import { copyHostFileTimes } from './adsWin32'
 
 /** Keep listings from refreshing for the whole copy/move, not just the first 1.5s. */
 const OP_MUTE_MS = 3_600_000
@@ -643,6 +644,7 @@ async function copyTree(
     }
     if (ents.length === 0) {
       if (discover) progress?.addToTotal(1, source)
+      copyHostFileTimes(source, target)
       progress?.tick(source)
       return
     }
@@ -665,6 +667,7 @@ async function copyTree(
         discover
       })
     }
+    copyHostFileTimes(source, target)
     return
   }
 
@@ -675,11 +678,13 @@ async function copyTree(
         await fsp.symlink(link, target)
       } catch {
         await copyFileWithProgress(source, target, st.size, progress, source)
+        copyHostFileTimes(source, target)
         return
       }
       progress?.tick(source)
     } else {
       await copyFileWithProgress(source, target, st.size, progress, source)
+      copyHostFileTimes(source, target)
     }
   } catch (e) {
     throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })

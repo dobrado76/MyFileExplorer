@@ -43,6 +43,7 @@ function cleanInstallersInDir(dir, { keepName = null } = {}) {
     const isExe = isInstallerName(name)
     const isSidecar =
       /^myfileexplorer.*\.exe\.blockmap$/i.test(name) ||
+      /\.nsis\.(7z|zip)$/i.test(name) ||
       lower === 'latest.yml' ||
       lower === 'builder-debug.yml' ||
       lower === 'builder-effective-config.yaml'

@@ -217,6 +217,8 @@ export function keyTokenToCode(token: string): string | null {
 export function codeToKeyToken(code: string): string | null {
   if (isNumpadCode(code)) return null
   if (code === 'Tab') return null // reserved: open image editor during slideshow
+  // Reserved: physical \ | (OemPipe) undoes the last buffered categorize/delete.
+  if (code === 'Backslash' || code === 'IntlBackslash') return null
   return CODE_TO_NET[code] ?? null
 }
 
@@ -292,6 +294,8 @@ export function isStopSlideshowKey(e: SlideshowKeyLike): boolean {
 }
 
 export function isPipeUndoKey(e: SlideshowKeyLike): boolean {
-  // | is typically Shift+\ — key is '|' (OemPipe alone without Shift is Backslash)
-  return e.key === '|' || ((e.code === 'Backslash' || e.code === 'IntlBackslash') && !!e.shiftKey)
+  // Physical key under Backspace / above Enter (US ANSI \ |, Forms Keys.OemPipe).
+  // Shift is not required — C# treated OemPipe as that key, not only `|`.
+  if (e.code === 'Backslash' || e.code === 'IntlBackslash') return true
+  return e.key === '\\' || e.key === '|'
 }

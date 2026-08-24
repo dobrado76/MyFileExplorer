@@ -68,7 +68,7 @@ Single module: `src/main/fs/adsWin32.ts` (koffi → `kernel32` `BackupRead` / `B
 | Bytes | Base64 over IPC for import/export |
 | Copy | `ads:copy` copies named streams file↔file or dir↔dir (`ignoreNames` optional) |
 
-Normal copy/move of the host file relies on Win32 preserving streams; `ads:copy` is explicit tooling when you need stream-only copy.
+Normal copy/move of the host file relies on Win32 preserving streams; after the bytes are written, Created + Modified (and NTFS ChangeTime) are copied from the source (D53). `ads:copy` is explicit tooling when you need stream-only copy.
 
 Well-known streams such as `Zone.Identifier` appear in the list with **no** special UI. Image-edit history streams `VER_1`…`VER_4` and `VER_COUNT` (D27) are listed like any other stream (binary preview `[...]`); no special hide.
 

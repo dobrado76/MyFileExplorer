@@ -357,6 +357,17 @@ async function restoreHostTimes(filePath: string, snap: HostTimeSnap): Promise<v
   restoreHostTimesSync(filePath, snap)
 }
 
+/**
+ * After copy/cross-volume move: dest Created + Modified (and NTFS ChangeTime) match source.
+ * Last accessed is not required. Soft-fails; the copied bytes stay even if times cannot be set.
+ */
+export function copyHostFileTimes(source: string, dest: string): void {
+  if (!source || !dest || source === dest) return
+  const snap = readHostTimesSync(source)
+  if (!snap) return
+  restoreHostTimesSync(dest, snap)
+}
+
 /** FILETIME (100ns since 1601) → Unix ms. Exported for tests. */
 export function fileTimeToUnixMs(ft: bigint): number {
   const unix100ns = ft - 116444736000000000n
