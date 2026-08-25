@@ -5353,6 +5353,23 @@ export const useAppStore = create<AppState>()((set, get) => {
       const deletingNasRecycleContents = target.some(
         (p) => isNasRecyclePath(p) && basename(p).toLowerCase() !== '@recycle'
       )
+      // Linux mounts SMB/NFS shares as regular POSIX paths. Ask the main
+      // process for the filesystem type so mounted NAS paths use the same
+      // permanent-delete confirmation as Windows UNC/mapped drives.
+      let mountedNetworkPath = false
+      if (s.platform !== 'win32') {
+        const pathsToCheck = [...new Set([s.activeTab().path, target[0]!])]
+        const networkFlags = await Promise.all(
+          pathsToCheck.map(async (p) => {
+            try {
+              return (await call(api.fs.stat({ path: p }))).isNetwork
+            } catch {
+              return false
+            }
+          })
+        )
+        mountedNetworkPath = networkFlags.some(Boolean)
+      }
       // Windows does not provide a client Recycle Bin for UNC shares, mapped
       // network drives, or the app's remote repository paths. Match Explorer's
       // behavior there by using the permanent-delete flow with confirmation.
@@ -5363,7 +5380,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           drive !== null &&
           s.drives.some((d) => driveOf(d.path) === drive && d.driveType === 'remote')
         )
-      })
+      }) || mountedNetworkPath
       const effectivePermanent = permanent || remoteDeleteFallback || deletingNasRecycleContents
       const rootHits = tabsWhoseRootIsDeleted(s.tabs, target)
       if (rootHits.length > 0) {
