@@ -1048,14 +1048,18 @@ function poolEntriesForTab(s: AppState, tabId: string): { path: string; isHidden
 function selectablePathsForTab(s: AppState, tabId: string): string[] {
   const listingPath = s.listingsByTabId[tabId]?.path ?? ''
   const searchActive = s.tabs.find((t) => t.id === tabId)?.search.active === true
+  const recycleActive = s.recycleBin.active && tabId === s.activeTabId
   const applyMedia =
     !searchActive &&
+    !recycleActive &&
     s.mediaLibrary.isContainer &&
     listingPath &&
     samePath(listingPath, s.mediaLibrary.folderPath)
   return poolEntriesForTab(s, tabId)
     .filter((e) => {
+      // Recycle Bin shows every item — view filters / $Recycle.Bin patterns do not apply.
       if (
+        !recycleActive &&
         isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled, {
           ignoreHiddenAttr: searchActive
         })

@@ -16,6 +16,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Recycle Bin view** — view filters (e.g. `$RECYCLE.BIN$`) and Hidden-attribute hiding no longer apply when the in-app Recycle Bin is open; the list is always the full bin contents.
 - **Session temp folders** — `userData` directories named `*-scratch`, `*-preview`, or `*-remux` (`media-scratch`, `remote-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`, …) are emptied when the app starts, when it quits, and when Settings clears caches. `media-scratch` is still capped at 20 files mid-session (oldest deleted first).
 
 ### Added

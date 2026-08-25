@@ -700,8 +700,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     !recycleMode && !SYNC_SORT_KEYS.has(effectiveSort.key) ? metaByPath : EMPTY_META_BY_PATH
   const entries = useMemo(() => {
     // Avoid copying 20k entries when the filter cannot hide anything.
+    // Recycle Bin always shows the full bin (paths live under $Recycle.Bin —
+    // a view-filter pattern for that name would empty the list).
     let filtered = sourceEntries
-    if (viewFilterOn) {
+    if (viewFilterOn && !recycleMode) {
       if (searchMode) {
         if (viewPatterns.length > 0) {
           filtered = sourceEntries.filter((e) => !compiledFilter(e.path))
