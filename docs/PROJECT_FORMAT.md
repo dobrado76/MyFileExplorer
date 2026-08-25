@@ -18,7 +18,10 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   network-hosts.json     # remembered LAN hosts (included in Settings export envelope)
   search-index.sqlite    # FTS index + indexed roots registry
   thumbs/                # thumbnail cache files
-  media-scratch/         # D7 large non-AV preview copies (emptied on start/quit; cap 20)
+  media-scratch/         # session temp (D7; emptied on start/quit; cap 20)
+  *-scratch/             # remote-scratch, remote-transfer-scratch — session temp
+  *-preview/             # chm / pptx / psd / raster — session temp
+  video-remux/           # session temp (D33)
   image-originals/       # legacy D27 backups (migrated to VER_* ADS on ready; may be empty)
   shell-icons/           # Windows shell icon cache
   tab-icons/             # D54 custom tab icons (cover-cropped 128px PNG)
@@ -92,7 +95,7 @@ Notes:
 - `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
 - `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, tabs: [{ path, title, icon, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. `paneTabIndexes` are indices into `tabs` (or null). `icon` is `{ name, color }`, `{ kind: 'custom', id, showLabel, sizePx }` (D54; PNG stays in `tab-icons/`), or `null` (D32).
 - `templates`: new-file templates (D57) — `{ id, name, suggestedStem, inputName, sourceFile }` (`name` = menu + default stem; `inputName` = original picked file; stored copy is `Templates/{sourceFile}`). Cap 40. Order in the array is the menu order.
-- `quickLaunch`: toolbar apps (D63) — `{ id, name, path, args, iconKind: 'shell' \| 'custom', iconId? }`. Cap 24. Custom PNGs are `quick-launch/{iconId}.png` (not in Settings export).
+- `quickLaunch`: toolbar apps (D63) — `{ id, name, path, args, show: 'icon' \| 'label' \| 'both', iconKind: 'shell' \| 'custom' \| 'lucide', iconId?, lucideName?, lucideColor }`. Cap 24. Custom PNGs are `quick-launch/{iconId}.png` (not in Settings export).
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts
 - `indexedRoots`: absolute paths marked for indexing (also stored/mirrored in SQLite for query joins)
 - `defaultNewTabPath`: empty → This PC / known folder of choice at implement time
@@ -162,6 +165,12 @@ Notes:
   "isMaximized": false
 }
 ```
+
+---
+
+## Session temp (`*-scratch` / `*-preview` / `*-remux`)
+
+Any directory directly under `userData` whose name ends in **`-scratch`**, **`-preview`**, or **`-remux`** is wiped on start, on quit, and when Settings clears caches. These are rebuildable preview/staging copies (D7) — not settings, scripts, thumbs, or tab icons. Known today: `media-scratch`, `remote-scratch`, `remote-transfer-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`.
 
 ---
 

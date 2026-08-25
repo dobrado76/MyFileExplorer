@@ -2,11 +2,13 @@ import { useEffect, useState, type JSX } from 'react'
 import {
   MAX_QUICK_LAUNCH,
   mergeQuickLaunchPaths,
-  type QuickLaunchItem
+  type QuickLaunchItem,
+  type QuickLaunchShow
 } from '@shared/schemas/quickLaunch'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
-import { cacheQuickLaunchIconUrl, QuickLaunchIcon } from './QuickLaunchIcon'
+import { QuickLaunchIcon } from './QuickLaunchIcon'
+import { QuickLaunchIconPicker, type QuickLaunchIconPatch } from './QuickLaunchIconPicker'
 
 export function QuickLaunchSettingsPanel(): JSX.Element {
   const items = useAppStore((s) => s.settings.quickLaunch ?? [])
@@ -17,8 +19,30 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
     void applySettingsPatch({ quickLaunch: next })
   }
 
+  const [pickerId, setPickerId] = useState<string | null>(null)
+  const pickerItem = pickerId ? items.find((x) => x.id === pickerId) : undefined
+
   const update = (id: string, patch: Partial<QuickLaunchItem>): void => {
     persist(items.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+  }
+
+  const applyIcon = (id: string, patch: QuickLaunchIconPatch): void => {
+    persist(
+      items.map((x) => {
+        if (x.id !== id) return x
+        const next: QuickLaunchItem = {
+          ...x,
+          iconKind: patch.iconKind,
+          lucideName: patch.lucideName ?? x.lucideName,
+          lucideColor: patch.lucideColor
+        }
+        if (patch.iconId) next.iconId = patch.iconId
+        else delete next.iconId
+        if (patch.iconKind !== 'lucide') delete next.lucideName
+        return next
+      })
+    )
+    setPickerId(null)
   }
 
   const add = async (): Promise<void> => {
@@ -50,27 +74,6 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
     }
   }
 
-  const changeIcon = async (item: QuickLaunchItem): Promise<void> => {
-    try {
-      const res = await call(api.quickLaunch.importIcon())
-      if (res.cancelled) return
-      cacheQuickLaunchIconUrl(res.id, res.mediaUrl)
-      if (item.iconKind === 'custom' && item.iconId && item.iconId !== res.id) {
-        void call(api.quickLaunch.deleteIcon({ id: item.iconId })).catch(() => {})
-      }
-      update(item.id, { iconKind: 'custom', iconId: res.id })
-    } catch (e) {
-      notify(e instanceof Error ? e.message : 'Could not set icon', true)
-    }
-  }
-
-  const resetIcon = (item: QuickLaunchItem): void => {
-    if (item.iconKind === 'custom' && item.iconId) {
-      void call(api.quickLaunch.deleteIcon({ id: item.iconId })).catch(() => {})
-    }
-    update(item.id, { iconKind: 'shell', iconId: undefined })
-  }
-
   const move = (index: number, dir: -1 | 1): void => {
     const j = index + dir
     if (j < 0 || j >= items.length) return
@@ -94,10 +97,12 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
     <div className="settings-stack">
       <div className="settings-index-head">
         <p className="settings-help">
-          Pin the programs you open all day — Photoshop, Visual Studio, a browser — as icons on the
-          toolbar. Add, edit, reorder, and remove them here. Click a toolbar icon to launch.
-          Right-click an icon for Open file location or Remove. Drop an .exe or shortcut onto the
-          toolbar strip (when it is visible) to add another.
+          Pin the programs you open all day — Photoshop, Visual Studio, a browser — on the toolbar.
+          Each pin can show the icon, the name, or both. The icon is the program’s own glyph, a
+          Lucide icon and color, or a custom image (same choices as tab / item icons). Add, edit,
+          reorder, and remove them here. Click a toolbar button to launch. Right-click for Open
+          file location or Remove. Drop an .exe or shortcut onto the strip (when it is visible)
+          to add another.
         </p>
         <div className="settings-inline">
           <button
@@ -123,8 +128,7 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
               count={items.length}
               onUpdate={update}
               onBrowse={() => void browsePath(item)}
-              onChangeIcon={() => void changeIcon(item)}
-              onResetIcon={() => resetIcon(item)}
+              onEditIcon={() => setPickerId(item.id)}
               onMove={move}
               onRemove={() => remove(item)}
             />
@@ -132,9 +136,16 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
         </div>
       )}
       <p className="settings-help">
-        {items.length} / {MAX_QUICK_LAUNCH}. Custom icons stay on this PC (not in Settings export).
+        {items.length} / {MAX_QUICK_LAUNCH}. Custom images stay on this PC (not in Settings export).
         Paths may use %ENV% variables.
       </p>
+      {pickerItem ? (
+        <QuickLaunchIconPicker
+          item={pickerItem}
+          onClose={() => setPickerId(null)}
+          onApply={(patch) => applyIcon(pickerItem.id, patch)}
+        />
+      ) : null}
     </div>
   )
 }
@@ -145,8 +156,7 @@ function QuickLaunchSettingsRow({
   count,
   onUpdate,
   onBrowse,
-  onChangeIcon,
-  onResetIcon,
+  onEditIcon,
   onMove,
   onRemove
 }: {
@@ -155,8 +165,7 @@ function QuickLaunchSettingsRow({
   count: number
   onUpdate: (id: string, patch: Partial<QuickLaunchItem>) => void
   onBrowse: () => void
-  onChangeIcon: () => void
-  onResetIcon: () => void
+  onEditIcon: () => void
   onMove: (index: number, dir: -1 | 1) => void
   onRemove: () => void
 }): JSX.Element {
@@ -244,14 +253,26 @@ function QuickLaunchSettingsRow({
         />
       </div>
       <div className="settings-qa-actions">
-        <button type="button" className="btn" title="Choose a custom image" onClick={onChangeIcon}>
+        <label className="settings-ql-show">
+          <span className="dim">Show</span>
+          <select
+            value={item.show ?? 'icon'}
+            aria-label={`Toolbar face for ${item.name}`}
+            onChange={(e) => onUpdate(item.id, { show: e.target.value as QuickLaunchShow })}
+          >
+            <option value="icon">Icon</option>
+            <option value="label">Label</option>
+            <option value="both">Icon and label</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          className="btn"
+          title="App icon, Lucide, or a custom image"
+          onClick={onEditIcon}
+        >
           Icon…
         </button>
-        {item.iconKind === 'custom' ? (
-          <button type="button" className="btn" title="Use the program’s own icon" onClick={onResetIcon}>
-            Reset icon
-          </button>
-        ) : null}
         <button
           type="button"
           className="btn"

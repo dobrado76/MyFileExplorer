@@ -53,7 +53,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | `gif` | Animated GIF plays in the image preview. |
 | `bmp` | Raster preview. |
 | `avif` | Raster preview (Chromium/Sharp support). |
-| `tiff` / `tif` | Rasterized to WebP for preview/thumbs/slideshow (Chromium cannot paint TIFF). Cached under `userData/raster-preview/`. |
+| `tiff` / `tif` | Rasterized to WebP for preview/thumbs/slideshow (Chromium cannot paint TIFF). Cached under `userData/raster-preview/` (session temp, emptied on start/quit). |
 | `tga` | Decoded in-app (Sharp/libvips cannot sniff TGA), then cached WebP for thumbs/preview/slideshow. |
 | `hdr` | Radiance RGBE/XYZE (typical HDRI / skybox). Tonemapped WebP for thumbs/preview/slideshow. Metadata includes layout hint (2:1 → equirectangular). Non-Radiance `.hdr` (e.g. Analyze 7.5) is a metadata card, not an image. **Not** in-app editable. |
 | `svg` | Displayed as image; **not** in-app editable. |
@@ -67,7 +67,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 
 | Ext | Notes |
 | --- | ----- |
-| `psd` | Rasterized preview (embedded JPEG preferred, else composite → PNG). Cached under `userData/psd-preview/`. Needs Maximize Compatibility / embedded preview. **PSB** and some color modes unsupported. Not in-app editable. |
+| `psd` | Rasterized preview (embedded JPEG preferred, else composite → PNG). Cached under `userData/psd-preview/` (session temp). Needs Maximize Compatibility / embedded preview. **PSB** and some color modes unsupported. Not in-app editable. |
 
 ---
 
@@ -101,7 +101,7 @@ Also shows **parsed metadata** underneath when present (same `music-metadata` pa
 | `mp4` / `m4v` | Direct play when H.264/AAC (typical). |
 | `webm` | Direct play when VP8/VP9/Opus (typical). |
 | `mov` | Direct play when codecs allow. |
-| `mkv` / `wmv` / `mpg` / `mpeg` / `flv` | Still poster, then remux/transcode to MP4 under `userData/video-remux/` when practical (`preview:ensurePlayable`). |
+| `mkv` / `wmv` / `mpg` / `mpeg` / `flv` | Still poster, then remux/transcode to MP4 under `userData/video-remux/` (session temp) when practical (`preview:ensurePlayable`). |
 | `avi` | **Strip-only** — no in-pane player. Animates `!VIDTHUMB_CACHE` frames when present + **Open with default app** (D33). Metadata still listed when parseable. |
 | `divx` | Same as AVI (RIFF/AVI container, DivX codec). Strip-only; Chromium cannot play DivX inline. |
 | `rmvb` / `rm` | RealMedia. **Strip-only** like AVI — Chromium cannot play RealVideo; `!VIDTHUMB_CACHE` + Open with default app. |
@@ -287,7 +287,7 @@ Companion `.cue` / `.ccd` already preview as text. A `.sub` next to a disc image
 
 | Ext | Notes |
 | --- | ----- |
-| `chm` | Contents TOC + sandboxed topic HTML. Decompile via Windows `hh.exe` into `userData/chm-preview/`. Topics over `mfe-media://chm/…`. Folders start collapsed. Windows only; &gt;256 MiB skipped. (D35) |
+| `chm` | Contents TOC + sandboxed topic HTML. Decompile via Windows `hh.exe` into `userData/chm-preview/` (session temp). Topics over `mfe-media://chm/…`. Folders start collapsed. Windows only; &gt;256 MiB skipped. (D35) |
 
 ---
 

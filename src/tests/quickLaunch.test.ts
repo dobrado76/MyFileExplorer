@@ -67,5 +67,40 @@ describe('quick launch helpers', () => {
       }
     ])
     expect(rows[0]?.iconKind).toBe('shell')
+    expect(rows[0]?.show).toBe('icon')
+  })
+
+  it('falls back to the shell icon when a Lucide icon has no name', () => {
+    const rows = sanitizeQuickLaunch([
+      {
+        id: 'ql_c3_dddd',
+        name: 'Notes',
+        path: 'C:\\notes.exe',
+        args: '',
+        iconKind: 'lucide'
+      }
+    ])
+    expect(rows[0]?.iconKind).toBe('shell')
+  })
+
+  it('keeps Lucide name/color and show=both', () => {
+    const rows = sanitizeQuickLaunch([
+      {
+        id: 'ql_d4_eeee',
+        name: 'Code',
+        path: 'C:\\Code.exe',
+        args: '',
+        show: 'both',
+        iconKind: 'lucide',
+        lucideName: 'Code',
+        lucideColor: '#34d399'
+      }
+    ])
+    expect(rows[0]).toMatchObject({
+      show: 'both',
+      iconKind: 'lucide',
+      lucideName: 'Code',
+      lucideColor: '#34d399'
+    })
   })
 })

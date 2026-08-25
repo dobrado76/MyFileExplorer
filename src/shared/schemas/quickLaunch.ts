@@ -2,7 +2,13 @@ import { z } from 'zod'
 
 export const MAX_QUICK_LAUNCH = 24
 
-export const quickLaunchIconKindSchema = z.enum(['shell', 'custom'])
+export const QUICK_LAUNCH_LUCIDE_COLOR = '#60a5fa'
+
+export const quickLaunchIconKindSchema = z.enum(['shell', 'custom', 'lucide'])
+export const quickLaunchShowSchema = z.enum(['icon', 'label', 'both'])
+
+export type QuickLaunchIconKind = z.infer<typeof quickLaunchIconKindSchema>
+export type QuickLaunchShow = z.infer<typeof quickLaunchShowSchema>
 
 export const quickLaunchItemSchema = z.object({
   id: z
@@ -13,12 +19,20 @@ export const quickLaunchItemSchema = z.object({
   path: z.string().min(1).max(500),
   /** Optional extra arguments (quoted tokens). */
   args: z.string().max(500).catch(''),
+  /** Toolbar face: program/custom/Lucide glyph, name, or both. */
+  show: quickLaunchShowSchema.catch('icon'),
   iconKind: quickLaunchIconKindSchema.catch('shell'),
   /** Basename id under userData/quick-launch when iconKind is custom. */
   iconId: z
     .string()
     .regex(/^[a-zA-Z0-9_-]{4,80}$/)
-    .optional()
+    .optional(),
+  /** PascalCase Lucide name when iconKind is lucide. */
+  lucideName: z.string().min(1).max(80).optional(),
+  lucideColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .catch(QUICK_LAUNCH_LUCIDE_COLOR)
 })
 
 export type QuickLaunchItem = z.infer<typeof quickLaunchItemSchema>
@@ -87,6 +101,8 @@ export function sanitizeQuickLaunch(raw: unknown): QuickLaunchItem[] {
     const next = parsed.data
     if (next.iconKind === 'custom' && !next.iconId) {
       out.push({ ...next, iconKind: 'shell', iconId: undefined })
+    } else if (next.iconKind === 'lucide' && !next.lucideName) {
+      out.push({ ...next, iconKind: 'shell' })
     } else {
       out.push(next)
     }
@@ -114,7 +130,9 @@ export function mergeQuickLaunchPaths(
       name: quickLaunchNameFromPath(p),
       path: p,
       args: '',
-      iconKind: 'shell'
+      show: 'icon',
+      iconKind: 'shell',
+      lucideColor: QUICK_LAUNCH_LUCIDE_COLOR
     })
     added += 1
   }

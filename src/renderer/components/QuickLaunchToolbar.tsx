@@ -184,11 +184,14 @@ function QuickLaunchButton({
   onMenu: (el: HTMLButtonElement) => void
 }): JSX.Element {
   const btnRef = useRef<HTMLButtonElement>(null)
+  const show = item.show ?? 'icon'
+  const showIcon = show !== 'label'
+  const showLabel = show !== 'icon'
   return (
     <button
       ref={btnRef}
       type="button"
-      className="quick-launch-btn"
+      className={`quick-launch-btn${showLabel ? ' has-label' : ''}${show === 'label' ? ' label-only' : ''}`}
       aria-label={item.name}
       title={item.name}
       onClick={onLaunch}
@@ -198,7 +201,8 @@ function QuickLaunchButton({
         if (btnRef.current) onMenu(btnRef.current)
       }}
     >
-      <QuickLaunchIcon item={item} size={26} />
+      {showIcon ? <QuickLaunchIcon item={item} size={showLabel ? 20 : 26} /> : null}
+      {showLabel ? <span className="quick-launch-label">{item.name}</span> : null}
     </button>
   )
 }

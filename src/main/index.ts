@@ -13,12 +13,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import appIcon from '../../resources/icon.png?asset'
-import {
-  registerMediaSchemeAsPrivileged,
-  registerMediaProtocolHandler,
-  clearMediaScratch,
-  clearMediaScratchSync
-} from './media/protocol'
+import { registerMediaSchemeAsPrivileged, registerMediaProtocolHandler } from './media/protocol'
+import { clearSessionTempDirs, clearSessionTempDirsSync } from './sessionTemp'
 import { registerOrtProtocolHandler } from './media/ortProtocol'
 import { registerModelProtocolHandler } from './media/modelProtocol'
 import { registerIpcHandlers } from './ipc/register'
@@ -182,10 +178,10 @@ if (!gotLock) {
       app.setAsDefaultProtocolClient('mfe')
     }
 
-    void clearMediaScratch().catch((e) => {
+    void clearSessionTempDirs(app.getPath('userData')).catch((e) => {
       logMain(
         'warn',
-        `media-scratch start clear failed: ${e instanceof Error ? e.message : String(e)}`
+        `session-temp start clear failed: ${e instanceof Error ? e.message : String(e)}`
       )
     })
     registerMediaProtocolHandler()
@@ -234,11 +230,11 @@ if (!gotLock) {
 
   app.on('before-quit', () => {
     try {
-      clearMediaScratchSync()
+      clearSessionTempDirsSync(app.getPath('userData'))
     } catch (e) {
       logMain(
         'warn',
-        `media-scratch quit clear failed: ${e instanceof Error ? e.message : String(e)}`
+        `session-temp quit clear failed: ${e instanceof Error ? e.message : String(e)}`
       )
     }
     sessionStore().flush()

@@ -132,9 +132,39 @@ describe('settings export / import', () => {
         name: 'Photoshop',
         path: '%ProgramFiles%\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe',
         args: '',
-        iconKind: 'shell'
+        show: 'icon',
+        iconKind: 'shell',
+        lucideColor: '#60a5fa'
       }
     ])
+  })
+
+  it('round-trips Quick Launch Lucide + label (D63 / D45)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        quickLaunch: [
+          {
+            id: 'ql_code_abcd',
+            name: 'Code',
+            path: '%LocalAppData%\\Programs\\Microsoft VS Code\\Code.exe',
+            args: '',
+            show: 'both',
+            iconKind: 'lucide',
+            lucideName: 'Code',
+            lucideColor: '#34d399'
+          }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.quickLaunch[0]).toMatchObject({
+      show: 'both',
+      iconKind: 'lucide',
+      lucideName: 'Code',
+      lucideColor: '#34d399'
+    })
   })
 
   it('round-trips viewPresets via full settingsSchema (D60)', () => {

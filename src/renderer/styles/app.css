@@ -752,17 +752,60 @@ textarea:focus {
   cursor: default;
 }
 .quick-launch-btn .shell-icon,
-.quick-launch-btn .quick-launch-custom-icon {
+.quick-launch-btn .quick-launch-custom-icon,
+.quick-launch-btn .quick-launch-lucide-icon {
   display: block;
   width: 26px;
   height: 26px;
   border-radius: 5px;
   object-fit: contain;
+  flex-shrink: 0;
 }
-.settings-ql-icon .quick-launch-custom-icon {
+.quick-launch-btn.has-label {
+  width: auto;
+  max-width: 160px;
+  padding: 0 8px 0 4px;
+  gap: 6px;
+}
+.quick-launch-btn.has-label.label-only {
+  padding: 0 8px;
+}
+.quick-launch-btn.has-label .shell-icon,
+.quick-launch-btn.has-label .quick-launch-custom-icon,
+.quick-launch-btn.has-label .quick-launch-lucide-icon {
+  width: 20px;
+  height: 20px;
+}
+.quick-launch-label {
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-ql-icon .quick-launch-custom-icon,
+.settings-ql-icon .quick-launch-lucide-icon {
   display: block;
   border-radius: 4px;
   object-fit: cover;
+}
+.settings-ql-show {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+}
+.settings-ql-show select {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.quick-launch-icon-picker-backdrop {
+  z-index: 4100;
 }
 .toolbar-global-scripts {
   max-width: min(28vw, 360px);

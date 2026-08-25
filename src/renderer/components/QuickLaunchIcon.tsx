@@ -1,6 +1,10 @@
-import { useEffect, useState, type JSX } from 'react'
-import type { QuickLaunchItem } from '@shared/schemas/quickLaunch'
+import { createElement, useEffect, useState, type JSX } from 'react'
+import {
+  QUICK_LAUNCH_LUCIDE_COLOR,
+  type QuickLaunchItem
+} from '@shared/schemas/quickLaunch'
 import { api, call } from '../lib/ipc'
+import { resolveLucideIcon } from '../lib/lucideIcons'
 import { ShellIcon } from './ShellIcon'
 
 const urlCache = new Map<string, string>()
@@ -66,6 +70,20 @@ export function QuickLaunchIcon({
       live = false
     }
   }, [customId])
+
+  if (item.iconKind === 'lucide') {
+    const Lucide = resolveLucideIcon(item.lucideName ?? '')
+    if (Lucide) {
+      return createElement(Lucide, {
+        size,
+        color: item.lucideColor || QUICK_LAUNCH_LUCIDE_COLOR,
+        strokeWidth: 2,
+        className: 'quick-launch-lucide-icon',
+        style: { width: size, height: size, flexShrink: 0 },
+        'aria-hidden': true
+      })
+    }
+  }
 
   if (customId && url) {
     return (

@@ -60,7 +60,7 @@ Helpers: [`src/shared/remotePaths.ts`](../src/shared/remotePaths.ts). Display ch
 | `settings.json` → `remoteRepos` | `{ enabled }` only |
 | `settings.json` → `remoteConnectionBounds` | Last Add/Edit dialog geometry (null = centered defaults; not exported) |
 | `userData/remote-connections.json` | Connection metadata (no passwords) |
-| `userData/remote-scratch/` | Staged copies for Open / preview (`mfe-media` allowlisted) |
+| `userData/remote-scratch/` | Staged copies for Open / preview (`mfe-media` allowlisted; session temp, emptied on start/quit) |
 | Electron `safeStorage` | Password / passphrase blobs keyed by connection id |
 
 **Settings export / import (D45):** portable JSON includes `remoteRepos.enabled` **and** the full `remoteConnections[]` metadata list (same envelope field as Network hosts). Passwords and dialog bounds are never exported; after import, edit each connection and set the password again. Bare `settings.json` import leaves the connection list unchanged.

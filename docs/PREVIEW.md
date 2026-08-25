@@ -91,7 +91,7 @@ Details strip layout: Name (+ Dimensions when present), then a responsive pair �
 ### Photoshop (`.psd`)
 
 - Rasterized via `ag-psd` (embedded JPEG thumbnail preferred; else composite `imageData` → PNG with Sharp). No `node-canvas`.
-- Cached under `userData/psd-preview/`; also feeds icon thumbs.
+- Cached under `userData/psd-preview/` (session temp, emptied on start/quit); also feeds icon thumbs.
 - Requires an embedded preview/composite (Photoshop “Maximize Compatibility”). PSB / some color modes unsupported.
 
 ### Generation metadata (`group: generation`)
@@ -195,7 +195,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 ## PowerPoint (`.pptx`, `.ppt`)
 
-- `.pptx` → approximate **slide layout** in the renderer (`pptSlides`: positioned text + rasters from `ppt/media` via slide/layout/master rels). Does not use the low-res `docProps/thumbnail`. Not a full PowerPoint render (charts/SmartArt/WMF/EMF/animations omitted). Cached images under `userData/pptx-preview/`
+- `.pptx` → approximate **slide layout** in the renderer (`pptSlides`: positioned text + rasters from `ppt/media` via slide/layout/master rels). Does not use the low-res `docProps/thumbnail`. Not a full PowerPoint render (charts/SmartArt/WMF/EMF/animations omitted). Cached images under `userData/pptx-preview/` (session temp, emptied on start/quit)
 - `.ppt` (legacy OLE) → best-effort UTF-16LE text scrape; incomplete vs native PowerPoint
 - `.pptx` uses structured slides (not sanitized HTML), up to 80 slides. `.ppt` still uses the document HTML surface; truncated at ~1 MiB
 
@@ -215,7 +215,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 - Audio: `.mp3`, `.wav`, `.flac`, `.ogg`, `.m4a`, `.aac`, `.wma`, `.opus` — player plus parsed tags/format (`group: 'audio'`) and embedded cover when present (`posterUrl`, cached under `userData/audio-covers/`)
 - **Async tags:** `preview:get` returns `mediaUrl` / poster / remux hooks without waiting on `music-metadata` (duration scans can read the whole file). Tag fields arrive via `preview:getMediaMeta` in parallel while the player buffers (`mediaMetaPending`)
 - Playback depends on Chromium’s codecs (H.264/AAC MP4 and WebM usually work)
-- Containers Chromium can’t demux (`.mkv`, `.wmv`, `.flv`, …): still (`posterUrl`) then remux/transcode to MP4 under `userData/video-remux/` (`preview:ensurePlayable`) when practical. Settings → Behavior: **Autoplay media in preview** (`previewVideoAutoplay`, default off)
+- Containers Chromium can’t demux (`.mkv`, `.wmv`, `.flv`, …): still (`posterUrl`) then remux/transcode to MP4 under `userData/video-remux/` (session temp; `preview:ensurePlayable`) when practical. Settings → Behavior: **Autoplay media in preview** (`previewVideoAutoplay`, default off)
 - **`.avi` / `.divx` / `.rmvb` / `.rm`**: no in-pane player — animate `!VIDTHUMB_CACHE` strip frames when present, plus **Open with default app** (D33); tag metadata still listed when parseable. `.divx` is an AVI/RIFF file with a DivX codec. `.rmvb` / `.rm` are RealMedia.
 - On decode error for otherwise playable types: short message + open-with-default-app button (and poster if available)
 
@@ -328,7 +328,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 ## Compiled HTML Help (`.chm`) — D35
 
 - `kind: 'chm'` — full in-pane help viewer: **Contents TOC** + topic HTML
-- Main decompiles via Windows `hh.exe -decompile` into `userData/chm-preview/` (path+mtime+size key); never writes beside the browsed file (D2). Resolves `hh.exe` from `%SystemRoot%\hh.exe` (typical) then SysWOW64 / System32 fallbacks
+- Main decompiles via Windows `hh.exe -decompile` into `userData/chm-preview/` (session temp, path+mtime+size key); never writes beside the browsed file (D2). Resolves `hh.exe` from `%SystemRoot%\hh.exe` (typical) then SysWOW64 / System32 fallbacks
 - Topics / CSS / images served as `mfe-media://chm/<hash>/…` so relative links resolve (D7 — no `file://`)
 - Renderer uses a **sandboxed iframe** (no scripts); TOC click → `preview:chmTopic`
 - TOC from `.hhc` sitemap (cap ~4000 nodes); folders start **collapsed**; `../` Locals omitted; default topic from `.hhp` or first HTML topic

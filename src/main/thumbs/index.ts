@@ -46,6 +46,8 @@ export async function clearThumbCache(): Promise<void> {
   await clearColumnMetaCache()
   const { clearMediaScratch } = await import('../media/protocol')
   await clearMediaScratch()
+  const { clearSessionTempDirs } = await import('../sessionTemp')
+  await clearSessionTempDirs(app.getPath('userData'))
 }
 
 function nearestSize(requested: number): number {

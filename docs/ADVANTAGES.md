@@ -39,7 +39,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Named view presets** | Save icon size, columns, and sort; apply without jumping folder or selection. If the folder already has a customization, Apply updates that override. Explorer has no named view catalog. |
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Grouped Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings. Name groups, color them, collapse them in the tree, drop a folder onto a group. Explorer’s Quick access is a flat, harder-to-curate strip. |
-| **Quick Launch toolbar** | Pin Photoshop, Visual Studio, a browser — anything with an `.exe` or shortcut — as toolbar icons. Manage the list in Settings (the strip is hidden until you add one). Click to launch, right-click for location / remove. Explorer’s old Quick Launch is gone; this one exports with your prefs. |
+| **Quick Launch toolbar** | Pin Photoshop, Visual Studio, a browser — anything with an `.exe` or shortcut. Each pin can be icon, name, or both; the glyph is the program icon, a Lucide + color, or a custom image. Manage the list in Settings (the strip is hidden until you add one). Click to launch, right-click for location / remove. Explorer’s old Quick Launch is gone; this one exports with your prefs. |
 
 ---
 

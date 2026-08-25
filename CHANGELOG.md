@@ -11,17 +11,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
-- **Quick Launch** — program icons fill the toolbar control. Add / edit / remove is Settings only (no toolbar +). The strip is hidden until at least one program is pinned.
+- **Quick Launch** — program icons fill the toolbar control. Add / edit / remove is Settings only (no toolbar +). The strip is hidden until at least one program is pinned. Each pin can show **icon**, **label**, or **both**. The glyph is the program icon, a Lucide icon + color, or a custom image (same choices as tab / item icons).
 - **Global scripts** — each saved global script is its own toolbar button. The strip is hidden when none exist (no globe menu).
 
 ### Fixed
 
-- **media-scratch** — large non-AV preview copies under AppData no longer accumulate. The folder is emptied when the app starts and when it quits, and is capped at 20 files (oldest deleted first).
+- **Session temp folders** — `userData` directories named `*-scratch`, `*-preview`, or `*-remux` (`media-scratch`, `remote-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`, …) are emptied when the app starts, when it quits, and when Settings clears caches. `media-scratch` is still capped at 20 files mid-session (oldest deleted first).
 
 ### Added
 
 - **Global scripts** — Script Manager **Global** (next to Min selection) marks a script that runs with no folder or selection. Folder / Selection / Recursive / Context menu / Destructive / Dry-run turn off and stay disabled; External file can stay. Each global script is a toolbar button (hidden when none exist). Generate / Modify with AI Target **Global** so the draft does not require `--root` or `--input-list`.
-- **Quick Launch** — toolbar icons for the programs you use every day (Photoshop, Visual Studio, …). Settings → Quick Launch adds and edits name, path, arguments, custom icon, and order. Click to launch; right-click for Open file location / Remove. Drop an .exe or shortcut onto the strip when it is visible.
+- **Quick Launch** — toolbar pins for the programs you use every day (Photoshop, Visual Studio, …). Settings → Quick Launch adds and edits name, path, arguments, icon / label / both, program / Lucide / custom icon, and order. Click to launch; right-click for Open file location / Remove. Drop an .exe or shortcut onto the strip when it is visible.
 
 ## [0.11.0] - 2026-08-24
 
