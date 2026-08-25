@@ -20,6 +20,8 @@ export type StatResult = {
   path: string
   exists: boolean
   kind: EntryKind | null
+  /** True when the path is on a network-backed filesystem or share. */
+  isNetwork: boolean
   size: number
   mtimeMs: number
   ctimeMs: number

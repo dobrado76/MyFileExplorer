@@ -20,6 +20,32 @@ function extOf(name: string): string {
   return e.startsWith('.') ? e.slice(1).toLowerCase() : e.toLowerCase()
 }
 
+// Linux exposes SMB/NFS mounts as ordinary POSIX paths, so drive letters and
+// UNC parsing cannot identify them. These are the common network filesystem
+// magic values returned by statfs(2); FUSE also covers GVFS/sshfs mounts.
+const NETWORK_FS_MAGIC = new Set([
+  0xff534d42, // CIFS
+  0xfe534d42, // SMB2
+  0x6969, // NFS
+  0x564c, // NCP
+  0x65735546, // FUSE
+  0x01021997 // 9P
+])
+
+async function isNetworkPath(absPath: string): Promise<boolean> {
+  if (isNetworkHostUnc(absPath)) return true
+  if (absPath.toLowerCase().startsWith('mfe-remote://')) return true
+  if (process.platform !== 'linux') return false
+  // KDE/GNOME users can open SMB shares through GVFS, which is a FUSE mount.
+  if (/\/run\/user\/\d+\/gvfs(?:\/|$)/i.test(absPath)) return true
+  try {
+    const fsInfo = await fsp.statfs(absPath)
+    return NETWORK_FS_MAGIC.has(Number(fsInfo.type) >>> 0)
+  } catch {
+    return false
+  }
+}
+
 export function requireAbsolute(p: string): string {
   const n = normalizeAbsolute(p)
   if (!n) throw new AppError('validation', `Not an absolute path: ${p}`)
@@ -151,6 +177,7 @@ export async function statPath(p: string): Promise<StatResult> {
       path: n,
       exists: st != null,
       kind: st?.kind === 'dir' ? 'dir' : st?.kind === 'file' ? 'file' : null,
+      isNetwork: true,
       size: st?.size ?? 0,
       mtimeMs: st?.mtimeMs ?? 0,
       ctimeMs: st?.mtimeMs ?? 0,
@@ -164,6 +191,7 @@ export async function statPath(p: string): Promise<StatResult> {
       path: n,
       exists: true,
       kind: 'dir',
+      isNetwork: true,
       size: 0,
       mtimeMs: 0,
       ctimeMs: 0,
@@ -183,6 +211,7 @@ export async function statPath(p: string): Promise<StatResult> {
       path: n,
       exists: true,
       kind: st.isDirectory() ? 'dir' : st.isSymbolicLink() ? 'symlink' : 'file',
+      isNetwork: await isNetworkPath(n),
       size: st.isDirectory() ? 0 : st.size,
       mtimeMs: st.mtimeMs,
       ctimeMs: st.ctimeMs,
@@ -195,6 +224,7 @@ export async function statPath(p: string): Promise<StatResult> {
         path: n,
         exists: false,
         kind: null,
+        isNetwork: await isNetworkPath(path.dirname(n)),
         size: 0,
         mtimeMs: 0,
         ctimeMs: 0,
