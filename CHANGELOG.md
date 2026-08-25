@@ -18,6 +18,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Preview after image edit** — saving an edit (NTFS tip ADS) refreshed the thumbnail but left the preview pane on the old frame when listing mtime/size did not change. Preview stamp now follows `columnMetaBump` so docked and detached preview reload with the tip.
 - **Slideshow speed vs list size** — folder size must only affect start/build time, not play speed. Playlist paths stay outside Zustand; while playing, the file grid / preview / status bar unmount, listing DirEntries are dropped, and the image-list cache is parked out of reactive settings so decode/GC do not scale with folder size.
 - **Max tokens (Scripting and AI)** — typeable field (draft while editing); spinner steps by 1024. Previously every keystroke that left a mid-edit value under 256 was rejected and snapped back to 4096.
 - **Preview metadata (images)** — generation Prompt (and other fields) no longer clip to one line with a large empty gap. Nested `max-height` on both the meta panel and inner fields fought each other; only the meta panel is capped now, and Notes sit inside that same scroll area.

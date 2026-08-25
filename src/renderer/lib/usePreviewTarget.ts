@@ -18,6 +18,8 @@ export function usePreviewTarget(): {
   const search = useAppStore((s) => s.search)
   const recycleBin = useAppStore((s) => s.recycleBin)
   const imageVersionPreview = useAppStore((s) => s.imageVersionPreview)
+  /** Bumped on image edit / ADS / note saves — listing mtime often unchanged for NTFS tip ADS. */
+  const columnMetaBump = useAppStore((s) => s.columnMetaBump)
 
   const entries = useMemo(
     () =>
@@ -39,8 +41,14 @@ export function usePreviewTarget(): {
   const selectedStamp = useMemo(() => {
     if (!previewPath) return null
     const e = entries.find((en) => samePath(en.path, previewPath))
-    return e ? `${e.mtimeMs}:${e.size}` : null
-  }, [previewPath, entries])
+    const base = e ? `${e.mtimeMs}:${e.size}` : ''
+    const contentBump =
+      columnMetaBump.path && samePath(columnMetaBump.path, previewPath)
+        ? `b${columnMetaBump.rev}`
+        : ''
+    if (!base && !contentBump) return null
+    return contentBump ? `${base}:${contentBump}` : base
+  }, [previewPath, entries, columnMetaBump.path, columnMetaBump.rev])
 
   const versionOverrideAds =
     imageVersionPreview && previewPath && samePath(previewPath, imageVersionPreview.path)
