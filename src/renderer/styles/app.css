@@ -2060,10 +2060,9 @@ body.right-dragging * {
   height: auto;
   object-fit: contain;
 }
-.preview.preview-kind-image .preview-meta,
-.preview.preview-kind-image .preview-fields {
+.preview.preview-kind-image .preview-meta {
   flex: 0 1 auto;
-  max-height: 38%;
+  max-height: 42%;
   overflow-y: auto;
   min-height: 0;
 }
@@ -2217,8 +2216,7 @@ body.right-dragging * {
   min-height: 0;
   overflow: hidden;
 }
-.preview.preview-kind-model3d .preview-meta,
-.preview.preview-kind-model3d .preview-fields {
+.preview.preview-kind-model3d .preview-meta {
   flex: 0 1 auto;
   max-height: 38%;
   overflow-y: auto;
@@ -2300,8 +2298,7 @@ body.right-dragging * {
   min-height: 0;
   overflow: hidden;
 }
-.preview.preview-kind-archive .preview-meta,
-.preview.preview-kind-archive .preview-fields {
+.preview.preview-kind-archive .preview-meta {
   flex: 0 1 auto;
   max-height: 38%;
   overflow-y: auto;
@@ -2405,8 +2402,7 @@ body.right-dragging * {
   min-height: 0;
   overflow: hidden;
 }
-.preview.preview-kind-chm .preview-meta,
-.preview.preview-kind-chm .preview-fields {
+.preview.preview-kind-chm .preview-meta {
   flex: 0 1 auto;
   max-height: 28%;
   overflow-y: auto;
@@ -2975,11 +2971,12 @@ body.right-dragging * {
   background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
 }
 .preview-item-note {
-  margin: 4px 12px 6px;
+  margin: 8px 12px 0;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-elevated);
+  flex-shrink: 0;
 }
 .preview-item-note-title {
   color: var(--text-dim);

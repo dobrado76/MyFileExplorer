@@ -498,6 +498,55 @@ async function buildImagePreview(
   }
 }
 
+/**
+ * Slideshow / overlay display path: return a paintable media URL without reading
+ * the whole file for Sharp metadata or A1111/Comfy generation parse.
+ * Chromium loads bytes once via mfe-media; TIFF/TGA/HDR still rasterize as needed.
+ */
+export async function getImageDisplayUrl(
+  rawPath: string,
+  ads?: string | null
+): Promise<{ mediaUrl: string | null }> {
+  let file = requireAbsolute(rawPath)
+  if (file.toLowerCase().startsWith('mfe-remote://')) {
+    const { ensureRemoteLocalFile } = await import('../remote/scratch')
+    file = (await ensureRemoteLocalFile(file)).localPath
+  }
+  const st = await statPath(file)
+  if (!st.exists || st.kind === 'dir') return { mediaUrl: null }
+
+  const ext = path.extname(file).replace(/^\./, '').toLowerCase()
+  if (!IMAGE_EXTS.has(ext) && ext !== 'hdr') return { mediaUrl: null }
+
+  protocolAllowlist.allowDir(path.dirname(file))
+
+  let openPath = file
+  let mediaAds: string | null | undefined = undefined
+  let effectiveCacheKey = `${st.mtimeMs}-${st.size}`
+  try {
+    const { resolveImageAdsStream } = await import('../fs/imageEdit')
+    const resolved = await resolveImageAdsStream(file, ads)
+    openPath = resolved.openPath
+    mediaAds = resolved.ads
+    effectiveCacheKey = resolved.cacheKey
+  } catch {
+    /* $DATA */
+  }
+
+  if (needsWebRaster(ext)) {
+    const raster = await rasterizeWebImage(openPath)
+    return { mediaUrl: raster?.mediaUrl ?? null }
+  }
+
+  return {
+    mediaUrl: mediaUrlFor(
+      file,
+      effectiveCacheKey,
+      mediaAds !== undefined ? { ads: mediaAds } : undefined
+    )
+  }
+}
+
 function addImageGenerationFields(
   ext: string,
   bytes: Buffer,

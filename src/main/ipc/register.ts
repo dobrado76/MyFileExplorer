@@ -26,6 +26,7 @@ import {
 } from '@shared/schemas/settingsExport'
 import {
   previewChmTopicSchema,
+  previewDisplayUrlSchema,
   previewEnsurePlayableSchema,
   previewMediaMetaSchema,
   previewRequestSchema,
@@ -227,7 +228,7 @@ function assertRemoteReposEnabled(): void {
     )
   }
 }
-import { ensurePlayablePreview, getChmTopicPreview, getMediaPreviewMeta, getPreview } from '../preview'
+import { ensurePlayablePreview, getChmTopicPreview, getImageDisplayUrl, getMediaPreviewMeta, getPreview } from '../preview'
 import {
   getPreviewTarget,
   openPreviewWindow,
@@ -690,6 +691,9 @@ export function registerIpcHandlers(): void {
   // preview
   handle(IPC.previewGet, previewRequestSchema, (req) =>
     getPreview(req.path, req.ads === undefined ? undefined : req.ads)
+  )
+  handle(IPC.previewGetDisplayUrl, previewDisplayUrlSchema, (req) =>
+    getImageDisplayUrl(req.path, req.ads === undefined ? undefined : req.ads)
   )
   handle(IPC.previewEnsurePlayable, previewEnsurePlayableSchema, (req) =>
     ensurePlayablePreview(req.path, { force: req.force })

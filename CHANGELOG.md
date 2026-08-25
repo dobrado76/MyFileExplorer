@@ -14,9 +14,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Quick Launch** — program icons fill the toolbar control. Add / edit / remove is Settings only (no toolbar +). The strip is hidden until at least one program is pinned. Each pin can show **icon**, **label**, or **both**. The glyph is the program icon, a Lucide icon + color, or a custom image (same choices as tab / item icons).
 - **Global scripts** — each saved global script is its own toolbar button. The strip is hidden when none exist (no globe menu).
 - **New tab (+)** — sits immediately after the last tab (not pinned to the far right of the tab bar).
+- **Enter on images** — same as double-click: opens the in-app viewer with folder siblings (prev/next). Previously Enter treated a single image as a one-item “selection-only” gallery.
 
 ### Fixed
 
+- **Slideshow speed vs list size** — folder size must only affect start/build time, not play speed. Playlist paths stay outside Zustand; while playing, the file grid / preview / status bar unmount, listing DirEntries are dropped, and the image-list cache is parked out of reactive settings so decode/GC do not scale with folder size.
+- **Max tokens (Scripting and AI)** — typeable field (draft while editing); spinner steps by 1024. Previously every keystroke that left a mid-edit value under 256 was rejected and snapped back to 4096.
+- **Preview metadata (images)** — generation Prompt (and other fields) no longer clip to one line with a large empty gap. Nested `max-height` on both the meta panel and inner fields fought each other; only the meta panel is capped now, and Notes sit inside that same scroll area.
 - **Recycle Bin view** — view filters (e.g. `$RECYCLE.BIN$`) and Hidden-attribute hiding no longer apply when the in-app Recycle Bin is open; the list is always the full bin contents.
 - **Session temp folders** — `userData` directories named `*-scratch`, `*-preview`, or `*-remux` (`media-scratch`, `remote-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`, …) are emptied when the app starts, when it quits, and when Settings clears caches. `media-scratch` is still capped at 20 files mid-session (oldest deleted first).
 

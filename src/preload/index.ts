@@ -112,6 +112,7 @@ const api: MyFileExplorerApi = {
   },
   preview: {
     get: invoke(IPC.previewGet),
+    getDisplayUrl: invoke(IPC.previewGetDisplayUrl),
     ensurePlayable: invoke(IPC.previewEnsurePlayable),
     getMediaMeta: invoke(IPC.previewGetMediaMeta),
     chmTopic: invoke(IPC.previewChmTopic),

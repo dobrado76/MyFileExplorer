@@ -517,11 +517,10 @@ function PreviewBody({
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
         )}
 
-        {!zen && extraBeforeFields}
-
         {!zen ? (
           <PreviewMetaTabs
             hasFile={hasRichFields}
+            before={extraBeforeFields}
             file={
               <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
                 {CONTENT_GROUPS.map(({ key, label }) => {
@@ -562,22 +561,25 @@ function PreviewBody({
 
 function PreviewMetaTabs({
   hasFile,
+  before,
   file,
   onCopy
 }: {
   hasFile: boolean
+  before?: ReactNode
   file: ReactNode
   onCopy: (value: string) => Promise<void>
 }): JSX.Element | null {
   const media = useMediaMetadata()
   const hasMedia = !!media && mediaMetadataHasDetails(media.meta)
   const [tab, setTab] = useState<'media' | 'file'>('media')
-  if (!hasMedia && !hasFile) return null
+  if (!hasMedia && !hasFile && !before) return null
   const showTabs = hasMedia && hasFile
   const active = showTabs ? tab : hasMedia ? 'media' : 'file'
 
   return (
     <div className="preview-meta">
+      {before}
       {showTabs ? (
         <div className="preview-meta-tabs" role="tablist" aria-label="Preview metadata">
           <button
@@ -600,7 +602,7 @@ function PreviewMetaTabs({
           </button>
         </div>
       ) : null}
-      {active === 'media' ? <MediaMetadataDetails onCopy={onCopy} /> : file}
+      {hasMedia || hasFile ? (active === 'media' ? <MediaMetadataDetails onCopy={onCopy} /> : file) : null}
     </div>
   )
 }

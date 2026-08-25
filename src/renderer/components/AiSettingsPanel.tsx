@@ -8,6 +8,7 @@ import {
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { AiModelSelect, useAiProviderModels } from './AiModelSelect'
+import { SettingsClampedNumber } from './SettingsClampedNumber'
 import { formatError } from './scriptUi'
 
 const TYPES: AiProviderType[] = ['openai', 'openrouter', 'lmstudio', 'custom']
@@ -252,16 +253,14 @@ export function AiSettingsPanel(): JSX.Element {
           }
         />
       </label>
-      <label className="settings-field" title="Maximum tokens in an AI reply">
+      <label className="settings-field" title="Maximum tokens in an AI reply (type a value, or use ±1024 spinner)">
         <span>Max tokens</span>
-        <input
-          type="number"
+        <SettingsClampedNumber
+          value={ai.maxOutputTokens}
           min={256}
           max={32768}
-          value={ai.maxOutputTokens}
-          onChange={(e) =>
-            void applySettingsPatch({ ai: { maxOutputTokens: Number(e.target.value) } })
-          }
+          step={1024}
+          onCommit={(n) => void applySettingsPatch({ ai: { maxOutputTokens: n } })}
         />
       </label>
       <h3>Providers</h3>

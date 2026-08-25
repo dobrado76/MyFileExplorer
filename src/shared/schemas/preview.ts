@@ -137,6 +137,13 @@ export const previewRequestSchema = z.object({
 })
 export type PreviewRequest = z.infer<typeof previewRequestSchema>
 
+/** Slideshow display — media URL only (no generation parse / full-file sharp). */
+export const previewDisplayUrlSchema = z.object({
+  path: z.string().min(1),
+  ads: z.string().min(1).nullable().optional()
+})
+export type PreviewDisplayUrlRequest = z.infer<typeof previewDisplayUrlSchema>
+
 export const previewEnsurePlayableSchema = z.object({
   path: z.string().min(1),
   /** Drop cache and force H.264 transcode (recovery from audio-only remux). */

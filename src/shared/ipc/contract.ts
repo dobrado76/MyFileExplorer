@@ -109,6 +109,8 @@ export const IPC = {
   settingsImport: 'settings:import',
 
   previewGet: 'preview:get',
+  /** Slideshow / overlay: media URL only (no gen-metadata full-file parse). */
+  previewGetDisplayUrl: 'preview:getDisplayUrl',
   /** Remux MKV/etc. to playable MP4 under userData for in-pane `<video>`. */
   previewEnsurePlayable: 'preview:ensurePlayable',
   /** Async A/V tag fields after fast preview:get (does not block mediaUrl). */

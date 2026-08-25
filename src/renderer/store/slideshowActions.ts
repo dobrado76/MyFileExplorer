@@ -17,16 +17,39 @@ import { api, call, IpcError } from '../lib/ipc'
 import type { SlideshowAction, SlideshowSession, SlideshowState } from '../lib/slideshowTypes'
 import {
   emptySlideshowSession,
-  slideshowLength,
-  slideshowCurrentPath,
-  slideshowNextIndex,
-  slideshowFirstIndex,
-  slideshowLastIndex
+  slideshowLiveLength,
+  slideshowCurrentPath
 } from '../lib/slideshowTypes'
+import {
+  clearFolderPlaylist,
+  folderPathAt,
+  folderPlaylistFirstIndex,
+  folderPlaylistLastIndex,
+  folderPlaylistLiveLength,
+  folderPlaylistMarkSkipped,
+  folderPlaylistNextIndex,
+  folderPlaylistPhysicalLength,
+  folderPlaylistUnskip,
+  setFolderPlaylist
+} from '../lib/folderPlaylist'
+import {
+  clearViewOrderCache,
+  discardParkedImageListCache,
+  parkImageListCache,
+  takeParkedImageListCacheIfAny
+} from '../lib/slideshowPlayHeap'
 import { basename, samePath, isUnderPath } from '../lib/paths'
 
 type Get = () => SlideshowHost
 type Set = (partial: Partial<SlideshowHost> | ((s: SlideshowHost) => Partial<SlideshowHost>)) => void
+
+type HostListing = {
+  path: string
+  entries: { path: string; kind: string }[]
+  loading: boolean
+  error: string | null
+  offline: boolean
+}
 
 /** Minimal host surface from appStore. */
 export type SlideshowHost = {
@@ -51,7 +74,8 @@ export type SlideshowHost = {
   slideshow: SlideshowSession
   tabs: { id: string; path: string; selected: string[] }[]
   activeTabId: string
-  listingsByTabId: Record<string, { entries: { path: string; kind: string }[] } | undefined>
+  listingsByTabId: Record<string, HostListing | undefined>
+  listing: HostListing
   devGateActive: boolean
   dialog: unknown
   notify(text: string, isError?: boolean): void
@@ -74,8 +98,67 @@ function compiledGateOn(get: Get): boolean {
   return get().devGateActive === true && gateOn(get)
 }
 
+/**
+ * Playing: drop explorer listing DirEntries + reactive imageListCache copies so
+ * Chromium GC/decode time does not scale with folder size. Playlist stays in
+ * folderPlaylist (and parked cache) only.
+ */
+function enterSlideshowPlaying(get: Get, set: Set, paths: string[], active: SlideshowState): void {
+  const s = get()
+  clearViewOrderCache()
+  setFolderPlaylist(paths)
+  // Park only once — mid-play re-entry must not replace a parked list with [].
+  if (s.slideshow.imageListCache.length > 0) {
+    parkImageListCache(s.slideshow.imageListCache)
+  }
+
+  const listingsByTabId: Record<string, HostListing | undefined> = { ...s.listingsByTabId }
+  for (const tid of Object.keys(listingsByTabId)) {
+    const L = listingsByTabId[tid]
+    if (!L || L.entries.length === 0) continue
+    listingsByTabId[tid] = { ...L, entries: [] }
+  }
+  const activeListing = listingsByTabId[s.activeTabId]
+  const listing =
+    activeListing && activeListing.entries.length === 0
+      ? activeListing
+      : { ...s.listing, entries: [] }
+
+  set({
+    listingsByTabId,
+    listing,
+    settings: {
+      ...s.settings,
+      slideshow: { ...s.settings.slideshow, imageListCache: [] }
+    },
+    slideshow: {
+      ...s.slideshow,
+      imageListCache: [],
+      active
+    }
+  })
+}
+
+function endSlideshowSession(set: Set, get: Get): void {
+  clearFolderPlaylist()
+  const restored = takeParkedImageListCacheIfAny()
+  const s = get()
+  if (restored) {
+    set({
+      slideshow: { ...s.slideshow, imageListCache: restored, active: null },
+      settings: {
+        ...s.settings,
+        slideshow: { ...s.settings.slideshow, imageListCache: restored }
+      }
+    })
+    return
+  }
+  set({ slideshow: { ...s.slideshow, active: null } })
+}
+
 function clearActive(set: Set, get: Get): void {
-  set({ slideshow: { ...get().slideshow, active: null } })
+  // Same restore path as stop — mid-play empty-list exit must return parked cache.
+  endSlideshowSession(set, get)
 }
 
 let actionSeq = 0
@@ -122,9 +205,9 @@ export function hydrateSlideshowCacheFromSettings(get: Get, set: Set): void {
   })
 }
 
-function persistSlideshowCache(get: Get): void {
+async function persistSlideshowCache(get: Get): Promise<void> {
   const session = get().slideshow
-  void get().applySettingsPatch({
+  await get().applySettingsPatch({
     slideshow: {
       cacheActive: session.cacheActive,
       imageListCache: session.imageListCache
@@ -148,11 +231,6 @@ function flushPendingCacheDrops(get: Get, set: Set): void {
   if (next === cache) return
   set({ slideshow: { ...get().slideshow, imageListCache: next } })
   persistSlideshowCache(get)
-}
-
-function markSkipped(a: SlideshowState, index: number): void {
-  if (!a.skipped) a.skipped = new Set()
-  a.skipped.add(index)
 }
 
 function persistCategorizerMap(get: Get, rows: CategorizerMapRow[]): void {
@@ -318,7 +396,8 @@ export function createSlideshowActions(get: Get, set: Set) {
       let builtFromCache = false
 
       if (session.cacheActive && session.imageListCache.length > 0) {
-        paths = [...session.imageListCache]
+        // Same reference as session cache — do not copy 100k strings.
+        paths = session.imageListCache
         builtFromCache = true
       } else {
         const roots = resolveSlideshowRoots(get, explicitRoots)
@@ -333,8 +412,9 @@ export function createSlideshowActions(get: Get, set: Set) {
             ...get().slideshow,
             active: {
               status: 'building',
-              paths: [],
               index: 0,
+              currentPath: null,
+              pathCount: 0,
               builtFromCache: false,
               buildFound: 0,
               buildCurrent: roots[0]!,
@@ -363,7 +443,7 @@ export function createSlideshowActions(get: Get, set: Set) {
                 imageListCache: capped
               }
             })
-            persistSlideshowCache(get)
+            await persistSlideshowCache(get)
           }
           if (res.truncated) {
             get().notify('Image list truncated at cap', true)
@@ -389,16 +469,16 @@ export function createSlideshowActions(get: Get, set: Set) {
       pendingCacheDrops.clear()
       const active: SlideshowState = {
         status: 'playing',
-        paths,
         index: 0,
+        currentPath: paths[0] ?? null,
+        pathCount: paths.length,
         builtFromCache,
         buildFound: paths.length,
         buildCurrent: '',
         actions: [],
-        skipped: new Set(),
         compiledMode: false
       }
-      set({ slideshow: { ...get().slideshow, active } })
+      enterSlideshowPlaying(get, set, paths, active)
     },
 
     /**
@@ -487,31 +567,31 @@ export function createSlideshowActions(get: Get, set: Set) {
       } else {
         compiledApplyRev += 1
       }
-      const a = get().slideshow.active
+      clearFolderPlaylist()
+      const prev = get().slideshow.active
       const status =
         meta.resumePlaying === true
           ? 'playing'
-          : a?.compiledMode && a.status !== 'building'
-            ? a.status
+          : prev?.compiledMode && prev.status !== 'building'
+            ? prev.status
             : 'playing'
-      set({
-        slideshow: {
-          ...get().slideshow,
-          active: {
-            status,
-            paths: [],
-            index: meta.total <= 0 ? 0 : Math.max(0, Math.min(meta.index, meta.total - 1)),
-            builtFromCache: true,
-            buildFound: meta.total,
-            buildCurrent: '',
-            actions: a?.compiledMode ? a.actions : [],
-            compiledMode: true,
-            compiledTotal: meta.total,
-            currentPath: meta.path,
-            compiledTruncated: meta.truncated === true
-          }
-        }
-      })
+      const active: SlideshowState = {
+        status,
+        index: meta.total <= 0 ? 0 : Math.max(0, Math.min(meta.index, meta.total - 1)),
+        currentPath: meta.path,
+        pathCount: meta.total,
+        builtFromCache: true,
+        buildFound: meta.total,
+        buildCurrent: '',
+        actions: prev?.compiledMode ? prev.actions : [],
+        compiledMode: true,
+        compiledTotal: meta.total,
+        compiledTruncated: meta.truncated === true
+      }
+      // First transition into compiled play: drop explorer heap. Later ± updates: cursor only.
+      const firstPlay = !prev || prev.status === 'building' || !prev.compiledMode
+      if (firstPlay) enterSlideshowPlaying(get, set, [], active)
+      else set({ slideshow: { ...get().slideshow, active } })
     },
 
     /** @deprecated flat-path apply — only used if legacy broadcast includes paths[]. */
@@ -529,6 +609,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         compiledApplyRev += 1
       }
       const capped = clampImageList(paths)
+      setFolderPlaylist(capped)
       let index = 0
       if (preferPath) {
         const found = capped.findIndex((p) => samePath(p, preferPath))
@@ -540,15 +621,15 @@ export function createSlideshowActions(get: Get, set: Set) {
           ...get().slideshow,
           active: {
             status: 'playing',
-            paths: capped,
             index,
+            currentPath: folderPathAt(index),
+            pathCount: capped.length,
             builtFromCache: true,
             buildFound: capped.length,
             buildCurrent: '',
             actions: a?.compiledMode ? a.actions : [],
             compiledMode: true,
-            compiledTotal: capped.length,
-            currentPath: capped[index] ?? null
+            compiledTotal: capped.length
           }
         }
       })
@@ -632,7 +713,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!gateOn(get)) return
       const a = get().slideshow.active
       if (!a || a.status !== 'playing') return
-      const n = slideshowLength(a)
+      const n = slideshowLiveLength(a)
       if (n <= 0) return
       if (a.compiledMode) {
         const next = a.index + 1
@@ -644,7 +725,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         void actions.setCompiledPlayIndex(next)
         return
       }
-      const next = slideshowNextIndex(a, a.index, 1, get().settings.slideshow.loop)
+      const next = folderPlaylistNextIndex(a.index, 1, get().settings.slideshow.loop)
       if (next == null) {
         void actions.stopSlideshow()
         return
@@ -652,7 +733,12 @@ export function createSlideshowActions(get: Get, set: Set) {
       set({
         slideshow: {
           ...get().slideshow,
-          active: { ...a, index: next }
+          active: {
+            ...a,
+            index: next,
+            currentPath: folderPathAt(next),
+            pathCount: folderPlaylistPhysicalLength()
+          }
         }
       })
     },
@@ -686,29 +772,34 @@ export function createSlideshowActions(get: Get, set: Set) {
         return
       }
 
-      if (a.paths.length === 0) return
-      const badPath = a.paths[a.index]
+      if (folderPlaylistPhysicalLength() === 0) return
+      const badPath = folderPathAt(a.index)
       if (!badPath) return
       const removeIdx = a.index
-      markSkipped(a, removeIdx)
+      folderPlaylistMarkSkipped(removeIdx)
       queueCacheDrop(badPath)
       void moveInvalidSlideshowImage(get, badPath)
 
-      if (slideshowLength(a) === 0) {
-        set({ slideshow: { ...get().slideshow, active: null } })
+      if (folderPlaylistLiveLength() === 0) {
+        clearActive(set, get)
         get().notify('No displayable images left — slideshow stopped', true)
         return
       }
 
-      const index = slideshowNextIndex(a, removeIdx, 1, true)
+      const index = folderPlaylistNextIndex(removeIdx, 1, true)
       if (index == null) {
-        set({ slideshow: { ...get().slideshow, active: null } })
+        clearActive(set, get)
         return
       }
       set({
         slideshow: {
           ...get().slideshow,
-          active: { ...a, index }
+          active: {
+            ...a,
+            index,
+            currentPath: folderPathAt(index),
+            pathCount: folderPlaylistPhysicalLength()
+          }
         }
       })
     },
@@ -717,7 +808,7 @@ export function createSlideshowActions(get: Get, set: Set) {
       if (!gateOn(get)) return
       const a = get().slideshow.active
       if (!a) return
-      const n = slideshowLength(a)
+      const n = slideshowLiveLength(a)
       if (n <= 0) return
       const loop = get().settings.slideshow.loop
       let index: number | null
@@ -729,14 +820,20 @@ export function createSlideshowActions(get: Get, set: Set) {
         void actions.setCompiledPlayIndex(index, a.status === 'building' ? a.status : 'manual')
         return
       }
-      if (dir === 'first') index = slideshowFirstIndex(a)
-      else if (dir === 'last') index = slideshowLastIndex(a)
-      else index = slideshowNextIndex(a, a.index, dir, loop)
+      if (dir === 'first') index = folderPlaylistFirstIndex()
+      else if (dir === 'last') index = folderPlaylistLastIndex()
+      else index = folderPlaylistNextIndex(a.index, dir, loop)
       if (index == null) return
       set({
         slideshow: {
           ...get().slideshow,
-          active: { ...a, status: a.status === 'building' ? a.status : 'manual', index }
+          active: {
+            ...a,
+            status: a.status === 'building' ? a.status : 'manual',
+            index,
+            currentPath: folderPathAt(index),
+            pathCount: folderPlaylistPhysicalLength()
+          }
         }
       })
     },
@@ -789,9 +886,9 @@ export function createSlideshowActions(get: Get, set: Set) {
         return
       }
 
-      if (a.paths.length === 0) return
-      markSkipped(a, insertIndex)
-      const nextIndex = slideshowNextIndex(a, insertIndex, 1, true)
+      if (folderPlaylistPhysicalLength() === 0) return
+      folderPlaylistMarkSkipped(insertIndex)
+      const nextIndex = folderPlaylistNextIndex(insertIndex, 1, true)
       let action: SlideshowAction
       if (isDeleteMapRow(row)) {
         action = {
@@ -813,18 +910,21 @@ export function createSlideshowActions(get: Get, set: Set) {
           insertIndex
         }
       }
+      const idx = nextIndex ?? insertIndex
       set({
         slideshow: {
           ...get().slideshow,
           active: {
             ...a,
             status: 'manual',
-            index: nextIndex ?? insertIndex,
+            index: idx,
+            currentPath: folderPathAt(idx),
+            pathCount: folderPlaylistPhysicalLength(),
             actions: [...a.actions, action]
           }
         }
       })
-      if (slideshowLength(a) === 0) {
+      if (folderPlaylistLiveLength() === 0) {
         get().notify('List empty — stop to commit pending actions')
       }
     },
@@ -851,8 +951,8 @@ export function createSlideshowActions(get: Get, set: Set) {
         void actions.setCompiledPlayIndex(idx, 'manual')
         return
       }
-      a.skipped?.delete(last.insertIndex)
-      const idx = Math.min(last.insertIndex, Math.max(0, a.paths.length - 1))
+      folderPlaylistUnskip(last.insertIndex)
+      const idx = Math.min(last.insertIndex, Math.max(0, folderPlaylistPhysicalLength() - 1))
       set({
         slideshow: {
           ...get().slideshow,
@@ -860,6 +960,8 @@ export function createSlideshowActions(get: Get, set: Set) {
             ...a,
             status: 'manual',
             index: idx,
+            currentPath: folderPathAt(idx),
+            pathCount: folderPlaylistPhysicalLength(),
             actions: stack
           }
         }
@@ -876,7 +978,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         })
       }
       const pending = [...a.actions]
-      set({ slideshow: { ...get().slideshow, active: null } })
+      endSlideshowSession(set, get)
       flushPendingCacheDrops(get, set)
       void call(api.slideshow.clearVirtualPlaylist()).catch(() => {})
       // Lists window and slideshow are paired — closing either ends both.
@@ -912,6 +1014,8 @@ export function createSlideshowActions(get: Get, set: Set) {
     resetSlideshowForGateOff() {
       invalidateSlideshowBuild()
       pendingCacheDrops.clear()
+      discardParkedImageListCache()
+      clearFolderPlaylist()
       void api.slideshow.clearVirtualPlaylist().catch(() => {})
       void api.slideshow.closeCompiledListsWindow().catch(() => {})
       set({ slideshow: emptySlideshowSession() })

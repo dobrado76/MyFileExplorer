@@ -24,7 +24,12 @@ import {
   type SlideshowKeyLike
 } from '@shared/slideshow/keys'
 import { SpinnerIcon } from '../lib/icons'
-import { slideshowCurrentPath, slideshowLength, slideshowNextIndex } from '../lib/slideshowTypes'
+import { slideshowCurrentPath, slideshowLiveLength } from '../lib/slideshowTypes'
+import {
+  folderPathAt,
+  folderPlaylistNextIndex,
+  folderPlaylistSkippedSize
+} from '../lib/folderPlaylist'
 import { useIdleCursorHide } from '../lib/useIdleCursorHide'
 import { tryCaptionPosterUrl } from '../lib/captionPoster'
 import {
@@ -116,9 +121,10 @@ export function SlideshowOverlay(): JSX.Element | null {
   }, [bufs, front])
 
   const path = active ? slideshowCurrentPath(active) : null
-  const listLen = active ? slideshowLength(active) : 0
+  const listLen = active ? slideshowLiveLength(active) : 0
   const showCropPreview = cropMode || hasSlideshowCrop(cropAcc)
   const [prefetchPath, setPrefetchPath] = useState<string | null>(null)
+  const skippedSize = active && !active.compiledMode ? folderPlaylistSkippedSize() : 0
 
   useEffect(() => {
     resetCrop()
@@ -131,7 +137,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
     const nextIdx = active.compiledMode
       ? (active.index + 1) % listLen
-      : slideshowNextIndex(active, active.index, 1, loop)
+      : folderPlaylistNextIndex(active.index, 1, loop)
     if (nextIdx == null) {
       setPrefetchPath(null)
       return
@@ -149,16 +155,16 @@ export function SlideshowOverlay(): JSX.Element | null {
         cancelled = true
       }
     }
-    setPrefetchPath(active.paths[nextIdx] ?? null)
+    setPrefetchPath(folderPathAt(nextIdx))
   }, [
     enabled,
-    active,
     active?.index,
     active?.compiledMode,
-    active?.skipped?.size,
+    active?.status,
+    active?.currentPath,
+    skippedSize,
     listLen,
-    loop,
-    active?.currentPath
+    loop
   ])
 
   // Present `path` via back buffer → decode → double-rAF swap (V-Sync).
@@ -208,7 +214,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       try {
         let mediaUrl: string | null = null
         let poster = false
-        const res = await api.preview.get({ path })
+        const res = await api.preview.getDisplayUrl({ path })
         if (cancelled || gen !== loadGenRef.current) return
         if (!res.ok || !res.value.mediaUrl) {
           skip()
@@ -273,7 +279,7 @@ export function SlideshowOverlay(): JSX.Element | null {
   }, [
     enabled,
     path,
-    active,
+    active?.index,
     active?.status,
     listLen,
     active?.compiledMode,
@@ -288,7 +294,7 @@ export function SlideshowOverlay(): JSX.Element | null {
   useEffect(() => {
     if (!enabled || !prefetchPath || prefetchPath === path) return
     let cancelled = false
-    void api.preview.get({ path: prefetchPath }).then((res) => {
+    void api.preview.getDisplayUrl({ path: prefetchPath }).then((res) => {
       if (cancelled || !res.ok || !res.value.mediaUrl) return
       const img = new Image()
       img.decoding = 'async'
@@ -316,10 +322,9 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
   }, [
     enabled,
-    active,
     active?.status,
     active?.index,
-    active?.paths.length,
+    active?.pathCount,
     listLen,
     delayMs,
     slideshowAdvanceAuto,
@@ -578,7 +583,9 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
   }, [
     enabled,
-    active,
+    active?.status,
+    active?.index,
+    active?.currentPath,
     map,
     dialogOpen,
     imageEditorOpen,

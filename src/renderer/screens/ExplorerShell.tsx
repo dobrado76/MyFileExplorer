@@ -12,6 +12,7 @@ import { SlideshowOverlay } from '../components/SlideshowOverlay'
 import { Splitter } from '../components/Splitter'
 import { basename, samePath } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
+import { searchResultsToEntries } from '../lib/searchEntries'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { api, call } from '../lib/ipc'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
@@ -65,17 +66,25 @@ export function ExplorerShell(): JSX.Element {
   const setSplitters = useAppStore((s) => s.setSplitters)
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
   const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
+  const slideshowActive = useAppStore((s) => s.slideshow.active != null)
   const [appVersion, setAppVersion] = useState<string | null>(null)
   const previewTarget = usePreviewTarget()
 
   // Keep the detached preview window in sync even when the docked pane is collapsed.
+  // Skip while slideshow owns the screen — avoids listing scans + IPC on every shell paint.
   useEffect(() => {
+    if (slideshowActive) return
     void api.preview.setTarget({
       path: previewTarget.previewPath,
       ads: previewTarget.versionOverrideAds,
       stamp: previewTarget.selectedStamp
     })
-  }, [previewTarget.previewPath, previewTarget.versionOverrideAds, previewTarget.selectedStamp])
+  }, [
+    slideshowActive,
+    previewTarget.previewPath,
+    previewTarget.versionOverrideAds,
+    previewTarget.selectedStamp
+  ])
 
   const imageVersionPreview = useAppStore((s) => s.imageVersionPreview)
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
@@ -218,6 +227,8 @@ export function ExplorerShell(): JSX.Element {
       e.preventDefault()
       s.setAddressEditing(true)
     } else if (key === 'Enter') {
+      // Image viewer / slideshow own Enter (fit toggle / resume) while open.
+      if (s.imageViewer || s.slideshow.active || s.imageEditor) return
       const sel = s.activeTab().selected
       if (sel.length >= 1) {
         e.preventDefault()
@@ -225,13 +236,18 @@ export function ExplorerShell(): JSX.Element {
           void s.restoreFromRecycleBinView(sel)
           return
         }
+        // Same as double-click / context Open: single image → openEntry (full sibling
+        // strip); multi all-images → viewer over the selection; else open each.
         const pool = s.search.active
-          ? // search entries resolved in FileView; use listing fallback for open
-            s.listing.entries
+          ? searchResultsToEntries(s.search.results)
           : s.listing.entries
         const selectedEntries = sel
           .map((p) => pool.find((en) => en.path.toLowerCase() === p.toLowerCase()))
           .filter((en): en is NonNullable<typeof en> => !!en)
+        if (selectedEntries.length === 1) {
+          void s.openEntry(selectedEntries[0]!)
+          return
+        }
         const imagePaths = selectedEntries
           .filter((en) => en.kind === 'file' && isImageExt(en.ext))
           .map((en) => en.path)
@@ -351,9 +367,10 @@ export function ExplorerShell(): JSX.Element {
       <Toolbar />
       <div className="shell-body">
         <div className="view-grid-host">
-          <ViewGrid />
+          {/* Unmount file grid while slideshow plays — large listings must not sit under the overlay. */}
+          {slideshowActive ? null : <ViewGrid />}
         </div>
-        {!splitters.previewCollapsed && (
+        {!slideshowActive && !splitters.previewCollapsed && (
           <>
             <Splitter
               onDrag={(delta) => {
@@ -370,7 +387,7 @@ export function ExplorerShell(): JSX.Element {
           </>
         )}
       </div>
-      <StatusBar />
+      {slideshowActive ? null : <StatusBar />}
       <ContextMenu />
       <Dialogs />
       <ImageViewer />

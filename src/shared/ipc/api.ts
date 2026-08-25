@@ -31,6 +31,7 @@ import type { SessionState } from '../schemas/session'
 import type { Settings, SettingsPatch } from '../schemas/settings'
 import type {
   PreviewChmTopicRequest,
+  PreviewDisplayUrlRequest,
   PreviewEnsurePlayableRequest,
   PreviewMediaMetaRequest,
   PreviewMediaMetaResponse,
@@ -260,6 +261,8 @@ export type MyFileExplorerApi = {
   }
   preview: {
     get(req: PreviewRequest): Promise<Result<PreviewModel>>
+    /** Slideshow: media URL only — no generation parse / full-file Sharp. */
+    getDisplayUrl(req: PreviewDisplayUrlRequest): Promise<Result<{ mediaUrl: string | null }>>
     ensurePlayable(req: PreviewEnsurePlayableRequest): Promise<Result<{ mediaUrl: string | null }>>
     /** A/V duration/codecs/tags — call after get when `mediaMetaPending` (non-blocking for player). */
     getMediaMeta(req: PreviewMediaMetaRequest): Promise<Result<PreviewMediaMetaResponse>>

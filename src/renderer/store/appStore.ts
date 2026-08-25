@@ -75,6 +75,7 @@ import {
   hydrateSlideshowCacheFromSettings,
   type SlideshowActions
 } from './slideshowActions'
+import { registerViewOrderCacheClear } from '../lib/slideshowPlayHeap'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import {
   buildQuickAccess,
@@ -475,6 +476,9 @@ let viewOrderCache: {
   filterKey: string
   paths: string[]
 } | null = null
+registerViewOrderCacheClear(() => {
+  viewOrderCache = null
+})
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
@@ -6041,13 +6045,21 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       }
       // Optimistic update so toggles don’t snap back while IPC runs.
-      set((s) => ({
+      set((s) => {
+        const slideshowActive = s.slideshow.active != null
+        let slideshow = mergedPatch.slideshow
+          ? { ...s.settings.slideshow, ...mergedPatch.slideshow }
+          : s.settings.slideshow
+        // While playing, keep the huge image-list array out of reactive settings
+        // (disk still has it; session cache is parked in slideshowPlayHeap).
+        if (slideshowActive && slideshow.imageListCache.length > 0) {
+          slideshow = { ...slideshow, imageListCache: [] }
+        }
+        return {
         settings: {
           ...s.settings,
           ...mergedPatch,
-          slideshow: mergedPatch.slideshow
-            ? { ...s.settings.slideshow, ...mergedPatch.slideshow }
-            : s.settings.slideshow,
+          slideshow,
           networkDiscovery: mergedPatch.networkDiscovery
             ? { ...s.settings.networkDiscovery, ...mergedPatch.networkDiscovery }
             : s.settings.networkDiscovery,
@@ -6091,18 +6103,28 @@ export const useAppStore = create<AppState>()((set, get) => {
         ...(typeof patch.searchIndexedOnly === 'boolean'
           ? { search: { ...s.search, indexedOnly: patch.searchIndexedOnly } }
           : {})
-      }))
+      }
+      })
       if (patch.networkDiscovery) {
         syncNetworkDiscoveryPoll()
       }
       try {
         const settings = await call(api.settings.set(mergedPatch))
-        set((s) => ({
-          settings,
+        set((s) => {
+          let nextSettings = settings
+          if (s.slideshow.active != null && nextSettings.slideshow.imageListCache.length > 0) {
+            nextSettings = {
+              ...nextSettings,
+              slideshow: { ...nextSettings.slideshow, imageListCache: [] }
+            }
+          }
+          return {
+          settings: nextSettings,
           ...(typeof patch.searchIndexedOnly === 'boolean'
             ? { search: { ...s.search, indexedOnly: settings.searchIndexedOnly } }
             : {})
-        }))
+        }
+        })
         if (patch.networkDiscovery) {
           syncNetworkDiscoveryPoll()
           if (
