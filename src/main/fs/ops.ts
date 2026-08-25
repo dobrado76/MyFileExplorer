@@ -29,7 +29,7 @@ import {
 import { isVolumeRootPath } from '@shared/paths'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
-import { recyclePathWin32Robust } from './trashWin32'
+import { deletePathWin32Permanent, recyclePathWin32Robust } from './trashWin32'
 import {
   emitFsChanged,
   muteWatchers,
@@ -729,6 +729,15 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
   }
 }
 
+function isNasRecyclePath(rawPath: string): boolean {
+  const p = rawPath.toLowerCase()
+  if (p.startsWith('mfe-remote://')) return false
+  return rawPath
+    .replace(/\\/g, '/')
+    .split('/')
+    .some((part) => part.toLowerCase() === '@recycle')
+}
+
 async function copyWithRemotes(
   sources: string[],
   destinationDir: string,
@@ -1272,6 +1281,10 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
 
   const total = locals.length > 0 ? await countWorkUnits(locals) : 0
   const progress = beginOp('delete', Math.max(total, 1), 'Deleting…')
+  // Keep Chromium/Node directory watches from re-arming SMB handles while a
+  // permanent delete is walking a NAS recycle folder.
+  suspendWatching()
+  muteWatchers(OP_MUTE_MS)
   try {
     for (const p of locals) {
       progress.throwIfCancelled()
@@ -1284,11 +1297,29 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
       releaseWatchersAffecting([p])
       muteWatchers(8000)
       try {
-        await deleteTree(p, progress)
+        if (process.platform === 'win32' && isNasRecyclePath(p)) {
+          // QNAP's @Recycle is a server-side special folder. Windows Explorer
+          // uses the shell delete operation here; raw SMB unlink can be
+          // rejected even for the same account.
+          progress?.pulse(p)
+          deletePathWin32Permanent(p)
+          progress?.tick(p)
+        } else {
+          await deleteTree(p, progress)
+        }
         deleted.push(p)
       } catch (e) {
         if (isCancelled(e)) throw e
-        issues.push(await toIssue(e, 'delete', p, undefined, isDir))
+        // SMB servers can briefly report a sharing violation while their
+        // recycle-bin metadata catches up. Let Node perform its native retry
+        // sequence before surfacing a review item.
+        try {
+          await fsp.rm(p, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 })
+          deleted.push(p)
+        } catch (retryError) {
+          if (isCancelled(retryError)) throw retryError
+          issues.push(await toIssue(retryError, 'delete', p, undefined, isDir))
+        }
       }
     }
     progress.finish()
@@ -1298,6 +1329,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
     throw e
   } finally {
     muteWatchers(8000)
+    resumeWatching()
   }
   return { deleted, issues }
 }

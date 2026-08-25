@@ -194,6 +194,43 @@ function runShFileRecycle(filePath: string): void {
   assertGone(filePath)
 }
 
+/** Delete through the Windows shell without FOF_ALLOWUNDO (Explorer's hard-delete path). */
+export function deletePathWin32Permanent(filePath: string): void {
+  const api = ensureWinShellApi()
+  if (!api) {
+    throw new AppError('not-allowed', 'Windows shell deletion is only supported on Windows')
+  }
+  const fromBuf = toDoubleNullWide([filePath])
+  const op = {
+    hwnd: null,
+    wFunc: FO_DELETE,
+    _pad0: 0,
+    pFrom: fromBuf,
+    pTo: null,
+    // Deliberately omit FOF_ALLOWUNDO: this is a real permanent delete.
+    fFlags: FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI,
+    _pad1: 0,
+    fAnyOperationsAborted: 0,
+    hNameMappings: null,
+    lpszProgressTitle: null
+  }
+  const code = api.SHFileOperationW(op) as number
+  if (code !== 0) {
+    throw new AppError(
+      'io',
+      `Could not permanently delete: ${path.basename(filePath)}`,
+      'Check the NAS recycle-bin permissions and try again from the NAS administrator account.'
+    )
+  }
+  if (stillExists(filePath)) {
+    throw new AppError(
+      'io',
+      `Permanent delete did not remove: ${path.basename(filePath)}`,
+      'The NAS may still be processing its recycle-bin entry. Try again from the NAS administrator account.'
+    )
+  }
+}
+
 async function recycleViaVisualBasic(filePath: string): Promise<void> {
   let isDir: boolean
   try {
