@@ -9,7 +9,7 @@ function nodeErrno(e: unknown): string | null {
 }
 
 function isLockish(code: string | null): boolean {
-  return code === 'EPERM' || code === 'EBUSY' || code === 'EACCES' || code === 'ENOTEMPTY'
+  return code === 'EPERM' || code === 'EBUSY' || code === 'ENOTEMPTY'
 }
 
 function headlineFor(
@@ -62,6 +62,14 @@ export async function appErrorFromFsFailure(
   if (code === 'ENOENT' || (e instanceof AppError && e.code === 'not-found')) {
     if (e instanceof AppError) return e
     return new AppError('not-found', `The ${item} no longer exists.`, 'Refresh and try again.')
+  }
+
+  if (code === 'EACCES') {
+    return new AppError(
+      'not-allowed',
+      `Could not ${opts.action} the ${item} because access was denied.`,
+      'Check the NAS recycle-bin permissions and make sure the SMB account is allowed to permanently delete items.'
+    )
   }
 
   const lockers = await findLockingProcesses(opts.path)

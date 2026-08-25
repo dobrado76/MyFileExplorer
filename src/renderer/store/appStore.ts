@@ -64,7 +64,7 @@ import {
 import { clearFileViewScroll, liveFileViewScroll } from '../lib/fileViewScroll'
 import { tabRootDeletePrompt, tabsWhoseRootIsDeleted } from '../lib/tabRootDelete'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
-import { isNetworkHostUnc } from '@shared/networkPaths'
+import { isNetworkHostUnc, parseUnc } from '@shared/networkPaths'
 import { ListingLru, driveTypeForPath, isListingCacheEligible } from '@shared/listingCache'
 import { expandArgsTemplate } from '@shared/contextMenuCommands'
 import { shouldPopStackedDialog, shouldPushDialog } from '@shared/scriptDialogStack'
@@ -5149,7 +5149,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       const dialog = get().dialog
       if (!dialog || dialog.kind !== 'op-issues') return
       set({ dialog: null })
-      if (items === null || items.length === 0) return
+      if (dialog.op === 'trash' || dialog.op === 'delete') await releaseMediaLocks()
+      if (items === null || items.length === 0) {
+        clearMediaHold()
+        return
+      }
 
       const decided = new Set(items.map((it) => issueKey(it)))
       const leftover = dialog.issues.filter((it) => !decided.has(issueKey(it)))
@@ -5308,11 +5312,58 @@ export const useAppStore = create<AppState>()((set, get) => {
         get().deleteFromRecycleBinView(paths)
         return
       }
-      const target = (paths ?? s.activeTab().selected).filter((p) => !isVolumeRootPath(p))
+      let target = (paths ?? s.activeTab().selected).filter((p) => !isVolumeRootPath(p))
       if (target.length === 0) return
+      // NAS devices commonly expose their server-side recycle bin as an
+      // `@Recycle` directory. Check path segments rather than Windows path
+      // types so this also works for POSIX SMB mounts on Linux.
+      const isNasRecyclePath = (p: string): boolean => {
+        if (isRemoteLocation(p)) return false
+        return p
+          .replace(/\\/g, '/')
+          .split('/')
+          .some((part) => part.toLowerCase() === '@recycle')
+      }
+      const nasRecycleRoots = target.filter((p) => {
+        return basename(p).toLowerCase() === '@recycle' && isNasRecyclePath(p)
+      })
+      if (nasRecycleRoots.length > 0) {
+        try {
+          const contents = await Promise.all(
+            nasRecycleRoots.map(async (root) => {
+              const res = await call(api.fs.list({ path: root, includeHidden: true }))
+              return { root, paths: res.entries.map((entry) => entry.path) }
+            })
+          )
+          const byRoot = new Map(contents.map((item) => [item.root, item.paths]))
+          target = target.flatMap((p) => byRoot.get(p) ?? [p])
+        } catch (e) {
+          reportOperationError('Could not empty NAS Recycle Bin', e)
+          return
+        }
+        if (target.length === 0) {
+          get().notify('NAS Recycle Bin is already empty')
+          return
+        }
+      }
+      const deletingNasRecycleContents = target.some(
+        (p) => isNasRecyclePath(p) && basename(p).toLowerCase() !== '@recycle'
+      )
+      // Windows does not provide a client Recycle Bin for UNC shares, mapped
+      // network drives, or the app's remote repository paths. Match Explorer's
+      // behavior there by using the permanent-delete flow with confirmation.
+      const remoteDeleteFallback = target.some((p) => {
+        if (isRemoteLocation(p) || parseUnc(p)) return true
+        const drive = driveOf(p)
+        return (
+          drive !== null &&
+          s.drives.some((d) => driveOf(d.path) === drive && d.driveType === 'remote')
+        )
+      })
+      const effectivePermanent = permanent || remoteDeleteFallback || deletingNasRecycleContents
       const rootHits = tabsWhoseRootIsDeleted(s.tabs, target)
       if (rootHits.length > 0) {
-        const prompt = tabRootDeletePrompt(rootHits, permanent)
+        const prompt = tabRootDeletePrompt(rootHits, effectivePermanent)
         const ok = await get().askConfirm({
           title: prompt.title,
           message: prompt.message,
@@ -5321,7 +5372,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         })
         if (!ok) return
       }
-      if (!permanent) {
+      if (!effectivePermanent) {
         try {
           // Select the survivor first so the preview keeps painting while we trash.
           const autoSelectedPath = selectAfterDelete(target)
@@ -5367,7 +5418,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         const e = s.listing.entries.find((en) => samePath(en.path, p))
         return e ? e.kind === 'dir' : true
       })
-      const needsConfirm = target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
+      const needsConfirm =
+        remoteDeleteFallback || target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
       if (needsConfirm && rootHits.length === 0) {
         set({ dialog: { kind: 'confirm-permanent-delete', paths: target } })
       } else {
