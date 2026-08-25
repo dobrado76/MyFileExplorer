@@ -729,6 +729,26 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
   }
 }
 
+async function verifyPathDeleted(target: string, isDir: boolean): Promise<void> {
+  // SMB servers can acknowledge an unlink before the directory enumeration
+  // reflects it. Give the server a short window, but never report success if
+  // the path is still present after that window.
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      await fsp.lstat(target)
+    } catch (e) {
+      if (nodeErrno(e) === 'ENOENT') return
+      throw await appErrorFromFsFailure(e, { action: 'delete', path: target, isDir })
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)))
+  }
+  throw new AppError(
+    'io',
+    `Could not permanently delete the ${isDir ? 'folder' : 'file'} because it still exists.`,
+    'The NAS may have rejected the delete or may still be processing it. Refresh and try again.'
+  )
+}
+
 function isNasRecyclePath(rawPath: string): boolean {
   const p = rawPath.toLowerCase()
   if (p.startsWith('mfe-remote://')) return false
@@ -1307,6 +1327,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
         } else {
           await deleteTree(p, progress)
         }
+        await verifyPathDeleted(p, isDir)
         deleted.push(p)
       } catch (e) {
         if (isCancelled(e)) throw e
@@ -1315,6 +1336,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
         // sequence before surfacing a review item.
         try {
           await fsp.rm(p, { recursive: true, force: true, maxRetries: 4, retryDelay: 250 })
+          await verifyPathDeleted(p, isDir)
           deleted.push(p)
         } catch (retryError) {
           if (isCancelled(retryError)) throw retryError
