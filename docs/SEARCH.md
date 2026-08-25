@@ -9,7 +9,7 @@ Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 
 **Live walk** remains the default when no ready root covers the folder (D15: progress + cancel; never claim indexed speed). The walk yields the main thread every ~12 ms and streams progress at most every 250 ms so preview/icon IPC stays responsive. Basic name queries `stat` hits only.
 
-Unchecking **indexed** in the toolbar searches the **current folder recursively** (index accelerates only when covered).
+Unchecking **indexed** in the toolbar searches the **current folder recursively** (index accelerates only when covered). If a name query returns nothing from that covering index (stale / incomplete), the app falls back to a live folder walk so items like Hidden `!Thumbnails` still appear.
 
 ---
 
@@ -25,7 +25,7 @@ Nested roots: **parent-covers-child** (same as before). Volume root `D:\` absorb
 
 Exclude from crawl (Settings → Search index): view-filter patterns — folder names, file names, extensions (`.tmp` / `*.log`), wildcards, or an absolute path. Defaults: `node_modules`, `.git`, `.hg`, `.svn`, `Thumbs.db`. Indexed hits already stored are hidden immediately; Reindex drops them from the database.
 
-**Show hidden** (search options menu / Settings → Search, off by default): index and folder search omit Windows Hidden files, `!VIDTHUMB_CACHE`, and anything inside a hidden folder. Turn the toggle on, or use `attrib:h`, to see them. This is independent of the listing View filter eye.
+**Show hidden** (search options menu / Settings → Search, off by default): when **on**, search may return Windows Hidden files, `!VIDTHUMB_CACHE`, and items inside hidden folders, and the result list ignores the toolbar view filter (every hit is shown — same idea as Recycle Bin). When **off**, the index/walk omit those Hidden items, and if the toolbar view filter eye is on, patterns + Hidden also clip the result list. `attrib:h` still finds Hidden items.
 
 Offline volumes: keep rows; mark root `offline` until the volume returns (aligns with D3 tab offline).
 
@@ -69,7 +69,7 @@ Versioned subset; grows over releases. Parser: `everythingQuery.ts`.
 
 | Feature | Examples |
 |---------|----------|
-| AND / OR / NOT | `foo bar`, `foo\|bar`, `!tmp`, `!ext:tmp;bak`. `!` is NOT only after whitespace or as `!ext:`. `!!Thumbs.db` is a literal name. |
+| AND / OR / NOT | `foo bar`, `foo\|bar`, `!tmp` (NOT only after a name/filter), `!ext:tmp;bak`. A leading `!Name` (e.g. `!Thumbnails`, `folder:!Thumbnails`) is a literal name. `!!Thumbs.db` is also literal. |
 | Phrases / groups | `"my file"`, `<a\|b> c` |
 | Modifiers | `case:`, `path:` / `nopath:`, `file:` / `folder:`, `regex:`, `ww:` |
 | Functions | `size:>1mb`, `size:large`, `dm:today`, `dc:thisweek`, `ext:jpg;png`, `parent:`, `infolder:`, `startwith:`, `endwith:`, `len:`, `empty:`, `count:` |

@@ -719,9 +719,15 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
         q.matchPath = true
         if (rest) orGroup.push(toTextPred(rest, q))
       } else if (m === 'nopath') q.matchPath = false
-      else if (m === 'file') q.fileOnly = true
-      else if (m === 'folder') q.folderOnly = true
-      else if (m === 'regex') {
+      else if (m === 'file') {
+        q.fileOnly = true
+        // `file:!Foo` / `file:report` — value is a name, not discarded.
+        if (rest) orGroup.push(toTextPred(rest, q))
+      } else if (m === 'folder') {
+        q.folderOnly = true
+        // `folder:!Thumbnails` — folders whose name contains that literal (incl. leading !).
+        if (rest) orGroup.push(toTextPred(rest, q))
+      } else if (m === 'regex') {
         q.regex = true
         if (rest) orGroup.push({ kind: 'regex', source: rest, flags: q.matchCase ? '' : 'i' })
       } else if (m === 'ww' || m === 'wholeword') {
@@ -773,15 +779,19 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
       continue
     }
 
-    // NOT — `!ext:jpg` / `!pic:` exclude extensions; other `!token` excludes name/path text
+    // NOT — `!ext:jpg` / `!pic:` exclude; `photo !tmp` excludes after a name/filter.
+    // A leading `!Name` (e.g. `!Thumbnails` / `!Thumbnails folder:`) is a literal file name —
+    // same as basic search / `!!Thumbs.db`. Space-before-`!` exclusion needs a prior anchor.
     if (t.startsWith('!') && t.length > 1) {
       q.advanced = true
       const rest = t.slice(1)
       const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(rest)
       if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase()) && isKnownQueryFn(fn[1]!, macros)) {
         applyExcludeFunction(q, fn[1]!, fn[2] ?? '', macros)
-      } else {
+      } else if (hasNotOperatorAnchor(q, orGroup)) {
         q.notText.push(toTextPred(rest, q))
+      } else {
+        orGroup.push(toTextPred(t, q))
       }
       i++
       flushOr()
@@ -800,6 +810,40 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
   flushOr()
   finalizeBasicNameSearch(q, trimmed)
   return q
+}
+
+/**
+ * `!token` is NOT only after a real name/filter (`photo !tmp`).
+ * `file:` / `folder:` alone are not enough — otherwise `!Thumbnails folder:` would
+ * exclude "Thumbnails" and match nothing.
+ */
+function hasNotOperatorAnchor(q: StructuredQuery, orGroup: TextPred[]): boolean {
+  return (
+    orGroup.length > 0 ||
+    q.textGroups.length > 0 ||
+    q.pathPrefixes.length > 0 ||
+    q.pathContains.length > 0 ||
+    q.exts.length > 0 ||
+    q.size != null ||
+    q.dates.length > 0 ||
+    q.empty != null ||
+    q.lenMin != null ||
+    q.lenMax != null ||
+    q.attrib != null ||
+    q.depthMin != null ||
+    q.depthMax != null ||
+    q.parentName != null ||
+    q.infolder != null ||
+    q.childName != null ||
+    q.childCountMin != null ||
+    q.childCountMax != null ||
+    q.dupe != null ||
+    q.content != null ||
+    q.hasNote ||
+    q.noteText != null ||
+    q.noteStatus != null ||
+    q.openTodo
+  )
 }
 
 /** Match a single TextPred against a string. */

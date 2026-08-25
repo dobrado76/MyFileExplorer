@@ -4138,7 +4138,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </div>
               <label
                 className="checkbox-row"
-                title="Off: skip Hidden files, !VIDTHUMB_CACHE, and items inside hidden folders. attrib:h still finds them."
+                title="On: find and show Hidden / !VIDTHUMB_CACHE; view filter does not hide search hits. Off: omit Hidden from search; toolbar view filter applies to results when the eye is on. attrib:h still finds them."
               >
                 <input
                   type="checkbox"
@@ -4152,10 +4152,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 Show hidden files in search
               </label>
               <p className="settings-help">
-                Off by default — same as Explorer. Hides Windows Hidden items (for example
-                subtitles), <code>!VIDTHUMB_CACHE</code>, and anything inside a hidden folder.
-                Turn on here or under the search options menu. <code>attrib:h</code> in a query
-                still matches hidden files.
+                Off by default. When off, search skips Windows Hidden items,{' '}
+                <code>!VIDTHUMB_CACHE</code>, and anything inside a hidden folder, and the toolbar
+                view filter (if on) still clips results. When on, those items can match and every
+                hit is shown regardless of the view-filter eye. <code>attrib:h</code> still matches
+                hidden files.
               </p>
               <div className="form-section">Exclude from search</div>
               <p className="settings-help">

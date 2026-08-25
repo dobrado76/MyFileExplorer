@@ -810,21 +810,31 @@ textarea:focus {
   overflow-x: auto;
   scrollbar-width: thin;
 }
-.global-script-btn {
-  display: inline-flex;
-  align-items: center;
-  max-width: 140px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.2;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.global-script-btn.quick-launch-btn:not(.has-label) {
+  width: 22px;
+  height: 22px;
 }
-.global-script-btn:hover {
-  background: var(--bg-elevated);
+.global-script-btn.quick-launch-btn .shell-icon,
+.global-script-btn.quick-launch-btn .quick-launch-custom-icon,
+.global-script-btn.quick-launch-btn .quick-launch-lucide-icon {
+  width: 22px;
+  height: 22px;
+}
+.global-script-btn.quick-launch-btn.has-label .shell-icon,
+.global-script-btn.quick-launch-btn.has-label .quick-launch-custom-icon,
+.global-script-btn.quick-launch-btn.has-label .quick-launch-lucide-icon {
+  width: 16px;
+  height: 16px;
+}
+.script-toolbar-face {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+.script-toolbar-face .settings-ql-icon {
+  margin-top: 0;
 }
 .settings-ql-list {
   max-height: min(52vh, 440px);

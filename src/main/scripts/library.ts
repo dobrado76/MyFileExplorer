@@ -20,6 +20,7 @@ import {
 } from '@shared/schemas/scripts'
 import { JsonStore } from '../store/jsonStore'
 import { requireAbsolute } from '../fs/list'
+import { deleteQuickLaunchIconFile } from '../quickLaunch/icons'
 
 const emptyFile = { version: 1 as const, scripts: [] as ScriptDefinition[] }
 
@@ -198,7 +199,20 @@ export async function deleteScript(id: string): Promise<void> {
       /* ignore */
     }
   }
-  persist(listScripts().filter((s) => s.id !== id))
+  const remaining = listScripts().filter((s) => s.id !== id)
+  persist(remaining)
+  if (script.iconKind === 'custom' && script.iconId) {
+    const stillUsed = remaining.some(
+      (s) => s.iconKind === 'custom' && s.iconId === script.iconId
+    )
+    if (!stillUsed) {
+      try {
+        await deleteQuickLaunchIconFile(script.iconId)
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 }
 
 export async function duplicateScript(id: string, name?: string): Promise<ScriptDefinition> {

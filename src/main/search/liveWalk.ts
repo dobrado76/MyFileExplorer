@@ -16,6 +16,7 @@ import { isHiddenSearchHit } from '@shared/searchHidden'
 import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
 import { pathIsHidden } from '../fs/winAttrs'
 import { nameMatches } from './queryBuilder'
+import { isSkippedBySearchExclude } from './searchExclude'
 
 export type CancelToken = { cancelled: boolean }
 
@@ -88,14 +89,20 @@ export async function liveWalkSearch(
       }
       const full = path.join(dir, d.name)
       const isDir = d.isDirectory()
-      if (excluded(full)) continue
+      if (isSkippedBySearchExclude(full, excluded, query, q, basic)) continue
       const hidden =
         d.name.toLowerCase() === VID_THUMB_CACHE_DIR.toLowerCase() ||
         pathIsHidden(full) ||
         isHiddenSearchHit({ path: full })
-      if (!showHidden && hidden) continue
 
       const nameHit = basic ? nameMatches(d.name, query) : null
+      // Search “Show hidden” is the gate — no name-hit exception (that made the toggle useless).
+      if (!showHidden && hidden) {
+        scanned++
+        emitProgress(dir)
+        continue
+      }
+
       // Basic name search: skip stat on misses so the walk does not monopolize main.
       let size = 0
       let mtimeMs = 0

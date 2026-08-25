@@ -77,6 +77,38 @@ describe('parseEverythingQuery', () => {
     expect(folders.folderOnly).toBe(true)
   })
 
+  it('REGRESSION: folder:!Thumbnails keeps leading ! as a folder name', () => {
+    const q = parseEverythingQuery('folder:!Thumbnails')
+    expect(q.folderOnly).toBe(true)
+    expect(q.textGroups).toEqual([[{ kind: 'substr', value: '!Thumbnails', wholeWord: false }]])
+    expect(q.notText).toEqual([])
+    expect(searchDecodeMessage('folder:!Thumbnails', q)).toBeNull()
+    expect(
+      rowMatchesStructured(row({ path: 'C:\\a\\!Thumbnails', name: '!Thumbnails', isDir: true }), q)
+    ).toBe(true)
+    expect(rowMatchesStructured(row({ path: 'C:\\a\\x.txt', name: 'x.txt' }), q)).toBe(false)
+  })
+
+  it('REGRESSION: !Thumbnails folder: is a name + folders, not exclude-only', () => {
+    const q = parseEverythingQuery('!Thumbnails folder:')
+    expect(q.folderOnly).toBe(true)
+    expect(q.textGroups).toEqual([[{ kind: 'substr', value: '!Thumbnails', wholeWord: false }]])
+    expect(q.notText).toEqual([])
+    expect(
+      rowMatchesStructured(row({ path: 'C:\\a\\!Thumbnails', name: '!Thumbnails', isDir: true }), q)
+    ).toBe(true)
+    expect(
+      rowMatchesStructured(row({ path: 'C:\\a\\!Thumbnails.txt', name: '!Thumbnails.txt' }), q)
+    ).toBe(false)
+  })
+
+  it('still excludes with photo !tmp after a name anchor', () => {
+    const q = parseEverythingQuery('photo !tmp')
+    expect(q.notText.length).toBe(1)
+    expect(rowMatchesStructured(row({ path: 'C:\\a\\photo.jpg', name: 'photo.jpg' }), q)).toBe(true)
+    expect(rowMatchesStructured(row({ path: 'C:\\a\\photo.tmp', name: 'photo.tmp' }), q)).toBe(false)
+  })
+
   it('parses note / hasnote / notestatus / todo', () => {
     const q = parseEverythingQuery('note:lab notestatus:review todo:')
     expect(q.noteText).toBe('lab')

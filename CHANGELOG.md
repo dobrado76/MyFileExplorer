@@ -12,12 +12,15 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Changed
 
 - **Quick Launch** — program icons fill the toolbar control. Add / edit / remove is Settings only (no toolbar +). The strip is hidden until at least one program is pinned. Each pin can show **icon**, **label**, or **both**. The glyph is the program icon, a Lucide icon + color, or a custom image (same choices as tab / item icons).
-- **Global scripts** — each saved global script is its own toolbar button. The strip is hidden when none exist (no globe menu).
+- **Global scripts** — each saved global script is its own toolbar button (hidden when none exist). Toolbar face matches Quick Launch: **icon** / **label** / **both**, with Lucide, custom image, or External file glyph (Script Manager when Global is on).
 - **New tab (+)** — sits immediately after the last tab (not pinned to the far right of the tab bar).
 - **Enter on images** — same as double-click: opens the in-app viewer with folder siblings (prev/next). Previously Enter treated a single image as a one-item “selection-only” gallery.
 
 ### Fixed
 
+- **Search Show hidden vs view filter** — with **Show hidden** on, every search hit is shown (view filter does not clip results). With it off, Hidden items stay out of the search and the toolbar view filter (if on) still applies to the result list.
+- **Slideshow vs view filter** — when the toolbar view filter is on, folder image discovery skips Windows Hidden files/folders and view-filter pattern matches (e.g. Hidden `!Thumbnails`). Turn the eye off to include them.
+- **Search `!Thumbnails` / hidden folders** — leading `!Name` is a literal name (`folder:!Thumbnails` keeps the value). Folder-scope search falls back to a live walk when the index returns no name hits (stale index). Search-exclude patterns do not hide an item whose basename the query explicitly names. Finding Hidden items needs Search **Show hidden** (or `attrib:h`); with Show hidden on, hits are not clipped by the toolbar view filter.
 - **Preview after image edit** — saving an edit (NTFS tip ADS) refreshed the thumbnail but left the preview pane on the old frame when listing mtime/size did not change. Preview stamp now follows `columnMetaBump` so docked and detached preview reload with the tip.
 - **Slideshow speed vs list size** — folder size must only affect start/build time, not play speed. Playlist paths stay outside Zustand; while playing, the file grid / preview / status bar unmount, listing DirEntries are dropped, and the image-list cache is parked out of reactive settings so decode/GC do not scale with folder size.
 - **Max tokens (Scripting and AI)** — typeable field (draft while editing); spinner steps by 1024. Previously every keystroke that left a mid-edit value under 256 was rejected and snapped back to 4096.

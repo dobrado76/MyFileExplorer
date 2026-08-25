@@ -1,6 +1,6 @@
 import { useMemo, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
-import { compileViewFilter } from '../lib/viewFilter'
+import { isExcludedByViewFilter } from '../lib/viewFilter'
 
 type Props = {
   /** Pane this banner belongs to. Results stay on that tab while you work in another pane. */
@@ -17,12 +17,21 @@ export function SearchBanner({ paneIndex }: Props): JSX.Element | null {
   const clearSearch = useAppStore((s) => s.clearSearch)
   const viewFilterEnabled = useAppStore((s) => s.settings.viewFilterEnabled)
   const viewFilterPatterns = useAppStore((s) => s.settings.viewFilterPatterns)
+  const searchShowHidden = useAppStore((s) => s.settings.searchShowHidden)
 
   const visibleCount = useMemo(() => {
     if (!search) return 0
-    const isHidden = compileViewFilter(viewFilterPatterns, viewFilterEnabled)
-    return search.results.filter((r) => !isHidden(r.path)).length
-  }, [search, viewFilterEnabled, viewFilterPatterns])
+    // Show hidden ON → every hit. OFF → same view-filter rules as the file list (if eye on).
+    if (searchShowHidden || !viewFilterEnabled) return search.results.length
+    return search.results.filter(
+      (r) =>
+        !isExcludedByViewFilter(
+          { path: r.path, isHidden: r.isHidden === true },
+          viewFilterPatterns,
+          true
+        )
+    ).length
+  }, [search, searchShowHidden, viewFilterEnabled, viewFilterPatterns])
 
   if (!search?.active || search.running) return null
 

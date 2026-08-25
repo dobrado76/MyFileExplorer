@@ -7,14 +7,18 @@ import type {
   SearchResultItem
 } from '@shared/schemas/search'
 import { compilePathPatterns } from '@shared/pathPatterns'
+import { isHiddenSearchHit } from '@shared/searchHidden'
+import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
 import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { broadcast } from '../ipc/events'
 import { settingsStore } from '../settings/store'
+import { pathIsHidden } from '../fs/winAttrs'
 import { searchDb } from './db'
 import { isIncompleteSearchQuery, nameMatches, queryTokens } from './queryBuilder'
 import { isBasicNameQuery, parseEverythingQuery, searchDecodeMessage } from './everythingQuery'
 import { liveWalkSearch, type CancelToken } from './liveWalk'
 import { queryIndexStructured } from './executeQuery'
+import { isSkippedBySearchExclude } from './searchExclude'
 import {
   listIndexRoots,
   addIndexRoot,
@@ -162,11 +166,28 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
     const basic = isBasicNameQuery(query)
     const { parseEverythingQuery, rowMatchesStructured } = await import('./everythingQuery')
     const q = basic ? null : parseEverythingQuery(query, opts)
-    const excluded = compilePathPatterns(settingsStore().get().searchExcludeDirNames)
+    const settings = settingsStore().get()
+    const excluded = compilePathPatterns(settings.searchExcludeDirNames)
+    const showHidden = settings.searchShowHidden === true || q?.attrib?.hidden === true
     for (const d of dirents) {
       const full = path.join(dir, d.name)
-      if (excluded(full)) continue
+      if (
+        isSkippedBySearchExclude(
+          full,
+          excluded,
+          query,
+          basic ? null : q,
+          basic
+        )
+      ) {
+        continue
+      }
       const isDir = d.isDirectory()
+      const hidden =
+        d.name.toLowerCase() === VID_THUMB_CACHE_DIR.toLowerCase() ||
+        pathIsHidden(full) ||
+        isHiddenSearchHit({ path: full })
+      if (!showHidden && hidden) continue
       let size = 0
       let mtimeMs = 0
       try {
@@ -184,7 +205,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
             { rootPrefix: dir, childCount: isDir ? undefined : undefined }
           )
       if (hit) {
-        items.push({ path: full, name: d.name, size, mtimeMs, isDir })
+        items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
       }
       if (items.length >= limit) break
     }
@@ -204,15 +225,20 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
         limit,
         opts
       )
-      broadcast({
-        type: 'search-progress',
-        payload: { phase: 'done', current: items.length, items: [...items], gen: req.gen }
-      })
-      return {
-        items: items.slice(offset, offset + limit),
-        partial,
-        source: 'index',
-        contentSlow
+      // Stale / incomplete index: name queries with zero hits fall back to a live walk.
+      const wantsName =
+        isBasicNameQuery(query) || decoded.textGroups.length > 0
+      if (items.length > 0 || !wantsName) {
+        broadcast({
+          type: 'search-progress',
+          payload: { phase: 'done', current: items.length, items: [...items], gen: req.gen }
+        })
+        return {
+          items: items.slice(offset, offset + limit),
+          partial,
+          source: 'index',
+          contentSlow
+        }
       }
     }
   }

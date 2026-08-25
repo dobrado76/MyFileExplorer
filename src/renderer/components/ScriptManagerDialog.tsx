@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
-import type { ScriptDefinition, ScriptLanguage, ScriptScope } from '@shared/schemas/scripts'
+import type { ScriptDefinition, ScriptLanguage, ScriptScope, ScriptToolbarShow } from '@shared/schemas/scripts'
 import {
   defaultScriptDefinition,
   isGlobalScript,
-  scriptFileExtension
+  scriptFileExtension,
+  SCRIPT_TOOLBAR_LUCIDE_COLOR,
+  SCRIPT_TOOLBAR_LUCIDE_DEFAULT
 } from '@shared/schemas/scripts'
+import type { QuickLaunchItem } from '@shared/schemas/quickLaunch'
 import { looksDestructive } from '@shared/scriptDestructive'
 import { useAppStore } from '../store/appStore'
 import {
@@ -17,6 +20,8 @@ import {
   call,
   formatError
 } from './scriptUi'
+import { GlobalScriptIcon } from './GlobalScriptIcon'
+import { QuickLaunchIconPicker, type QuickLaunchIconPatch } from './QuickLaunchIconPicker'
 
 const LANGS: ScriptLanguage[] = ['powershell', 'python', 'cmd', 'bash']
 
@@ -41,7 +46,11 @@ const T = {
   minSelection:
     'For Selection scope: hide the script in the context menu unless at least this many items are selected. 0 = no minimum. Ignored when Global is on.',
   global:
-    'Run from its toolbar button with no folder and no selection (the strip is hidden until you save a global script). Turns off Folder, Selection, Recursive, and Context menu. External file can stay on.',
+    'Run from its toolbar button with no folder and no selection (the strip is hidden until you save a global script). Turns off Folder, Selection, Recursive, and Context menu. External file can stay on. Set Show (icon / label / both) and Icon… like Quick Launch.',
+  toolbarShow:
+    'Toolbar face for this global script: icon only (name as tooltip), label only, or both — same as Quick Launch.',
+  toolbarIcon:
+    'Choose a Lucide glyph, a custom image, or the Windows icon for an External script file.',
   parameters:
     'One parameter per line: name|type|label|required. Types: string, int, float, bool, file, folder, choice. Required is 1 or 0. At run time each value is passed as --name value.',
   dependencies:
@@ -117,6 +126,12 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [toolbarShow, setToolbarShow] = useState<ScriptToolbarShow>('label')
+  const [iconKind, setIconKind] = useState<ScriptDefinition['iconKind']>('lucide')
+  const [iconId, setIconId] = useState<string | undefined>(undefined)
+  const [lucideName, setLucideName] = useState(SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
+  const [lucideColor, setLucideColor] = useState(SCRIPT_TOOLBAR_LUCIDE_COLOR)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -156,6 +171,12 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
     setExternalPath(s.externalPath ?? '')
     setSource(src)
     setHasPrevious(prev)
+    setToolbarShow(s.toolbarShow ?? 'label')
+    setIconKind(s.iconKind ?? 'lucide')
+    setIconId(s.iconId)
+    setLucideName(s.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
+    setLucideColor(s.lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR)
+    setIconPickerOpen(false)
   }
 
   useEffect(() => {
@@ -220,7 +241,12 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             dependencies: dependencies
               .split(/[\s,;]+/)
               .map((x) => x.trim())
-              .filter(Boolean)
+              .filter(Boolean),
+            toolbarShow,
+            iconKind,
+            iconId: iconKind === 'custom' ? iconId : undefined,
+            lucideName: lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT,
+            lucideColor: lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR
           },
           source
         })
@@ -610,6 +636,54 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                   No folder or selection
                 </span>
               </label>
+              {global ? (
+                <div className="script-toolbar-face" title={T.toolbarShow}>
+                  <div className="settings-ql-icon" aria-hidden>
+                    <GlobalScriptIcon
+                      script={{
+                        ...defaultScriptDefinition(),
+                        id: currentId || 'draft',
+                        createdAt: '',
+                        updatedAt: '',
+                        name,
+                        language,
+                        scopes: ['global'],
+                        sourceKind,
+                        externalPath: sourceKind === 'external' ? externalPath : undefined,
+                        toolbarShow,
+                        iconKind,
+                        iconId,
+                        lucideName,
+                        lucideColor
+                      }}
+                      size={24}
+                    />
+                  </div>
+                  <label className="settings-ql-show">
+                    <span className="dim">Show</span>
+                    <select
+                      value={toolbarShow}
+                      aria-label="Toolbar face"
+                      onChange={(e) => {
+                        setToolbarShow(e.target.value as ScriptToolbarShow)
+                        setDirty(true)
+                      }}
+                    >
+                      <option value="icon">Icon</option>
+                      <option value="label">Label</option>
+                      <option value="both">Icon and label</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="btn"
+                    title={T.toolbarIcon}
+                    onClick={() => setIconPickerOpen(true)}
+                  >
+                    Icon…
+                  </button>
+                </div>
+              ) : null}
               <label className="settings-field script-meta-wide" title={T.parameters}>
                 <span>Parameters (name|type|label|required)</span>
                 <textarea
@@ -787,6 +861,45 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
           )}
         </div>
       </div>
+      {iconPickerOpen ? (
+        <QuickLaunchIconPicker
+          item={
+            {
+              id: currentId || 'draft',
+              name: name.trim() || 'Script',
+              path: sourceKind === 'external' ? externalPath : '',
+              args: '',
+              show: toolbarShow,
+              iconKind,
+              iconId,
+              lucideName,
+              lucideColor
+            } satisfies QuickLaunchItem
+          }
+          titlePrefix="Script icon"
+          shellTabLabel="File icon"
+          shellHelp={
+            sourceKind === 'external' && externalPath.trim()
+              ? 'Uses the Windows glyph for the external script file.'
+              : 'No external file — Save with External file, or pick Lucide / Custom image.'
+          }
+          onClose={() => setIconPickerOpen(false)}
+          onApply={(patch: QuickLaunchIconPatch) => {
+            setIconKind(patch.iconKind)
+            setLucideColor(patch.lucideColor)
+            if (patch.iconKind === 'custom' && patch.iconId) {
+              setIconId(patch.iconId)
+            } else {
+              setIconId(undefined)
+            }
+            if (patch.iconKind === 'lucide') {
+              setLucideName(patch.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
+            }
+            setIconPickerOpen(false)
+            setDirty(true)
+          }}
+        />
+      ) : null}
     </ScriptModal>
   )
 }

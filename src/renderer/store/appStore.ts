@@ -1061,12 +1061,12 @@ function selectablePathsForTab(s: AppState, tabId: string): string[] {
     samePath(listingPath, s.mediaLibrary.folderPath)
   return poolEntriesForTab(s, tabId)
     .filter((e) => {
-      // Recycle Bin shows every item — view filters / $Recycle.Bin patterns do not apply.
+      // Recycle Bin: every item. Search + Show hidden: every hit. Else view filter when on.
+      const skipViewFilter =
+        recycleActive || (searchActive && s.settings.searchShowHidden === true)
       if (
-        !recycleActive &&
-        isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled, {
-          ignoreHiddenAttr: searchActive
-        })
+        !skipViewFilter &&
+        isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
       ) {
         return false
       }
@@ -2344,10 +2344,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
     const before = sortEntries(
       sourceEntries.filter((e) => {
+        const skipViewFilter = tab.search.active && s.settings.searchShowHidden === true
         if (
-          isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled, {
-            ignoreHiddenAttr: tab.search.active
-          })
+          !skipViewFilter &&
+          isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
         ) {
           return false
         }

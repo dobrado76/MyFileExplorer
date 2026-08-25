@@ -598,11 +598,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const isExcluded = useMemo(
     () => (e: { path: string; isHidden: boolean }) => {
       if (!viewFilterOn) return false
-      // Search uses Settings → Search “Show hidden”; do not also hide by attribute here.
-      if (!searchMode && e.isHidden) return true
+      if (e.isHidden) return true
       return compiledFilter(e.path)
     },
-    [viewFilterOn, compiledFilter, searchMode]
+    [viewFilterOn, compiledFilter]
   )
   const fileMetaColumns = useMemo(
     () =>
@@ -702,17 +701,23 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     // Avoid copying 20k entries when the filter cannot hide anything.
     // Recycle Bin always shows the full bin (paths live under $Recycle.Bin —
     // a view-filter pattern for that name would empty the list).
+    // Search: Show hidden ON → every hit (like Recycle Bin). OFF → view filter if eye is on.
     let filtered = sourceEntries
-    if (viewFilterOn && !recycleMode) {
-      if (searchMode) {
-        if (viewPatterns.length > 0) {
-          filtered = sourceEntries.filter((e) => !compiledFilter(e.path))
+    if (searchMode && !recycleMode) {
+      if (!settings.searchShowHidden && viewFilterOn) {
+        if (viewPatterns.length === 0) {
+          const hasHidden = filtered.some((e) => e.isHidden)
+          if (hasHidden) filtered = filtered.filter((e) => !e.isHidden)
+        } else {
+          filtered = filtered.filter((e) => !isExcluded(e))
         }
-      } else if (viewPatterns.length === 0) {
-        const hasHidden = sourceEntries.some((e) => e.isHidden)
-        if (hasHidden) filtered = sourceEntries.filter((e) => !e.isHidden)
+      }
+    } else if (viewFilterOn && !recycleMode) {
+      if (viewPatterns.length === 0) {
+        const hasHidden = filtered.some((e) => e.isHidden)
+        if (hasHidden) filtered = filtered.filter((e) => !e.isHidden)
       } else {
-        filtered = sourceEntries.filter((e) => !isExcluded(e))
+        filtered = filtered.filter((e) => !isExcluded(e))
       }
     }
     const applyMedia =
@@ -796,6 +801,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     settings.foldersFirst,
     settings.mediaMetadata.enabled,
     settings.mediaMetadata.mixFilesAndFolders,
+    settings.searchShowHidden,
     viewMode,
     isExcluded,
     compiledFilter,
@@ -2036,7 +2042,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
               : searchMode
                 ? search.results.length === 0
                   ? (search.message ?? 'No results found')
-                  : 'All results hidden by view filter'
+                  : settings.searchShowHidden
+                    ? 'No results found'
+                    : 'All results hidden by view filter'
                 : 'This folder is empty'}
           </div>
         )}

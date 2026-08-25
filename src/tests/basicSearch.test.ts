@@ -62,6 +62,14 @@ describe('basic toolbar search — regression (dotted filenames)', () => {
     expect(searchDecodeMessage('!!Thumbs.db', parseEverythingQuery('!!Thumbs.db'))).toBeNull()
   })
 
+  it('REGRESSION: !Thumbnails alone is a literal name (folders and files)', () => {
+    expect(isBasicNameQuery('!Thumbnails')).toBe(true)
+    expect(parseEverythingQuery('!Thumbnails').textGroups).toEqual([
+      [{ kind: 'substr', value: '!Thumbnails', wholeWord: false }]
+    ])
+    expect(searchDecodeMessage('!Thumbnails', parseEverythingQuery('!Thumbnails'))).toBeNull()
+  })
+
   it('REGRESSION: searching readme.txt must not return folders or jpgs', () => {
     const names = fixtureNames('readme.txt')
     expect(names).toEqual(['readme.txt'])

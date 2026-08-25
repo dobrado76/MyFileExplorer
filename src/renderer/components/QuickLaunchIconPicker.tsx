@@ -44,11 +44,17 @@ export type QuickLaunchIconPatch = {
 export function QuickLaunchIconPicker({
   item,
   onClose,
-  onApply
+  onApply,
+  shellTabLabel = 'App icon',
+  shellHelp = 'Uses the .exe or shortcut glyph from Explorer.',
+  titlePrefix = 'Set icon'
 }: {
   item: QuickLaunchItem
   onClose: () => void
   onApply: (patch: QuickLaunchIconPatch) => void
+  shellTabLabel?: string
+  shellHelp?: string
+  titlePrefix?: string
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const [mode, setMode] = useState<QuickLaunchIconKind>(item.iconKind)
@@ -166,13 +172,15 @@ export function QuickLaunchIconPicker({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="modal modal-wide modal-tab-icon" role="dialog" aria-label="Quick Launch icon">
-        <div className="modal-title">Set icon — {item.name}</div>
+      <div className="modal modal-wide modal-tab-icon" role="dialog" aria-label={`${titlePrefix} — ${item.name}`}>
+        <div className="modal-title">
+          {titlePrefix} — {item.name}
+        </div>
         <div className="modal-body modal-body-tab-icon">
           <div className="item-icon-modes" role="tablist" aria-label="Icon source">
             {(
               [
-                ['shell', 'App icon'],
+                ['shell', shellTabLabel],
                 ['lucide', 'Lucide'],
                 ['custom', 'Custom image']
               ] as const
@@ -195,10 +203,8 @@ export function QuickLaunchIconPicker({
                 <ShellIcon path={resolvedPath} size={28} />
               </div>
               <div className="tab-icon-picker-meta">
-                <div className="tab-icon-picker-name">Windows program icon</div>
-                <div className="dim tab-icon-picker-pascal">
-                  Uses the .exe or shortcut glyph from Explorer.
-                </div>
+                <div className="tab-icon-picker-name">{shellTabLabel}</div>
+                <div className="dim tab-icon-picker-pascal">{shellHelp}</div>
               </div>
             </div>
           ) : null}

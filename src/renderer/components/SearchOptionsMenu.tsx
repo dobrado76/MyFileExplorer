@@ -172,7 +172,7 @@ export function SearchOptionsMenu(): JSX.Element {
             </label>
             <label
               className="search-options-row"
-              title="Off: skip Hidden files, !VIDTHUMB_CACHE, and items inside hidden folders. attrib:h still finds them."
+              title="On: find and show Hidden / !VIDTHUMB_CACHE (view filter does not hide hits). Off: omit Hidden from the search, and the toolbar view filter still applies to results when the eye is on. attrib:h still finds Hidden."
             >
               <input
                 type="checkbox"

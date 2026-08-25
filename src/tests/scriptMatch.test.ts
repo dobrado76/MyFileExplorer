@@ -46,6 +46,19 @@ describe('global script scopes', () => {
     expect(next.matchExtensions).toEqual([])
     expect(next.minSelection).toBe(0)
   })
+
+  it('falls back custom toolbar icon without iconId to Lucide', () => {
+    const next = applyGlobalScriptRules(
+      script({
+        scopes: ['global'],
+        iconKind: 'custom',
+        iconId: undefined,
+        lucideName: 'Zap'
+      })
+    )
+    expect(next.iconKind).toBe('lucide')
+    expect(next.lucideName).toBe('Zap')
+  })
 })
 
 describe('scriptMatchesMenu', () => {

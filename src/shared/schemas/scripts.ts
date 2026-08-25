@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  QUICK_LAUNCH_LUCIDE_COLOR,
+  quickLaunchIconKindSchema,
+  quickLaunchShowSchema
+} from './quickLaunch'
 
 export const SCRIPT_LANGUAGES = ['powershell', 'python', 'cmd', 'bash'] as const
 export type ScriptLanguage = (typeof SCRIPT_LANGUAGES)[number]
@@ -41,6 +46,13 @@ export const scriptParameterSchema = z.object({
 
 export type ScriptParameter = z.infer<typeof scriptParameterSchema>
 
+/** Toolbar face for Global scripts (same options as Quick Launch). */
+export const scriptToolbarShowSchema = quickLaunchShowSchema
+export type ScriptToolbarShow = z.infer<typeof scriptToolbarShowSchema>
+
+export const SCRIPT_TOOLBAR_LUCIDE_DEFAULT = 'ScrollText'
+export const SCRIPT_TOOLBAR_LUCIDE_COLOR = QUICK_LAUNCH_LUCIDE_COLOR
+
 export const scriptDefinitionSchema = z.object({
   id: z.string().min(1).max(80),
   name: z.string().min(1).max(120),
@@ -61,6 +73,19 @@ export const scriptDefinitionSchema = z.object({
   matchExtensions: z.array(z.string().min(1).max(20)).max(40).catch([]),
   minSelection: z.number().int().min(0).max(10_000).catch(0),
   dependencies: z.array(z.string().min(1).max(120)).max(40).catch([]),
+  /** Global toolbar: icon, label, or both (ignored for non-global). */
+  toolbarShow: scriptToolbarShowSchema.catch('label'),
+  iconKind: quickLaunchIconKindSchema.catch('lucide'),
+  /** Basename id under userData/quick-launch when iconKind is custom. */
+  iconId: z
+    .string()
+    .regex(/^[a-zA-Z0-9_-]{4,80}$/)
+    .optional(),
+  lucideName: z.string().min(1).max(80).catch(SCRIPT_TOOLBAR_LUCIDE_DEFAULT),
+  lucideColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .catch(SCRIPT_TOOLBAR_LUCIDE_COLOR),
   createdAt: z.string().catch(''),
   updatedAt: z.string().catch('')
 })
@@ -79,10 +104,30 @@ export function normalizeScriptScopes(scopes: ScriptScope[] | null | undefined):
   return next.length > 0 ? next : ['folder']
 }
 
+/** Coerce toolbar icon fields after parse / upsert. */
+export function sanitizeScriptToolbar<T extends ScriptDefinition>(script: T): T {
+  let next: ScriptDefinition = { ...script }
+  if (next.iconKind === 'custom' && !next.iconId) {
+    next = {
+      ...next,
+      iconKind: 'lucide',
+      lucideName: next.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT
+    }
+  }
+  if (next.iconKind === 'lucide' && !next.lucideName) {
+    next = { ...next, lucideName: SCRIPT_TOOLBAR_LUCIDE_DEFAULT }
+  }
+  if (!next.lucideColor) {
+    next = { ...next, lucideColor: SCRIPT_TOOLBAR_LUCIDE_COLOR }
+  }
+  return next as T
+}
+
 export function applyGlobalScriptRules<T extends ScriptDefinition>(script: T): T {
-  if (!isGlobalScript(script)) return { ...script, scopes: normalizeScriptScopes(script.scopes) }
+  const base = sanitizeScriptToolbar(script)
+  if (!isGlobalScript(base)) return { ...base, scopes: normalizeScriptScopes(base.scopes) }
   return {
-    ...script,
+    ...base,
     scopes: ['global'],
     recursive: false,
     contextMenuEnabled: false,
@@ -208,5 +253,9 @@ export const defaultScriptDefinition = (): Omit<
   category: '',
   matchExtensions: [],
   minSelection: 0,
-  dependencies: []
+  dependencies: [],
+  toolbarShow: 'label',
+  iconKind: 'lucide',
+  lucideName: SCRIPT_TOOLBAR_LUCIDE_DEFAULT,
+  lucideColor: SCRIPT_TOOLBAR_LUCIDE_COLOR
 })

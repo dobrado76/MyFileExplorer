@@ -1,8 +1,9 @@
 /**
- * Global view filter: hides files/folders from listings, the tree and search
- * results. Purely visual — never touches filesystem attributes.
+ * Global view filter: hides files/folders from listings and the tree.
+ * Search results: clipped by the view filter only when Search “Show hidden” is off
+ * (and the eye is on). With Show hidden on, every hit is shown.
  *
- * When enabled:
+ * When enabled (browse / search without Show hidden):
  *   - items matching patterns are hidden
  *   - items with the Windows Hidden attribute are hidden (Explorer “don’t show hidden”)
  * When disabled: everything shows; Windows-hidden items are greyed in the UI.

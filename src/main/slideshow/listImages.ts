@@ -2,11 +2,20 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
 import { AppError } from '@shared/result'
+import { compilePathPatterns, type PathPatternPredicate } from '@shared/pathPatterns'
 import type { SlideshowListRequest } from '@shared/schemas/slideshow'
 import { isSlideshowImagePath, SLIDESHOW_IMAGE_LIST_CAP } from '@shared/slideshow/constants'
 import { requireAbsolute, pathExists } from '../fs/list'
+import { pathIsHidden } from '../fs/winAttrs'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
+import { settingsStore } from '../settings/store'
+
+type WalkFilter = {
+  /** Same as toolbar view filter on: skip Hidden + pattern matches (do not descend). */
+  hideHidden: boolean
+  filterMatch: PathPatternPredicate
+}
 
 const LIST_CAP = SLIDESHOW_IMAGE_LIST_CAP
 
@@ -46,11 +55,18 @@ function emitListProgress(found: number, current: string, force = false): void {
   })
 }
 
+function skipByViewFilter(full: string, filter: WalkFilter): boolean {
+  if (!filter.hideHidden) return false
+  if (filter.filterMatch(full)) return true
+  return pathIsHidden(full)
+}
+
 async function walkImages(
   root: string,
   out: ImageEntry[],
   gen: number,
-  needSize: boolean
+  needSize: boolean,
+  filter: WalkFilter
 ): Promise<void> {
   if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
   let dirents
@@ -63,6 +79,9 @@ async function walkImages(
   for (const d of dirents) {
     if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
     const full = path.join(root, d.name)
+    // Match browse: when the toolbar eye hides Hidden/patterns, do not enter those folders
+    // or include those files (e.g. Hidden `!Thumbnails`).
+    if (skipByViewFilter(full, filter)) continue
     if (d.isDirectory()) {
       dirs.push(full)
       continue
@@ -83,7 +102,7 @@ async function walkImages(
   for (let i = 0; i < dirs.length; i += CONC) {
     if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
     const batch = dirs.slice(i, i + CONC)
-    await Promise.all(batch.map((dir) => walkImages(dir, out, gen, needSize)))
+    await Promise.all(batch.map((dir) => walkImages(dir, out, gen, needSize, filter)))
   }
 }
 
@@ -205,9 +224,15 @@ export async function listSlideshowImages(
   const entries: ImageEntry[] = []
   lastProgressMs = 0
   const needSize = req.order === 'size'
+  const settings = settingsStore().get()
+  const hideHidden = settings.viewFilterEnabled === true
+  const filter: WalkFilter = {
+    hideHidden,
+    filterMatch: compilePathPatterns(hideHidden ? settings.viewFilterPatterns : [])
+  }
   for (const root of roots) {
     throwIfListStale(gen)
-    await walkImages(root, entries, gen, needSize)
+    await walkImages(root, entries, gen, needSize, filter)
   }
   const truncated = entries.length >= LIST_CAP
 

@@ -110,6 +110,24 @@ describe('liveWalkSearch', () => {
       expect(items.map((i) => i.name)).toEqual(['!!Thumbs.db'])
     })
 
+    it('finds a !Thumbnails folder even when that name is in search excludes', async () => {
+      await fsp.mkdir(path.join(root, '!Thumbnails'), { recursive: true })
+      const { items } = await liveWalkSearch(root, '!Thumbnails', ['!Thumbnails'], 100, {
+        cancelled: false
+      })
+      expect(items.map((i) => i.name)).toEqual(['!Thumbnails'])
+      expect(items[0]?.isDir).toBe(true)
+    })
+
+    it('finds folder:!Thumbnails as folders-only with leading bang', async () => {
+      await fsp.mkdir(path.join(root, '!Thumbnails'), { recursive: true })
+      await fsp.writeFile(path.join(root, '!Thumbnails-notes.txt'), 'x')
+      const { items } = await liveWalkSearch(root, 'folder:!Thumbnails', [], 100, {
+        cancelled: false
+      })
+      expect(items.map((i) => i.name)).toEqual(['!Thumbnails'])
+    })
+
     it('still name-only when matchPath and regex toggles are on', async () => {
       const { items } = await liveWalkSearch(
         root,

@@ -22,6 +22,7 @@ import { isHiddenSearchHit, normalizeSearchPathKey } from '@shared/searchHidden'
 import { settingsStore } from '../settings/store'
 import { nameMatches } from './queryBuilder'
 import { buildNoteIndexSql, buildSearchSql } from './searchSql'
+import { isSkippedBySearchExclude } from './searchExclude'
 
 type FileRow = {
   path: string
@@ -158,9 +159,8 @@ export async function queryIndexStructured(
   const hiddenDirs = showHidden ? undefined : loadHiddenDirKeys(pathPrefix)
   const attrsByPath = new Map(rows.map((r) => [r.path, r.attrs]))
   let items = rowsToItems(rows, hiddenDirs).filter((it) => {
-    if (excluded(it.path)) return false
-    if (!showHidden && it.isHidden) return false
-    return basic
+    if (isSkippedBySearchExclude(it.path, excluded, query, q, basic)) return false
+    const structuredOk = basic
       ? nameMatches(it.name, query)
       : rowMatchesStructured(
           {
@@ -174,6 +174,9 @@ export async function queryIndexStructured(
           q,
           { rootPrefix: pathPrefix }
         )
+    if (!structuredOk) return false
+    if (!showHidden && it.isHidden) return false
+    return true
   })
 
   // notText already in rowMatchesStructured
