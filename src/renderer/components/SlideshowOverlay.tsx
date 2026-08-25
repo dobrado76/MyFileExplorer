@@ -156,16 +156,7 @@ export function SlideshowOverlay(): JSX.Element | null {
       }
     }
     setPrefetchPath(folderPathAt(nextIdx))
-  }, [
-    enabled,
-    active?.index,
-    active?.compiledMode,
-    active?.status,
-    active?.currentPath,
-    skippedSize,
-    listLen,
-    loop
-  ])
+  }, [enabled, active, skippedSize, listLen, loop])
 
   // Present `path` via back buffer → decode → double-rAF swap (V-Sync).
   // Unloadable / undecodable images are skipped (do not interrupt autoplay).
@@ -279,10 +270,8 @@ export function SlideshowOverlay(): JSX.Element | null {
   }, [
     enabled,
     path,
-    active?.index,
-    active?.status,
+    active,
     listLen,
-    active?.compiledMode,
     imageRevision,
     drawCaption,
     slideshowSkipUnloadable,
@@ -322,9 +311,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
   }, [
     enabled,
-    active?.status,
-    active?.index,
-    active?.pathCount,
+    active,
     listLen,
     delayMs,
     slideshowAdvanceAuto,
@@ -583,9 +570,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
   }, [
     enabled,
-    active?.status,
-    active?.index,
-    active?.currentPath,
+    active,
     map,
     dialogOpen,
     imageEditorOpen,
