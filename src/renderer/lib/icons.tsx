@@ -213,6 +213,18 @@ export const ViewPresetsIcon = svg(
     <path d="M13 6.5h8M13 17.5h8" />
   </>
 )
+export const PinIcon = svg(
+  <>
+    <path d="M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6z" />
+    <path d="M12 14v7" />
+  </>
+)
+export const PinOffIcon = svg(
+  <>
+    <path d="M8 3h8l-1 6 3 3v2H6v-2l3-3-1-6z" />
+    <path d="M12 14v7M4 4l16 16" />
+  </>
+)
 /** Named workspace layouts (tabs + chrome). */
 export const LayoutsIcon = svg(
   <>

@@ -1174,6 +1174,32 @@ textarea:focus {
   display: flex;
   flex-direction: row;
   overflow: hidden;
+  position: relative;
+}
+.pane-tree-toggle {
+  position: absolute;
+  top: 4px;
+  z-index: 3;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 25%);
+}
+.pane-tree-collapsed-rail {
+  flex: 0 0 27px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 4px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+.pane-tree-toggle-collapsed {
+  width: 22px;
+  height: 22px;
+  padding: 1px;
+  color: var(--text-dim);
 }
 .pane-body .pane-tree {
   min-width: 0;

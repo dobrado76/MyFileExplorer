@@ -8,7 +8,7 @@ import { ViewPresetsMenu } from './ViewPresetsMenu'
 import { FolderTree } from './FolderTree'
 import { FileView } from './FileView'
 import { Splitter } from './Splitter'
-import { ArrowLeft, ArrowRight, ArrowUp, RefreshIcon, TreePanelIcon } from '../lib/icons'
+import { ArrowLeft, ArrowRight, ArrowUp, PinIcon, PinOffIcon, RefreshIcon } from '../lib/icons'
 import { parentOf, samePath } from '../lib/paths'
 
 const VIEW_MODES: { mode: ViewMode; label: string }[] = [
@@ -222,18 +222,6 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
           <RefreshIcon />
         </button>
         <Breadcrumb tabId={tabId} />
-        <button
-          className={`icon-btn${treeCollapsed ? '' : ' active'}`}
-          aria-label="Toggle folder tree"
-          title="Toggle folder tree"
-          onClick={(e) => {
-            e.stopPropagation()
-            focusPane(paneIndex)
-            togglePaneTree(paneIndex)
-          }}
-        >
-          <TreePanelIcon />
-        </button>
         <ViewPresetsMenu />
         <select
           aria-label="View mode"
@@ -253,6 +241,37 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
         </select>
       </div>
       <div className="pane-body">
+        {treeCollapsed && (
+          <div className="pane-tree-collapsed-rail">
+            <button
+              className="icon-btn pane-tree-toggle-collapsed"
+              aria-label="Show folder tree"
+              title="Show folder tree"
+              onClick={(e) => {
+                e.stopPropagation()
+                focusPane(paneIndex)
+                togglePaneTree(paneIndex)
+              }}
+            >
+              <PinIcon size={18} />
+            </button>
+          </div>
+        )}
+        {!treeCollapsed && (
+          <button
+            className="pane-tree-toggle icon-btn"
+            aria-label="Hide folder tree"
+            title="Hide folder tree"
+            style={{ left: Math.max(4, treeWidth - 34) }}
+            onClick={(e) => {
+              e.stopPropagation()
+              focusPane(paneIndex)
+              togglePaneTree(paneIndex)
+            }}
+          >
+            <PinOffIcon size={18} />
+          </button>
+        )}
         {!treeCollapsed && (
           <>
             <div className="pane-tree" data-drag-scroll style={{ width: treeWidth }}>
