@@ -34,7 +34,7 @@ import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing
 import { ChevronDown, ChevronRight, RecycleBinIcon } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
 import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
-import { isRecycleBinTreePath, RECYCLE_BIN_TREE_PATH } from '@shared/recycleBinTree'
+import { isRecycleBinTreePath, RECYCLE_BIN_TREE_PATH, recycleBinShowsInTree } from '@shared/recycleBinTree'
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
@@ -1172,7 +1172,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         Drives
       </div>
       {drives.map((d) => renderNode(d.path, d.label, 0, 'drives'))}
-      {settings.showRecycleBinInTree !== false && (
+      {recycleBinShowsInTree(settings.recycleBinPlacement) && (
         <div
           className={`tree-node tree-recycle${recycleBinActive ? ' selected' : ''}${treeFocusPath !== null && isRecycleBinTreePath(treeFocusPath) && !recycleBinActive ? ' tree-focused' : ''}`}
           style={{ paddingLeft: 6 }}

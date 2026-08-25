@@ -3078,13 +3078,32 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showTabIcons}
                 onChange={(v) => void applySettingsPatch({ showTabIcons: v })}
               />
-              <SettingsToggle
-                id="set-show-recycle-bin-tree"
-                label="Show Recycle Bin in the tree"
-                hint="On by default (This PC / Drives, after the drive letters). Off hides the tree row only — the tab-bar Recycle Bin button still works."
-                checked={settings.showRecycleBinInTree}
-                onChange={(v) => void applySettingsPatch({ showRecycleBinInTree: v })}
-              />
+              <label
+                className="settings-field"
+                htmlFor="set-recycle-bin-placement"
+                title="Where Recycle Bin appears in the shell. Tree row keeps the label; the tab-bar control is icon-only."
+              >
+                <span>Recycle Bin</span>
+                <select
+                  id="set-recycle-bin-placement"
+                  value={settings.recycleBinPlacement}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      recycleBinPlacement: e.target.value as typeof settings.recycleBinPlacement
+                    })
+                  }
+                >
+                  <option value="none">Don&apos;t show</option>
+                  <option value="tree">Show in Tree</option>
+                  <option value="toolbar">Show in Toolbar</option>
+                  <option value="both">Show in both Tree and Bar</option>
+                </select>
+              </label>
+              <p className="settings-field-hint settings-field-span">
+                Default is both (This PC / Drives tree row after the drive letters, plus a tab-bar
+                icon). Don&apos;t show hides both; the Drives header context menu still has Open /
+                Empty Recycle Bin.
+              </p>
               {devGatePresent && (
                 <SettingsToggle
                   id="set-dev-gated-items"

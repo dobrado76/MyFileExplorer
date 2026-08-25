@@ -31,7 +31,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'appearance',
     label: 'Appearance',
     keywords:
-      'theme dark light custom font family size icon px tab equal width icons color colour colors chrome look recycle bin tree'
+      'theme dark light custom font family size icon px tab equal width icons color colour colors chrome look recycle bin tree toolbar bar placement'
   },
   {
     id: 'behavior',

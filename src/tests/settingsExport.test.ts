@@ -309,15 +309,26 @@ describe('settings export / import', () => {
     expect(parsed.settings.showTabIcons).toBe(false)
   })
 
-  it('defaults showRecycleBinInTree to true and round-trips off', () => {
-    expect(defaultSettings.showRecycleBinInTree).toBe(true)
-    const { showRecycleBinInTree: _omit, ...rest } = defaultSettings
-    expect(settingsSchema.parse(rest).showRecycleBinInTree).toBe(true)
+  it('defaults recycleBinPlacement to both and round-trips tree-only', () => {
+    expect(defaultSettings.recycleBinPlacement).toBe('both')
+    const { recycleBinPlacement: _omit, ...rest } = defaultSettings
+    expect(settingsSchema.parse(rest).recycleBinPlacement).toBe('both')
     const doc = buildSettingsExportDocument({
-      settings: { ...defaultSettings, showRecycleBinInTree: false },
+      settings: { ...defaultSettings, recycleBinPlacement: 'tree' },
       networkHosts: []
     })
-    expect(parseSettingsImport(doc).settings.showRecycleBinInTree).toBe(false)
+    expect(parseSettingsImport(doc).settings.recycleBinPlacement).toBe('tree')
+  })
+
+  it('migrates legacy showRecycleBinInTree to recycleBinPlacement', () => {
+    expect(
+      settingsSchema.parse({ version: 1, showRecycleBinInTree: false } as Record<string, unknown>)
+        .recycleBinPlacement
+    ).toBe('toolbar')
+    expect(
+      settingsSchema.parse({ version: 1, showRecycleBinInTree: true } as Record<string, unknown>)
+        .recycleBinPlacement
+    ).toBe('both')
   })
 
   it('round-trips remoteRepos.enabled via full settingsSchema', () => {

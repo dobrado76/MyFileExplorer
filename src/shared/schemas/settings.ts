@@ -76,6 +76,10 @@ import {
 } from './quickAccess'
 import { sanitizeViewPresets, viewPresetSchema, type ViewPreset } from './viewPresets'
 import { sanitizeQuickLaunch, quickLaunchItemSchema, type QuickLaunchItem } from './quickLaunch'
+import {
+  migrateRecycleBinPlacement,
+  recycleBinPlacementSchema
+} from '../recycleBinTree'
 import { normalizeFolderStatsSkipPaths } from '../folderStatsSkip'
 import {
   DEFAULT_USN_JOURNAL_DELTA_BYTES,
@@ -275,10 +279,10 @@ const settingsFieldsSchema = z.object({
   /** Paint Lucide icons on tabs. Assigned icons stay in the session when this is off. */
   showTabIcons: z.boolean().catch(true),
   /**
-   * Show Recycle Bin in the folder tree (Explorer parity). Tab-bar Recycle Bin stays available.
-   * On by default for a first install.
+   * Recycle Bin chrome: none | tree | toolbar | both (default both).
+   * Tab-bar button is icon-only; tree row keeps the label.
    */
-  showRecycleBinInTree: z.boolean().catch(true),
+  recycleBinPlacement: recycleBinPlacementSchema.catch('both'),
   foldersFirst: z.boolean().catch(true),
   /**
    * Explorer-style item checkboxes in the file view (toggle selection without Ctrl).
@@ -651,7 +655,7 @@ const settingsFieldsSchema = z.object({
   }, contextMenuSettingsSchema)
 })
 
-export const settingsSchema = settingsFieldsSchema
+export const settingsSchema = z.preprocess(migrateRecycleBinPlacement, settingsFieldsSchema)
 
 export type DetailsColumn = { id: DetailsColumnId; width: number }
 export type Settings = z.infer<typeof settingsSchema>
@@ -665,7 +669,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   iconSizePx: 20,
   tabEqualWidth: false,
   showTabIcons: true,
-  showRecycleBinInTree: true,
+  recycleBinPlacement: 'both',
   foldersFirst: true,
   itemCheckboxes: false,
   pasteNonFileClipboard: true,

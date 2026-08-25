@@ -133,14 +133,13 @@ textarea:focus {
 .tabbar-recycle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   flex-shrink: 0;
   align-self: center;
   margin-bottom: 4px;
-  padding: 4px 10px;
+  padding: 5px;
   border-radius: 6px;
   color: var(--text-dim);
-  white-space: nowrap;
 }
 .tabbar-recycle:hover {
   background: var(--bg-elevated);
@@ -149,9 +148,6 @@ textarea:focus {
 .tabbar-recycle.active {
   background: var(--bg-elevated);
   color: var(--accent);
-}
-.tabbar-recycle-label {
-  font-size: 12px;
 }
 
 .tab {
@@ -335,16 +331,18 @@ textarea:focus {
   font-size: inherit;
 }
 
-.tabbar .tab-new {
-  padding: 5px;
+.tabbar-tabs .tab-new {
   display: flex;
-  border-radius: 4px;
-  color: var(--text-dim);
-  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
   align-self: center;
   margin-bottom: 4px;
+  padding: 5px;
+  border-radius: 4px;
+  color: var(--text-dim);
 }
-.tabbar .tab-new:hover {
+.tabbar-tabs .tab-new:hover {
   background: var(--bg-elevated);
   color: var(--text);
 }

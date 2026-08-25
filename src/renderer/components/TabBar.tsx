@@ -10,6 +10,7 @@ import {
   shouldSuppressContextMenu
 } from '../lib/rightDrag'
 import { isCustomTabIcon, isIconOnlyTab, isLucideTabIcon } from '@shared/tabIcons'
+import { recycleBinShowsInToolbar } from '@shared/recycleBinTree'
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
@@ -66,6 +67,7 @@ export function TabBar(): JSX.Element {
   const fontSizePx = useAppStore((s) => s.settings.fontSizePx)
   const tabEqualWidth = useAppStore((s) => s.settings.tabEqualWidth)
   const showTabIcons = useAppStore((s) => s.settings.showTabIcons)
+  const recycleBinPlacement = useAppStore((s) => s.settings.recycleBinPlacement)
 
   const updateScrollState = useCallback((): void => {
     const el = tabsStripRef.current
@@ -110,13 +112,16 @@ export function TabBar(): JSX.Element {
     for (const tabEl of iconOnly) {
       iconOnlyWidth += tabEl.getBoundingClientRect().width
     }
+    const newBtn = el.querySelector<HTMLElement>('.tab-new')
+    const newBtnWidth = newBtn ? newBtn.getBoundingClientRect().width : 0
     el.classList.remove('is-measuring')
 
     const n = labeled.length
     const total = tabEls.length
     const fit = n === 0 ? 0 : Math.min(max, Math.max(min, Math.ceil(naturalMax)))
-    const needed =
-      n * fit + iconOnlyWidth + Math.max(0, total - 1) * gap
+    const tabGaps = Math.max(0, total - 1) * gap
+    const newBtnExtra = newBtnWidth > 0 ? gap + newBtnWidth : 0
+    const needed = n * fit + iconOnlyWidth + tabGaps + newBtnExtra
     if (n > 0 && needed > el.clientWidth + 0.5) {
       el.classList.add('is-equal')
     } else if (n > 0) {
@@ -456,6 +461,15 @@ export function TabBar(): JSX.Element {
             </div>
           )
         })}
+        <button
+          type="button"
+          className="tab-new"
+          aria-label="New tab"
+          title="New tab (Ctrl+T)"
+          onClick={() => void newTab()}
+        >
+          <PlusIcon size={14} />
+        </button>
       </div>
       <button
         type="button"
@@ -467,31 +481,24 @@ export function TabBar(): JSX.Element {
       >
         <ChevronRight size={14} />
       </button>
-      <button
-        className="tab-new"
-        aria-label="New tab"
-        title="New tab (Ctrl+T)"
-        onClick={() => void newTab()}
-      >
-        <PlusIcon size={14} />
-      </button>
-      <button
-        type="button"
-        className={`tabbar-recycle${recycleBinActive ? ' active' : ''}`}
-        aria-label="Recycle Bin"
-        aria-pressed={recycleBinActive}
-        aria-haspopup="menu"
-        title={recycleBinActive ? 'Close Recycle Bin' : 'Open Recycle Bin'}
-        onClick={onRecycleClick}
-        onContextMenu={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          setMenu({ kind: 'recycle', x: e.clientX, y: e.clientY })
-        }}
-      >
-        <RecycleBinIcon size={16} />
-        <span className="tabbar-recycle-label">Recycle Bin</span>
-      </button>
+      {recycleBinShowsInToolbar(recycleBinPlacement) && (
+        <button
+          type="button"
+          className={`tabbar-recycle${recycleBinActive ? ' active' : ''}`}
+          aria-label="Recycle Bin"
+          aria-pressed={recycleBinActive}
+          aria-haspopup="menu"
+          title={recycleBinActive ? 'Close Recycle Bin' : 'Open Recycle Bin'}
+          onClick={onRecycleClick}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setMenu({ kind: 'recycle', x: e.clientX, y: e.clientY })
+          }}
+        >
+          <RecycleBinIcon size={16} />
+        </button>
+      )}
 
       {menu?.kind === 'recycle' && menuPos
         ? createPortal(

@@ -13,6 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Quick Launch** — program icons fill the toolbar control. Add / edit / remove is Settings only (no toolbar +). The strip is hidden until at least one program is pinned. Each pin can show **icon**, **label**, or **both**. The glyph is the program icon, a Lucide icon + color, or a custom image (same choices as tab / item icons).
 - **Global scripts** — each saved global script is its own toolbar button. The strip is hidden when none exist (no globe menu).
+- **New tab (+)** — sits immediately after the last tab (not pinned to the far right of the tab bar).
 
 ### Fixed
 
@@ -21,7 +22,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
-- **Recycle Bin in the tree** — Settings → Appearance **Show Recycle Bin in the tree** (on by default). Shown after the drive letters (before Network / Remote). Click opens the in-app bin; right-click for Open / Empty. Turn off to hide the tree row; the tab-bar Recycle Bin button still works.
+- **Recycle Bin placement** — Settings → Appearance **Recycle Bin**: Don’t show / Show in Tree / Show in Toolbar / Show in both Tree and Bar (default both). Tree row keeps the label; the tab-bar control is icon-only. Right-click the **Drives** header still offers Open / Empty Recycle Bin.
 - **Global scripts** — Script Manager **Global** (next to Min selection) marks a script that runs with no folder or selection. Folder / Selection / Recursive / Context menu / Destructive / Dry-run turn off and stay disabled; External file can stay. Each global script is a toolbar button (hidden when none exist). Generate / Modify with AI Target **Global** so the draft does not require `--root` or `--input-list`.
 - **Quick Launch** — toolbar pins for the programs you use every day (Photoshop, Visual Studio, …). Settings → Quick Launch adds and edits name, path, arguments, icon / label / both, program / Lucide / custom icon, and order. Click to launch; right-click for Open file location / Remove. Drop an .exe or shortcut onto the strip when it is visible.
 

@@ -703,6 +703,26 @@ export function ContextMenu(): JSX.Element | null {
             builtin: 'control-panel',
             action: openWindowsTool('control-panel')
           },
+          { type: 'sep' },
+          {
+            type: 'item',
+            label: s.recycleBin.active ? 'Close Recycle Bin' : 'Open Recycle Bin',
+            action: () => {
+              close()
+              if (s.recycleBin.active) s.closeRecycleBinView()
+              else void s.openRecycleBinView()
+            }
+          },
+          {
+            type: 'item',
+            label: 'Empty Recycle Bin',
+            danger: true,
+            disabled: s.recycleBin.active && !s.recycleBin.loading && s.recycleBin.items.length === 0,
+            action: () => {
+              close()
+              s.emptyRecycleBinView()
+            }
+          },
           { type: 'sep' }
         )
       }
