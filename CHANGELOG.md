@@ -21,6 +21,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Recycle Bin in the tree** — Settings → Appearance **Show Recycle Bin in the tree** (on by default). Shown after the drive letters (before Network / Remote). Click opens the in-app bin; right-click for Open / Empty. Turn off to hide the tree row; the tab-bar Recycle Bin button still works.
 - **Global scripts** — Script Manager **Global** (next to Min selection) marks a script that runs with no folder or selection. Folder / Selection / Recursive / Context menu / Destructive / Dry-run turn off and stay disabled; External file can stay. Each global script is a toolbar button (hidden when none exist). Generate / Modify with AI Target **Global** so the draft does not require `--root` or `--input-list`.
 - **Quick Launch** — toolbar pins for the programs you use every day (Photoshop, Visual Studio, …). Settings → Quick Launch adds and edits name, path, arguments, icon / label / both, program / Lucide / custom icon, and order. Click to launch; right-click for Open file location / Remove. Drop an .exe or shortcut onto the strip when it is visible.
 

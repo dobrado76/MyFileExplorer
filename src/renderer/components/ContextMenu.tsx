@@ -649,8 +649,31 @@ export function ContextMenu(): JSX.Element | null {
       ]
     }
 
-    // Tree section headers: Drives / Network (This PC tools, Map / Disconnect / Refresh).
+    // Tree section headers: Drives / Network / Recycle Bin.
     if (menu.treeSection) {
+      if (menu.treeSection === 'recycle-bin') {
+        return [
+          {
+            type: 'item',
+            label: s.recycleBin.active ? 'Close Recycle Bin' : 'Open Recycle Bin',
+            action: () => {
+              close()
+              if (s.recycleBin.active) s.closeRecycleBinView()
+              else void s.openRecycleBinView()
+            }
+          },
+          {
+            type: 'item',
+            label: 'Empty Recycle Bin',
+            danger: true,
+            disabled: s.recycleBin.active && !s.recycleBin.loading && s.recycleBin.items.length === 0,
+            action: () => {
+              close()
+              s.emptyRecycleBinView()
+            }
+          }
+        ]
+      }
       const openWindowsTool = (id: WindowsToolId): (() => void) => {
         return () => {
           close()

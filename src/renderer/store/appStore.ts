@@ -346,7 +346,7 @@ export type ContextMenuState = {
   /** Slideshow player menu (categorize / delete / undo / edit / reveal / exit). */
   slideshow?: boolean
   /** Tree section header (Drives / Network) — This PC tools / Map / Disconnect / Refresh. */
-  treeSection?: 'drives' | 'network'
+  treeSection?: 'drives' | 'network' | 'recycle-bin'
 } | null
 
 export type NetworkNeighborhoodState = {

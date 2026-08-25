@@ -37,9 +37,10 @@ describe('settings search', () => {
   it('filters the nav and keeps the current section when it still matches', () => {
     const tokens = settingsSearchTokens('recycle')
     const visible = filterSettingsNav(SETTINGS_NAV, tokens)
-    expect(visible.map((s) => s.id)).toEqual(['behavior'])
+    expect(visible.map((s) => s.id)).toEqual(['appearance', 'behavior'])
     expect(pickSettingsSectionForSearch('behavior', visible)).toBe('behavior')
-    expect(pickSettingsSectionForSearch('appearance', visible)).toBe('behavior')
+    expect(pickSettingsSectionForSearch('appearance', visible)).toBe('appearance')
+    expect(pickSettingsSectionForSearch('about', visible)).toBe('appearance')
   })
 
   it('returns null when nothing matches', () => {

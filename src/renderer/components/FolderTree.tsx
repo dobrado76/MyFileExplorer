@@ -31,9 +31,10 @@ import {
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
-import { ChevronDown, ChevronRight } from '../lib/icons'
+import { ChevronDown, ChevronRight, RecycleBinIcon } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
 import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
+import { isRecycleBinTreePath, RECYCLE_BIN_TREE_PATH } from '@shared/recycleBinTree'
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
@@ -127,6 +128,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const rootPath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.rootPath ?? null)
   const navigate = useAppStore((s) => s.navigate)
   const focusPane = useAppStore((s) => s.focusPane)
+  const openRecycleBinView = useAppStore((s) => s.openRecycleBinView)
+  const recycleBinActive = useAppStore((s) => s.recycleBin.active)
   const paneTabIds = useAppStore((s) => s.paneTabIds)
   const activeTabId = tabId
   const performTransfer = useAppStore((s) => s.performTransfer)
@@ -732,7 +735,11 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     setTreeFocusPath(path)
     const paneIdx = paneTabIds.indexOf(tabId)
     if (paneIdx >= 0) focusPane(paneIdx)
-    void navigate(path, { tabId })
+    if (isRecycleBinTreePath(path)) {
+      void openRecycleBinView()
+    } else {
+      void navigate(path, { tabId })
+    }
     requestAnimationFrame(() => scrollTreePathIntoView(path))
   }
 
@@ -787,9 +794,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
 
     const node = nodes[cursor]
     const expanded = node?.expanded ?? false
-    const kids = visibleChildPaths(cursor)
+    const kids = isRecycleBinTreePath(cursor) ? [] : visibleChildPaths(cursor)
 
     if (e.key === 'ArrowRight') {
+      if (isRecycleBinTreePath(cursor)) return
       if (!expanded) {
         // Collapsed (or never listed): expand / load children.
         if (kids && kids.length === 0) return
@@ -810,6 +818,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     }
 
     // ArrowLeft
+    if (isRecycleBinTreePath(cursor)) return
     if (expanded) {
       setNodes((n) => collapseUnder(n, cursor))
       return
@@ -1163,6 +1172,40 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         Drives
       </div>
       {drives.map((d) => renderNode(d.path, d.label, 0, 'drives'))}
+      {settings.showRecycleBinInTree !== false && (
+        <div
+          className={`tree-node tree-recycle${recycleBinActive ? ' selected' : ''}${treeFocusPath !== null && isRecycleBinTreePath(treeFocusPath) && !recycleBinActive ? ' tree-focused' : ''}`}
+          style={{ paddingLeft: 6 }}
+          role="treeitem"
+          aria-label="Recycle Bin"
+          title="Recycle Bin"
+          data-tree-path={RECYCLE_BIN_TREE_PATH}
+          onClick={(e) => {
+            e.preventDefault()
+            setTreeFocusPath(RECYCLE_BIN_TREE_PATH)
+            treeRef.current?.focus()
+            const paneIdx = paneTabIds.indexOf(tabId)
+            if (paneIdx >= 0) focusPane(paneIdx)
+            void openRecycleBinView()
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setTreeFocusPath(RECYCLE_BIN_TREE_PATH)
+            openContextMenu({
+              x: e.clientX,
+              y: e.clientY,
+              paths: [],
+              inTree: true,
+              treeSection: 'recycle-bin'
+            })
+          }}
+        >
+          <span className="twisty-spacer" aria-hidden />
+          <RecycleBinIcon size={16} />
+          <span className="tree-label">Recycle Bin</span>
+        </div>
+      )}
       {network.hosts.length > 0 && (
         <>
           <div

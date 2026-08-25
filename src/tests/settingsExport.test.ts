@@ -309,6 +309,17 @@ describe('settings export / import', () => {
     expect(parsed.settings.showTabIcons).toBe(false)
   })
 
+  it('defaults showRecycleBinInTree to true and round-trips off', () => {
+    expect(defaultSettings.showRecycleBinInTree).toBe(true)
+    const { showRecycleBinInTree: _omit, ...rest } = defaultSettings
+    expect(settingsSchema.parse(rest).showRecycleBinInTree).toBe(true)
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, showRecycleBinInTree: false },
+      networkHosts: []
+    })
+    expect(parseSettingsImport(doc).settings.showRecycleBinInTree).toBe(false)
+  })
+
   it('round-trips remoteRepos.enabled via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: {

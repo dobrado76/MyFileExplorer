@@ -3078,6 +3078,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showTabIcons}
                 onChange={(v) => void applySettingsPatch({ showTabIcons: v })}
               />
+              <SettingsToggle
+                id="set-show-recycle-bin-tree"
+                label="Show Recycle Bin in the tree"
+                hint="On by default (This PC / Drives, after the drive letters). Off hides the tree row only — the tab-bar Recycle Bin button still works."
+                checked={settings.showRecycleBinInTree}
+                onChange={(v) => void applySettingsPatch({ showRecycleBinInTree: v })}
+              />
               {devGatePresent && (
                 <SettingsToggle
                   id="set-dev-gated-items"

@@ -274,6 +274,11 @@ const settingsFieldsSchema = z.object({
   tabEqualWidth: z.boolean().catch(false),
   /** Paint Lucide icons on tabs. Assigned icons stay in the session when this is off. */
   showTabIcons: z.boolean().catch(true),
+  /**
+   * Show Recycle Bin in the folder tree (Explorer parity). Tab-bar Recycle Bin stays available.
+   * On by default for a first install.
+   */
+  showRecycleBinInTree: z.boolean().catch(true),
   foldersFirst: z.boolean().catch(true),
   /**
    * Explorer-style item checkboxes in the file view (toggle selection without Ctrl).
@@ -660,6 +665,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   iconSizePx: 20,
   tabEqualWidth: false,
   showTabIcons: true,
+  showRecycleBinInTree: true,
   foldersFirst: true,
   itemCheckboxes: false,
   pasteNonFileClipboard: true,
