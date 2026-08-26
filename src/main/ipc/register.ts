@@ -9,6 +9,7 @@ import {
   pathRequestSchema,
   calculateFolderStatisticsRequestSchema,
   pathsRequestSchema,
+  clipboardWriteFilesRequestSchema,
   nameInParentRequestSchema,
   renameRequestSchema,
   transferRequestSchema,
@@ -592,7 +593,9 @@ export function registerIpcHandlers(): void {
     const { discoverShellVerbs } = await import('../shell/discoverShellVerbs')
     return discoverShellVerbs()
   })
-  handle(IPC.shellClipboardWriteFiles, pathsRequestSchema, (req) => clipboardWriteFiles(req.paths))
+  handle(IPC.shellClipboardWriteFiles, clipboardWriteFilesRequestSchema, (req) =>
+    clipboardWriteFiles(req.paths, req.effect)
+  )
   handle(IPC.shellClipboardReadFiles, emptySchema, () => clipboardReadFiles())
   handle(IPC.shellClipboardPeek, emptySchema, () => clipboardPeek())
   handle(IPC.shellClipboardWriteFile, clipboardWriteFileRequestSchema, (req) =>

@@ -4880,7 +4880,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
       set({ clipboard: { mode: 'copy', paths: selected } })
-      void api.shell.clipboardWriteFiles({ paths: selected })
+      void api.shell.clipboardWriteFiles({ paths: selected, effect: 'copy' })
       get().notify(`Copied ${selected.length} item${selected.length > 1 ? 's' : ''}`)
     },
 
@@ -4888,7 +4888,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
       set({ clipboard: { mode: 'cut', paths: selected } })
-      void api.shell.clipboardWriteFiles({ paths: selected })
+      void api.shell.clipboardWriteFiles({ paths: selected, effect: 'move' })
       get().notify(`Cut ${selected.length} item${selected.length > 1 ? 's' : ''}`)
     },
 
@@ -7187,16 +7187,18 @@ export function sortEntries(
   return sorted
 }
 
-/** Prefer in-app clipboard; otherwise read CF_HDROP from the OS (Explorer → MFE paste). */
+/** Prefer OS CF_HDROP (Explorer ↔ MFE); fall back to in-app clipboard. */
 async function resolveClipboard(get: () => { clipboard: ClipboardState }): Promise<ClipboardState> {
-  const local = get().clipboard
-  if (local && local.paths.length > 0) return local
   try {
     const os = await call(api.shell.clipboardReadFiles())
-    if (os.paths.length > 0) return { mode: 'copy', paths: os.paths }
+    if (os.paths.length > 0) {
+      return { mode: os.effect === 'move' ? 'cut' : 'copy', paths: os.paths }
+    }
   } catch {
     // no OS file clipboard
   }
+  const local = get().clipboard
+  if (local && local.paths.length > 0) return local
   return null
 }
 

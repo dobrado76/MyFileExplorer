@@ -206,6 +206,14 @@ export type ResolveIssuesResponse = {
 export const pathsRequestSchema = z.object({ paths: z.array(z.string().min(1)).min(1) })
 export type PathsRequest = z.infer<typeof pathsRequestSchema>
 
+/** Cut/copy file list for the OS clipboard (Explorer paste). */
+export const clipboardWriteFilesRequestSchema = z.object({
+  paths: z.array(z.string().min(1)).min(1),
+  /** Preferred DropEffect: copy (default) or move (Cut). */
+  effect: z.enum(['copy', 'move']).catch('copy')
+})
+export type ClipboardWriteFilesRequest = z.infer<typeof clipboardWriteFilesRequestSchema>
+
 export type DriveInfo = {
   path: string
   /** Tree display, e.g. `C:` or `C: — Games`. */

@@ -18,6 +18,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Copy/Cut ↔ Explorer paste** — Electron `clipboard.writeBuffer`/`readBuffer` for `CF_HDROP` is pickled so Windows Explorer never sees (or provides) a real file-drop list. Copy/Cut/Paste now use native Win32 `CF_HDROP` + Preferred DropEffect both ways.
 - **Slideshow title bar** — **Alt** toggles the current image full path in the window title (persisted in Settings → Slideshow → Path in title bar).
 - **Search Show hidden vs view filter** — with **Show hidden** on, every search hit is shown (view filter does not clip results). With it off, Hidden items stay out of the search and the toolbar view filter (if on) still applies to the result list.
 - **Slideshow vs view filter** — when the toolbar view filter is on, folder image discovery skips Windows Hidden files/folders and view-filter pattern matches (e.g. Hidden `!Thumbnails`). Turn the eye off to include them.

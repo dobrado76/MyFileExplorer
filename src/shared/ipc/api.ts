@@ -166,8 +166,10 @@ export type MyFileExplorerApi = {
      * Never loads COM shell extensions.
      */
     discoverVerbs(): Promise<Result<import('../schemas/shellVerbs').DiscoverShellVerbsResponse>>
-    clipboardWriteFiles(req: PathsRequest): Promise<Result<{ written: boolean }>>
-    clipboardReadFiles(): Promise<Result<{ paths: string[] }>>
+    clipboardWriteFiles(
+      req: import('../schemas/fs').ClipboardWriteFilesRequest
+    ): Promise<Result<{ written: boolean }>>
+    clipboardReadFiles(): Promise<Result<{ paths: string[]; effect: 'copy' | 'move' }>>
     clipboardPeek(): Promise<Result<import('../schemas/clipboardPaste').ClipboardPeek>>
     clipboardWriteFile(
       req: import('../schemas/clipboardPaste').ClipboardWriteFileRequest

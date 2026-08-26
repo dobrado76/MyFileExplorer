@@ -4,6 +4,7 @@ import { requireAbsolute, pathExists } from '../fs/list'
 import { expandWindowsEnvPath } from '../paths/expandEnv'
 import { AppError } from '@shared/result'
 import { isWindowsBatchFile, quoteWindowsCmdArg } from '@shared/shellExec'
+import { winClipboardWriteFiles, winClipboardReadFiles, buildCfHdrop, parseCfHdrop } from './clipboardWin32'
 
 const MAX_EXEC_ARGS = 256
 const MAX_ARG_LEN = 32767
@@ -121,55 +122,47 @@ export async function showItemInFolder(p: string): Promise<{ shown: true }> {
   return { shown: true }
 }
 
-/**
- * Windows CF_HDROP layout: 20-byte DROPFILES header followed by a
- * double-null-terminated UTF-16LE list of absolute paths.
- */
-function buildCfHdrop(paths: string[]): Buffer {
-  const header = Buffer.alloc(20)
-  header.writeUInt32LE(20, 0) // pFiles: offset of file list
-  header.writeUInt32LE(0, 4) // pt.x
-  header.writeUInt32LE(0, 8) // pt.y
-  header.writeUInt32LE(0, 12) // fNC
-  header.writeUInt32LE(1, 16) // fWide: UTF-16
-  const list = paths.map((p) => p + '\0').join('') + '\0'
-  return Buffer.concat([header, Buffer.from(list, 'utf16le')])
-}
-
-function parseCfHdrop(buf: Buffer): string[] {
-  if (buf.length < 20) return []
-  const offset = buf.readUInt32LE(0)
-  const wide = buf.readUInt32LE(16) !== 0
-  const body = buf.subarray(offset)
-  const text = wide ? body.toString('utf16le') : body.toString('latin1')
-  return text.split('\0').filter((s) => s.length > 0)
-}
-
-export function clipboardWriteFiles(paths: string[]): { written: boolean } {
+export function clipboardWriteFiles(
+  paths: string[],
+  effect: 'copy' | 'move' = 'copy'
+): { written: boolean } {
   const normalized = paths.map(requireAbsolute)
-  // Text fallback for editors + CF_HDROP for Explorer paste on Windows.
-  clipboard.writeText(normalized.join('\r\n'))
   if (process.platform === 'win32') {
     try {
+      if (winClipboardWriteFiles(normalized, effect)) return { written: true }
+    } catch {
+      /* fall through to Electron buffer (in-app read may still work) */
+    }
+    try {
       clipboard.writeBuffer('CF_HDROP', buildCfHdrop(normalized))
+      clipboard.writeText(normalized.join('\r\n'))
       return { written: true }
     } catch {
       return { written: false }
     }
   }
+  clipboard.writeText(normalized.join('\r\n'))
   return { written: false }
 }
 
-export function clipboardReadFiles(): { paths: string[] } {
+export function clipboardReadFiles(): { paths: string[]; effect: 'copy' | 'move' } {
   if (process.platform === 'win32') {
     try {
-      const buf = clipboard.readBuffer('CF_HDROP')
-      if (buf && buf.length > 0) return { paths: parseCfHdrop(buf) }
+      const native = winClipboardReadFiles()
+      if (native.paths.length > 0) return native
     } catch {
-      // fall through to empty
+      /* fall through */
+    }
+    try {
+      const buf = clipboard.readBuffer('CF_HDROP')
+      if (buf && buf.length > 0) {
+        return { paths: parseCfHdrop(buf), effect: 'copy' }
+      }
+    } catch {
+      /* fall through to empty */
     }
   }
-  return { paths: [] }
+  return { paths: [], effect: 'copy' }
 }
 
 export { startOsFileDrag } from './startDrag'
