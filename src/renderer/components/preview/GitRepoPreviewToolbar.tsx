@@ -464,7 +464,6 @@ export function GitRepoPreviewToolbar({
           changedCount={changedCount}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}
-          onRequestPush={() => setDialog({ kind: 'push' })}
         />
       ) : null}
       {dialog?.kind === 'branch-create' ? (

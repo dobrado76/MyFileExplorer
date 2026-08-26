@@ -1,6 +1,24 @@
 #!/bin/sh
 # Same command as CI: .github/workflows/build-windows.yml job "Check"
+# Tag-only pushes skip the suite - tags point at existing commits and should not
+# block on unrelated working-tree typecheck/lint (Create tag -> Push to origin).
 root=$(git rev-parse --show-toplevel) || exit 1
 cd "$root" || exit 1
+
+need_check=
+while read -r local_ref local_sha remote_ref remote_sha
+do
+  case "$remote_ref" in
+    refs/tags/*|refs/notes/*) continue ;;
+  esac
+  need_check=1
+  break
+done
+
+if [ -z "$need_check" ]; then
+  echo "pre-push: tag-only push - skipping npm run check"
+  exit 0
+fi
+
 echo "pre-push: npm run check (typecheck + lint + test)"
 npm run check

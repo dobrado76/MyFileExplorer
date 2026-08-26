@@ -847,6 +847,7 @@ export type MyFileExplorerApi = {
       tag: string
       commit: string
       pushToRemote?: boolean
+      forceRemote?: boolean
       remote?: string
     }): Promise<Result<import('../schemas/git').GitCommandResult>>
     deleteTag(req: {

@@ -84,7 +84,14 @@ export function registerGitIpc(handle: Handle): void {
     git.createBranch(req.repoRoot, req.branch, req.switchTo !== false, req.startPoint)
   )
   handle(IPC.gitCreateTag, gitCreateTagRequestSchema, async (req) =>
-    git.createTag(req.repoRoot, req.tag, req.commit, req.pushToRemote, req.remote)
+    git.createTag(
+      req.repoRoot,
+      req.tag,
+      req.commit,
+      req.pushToRemote,
+      req.remote,
+      req.forceRemote
+    )
   )
   handle(IPC.gitDeleteTag, gitDeleteTagRequestSchema, async (req) =>
     git.deleteTag(req.repoRoot, req.tag, req.deleteRemote, req.remote)

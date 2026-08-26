@@ -382,7 +382,6 @@ export function GitToolbar(): JSX.Element | null {
           changedCount={status.changedCount}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}
-          onRequestPush={() => setDialog({ kind: 'push' })}
         />
       ) : null}
       {dialog?.kind === 'branch-create' ? (

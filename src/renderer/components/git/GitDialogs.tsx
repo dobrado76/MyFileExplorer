@@ -19,9 +19,13 @@ export function gitCmdOk(res: {
     lower.includes('403') ||
     lower.includes('401')
   ) {
-    return `Authentication failed or was cancelled. ${msg}`.slice(0, 400)
+    return `Authentication failed or was cancelled. ${msg}`.slice(0, 600)
   }
-  return msg.slice(0, 400)
+  // Prefer the tail — pre-push / npm output is long and the useful error is at the end.
+  if (msg.length > 600) {
+    return `…${msg.slice(-580)}`
+  }
+  return msg
 }
 
 export function looksLikeConflict(res: { stderr: string; stdout: string }): boolean {
@@ -84,16 +88,13 @@ export function GitCommitDialog({
   stagedCount,
   changedCount,
   onClose,
-  onDone,
-  onRequestPush
+  onDone
 }: {
   repoRoot: string
   stagedCount: number
   changedCount: number
   onClose(): void
   onDone(): void
-  /** After a successful commit, open the Push confirm dialog (credentials happen on Push). */
-  onRequestPush?(): void
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const [message, setMessage] = useState('')
@@ -113,22 +114,21 @@ export function GitCommitDialog({
         api.git.commit({
           repoRoot,
           message: msg,
-          pushAfter: false,
+          pushAfter,
           stageAll: stageAll || stagedCount < 1
         })
       )
       const err = gitCmdOk(res)
       if (err) {
         notify(err, true)
+        if (pushAfter && /push failed/i.test(err)) {
+          onDone()
+          onClose()
+        }
         return
       }
-      notify('Committed')
+      notify(pushAfter ? 'Committed and pushed' : 'Committed')
       onDone()
-      if (pushAfter) {
-        onClose()
-        onRequestPush?.()
-        return
-      }
       onClose()
     } catch (e) {
       notify(e instanceof IpcError ? e.message : String(e), true)
@@ -190,7 +190,7 @@ export function GitCommitDialog({
       </label>
       <label className="settings-toggle" htmlFor="git-commit-push">
         <span className="settings-toggle-text">
-          <span className="settings-toggle-label">Open Push dialog after commit</span>
+          <span className="settings-toggle-label">Push after commit</span>
         </span>
         <input
           id="git-commit-push"
@@ -199,6 +199,10 @@ export function GitCommitDialog({
           onChange={(e) => setPushAfter(e.target.checked)}
         />
       </label>
+      <p className="dim" style={{ marginBottom: 0, fontSize: '0.88em' }}>
+        Runs <code>git push</code> when the commit succeeds (Credential Manager if needed). Use the
+        toolbar Push button for the confirm dialog with outgoing commits.
+      </p>
     </ModalShell>
   )
 }
@@ -384,6 +388,10 @@ export function GitStashDialog({
   )
 }
 
+export function gitTagAlreadyOnRemote(err: string): boolean {
+  return /already exists on .+ at [0-9a-f]{7}/i.test(err) || /already exists/i.test(err)
+}
+
 export function GitTagCreateDialog({
   repoRoot,
   commit,
@@ -396,33 +404,53 @@ export function GitTagCreateDialog({
   onDone(): void
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
+  const askConfirm = useAppStore((s) => s.askConfirm)
   const [name, setName] = useState('')
   const [pushToRemote, setPushToRemote] = useState(true)
   const [busy, setBusy] = useState(false)
+
+  const runCreate = async (tag: string, forceRemote?: boolean): Promise<boolean> => {
+    const res = await call(
+      api.git.createTag({
+        repoRoot,
+        tag,
+        commit,
+        pushToRemote,
+        forceRemote
+      })
+    )
+    const err = gitCmdOk(res)
+    if (!err) {
+      const note = (res.stderr || res.stdout).trim()
+      if (pushToRemote && /already on .+ at /i.test(note)) {
+        notify(note)
+      } else {
+        notify(pushToRemote ? `Created and pushed tag ${tag}` : `Created tag ${tag}`)
+      }
+      onDone()
+      onClose()
+      return true
+    }
+    if (pushToRemote && !forceRemote && gitTagAlreadyOnRemote(err)) {
+      const ok = await askConfirm({
+        title: 'Replace tag on origin?',
+        message: `${err}\n\nForce-push tag ${tag} to origin at this commit? This overwrites the remote tag.`,
+        confirmLabel: 'Replace on origin',
+        danger: true
+      })
+      if (ok) return runCreate(tag, true)
+    }
+    notify(err, true)
+    onDone()
+    return false
+  }
 
   const submit = async (): Promise<void> => {
     const tag = name.trim()
     if (!tag || busy) return
     setBusy(true)
     try {
-      const res = await call(
-        api.git.createTag({
-          repoRoot,
-          tag,
-          commit,
-          pushToRemote
-        })
-      )
-      const err = gitCmdOk(res)
-      if (err) {
-        notify(err, true)
-        // Tag may still exist locally if only push failed
-        onDone()
-        return
-      }
-      notify(pushToRemote ? `Created and pushed tag ${tag}` : `Created tag ${tag}`)
-      onDone()
-      onClose()
+      await runCreate(tag)
     } catch (e) {
       notify(e instanceof IpcError ? e.message : String(e), true)
     } finally {
@@ -478,7 +506,8 @@ export function GitTagCreateDialog({
         />
       </label>
       <p className="dim" style={{ marginBottom: 0, fontSize: '0.88em' }}>
-        Tags are not included in a normal branch Push. Check this to publish the tag to the remote.
+        Tags are not included in a normal branch Push. Check this to publish the tag to the remote. If
+        the name already exists on origin at another commit, you can replace it when prompted.
       </p>
     </ModalShell>
   )

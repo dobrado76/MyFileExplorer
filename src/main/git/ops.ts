@@ -29,6 +29,67 @@ async function withRefresh(
   return result
 }
 
+function normalizeCommitHash(hash: string): string {
+  return hash.trim().toLowerCase()
+}
+
+function shortHash(hash: string): string {
+  return hash.slice(0, 7)
+}
+
+/** Commit a local tag points at, or null if the tag does not exist. */
+async function localTagCommit(repoRoot: string, tag: string): Promise<string | null> {
+  const result = await runGit({
+    cwd: repoRoot,
+    args: ['rev-parse', `refs/tags/${tag}^{commit}`],
+    timeoutMs: 15_000
+  })
+  if (!result.success) return null
+  const hash = result.stdout.trim()
+  return hash.length >= 7 ? hash : null
+}
+
+/** Commit a remote tag points at (peeled), or null if absent. */
+async function remoteTagCommit(
+  repoRoot: string,
+  remote: string,
+  tag: string
+): Promise<string | null> {
+  const result = await runGit({
+    cwd: repoRoot,
+    args: ['ls-remote', '--tags', remote, `refs/tags/${tag}^{}`],
+    timeoutMs: 60_000,
+    interactiveAuth: true
+  })
+  if (!result.success) return null
+  const line = result.stdout
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l.length > 0)
+  if (!line) return null
+  const hash = line.split(/\s+/)[0]?.trim()
+  return hash && hash.length >= 7 ? hash : null
+}
+
+function tagPushFailure(
+  created: GitCommandResult,
+  pushed: GitCommandResult,
+  remoteName: string,
+  detail: string
+): GitCommandResult {
+  const hookHint = /pre-push|npm run check|husky|hook declined|hook failed/i.test(detail)
+    ? '\n(A local pre-push hook rejected the tag push — fix the hook error, or push the tag from a terminal with --no-verify if intentional.)'
+    : ''
+  const existsHint = /already exists/i.test(detail)
+    ? '\n(That tag name is already on the remote at a different commit — pick another name, delete the remote tag first, or confirm Replace on origin.)'
+    : ''
+  return {
+    ...pushed,
+    stdout: `${created.stdout}\n${pushed.stdout}`,
+    stderr: `Tag created locally, but push to ${remoteName} failed:\n${detail}${existsHint}${hookHint}`.trim()
+  }
+}
+
 export async function stagePaths(repoRoot: string, absPaths: string[]): Promise<GitCommandResult> {
   const rels = toRepoRelativePaths(repoRoot, absPaths)
   return withRefresh(repoRoot, () =>
@@ -110,7 +171,7 @@ export async function commit(
         : {
             ...push,
             stdout: `${result.stdout}\n${push.stdout}`,
-            stderr: `${result.stderr}\n${push.stderr}`.trim()
+            stderr: `Committed, but push failed:\n${(push.stderr || push.stdout).trim()}`.trim()
           }
     }
     scheduleRefresh(repoRoot)
@@ -258,39 +319,82 @@ export async function createTag(
   tag: string,
   commit: string,
   pushToRemote?: boolean,
-  remote?: string
+  remote?: string,
+  forceRemote?: boolean
 ): Promise<GitCommandResult> {
   await assertGitReady()
-  const created = await runGit({
-    cwd: repoRoot,
-    args: ['tag', '--', tag, commit],
-    timeoutMs: 30_000
-  })
-  if (!created.success) {
-    scheduleRefresh(repoRoot)
-    void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
-    return created
+  const target = normalizeCommitHash(commit)
+  const existingLocal = await localTagCommit(repoRoot, tag)
+  if (existingLocal && normalizeCommitHash(existingLocal) !== target) {
+    return {
+      success: false,
+      exitCode: 1,
+      stdout: '',
+      stderr: `Tag ${tag} already exists locally at ${shortHash(existingLocal)}. Delete it first or choose another name.`
+    }
   }
+
+  let created: GitCommandResult = { success: true, exitCode: 0, stdout: '', stderr: '' }
+  if (!existingLocal) {
+    created = await runGit({
+      cwd: repoRoot,
+      args: ['tag', '--', tag, commit],
+      timeoutMs: 30_000
+    })
+    if (!created.success) {
+      scheduleRefresh(repoRoot)
+      void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+      return created
+    }
+  }
+
   if (!pushToRemote) {
     scheduleRefresh(repoRoot)
     void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
     return created
   }
+
   const remoteName = remote?.trim() || 'origin'
+  const existingRemote = await remoteTagCommit(repoRoot, remoteName, tag)
+  if (existingRemote) {
+    if (normalizeCommitHash(existingRemote) === target) {
+      scheduleRefresh(repoRoot)
+      void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+      return {
+        success: true,
+        exitCode: 0,
+        stdout: created.stdout,
+        stderr: `Tag ${tag} is already on ${remoteName} at ${shortHash(existingRemote)}.`
+      }
+    }
+    if (!forceRemote) {
+      scheduleRefresh(repoRoot)
+      void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+      return {
+        success: false,
+        exitCode: 1,
+        stdout: created.stdout,
+        stderr:
+          `Tag ${tag} already exists on ${remoteName} at ${shortHash(existingRemote)} (this commit is ${shortHash(commit)}). ` +
+          `Pick another name, delete the remote tag, or replace it on the remote.`
+      }
+    }
+  }
+
+  const pushArgs = forceRemote
+    ? ['push', '--force', remoteName, `refs/tags/${tag}:refs/tags/${tag}`]
+    : ['push', remoteName, `refs/tags/${tag}:refs/tags/${tag}`]
   const pushed = await runGit({
     cwd: repoRoot,
-    args: ['push', remoteName, `refs/tags/${tag}`],
+    args: pushArgs,
     timeoutMs: 600_000,
     interactiveAuth: true
   })
   scheduleRefresh(repoRoot)
   void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
   if (pushed.success) return created
-  return {
-    ...pushed,
-    stdout: `${created.stdout}\n${pushed.stdout}`,
-    stderr: `Tag created locally, but push failed:\n${(pushed.stderr || pushed.stdout).trim()}`.trim()
-  }
+  const detail = (pushed.stderr || pushed.stdout).trim() || 'Unknown push error'
+  return tagPushFailure(created, pushed, remoteName, detail)
 }
 
 export async function deleteTag(

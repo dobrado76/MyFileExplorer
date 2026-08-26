@@ -178,6 +178,8 @@ export const gitCreateTagRequestSchema = z.object({
   commit: z.string().min(7).max(64),
   /** After creating locally, push the tag to the remote (default origin). */
   pushToRemote: z.boolean().optional(),
+  /** Overwrite the tag on the remote when it already points at another commit. */
+  forceRemote: z.boolean().optional(),
   remote: z.string().min(1).max(255).optional()
 })
 export const gitDeleteTagRequestSchema = z.object({

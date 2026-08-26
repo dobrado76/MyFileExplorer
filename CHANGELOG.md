@@ -20,6 +20,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Fixed
 
 - **Git Commit → Push dialog** — opening Push right after Commit used a stale status cache and showed “Nothing to push” even when HEAD was ahead. Outgoing now refreshes and counts `upstream..HEAD` directly.
+- **Git tag push vs pre-push hook** — this repo’s pre-push `npm run check` no longer runs on tag-only pushes (Create tag → Push to origin was failing on unrelated WIP). Branch pushes still run the full check.
+- **Git create tag on origin** — detects when a tag name already exists on the remote (e.g. `v0.12`) and explains instead of a raw Git rejection; optional **Replace on origin** force-push when you mean to move the tag.
 - **Tree custom folder icons after restart** — expanding the tree during session restore cancelled ADS overlay fetches and left those paths stuck as “already requested,” so Lucide/custom colors never reappeared in the tree (file list was fine). Cancelled paths are unlocked so they can load again.
 
 ## [0.12.0] - 2026-08-26

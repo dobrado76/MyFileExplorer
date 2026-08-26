@@ -32,8 +32,9 @@ describe('git history op schemas', () => {
         tag: 'v1.0.0',
         commit: 'abcdef0',
         pushToRemote: true,
-        remote: 'origin'
-      }).pushToRemote
+        remote: 'origin',
+        forceRemote: true
+      }).forceRemote
     ).toBe(true)
     expect(
       gitDeleteTagRequestSchema.parse({

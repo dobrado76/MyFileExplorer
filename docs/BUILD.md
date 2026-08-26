@@ -18,7 +18,7 @@ npm run build:win      # electron-vite + electron-builder → dist/
 npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a local path is set
 ```
 
-`npm run check` is what the Actions job **Typecheck, lint, test** runs. A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command so a failing lint or test never leaves the machine. Skip only if you must: `git push --no-verify`.
+`npm run check` is what the Actions job **Typecheck, lint, test** runs. A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command for **branch** pushes so a failing lint or test never leaves the machine. **Tag-only** pushes skip the suite (so publishing a tag is not blocked by unrelated working-tree WIP). Skip entirely only if you must: `git push --no-verify`.
 
 Output: `dist/MyFileExplorer-<version>.exe` (plus `.blockmap` / `latest.yml`). Older docs may say `MyFileExplorer Setup x.y.z.exe` — both names are accepted by Check for update.
 
