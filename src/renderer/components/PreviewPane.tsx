@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { EditImageIcon, PopOutIcon } from '../lib/icons'
@@ -37,14 +37,17 @@ export function PreviewPane(): JSX.Element {
   const drivesOverview = useAppStore((s) => s.drivesOverview)
   const listingPath = useAppStore((s) => s.listing.path)
   const { previewPath, selectedStamp, versionOverrideAds, selected } = usePreviewTarget()
-  const driveSpace =
-    drivesOverview
-      ? { drives, focusPath: null as string | null }
-      : selected.length <= 1 && previewPath && isVolumeRootPath(previewPath)
-        ? { drives, focusPath: previewPath }
-        : selected.length === 0 && isVolumeRootPath(listingPath)
-          ? { drives, focusPath: listingPath }
-          : null
+  const driveSpace = useMemo(
+    () =>
+      drivesOverview
+        ? { drives, focusPath: null as string | null }
+        : selected.length <= 1 && previewPath && isVolumeRootPath(previewPath)
+          ? { drives, focusPath: previewPath }
+          : selected.length === 0 && isVolumeRootPath(listingPath)
+            ? { drives, focusPath: listingPath }
+            : null,
+    [drives, drivesOverview, listingPath, previewPath, selected.length]
+  )
 
   const gitLookup =
     gitEnabled && previewPath && !driveSpace
