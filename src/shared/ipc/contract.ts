@@ -278,7 +278,9 @@ export const IPC = {
   gitRelativePaths: 'git:relativePaths',
   gitPickExecutable: 'git:pickExecutable',
   gitPickDiffTool: 'git:pickDiffTool',
-  gitLog: 'git:log'
+  gitLog: 'git:log',
+  gitShowCommit: 'git:showCommit',
+  gitLogFile: 'git:logFile'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

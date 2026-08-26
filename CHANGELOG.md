@@ -12,6 +12,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Added
 
 - **Git changes dialog** — click the toolbar **N changes** summary (explorer or repo-root preview) to inspect a folder tree of dirty paths, stage/unstage/discard, reveal in the file list, or open the configured external diff tool. **Show ignored** (default off) is persisted as `settings.git.showIgnored`.
+- **Git commit detail** — double-click a commit in repo-root history (or press **Enter** when the list is focused) to open a dialog with the full message, parents, and changed files; double-click a file to diff that version in the external diff tool.
+- **Git file history** — context menu **Git → File history…** on a tracked file lists commits that touched it (`--follow`); pick one commit for changes vs parent, or two for **Compare selected** in the configured diff tool.
 - **Git repo-root preview toolbar + commit context menu** — GE-inspired controls on the history preview (refresh, branch, fetch/pull/push, commit, stash/more, terminal, filter) and a right-click menu on commit rows (copy, merge, non-interactive rebase, reset soft/mixed/hard with confirm, create branch/tag, checkout, revert, cherry-pick, navigate). New `git:*` IPC for those history ops. See [docs/GIT.md](docs/GIT.md).
 - **Git tag push / delete** — Create tag dialog can push the tag to origin (tags are not part of a normal branch Push). Context menu offers Delete tag… when a commit has tag refs, with optional delete on origin.
 - **Git Push confirm dialog** — Push opens a Cancel/Push dialog with branch → upstream, commits to push, and an editable description note before contacting the remote (Credential Manager only after Confirm).

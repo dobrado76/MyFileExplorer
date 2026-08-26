@@ -284,7 +284,9 @@ const api: MyFileExplorerApi = {
     relativePaths: invoke(IPC.gitRelativePaths),
     pickExecutable: invokeVoid(IPC.gitPickExecutable),
     pickDiffTool: invokeVoid(IPC.gitPickDiffTool),
-    log: invoke(IPC.gitLog)
+    log: invoke(IPC.gitLog),
+    showCommit: invoke(IPC.gitShowCommit),
+    logFile: invoke(IPC.gitLogFile)
   },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)

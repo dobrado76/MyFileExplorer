@@ -34,6 +34,51 @@ export const gitLogResultSchema = z.object({
 })
 export type GitLogResult = z.infer<typeof gitLogResultSchema>
 
+export const gitCommitFileChangeSchema = z.object({
+  status: z.string().min(1).max(3),
+  path: z.string().min(1).max(4096),
+  oldPath: z.string().max(4096).optional()
+})
+export type GitCommitFileChange = z.infer<typeof gitCommitFileChangeSchema>
+
+export const gitCommitDetailSchema = z.object({
+  hash: z.string().min(7).max(64),
+  parents: z.array(z.string().min(7).max(64)).max(16),
+  authorName: z.string().min(0).max(200),
+  authorEmail: z.string().min(0).max(320),
+  authorDate: z.number().int(),
+  subject: z.string().max(2000),
+  body: z.string().max(100_000),
+  files: z.array(gitCommitFileChangeSchema).max(5000)
+})
+export type GitCommitDetail = z.infer<typeof gitCommitDetailSchema>
+
+export const gitShowCommitRequestSchema = z.object({
+  repoRoot: z.string().min(1),
+  commit: z.string().min(7).max(64)
+})
+
+export const gitFileLogEntrySchema = z.object({
+  hash: z.string().min(7).max(64),
+  authorDate: z.number().int(),
+  subject: z.string().max(2000),
+  authorName: z.string().max(200)
+})
+export type GitFileLogEntry = z.infer<typeof gitFileLogEntrySchema>
+
+export const gitFileLogRequestSchema = z.object({
+  repoRoot: z.string().min(1),
+  path: z.string().min(1),
+  limit: z.number().int().min(20).max(500).optional(),
+  skip: z.number().int().min(0).max(50_000).optional()
+})
+
+export const gitFileLogResultSchema = z.object({
+  commits: z.array(gitFileLogEntrySchema),
+  truncated: z.boolean()
+})
+export type GitFileLogResult = z.infer<typeof gitFileLogResultSchema>
+
 /** Parse decoration tokens from `git log --decorate=full` / `--format=%D`. */
 export function parseDecorations(raw: string): GitDecoratedRef[] {
   const trimmed = raw.trim()

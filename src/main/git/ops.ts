@@ -526,7 +526,8 @@ export async function stashPop(repoRoot: string): Promise<GitCommandResult> {
 
 export async function showExternalDiff(
   repoRoot: string,
-  absPath: string
+  absPath: string,
+  opts?: { commit?: string; otherCommit?: string }
 ): Promise<{ launched: boolean; message?: string }> {
   await assertGitReady()
   const settings = settingsStore().get()
@@ -537,21 +538,76 @@ export async function showExternalDiff(
   const [rel] = toRepoRelativePaths(repoRoot, [absPath])
   if (!rel) throw new AppError('validation', 'Invalid path')
 
-  const show = await runGit({
-    cwd: repoRoot,
-    args: ['show', `HEAD:${rel}`],
-    timeoutMs: 60_000
-  })
-  if (!show.success) {
-    throw new AppError('io', show.stderr.trim() || 'Could not read HEAD version')
-  }
-
   const dir = await scratchDir()
   const safeName = rel.replace(/[\\/]/g, '__')
-  const left = path.join(dir, `HEAD-${Date.now()}-${safeName}`)
-  await fsp.writeFile(left, show.stdout, 'utf8')
-  const right = absPath
+  const stamp = Date.now()
+  let left: string
+  let right: string
 
+  if (!opts?.commit) {
+    const show = await runGit({
+      cwd: repoRoot,
+      args: ['show', `HEAD:${rel}`],
+      timeoutMs: 60_000
+    })
+    if (!show.success) {
+      throw new AppError('io', show.stderr.trim() || 'Could not read HEAD version')
+    }
+    left = path.join(dir, `HEAD-${stamp}-${safeName}`)
+    await fsp.writeFile(left, show.stdout, 'utf8')
+    right = absPath
+  } else if (opts.otherCommit) {
+    left = await exportRevToScratch(repoRoot, rel, opts.otherCommit, dir, stamp, safeName)
+    right = await exportRevToScratch(repoRoot, rel, opts.commit, dir, stamp + 1, safeName)
+  } else {
+    const parentRes = await runGit({
+      cwd: repoRoot,
+      args: ['rev-parse', `${opts.commit}^`],
+      timeoutMs: 15_000
+    })
+    const parent = parentRes.success ? parentRes.stdout.trim() : ''
+    if (parent.length >= 7) {
+      left = await exportRevToScratch(repoRoot, rel, parent, dir, stamp, safeName)
+    } else {
+      left = path.join(dir, `empty-${stamp}-${safeName}`)
+      await fsp.writeFile(left, '', 'utf8')
+    }
+    right = await exportRevToScratch(repoRoot, rel, opts.commit, dir, stamp + 1, safeName)
+  }
+
+  launchDiffProcess(tool, repoRoot, rel, left, right)
+  return { launched: true }
+}
+
+async function exportRevToScratch(
+  repoRoot: string,
+  rel: string,
+  rev: string,
+  dir: string,
+  stamp: number,
+  safeName: string
+): Promise<string> {
+  const dest = path.join(dir, `${shortHash(rev)}-${stamp}-${safeName}`)
+  const show = await runGit({
+    cwd: repoRoot,
+    args: ['show', `${rev}:${rel}`],
+    timeoutMs: 120_000
+  })
+  if (show.success) {
+    await fsp.writeFile(dest, show.stdout, 'utf8')
+  } else {
+    await fsp.writeFile(dest, '', 'utf8')
+  }
+  return dest
+}
+
+function launchDiffProcess(
+  tool: { executable: string; argsTemplate?: string },
+  repoRoot: string,
+  rel: string,
+  left: string,
+  right: string
+): void {
   const template = tool.argsTemplate || '"{left}" "{right}"'
   const argsStr = template
     .replaceAll('{left}', left)
@@ -566,8 +622,6 @@ export async function showExternalDiff(
     detached: true,
     stdio: 'ignore'
   }).unref()
-
-  return { launched: true }
 }
 
 export async function openRepoTerminal(repoRoot: string): Promise<void> {

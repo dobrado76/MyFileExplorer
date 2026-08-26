@@ -16,7 +16,7 @@ import {
   gitResetRequestSchema,
   gitStashRequestSchema
 } from '@shared/schemas/git'
-import { gitLogRequestSchema } from '@shared/schemas/gitLog'
+import { gitLogRequestSchema, gitShowCommitRequestSchema, gitFileLogRequestSchema } from '@shared/schemas/gitLog'
 import * as git from './index'
 
 const emptySchema = z.union([z.undefined(), z.null(), z.object({}).strict()]).optional()
@@ -119,7 +119,10 @@ export function registerGitIpc(handle: Handle): void {
   )
   handle(IPC.gitStashPop, gitRepoRequestSchema, async (req) => git.stashPop(req.repoRoot))
   handle(IPC.gitShowDiff, gitDiffRequestSchema, async (req) =>
-    git.showExternalDiff(req.repoRoot, req.path)
+    git.showExternalDiff(req.repoRoot, req.path, {
+      commit: req.commit,
+      otherCommit: req.otherCommit
+    })
   )
   handle(IPC.gitOpenTerminal, gitRepoRequestSchema, async (req) => {
     await git.openRepoTerminal(req.repoRoot)
@@ -165,5 +168,11 @@ export function registerGitIpc(handle: Handle): void {
 
   handle(IPC.gitLog, gitLogRequestSchema, async (req) =>
     git.fetchGitLog(req.repoRoot, { limit: req.limit, skip: req.skip })
+  )
+  handle(IPC.gitShowCommit, gitShowCommitRequestSchema, async (req) =>
+    git.fetchCommitDetail(req.repoRoot, req.commit)
+  )
+  handle(IPC.gitLogFile, gitFileLogRequestSchema, async (req) =>
+    git.fetchFileLog(req.repoRoot, req.path, { limit: req.limit, skip: req.skip })
   )
 }

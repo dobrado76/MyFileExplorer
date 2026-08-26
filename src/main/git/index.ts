@@ -35,5 +35,7 @@ export {
   openRepoTerminal
 } from './ops'
 export { fetchGitLog } from './log'
+export { fetchCommitDetail } from './commitDetail'
+export { fetchFileLog } from './fileLog'
 export { toRepoRelativePaths } from './paths'
 export { parsePorcelainV2, buildFolderAggregates } from './statusParse'

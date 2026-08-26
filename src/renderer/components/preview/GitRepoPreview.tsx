@@ -16,6 +16,7 @@ import { basename } from '../../lib/paths'
 import { SpinnerIcon } from '../../lib/icons'
 import { useAppStore } from '../../store/appStore'
 import { GitBranchCreateDialog, GitTagCreateDialog, GitTagDeleteDialog } from '../git/GitDialogs'
+import { GitCommitDetailDialog } from '../git/GitCommitDetailDialog'
 import { GitHistoryContextMenu } from './GitHistoryContextMenu'
 import { GitRepoPreviewToolbar } from './GitRepoPreviewToolbar'
 
@@ -252,6 +253,7 @@ export function GitRepoPreview({
   const [branchDlg, setBranchDlg] = useState<string | null>(null)
   const [tagDlg, setTagDlg] = useState<string | null>(null)
   const [deleteTagDlg, setDeleteTagDlg] = useState<string | null>(null)
+  const [detailDlg, setDetailDlg] = useState<GitLogCommit | null>(null)
   const [now] = useState(() => Date.now())
   const commitsLenRef = useRef(0)
   const rowRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -319,6 +321,14 @@ export function GitRepoPreview({
     el?.scrollIntoView({ block: 'nearest' })
   }, [])
 
+  const openCommitDetail = useCallback(
+    (hash: string) => {
+      const c = commits.find((x) => x.hash === hash)
+      if (c) setDetailDlg(c)
+    },
+    [commits]
+  )
+
   return (
     <div className="git-repo-preview">
       <div className="git-repo-preview-header">
@@ -350,7 +360,18 @@ export function GitRepoPreview({
         <div className="git-repo-preview-error">{error}</div>
       ) : (
         <>
-          <div className="git-history" role="list" aria-label="Commit history">
+          <div
+            className="git-history"
+            role="list"
+            aria-label="Commit history"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && selected) {
+                e.preventDefault()
+                openCommitDetail(selected)
+              }
+            }}
+          >
             <div className="git-history-stack">
               <div className="git-history-graph-layer" aria-hidden>
                 <GitGraphSvg rows={graph} />
@@ -369,6 +390,7 @@ export function GitRepoPreview({
                     }}
                     className={`git-history-row${isSel ? ' selected' : ''}${isHead ? ' is-head' : ''}`}
                     onClick={() => setSelected(c.hash)}
+                    onDoubleClick={() => openCommitDetail(c.hash)}
                     onContextMenu={(e) => {
                       e.preventDefault()
                       setSelected(c.hash)
@@ -485,6 +507,20 @@ export function GitRepoPreview({
           tag={deleteTagDlg}
           onClose={() => setDeleteTagDlg(null)}
           onDone={() => void afterMutate()}
+        />
+      ) : null}
+      {detailDlg ? (
+        <GitCommitDetailDialog
+          repoRoot={repoRoot}
+          commit={detailDlg}
+          onClose={() => setDetailDlg(null)}
+          onNavigateCommit={(hash) => {
+            const c = commits.find((x) => x.hash === hash)
+            if (c) {
+              setDetailDlg(c)
+              selectAndScroll(hash)
+            }
+          }}
         />
       ) : null}
     </div>

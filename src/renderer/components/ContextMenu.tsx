@@ -22,6 +22,7 @@ import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
 import { api, call, IpcError } from '../lib/ipc'
 import { lookupGitForPath } from '../lib/gitUi'
+import { useGitFileHistory } from '../lib/gitFileHistory'
 import type { ClipboardPasteFormat, ClipboardPeek } from '@shared/schemas/clipboardPaste'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { slideshowCurrentPath } from '../lib/slideshowTypes'
@@ -2095,6 +2096,13 @@ export function ContextMenu(): JSX.Element | null {
                         s.notify(e instanceof IpcError ? e.message : String(e), true)
                       }
                     })()
+                  }
+                } satisfies SubEntry,
+                {
+                  label: 'File history…',
+                  action: () => {
+                    close()
+                    useGitFileHistory.getState().open(rootPath, targetPaths[0]!)
                   }
                 } satisfies SubEntry
               ]

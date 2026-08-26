@@ -890,6 +890,8 @@ export type MyFileExplorerApi = {
     showDiff(req: {
       repoRoot: string
       path: string
+      commit?: string
+      otherCommit?: string
     }): Promise<Result<{ launched: boolean; message?: string }>>
     openTerminal(req: { repoRoot: string }): Promise<Result<{ opened: true }>>
     relativePaths(req: {
@@ -903,6 +905,16 @@ export type MyFileExplorerApi = {
       limit?: number
       skip?: number
     }): Promise<Result<import('../schemas/gitLog').GitLogResult>>
+    showCommit(req: {
+      repoRoot: string
+      commit: string
+    }): Promise<Result<import('../schemas/gitLog').GitCommitDetail>>
+    logFile(req: {
+      repoRoot: string
+      path: string
+      limit?: number
+      skip?: number
+    }): Promise<Result<import('../schemas/gitLog').GitFileLogResult>>
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

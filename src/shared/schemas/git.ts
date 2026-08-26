@@ -153,7 +153,11 @@ export const gitStashRequestSchema = z.object({
 })
 export const gitDiffRequestSchema = z.object({
   repoRoot: z.string().min(1),
-  path: z.string().min(1)
+  path: z.string().min(1),
+  /** Blob at this commit vs its parent (same path). Omit for HEAD vs working tree. */
+  commit: z.string().min(7).max(64).optional(),
+  /** When set with commit, compare blobs at both commits for path. */
+  otherCommit: z.string().min(7).max(64).optional()
 })
 export const gitOutgoingCommitSchema = z.object({
   hash: z.string().min(7).max(64),

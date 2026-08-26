@@ -6,6 +6,7 @@ import { ViewGrid } from '../components/ViewGrid'
 import { PreviewPane } from '../components/PreviewPane'
 import { StatusBar } from '../components/StatusBar'
 import { ContextMenu } from '../components/ContextMenu'
+import { GitFileHistoryHost } from '../components/git/GitFileHistoryDialog'
 import { Dialogs } from '../components/Dialogs'
 import { ImageViewer } from '../components/ImageViewer'
 import { SlideshowOverlay } from '../components/SlideshowOverlay'
@@ -406,6 +407,7 @@ export function ExplorerShell(): JSX.Element {
       </div>
       {slideshowActive ? null : <StatusBar />}
       <ContextMenu />
+      <GitFileHistoryHost />
       <Dialogs />
       <ImageViewer />
       <SlideshowOverlay />

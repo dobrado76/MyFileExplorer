@@ -4,8 +4,13 @@ import {
   gitCommitRefRequestSchema,
   gitCreateTagRequestSchema,
   gitDeleteTagRequestSchema,
+  gitDiffRequestSchema,
   gitResetRequestSchema
 } from '../shared/schemas/git'
+import {
+  gitFileLogRequestSchema,
+  gitShowCommitRequestSchema
+} from '../shared/schemas/gitLog'
 
 describe('git history op schemas', () => {
   it('accepts createBranch with optional startPoint', () => {
@@ -63,5 +68,28 @@ describe('git history op schemas', () => {
         mode: 'nuke'
       })
     ).toThrow()
+  })
+
+  it('accepts showDiff with optional commit refs', () => {
+    const parsed = gitDiffRequestSchema.parse({
+      repoRoot: 'C:/repo',
+      path: 'C:/repo/src/foo.ts',
+      commit: 'abcdef0',
+      otherCommit: '1234567'
+    })
+    expect(parsed.otherCommit).toBe('1234567')
+  })
+
+  it('accepts showCommit and logFile requests', () => {
+    expect(
+      gitShowCommitRequestSchema.parse({ repoRoot: 'C:/repo', commit: 'abcdef0' }).commit
+    ).toBe('abcdef0')
+    expect(
+      gitFileLogRequestSchema.parse({
+        repoRoot: 'C:/repo',
+        path: 'C:/repo/README.md',
+        limit: 50
+      }).limit
+    ).toBe(50)
   })
 })

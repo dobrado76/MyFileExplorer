@@ -34,15 +34,15 @@ Do **not** confuse with image ADS **Version Control** (D27).
 
 ## IPC
 
-Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches (create may take `startPoint`), stash, showDiff, openTerminal, relativePaths, pickers, **log**, plus history ops: **createTag** (optional push to remote), **deleteTag** (optional delete on remote), **checkoutCommit**, **mergeCommit**, **rebaseOnto** (non-interactive), **reset** (soft/mixed/hard), **cherryPick**, **revert**.
+Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches (create may take `startPoint`), stash, showDiff (HEAD ↔ working tree, commit vs parent, or two commits), openTerminal, relativePaths, pickers, **log**, **showCommit**, **logFile**, plus history ops: **createTag** (optional push to remote), **deleteTag** (optional delete on remote), **checkoutCommit**, **mergeCommit**, **rebaseOnto** (non-interactive), **reset** (soft/mixed/hard), **cherryPick**, **revert**.
 
 ## Context menu
 
-Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage, Discard (confirm), Show changes, Copy repo-relative path, Open repository root, Open terminal at root, Refresh.
+Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage, Discard (confirm), Show changes, **File history…** (single file), Copy repo-relative path, Open repository root, Open terminal at root, Refresh.
 
 ## Repo-root preview
 
-When Git is enabled and the preview target is the **repository root** folder (selected, or current folder with nothing selected), the preview pane shows a Git Graph–style history: lane graph, branch/remote/tag badges, author, relative time, short hash (click to copy), and a detail strip for the selected commit. Load more pages history.
+When Git is enabled and the preview target is the **repository root** folder (selected, or current folder with nothing selected), the preview pane shows a Git Graph–style history: lane graph, branch/remote/tag badges, author, relative time, short hash (click to copy), and a detail strip for the selected commit. **Double-click** a row (or **Enter** when the list is focused) opens a commit detail dialog (full message, parents, file list; double-click a file for external diff). Load more pages history.
 
 **Toolbar** (Git Extensions–inspired): refresh, branch switch/create, fetch/pull, push, commit (staged count), stash/more, open terminal, client-side filter on the loaded list. The **changes** count is clickable and opens a working-tree dialog (folder tree of dirty paths) with Stage / Unstage / Discard, Reveal, and **Show changes** (external diff tool from Settings → Git).
 
