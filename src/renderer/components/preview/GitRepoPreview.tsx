@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { GitRepositoryStatus } from '@shared/schemas/git'
+import { GIT_HISTORY_PAGE_SIZE_DEFAULT } from '@shared/schemas/git'
 import type { GitDecoratedRef, GitLogCommit } from '@shared/schemas/gitLog'
 import {
   buildGitGraph,
@@ -241,6 +242,9 @@ export function GitRepoPreview({
   onRefreshStatus?(): void
 }): JSX.Element {
   const mergeGitStatus = useAppStore((s) => s.mergeGitStatus)
+  const historyPageSize = useAppStore(
+    (s) => s.settings.git?.historyPageSize ?? GIT_HISTORY_PAGE_SIZE_DEFAULT
+  )
   const [commits, setCommits] = useState<GitLogCommit[]>([])
   const [truncated, setTruncated] = useState(false)
   const [head, setHead] = useState<string | null>(null)
@@ -270,7 +274,7 @@ export function GitRepoPreview({
       setError(null)
       try {
         const skip = append ? commitsLenRef.current : 0
-        const res = await call(api.git.log({ repoRoot, limit: 150, skip }))
+        const res = await call(api.git.log({ repoRoot, limit: historyPageSize, skip }))
         setHead(res.head)
         setTruncated(res.truncated)
         setCommits((prev) => (append ? [...prev, ...res.commits] : res.commits))
@@ -283,7 +287,7 @@ export function GitRepoPreview({
         setLoadingMore(false)
       }
     },
-    [repoRoot]
+    [historyPageSize, repoRoot]
   )
 
   useEffect(() => {

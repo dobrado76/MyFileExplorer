@@ -3576,6 +3576,21 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 />
               </label>
               <label
+                className="settings-labeled-row"
+                htmlFor="set-git-history-page"
+                title="Commits loaded per page in repo-root history and File history (Load more uses the same size)"
+              >
+                <span>History page size</span>
+                <SettingsClampedNumber
+                  id="set-git-history-page"
+                  value={settings.git.historyPageSize}
+                  min={20}
+                  max={500}
+                  title="20–500 commits"
+                  onCommit={(n) => void applySettingsPatch({ git: { historyPageSize: n } })}
+                />
+              </label>
+              <label
                 className="settings-field"
                 htmlFor="set-git-diff-exe"
                 title="External diff tool. Placeholders: {left} {right} {relativePath} {repoRoot}"

@@ -26,6 +26,7 @@ Do **not** confuse with image ADS **Version Control** (D27).
 | `executablePath` | `''` | Optional; else PATH / common Git for Windows paths |
 | `showOverlays` / `showFolderIndicators` / `showToolbar` / `showChangedCount` / `showStatusColumn` / `showAheadBehind` | mostly `true` | Display toggles |
 | `showIgnored` | `false` | Include ignored paths in status, overlays, and the Changes dialog |
+| `historyPageSize` | `150` | Commits per page in repo-root history and File history (20–500; Load more uses the same size) |
 | `autoFetch` | `false` | Reserved; v1 does not auto-fetch |
 | `refreshDebounceMs` | `400` | Watcher / invalidate debounce |
 | `suspendLargeRepos` + `largeRepoFileThreshold` | off / 500k | Soft guard for huge dirty trees |

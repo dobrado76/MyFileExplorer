@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
 import type { GitFileLogEntry } from '@shared/schemas/gitLog'
+import { GIT_HISTORY_PAGE_SIZE_DEFAULT } from '@shared/schemas/git'
 import { api, call, IpcError } from '../../lib/ipc'
 import { basename } from '../../lib/paths'
 import { SpinnerIcon } from '../../lib/icons'
@@ -42,6 +43,9 @@ export function GitFileHistoryDialog({
   onClose(): void
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
+  const historyPageSize = useAppStore(
+    (s) => s.settings.git?.historyPageSize ?? GIT_HISTORY_PAGE_SIZE_DEFAULT
+  )
   const [commits, setCommits] = useState<GitFileLogEntry[]>([])
   const [truncated, setTruncated] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -63,6 +67,7 @@ export function GitFileHistoryDialog({
           api.git.logFile({
             repoRoot,
             path,
+            limit: historyPageSize,
             skip: append ? commits.length : 0
           })
         )
@@ -81,13 +86,13 @@ export function GitFileHistoryDialog({
         setLoadingMore(false)
       }
     },
-    [commits.length, notify, path, repoRoot]
+    [commits.length, historyPageSize, notify, path, repoRoot]
   )
 
   useEffect(() => {
     void load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when target changes
-  }, [repoRoot, path])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when target or page size changes
+  }, [repoRoot, path, historyPageSize])
 
   const togglePick = useCallback((hash: string) => {
     setPicked((prev) => {

@@ -83,6 +83,10 @@ export const gitToolConfigSchema = z.object({
 })
 export type GitToolConfig = z.infer<typeof gitToolConfigSchema>
 
+export const GIT_HISTORY_PAGE_SIZE_MIN = 20
+export const GIT_HISTORY_PAGE_SIZE_MAX = 500
+export const GIT_HISTORY_PAGE_SIZE_DEFAULT = 150
+
 export const gitSettingsSchema = z.object({
   enabled: z.boolean().catch(false),
   executablePath: z.string().catch(''),
@@ -95,6 +99,12 @@ export const gitSettingsSchema = z.object({
   showAheadBehind: z.boolean().catch(true),
   autoFetch: z.boolean().catch(false),
   refreshDebounceMs: z.number().int().min(100).max(5000).catch(400),
+  historyPageSize: z
+    .number()
+    .int()
+    .min(GIT_HISTORY_PAGE_SIZE_MIN)
+    .max(GIT_HISTORY_PAGE_SIZE_MAX)
+    .catch(GIT_HISTORY_PAGE_SIZE_DEFAULT),
   suspendLargeRepos: z.boolean().catch(false),
   largeRepoFileThreshold: z.number().int().min(10_000).max(5_000_000).catch(500_000),
   diffTool: gitToolConfigSchema.catch({ executable: '', argsTemplate: '"{left}" "{right}"' }),
@@ -115,6 +125,7 @@ export const defaultGitSettings: GitSettings = {
   showAheadBehind: true,
   autoFetch: false,
   refreshDebounceMs: 400,
+  historyPageSize: GIT_HISTORY_PAGE_SIZE_DEFAULT,
   suspendLargeRepos: false,
   largeRepoFileThreshold: 500_000,
   diffTool: { executable: '', argsTemplate: '"{left}" "{right}"' },

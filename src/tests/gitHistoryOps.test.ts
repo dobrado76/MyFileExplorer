@@ -5,7 +5,8 @@ import {
   gitCreateTagRequestSchema,
   gitDeleteTagRequestSchema,
   gitDiffRequestSchema,
-  gitResetRequestSchema
+  gitResetRequestSchema,
+  gitSettingsSchema
 } from '../shared/schemas/git'
 import {
   gitFileLogRequestSchema,
@@ -91,5 +92,10 @@ describe('git history op schemas', () => {
         limit: 50
       }).limit
     ).toBe(50)
+  })
+
+  it('defaults git historyPageSize', () => {
+    expect(gitSettingsSchema.parse({}).historyPageSize).toBe(150)
+    expect(gitSettingsSchema.parse({ historyPageSize: 500 }).historyPageSize).toBe(500)
   })
 })
