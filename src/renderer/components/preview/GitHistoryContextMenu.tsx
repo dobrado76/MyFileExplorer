@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import type { GitLogCommit } from '@shared/schemas/gitLog'
 import type { GitResetMode } from '@shared/schemas/git'
@@ -39,6 +39,71 @@ export function GitHistoryContextMenu({
   const askConfirm = useAppStore((s) => s.askConfirm)
   const [sub, setSub] = useState<SubKey>(null)
   const [busy, setBusy] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const subRef = useRef<HTMLDivElement>(null)
+  const subAnchorRef = useRef<HTMLElement | null>(null)
+  const [menuPlace, setMenuPlace] = useState<{
+    left: number
+    top: number
+    maxHeight: number
+    ready: boolean
+  }>({ left: pos.x, top: pos.y, maxHeight: 400, ready: false })
+  const [subPlace, setSubPlace] = useState<{
+    flipX: boolean
+    fixedTop: number
+    fixedLeft: number
+    maxHeight: number | null
+    ready: boolean
+  }>({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
+
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    const margin = 8
+    const vh = window.visualViewport?.height ?? window.innerHeight
+    const vTop = window.visualViewport?.offsetTop ?? 0
+    const vw = window.innerWidth
+    const maxHeight = Math.max(120, vh - margin * 2)
+    el.style.maxHeight = `${maxHeight}px`
+    el.style.overflowY = 'auto'
+    const rect = el.getBoundingClientRect()
+    const menuH = Math.min(rect.height, maxHeight)
+    const menuW = rect.width
+    let left = pos.x
+    let top = pos.y
+    if (left + menuW > vw - margin) left = Math.max(margin, vw - margin - menuW)
+    if (left < margin) left = margin
+    if (top + menuH > vTop + vh - margin) top = Math.max(vTop + margin, vTop + vh - margin - menuH)
+    if (top < vTop + margin) top = vTop + margin
+    setMenuPlace({ left, top, maxHeight, ready: true })
+  }, [pos])
+
+  useLayoutEffect(() => {
+    if (!sub) {
+      setSubPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
+      return
+    }
+    const wrap = subAnchorRef.current
+    const subEl = subRef.current
+    if (!wrap || !subEl) return
+    const margin = 8
+    const vw = window.innerWidth
+    const vh = window.visualViewport?.height ?? window.innerHeight
+    const vTop = window.visualViewport?.offsetTop ?? 0
+    const wrapRect = wrap.getBoundingClientRect()
+    const raw = subEl.getBoundingClientRect()
+    const maxHeight = Math.max(80, vh - margin * 2)
+    const height = Math.min(raw.height, maxHeight)
+    const subW = raw.width
+    const fitsRight = wrapRect.right + 2 + subW <= vw - margin
+    const fitsLeft = wrapRect.left - 2 - subW >= margin
+    const flipX = !fitsRight && fitsLeft
+    const fixedLeft = flipX ? wrapRect.left - subW - 2 : wrapRect.right + 2
+    let fixedTop = wrapRect.top - 5
+    if (fixedTop + height > vTop + vh - margin) fixedTop = vTop + vh - margin - height
+    if (fixedTop < vTop + margin) fixedTop = vTop + margin
+    setSubPlace({ flipX, fixedTop, fixedLeft, maxHeight, ready: true })
+  }, [sub])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -46,8 +111,8 @@ export function GitHistoryContextMenu({
     }
     const onDown = (e: MouseEvent): void => {
       const t = e.target as Node
-      const root = document.getElementById('git-history-ctx')
-      if (root?.contains(t)) return
+      if (menuRef.current?.contains(t)) return
+      if (subRef.current?.contains(t)) return
       onClose()
     }
     window.addEventListener('keydown', onKey)
@@ -126,90 +191,232 @@ export function GitHistoryContextMenu({
     await runOp(label, fn)
   }
 
-  const left = Math.min(pos.x, window.innerWidth - 260)
-  const top = Math.min(pos.y, window.innerHeight - 360)
+  const openSub = (key: SubKey, el: HTMLElement): void => {
+    subAnchorRef.current = el
+    setSub(key)
+  }
 
-  const submenu = (key: SubKey, items: JSX.Element): JSX.Element | null =>
-    sub === key ? (
-      <div className="context-submenu git-history-submenu" role="menu">
-        {items}
-      </div>
-    ) : null
+  const subPanel = (): JSX.Element | null => {
+    if (!sub) return null
+    let body: JSX.Element | null = null
+    if (sub === 'copy') {
+      body = (
+        <>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => void copy(commit.hash, 'hash')}
+          >
+            Commit hash
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => void copy(short, 'short hash')}
+          >
+            Short hash
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => void copy(commit.subject, 'subject')}
+          >
+            Subject
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => void copy(commit.authorName, 'author')}
+          >
+            Author
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => void copy(commit.authorEmail, 'email')}
+          >
+            Author email
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() =>
+              void copy(
+                `${commit.hash}\n${commit.subject}\n${commit.authorName} <${commit.authorEmail}>`,
+                'commit info'
+              )
+            }
+          >
+            Full info
+          </button>
+        </>
+      )
+    } else if (sub === 'reset') {
+      body = (
+        <>
+          {(
+            [
+              ['soft', 'Soft — keep index & worktree'],
+              ['mixed', 'Mixed — keep worktree'],
+              ['hard', 'Hard — discard all changes']
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              className={`menu-item${mode === 'hard' ? ' danger' : ''}`}
+              role="menuitem"
+              disabled={busy}
+              onClick={() => {
+                const m = mode as GitResetMode
+                void (async () => {
+                  const ok = await askConfirm({
+                    title: `Reset (${m})`,
+                    message:
+                      m === 'hard'
+                        ? `HARD reset current branch to ${short}? Uncommitted changes will be permanently lost.`
+                        : `Reset current branch to ${short} (${m})?`,
+                    confirmLabel: `Reset ${m}`,
+                    danger: m === 'hard'
+                  })
+                  if (!ok) return
+                  await runOp(`Reset ${m} to ${short}`, () =>
+                    call(api.git.reset({ repoRoot, commit: commit.hash, mode: m }))
+                  )
+                })()
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </>
+      )
+    } else if (sub === 'navigate') {
+      body = (
+        <>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            disabled={!parent0Loaded}
+            onClick={() => {
+              if (parent0) onSelectHash(parent0)
+              onClose()
+            }}
+          >
+            Go to first parent
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            disabled={!parent1Loaded}
+            onClick={() => {
+              if (parent1) onSelectHash(parent1)
+              onClose()
+            }}
+          >
+            Go to second parent
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            disabled={!head}
+            onClick={() => {
+              if (head) onSelectHash(head)
+              onClose()
+            }}
+          >
+            Go to HEAD
+          </button>
+        </>
+      )
+    } else if (sub === 'view') {
+      body = (
+        <>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => {
+              onDone()
+              onClose()
+            }}
+          >
+            Refresh history
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            role="menuitem"
+            onClick={() => {
+              void (async () => {
+                try {
+                  await call(api.git.openTerminal({ repoRoot }))
+                } catch (e) {
+                  notify(e instanceof IpcError ? e.message : String(e), true)
+                }
+                onClose()
+              })()
+            }}
+          >
+            Open terminal at root
+          </button>
+        </>
+      )
+    }
+    if (!body) return null
+    return createPortal(
+      <div
+        ref={subRef}
+        className={`context-menu context-submenu git-history-submenu${subPlace.flipX ? ' flip' : ''}`}
+        role="menu"
+        style={{
+          position: 'fixed',
+          left: subPlace.fixedLeft,
+          top: subPlace.fixedTop,
+          maxHeight: subPlace.maxHeight ?? undefined,
+          visibility: subPlace.ready ? 'visible' : 'hidden'
+        }}
+        onMouseEnter={() => setSub(sub)}
+      >
+        {body}
+      </div>,
+      document.body
+    )
+  }
 
   return createPortal(
-    <div
-      id="git-history-ctx"
-      className="context-menu git-history-menu"
-      style={{ left, top }}
-      role="menu"
-    >
+    <>
+      <div
+        ref={menuRef}
+        id="git-history-ctx"
+        className="context-menu git-history-menu"
+        style={{
+          left: menuPlace.left,
+          top: menuPlace.top,
+          maxHeight: menuPlace.maxHeight,
+          overflowY: 'auto',
+          visibility: menuPlace.ready ? 'visible' : 'hidden'
+        }}
+        role="menu"
+      >
       <div
         className="menu-sub-wrap"
-        onMouseEnter={() => setSub('copy')}
+        onMouseEnter={(e) => openSub('copy', e.currentTarget)}
         onMouseLeave={() => setSub((s) => (s === 'copy' ? null : s))}
       >
         <button type="button" className="menu-item" role="menuitem" disabled={busy}>
           Copy to clipboard
           <span className="menu-hint">›</span>
         </button>
-        {submenu(
-          'copy',
-          <>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => void copy(commit.hash, 'hash')}
-            >
-              Commit hash
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => void copy(short, 'short hash')}
-            >
-              Short hash
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => void copy(commit.subject, 'subject')}
-            >
-              Subject
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => void copy(commit.authorName, 'author')}
-            >
-              Author
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => void copy(commit.authorEmail, 'email')}
-            >
-              Author email
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() =>
-                void copy(
-                  `${commit.hash}\n${commit.subject}\n${commit.authorName} <${commit.authorEmail}>`,
-                  'commit info'
-                )
-              }
-            >
-              Full info
-            </button>
-          </>
-        )}
       </div>
 
       <div className="menu-sep" />
@@ -250,53 +457,13 @@ export function GitHistoryContextMenu({
       </button>
       <div
         className="menu-sub-wrap"
-        onMouseEnter={() => setSub('reset')}
+        onMouseEnter={(e) => openSub('reset', e.currentTarget)}
         onMouseLeave={() => setSub((s) => (s === 'reset' ? null : s))}
       >
         <button type="button" className="menu-item" role="menuitem" disabled={busy}>
           Reset current branch to here…
           <span className="menu-hint">›</span>
         </button>
-        {submenu(
-          'reset',
-          <>
-            {(
-              [
-                ['soft', 'Soft — keep index & worktree'],
-                ['mixed', 'Mixed — keep worktree'],
-                ['hard', 'Hard — discard all changes']
-              ] as const
-            ).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                className={`menu-item${mode === 'hard' ? ' danger' : ''}`}
-                role="menuitem"
-                disabled={busy}
-                onClick={() => {
-                  const m = mode as GitResetMode
-                  void (async () => {
-                    const ok = await askConfirm({
-                      title: `Reset (${m})`,
-                      message:
-                        m === 'hard'
-                          ? `HARD reset current branch to ${short}? Uncommitted changes will be permanently lost.`
-                          : `Reset current branch to ${short} (${m})?`,
-                      confirmLabel: `Reset ${m}`,
-                      danger: m === 'hard'
-                    })
-                    if (!ok) return
-                    await runOp(`Reset ${m} to ${short}`, () =>
-                      call(api.git.reset({ repoRoot, commit: commit.hash, mode: m }))
-                    )
-                  })()
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </>
-        )}
       </div>
 
       <div className="menu-sep" />
@@ -399,99 +566,27 @@ export function GitHistoryContextMenu({
 
       <div
         className="menu-sub-wrap"
-        onMouseEnter={() => setSub('navigate')}
+        onMouseEnter={(e) => openSub('navigate', e.currentTarget)}
         onMouseLeave={() => setSub((s) => (s === 'navigate' ? null : s))}
       >
         <button type="button" className="menu-item" role="menuitem">
           Navigate
           <span className="menu-hint">›</span>
         </button>
-        {submenu(
-          'navigate',
-          <>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              disabled={!parent0Loaded}
-              onClick={() => {
-                if (parent0) onSelectHash(parent0)
-                onClose()
-              }}
-            >
-              Go to first parent
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              disabled={!parent1Loaded}
-              onClick={() => {
-                if (parent1) onSelectHash(parent1)
-                onClose()
-              }}
-            >
-              Go to second parent
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              disabled={!head}
-              onClick={() => {
-                if (head) onSelectHash(head)
-                onClose()
-              }}
-            >
-              Go to HEAD
-            </button>
-          </>
-        )}
       </div>
       <div
         className="menu-sub-wrap"
-        onMouseEnter={() => setSub('view')}
+        onMouseEnter={(e) => openSub('view', e.currentTarget)}
         onMouseLeave={() => setSub((s) => (s === 'view' ? null : s))}
       >
         <button type="button" className="menu-item" role="menuitem" disabled={busy}>
           View
           <span className="menu-hint">›</span>
         </button>
-        {submenu(
-          'view',
-          <>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => {
-                onDone()
-                onClose()
-              }}
-            >
-              Refresh history
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              role="menuitem"
-              onClick={() => {
-                void (async () => {
-                  try {
-                    await call(api.git.openTerminal({ repoRoot }))
-                  } catch (e) {
-                    notify(e instanceof IpcError ? e.message : String(e), true)
-                  }
-                  onClose()
-                })()
-              }}
-            >
-              Open terminal at root
-            </button>
-          </>
-        )}
       </div>
-    </div>,
+      </div>
+      {subPanel()}
+    </>,
     document.body
   )
 }

@@ -1,4 +1,5 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { findExactFolderView } from '@shared/folderViews'
 import { buildCommandMenuRows, commandMatches, type CommandMenuSubRow } from '@shared/contextMenuCommands'
 import {
@@ -469,7 +470,7 @@ export function ContextMenu(): JSX.Element | null {
   const ref = useRef<HTMLDivElement>(null)
   const subRef = useRef<HTMLDivElement>(null)
   const closeSubTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
+  const [pos, setPos] = useState<{ x: number; y: number; maxHeight: number } | null>(null)
   const [focusIdx, setFocusIdx] = useState(-1)
   const [openSub, setOpenSub] = useState<number | null>(null)
   const openSubRef = useRef<number | null>(null)
@@ -479,13 +480,15 @@ export function ContextMenu(): JSX.Element | null {
   const [clipPeek, setClipPeek] = useState<ClipboardPeek | null>(null)
   /** Live Shift key — Explorer-style “as administrator” label on Open Command Line. */
   const [shiftHeld, setShiftHeld] = useState(false)
-  /** Submenu placement relative to its parent row (after viewport clamp). */
+  /** Submenu placement (fixed flyout portaled to body). */
   const [subPlace, setSubPlace] = useState<{
     flipX: boolean
-    top: number
+    fixedTop: number
+    fixedLeft: number
     maxHeight: number | null
     ready: boolean
-  }>({ flipX: false, top: -5, maxHeight: null, ready: false })
+  }>({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
+  const subWrapRefs = useRef<Map<number, HTMLDivElement>>(new Map())
 
   useEffect(() => {
     if (!menu) {
@@ -532,21 +535,21 @@ export function ContextMenu(): JSX.Element | null {
             openSubRef.current = null
             setOpenSub(null)
             setSubFocusIdx(-1)
-            setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+            setSubPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
           }, delay)
           return
         }
         openSubRef.current = null
         setOpenSub(null)
         setSubFocusIdx(-1)
-        setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+        setSubPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
         return
       }
       if (openSubRef.current === i) return
       openSubRef.current = i
       setOpenSub(i)
       setSubFocusIdx(-1)
-      setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+      setSubPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
     },
     [clearCloseSubTimer]
   )
@@ -2172,35 +2175,40 @@ export function ContextMenu(): JSX.Element | null {
       )
   }, [menu, closeContextMenu, store, imageVer, shiftHeld, clipPeek])
 
-  // Clamp open submenu into the viewport (flip X, shift Y, scroll if taller than screen).
+  // Clamp open submenu flyout (portaled to body; fixed coords).
   useLayoutEffect(() => {
-    if (openSub === null) return
+    if (openSub === null) {
+      setSubPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
+      return
+    }
+    const wrap = subWrapRefs.current.get(openSub)
     const sub = subRef.current
-    if (!sub) return
-    const wrap = sub.parentElement
-    if (!wrap) return
+    if (!wrap || !sub) return
 
-    const margin = 4
+    const margin = 8
     const vw = window.innerWidth
-    const vh = window.innerHeight
+    const vh = window.visualViewport?.height ?? window.innerHeight
+    const vTop = window.visualViewport?.offsetTop ?? 0
     const wrapRect = wrap.getBoundingClientRect()
     const raw = sub.getBoundingClientRect()
     const maxHeight = Math.max(80, vh - margin * 2)
     const height = Math.min(raw.height, maxHeight)
+    const subW = raw.width
 
-    const fitsRight = wrapRect.right + 2 + raw.width <= vw - margin
-    const fitsLeft = wrapRect.left - 2 - raw.width >= margin
+    const fitsRight = wrapRect.right + 2 + subW <= vw - margin
+    const fitsLeft = wrapRect.left - 2 - subW >= margin
     const flipX = !fitsRight && fitsLeft
 
-    let top = -5
-    if (wrapRect.top + top + height > vh - margin) {
-      top = vh - margin - height - wrapRect.top
+    const fixedLeft = flipX ? wrapRect.left - subW - 2 : wrapRect.right + 2
+    let fixedTop = wrapRect.top - 5
+    if (fixedTop + height > vTop + vh - margin) {
+      fixedTop = vTop + vh - margin - height
     }
-    if (wrapRect.top + top < margin) {
-      top = margin - wrapRect.top
+    if (fixedTop < vTop + margin) {
+      fixedTop = vTop + margin
     }
 
-    setSubPlace({ flipX, top, maxHeight, ready: true })
+    setSubPlace({ flipX, fixedTop, fixedLeft, maxHeight, ready: true })
   }, [openSub, items])
 
   useLayoutEffect(() => {
@@ -2210,16 +2218,50 @@ export function ContextMenu(): JSX.Element | null {
     }
     const el = ref.current
     if (!el) return
-    const rect = el.getBoundingClientRect()
-    const x = Math.min(menu.x, window.innerWidth - rect.width - 4)
-    const y = Math.min(menu.y, window.innerHeight - rect.height - 4)
-    setPos({ x: Math.max(0, x), y: Math.max(0, y) })
+
+    const clampMenu = (): void => {
+      const margin = 8
+      const vh = window.visualViewport?.height ?? window.innerHeight
+      const vTop = window.visualViewport?.offsetTop ?? 0
+      const vw = window.innerWidth
+      const maxHeight = Math.max(120, vh - margin * 2)
+      el.style.maxHeight = `${maxHeight}px`
+      el.style.overflowY = 'auto'
+      const rect = el.getBoundingClientRect()
+      const menuH = Math.min(rect.height, maxHeight)
+      const menuW = rect.width
+
+      let x = menu.x
+      let y = menu.y
+      if (x + menuW > vw - margin) x = Math.max(margin, vw - margin - menuW)
+      if (x < margin) x = margin
+      if (y + menuH > vTop + vh - margin) {
+        y = Math.max(vTop + margin, vTop + vh - margin - menuH)
+      }
+      if (y < vTop + margin) y = vTop + margin
+
+      setPos({ x, y, maxHeight })
+    }
+
+    clampMenu()
+    window.addEventListener('resize', clampMenu)
+    window.visualViewport?.addEventListener('resize', clampMenu)
+    window.visualViewport?.addEventListener('scroll', clampMenu)
+    return () => {
+      window.removeEventListener('resize', clampMenu)
+      window.visualViewport?.removeEventListener('resize', clampMenu)
+      window.visualViewport?.removeEventListener('scroll', clampMenu)
+    }
+  }, [menu, items])
+
+  useLayoutEffect(() => {
+    if (!menu) return
     setFocusIdx(-1)
     clearCloseSubTimer()
     openSubRef.current = null
     setOpenSub(null)
     setSubFocusIdx(-1)
-    setSubPlace({ flipX: false, top: -5, maxHeight: null, ready: false })
+    setSubPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
   }, [menu, clearCloseSubTimer])
 
   useEffect(() => {
@@ -2281,7 +2323,12 @@ export function ContextMenu(): JSX.Element | null {
       }
       e.stopPropagation()
     }
-    const onClick = (): void => closeContextMenu()
+    const onClick = (e: MouseEvent): void => {
+      const t = e.target as Node
+      if (ref.current?.contains(t)) return
+      if (subRef.current?.contains(t)) return
+      closeContextMenu()
+    }
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('mousedown', onClick)
     return () => {
@@ -2299,6 +2346,8 @@ export function ContextMenu(): JSX.Element | null {
       style={{
         left: pos?.x ?? menu.x,
         top: pos?.y ?? menu.y,
+        maxHeight: pos?.maxHeight ?? 'calc(100vh - 16px)',
+        overflowY: 'auto',
         visibility: pos ? 'visible' : 'hidden'
       }}
       role="menu"
@@ -2314,6 +2363,10 @@ export function ContextMenu(): JSX.Element | null {
           return (
             <div
               key={i}
+              ref={(el) => {
+                if (el) subWrapRefs.current.set(i, el)
+                else subWrapRefs.current.delete(i)
+              }}
               className="menu-sub-wrap"
               onMouseEnter={() => {
                 showSub(i)
@@ -2331,26 +2384,29 @@ export function ContextMenu(): JSX.Element | null {
                 {item.label}
                 <span className="menu-hint">▸</span>
               </button>
-              {open && (
-                <div
-                  ref={subRef}
-                  className={`context-menu context-submenu${subPlace.flipX ? ' flip' : ''}`}
-                  role="menu"
-                  onMouseEnter={() => {
-                    // Crossing the parent→flyout gap may briefly hit a sibling;
-                    // arriving here cancels the delayed close.
-                    clearCloseSubTimer()
-                    setFocusIdx(i)
-                  }}
-                  style={{
-                    top: subPlace.top,
-                    maxHeight: subPlace.maxHeight ?? undefined,
-                    visibility: subPlace.ready ? 'visible' : 'hidden'
-                  }}
-                >
-                  <SubMenuFlyout entries={item.items} />
-                </div>
-              )}
+              {open
+                ? createPortal(
+                    <div
+                      ref={subRef}
+                      className={`context-menu context-submenu${subPlace.flipX ? ' flip' : ''}`}
+                      role="menu"
+                      onMouseEnter={() => {
+                        clearCloseSubTimer()
+                        setFocusIdx(i)
+                      }}
+                      style={{
+                        position: 'fixed',
+                        left: subPlace.fixedLeft,
+                        top: subPlace.fixedTop,
+                        maxHeight: subPlace.maxHeight ?? undefined,
+                        visibility: subPlace.ready ? 'visible' : 'hidden'
+                      }}
+                    >
+                      <SubMenuFlyout entries={item.items} />
+                    </div>,
+                    document.body
+                  )
+                : null}
             </div>
           )
         }
