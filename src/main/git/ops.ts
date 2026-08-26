@@ -156,13 +156,100 @@ export async function switchBranch(repoRoot: string, branch: string): Promise<Gi
 export async function createBranch(
   repoRoot: string,
   branch: string,
-  switchTo: boolean
+  switchTo: boolean,
+  startPoint?: string
+): Promise<GitCommandResult> {
+  const start = startPoint?.trim()
+  return withRefresh(repoRoot, () => {
+    if (switchTo) {
+      const args = start ? ['switch', '-c', branch, start] : ['switch', '-c', branch]
+      return runGit({ cwd: repoRoot, args, timeoutMs: 60_000 })
+    }
+    const args = start ? ['branch', '--', branch, start] : ['branch', '--', branch]
+    return runGit({ cwd: repoRoot, args, timeoutMs: 60_000 })
+  })
+}
+
+export async function createTag(
+  repoRoot: string,
+  tag: string,
+  commit: string
 ): Promise<GitCommandResult> {
   return withRefresh(repoRoot, () =>
     runGit({
       cwd: repoRoot,
-      args: switchTo ? ['switch', '-c', branch] : ['branch', '--', branch],
-      timeoutMs: 60_000
+      args: ['tag', '--', tag, commit],
+      timeoutMs: 30_000
+    })
+  )
+}
+
+export async function checkoutCommit(
+  repoRoot: string,
+  commit: string
+): Promise<GitCommandResult> {
+  return withRefresh(repoRoot, async () => {
+    const switched = await runGit({
+      cwd: repoRoot,
+      args: ['switch', '--detach', '--', commit],
+      timeoutMs: 120_000
+    })
+    if (switched.success) return switched
+    return runGit({
+      cwd: repoRoot,
+      args: ['checkout', '--detach', '--', commit],
+      timeoutMs: 120_000
+    })
+  })
+}
+
+export async function mergeCommit(
+  repoRoot: string,
+  commit: string
+): Promise<GitCommandResult> {
+  return withRefresh(repoRoot, () =>
+    runGit({ cwd: repoRoot, args: ['merge', '--', commit], timeoutMs: 600_000 })
+  )
+}
+
+export async function rebaseOnto(
+  repoRoot: string,
+  onto: string
+): Promise<GitCommandResult> {
+  return withRefresh(repoRoot, () =>
+    runGit({ cwd: repoRoot, args: ['rebase', '--', onto], timeoutMs: 600_000 })
+  )
+}
+
+export async function resetToCommit(
+  repoRoot: string,
+  commit: string,
+  mode: 'soft' | 'mixed' | 'hard'
+): Promise<GitCommandResult> {
+  const flag = mode === 'soft' ? '--soft' : mode === 'hard' ? '--hard' : '--mixed'
+  return withRefresh(repoRoot, () =>
+    runGit({ cwd: repoRoot, args: ['reset', flag, '--', commit], timeoutMs: 120_000 })
+  )
+}
+
+export async function cherryPickCommit(
+  repoRoot: string,
+  commit: string
+): Promise<GitCommandResult> {
+  return withRefresh(repoRoot, () =>
+    runGit({ cwd: repoRoot, args: ['cherry-pick', '--', commit], timeoutMs: 600_000 })
+  )
+}
+
+export async function revertCommit(
+  repoRoot: string,
+  commit: string
+): Promise<GitCommandResult> {
+  return withRefresh(repoRoot, () =>
+    runGit({
+      cwd: repoRoot,
+      args: ['revert', '--no-edit', '--', commit],
+      timeoutMs: 600_000
     })
   )
 }

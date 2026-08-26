@@ -5,11 +5,14 @@ import { IPC } from '@shared/ipc/contract'
 import {
   gitBranchCreateRequestSchema,
   gitBranchSwitchRequestSchema,
+  gitCommitRefRequestSchema,
   gitCommitRequestSchema,
+  gitCreateTagRequestSchema,
   gitDiffRequestSchema,
   gitPathRequestSchema,
   gitPathsRequestSchema,
   gitRepoRequestSchema,
+  gitResetRequestSchema,
   gitStashRequestSchema
 } from '@shared/schemas/git'
 import { gitLogRequestSchema } from '@shared/schemas/gitLog'
@@ -76,7 +79,28 @@ export function registerGitIpc(handle: Handle): void {
     git.switchBranch(req.repoRoot, req.branch)
   )
   handle(IPC.gitCreateBranch, gitBranchCreateRequestSchema, async (req) =>
-    git.createBranch(req.repoRoot, req.branch, req.switchTo !== false)
+    git.createBranch(req.repoRoot, req.branch, req.switchTo !== false, req.startPoint)
+  )
+  handle(IPC.gitCreateTag, gitCreateTagRequestSchema, async (req) =>
+    git.createTag(req.repoRoot, req.tag, req.commit)
+  )
+  handle(IPC.gitCheckoutCommit, gitCommitRefRequestSchema, async (req) =>
+    git.checkoutCommit(req.repoRoot, req.commit)
+  )
+  handle(IPC.gitMergeCommit, gitCommitRefRequestSchema, async (req) =>
+    git.mergeCommit(req.repoRoot, req.commit)
+  )
+  handle(IPC.gitRebaseOnto, gitCommitRefRequestSchema, async (req) =>
+    git.rebaseOnto(req.repoRoot, req.commit)
+  )
+  handle(IPC.gitReset, gitResetRequestSchema, async (req) =>
+    git.resetToCommit(req.repoRoot, req.commit, req.mode)
+  )
+  handle(IPC.gitCherryPick, gitCommitRefRequestSchema, async (req) =>
+    git.cherryPickCommit(req.repoRoot, req.commit)
+  )
+  handle(IPC.gitRevert, gitCommitRefRequestSchema, async (req) =>
+    git.revertCommit(req.repoRoot, req.commit)
   )
   handle(IPC.gitStash, gitStashRequestSchema, async (req) =>
     git.stash(req.repoRoot, req.message, req.includeUntracked)

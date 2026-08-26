@@ -46,24 +46,33 @@ export function useItemAdsOverlays(
   useEffect(() => {
     if (!enabled) return
     const list = pathsKey ? pathsKey.split('\n') : []
-    const needed = list.filter((p) => p && !requested.current.has(p.toLowerCase()))
+    const requestedSet = requested.current
+    const needed = list.filter((p) => p && !requestedSet.has(p.toLowerCase()))
     if (needed.length === 0) return
-    for (const p of needed) requested.current.add(p.toLowerCase())
+    for (const p of needed) requestedSet.add(p.toLowerCase())
     let cancelled = false
+    const completed = new Set<string>()
     void (async () => {
       for (let i = 0; i < needed.length; i += BATCH) {
         const slice = needed.slice(i, i + BATCH)
         const res = await api.itemAds.getMany({ paths: slice })
         if (cancelled) return
         if (!res.ok) {
-          for (const p of slice) requested.current.delete(p.toLowerCase())
+          for (const p of slice) requestedSet.delete(p.toLowerCase())
           continue
         }
+        for (const p of slice) completed.add(p.toLowerCase())
         setByPath((prev) => ({ ...prev, ...res.value }))
       }
     })()
     return () => {
       cancelled = true
+      // Tree expand restore changes pathsKey often; without unlocking, cancelled
+      // paths stay in `requested` forever and never get icons after restart.
+      for (const p of needed) {
+        const key = p.toLowerCase()
+        if (!completed.has(key)) requestedSet.delete(key)
+      }
     }
   }, [pathsKey, enabled, bump.rev])
 

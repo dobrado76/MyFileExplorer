@@ -14,6 +14,10 @@ import {
 import { api, call, IpcError } from '../../lib/ipc'
 import { basename } from '../../lib/paths'
 import { SpinnerIcon } from '../../lib/icons'
+import { useAppStore } from '../../store/appStore'
+import { GitBranchCreateDialog, GitTagCreateDialog } from '../git/GitDialogs'
+import { GitHistoryContextMenu } from './GitHistoryContextMenu'
+import { GitRepoPreviewToolbar } from './GitRepoPreviewToolbar'
 
 const LANE_COLORS = [
   '#3b82f6',
@@ -220,6 +224,12 @@ function graphWidth(rows: GitGraphRow[]): number {
   return Math.max(1, ...rows.map(rowLaneCount)) * COL_W + 8
 }
 
+function matchesFilter(c: GitLogCommit, q: string): boolean {
+  if (!q) return true
+  const hay = `${c.hash} ${c.subject} ${c.authorName} ${c.authorEmail}`.toLowerCase()
+  return hay.includes(q)
+}
+
 export function GitRepoPreview({
   repoRoot,
   status,
@@ -229,6 +239,7 @@ export function GitRepoPreview({
   status: GitRepositoryStatus | null
   onRefreshStatus?(): void
 }): JSX.Element {
+  const mergeGitStatus = useAppStore((s) => s.mergeGitStatus)
   const [commits, setCommits] = useState<GitLogCommit[]>([])
   const [truncated, setTruncated] = useState(false)
   const [head, setHead] = useState<string | null>(null)
@@ -236,8 +247,13 @@ export function GitRepoPreview({
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
+  const [filter, setFilter] = useState('')
+  const [ctx, setCtx] = useState<{ hash: string; x: number; y: number } | null>(null)
+  const [branchDlg, setBranchDlg] = useState<string | null>(null)
+  const [tagDlg, setTagDlg] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
   const commitsLenRef = useRef(0)
+  const rowRefs = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
     commitsLenRef.current = commits.length
@@ -271,21 +287,36 @@ export function GitRepoPreview({
     void load()
   }, [load])
 
-  const graph = useMemo(
-    () => buildGitGraph(commits.map((c) => ({ hash: c.hash, parents: c.parents }))),
-    [commits]
+  const afterMutate = useCallback(async () => {
+    onRefreshStatus?.()
+    try {
+      const res = await call(api.git.refresh({ repoRoot }))
+      mergeGitStatus(res.status)
+    } catch {
+      /* ignore */
+    }
+    await load()
+  }, [load, mergeGitStatus, onRefreshStatus, repoRoot])
+
+  const filterQ = filter.trim().toLowerCase()
+  const visibleCommits = useMemo(
+    () => (filterQ ? commits.filter((c) => matchesFilter(c, filterQ)) : commits),
+    [commits, filterQ]
   )
 
-  const info = status?.info
-  const branchLabel = info?.detachedHead
-    ? `DETACHED @ ${head ? shortHash(head) : '…'}`
-    : (info?.branch ?? '—')
-  const aheadBehind =
-    info && (info.ahead != null || info.behind != null)
-      ? `↑${info.ahead ?? 0} ↓${info.behind ?? 0}`
-      : null
+  const graph = useMemo(
+    () => buildGitGraph(visibleCommits.map((c) => ({ hash: c.hash, parents: c.parents }))),
+    [visibleCommits]
+  )
 
   const selectedCommit = commits.find((c) => c.hash === selected) ?? null
+  const ctxCommit = ctx ? (commits.find((c) => c.hash === ctx.hash) ?? null) : null
+
+  const selectAndScroll = useCallback((hash: string) => {
+    setSelected(hash)
+    const el = rowRefs.current.get(hash)
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [])
 
   return (
     <div className="git-repo-preview">
@@ -296,30 +327,18 @@ export function GitRepoPreview({
           </span>
           <span className="git-repo-preview-kind">Git repository</span>
         </div>
-        <div className="git-repo-preview-meta">
-          <span className="git-repo-preview-branch" title="Current branch">
-            {branchLabel}
-          </span>
-          {status ? (
-            <span className="git-repo-preview-counts">
-              {status.changedCount} change{status.changedCount === 1 ? '' : 's'}
-              {status.stagedCount > 0 ? ` · ${status.stagedCount} staged` : ''}
-              {status.conflictCount > 0 ? ` · ${status.conflictCount} conflict` : ''}
-            </span>
-          ) : null}
-          {aheadBehind ? <span className="git-repo-preview-ab">{aheadBehind}</span> : null}
-          <button
-            type="button"
-            className="btn git-repo-preview-refresh"
-            onClick={() => {
-              onRefreshStatus?.()
-              void load()
-            }}
-          >
-            Refresh
-          </button>
-        </div>
       </div>
+
+      <GitRepoPreviewToolbar
+        repoRoot={repoRoot}
+        status={status}
+        filter={filter}
+        onFilterChange={setFilter}
+        onRefresh={() => {
+          onRefreshStatus?.()
+          void load()
+        }}
+      />
 
       {loading && commits.length === 0 ? (
         <div className="git-repo-preview-loading">
@@ -335,62 +354,71 @@ export function GitRepoPreview({
               <div className="git-history-graph-layer" aria-hidden>
                 <GitGraphSvg rows={graph} />
               </div>
-              {commits.map((c) => {
-              const isHead = head != null && c.hash === head
-              const isSel = selected === c.hash
-              return (
-                <button
-                  type="button"
-                  key={c.hash}
-                  role="listitem"
-                  className={`git-history-row${isSel ? ' selected' : ''}${isHead ? ' is-head' : ''}`}
-                  onClick={() => setSelected(c.hash)}
-                >
-                  <span className="git-history-graph" style={{ width: graphWidth(graph) }} />
-                  <span className="git-history-msg">
-                    {c.refs.length > 0 ? (
-                      <span className="git-history-refs">
-                        {c.refs.map((r) => (
-                          <RefBadge key={`${r.kind}:${r.name}`} badge={r} />
-                        ))}
-                      </span>
-                    ) : null}
-                    <span className="git-history-subject" title={c.subject}>
-                      {c.subject || '(no message)'}
-                    </span>
-                  </span>
-                  <span className="git-history-author" title={c.authorEmail}>
-                    <span
-                      className="git-history-avatar"
-                      style={{ background: avatarColor(c.authorEmail) }}
-                      aria-hidden
-                    >
-                      {authorInitials(c.authorName)}
-                    </span>
-                    <span className="git-history-author-name">{c.authorName || 'Unknown'}</span>
-                  </span>
-                  <span
-                    className="git-history-date"
-                    title={new Date(c.authorDate * 1000).toLocaleString()}
-                  >
-                    {relativeTime(c.authorDate, now)}
-                  </span>
-                  <span
-                    className="git-history-hash"
-                    title={`${c.hash} — click to copy`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void navigator.clipboard.writeText(c.hash)
+              {visibleCommits.map((c) => {
+                const isHead = head != null && c.hash === head
+                const isSel = selected === c.hash
+                return (
+                  <button
+                    type="button"
+                    key={c.hash}
+                    role="listitem"
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(c.hash, el)
+                      else rowRefs.current.delete(c.hash)
+                    }}
+                    className={`git-history-row${isSel ? ' selected' : ''}${isHead ? ' is-head' : ''}`}
+                    onClick={() => setSelected(c.hash)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setSelected(c.hash)
+                      setCtx({ hash: c.hash, x: e.clientX, y: e.clientY })
                     }}
                   >
-                    {shortHash(c.hash)}
-                  </span>
-                </button>
-              )
+                    <span className="git-history-graph" style={{ width: graphWidth(graph) }} />
+                    <span className="git-history-msg">
+                      {c.refs.length > 0 ? (
+                        <span className="git-history-refs">
+                          {c.refs.map((r) => (
+                            <RefBadge key={`${r.kind}:${r.name}`} badge={r} />
+                          ))}
+                        </span>
+                      ) : null}
+                      <span className="git-history-subject" title={c.subject}>
+                        {c.subject || '(no message)'}
+                      </span>
+                    </span>
+                    <span className="git-history-author" title={c.authorEmail}>
+                      <span
+                        className="git-history-avatar"
+                        style={{ background: avatarColor(c.authorEmail) }}
+                        aria-hidden
+                      >
+                        {authorInitials(c.authorName)}
+                      </span>
+                      <span className="git-history-author-name">{c.authorName || 'Unknown'}</span>
+                    </span>
+                    <span
+                      className="git-history-date"
+                      title={new Date(c.authorDate * 1000).toLocaleString()}
+                    >
+                      {relativeTime(c.authorDate, now)}
+                    </span>
+                    <span
+                      className="git-history-hash"
+                      title={`${c.hash} — click to copy`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void navigator.clipboard.writeText(c.hash)
+                      }}
+                    >
+                      {shortHash(c.hash)}
+                    </span>
+                  </button>
+                )
               })}
             </div>
           </div>
-          {truncated ? (
+          {truncated && !filterQ ? (
             <div className="git-history-more">
               <button
                 type="button"
@@ -418,6 +446,37 @@ export function GitRepoPreview({
           ) : null}
         </>
       )}
+
+      {ctx && ctxCommit ? (
+        <GitHistoryContextMenu
+          repoRoot={repoRoot}
+          commit={ctxCommit}
+          commits={commits}
+          head={head}
+          pos={{ x: ctx.x, y: ctx.y }}
+          onClose={() => setCtx(null)}
+          onDone={() => void afterMutate()}
+          onSelectHash={selectAndScroll}
+          onOpenBranchDialog={() => setBranchDlg(ctxCommit.hash)}
+          onOpenTagDialog={() => setTagDlg(ctxCommit.hash)}
+        />
+      ) : null}
+      {branchDlg ? (
+        <GitBranchCreateDialog
+          repoRoot={repoRoot}
+          startPoint={branchDlg}
+          onClose={() => setBranchDlg(null)}
+          onDone={() => void afterMutate()}
+        />
+      ) : null}
+      {tagDlg ? (
+        <GitTagCreateDialog
+          repoRoot={repoRoot}
+          commit={tagDlg}
+          onClose={() => setTagDlg(null)}
+          onDone={() => void afterMutate()}
+        />
+      ) : null}
     </div>
   )
 }

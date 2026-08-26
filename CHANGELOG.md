@@ -9,6 +9,14 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Git repo-root preview toolbar + commit context menu** — GE-inspired controls on the history preview (refresh, branch, fetch/pull/push, commit, stash/more, terminal, filter) and a right-click menu on commit rows (copy, merge, non-interactive rebase, reset soft/mixed/hard with confirm, create branch/tag, checkout, revert, cherry-pick, navigate). New `git:*` IPC for those history ops. See [docs/GIT.md](docs/GIT.md).
+
+### Fixed
+
+- **Tree custom folder icons after restart** — expanding the tree during session restore cancelled ADS overlay fetches and left those paths stuck as “already requested,” so Lucide/custom colors never reappeared in the tree (file list was fine). Cancelled paths are unlocked so they can load again.
+
 ## [0.12.0] - 2026-08-26
 
 Twelfth product release: optional **Git-aware browsing** (**D64**), toolbar **Quick Launch** (**D63**), global scripts as toolbar buttons, Recycle Bin placement, Explorer clipboard parity, and search/slideshow/preview polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

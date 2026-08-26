@@ -140,7 +140,9 @@ export const gitBranchSwitchRequestSchema = z.object({
 export const gitBranchCreateRequestSchema = z.object({
   repoRoot: z.string().min(1),
   branch: z.string().min(1).max(255),
-  switchTo: z.boolean().catch(true)
+  switchTo: z.boolean().catch(true),
+  /** Create at this commit (default: HEAD). */
+  startPoint: z.string().min(7).max(64).optional()
 })
 export const gitStashRequestSchema = z.object({
   repoRoot: z.string().min(1),
@@ -150,6 +152,22 @@ export const gitStashRequestSchema = z.object({
 export const gitDiffRequestSchema = z.object({
   repoRoot: z.string().min(1),
   path: z.string().min(1)
+})
+export const gitCommitRefRequestSchema = z.object({
+  repoRoot: z.string().min(1),
+  commit: z.string().min(7).max(64)
+})
+export const gitCreateTagRequestSchema = z.object({
+  repoRoot: z.string().min(1),
+  tag: z.string().min(1).max(255),
+  commit: z.string().min(7).max(64)
+})
+export const gitResetModeSchema = z.enum(['soft', 'mixed', 'hard'])
+export type GitResetMode = z.infer<typeof gitResetModeSchema>
+export const gitResetRequestSchema = z.object({
+  repoRoot: z.string().min(1),
+  commit: z.string().min(7).max(64),
+  mode: gitResetModeSchema
 })
 
 /** UI priority for overlays (highest first). */

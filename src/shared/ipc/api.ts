@@ -836,6 +836,37 @@ export type MyFileExplorerApi = {
       repoRoot: string
       branch: string
       switchTo?: boolean
+      startPoint?: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    createTag(req: {
+      repoRoot: string
+      tag: string
+      commit: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    checkoutCommit(req: {
+      repoRoot: string
+      commit: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    mergeCommit(req: {
+      repoRoot: string
+      commit: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    rebaseOnto(req: {
+      repoRoot: string
+      commit: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    reset(req: {
+      repoRoot: string
+      commit: string
+      mode: import('../schemas/git').GitResetMode
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    cherryPick(req: {
+      repoRoot: string
+      commit: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    revert(req: {
+      repoRoot: string
+      commit: string
     }): Promise<Result<import('../schemas/git').GitCommandResult>>
     stash(req: {
       repoRoot: string

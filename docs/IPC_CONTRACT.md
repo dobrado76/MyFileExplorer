@@ -299,7 +299,8 @@ Whitelist only — no arbitrary argv from the renderer. See [GIT.md](GIT.md).
 | `git:discover` / `git:getStatus` / `git:refresh` / `git:invalidate` | Repo root + porcelain status cache |
 | `git:stage` / `git:unstage` / `git:discard` | Path-scoped ops (`--` before paths) |
 | `git:commit` / `git:fetch` / `git:pull` / `git:push` | Repo ops |
-| `git:listBranches` / `git:switchBranch` / `git:createBranch` | Local branches |
+| `git:listBranches` / `git:switchBranch` / `git:createBranch` | Local branches (`createBranch` may take `startPoint`) |
+| `git:createTag` / `git:checkoutCommit` / `git:mergeCommit` / `git:rebaseOnto` / `git:reset` / `git:cherryPick` / `git:revert` | History ops for repo-root preview (non-interactive rebase; reset soft/mixed/hard) |
 | `git:stash` / `git:stashPop` | Stash push / pop |
 | `git:showDiff` | HEAD blob → scratch + external diff tool |
 | `git:log` | Commit history for repo-root preview (`--all`, decorated) |
