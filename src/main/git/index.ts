@@ -25,5 +25,6 @@ export {
   showExternalDiff,
   openRepoTerminal
 } from './ops'
+export { fetchGitLog } from './log'
 export { toRepoRelativePaths } from './paths'
 export { parsePorcelainV2, buildFolderAggregates } from './statusParse'

@@ -34,15 +34,19 @@ Do **not** confuse with image ADS **Version Control** (D27).
 
 ## IPC
 
-Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches, stash, showDiff, openTerminal, relativePaths, pickers.
+Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches, stash, showDiff, openTerminal, relativePaths, pickers, **log** (history for repo-root preview).
 
 ## Context menu
 
 Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage, Discard (confirm), Show changes, Copy repo-relative path, Open repository root, Open terminal at root, Refresh.
 
+## Repo-root preview
+
+When Git is enabled and the preview target is the **repository root** folder (selected, or current folder with nothing selected), the preview pane shows a Git Graph–style history: lane graph, branch/remote/tag badges, author, relative time, short hash (click to copy), and a detail strip for the selected commit. Load more pages history. Not a full commit browser — no blame, rebase, or PR UI.
+
 ## Out of v1
 
-Commit graph, history browser, rebase/merge editors, remotes UI, GitHub/GitLab/PR, credentials UI, submodule/worktree/LFS admin, blame/bisect, full stash manager, built-in text diff, `git:` search tokens, Power Search Git fields, Properties Git section, `reset --hard` / `clean`.
+Full commit browser (diff pane, cherry-pick), rebase/merge editors, remotes UI, GitHub/GitLab/PR, credentials UI, submodule/worktree/LFS admin, blame/bisect, full stash manager, built-in text diff, `git:` search tokens, Power Search Git fields, Properties Git section, `reset --hard` / `clean`.
 
 ## Related
 

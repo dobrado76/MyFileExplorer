@@ -1,6 +1,6 @@
 import { useEffect, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
-import { api } from '../lib/ipc'
+import { api, call } from '../lib/ipc'
 import { EditImageIcon, PopOutIcon } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
@@ -10,6 +10,8 @@ import { PreviewView } from './preview/PreviewView'
 import { ItemNotePreview } from './ItemNotePreview'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import type { ItemNote } from '@shared/schemas/itemAds'
+import { lookupGitForPath } from '../lib/gitUi'
+import { samePath } from '../lib/paths'
 
 export function PreviewPane(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
@@ -24,6 +26,9 @@ export function PreviewPane(): JSX.Element {
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
   const drawCaption = useAppStore((s) => s.devGateActive && s.settings.slideshow.drawCaption)
+  const gitEnabled = useAppStore((s) => s.settings.git?.enabled === true)
+  const gitByRoot = useAppStore((s) => s.gitByRoot)
+  const mergeGitStatus = useAppStore((s) => s.mergeGitStatus)
   const [captionPosterUrl, setCaptionPosterUrl] = useState<string | null>(null)
   const [itemNote, setItemNote] = useState<ItemNote | null>(null)
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
@@ -40,8 +45,48 @@ export function PreviewPane(): JSX.Element {
         : selected.length === 0 && isVolumeRootPath(listingPath)
           ? { drives, focusPath: listingPath }
           : null
+
+  const gitLookup =
+    gitEnabled && previewPath && !driveSpace
+      ? lookupGitForPath(gitByRoot, previewPath)
+      : null
+  const gitRepo =
+    gitLookup && samePath(gitLookup.rootPath, previewPath!)
+      ? {
+          repoRoot: gitLookup.rootPath,
+          status: gitLookup.status,
+          onRefreshStatus: () => {
+            void (async () => {
+              try {
+                const res = await call(api.git.refresh({ repoRoot: gitLookup.rootPath }))
+                mergeGitStatus(res.status)
+              } catch {
+                /* ignore */
+              }
+            })()
+          }
+        }
+      : null
+
+  useEffect(() => {
+    if (!gitEnabled || !previewPath || driveSpace) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await call(api.git.getStatus({ path: previewPath }))
+        if (cancelled || !res.inRepo || !res.status) return
+        mergeGitStatus(res.status)
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [gitEnabled, previewPath, driveSpace, mergeGitStatus])
+
   const { model, loading, retryPlayableForce } = usePreviewFetch(
-    previewPath,
+    gitRepo ? null : previewPath,
     versionOverrideAds,
     selectedStamp
   )
@@ -154,6 +199,7 @@ export function PreviewPane(): JSX.Element {
       loading={loading}
       previewPath={previewPath}
       driveSpace={driveSpace}
+      gitRepo={gitRepo}
       multiCount={selected.length}
       mediaHold={mediaHold}
       previewWindowOpen={previewWindowOpen}

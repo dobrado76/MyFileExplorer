@@ -14,7 +14,7 @@ Full detail: [CHANGELOG.md](CHANGELOG.md). Git guide: [docs/GIT.md](docs/GIT.md)
 
 ### Git-aware browsing (D64)
 
-**Off by default** — Settings → **Git** → Enable. Uses your installed `git` CLI (never stores credentials). While browsing a repo you get status overlays, folder indicators, an optional Details **Git status** column, and an active-pane toolbar (branch · changes · ahead/behind, Commit / Pull / Push / branch / stash). Context **Git >** covers stage, unstage, discard (with confirm), external diff (HEAD ↔ working tree), copy repo-relative path, open root / terminal, and refresh.
+**Off by default** — Settings → **Git** → Enable. Uses your installed `git` CLI (never stores credentials). While browsing a repo you get status overlays, folder indicators, an optional Details **Git status** column, and an active-pane toolbar (branch · changes · ahead/behind, Commit / Pull / Push / branch / stash). Context **Git >** covers stage, unstage, discard (with confirm), external diff (HEAD ↔ working tree), copy repo-relative path, open root / terminal, and refresh. Select the **repository root** to open a Git Graph–style history in the preview pane.
 
 ### Quick Launch (D63)
 

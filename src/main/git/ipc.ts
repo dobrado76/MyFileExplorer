@@ -12,6 +12,7 @@ import {
   gitRepoRequestSchema,
   gitStashRequestSchema
 } from '@shared/schemas/git'
+import { gitLogRequestSchema } from '@shared/schemas/gitLog'
 import * as git from './index'
 
 const emptySchema = z.union([z.undefined(), z.null(), z.object({}).strict()]).optional()
@@ -125,4 +126,8 @@ export function registerGitIpc(handle: Handle): void {
     if (picked.canceled || !picked.filePaths[0]) return { path: null as string | null }
     return { path: picked.filePaths[0] }
   })
+
+  handle(IPC.gitLog, gitLogRequestSchema, async (req) =>
+    git.fetchGitLog(req.repoRoot, { limit: req.limit, skip: req.skip })
+  )
 }

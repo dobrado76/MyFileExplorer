@@ -854,6 +854,11 @@ export type MyFileExplorerApi = {
     }): Promise<Result<{ paths: string[] }>>
     pickExecutable(): Promise<Result<{ path: string | null }>>
     pickDiffTool(): Promise<Result<{ path: string | null }>>
+    log(req: {
+      repoRoot: string
+      limit?: number
+      skip?: number
+    }): Promise<Result<import('../schemas/gitLog').GitLogResult>>
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

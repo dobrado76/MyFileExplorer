@@ -156,7 +156,7 @@ textarea:focus {
   gap: 6px;
   padding: 5px 8px 5px 12px;
   border-radius: 6px 6px 0 0;
-  /* Inactive: dark “tab” chrome (same family as the old selected look). */
+  /* Inactive: dark âtabâ chrome (same family as the old selected look). */
   background: var(--bg);
   color: var(--text-dim);
   /* Packed to the widest label (--tab-fit); compress equally only when the strip is full. */
@@ -205,7 +205,7 @@ textarea:focus {
   background: color-mix(in srgb, var(--bg) 70%, var(--bg-elevated));
 }
 
-/* File drag onto a tab → move/copy into that tab's folder. */
+/* File drag onto a tab â move/copy into that tab's folder. */
 .tab.drop-target {
   background: var(--accent-dim);
   color: var(--text);
@@ -476,7 +476,7 @@ textarea:focus {
   cursor: default;
 }
 .crumb-history-menu {
-  /* Portaled to body — position set inline (fixed). Escape pane overflow:hidden. */
+  /* Portaled to body â position set inline (fixed). Escape pane overflow:hidden. */
   z-index: 2000;
   max-height: min(360px, 50vh);
   overflow: auto;
@@ -730,7 +730,7 @@ textarea:focus {
   outline-offset: 1px;
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
-/* Program glyph is the control — not a 16px icon inside padded icon-btn chrome. */
+/* Program glyph is the control â not a 16px icon inside padded icon-btn chrome. */
 .quick-launch-btn {
   display: flex;
   align-items: center;
@@ -899,7 +899,7 @@ textarea:focus {
   font-weight: 500;
 }
 .new-item-menu-panel {
-  /* Portaled to body — position set inline (fixed). Escape shell-body stacking. */
+  /* Portaled to body â position set inline (fixed). Escape shell-body stacking. */
   z-index: 2000;
   min-width: 200px;
   max-height: min(70vh, 420px);
@@ -1484,7 +1484,7 @@ body.right-dragging * {
 }
 
 /* Icon/thumbnail modes: gutter + empty area use the grid-line color so the
-   last row doesn’t dissolve into the same fill as the cells. Cells keep --bg. */
+   last row doesnât dissolve into the same fill as the cells. Cells keep --bg. */
 .fileview.fileview-icons {
   --grid-line: color-mix(in srgb, var(--bg) 58%, #000);
   background-color: var(--grid-line);
@@ -1769,7 +1769,7 @@ body.right-dragging * {
   gap: 9px;
   min-width: 0;
 }
-/* Ellipsis only on the label — never on a wrapper around the shell icon. */
+/* Ellipsis only on the label â never on a wrapper around the shell icon. */
 .row .row-name > .row-name-text,
 .row .row-name > .row-name-text .cell-name-primary {
   overflow: hidden;
@@ -1803,7 +1803,7 @@ body.right-dragging * {
   margin: 0;
   accent-color: var(--accent);
   cursor: pointer;
-  /* Visible when hovered or selected — Explorer-like */
+  /* Visible when hovered or selected â Explorer-like */
   opacity: 0;
 }
 .fileview-item-checks.fileview-icons .grid-cell:hover > .item-check,
@@ -2390,7 +2390,7 @@ body.right-dragging * {
   margin-top: 4px;
 }
 
-/* ZIP archive contents tree (preview only — not a navigable folder) */
+/* ZIP archive contents tree (preview only â not a navigable folder) */
 .preview.preview-kind-archive .preview-content {
   overflow: hidden;
 }
@@ -2494,7 +2494,7 @@ body.right-dragging * {
   font-variant-numeric: tabular-nums;
 }
 
-/* Compiled HTML Help (.chm) — TOC + sandboxed topic iframe */
+/* Compiled HTML Help (.chm) â TOC + sandboxed topic iframe */
 .preview.preview-kind-chm .preview-content {
   overflow: hidden;
 }
@@ -2655,7 +2655,7 @@ body.right-dragging * {
   border: none;
   white-space: inherit;
 }
-/* highlight.js — Cursor / VS Code Dark+ (and Light+ under [data-theme='light']) */
+/* highlight.js â Cursor / VS Code Dark+ (and Light+ under [data-theme='light']) */
 .preview-code .hljs-comment,
 .script-editor-highlight .hljs-comment,
 .preview-code .hljs-quote,
@@ -3355,7 +3355,7 @@ button.media-metadata-hero-poster.is-clickable:hover {
   font-variant-numeric: tabular-nums;
   font-size: 0.92em;
 }
-/* Short File-tab scalars (Duration, Bitrate, Yes/No, …) share a row; wrap when narrow. */
+/* Short File-tab scalars (Duration, Bitrate, Yes/No, â¦) share a row; wrap when narrow. */
 .preview-field-flow,
 .preview-gen-flow {
   display: flex;
@@ -3724,7 +3724,7 @@ button.media-metadata-hero-poster.is-clickable:hover {
   display: flex;
 }
 .layouts-menu-panel {
-  /* Portaled to body — position set inline (fixed). Escape shell-body stacking. */
+  /* Portaled to body â position set inline (fixed). Escape shell-body stacking. */
   z-index: 2000;
   min-width: 220px;
   max-width: 320px;
@@ -3829,7 +3829,7 @@ button.media-metadata-hero-poster.is-clickable:hover {
   height: 100%;
   color: var(--text-dim);
 }
-/* Filename sits beside Filerobot’s Save control */
+/* Filename sits beside Filerobotâs Save control */
 .image-editor .FIE_topbar-buttons-wrapper {
   display: flex;
   align-items: center;
@@ -3850,7 +3850,7 @@ button.media-metadata-hero-poster.is-clickable:hover {
 .image-editor .FIE_topbar-buttons-wrapper > *:first-child {
   order: 1;
 }
-/* Remove tab is a cloned FIE_tab appended under Resize — keep pointer + focus chrome. */
+/* Remove tab is a cloned FIE_tab appended under Resize â keep pointer + focus chrome. */
 .image-editor .mfe-remove-tab:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -3944,7 +3944,7 @@ button.media-metadata-hero-poster.is-clickable:hover {
 /*
  * Filerobot discard/save modals portal to document.body via Scaleflex Modal
  * (default z-index 1200). Our editor overlay is 3100, so without this the
- * “Discard changes?” dialog opens behind the editor and close appears dead.
+ * âDiscard changes?â dialog opens behind the editor and close appears dead.
  */
 body > .SfxModal-Wrapper,
 [data-testid='FIE-modal-container'] {
@@ -4016,7 +4016,7 @@ body > .SfxModal-Wrapper,
   overflow: auto;
 }
 .image-viewer-frame.fit img {
-  /* Definite containing block from absolute inset:0 → scale to full viewport */
+  /* Definite containing block from absolute inset:0 â scale to full viewport */
   max-width: 100%;
   max-height: 100%;
   width: auto;
@@ -4097,11 +4097,11 @@ html.idle-cursor-hidden * {
   justify-content: center;
   overflow: hidden;
   background: #000;
-  /* Full viewport — no chrome bar */
+  /* Full viewport â no chrome bar */
   min-height: 0;
   width: 100%;
   height: 100%;
-  /* Isolate compositing so buffer swaps don’t flash the page underneath */
+  /* Isolate compositing so buffer swaps donât flash the page underneath */
   contain: strict;
   transform: translateZ(0);
 }
@@ -4115,7 +4115,7 @@ html.idle-cursor-hidden * {
   object-position: center;
   user-select: none;
   pointer-events: none;
-  /* GPU layer per buffer — V-Sync opacity flip, no layout thrash */
+  /* GPU layer per buffer â V-Sync opacity flip, no layout thrash */
   will-change: opacity;
   backface-visibility: hidden;
 }
@@ -6987,7 +6987,7 @@ html.idle-cursor-hidden * {
   background: var(--bg);
   overflow-y: auto;
 }
-/* Indexed roots are the primary list — give them the vertical room. */
+/* Indexed roots are the primary list â give them the vertical room. */
 .settings-index-list.roots {
   min-height: 160px;
   max-height: min(320px, 38vh);
@@ -7180,7 +7180,7 @@ html.idle-cursor-hidden * {
   background: none;
 }
 
-/* Settings → Context menu */
+/* Settings â Context menu */
 .context-menu-settings {
   flex: 1;
   min-height: 0;
@@ -7994,4 +7994,266 @@ html.idle-cursor-hidden * {
 .script-params {
   display: grid;
   gap: 8px;
+}
+
+/*  Git repository preview (D64)  */
+.git-repo-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+.git-repo-preview-header {
+  flex-shrink: 0;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.git-repo-preview-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.git-repo-preview-name {
+  font-weight: 600;
+  font-size: 1.05em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-repo-preview-kind {
+  font-size: 0.85em;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.git-repo-preview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88em;
+  color: var(--text-dim);
+}
+.git-repo-preview-branch {
+  color: var(--accent);
+  font-weight: 600;
+}
+.git-repo-preview-refresh {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.92em;
+}
+.git-repo-preview-loading,
+.git-repo-preview-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--text-dim);
+}
+.git-repo-preview-error {
+  color: var(--danger);
+}
+.git-history {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.git-history-stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.git-history-graph-layer {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.git-history-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(72px, 110px) minmax(72px, 100px) 64px;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px 0 4px;
+  border: none;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--border) 55%, transparent);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  position: relative;
+  z-index: 0;
+  flex-shrink: 0;
+}
+.git-history-row:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.git-history-row.selected {
+  background: color-mix(in srgb, var(--accent) 16%, var(--bg-elevated));
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  outline-offset: -1px;
+}
+.git-history-row.is-head .git-history-subject {
+  font-weight: 600;
+}
+.git-history-graph {
+  flex-shrink: 0;
+  height: 28px;
+}
+.git-graph-svg {
+  display: block;
+}
+.git-history-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.git-history-refs {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+}
+.git-ref-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 0.78em;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.git-ref-badge.branch {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.git-ref-badge.branch.current {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.git-ref-badge.remote {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+.git-ref-badge.tag {
+  background: color-mix(in srgb, #38bdf8 18%, transparent);
+  color: #38bdf8;
+  border-color: color-mix(in srgb, #38bdf8 40%, transparent);
+}
+.git-ref-badge.head {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  color: var(--danger);
+}
+.git-ref-head-mark {
+  font-size: 0.7em;
+  color: var(--danger);
+}
+.git-history-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.git-history-author {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: 0.88em;
+}
+.git-history-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65em;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.git-history-author-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-history-date {
+  color: var(--text-dim);
+  font-size: 0.85em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-history-hash {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.8em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.git-history-hash:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.git-history-more {
+  flex-shrink: 0;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.git-commit-detail {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 55%, var(--bg-elevated));
+  font-size: 0.88em;
+}
+.git-commit-detail-hash {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.85em;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-commit-detail-subject {
+  margin-top: 2px;
+  font-weight: 600;
+}
+.git-commit-detail-meta {
+  margin-top: 2px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .git-history-row {
+    grid-template-columns: auto minmax(0, 1fr) 56px;
+  }
+  .git-history-author,
+  .git-history-date {
+    display: none;
+  }
 }

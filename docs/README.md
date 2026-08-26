@@ -52,7 +52,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
-| Git-aware browsing (D64) | **Opt-in** Settings → Git. Overlays / folder indicators / Details Git status / toolbar Commit·Pull·Push / context Git. System `git` only — [GIT.md](GIT.md) |
+| Git-aware browsing (D64) | **Opt-in** Settings → Git. Overlays / folder indicators / Details Git status / toolbar Commit·Pull·Push / context Git. Select **repo root** → Git Graph history in preview. System `git` only — [GIT.md](GIT.md) |
 | Quick Launch (D63) | Toolbar pins (icon / label / both). Settings manage; strip hidden when empty. |
 | Global scripts | Each Global script is its own toolbar button (face matches Quick Launch). |
 | Recycle Bin placement | Appearance: none / tree / toolbar / both (default both). |

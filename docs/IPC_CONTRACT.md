@@ -302,4 +302,5 @@ Whitelist only — no arbitrary argv from the renderer. See [GIT.md](GIT.md).
 | `git:listBranches` / `git:switchBranch` / `git:createBranch` | Local branches |
 | `git:stash` / `git:stashPop` | Stash push / pop |
 | `git:showDiff` | HEAD blob → scratch + external diff tool |
+| `git:log` | Commit history for repo-root preview (`--all`, decorated) |
 | `git:openTerminal` / `git:relativePaths` / pickers | Helpers |

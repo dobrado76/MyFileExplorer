@@ -32,6 +32,7 @@ import { ChmPreview } from './ChmPreview'
 import { FontPreview } from './FontPreview'
 import { Model3dPreview } from './Model3dPreview'
 import { DriveSpacePreview } from './DriveSpacePreview'
+import { GitRepoPreview } from './GitRepoPreview'
 import {
   MediaMetadataDetails,
   MediaMetadataHero,
@@ -144,6 +145,12 @@ export type PreviewViewProps = {
   onRetryPlayableForce: () => void
   /** Volume pies — all drives, or one drive when `focusPath` is set. */
   driveSpace?: { drives: DriveInfo[]; focusPath?: string | null } | null
+  /** Git history when the preview target is a repository root (D64). */
+  gitRepo?: {
+    repoRoot: string
+    status: import('@shared/schemas/git').GitRepositoryStatus | null
+    onRefreshStatus?(): void
+  } | null
   /** Attached item note (D61) shown above file metadata. */
   extraBeforeFields?: ReactNode
 }
@@ -167,15 +174,18 @@ export function PreviewView({
   onNotify,
   onRetryPlayableForce,
   driveSpace = null,
+  gitRepo = null,
   extraBeforeFields = null
 }: PreviewViewProps): JSX.Element {
   const headerSub = driveSpace
     ? driveSpace.focusPath
       ? 'Local disk'
       : 'Drives'
-    : model
-      ? (model.subtitle ?? kindLabel(model.kind))
-      : null
+    : gitRepo
+      ? 'Git'
+      : model
+        ? (model.subtitle ?? kindLabel(model.kind))
+        : null
   const multiHint = multiCount > 1 ? `${multiCount} selected` : null
 
   const copyValue = async (value: string): Promise<void> => {
@@ -239,6 +249,12 @@ export function PreviewView({
 
       {driveSpace ? (
         <DriveSpacePreview drives={driveSpace.drives} focusPath={driveSpace.focusPath} />
+      ) : gitRepo ? (
+        <GitRepoPreview
+          repoRoot={gitRepo.repoRoot}
+          status={gitRepo.status}
+          onRefreshStatus={gitRepo.onRefreshStatus}
+        />
       ) : !previewPath ? (
         <div className="preview-empty">Select a file to preview</div>
       ) : loading && !model ? (
