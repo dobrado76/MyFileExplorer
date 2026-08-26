@@ -11,7 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
-- **Who’s locking the file** — when a file/folder is in use, alerts and the end-of-op **In use** review list the locking processes (Windows Restart Manager + fallback), with **Refresh**, **Locate** the exe, and **End task** (confirm → force-end), then **Retry**. No fake “unlock handles” API — that is not supported on Windows.
+- **File operation plan (Ctrl)** — hold **Ctrl** during any copy, move, paste, or delete to open a review panel: full operation list (source, destination, action), options, **Dry run** button (visual preview in the dialog — nothing changes on disk), then **Run** to execute with the same settings without redoing the action. Copy/move include a **Name conflicts** policy (Ask on conflict, Keep both, Skip, Replace); same-folder paste defaults to **Keep both**.
 - **Custom media cover** — **Change cover** → **Browse for image…** picks any local JPG/PNG/WebP/etc. when Plex / TMDB do not list the right poster.
 - **Git changes dialog** — click the toolbar **N changes** summary (explorer or repo-root preview) to inspect a folder tree of dirty paths, stage/unstage/discard, reveal in the file list, or open the configured external diff tool. **Show ignored** (default off) is persisted as `settings.git.showIgnored`.
 - **Git commit detail** — double-click a commit in repo-root history (or press **Enter** when the list is focused) to open a dialog with the full message, parents, and changed files; double-click a file to diff that version in the external diff tool.
@@ -32,6 +32,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Recycle Bin restore / undo** — restore no longer lists and walks the entire bin twice (COM + PowerShell). It resolves targets via `$I` metadata or direct `$R…` paths, then restores only those rows. Avoids multi-minute hangs on large bins and blocks forever when a hidden name-conflict dialog would stall shell `DoIt()`.
 - **Ctrl+C / Ctrl+X copied the folder instead of the file selection** — selecting items in the file list now moves keyboard focus out of the folder tree, so copy/cut/delete target the selected files (not the tree folder you had focused earlier).
 - **Git Commit → Push dialog** — opening Push right after Commit used a stale status cache and showed “Nothing to push” even when HEAD was ahead. Outgoing now refreshes and counts `upstream..HEAD` directly.
 - **Git tag push vs pre-push hook** — this repo’s pre-push `npm run check` no longer runs on tag-only pushes (Create tag → Push to origin was failing on unrelated WIP). Branch pushes still run the full check.

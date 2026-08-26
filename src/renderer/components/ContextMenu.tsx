@@ -40,7 +40,11 @@ function fileExtension(filePath: string): string | null {
   return name.slice(dot)
 }
 
-type MenuActionEv = { shiftKey?: boolean }
+type MenuActionEv = { shiftKey?: boolean; ctrlKey?: boolean }
+
+function menuMods(e: Pick<MouseEvent | KeyboardEvent, 'shiftKey' | 'ctrlKey'>): MenuActionEv {
+  return { shiftKey: e.shiftKey, ctrlKey: e.ctrlKey }
+}
 
 type SubEntry = {
   label: string
@@ -340,7 +344,7 @@ function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: nu
             key={j}
             type="button"
             className="menu-item"
-            onClick={(e) => sub.action?.({ shiftKey: e.shiftKey })}
+            onClick={(e) => sub.action?.(menuMods(e))}
             role="menuitem"
             title={sub.title}
             onMouseEnter={() => setOpenNested(null)}
@@ -629,19 +633,19 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Copy here',
-          hint: defaultOp === 'copy' ? 'default' : undefined,
-          action: () => {
+          hint: defaultOp === 'copy' ? 'default · Ctrl plan' : 'Ctrl plan',
+          action: (ev) => {
             close()
-            void s.performTransfer('copy', paths, dest)
+            void s.performTransfer('copy', paths, dest, false, !!ev?.ctrlKey)
           }
         },
         {
           type: 'item',
           label: 'Move here',
-          hint: defaultOp === 'move' ? 'default' : undefined,
-          action: () => {
+          hint: defaultOp === 'move' ? 'default · Ctrl plan' : 'Ctrl plan',
+          action: (ev) => {
             close()
-            void s.performTransfer('move', paths, dest)
+            void s.performTransfer('move', paths, dest, false, !!ev?.ctrlKey)
           }
         },
         {
@@ -1029,11 +1033,11 @@ export function ContextMenu(): JSX.Element | null {
         {
           type: 'item',
           label: 'Paste',
-          hint: 'Ctrl+V',
+          hint: 'Ctrl+V · Ctrl plan',
           builtin: 'paste',
-          action: () => {
+          action: (ev) => {
             close()
-            void s.paste()
+            void s.pasteInto(folderPath, ev?.ctrlKey ? { planMode: true } : undefined)
           }
         },
         ...((): MenuItem[] => {
@@ -1631,10 +1635,11 @@ export function ContextMenu(): JSX.Element | null {
       result.push({
         type: 'item',
         label: 'Paste into folder',
+        hint: 'Ctrl+V · Ctrl plan',
         builtin: 'paste-into-folder',
-        action: () => {
+        action: (ev) => {
           close()
-          void s.pasteInto(single)
+          void s.pasteInto(single, { planMode: !!ev?.ctrlKey })
         }
       })
       const special = pasteSpecialMenu(single, clipPeek, close, s)
@@ -1734,28 +1739,30 @@ export function ContextMenu(): JSX.Element | null {
             {
               type: 'item' as const,
               label: 'Delete',
-              hint: 'Del',
+              hint: 'Del · Ctrl+Del plan',
               builtin: 'delete' as const,
-              action: () => {
+              action: (ev?: MenuActionEv) => {
                 close()
                 // Del → Recycle Bin (never permanent).
                 void s.deleteSelection(
                   false,
-                  menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
+                  menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined,
+                  !!ev?.ctrlKey
                 )
               }
             },
             {
               type: 'item' as const,
               label: 'Delete permanently',
-              hint: 'Shift+Del',
+              hint: 'Shift+Del · Ctrl plan',
               danger: true,
               builtin: 'delete-permanently' as const,
-              action: () => {
+              action: (ev?: MenuActionEv) => {
                 close()
                 void s.deleteSelection(
                   true,
-                  menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined
+                  menu.inTree && single ? [single] : paths.length > 0 ? paths : undefined,
+                  !!ev?.ctrlKey
                 )
               }
             }
@@ -2140,7 +2147,7 @@ export function ContextMenu(): JSX.Element | null {
                   }
                 } satisfies SubEntry,
                 {
-                  label: 'File history…',
+                  label: 'Git History…',
                   action: () => {
                     close()
                     useGitFileHistory.getState().open(rootPath, targetPaths[0]!)
@@ -2361,13 +2368,13 @@ export function ContextMenu(): JSX.Element | null {
       } else if (e.key === 'Enter') {
         if (subItems && subFocusIdx >= 0) {
           const sub = subItems[subFocusIdx]
-          if (sub && !sub.sep && sub.action) sub.action({ shiftKey: e.shiftKey })
+          if (sub && !sub.sep && sub.action) sub.action(menuMods(e))
         } else if (focused?.type === 'submenu' && !focused.disabled) {
           showSub(focusIdx)
           const first = focused.items.findIndex((x) => !x.sep)
           setSubFocusIdx(first >= 0 ? first : 0)
         } else if (focused && focused.type === 'item' && !focused.disabled) {
-          focused.action({ shiftKey: e.shiftKey })
+          focused.action(menuMods(e))
         }
       }
       e.stopPropagation()
@@ -2464,7 +2471,7 @@ export function ContextMenu(): JSX.Element | null {
             key={i}
             className={`menu-item${item.danger ? ' danger' : ''}${focusIdx === i ? ' focused' : ''}`}
             disabled={item.disabled}
-            onClick={(e) => item.action({ shiftKey: e.shiftKey })}
+            onClick={(e) => item.action(menuMods(e))}
             onMouseEnter={() => showSub(null, { delayMs: 300 })}
             role="menuitem"
           >

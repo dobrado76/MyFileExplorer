@@ -5,6 +5,9 @@ import type {
   ConflictDecision,
   ConflictItem,
   DriveInfo,
+  FileOpPlanRequest,
+  FileOpPlanResponse,
+  FileOpPlanChoice,
   IssueDecision,
   OpIssue
 } from '@shared/schemas/fs'
@@ -267,6 +270,7 @@ export type DialogState =
       confirmLabel?: string
       danger?: boolean
     }
+  | { kind: 'file-op-plan'; plan: FileOpPlanResponse; request: FileOpPlanRequest }
   | { kind: 'power-rename'; paths: string[] }
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | { kind: 'power-search' }
@@ -488,6 +492,7 @@ const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
+let fileOpPlanResolve: ((choice: FileOpPlanChoice | null) => void) | null = null
 let mediaKindResolve: ((choice: 'movie' | 'show' | null) => void) | null = null
 export type MediaPickResult = { action: 'pick'; id: string } | { action: 'search-as' }
 let mediaPickResolve: ((choice: MediaPickResult | null) => void) | null = null
@@ -801,13 +806,15 @@ type AppState = {
   cutSelection(paths?: string[]): void
   paste(): Promise<void>
   /** Paste into a specific folder (file transfer or D56 clipboard file). */
-  pasteInto(destDir: string): Promise<void>
+  pasteInto(destDir: string, opts?: { planMode?: boolean }): Promise<void>
   pasteClipboardAs(destDir: string, format: ClipboardPasteFormat, name?: string): Promise<void>
   performTransfer(
     op: 'copy' | 'move',
     sources: string[],
     destinationDir: string,
-    clearCutAfter?: boolean
+    clearCutAfter?: boolean,
+    planMode?: boolean,
+    planChoice?: FileOpPlanChoice | null
   ): Promise<boolean>
   /** Right-drag “Create shortcuts here” — write .lnk files pointing at sources. */
   createShortcutsHere(sources: string[], destinationDir: string): Promise<void>
@@ -839,7 +846,7 @@ type AppState = {
         }[]
   ): Promise<void>
   /** Delete file-view selection, or explicit `paths` (e.g. tree-focused folder). */
-  deleteSelection(permanent: boolean, paths?: string[]): Promise<void>
+  deleteSelection(permanent: boolean, paths?: string[], planMode?: boolean): Promise<void>
   /** Set a custom folder icon (desktop.ini + Folder.ico). Picks a .ico via dialog. */
   changeFolderIcon(folderPath: string): Promise<void>
   confirmPermanentDelete(confirmed: boolean): Promise<void>
@@ -871,6 +878,8 @@ type AppState = {
     danger?: boolean
   }): Promise<boolean>
   resolveConfirm(confirmed: boolean): void
+  askFileOpPlan(plan: FileOpPlanResponse, request: FileOpPlanRequest): Promise<FileOpPlanChoice | null>
+  resolveFileOpPlan(choice: FileOpPlanChoice | null): void
   askMediaKind(opts: { title: string; message: string }): Promise<'movie' | 'show' | null>
   resolveMediaKind(choice: 'movie' | 'show' | null): void
   askMediaPick(opts: {
@@ -1644,7 +1653,13 @@ export const useAppStore = create<AppState>()((set, get) => {
     src: string[],
     dest: string,
     policy: ConflictPolicy,
-    clearCut: boolean
+    clearCut: boolean,
+    transferOpts?: {
+      verify?: boolean
+      preserveTimestamps?: boolean
+      preserveAds?: boolean
+      continueOnRecoverable?: boolean
+    }
   ): Promise<void> {
     if (op2 === 'move') await releaseMediaLocks()
     try {
@@ -1652,7 +1667,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         op2,
         op2 === 'copy' ? 'Copying…' : 'Moving…',
         src.length === 1 ? basename(src[0]!) : `${src.length} items`,
-        () => runTransfer(op2, src, dest, policy)
+        () => runTransfer(op2, src, dest, policy, transferOpts)
       )
       if (op2 === 'copy') {
         if (r.copyPaths.length > 0) {
@@ -1717,7 +1732,13 @@ export const useAppStore = create<AppState>()((set, get) => {
     op2: 'copy' | 'move',
     src: string[],
     dest: string,
-    policy: ConflictPolicy
+    policy: ConflictPolicy,
+    transferOpts?: {
+      verify?: boolean
+      preserveTimestamps?: boolean
+      preserveAds?: boolean
+      continueOnRecoverable?: boolean
+    }
   ): Promise<{
     copied: number
     moved: number
@@ -1731,7 +1752,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
     if (op2 === 'copy') {
       const res = await call(
-        api.fs.copy({ sources: src, destinationDir: dest, conflictPolicy: policy })
+        api.fs.copy({
+          sources: src,
+          destinationDir: dest,
+          conflictPolicy: policy,
+          ...transferOpts
+        })
       )
       return {
         copied: res.copied.length,
@@ -1743,7 +1769,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     }
     const res = await call(
-      api.fs.move({ sources: src, destinationDir: dest, conflictPolicy: policy })
+      api.fs.move({
+        sources: src,
+        destinationDir: dest,
+        conflictPolicy: policy,
+        ...transferOpts
+      })
     )
     return {
       copied: 0,
@@ -2099,6 +2130,20 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     })
     get().notify(message.split('\n')[0] ?? message, true)
+  }
+
+  async function runFileOpPlanGate(
+    req: FileOpPlanRequest
+  ): Promise<FileOpPlanChoice | null> {
+    try {
+      const plan = await call(api.fs.planOp(req))
+      const choice = await get().askFileOpPlan(plan, req)
+      if (!choice) return null
+      return choice
+    } catch (e) {
+      reportOperationError('Could not plan operation', e)
+      return null
+    }
   }
 
   function notifyTreeMutation(opts: {
@@ -4955,7 +5000,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       await get().pasteInto(get().activeTab().path)
     },
 
-    async pasteInto(destDir) {
+    async pasteInto(destDir, opts) {
       if (get().recycleBin.active) return
       if (isRemoteLocation(destDir)) {
         get().notify('Cannot paste into a remote folder from the clipboard', true)
@@ -4963,11 +5008,23 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       const clip = await resolveClipboard(get)
       if (clip && clip.paths.length > 0) {
+        const op = clip.mode === 'cut' ? 'move' : 'copy'
+        let planChoice: FileOpPlanChoice | null = null
+        if (opts?.planMode) {
+          planChoice = await runFileOpPlanGate({
+            op,
+            sources: clip.paths,
+            destinationDir: destDir
+          })
+          if (!planChoice) return
+        }
         await get().performTransfer(
-          clip.mode === 'cut' ? 'move' : 'copy',
+          op,
           clip.paths,
           destDir,
-          clip.mode === 'cut'
+          clip.mode === 'cut',
+          false,
+          planChoice
         )
         return
       }
@@ -5000,13 +5057,33 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
-    async performTransfer(op, sources, destinationDir, clearCutAfter = false) {
+    async performTransfer(
+      op,
+      sources,
+      destinationDir,
+      clearCutAfter = false,
+      planMode = false,
+      planChoice: FileOpPlanChoice | null = null
+    ) {
       // Moving into the same folder is a no-op.
       const effective =
         op === 'move'
           ? sources.filter((p) => !samePath(parentOf(p) ?? '', destinationDir))
           : sources
       if (effective.length === 0) return false
+      let choice = planChoice
+      if (planMode && !choice) {
+        choice = await runFileOpPlanGate({ op, sources: effective, destinationDir })
+      }
+      if (planMode && !choice) return false
+      const transferOpts = choice
+        ? {
+            verify: choice.verify,
+            preserveTimestamps: choice.preserveTimestamps,
+            preserveAds: choice.preserveAds,
+            continueOnRecoverable: choice.continueOnRecoverable
+          }
+        : undefined
       try {
         // Same-folder copy (Ctrl+C / Ctrl+V in place): Explorer-style Keep both —
         // auto-number (`name (2).ext`) with no dual-compare dialog; select the new copies.
@@ -5016,12 +5093,13 @@ export const useAppStore = create<AppState>()((set, get) => {
             const parent = parentOf(p)
             return parent != null && samePath(parent, destinationDir)
           })
+        const policy = choice?.conflictPolicy ?? (sameFolderCopy ? 'rename' : 'fail')
         if (sameFolderCopy) {
-          await executeTransfer(op, effective, destinationDir, 'rename', clearCutAfter)
+          await executeTransfer(op, effective, destinationDir, policy, clearCutAfter, transferOpts)
           return true
         }
 
-        await executeTransfer(op, effective, destinationDir, 'fail', clearCutAfter)
+        await executeTransfer(op, effective, destinationDir, policy, clearCutAfter, transferOpts)
         return true
       } catch (e) {
         reportOperationError(op === 'move' ? 'Move failed' : 'Copy failed', e)
@@ -5368,7 +5446,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
-    async deleteSelection(permanent, paths) {
+    async deleteSelection(permanent, paths, planMode = false) {
       const s = get()
       if (s.recycleBin.active) {
         // In the bin: Del / Shift+Del permanently remove from the Recycle Bin.
@@ -5441,9 +5519,19 @@ export const useAppStore = create<AppState>()((set, get) => {
         )
       }) || mountedNetworkPath
       const effectivePermanent = permanent || remoteDeleteFallback || deletingNasRecycleContents
+      let planChoice: FileOpPlanChoice | null = null
+      if (planMode) {
+        planChoice = await runFileOpPlanGate({
+          op: effectivePermanent ? 'delete' : 'trash',
+          paths: target
+        })
+        if (!planChoice) return
+      }
+      const finalPermanent =
+        planChoice?.permanent !== undefined ? planChoice.permanent : effectivePermanent
       const rootHits = tabsWhoseRootIsDeleted(s.tabs, target)
       if (rootHits.length > 0) {
-        const prompt = tabRootDeletePrompt(rootHits, effectivePermanent)
+        const prompt = tabRootDeletePrompt(rootHits, finalPermanent)
         const ok = await get().askConfirm({
           title: prompt.title,
           message: prompt.message,
@@ -5452,7 +5540,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         })
         if (!ok) return
       }
-      if (!effectivePermanent) {
+      if (!finalPermanent) {
         try {
           // Select the survivor first so the preview keeps painting while we trash.
           const autoSelectedPath = selectAfterDelete(target)
@@ -5732,6 +5820,24 @@ export const useAppStore = create<AppState>()((set, get) => {
       const r = confirmResolve
       confirmResolve = null
       r?.(confirmed)
+    },
+
+    async askFileOpPlan(plan, request) {
+      if (fileOpPlanResolve) {
+        fileOpPlanResolve(null)
+        fileOpPlanResolve = null
+      }
+      return await new Promise<FileOpPlanChoice | null>((resolve) => {
+        fileOpPlanResolve = resolve
+        set({ dialog: { kind: 'file-op-plan', plan, request } })
+      })
+    },
+
+    resolveFileOpPlan(choice) {
+      set({ dialog: null })
+      const r = fileOpPlanResolve
+      fileOpPlanResolve = null
+      r?.(choice)
     },
 
     async askMediaKind(opts) {

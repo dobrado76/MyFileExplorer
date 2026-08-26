@@ -970,7 +970,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
                 setDropHighlight(null)
                 const src = paths[0]
                 if (!dest || !src) return
-                void performTransfer(dropOperation(src, dest, ctrlKey, shiftKey), paths, dest)
+                void performTransfer(
+                  dropOperation(src, dest, ctrlKey, shiftKey),
+                  paths,
+                  dest,
+                  false,
+                  ctrlKey
+                )
               },
               onCancel: () => {
                 setDragPaths([])
@@ -1007,7 +1013,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             setDropHighlight(null)
             const src = dragPaths[0]
             if (dragPaths.length > 0 && src) {
-              void performTransfer(dropOperation(src, path, e.ctrlKey, e.shiftKey), dragPaths, path)
+              void performTransfer(
+                dropOperation(src, path, e.ctrlKey, e.shiftKey),
+                dragPaths,
+                path,
+                false,
+                e.ctrlKey
+              )
             }
           }}
           role="treeitem"

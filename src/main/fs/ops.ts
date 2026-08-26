@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { shell } from 'electron'
@@ -16,7 +17,11 @@ import type {
   OpIssue,
   ResolveIssuesRequest,
   ResolveIssuesResponse,
-  TrashResponse
+  TrashResponse,
+  FileOpPlanRequest,
+  FileOpPlanResponse,
+  FileOpPlanRow,
+  TransferOptions
 } from '@shared/schemas/fs'
 import { classifyOpIssue, resolveIssueDecision, shouldQueueNameConflict } from '@shared/opIssues'
 import {
@@ -26,7 +31,7 @@ import {
   remoteJoin,
   remoteParentPath
 } from '@shared/remotePaths'
-import { isVolumeRootPath } from '@shared/paths'
+import { isVolumeRootPath, samePath } from '@shared/paths'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { deletePathWin32Permanent, recyclePathWin32Robust } from './trashWin32'
@@ -40,9 +45,142 @@ import {
 import { appErrorFromFsFailure } from './fsErrors'
 import { beginOp, type OpReporter } from './opProgress'
 import { copyHostFileTimes } from './adsWin32'
+import { pathIsNtfs } from './drives'
+import { pathIsReadOnly } from './winAttrs'
 
 /** Keep listings from refreshing for the whole copy/move, not just the first 1.5s. */
 const OP_MUTE_MS = 3_600_000
+
+type CopyTreeOpts = {
+  notifyParentOnCreate?: boolean
+  discover?: boolean
+  verify?: boolean
+  preserveTimestamps?: boolean
+  preserveAds?: boolean
+}
+
+function isSameFolderCopy(sources: string[], destinationDir: string): boolean {
+  const dest = requireAbsolute(destinationDir)
+  return sources.every((raw) => samePath(path.dirname(requireAbsolute(raw)), dest))
+}
+
+function defaultPlanConflictPolicy(
+  op: 'copy' | 'move',
+  sources: string[],
+  destinationDir: string
+): ConflictPolicy {
+  if (op === 'copy' && isSameFolderCopy(sources, destinationDir)) return 'rename'
+  return 'fail'
+}
+
+function winDriveOf(p: string): string | null {
+  const m = /^([a-zA-Z]:)/.exec(p.replace(/\//g, '\\'))
+  return m ? m[1]!.toUpperCase() : null
+}
+
+function summarizeSourceDirs(sources: string[]): string {
+  if (sources.length === 0) return ''
+  const parents = [...new Set(sources.map((s) => path.dirname(requireAbsolute(s))))]
+  if (parents.length === 1) return parents[0]!
+  return `${parents.length} locations`
+}
+
+function moveVolumeFlags(
+  sources: string[],
+  dest: string
+): { crossVolumeMove: boolean; sameVolumeRenameOnly: boolean } {
+  const destDrive = winDriveOf(dest)
+  let crossVolumeMove = false
+  for (const src of sources) {
+    const abs = requireAbsolute(src)
+    const sd = winDriveOf(abs)
+    if (sd && destDrive && sd !== destDrive) {
+      crossVolumeMove = true
+      break
+    }
+  }
+  return { crossVolumeMove, sameVolumeRenameOnly: !crossVolumeMove }
+}
+
+async function digestFile(filePath: string): Promise<Buffer> {
+  const hash = crypto.createHash('sha256')
+  await pipeline(
+    fs.createReadStream(filePath),
+    new Transform({
+      transform(chunk, _enc, cb) {
+        hash.update(chunk as Buffer)
+        cb()
+      }
+    })
+  )
+  return hash.digest()
+}
+
+async function verifyCopiedFile(
+  source: string,
+  target: string,
+  sourceDigest?: Buffer
+): Promise<void> {
+  const expected = sourceDigest ?? (await digestFile(source))
+  const actual = await digestFile(target)
+  if (!expected.equals(actual)) {
+    await fsp.rm(target, { force: true }).catch(() => undefined)
+    throw new AppError(
+      'io',
+      'Copy verification failed — destination does not match source',
+      'The incomplete destination file was removed.'
+    )
+  }
+}
+
+async function stripAlternateStreams(filePath: string): Promise<void> {
+  if (!pathIsNtfs(filePath)) return
+  const { listStreams, deleteStream } = await import('./adsWin32')
+  for (const s of listStreams(filePath)) {
+    deleteStream(filePath, s.name)
+  }
+}
+
+async function enrichDeletePlanWarnings(paths: string[]): Promise<string[]> {
+  const warnings: string[] = []
+  let readonlyCount = 0
+  for (const raw of paths.slice(0, 100)) {
+    try {
+      if (pathIsReadOnly(requireAbsolute(raw))) readonlyCount++
+    } catch {
+      /* ignore */
+    }
+  }
+  if (readonlyCount > 0) {
+    warnings.push(
+      `${readonlyCount} item${readonlyCount === 1 ? '' : 's'} marked read-only — delete may fail or require elevation.`
+    )
+  }
+  try {
+    const { ensureStatusForPath } = await import('../git/cache')
+    const first = paths[0]
+    if (!first) return warnings
+    const { inRepo, status } = await ensureStatusForPath(first)
+    if (!inRepo || !status) return warnings
+    const root = status.info.rootPath.replace(/\\/g, '/').toLowerCase()
+    let tracked = 0
+    for (const raw of paths) {
+      const abs = requireAbsolute(raw).replace(/\\/g, '/').toLowerCase()
+      if (!abs.startsWith(root)) continue
+      const rel = abs.slice(root.length).replace(/^\//, '')
+      const row = status.paths.find((p) => p.relativePath.replace(/\\/g, '/').toLowerCase() === rel)
+      if (row && row.workingTree !== 'ignored' && row.staged !== 'ignored') tracked++
+    }
+    if (tracked > 0) {
+      warnings.push(
+        `${tracked} path${tracked === 1 ? '' : 's'} in this selection are tracked by Git.`
+      )
+    }
+  } catch {
+    /* git optional */
+  }
+  return warnings
+}
 
 function yieldEventLoop(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve))
@@ -561,9 +699,19 @@ async function copyFileWithProgress(
   target: string,
   size: number,
   progress: OpReporter | null,
-  displayName: string
+  displayName: string,
+  opts?: Pick<CopyTreeOpts, 'verify' | 'preserveTimestamps' | 'preserveAds'>
 ): Promise<void> {
   progress?.throwIfCancelled()
+  const preserveTimestamps = opts?.preserveTimestamps !== false
+  const preserveAds = opts?.preserveAds !== false
+  const verify = opts?.verify === true
+
+  const finishFile = async (): Promise<void> => {
+    if (preserveTimestamps) copyHostFileTimes(source, target)
+    if (!preserveAds) await stripAlternateStreams(target)
+    progress?.tick(displayName)
+  }
 
   // Versioned NTFS image → non-ADS volume: write tip as the file body
   // (keep latest edit; pristine original + VER_* history cannot travel).
@@ -573,58 +721,83 @@ async function copyFileWithProgress(
     if (tip) {
       if (!progress || tip.length < LARGE_FILE_COPY_BYTES) {
         await fsp.writeFile(target, tip)
-        progress?.tick(displayName)
+        if (verify) {
+          const tipDigest = crypto.createHash('sha256').update(tip).digest()
+          await verifyCopiedFile(source, target, tipDigest)
+        }
+        await finishFile()
         return
       }
       progress.reportBytes(0, tip.length, displayName)
       await fsp.writeFile(target, tip)
+      if (verify) {
+        const tipDigest = crypto.createHash('sha256').update(tip).digest()
+        await verifyCopiedFile(source, target, tipDigest)
+      }
       progress.reportBytes(tip.length, tip.length, displayName)
-      progress.tick(displayName)
+      await finishFile()
       return
     }
   } catch {
     /* fall through to normal copy */
   }
 
+  const streamCopy = async (report: boolean): Promise<void> => {
+    const sourceHash = verify ? crypto.createHash('sha256') : null
+    let copied = 0
+    const counter = new Transform({
+      transform(chunk, _enc, cb) {
+        try {
+          progress?.throwIfCancelled()
+        } catch (e) {
+          cb(e instanceof Error ? e : new Error(String(e)))
+          return
+        }
+        const buf = chunk as Buffer
+        sourceHash?.update(buf)
+        if (report) {
+          copied += buf.length
+          progress?.reportBytes(copied, size, displayName)
+        }
+        cb(null, chunk)
+      }
+    })
+    try {
+      await pipeline(fs.createReadStream(source), counter, fs.createWriteStream(target))
+    } catch (e) {
+      await fsp.rm(target, { force: true }).catch(() => undefined)
+      if (e instanceof AppError && e.code === 'cancelled') throw e
+      throw e
+    }
+    if (sourceHash) await verifyCopiedFile(source, target, sourceHash.digest())
+  }
+
   if (!progress || size < LARGE_FILE_COPY_BYTES) {
-    await fsp.copyFile(source, target)
-    progress?.tick(displayName)
+    if (verify) await streamCopy(false)
+    else await fsp.copyFile(source, target)
+    await finishFile()
     return
   }
 
   progress.reportBytes(0, size, displayName)
-  let copied = 0
-  const counter = new Transform({
-    transform(chunk, _enc, cb) {
-      try {
-        progress.throwIfCancelled()
-      } catch (e) {
-        cb(e instanceof Error ? e : new Error(String(e)))
-        return
-      }
-      copied += (chunk as Buffer).length
-      progress.reportBytes(copied, size, displayName)
-      cb(null, chunk)
-    }
-  })
-  try {
-    await pipeline(fs.createReadStream(source), counter, fs.createWriteStream(target))
-  } catch (e) {
-    await fsp.rm(target, { force: true }).catch(() => undefined)
-    if (e instanceof AppError && e.code === 'cancelled') throw e
-    throw e
-  }
-  progress.tick(displayName)
+  await streamCopy(true)
+  progress.reportBytes(size, size, displayName)
+  await finishFile()
 }
 
 async function copyTree(
   source: string,
   target: string,
   progress: OpReporter | null,
-  opts?: { notifyParentOnCreate?: boolean; discover?: boolean }
+  opts?: CopyTreeOpts
 ): Promise<void> {
   progress?.throwIfCancelled()
   const discover = opts?.discover !== false
+  const copyOpts = {
+    verify: opts?.verify,
+    preserveTimestamps: opts?.preserveTimestamps,
+    preserveAds: opts?.preserveAds
+  }
   let st: fs.Stats
   try {
     st = await fsp.lstat(source)
@@ -645,7 +818,7 @@ async function copyTree(
     }
     if (ents.length === 0) {
       if (discover) progress?.addToTotal(1, source)
-      copyHostFileTimes(source, target)
+      if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
       progress?.tick(source)
       return
     }
@@ -659,16 +832,18 @@ async function copyTree(
     for (const name of files) {
       progress?.throwIfCancelled()
       await copyTree(path.join(source, name), path.join(target, name), progress, {
+        ...opts,
         discover: false
       })
     }
     for (const name of dirs) {
       progress?.throwIfCancelled()
       await copyTree(path.join(source, name), path.join(target, name), progress, {
+        ...opts,
         discover
       })
     }
-    copyHostFileTimes(source, target)
+    if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
     return
   }
 
@@ -678,14 +853,12 @@ async function copyTree(
       try {
         await fsp.symlink(link, target)
       } catch {
-        await copyFileWithProgress(source, target, st.size, progress, source)
-        copyHostFileTimes(source, target)
+        await copyFileWithProgress(source, target, st.size, progress, source, copyOpts)
         return
       }
       progress?.tick(source)
     } else {
-      await copyFileWithProgress(source, target, st.size, progress, source)
-      copyHostFileTimes(source, target)
+      await copyFileWithProgress(source, target, st.size, progress, source, copyOpts)
     }
   } catch (e) {
     throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })
@@ -900,7 +1073,8 @@ async function copyWithRemotes(
 export async function copyEntries(
   sources: string[],
   destinationDir: string,
-  policy: ConflictPolicy
+  policy: ConflictPolicy,
+  transferOpts?: TransferOptions
 ): Promise<CopyResponse> {
   const dest = requireAbsolute(destinationDir)
   const absSources = sources.map((s) => requireAbsolute(s))
@@ -962,13 +1136,17 @@ export async function copyEntries(
         if (policy === 'replace' && (await pathExists(item.target))) {
           await fsp.rm(item.target, { recursive: true, force: true })
         }
-        await copyTree(item.source, item.target, progress)
+        await copyTree(item.source, item.target, progress, {
+          verify: transferOpts?.verify,
+          preserveTimestamps: transferOpts?.preserveTimestamps,
+          preserveAds: transferOpts?.preserveAds
+        })
         copied.push(item.target)
       } catch (e) {
         if (isCancelled(e)) throw e
         const issue = await toIssue(e, 'copy', item.source, item.target, isDir)
         issues.push(issue)
-        if (issue.kind === 'fatal') fatal = true
+        if (issue.kind === 'fatal' && transferOpts?.continueOnRecoverable !== true) fatal = true
       }
     }
     progress.finish()
@@ -984,7 +1162,12 @@ async function relocateOne(
   source: string,
   target: string,
   progress: OpReporter | null,
-  opts?: { destReady?: boolean; watchesHeld?: boolean; totalIncludesThis?: boolean }
+  opts?: {
+    destReady?: boolean
+    watchesHeld?: boolean
+    totalIncludesThis?: boolean
+    transfer?: TransferOptions
+  }
 ): Promise<void> {
   progress?.throwIfCancelled()
   if (source === target) {
@@ -1036,12 +1219,22 @@ async function relocateOne(
     }
     const heartbeat = setInterval(() => progress.pulse(source), 500)
     try {
-      await copyTree(source, target, progress, { discover: false })
+      await copyTree(source, target, progress, {
+        discover: false,
+        verify: opts?.transfer?.verify,
+        preserveTimestamps: opts?.transfer?.preserveTimestamps,
+        preserveAds: opts?.transfer?.preserveAds
+      })
     } finally {
       clearInterval(heartbeat)
     }
   } else {
-    await copyTree(source, target, progress, { discover: !opts?.totalIncludesThis })
+    await copyTree(source, target, progress, {
+      discover: !opts?.totalIncludesThis,
+      verify: opts?.transfer?.verify,
+      preserveTimestamps: opts?.transfer?.preserveTimestamps,
+      preserveAds: opts?.transfer?.preserveAds
+    })
   }
   await deleteTree(source, null)
 }
@@ -1084,7 +1277,8 @@ export async function relocateEntries(
 export async function moveEntries(
   sources: string[],
   destinationDir: string,
-  policy: ConflictPolicy
+  policy: ConflictPolicy,
+  transferOpts?: TransferOptions
 ): Promise<MoveResponse> {
   const dest = requireAbsolute(destinationDir)
   const absSources = sources.map((s) => requireAbsolute(s))
@@ -1169,7 +1363,8 @@ export async function moveEntries(
         await relocateOne(item.source, item.target, progress, {
           destReady: true,
           watchesHeld: true,
-          totalIncludesThis: true
+          totalIncludesThis: true,
+          transfer: transferOpts
         })
         moved.push(item.target)
         moves.push({ from: item.source, to: item.target })
@@ -1177,7 +1372,7 @@ export async function moveEntries(
         if (isCancelled(e)) throw e
         const issue = await toIssue(e, 'move', item.source, item.target)
         issues.push(issue)
-        if (issue.kind === 'fatal') fatal = true
+        if (issue.kind === 'fatal' && transferOpts?.continueOnRecoverable !== true) fatal = true
       }
     }
     progress.finish()
@@ -1469,4 +1664,226 @@ export async function resolveOpIssues(req: ResolveIssuesRequest): Promise<Resolv
     out.issues.push(...res.issues)
   }
   return out
+}
+
+const PLAN_MAX_ROWS = 150
+const PLAN_MAX_FILES = 80_000
+
+async function measurePathTree(
+  root: string
+): Promise<{ kind: EntryKind | null; sizeBytes: number; fileCount: number }> {
+  let kind: EntryKind | null = null
+  let sizeBytes = 0
+  let fileCount = 0
+  try {
+    const st = await fsp.lstat(root)
+    kind = st.isDirectory() ? 'dir' : st.isSymbolicLink() ? 'symlink' : 'file'
+    if (!st.isDirectory()) {
+      return { kind, sizeBytes: st.size, fileCount: 1 }
+    }
+    const stack = [root]
+    const seen = new Set<string>()
+    while (stack.length > 0 && fileCount < PLAN_MAX_FILES) {
+      const p = stack.pop()!
+      const key = p.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      let st2: fs.Stats
+      try {
+        st2 = await fsp.lstat(p)
+      } catch {
+        continue
+      }
+      if (st2.isDirectory()) {
+        let ents: fs.Dirent[]
+        try {
+          ents = await fsp.readdir(p, { withFileTypes: true })
+        } catch {
+          fileCount++
+          continue
+        }
+        if (ents.length === 0) {
+          fileCount++
+          continue
+        }
+        for (const e of ents) {
+          if (e.isDirectory()) stack.push(path.join(p, e.name))
+          else {
+            fileCount++
+            try {
+              sizeBytes += (await fsp.stat(path.join(p, e.name))).size
+            } catch {
+              /* skip */
+            }
+          }
+        }
+      } else {
+        fileCount++
+        sizeBytes += st2.size
+      }
+    }
+    return { kind, sizeBytes, fileCount: Math.max(1, fileCount) }
+  } catch {
+    return { kind, sizeBytes, fileCount: 0 }
+  }
+}
+
+/** Preview copy/move/trash/delete — no writes. Used by the Ctrl-plan gate in the renderer. */
+export async function planFileOp(req: FileOpPlanRequest): Promise<FileOpPlanResponse> {
+  const warnings: string[] = []
+  const rows: FileOpPlanRow[] = []
+  let totalFiles = 0
+  let totalBytes = 0
+  let conflicts = 0
+  let skips = 0
+
+  if (req.op === 'copy' || req.op === 'move') {
+    const dest = requireAbsolute(req.destinationDir)
+    const absSources = req.sources.map((s) => requireAbsolute(s))
+    if (dest.toLowerCase().startsWith('mfe-remote://')) {
+      warnings.push('Remote targets are not fully enumerated in plan mode.')
+    }
+    const { crossVolumeMove, sameVolumeRenameOnly } = moveVolumeFlags(absSources, dest)
+    const ntfsAdsRelevant =
+      pathIsNtfs(dest) || absSources.some((s) => pathIsNtfs(s) && !s.toLowerCase().startsWith('mfe-remote://'))
+    if (req.op === 'move' && sameVolumeRenameOnly) {
+      warnings.push('Same-volume move renames in place — no file data is copied.')
+    }
+    if (req.op === 'move' && crossVolumeMove) {
+      warnings.push(
+        'Cross-volume items are copied to the destination, then the source is removed.'
+      )
+    }
+    const policy =
+      req.conflictPolicy ?? defaultPlanConflictPolicy(req.op, req.sources, dest)
+    const plan = await planTransfer(req.sources, dest, policy)
+    for (const item of plan) {
+      if (rows.length >= PLAN_MAX_ROWS) break
+      if ('skip' in item) {
+        skips++
+        const m = await measurePathTree(item.skip)
+        rows.push({
+          status: 'skip',
+          source: item.skip,
+          kind: m.kind,
+          sizeBytes: m.sizeBytes,
+          fileCount: m.fileCount
+        })
+        continue
+      }
+      if ('conflict' in item) {
+        conflicts++
+        const m = await measurePathTree(item.source)
+        rows.push({
+          status: 'conflict',
+          source: item.source,
+          dest: item.target,
+          kind: m.kind,
+          sizeBytes: m.sizeBytes,
+          fileCount: m.fileCount
+        })
+        totalFiles += m.fileCount
+        totalBytes += m.sizeBytes
+        continue
+      }
+      const m = await measurePathTree(item.source)
+      rows.push({
+        status: 'ok',
+        source: item.source,
+        dest: item.target,
+        kind: m.kind,
+        sizeBytes: m.sizeBytes,
+        fileCount: m.fileCount
+      })
+      totalFiles += m.fileCount
+      totalBytes += m.sizeBytes
+    }
+    const truncated = plan.length > rows.length
+    if (truncated) warnings.push(`Showing first ${PLAN_MAX_ROWS} of ${plan.length} top-level items.`)
+    return {
+      op: req.op,
+      destinationDir: dest,
+      sourceSummary: summarizeSourceDirs(absSources),
+      conflictPolicy: policy,
+      capabilities: {
+        verify: req.op === 'copy',
+        preserveTimestamps: req.op === 'copy' || crossVolumeMove,
+        preserveAds: ntfsAdsRelevant && (req.op === 'copy' || crossVolumeMove),
+        crossVolumeMove,
+        sameVolumeRenameOnly,
+        ntfsAdsRelevant,
+        continueOnRecoverable: true
+      },
+      rows,
+      truncated,
+      totals: {
+        topLevel: plan.length,
+        files: totalFiles,
+        bytes: totalBytes,
+        conflicts,
+        skips
+      },
+      warnings
+    }
+  }
+
+  if (req.op !== 'trash' && req.op !== 'delete') {
+    throw new AppError('validation', 'Invalid plan operation')
+  }
+
+  for (const raw of req.paths) {
+    if (rows.length >= PLAN_MAX_ROWS) break
+    const p = requireAbsolute(raw)
+    if (isVolumeRootPath(p)) {
+      skips++
+      rows.push({
+        status: 'skip',
+        source: p,
+        kind: 'dir',
+        sizeBytes: 0,
+        fileCount: 0
+      })
+      continue
+    }
+    const m = await measurePathTree(p)
+    rows.push({
+      status: 'ok',
+      source: p,
+      kind: m.kind,
+      sizeBytes: m.sizeBytes,
+      fileCount: m.fileCount
+    })
+    totalFiles += m.fileCount
+    totalBytes += m.sizeBytes
+  }
+  const truncated = req.paths.length > rows.length
+  if (truncated) warnings.push(`Showing first ${PLAN_MAX_ROWS} of ${req.paths.length} items.`)
+  if (req.paths.some((p) => p.toLowerCase().startsWith('mfe-remote://'))) {
+    warnings.push('Remote deletes may not use the Windows Recycle Bin.')
+  }
+  warnings.push(...(await enrichDeletePlanWarnings(req.paths)))
+  return {
+    op: req.op,
+    deletePermanent: req.op === 'delete',
+    conflictPolicy: 'fail',
+    capabilities: {
+      verify: false,
+      preserveTimestamps: false,
+      preserveAds: false,
+      crossVolumeMove: false,
+      sameVolumeRenameOnly: false,
+      ntfsAdsRelevant: false,
+      continueOnRecoverable: false
+    },
+    rows,
+    truncated,
+    totals: {
+      topLevel: req.paths.length,
+      files: totalFiles,
+      bytes: totalBytes,
+      conflicts: 0,
+      skips
+    },
+    warnings
+  }
 }

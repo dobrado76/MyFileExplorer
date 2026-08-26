@@ -13,6 +13,8 @@ export const IPC = {
   fsResolveIssues: 'fs:resolveIssues',
   fsRelocate: 'fs:relocate',
   fsCheckConflicts: 'fs:checkConflicts',
+  /** Dry-run / preview plan for copy, move, trash, or permanent delete. */
+  fsPlanOp: 'fs:planOp',
   /** Right-drag “Create shortcuts here” — write .lnk files in destination. */
   fsCreateShortcuts: 'fs:createShortcuts',
   fsCreateLink: 'fs:createLink',

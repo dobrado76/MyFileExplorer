@@ -199,6 +199,10 @@ export function ExplorerShell(): JSX.Element {
       if (s.recycleBin.active) return
       e.preventDefault()
       s.cutSelection(pathsForClipboardShortcut(s, e.target))
+    } else if (ctrl && shift && !alt && key.toLowerCase() === 'v') {
+      if (s.recycleBin.active) return
+      e.preventDefault()
+      void s.pasteInto(s.activeTab().path, { planMode: true })
     } else if (ctrl && !alt && key.toLowerCase() === 'v') {
       if (s.recycleBin.active) return
       e.preventDefault()
@@ -218,7 +222,7 @@ export function ExplorerShell(): JSX.Element {
       const paths = isFolderTreeEventTarget(e.target)
         ? pathsForClipboardShortcut(s, e.target)
         : undefined
-      void s.deleteSelection(shift, paths)
+      void s.deleteSelection(shift, paths, ctrl)
     } else if (ctrl && !shift && !alt && key.toLowerCase() === 'e') {
       // Edit image — no selection / non-image: ignore (do not steal focus elsewhere).
       if (s.slideshow.active || s.imageEditor || s.recycleBin.active) return

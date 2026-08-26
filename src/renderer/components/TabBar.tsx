@@ -241,7 +241,13 @@ export function TabBar(): JSX.Element {
       setDropTabId(null)
       return
     }
-    void performTransfer(dropOperation(src, destPath, ctrlKey, shiftKey), dragPaths, destPath)
+    void performTransfer(
+      dropOperation(src, destPath, ctrlKey, shiftKey),
+      dragPaths,
+      destPath,
+      false,
+      ctrlKey
+    )
     setDragPaths([])
     setDropTabId(null)
   }

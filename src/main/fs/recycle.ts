@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { AppError } from '@shared/result'
 import type { RecycleBinItem, RecycleBinListResponse } from '@shared/schemas/recycle'
 import { requireAbsolute, pathExists } from './list'
-import { pickRecycleBinTargets } from './recycleMatch'
+import { resolveRestoreTargets } from './recycleIndex'
 import { logMain } from '../logging'
 
 const execFileAsync = promisify(execFile)
@@ -48,6 +48,23 @@ function Invoke-MfeBinVerb($item, [string[]]$names) {
         if ($n -eq $want -or $n.StartsWith($want + ' ')) { $v.DoIt(); return $true }
       }
     } catch {}
+  }
+  return $false
+}
+function Invoke-MfeBinStorePath([string]$rp, [string[]]$verbNames) {
+  $rp = $rp.Trim()
+  if (-not $rp) { return $false }
+  $parent = [System.IO.Path]::GetDirectoryName($rp)
+  $leaf = [System.IO.Path]::GetFileName($rp)
+  if (-not $parent -or -not $leaf) { return $false }
+  $shell = New-Object -ComObject Shell.Application
+  $folder = $shell.NameSpace($parent)
+  if (-not $folder) { return $false }
+  $item = $folder.ParseName($leaf)
+  if (-not $item) { return $false }
+  if (Invoke-MfeBinVerb $item $verbNames) {
+    Write-Output $rp
+    return $true
   }
   return $false
 }
@@ -163,6 +180,48 @@ function normalizeWantedPath(p: string): string {
   }
 }
 
+function recycleOpTimeoutMs(count: number): number {
+  return Math.min(600_000, Math.max(45_000, count * 20_000))
+}
+
+async function invokeRecycleStorePaths(
+  recyclePaths: readonly string[],
+  verbNames: readonly string[],
+  timeoutMs: number
+): Promise<Set<string>> {
+  if (recyclePaths.length === 0) return new Set()
+
+  const listFile = path.join(os.tmpdir(), `mfe-rbverb-${process.pid}-${Date.now()}.txt`)
+  await fsp.writeFile(listFile, recyclePaths.join('\n'), 'utf8')
+  const listLiteral = listFile.replace(/'/g, "''")
+  const verbLiteral = verbNames.map((v) => `'${v.replace(/'/g, "''")}'`).join(',')
+  const ps = `
+$ErrorActionPreference = 'Continue'
+${PS_INVOKE_VERB}
+$names = @(${verbLiteral})
+foreach ($line in @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+  [void](Invoke-MfeBinStorePath $line $names)
+}
+`
+  try {
+    const stdout = await runPowerShell(ps, timeoutMs)
+    return new Set(
+      stdout
+        .split(/\r?\n/)
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  } finally {
+    await fsp.unlink(listFile).catch(() => {})
+  }
+}
+
+async function resolveDeleteTargets(
+  wanted: readonly string[]
+): Promise<Awaited<ReturnType<typeof resolveRestoreTargets>>> {
+  return resolveRestoreTargets(wanted)
+}
+
 /**
  * Restore selected Recycle Bin rows.
  * `paths` may be a shell `recyclePath` (in-app bin view) or the original full
@@ -176,55 +235,42 @@ export async function restoreFromRecycleBin(
   const wanted = paths.map(normalizeWantedPath).filter(Boolean)
   if (wanted.length === 0) return { restored: [], missing: [] }
 
-  const listed = await listRecycleBin()
-  const targets = pickRecycleBinTargets(listed.items, wanted)
-  const missing: string[] = []
-  for (const w of wanted) {
-    const key = w.replace(/[/\\]+$/g, '').toLowerCase()
-    const hit = targets.some(
-      (t) =>
-        t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase() === key ||
-        t.originalPath.replace(/[/\\]+$/g, '').toLowerCase() === key
-    )
-    if (!hit) missing.push(w)
-  }
-  if (targets.length === 0) return { restored: [], missing }
+  const { targets, missing: resolveMissing } = await resolveRestoreTargets(wanted)
+  const missing = [...resolveMissing]
+  if (targets.length === 0) return { restored: [], missing: wanted }
 
-  const listFile = path.join(os.tmpdir(), `mfe-restore-${process.pid}-${Date.now()}.txt`)
-  await fsp.writeFile(listFile, targets.map((t) => t.recyclePath).join('\n'), 'utf8')
-
-  const listLiteral = listFile.replace(/'/g, "''")
-  const ps = `
-$ErrorActionPreference = 'Continue'
-${PS_INVOKE_VERB}
-$wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
-$shell = New-Object -ComObject Shell.Application
-$rb = $shell.NameSpace(0xA)
-if (-not $rb) { throw 'Recycle Bin namespace unavailable' }
-$restored = New-Object System.Collections.Generic.List[string]
-foreach ($item in @($rb.Items())) {
-  try {
-    $rp = ([string]$item.Path).Trim().ToLowerInvariant()
-    if (-not $rp -or ($wanted -notcontains $rp)) { continue }
-    if (Invoke-MfeBinVerb $item @('restore','wiederherstellen','restaurer','restablecer','ripristina')) {
-      [void]$restored.Add(([string]$item.Path).Trim())
+  // Shell DoIt() can block on a hidden conflict dialog when the original path
+  // already exists — fail fast instead of hanging until the app closes.
+  const blocked: string[] = []
+  const ready: typeof targets = []
+  for (const t of targets) {
+    if (t.originalPath && (await pathExists(t.originalPath))) {
+      blocked.push(t.recyclePath)
+      missing.push(t.recyclePath)
+    } else {
+      ready.push(t)
     }
-  } catch {}
-}
-$restored | ForEach-Object { $_ }
-`
+  }
+  if (ready.length === 0) {
+    if (blocked.length > 0) {
+      throw new AppError(
+        'io',
+        'Could not restore — a file already exists at the original location.',
+        'Rename or remove the existing item, then try again.'
+      )
+    }
+    return { restored: [], missing }
+  }
 
   try {
-    const stdout = await runPowerShell(ps, 90_000)
-    const reported = new Set(
-      stdout
-        .split(/\r?\n/)
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
+    const reported = await invokeRecycleStorePaths(
+      ready.map((t) => t.recyclePath),
+      ['restore', 'wiederherstellen', 'restaurer', 'restablecer', 'ripristina'],
+      recycleOpTimeoutMs(ready.length)
     )
 
     const restored: string[] = []
-    for (const t of targets) {
+    for (const t of ready) {
       const rp = t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase()
       const claimed = reported.has(rp)
       if (claimed || (await pathExists(t.originalPath))) {
@@ -238,8 +284,6 @@ $restored | ForEach-Object { $_ }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     throw new AppError('io', `Could not restore from Recycle Bin: ${message}`)
-  } finally {
-    await fsp.unlink(listFile).catch(() => {})
   }
 }
 
@@ -253,50 +297,17 @@ export async function deleteFromRecycleBin(
   const wanted = paths.map(normalizeWantedPath).filter(Boolean)
   if (wanted.length === 0) return { deleted: [], missing: [] }
 
-  const listed = await listRecycleBin()
-  const targets = pickRecycleBinTargets(listed.items, wanted)
-  const missing: string[] = []
-  for (const w of wanted) {
-    const key = w.replace(/[/\\]+$/g, '').toLowerCase()
-    const hit = targets.some(
-      (t) =>
-        t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase() === key ||
-        t.originalPath.replace(/[/\\]+$/g, '').toLowerCase() === key
-    )
-    if (!hit) missing.push(w)
-  }
-  if (targets.length === 0) return { deleted: [], missing }
+  const { targets, missing: resolveMissing } = await resolveDeleteTargets(wanted)
+  const missing = [...resolveMissing]
+  if (targets.length === 0) return { deleted: [], missing: wanted }
 
-  const listFile = path.join(os.tmpdir(), `mfe-rbdel-${process.pid}-${Date.now()}.txt`)
-  await fsp.writeFile(listFile, targets.map((t) => t.recyclePath).join('\n'), 'utf8')
-  const listLiteral = listFile.replace(/'/g, "''")
-  const ps = `
-$ErrorActionPreference = 'Continue'
-${PS_INVOKE_VERB}
-$wanted = @(Get-Content -LiteralPath '${listLiteral}' | ForEach-Object { $_.Trim().ToLowerInvariant() } | Where-Object { $_ })
-$shell = New-Object -ComObject Shell.Application
-$rb = $shell.NameSpace(0xA)
-if (-not $rb) { throw 'Recycle Bin namespace unavailable' }
-$deleted = New-Object System.Collections.Generic.List[string]
-foreach ($item in @($rb.Items())) {
   try {
-    $rp = ([string]$item.Path).Trim().ToLowerInvariant()
-    if (-not $rp -or ($wanted -notcontains $rp)) { continue }
-    if (Invoke-MfeBinVerb $item @('delete','löschen','supprimer','eliminar','elimina')) {
-      [void]$deleted.Add(([string]$item.Path).Trim())
-    }
-  } catch {}
-}
-$deleted | ForEach-Object { $_ }
-`
-  try {
-    const stdout = await runPowerShell(ps, 90_000)
-    const reported = new Set(
-      stdout
-        .split(/\r?\n/)
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean)
+    const reported = await invokeRecycleStorePaths(
+      targets.map((t) => t.recyclePath),
+      ['delete', 'löschen', 'supprimer', 'eliminar', 'elimina'],
+      recycleOpTimeoutMs(targets.length)
     )
+
     const deleted: string[] = []
     for (const t of targets) {
       const rp = t.recyclePath.replace(/[/\\]+$/g, '').toLowerCase()
@@ -307,8 +318,6 @@ $deleted | ForEach-Object { $_ }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
     throw new AppError('io', `Could not delete from Recycle Bin: ${message}`)
-  } finally {
-    await fsp.unlink(listFile).catch(() => {})
   }
 }
 

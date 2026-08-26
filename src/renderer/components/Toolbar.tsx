@@ -58,6 +58,8 @@ export function Toolbar(): JSX.Element {
   const copySelection = useAppStore((s) => s.copySelection)
   const cutSelection = useAppStore((s) => s.cutSelection)
   const paste = useAppStore((s) => s.paste)
+  const pasteInto = useAppStore((s) => s.pasteInto)
+  const activePath = useAppStore((s) => s.activeTab().path)
   const deleteSelection = useAppStore((s) => s.deleteSelection)
   const toggleSelectAll = useAppStore((s) => s.toggleSelectAll)
   const allSelected = useAppStore((s) => s.isAllSelected())
@@ -126,9 +128,12 @@ export function Toolbar(): JSX.Element {
         <button
           className="icon-btn"
           aria-label="Paste"
-          title="Paste (Ctrl+V)"
+          title="Paste (Ctrl+V · Ctrl+click plan)"
           disabled={!canEditFs}
-          onClick={() => void paste()}
+          onClick={(e) => {
+            if (e.ctrlKey) void pasteInto(activePath, { planMode: true })
+            else void paste()
+          }}
         >
           <PasteIcon />
         </button>
@@ -138,12 +143,12 @@ export function Toolbar(): JSX.Element {
           title={
             recycleBinActive
               ? 'Delete permanently from Recycle Bin'
-              : 'Delete (Del → Recycle Bin; Shift+Del permanent)'
+              : 'Delete (Del → Recycle Bin; Shift+Del permanent; Ctrl+click or Ctrl+Del plan)'
           }
           disabled={!canDelete}
-          onClick={() => {
+          onClick={(e) => {
             if (recycleBinActive) deleteFromRecycleBinView()
-            else void deleteSelection(false)
+            else void deleteSelection(false, undefined, e.ctrlKey)
           }}
         >
           <TrashIcon />

@@ -63,6 +63,8 @@ export type MyFileExplorerApi = {
     /** Move each path to an exact destination (undo/redo). */
     relocate(req: RelocateRequest): Promise<Result<{ moved: string[] }>>
     checkConflicts(req: CheckConflictsRequest): Promise<Result<CheckConflictsResponse>>
+    /** Preview a copy/move/trash/delete before running (Ctrl-plan gate). */
+    planOp(req: import('../schemas/fs').FileOpPlanRequest): Promise<Result<import('../schemas/fs').FileOpPlanResponse>>
     /** Create Windows .lnk shortcuts in destinationDir for each source path. */
     createShortcuts(
       req: CheckConflictsRequest

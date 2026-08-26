@@ -35,6 +35,7 @@ import {
 import type { FolderMeasureResult, PropertiesModel } from '@shared/schemas/properties'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
+import { FileOpPlanDialog } from './FileOpPlanDialog'
 import { FileLockersPanel } from './FileLockersPanel'
 import { formatBytes, formatDate } from '../lib/format'
 import { folderViewSummary } from '@shared/folderViews'
@@ -383,6 +384,8 @@ export function Dialogs(): JSX.Element | null {
           danger={dialog.danger}
         />
       )
+    case 'file-op-plan':
+      return <FileOpPlanDialog plan={dialog.plan} request={dialog.request} />
     case 'power-rename':
       return <PowerRenameDialog paths={dialog.paths} />
     case 'copy-move-to':

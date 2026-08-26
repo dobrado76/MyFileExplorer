@@ -1669,7 +1669,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             clearDragVisuals()
             const src = paths[0]
             if (!dest || !src) return
-            void performTransfer(dropOperation(src, dest, ctrlKey, shiftKey), paths, dest)
+            void performTransfer(
+              dropOperation(src, dest, ctrlKey, shiftKey),
+              paths,
+              dest,
+              false,
+              ctrlKey
+            )
           },
           onCancel: () => clearDragVisuals()
         }
@@ -1786,7 +1792,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       void performTransfer(
         dropOperation(src, entry.path, e.ctrlKey, e.shiftKey),
         dragPaths,
-        entry.path
+        entry.path,
+        false,
+        e.ctrlKey
       )
       setDragPaths([])
     },
@@ -1802,7 +1810,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       if (dragPaths.length === 0 || !src || !dest) return
       // dropping into own folder is a no-op for move
       if (dragPaths.every((p) => samePath(parentOf(p) ?? '', dest)) && !e.ctrlKey) return
-      void performTransfer(dropOperation(src, dest, e.ctrlKey, e.shiftKey), dragPaths, dest)
+      void performTransfer(
+        dropOperation(src, dest, e.ctrlKey, e.shiftKey),
+        dragPaths,
+        dest,
+        false,
+        e.ctrlKey
+      )
       setDragPaths([])
     },
     [dragPaths, listing.path, performTransfer, setDragPaths, setDropHighlight]

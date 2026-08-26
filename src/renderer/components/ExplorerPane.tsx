@@ -163,7 +163,9 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
           void performTransfer(
             dropOperation(src, tab.path, e.ctrlKey, e.shiftKey),
             dragPaths,
-            tab.path
+            tab.path,
+            false,
+            e.ctrlKey
           )
           setDragPaths([])
         }
@@ -262,7 +264,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
             className="pane-tree-toggle icon-btn"
             aria-label="Hide folder tree"
             title="Hide folder tree"
-            style={{ left: Math.max(4, treeWidth - 34) }}
+            style={{ left: Math.max(4, treeWidth - 40) }}
             onClick={(e) => {
               e.stopPropagation()
               focusPane(paneIndex)

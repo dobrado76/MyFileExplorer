@@ -22,6 +22,7 @@ const api: MyFileExplorerApi = {
     resolveIssues: invoke(IPC.fsResolveIssues),
     relocate: invoke(IPC.fsRelocate),
     checkConflicts: invoke(IPC.fsCheckConflicts),
+    planOp: invoke(IPC.fsPlanOp),
     createShortcuts: invoke(IPC.fsCreateShortcuts),
     createLink: invoke(IPC.fsCreateLink),
     compressToZip: invoke(IPC.fsCompressToZip),

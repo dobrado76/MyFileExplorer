@@ -127,7 +127,7 @@ export function CopyMoveToDialog({ op, paths }: Props): JSX.Element {
     if (res.path) setTarget(res.path)
   }
 
-  const onOk = async (): Promise<void> => {
+  const onOk = async (planMode = false): Promise<void> => {
     const dest = target.trim()
     if (!dest) {
       notify('Choose a target folder', true)
@@ -136,7 +136,7 @@ export function CopyMoveToDialog({ op, paths }: Props): JSX.Element {
     setBusy(true)
     try {
       closeDialog()
-      const done = await performTransfer(op, paths, dest, false)
+      const done = await performTransfer(op, paths, dest, false, planMode)
       if (done && openAfter) await navigate(dest)
     } finally {
       setBusy(false)
@@ -189,7 +189,7 @@ export function CopyMoveToDialog({ op, paths }: Props): JSX.Element {
             type="button"
             className="btn primary"
             disabled={busy || !target.trim()}
-            onClick={() => void onOk()}
+            onClick={(e) => void onOk(e.ctrlKey)}
           >
             OK
           </button>
@@ -197,7 +197,8 @@ export function CopyMoveToDialog({ op, paths }: Props): JSX.Element {
       }
     >
       <p className="settings-help">
-        {op === 'copy' ? 'Copy' : 'Move'} <strong>{summary}</strong> to:
+        {op === 'copy' ? 'Copy' : 'Move'} <strong>{summary}</strong> to: Hold <kbd>Ctrl</kbd> when
+        clicking OK to review the operation first.
       </p>
       <label className="settings-field">
         <span>Target folder</span>

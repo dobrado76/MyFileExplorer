@@ -76,7 +76,15 @@ export const renameRequestSchema = z.object({
 })
 export type RenameRequest = z.infer<typeof renameRequestSchema>
 
-export const transferRequestSchema = z.object({
+export const transferOptionsSchema = z.object({
+  verify: z.boolean().optional(),
+  preserveTimestamps: z.boolean().optional(),
+  preserveAds: z.boolean().optional(),
+  continueOnRecoverable: z.boolean().optional()
+})
+export type TransferOptions = z.infer<typeof transferOptionsSchema>
+
+export const transferRequestSchema = transferOptionsSchema.extend({
   sources: z.array(z.string().min(1)).min(1),
   destinationDir: z.string().min(1),
   conflictPolicy: conflictPolicySchema.default('fail')
@@ -148,6 +156,78 @@ export const checkConflictsRequestSchema = z.object({
   targets: z.array(z.string().min(1)).optional()
 })
 export type CheckConflictsRequest = z.infer<typeof checkConflictsRequestSchema>
+
+export const fileOpPlanRequestSchema = z.discriminatedUnion('op', [
+  z.object({
+    op: z.enum(['copy', 'move']),
+    sources: z.array(z.string().min(1)).min(1).max(500),
+    destinationDir: z.string().min(1),
+    conflictPolicy: conflictPolicySchema.optional()
+  }),
+  z.object({
+    op: z.enum(['trash', 'delete']),
+    paths: z.array(z.string().min(1)).min(1).max(500)
+  })
+])
+export type FileOpPlanRequest = z.infer<typeof fileOpPlanRequestSchema>
+
+export type FileOpPlanRowStatus = 'ok' | 'conflict' | 'skip'
+
+export type FileOpPlanRow = {
+  status: FileOpPlanRowStatus
+  source: string
+  dest?: string
+  kind: EntryKind | null
+  sizeBytes: number
+  /** Files under this row (1 for a file; recursive count for folders). */
+  fileCount: number
+}
+
+export type FileOpPlanCapabilities = {
+  /** SHA-256 verify-after-copy (copy only). */
+  verify: boolean
+  preserveTimestamps: boolean
+  preserveAds: boolean
+  /** Cross-volume move copies data before deleting source. */
+  crossVolumeMove: boolean
+  /** All move items are same-volume renames (no byte copy). */
+  sameVolumeRenameOnly: boolean
+  /** Source or destination on NTFS (ADS-relevant). */
+  ntfsAdsRelevant: boolean
+  continueOnRecoverable: boolean
+}
+
+export type FileOpPlanChoice = {
+  proceed: true
+  verify?: boolean
+  preserveTimestamps?: boolean
+  preserveAds?: boolean
+  conflictPolicy?: ConflictPolicy
+  continueOnRecoverable?: boolean
+  /** Delete ops: Recycle Bin vs permanent. */
+  permanent?: boolean
+}
+
+export type FileOpPlanResponse = {
+  op: 'copy' | 'move' | 'trash' | 'delete'
+  destinationDir?: string
+  /** Parent folder(s) summary for copy/move. */
+  sourceSummary?: string
+  conflictPolicy: ConflictPolicy
+  capabilities: FileOpPlanCapabilities
+  /** Delete ops: whether permanent delete is selected. */
+  deletePermanent?: boolean
+  rows: FileOpPlanRow[]
+  truncated: boolean
+  totals: {
+    topLevel: number
+    files: number
+    bytes: number
+    conflicts: number
+    skips: number
+  }
+  warnings: string[]
+}
 
 /** One side of a name conflict (incoming source vs existing destination). */
 export type ConflictSide = {

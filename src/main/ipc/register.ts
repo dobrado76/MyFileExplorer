@@ -15,6 +15,7 @@ import {
   transferRequestSchema,
   relocateRequestSchema,
   checkConflictsRequestSchema,
+  fileOpPlanRequestSchema,
   resolveIssuesRequestSchema,
   setVolumeLabelRequestSchema
 } from '@shared/schemas/fs'
@@ -111,6 +112,7 @@ import {
   moveEntries,
   relocateEntries,
   checkConflicts,
+  planFileOp,
   trashEntries,
   deletePermanently,
   resolveOpIssues
@@ -397,11 +399,13 @@ export function registerIpcHandlers(): void {
   })
   handle(IPC.fsCopy, transferRequestSchema, async (req) => {
     muteWatchers()
-    return copyEntries(req.sources, req.destinationDir, req.conflictPolicy)
+    const { sources, destinationDir, conflictPolicy, ...transferOpts } = req
+    return copyEntries(sources, destinationDir, conflictPolicy, transferOpts)
   })
   handle(IPC.fsMove, transferRequestSchema, async (req) => {
     muteWatchers()
-    return moveEntries(req.sources, req.destinationDir, req.conflictPolicy)
+    const { sources, destinationDir, conflictPolicy, ...transferOpts } = req
+    return moveEntries(sources, destinationDir, conflictPolicy, transferOpts)
   })
   handle(IPC.fsResolveIssues, resolveIssuesRequestSchema, async (req) => {
     muteWatchers()
@@ -414,6 +418,7 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsCheckConflicts, checkConflictsRequestSchema, (req) =>
     checkConflicts(req.sources, req.destinationDir, req.targets)
   )
+  handle(IPC.fsPlanOp, fileOpPlanRequestSchema, (req) => planFileOp(req))
   handle(IPC.fsCreateShortcuts, checkConflictsRequestSchema, async (req) => {
     muteWatchers()
     return createShortcuts(req.sources, req.destinationDir)
