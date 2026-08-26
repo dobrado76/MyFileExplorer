@@ -68,13 +68,16 @@ export function GitCommitDialog({
   stagedCount,
   changedCount,
   onClose,
-  onDone
+  onDone,
+  onRequestPush
 }: {
   repoRoot: string
   stagedCount: number
   changedCount: number
   onClose(): void
   onDone(): void
+  /** After a successful commit, open the Push confirm dialog (credentials happen on Push). */
+  onRequestPush?(): void
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const [message, setMessage] = useState('')
@@ -94,7 +97,7 @@ export function GitCommitDialog({
         api.git.commit({
           repoRoot,
           message: msg,
-          pushAfter,
+          pushAfter: false,
           stageAll: stageAll || stagedCount < 1
         })
       )
@@ -103,8 +106,13 @@ export function GitCommitDialog({
         notify(err, true)
         return
       }
-      notify(pushAfter ? 'Committed and pushed' : 'Committed')
+      notify('Committed')
       onDone()
+      if (pushAfter) {
+        onClose()
+        onRequestPush?.()
+        return
+      }
       onClose()
     } catch (e) {
       notify(e instanceof IpcError ? e.message : String(e), true)
@@ -166,7 +174,7 @@ export function GitCommitDialog({
       </label>
       <label className="settings-toggle" htmlFor="git-commit-push">
         <span className="settings-toggle-text">
-          <span className="settings-toggle-label">Push after commit</span>
+          <span className="settings-toggle-label">Open Push dialog after commit</span>
         </span>
         <input
           id="git-commit-push"

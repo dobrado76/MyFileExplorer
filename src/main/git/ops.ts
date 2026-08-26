@@ -73,9 +73,10 @@ export async function commit(
       throw new AppError('validation', 'Nothing to commit')
     }
     if (status.stagedCount < 1 || stageAll) {
+      // Do not append bare `--` — some Git builds treat that as a pathspec error.
       const add = await runGit({
         cwd: repoRoot,
-        args: ['add', '-A', '--'],
+        args: ['add', '-A'],
         timeoutMs: 120_000
       })
       if (!add.success) return add
