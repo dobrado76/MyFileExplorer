@@ -264,6 +264,7 @@ export const IPC = {
   gitSwitchBranch: 'git:switchBranch',
   gitCreateBranch: 'git:createBranch',
   gitCreateTag: 'git:createTag',
+  gitDeleteTag: 'git:deleteTag',
   gitCheckoutCommit: 'git:checkoutCommit',
   gitMergeCommit: 'git:mergeCommit',
   gitRebaseOnto: 'git:rebaseOnto',

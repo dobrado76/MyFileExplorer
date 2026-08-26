@@ -12,6 +12,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Added
 
 - **Git repo-root preview toolbar + commit context menu** — GE-inspired controls on the history preview (refresh, branch, fetch/pull/push, commit, stash/more, terminal, filter) and a right-click menu on commit rows (copy, merge, non-interactive rebase, reset soft/mixed/hard with confirm, create branch/tag, checkout, revert, cherry-pick, navigate). New `git:*` IPC for those history ops. See [docs/GIT.md](docs/GIT.md).
+- **Git tag push / delete** — Create tag dialog can push the tag to origin (tags are not part of a normal branch Push). Context menu offers Delete tag… when a commit has tag refs, with optional delete on origin.
 - **Git Push confirm dialog** — Push opens a Cancel/Push dialog with branch → upstream, commits to push, and an editable description note before contacting the remote (Credential Manager only after Confirm).
 - **Git Commit from unstaged changes** — Commit is enabled for working-tree changes (not only staged). Dialog can “Stage all changes” then commit.
 

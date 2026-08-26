@@ -175,7 +175,17 @@ export const gitCommitRefRequestSchema = z.object({
 export const gitCreateTagRequestSchema = z.object({
   repoRoot: z.string().min(1),
   tag: z.string().min(1).max(255),
-  commit: z.string().min(7).max(64)
+  commit: z.string().min(7).max(64),
+  /** After creating locally, push the tag to the remote (default origin). */
+  pushToRemote: z.boolean().optional(),
+  remote: z.string().min(1).max(255).optional()
+})
+export const gitDeleteTagRequestSchema = z.object({
+  repoRoot: z.string().min(1),
+  tag: z.string().min(1).max(255),
+  /** Also delete the tag on the remote. */
+  deleteRemote: z.boolean().optional(),
+  remote: z.string().min(1).max(255).optional()
 })
 export const gitResetModeSchema = z.enum(['soft', 'mixed', 'hard'])
 export type GitResetMode = z.infer<typeof gitResetModeSchema>

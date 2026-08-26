@@ -15,7 +15,7 @@ import { api, call, IpcError } from '../../lib/ipc'
 import { basename } from '../../lib/paths'
 import { SpinnerIcon } from '../../lib/icons'
 import { useAppStore } from '../../store/appStore'
-import { GitBranchCreateDialog, GitTagCreateDialog } from '../git/GitDialogs'
+import { GitBranchCreateDialog, GitTagCreateDialog, GitTagDeleteDialog } from '../git/GitDialogs'
 import { GitHistoryContextMenu } from './GitHistoryContextMenu'
 import { GitRepoPreviewToolbar } from './GitRepoPreviewToolbar'
 
@@ -251,6 +251,7 @@ export function GitRepoPreview({
   const [ctx, setCtx] = useState<{ hash: string; x: number; y: number } | null>(null)
   const [branchDlg, setBranchDlg] = useState<string | null>(null)
   const [tagDlg, setTagDlg] = useState<string | null>(null)
+  const [deleteTagDlg, setDeleteTagDlg] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
   const commitsLenRef = useRef(0)
   const rowRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -459,6 +460,7 @@ export function GitRepoPreview({
           onSelectHash={selectAndScroll}
           onOpenBranchDialog={() => setBranchDlg(ctxCommit.hash)}
           onOpenTagDialog={() => setTagDlg(ctxCommit.hash)}
+          onOpenDeleteTagDialog={(tag) => setDeleteTagDlg(tag)}
         />
       ) : null}
       {branchDlg ? (
@@ -474,6 +476,14 @@ export function GitRepoPreview({
           repoRoot={repoRoot}
           commit={tagDlg}
           onClose={() => setTagDlg(null)}
+          onDone={() => void afterMutate()}
+        />
+      ) : null}
+      {deleteTagDlg ? (
+        <GitTagDeleteDialog
+          repoRoot={repoRoot}
+          tag={deleteTagDlg}
+          onClose={() => setDeleteTagDlg(null)}
           onDone={() => void afterMutate()}
         />
       ) : null}

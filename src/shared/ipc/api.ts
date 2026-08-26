@@ -846,6 +846,14 @@ export type MyFileExplorerApi = {
       repoRoot: string
       tag: string
       commit: string
+      pushToRemote?: boolean
+      remote?: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    deleteTag(req: {
+      repoRoot: string
+      tag: string
+      deleteRemote?: boolean
+      remote?: string
     }): Promise<Result<import('../schemas/git').GitCommandResult>>
     checkoutCommit(req: {
       repoRoot: string

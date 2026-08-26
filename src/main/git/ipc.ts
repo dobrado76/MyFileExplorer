@@ -8,6 +8,7 @@ import {
   gitCommitRefRequestSchema,
   gitCommitRequestSchema,
   gitCreateTagRequestSchema,
+  gitDeleteTagRequestSchema,
   gitDiffRequestSchema,
   gitPathRequestSchema,
   gitPathsRequestSchema,
@@ -83,7 +84,10 @@ export function registerGitIpc(handle: Handle): void {
     git.createBranch(req.repoRoot, req.branch, req.switchTo !== false, req.startPoint)
   )
   handle(IPC.gitCreateTag, gitCreateTagRequestSchema, async (req) =>
-    git.createTag(req.repoRoot, req.tag, req.commit)
+    git.createTag(req.repoRoot, req.tag, req.commit, req.pushToRemote, req.remote)
+  )
+  handle(IPC.gitDeleteTag, gitDeleteTagRequestSchema, async (req) =>
+    git.deleteTag(req.repoRoot, req.tag, req.deleteRemote, req.remote)
   )
   handle(IPC.gitCheckoutCommit, gitCommitRefRequestSchema, async (req) =>
     git.checkoutCommit(req.repoRoot, req.commit)

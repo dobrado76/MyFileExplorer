@@ -20,7 +20,8 @@ export function GitHistoryContextMenu({
   onDone,
   onSelectHash,
   onOpenBranchDialog,
-  onOpenTagDialog
+  onOpenTagDialog,
+  onOpenDeleteTagDialog
 }: {
   repoRoot: string
   commit: GitLogCommit
@@ -32,6 +33,7 @@ export function GitHistoryContextMenu({
   onSelectHash(hash: string): void
   onOpenBranchDialog(): void
   onOpenTagDialog(): void
+  onOpenDeleteTagDialog(tag: string): void
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const askConfirm = useAppStore((s) => s.askConfirm)
@@ -61,6 +63,7 @@ export function GitHistoryContextMenu({
   const parent1 = commit.parents[1]
   const parent0Loaded = parent0 ? commits.some((c) => c.hash === parent0) : false
   const parent1Loaded = parent1 ? commits.some((c) => c.hash === parent1) : false
+  const tagsOnCommit = commit.refs.filter((r) => r.kind === 'tag')
 
   async function copy(text: string, label: string): Promise<void> {
     try {
@@ -322,6 +325,21 @@ export function GitHistoryContextMenu({
       >
         Create new tag here…
       </button>
+      {tagsOnCommit.map((t) => (
+        <button
+          key={`del-tag-${t.name}`}
+          type="button"
+          className="menu-item"
+          role="menuitem"
+          disabled={busy}
+          onClick={() => {
+            onClose()
+            onOpenDeleteTagDialog(t.name)
+          }}
+        >
+          Delete tag {t.name}…
+        </button>
+      ))}
 
       <div className="menu-sep" />
 

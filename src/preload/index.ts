@@ -270,6 +270,7 @@ const api: MyFileExplorerApi = {
     switchBranch: invoke(IPC.gitSwitchBranch),
     createBranch: invoke(IPC.gitCreateBranch),
     createTag: invoke(IPC.gitCreateTag),
+    deleteTag: invoke(IPC.gitDeleteTag),
     checkoutCommit: invoke(IPC.gitCheckoutCommit),
     mergeCommit: invoke(IPC.gitMergeCommit),
     rebaseOnto: invoke(IPC.gitRebaseOnto),

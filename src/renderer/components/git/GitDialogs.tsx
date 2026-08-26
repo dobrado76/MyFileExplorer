@@ -393,6 +393,7 @@ export function GitTagCreateDialog({
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const [name, setName] = useState('')
+  const [pushToRemote, setPushToRemote] = useState(true)
   const [busy, setBusy] = useState(false)
 
   const submit = async (): Promise<void> => {
@@ -400,13 +401,22 @@ export function GitTagCreateDialog({
     if (!tag || busy) return
     setBusy(true)
     try {
-      const res = await call(api.git.createTag({ repoRoot, tag, commit }))
+      const res = await call(
+        api.git.createTag({
+          repoRoot,
+          tag,
+          commit,
+          pushToRemote
+        })
+      )
       const err = gitCmdOk(res)
       if (err) {
         notify(err, true)
+        // Tag may still exist locally if only push failed
+        onDone()
         return
       }
-      notify(`Created tag ${tag}`)
+      notify(pushToRemote ? `Created and pushed tag ${tag}` : `Created tag ${tag}`)
       onDone()
       onClose()
     } catch (e) {
@@ -431,7 +441,7 @@ export function GitTagCreateDialog({
             disabled={busy || !name.trim()}
             onClick={() => void submit()}
           >
-            Create
+            {busy ? 'Creating…' : 'Create'}
           </button>
         </>
       }
@@ -450,6 +460,100 @@ export function GitTagCreateDialog({
           onKeyDown={(e) => {
             if (e.key === 'Enter') void submit()
           }}
+        />
+      </label>
+      <label className="settings-toggle" htmlFor="git-tag-push">
+        <span className="settings-toggle-text">
+          <span className="settings-toggle-label">Push tag to origin</span>
+        </span>
+        <input
+          id="git-tag-push"
+          type="checkbox"
+          checked={pushToRemote}
+          onChange={(e) => setPushToRemote(e.target.checked)}
+        />
+      </label>
+      <p className="dim" style={{ marginBottom: 0, fontSize: '0.88em' }}>
+        Tags are not included in a normal branch Push. Check this to publish the tag to the remote.
+      </p>
+    </ModalShell>
+  )
+}
+
+export function GitTagDeleteDialog({
+  repoRoot,
+  tag,
+  onClose,
+  onDone
+}: {
+  repoRoot: string
+  tag: string
+  onClose(): void
+  onDone(): void
+}): JSX.Element {
+  const notify = useAppStore((s) => s.notify)
+  const [deleteRemote, setDeleteRemote] = useState(true)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const res = await call(
+        api.git.deleteTag({
+          repoRoot,
+          tag,
+          deleteRemote
+        })
+      )
+      const err = gitCmdOk(res)
+      if (err) {
+        notify(err, true)
+        onDone()
+        return
+      }
+      notify(deleteRemote ? `Deleted tag ${tag} (local + origin)` : `Deleted local tag ${tag}`)
+      onDone()
+      onClose()
+    } catch (e) {
+      notify(e instanceof IpcError ? e.message : String(e), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <ModalShell
+      title="Delete tag"
+      onClose={onClose}
+      actions={
+        <>
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy}
+            onClick={() => void submit()}
+          >
+            {busy ? 'Deleting…' : 'Delete'}
+          </button>
+        </>
+      }
+    >
+      <p className="dim" style={{ marginTop: 0 }}>
+        Delete tag <strong>{tag}</strong>?
+      </p>
+      <label className="settings-toggle" htmlFor="git-tag-delete-remote">
+        <span className="settings-toggle-text">
+          <span className="settings-toggle-label">Also delete on origin</span>
+        </span>
+        <input
+          id="git-tag-delete-remote"
+          type="checkbox"
+          checked={deleteRemote}
+          onChange={(e) => setDeleteRemote(e.target.checked)}
         />
       </label>
     </ModalShell>

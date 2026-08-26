@@ -3,6 +3,7 @@ import {
   gitBranchCreateRequestSchema,
   gitCommitRefRequestSchema,
   gitCreateTagRequestSchema,
+  gitDeleteTagRequestSchema,
   gitResetRequestSchema
 } from '../shared/schemas/git'
 
@@ -25,6 +26,22 @@ describe('git history op schemas', () => {
         commit: 'abcdef0'
       }).tag
     ).toBe('v1.0.0')
+    expect(
+      gitCreateTagRequestSchema.parse({
+        repoRoot: 'C:/repo',
+        tag: 'v1.0.0',
+        commit: 'abcdef0',
+        pushToRemote: true,
+        remote: 'origin'
+      }).pushToRemote
+    ).toBe(true)
+    expect(
+      gitDeleteTagRequestSchema.parse({
+        repoRoot: 'C:/repo',
+        tag: 'v1.0.0',
+        deleteRemote: true
+      }).deleteRemote
+    ).toBe(true)
     expect(
       gitCommitRefRequestSchema.parse({ repoRoot: 'C:/repo', commit: 'abcdef012345' }).commit
     ).toBe('abcdef012345')

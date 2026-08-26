@@ -22,6 +22,7 @@ export {
   switchBranch,
   createBranch,
   createTag,
+  deleteTag,
   checkoutCommit,
   mergeCommit,
   rebaseOnto,

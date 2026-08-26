@@ -245,15 +245,81 @@ export async function createBranch(
 export async function createTag(
   repoRoot: string,
   tag: string,
-  commit: string
+  commit: string,
+  pushToRemote?: boolean,
+  remote?: string
 ): Promise<GitCommandResult> {
-  return withRefresh(repoRoot, () =>
-    runGit({
-      cwd: repoRoot,
-      args: ['tag', '--', tag, commit],
-      timeoutMs: 30_000
-    })
-  )
+  await assertGitReady()
+  const created = await runGit({
+    cwd: repoRoot,
+    args: ['tag', '--', tag, commit],
+    timeoutMs: 30_000
+  })
+  if (!created.success) {
+    scheduleRefresh(repoRoot)
+    void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+    return created
+  }
+  if (!pushToRemote) {
+    scheduleRefresh(repoRoot)
+    void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+    return created
+  }
+  const remoteName = remote?.trim() || 'origin'
+  const pushed = await runGit({
+    cwd: repoRoot,
+    args: ['push', remoteName, `refs/tags/${tag}`],
+    timeoutMs: 600_000,
+    interactiveAuth: true
+  })
+  scheduleRefresh(repoRoot)
+  void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+  if (pushed.success) return created
+  return {
+    ...pushed,
+    stdout: `${created.stdout}\n${pushed.stdout}`,
+    stderr: `Tag created locally, but push failed:\n${(pushed.stderr || pushed.stdout).trim()}`.trim()
+  }
+}
+
+export async function deleteTag(
+  repoRoot: string,
+  tag: string,
+  deleteRemote?: boolean,
+  remote?: string
+): Promise<GitCommandResult> {
+  await assertGitReady()
+  const local = await runGit({
+    cwd: repoRoot,
+    args: ['tag', '-d', '--', tag],
+    timeoutMs: 30_000
+  })
+  if (!local.success) {
+    scheduleRefresh(repoRoot)
+    void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+    return local
+  }
+  if (!deleteRemote) {
+    scheduleRefresh(repoRoot)
+    void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+    return local
+  }
+  const remoteName = remote?.trim() || 'origin'
+  const remoteDel = await runGit({
+    cwd: repoRoot,
+    args: ['push', remoteName, '--delete', `refs/tags/${tag}`],
+    timeoutMs: 600_000,
+    interactiveAuth: true
+  })
+  scheduleRefresh(repoRoot)
+  void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+  if (remoteDel.success) return local
+  return {
+    ...remoteDel,
+    stdout: `${local.stdout}\n${remoteDel.stdout}`,
+    stderr:
+      `Tag deleted locally, but remote delete failed:\n${(remoteDel.stderr || remoteDel.stdout).trim()}`.trim()
+  }
 }
 
 export async function checkoutCommit(
