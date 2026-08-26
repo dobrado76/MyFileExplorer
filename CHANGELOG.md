@@ -18,6 +18,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Slideshow title bar** — **Alt** toggles the current image full path in the window title (persisted in Settings → Slideshow → Path in title bar).
 - **Search Show hidden vs view filter** — with **Show hidden** on, every search hit is shown (view filter does not clip results). With it off, Hidden items stay out of the search and the toolbar view filter (if on) still applies to the result list.
 - **Slideshow vs view filter** — when the toolbar view filter is on, folder image discovery skips Windows Hidden files/folders and view-filter pattern matches (e.g. Hidden `!Thumbnails`). Turn the eye off to include them.
 - **Search `!Thumbnails` / hidden folders** — leading `!Name` is a literal name (`folder:!Thumbnails` keeps the value). Folder-scope search falls back to a live walk when the index returns no name hits (stale index). Search-exclude patterns do not hide an item whose basename the query explicitly names. Finding Hidden items needs Search **Show hidden** (or `attrib:h`); with Show hidden on, hits are not clipped by the toolbar view filter.

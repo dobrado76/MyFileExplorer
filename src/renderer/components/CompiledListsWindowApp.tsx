@@ -189,7 +189,8 @@ export function CompiledListsWindowApp(): JSX.Element {
     const onKey = (e: KeyboardEvent): void => {
       if (isEditableTarget(e.target)) return
       const cropNumpad = isSlideshowCropNumpadKey(e)
-      if ((e.ctrlKey || e.metaKey || e.altKey) && !cropNumpad) return
+      const bareAlt = e.code === 'AltLeft' || e.code === 'AltRight'
+      if ((e.ctrlKey || e.metaKey || (e.altKey && !bareAlt)) && !cropNumpad) return
       e.preventDefault()
       e.stopPropagation()
       void api.slideshow.relayKey({

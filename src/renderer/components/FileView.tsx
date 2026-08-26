@@ -804,7 +804,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     settings.searchShowHidden,
     viewMode,
     isExcluded,
-    compiledFilter,
     viewFilterOn,
     viewPatterns.length,
     metaForSort,

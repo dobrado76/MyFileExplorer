@@ -57,6 +57,7 @@ Exact line shape (blank lines allowed):
 | ← ↑ PageUp | Interrupt → previous | Previous (wraps when Loop is on) |
 | → ↓ PageDown | Interrupt → next | Next (wraps when Loop is on) |
 | Mouse wheel | Interrupt → prev/next (same sense as ↑/↓) | Prev/next |
+| Alt | Toggle full path in the window title bar (persisted) | Same |
 | Map delete keys | Interrupt → virtual delete + advance | Virtual delete + advance |
 | Map folder keys | Interrupt → virtual categorize + advance | Virtual categorize + advance |
 | `\ |` (key under Backspace / above Enter) | Interrupt → undo last buffer action | Undo last buffer action |

@@ -61,6 +61,7 @@ export type SlideshowHost = {
       ascending: boolean
       loop: boolean
       drawCaption: boolean
+      titleFilename: boolean
       categorizerMapPath: string
       categorizerMap: CategorizerMapRow[]
       cacheActive: boolean

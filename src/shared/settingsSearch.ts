@@ -97,7 +97,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'slideshow',
     label: 'Slideshow',
-    keywords: 'slideshow categorizer caption delay order random loop images photos'
+    keywords: 'slideshow categorizer caption delay order random loop images photos title path alt'
   },
   {
     id: 'mediametadata',

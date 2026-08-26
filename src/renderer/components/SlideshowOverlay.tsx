@@ -18,6 +18,7 @@ import {
   isSlideshowCropCancelKey,
   isSlideshowCropSaveKey,
   isSlideshowStopKey,
+  isSlideshowTitleFilenameToggleKey,
   numpadCropEdgeFromCode,
   codeToKeyToken,
   normalizeKeyToken,
@@ -67,6 +68,7 @@ export function SlideshowOverlay(): JSX.Element | null {
   const openImageEditor = useAppStore((s) => s.openImageEditor)
   const openContextMenu = useAppStore((s) => s.openContextMenu)
   const notify = useAppStore((s) => s.notify)
+  const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const dialogOpen = useAppStore((s) => s.dialog !== null)
   const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
   const contextMenuOpen = useAppStore((s) => s.contextMenu !== null)
@@ -403,6 +405,12 @@ export function SlideshowOverlay(): JSX.Element | null {
       syncCropMods(e)
       if (dialogOpen || imageEditorOpen || contextMenuOpen) return
 
+      if (isSlideshowTitleFilenameToggleKey(e)) {
+        const cur = useAppStore.getState().settings.slideshow.titleFilename === true
+        void applySettingsPatch({ slideshow: { titleFilename: !cur } })
+        return
+      }
+
       if (cropModeRef.current) {
         if (isSlideshowCropSaveKey(e)) {
           void saveCrop()
@@ -584,6 +592,7 @@ export function SlideshowOverlay(): JSX.Element | null {
     slideshowUndoAction,
     openImageEditor,
     notify,
+    applySettingsPatch,
     resetCrop,
     syncCropAcc,
     syncCropMods,

@@ -13,6 +13,7 @@ import { Splitter } from '../components/Splitter'
 import { basename, samePath } from '../lib/paths'
 import { isImageExt } from '../lib/icons'
 import { searchResultsToEntries } from '../lib/searchEntries'
+import { slideshowCurrentPath } from '../lib/slideshowTypes'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { api, call } from '../lib/ipc'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
@@ -67,6 +68,11 @@ export function ExplorerShell(): JSX.Element {
   const activeTab = useAppStore((s) => s.tabs.find((t) => t.id === s.activeTabId))
   const imageEditorOpen = useAppStore((s) => s.imageEditor !== null)
   const slideshowActive = useAppStore((s) => s.slideshow.active != null)
+  const slideshowIndex = useAppStore((s) => s.slideshow.active?.index ?? -1)
+  const slideshowPath = useAppStore((s) =>
+    s.slideshow.active ? slideshowCurrentPath(s.slideshow.active) : null
+  )
+  const titleFilename = useAppStore((s) => s.settings.slideshow.titleFilename === true)
   const [appVersion, setAppVersion] = useState<string | null>(null)
   const previewTarget = usePreviewTarget()
 
@@ -104,13 +110,24 @@ export function ExplorerShell(): JSX.Element {
       .catch(() => setAppVersion(null))
   }, [])
 
-  // Window title follows the active tab; include app version after the name.
+  // Window title follows the active tab; during slideshow, Alt can show the image name.
   useEffect(() => {
     if (!activeTab) return
-    const folder = activeTab.title ?? basename(activeTab.path)
     const ver = appVersion ? ` — v${appVersion}` : ''
+    if (slideshowActive && titleFilename && slideshowPath) {
+      document.title = `${slideshowPath} — MyFileExplorer${ver}`
+      return
+    }
+    const folder = activeTab.title ?? basename(activeTab.path)
     document.title = `${folder} — MyFileExplorer${ver}`
-  }, [activeTab, appVersion])
+  }, [
+    activeTab,
+    appVersion,
+    slideshowActive,
+    slideshowIndex,
+    slideshowPath,
+    titleFilename
+  ])
 
   const onKeyDown = useCallback((e: KeyboardEvent): void => {
     const s = useAppStore.getState()

@@ -3280,6 +3280,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   onChange={(v) => void applySettingsPatch({ slideshow: { loop: v } })}
                 />
               </div>
+              <SettingsToggle
+                id="set-ss-title-filename"
+                label="Path in title bar"
+                hint="Show the current image full path in the window title. During a slideshow, Alt toggles this (remembered for next time)."
+                checked={settings.slideshow.titleFilename}
+                onChange={(v) => void applySettingsPatch({ slideshow: { titleFilename: v } })}
+              />
               {devGateActive && (
               <>
               <SettingsToggle

@@ -283,6 +283,12 @@ export function isSlideshowStopKey(e: SlideshowKeyLike): boolean {
   return e.key === 'Escape' || e.key === ' '
 }
 
+/** Alt alone — toggle full path in the window title bar. */
+export function isSlideshowTitleFilenameToggleKey(e: SlideshowKeyLike): boolean {
+  if (e.ctrlKey || e.metaKey || e.shiftKey) return false
+  return e.key === 'Alt' || e.code === 'AltLeft' || e.code === 'AltRight'
+}
+
 /** Tab — open in-app image editor during slideshow. */
 export function isEditImageSlideshowKey(e: SlideshowKeyLike): boolean {
   return e.key === 'Tab' || e.code === 'Tab'

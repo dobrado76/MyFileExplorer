@@ -26,6 +26,8 @@ export const slideshowSettingsSchema = z.object({
   ascending: z.boolean().catch(true),
   loop: z.boolean().catch(true),
   drawCaption: z.boolean().catch(false),
+  /** Show current image full path in the window title bar (Alt toggles during slideshow). */
+  titleFilename: z.boolean().catch(false),
   /**
    * Last Mapping Manager Import/Export path (hint only). The live map is `categorizerMap`
    * in settings — also used for one-time migration from legacy path-only installs.
@@ -73,6 +75,7 @@ export const defaultSlideshowSettings: SlideshowSettings = {
   ascending: true,
   loop: true,
   drawCaption: false,
+  titleFilename: false,
   categorizerMapPath: '',
   categorizerMap: [],
   cacheActive: false,
