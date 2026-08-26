@@ -17,6 +17,7 @@ export {
   fetch,
   pull,
   push,
+  listOutgoing,
   listBranches,
   switchBranch,
   createBranch,

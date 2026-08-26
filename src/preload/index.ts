@@ -265,6 +265,7 @@ const api: MyFileExplorerApi = {
     fetch: invoke(IPC.gitFetch),
     pull: invoke(IPC.gitPull),
     push: invoke(IPC.gitPush),
+    outgoing: invoke(IPC.gitOutgoing),
     listBranches: invoke(IPC.gitListBranches),
     switchBranch: invoke(IPC.gitSwitchBranch),
     createBranch: invoke(IPC.gitCreateBranch),

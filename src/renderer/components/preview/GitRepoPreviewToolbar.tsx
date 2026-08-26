@@ -8,12 +8,18 @@ import { ChevronDown } from '../../lib/icons'
 import {
   GitBranchCreateDialog,
   GitCommitDialog,
+  GitPushDialog,
   GitStashDialog,
   gitCmdOk,
   looksLikeConflict
 } from '../git/GitDialogs'
 
-type LocalDialog = { kind: 'commit' } | { kind: 'branch-create' } | { kind: 'stash' } | null
+type LocalDialog =
+  | { kind: 'commit' }
+  | { kind: 'branch-create' }
+  | { kind: 'stash' }
+  | { kind: 'push' }
+  | null
 
 export function GitRepoPreviewToolbar({
   repoRoot,
@@ -48,6 +54,8 @@ export function GitRepoPreviewToolbar({
     ? `DETACHED @ ${(info.branch ?? 'HEAD').slice(0, 7)}`
     : (info?.branch ?? '—')
   const stagedCount = status?.stagedCount ?? 0
+  const changedCount = status?.changedCount ?? 0
+  const commitCount = stagedCount > 0 ? stagedCount : changedCount
 
   async function refreshRepo(): Promise<void> {
     try {
@@ -80,7 +88,14 @@ export function GitRepoPreviewToolbar({
         await refreshRepo()
         return
       }
-      notify(label)
+      const detail = (res.stdout || res.stderr).trim()
+      const short =
+        detail && /up.to.date|everything up-to-date|already up to date/i.test(detail)
+          ? `${label} — already up to date`
+          : detail
+            ? `${label} — ${detail.slice(0, 160)}`
+            : label
+      notify(short)
       await refreshRepo()
     } catch (e) {
       notify(e instanceof IpcError ? e.message : String(e), true)
@@ -147,8 +162,14 @@ export function GitRepoPreviewToolbar({
       setSyncOpen(false)
       setMoreOpen(false)
     }
-    window.addEventListener('mousedown', onDown)
-    return () => window.removeEventListener('mousedown', onDown)
+    // Defer so the opening click does not immediately dismiss the menu.
+    const id = window.setTimeout(() => {
+      window.addEventListener('mousedown', onDown)
+    }, 0)
+    return () => {
+      window.clearTimeout(id)
+      window.removeEventListener('mousedown', onDown)
+    }
   }, [openMenu])
 
   const menu =
@@ -156,12 +177,19 @@ export function GitRepoPreviewToolbar({
       ? createPortal(
           <div
             id="git-preview-toolbar-menu"
-            className="new-item-menu-panel git-toolbar-menu"
-            style={{ top: menuPos.top, left: menuPos.left }}
+            className="context-menu new-item-menu-panel git-toolbar-menu"
+            style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
             role="menu"
+            onMouseDown={(e) => e.stopPropagation()}
           >
             {openMenu === 'branch'
-              ? (branches ?? []).map((b) => (
+              ? (branches ?? []).length === 0
+                ? (
+                    <div className="menu-item" style={{ opacity: 0.6 }}>
+                      {branches == null ? 'Loading…' : 'No local branches'}
+                    </div>
+                  )
+                : (branches ?? []).map((b) => (
                   <button
                     key={b.name}
                     type="button"
@@ -239,6 +267,7 @@ export function GitRepoPreviewToolbar({
                 >
                   Terminal
                 </button>
+                <div className="menu-sep" />
                 <button
                   type="button"
                   className="menu-item"
@@ -341,26 +370,34 @@ export function GitRepoPreviewToolbar({
             setSyncOpen((v) => !v)
           }}
         >
-          ↓
+          Pull
           <ChevronDown size={12} />
         </button>
         <button
           type="button"
           className="btn toolbar-btn"
           disabled={busy}
-          title="Push"
-          onClick={() => void runOp('Pushed', () => call(api.git.push({ repoRoot })))}
+          title={
+            info?.ahead != null && info.ahead > 0
+              ? `Push ${info.ahead} commit${info.ahead === 1 ? '' : 's'}`
+              : 'Push to remote'
+          }
+          onClick={() => setDialog({ kind: 'push' })}
         >
-          ↑
+          Push{info?.ahead != null && info.ahead > 0 ? ` (${info.ahead})` : ''}
         </button>
         <button
           type="button"
           className="btn toolbar-btn"
-          disabled={busy || stagedCount < 1}
-          title="Commit staged changes"
+          disabled={busy || changedCount < 1}
+          title={
+            stagedCount > 0
+              ? `Commit ${stagedCount} staged change${stagedCount === 1 ? '' : 's'}`
+              : `Commit ${changedCount} change${changedCount === 1 ? '' : 's'} (will stage all)`
+          }
           onClick={() => setDialog({ kind: 'commit' })}
         >
-          Commit ({stagedCount})
+          Commit ({commitCount})
         </button>
         <button
           type="button"
@@ -412,6 +449,7 @@ export function GitRepoPreviewToolbar({
         <GitCommitDialog
           repoRoot={repoRoot}
           stagedCount={stagedCount}
+          changedCount={changedCount}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}
         />
@@ -425,6 +463,13 @@ export function GitRepoPreviewToolbar({
       ) : null}
       {dialog?.kind === 'stash' ? (
         <GitStashDialog
+          repoRoot={repoRoot}
+          onClose={() => setDialog(null)}
+          onDone={() => void refreshRepo()}
+        />
+      ) : null}
+      {dialog?.kind === 'push' ? (
+        <GitPushDialog
           repoRoot={repoRoot}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}

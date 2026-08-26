@@ -821,10 +821,14 @@ export type MyFileExplorerApi = {
       repoRoot: string
       message: string
       pushAfter?: boolean
+      stageAll?: boolean
     }): Promise<Result<import('../schemas/git').GitCommandResult>>
     fetch(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
     pull(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
     push(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    outgoing(req: {
+      repoRoot: string
+    }): Promise<Result<import('../schemas/git').GitOutgoingResult>>
     listBranches(req: {
       repoRoot: string
     }): Promise<Result<{ branches: import('../schemas/git').GitBranchInfo[] }>>

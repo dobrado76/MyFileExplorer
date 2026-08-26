@@ -66,25 +66,38 @@ export function ModalShell({
 export function GitCommitDialog({
   repoRoot,
   stagedCount,
+  changedCount,
   onClose,
   onDone
 }: {
   repoRoot: string
   stagedCount: number
+  changedCount: number
   onClose(): void
   onDone(): void
 }): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const [message, setMessage] = useState('')
   const [pushAfter, setPushAfter] = useState(false)
+  const [stageAll, setStageAll] = useState(stagedCount < 1 && changedCount > 0)
   const [busy, setBusy] = useState(false)
+
+  const canCommit =
+    message.trim().length > 0 && (stageAll ? changedCount > 0 : stagedCount > 0)
 
   const submit = async (): Promise<void> => {
     const msg = message.trim()
-    if (!msg || busy) return
+    if (!msg || busy || !canCommit) return
     setBusy(true)
     try {
-      const res = await call(api.git.commit({ repoRoot, message: msg, pushAfter }))
+      const res = await call(
+        api.git.commit({
+          repoRoot,
+          message: msg,
+          pushAfter,
+          stageAll: stageAll || stagedCount < 1
+        })
+      )
       const err = gitCmdOk(res)
       if (err) {
         notify(err, true)
@@ -112,7 +125,7 @@ export function GitCommitDialog({
           <button
             type="button"
             className="btn primary"
-            disabled={busy || !message.trim() || stagedCount < 1}
+            disabled={busy || !canCommit}
             onClick={() => void submit()}
           >
             Commit
@@ -121,8 +134,14 @@ export function GitCommitDialog({
       }
     >
       <p className="dim" style={{ marginTop: 0 }}>
-        {stagedCount === 1 ? '1 staged change' : `${stagedCount} staged changes`}
+        {stagedCount} staged · {changedCount} change{changedCount === 1 ? '' : 's'} total
       </p>
+      {stagedCount < 1 && changedCount > 0 ? (
+        <p className="dim">
+          Nothing is staged yet. Enable “Stage all changes” below to include the {changedCount}{' '}
+          working-tree change{changedCount === 1 ? '' : 's'}.
+        </p>
+      ) : null}
       <label className="settings-field" htmlFor="git-commit-msg">
         <span>Message</span>
         <textarea
@@ -132,6 +151,17 @@ export function GitCommitDialog({
           autoFocus
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Commit message"
+        />
+      </label>
+      <label className="settings-toggle" htmlFor="git-commit-stage-all">
+        <span className="settings-toggle-text">
+          <span className="settings-toggle-label">Stage all changes</span>
+        </span>
+        <input
+          id="git-commit-stage-all"
+          type="checkbox"
+          checked={stageAll}
+          onChange={(e) => setStageAll(e.target.checked)}
         />
       </label>
       <label className="settings-toggle" htmlFor="git-commit-push">
@@ -402,6 +432,166 @@ export function GitTagCreateDialog({
           }}
         />
       </label>
+    </ModalShell>
+  )
+}
+
+export function GitPushDialog({
+  repoRoot,
+  onClose,
+  onDone
+}: {
+  repoRoot: string
+  onClose(): void
+  onDone(): void
+}): JSX.Element {
+  const notify = useAppStore((s) => s.notify)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [branch, setBranch] = useState<string | null>(null)
+  const [upstream, setUpstream] = useState<string | null>(null)
+  const [ahead, setAhead] = useState(0)
+  const [behind, setBehind] = useState(0)
+  const [commits, setCommits] = useState<{ hash: string; subject: string }[]>([])
+  const [description, setDescription] = useState('')
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      setLoading(true)
+      setLoadError(null)
+      try {
+        const res = await call(api.git.outgoing({ repoRoot }))
+        if (cancelled) return
+        setBranch(res.branch)
+        setUpstream(res.upstream)
+        setAhead(res.ahead)
+        setBehind(res.behind)
+        setCommits(res.commits)
+        const dest = res.upstream ?? 'remote'
+        const src = res.branch ?? 'HEAD'
+        if (res.ahead < 1) {
+          setDescription(`Nothing to push — ${src} is up to date with ${dest}`)
+        } else if (res.commits[0]) {
+          setDescription(
+            res.ahead === 1
+              ? res.commits[0].subject
+              : `Push ${res.ahead} commits to ${dest}: ${res.commits[0].subject}`
+          )
+        } else {
+          setDescription(`Push ${res.ahead} commit${res.ahead === 1 ? '' : 's'} to ${dest}`)
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof IpcError ? e.message : String(e))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [repoRoot])
+
+  const canPush = !loading && !loadError && ahead > 0 && Boolean(upstream)
+
+  const submit = async (): Promise<void> => {
+    if (busy || !canPush) return
+    setBusy(true)
+    try {
+      const res = await call(api.git.push({ repoRoot }))
+      const err = gitCmdOk(res)
+      if (err) {
+        notify(err, true)
+        return
+      }
+      const detail = (res.stdout || res.stderr).trim()
+      const note = description.trim()
+      if (detail && /up.to.date|everything up-to-date|already up to date/i.test(detail)) {
+        notify('Push — already up to date')
+      } else if (note) {
+        notify(`Pushed — ${note.slice(0, 120)}`)
+      } else {
+        notify(detail ? `Pushed — ${detail.slice(0, 160)}` : 'Pushed')
+      }
+      onDone()
+      onClose()
+    } catch (e) {
+      notify(e instanceof IpcError ? e.message : String(e), true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <ModalShell
+      title="Push"
+      onClose={onClose}
+      actions={
+        <>
+          <button type="button" className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy || !canPush}
+            onClick={() => void submit()}
+          >
+            {busy ? 'Pushing…' : 'Push'}
+          </button>
+        </>
+      }
+    >
+      {loading ? (
+        <p className="dim" style={{ marginTop: 0 }}>
+          Checking commits to push…
+        </p>
+      ) : loadError ? (
+        <p className="dim" style={{ marginTop: 0, color: 'var(--danger)' }}>
+          {loadError}
+        </p>
+      ) : (
+        <>
+          <p className="dim" style={{ marginTop: 0 }}>
+            {branch ?? 'DETACHED'}
+            {upstream ? ` → ${upstream}` : ' (no upstream set)'}
+            {ahead > 0 || behind > 0 ? ` · ↑${ahead} ↓${behind}` : ''}
+          </p>
+          {!upstream ? (
+            <p className="dim">This branch has no upstream remote. Set upstream before pushing.</p>
+          ) : ahead < 1 ? (
+            <p className="dim">Nothing to push — already up to date with the remote.</p>
+          ) : (
+            <div className="git-push-commits" role="list" aria-label="Commits to push">
+              {commits.map((c) => (
+                <div key={c.hash} className="git-push-commit" role="listitem">
+                  <span className="git-push-commit-hash mono">{c.hash.slice(0, 7)}</span>
+                  <span className="git-push-commit-subject">{c.subject || '(no message)'}</span>
+                </div>
+              ))}
+              {ahead > commits.length ? (
+                <div className="dim git-push-commit-more">…and {ahead - commits.length} more</div>
+              ) : null}
+            </div>
+          )}
+          <label className="settings-field" htmlFor="git-push-desc">
+            <span>Description</span>
+            <textarea
+              id="git-push-desc"
+              rows={3}
+              value={description}
+              disabled={busy}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What you are pushing (local note)"
+            />
+          </label>
+          <p className="dim" style={{ marginBottom: 0, fontSize: '0.88em' }}>
+            Cancel closes without contacting the remote. Push may open Git Credential Manager if
+            authentication is required.
+          </p>
+        </>
+      )}
     </ModalShell>
   )
 }

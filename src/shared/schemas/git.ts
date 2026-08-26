@@ -131,7 +131,9 @@ export const gitPathsRequestSchema = z.object({
 export const gitCommitRequestSchema = z.object({
   repoRoot: z.string().min(1),
   message: z.string().min(1).max(10_000),
-  pushAfter: z.boolean().optional()
+  pushAfter: z.boolean().optional(),
+  /** Stage all tracked/untracked changes before commit (when nothing useful is staged). */
+  stageAll: z.boolean().optional()
 })
 export const gitBranchSwitchRequestSchema = z.object({
   repoRoot: z.string().min(1),
@@ -153,6 +155,19 @@ export const gitDiffRequestSchema = z.object({
   repoRoot: z.string().min(1),
   path: z.string().min(1)
 })
+export const gitOutgoingCommitSchema = z.object({
+  hash: z.string().min(7).max(64),
+  subject: z.string().max(2000)
+})
+export type GitOutgoingCommit = z.infer<typeof gitOutgoingCommitSchema>
+export const gitOutgoingResultSchema = z.object({
+  branch: z.string().nullable(),
+  upstream: z.string().nullable(),
+  ahead: z.number().int(),
+  behind: z.number().int(),
+  commits: z.array(gitOutgoingCommitSchema).max(200)
+})
+export type GitOutgoingResult = z.infer<typeof gitOutgoingResultSchema>
 export const gitCommitRefRequestSchema = z.object({
   repoRoot: z.string().min(1),
   commit: z.string().min(7).max(64)

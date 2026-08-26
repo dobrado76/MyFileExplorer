@@ -63,10 +63,25 @@ export async function discardPaths(repoRoot: string, absPaths: string[]): Promis
 export async function commit(
   repoRoot: string,
   message: string,
-  pushAfter?: boolean
+  pushAfter?: boolean,
+  stageAll?: boolean
 ): Promise<GitCommandResult> {
   await assertGitReady()
-  const status = await getOrRefreshStatus(repoRoot, { force: true })
+  let status = await getOrRefreshStatus(repoRoot, { force: true })
+  if (stageAll || status.stagedCount < 1) {
+    if (status.changedCount < 1 && status.stagedCount < 1) {
+      throw new AppError('validation', 'Nothing to commit')
+    }
+    if (status.stagedCount < 1 || stageAll) {
+      const add = await runGit({
+        cwd: repoRoot,
+        args: ['add', '-A', '--'],
+        timeoutMs: 120_000
+      })
+      if (!add.success) return add
+      status = await getOrRefreshStatus(repoRoot, { force: true })
+    }
+  }
   if (status.stagedCount < 1) {
     throw new AppError('validation', 'Nothing staged to commit')
   }
@@ -120,6 +135,46 @@ export async function push(repoRoot: string): Promise<GitCommandResult> {
   return withRefresh(repoRoot, () =>
     runGit({ cwd: repoRoot, args: ['push'], timeoutMs: 600_000 })
   )
+}
+
+/** Commits on HEAD not yet on the upstream (for the Push confirm dialog). */
+export async function listOutgoing(repoRoot: string): Promise<{
+  branch: string | null
+  upstream: string | null
+  ahead: number
+  behind: number
+  commits: { hash: string; subject: string }[]
+}> {
+  await assertGitReady()
+  const status = await getOrRefreshStatus(repoRoot, { force: false })
+  const branch = status.info.detachedHead ? null : status.info.branch
+  const upstream = status.info.upstream ?? null
+  const ahead = status.info.ahead ?? 0
+  const behind = status.info.behind ?? 0
+
+  if (!upstream || ahead < 1) {
+    return { branch, upstream, ahead, behind, commits: [] }
+  }
+
+  const result = await runGit({
+    cwd: repoRoot,
+    args: ['log', '--format=%H%x1f%s', `${upstream}..HEAD`, '--max-count=100'],
+    timeoutMs: 30_000
+  })
+  if (!result.success) {
+    return { branch, upstream, ahead, behind, commits: [] }
+  }
+  const commits = result.stdout
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, subject = ''] = line.split('\x1f')
+      return { hash: hash ?? '', subject }
+    })
+    .filter((c) => c.hash.length >= 7)
+
+  return { branch, upstream, ahead, behind, commits }
 }
 
 export async function listBranches(repoRoot: string): Promise<GitBranchInfo[]> {

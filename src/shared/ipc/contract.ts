@@ -259,6 +259,7 @@ export const IPC = {
   gitFetch: 'git:fetch',
   gitPull: 'git:pull',
   gitPush: 'git:push',
+  gitOutgoing: 'git:outgoing',
   gitListBranches: 'git:listBranches',
   gitSwitchBranch: 'git:switchBranch',
   gitCreateBranch: 'git:createBranch',

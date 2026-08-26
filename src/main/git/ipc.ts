@@ -67,11 +67,12 @@ export function registerGitIpc(handle: Handle): void {
     git.discardPaths(req.repoRoot, req.paths)
   )
   handle(IPC.gitCommit, gitCommitRequestSchema, async (req) =>
-    git.commit(req.repoRoot, req.message, req.pushAfter)
+    git.commit(req.repoRoot, req.message, req.pushAfter, req.stageAll)
   )
   handle(IPC.gitFetch, gitRepoRequestSchema, async (req) => git.fetch(req.repoRoot))
   handle(IPC.gitPull, gitRepoRequestSchema, async (req) => git.pull(req.repoRoot))
   handle(IPC.gitPush, gitRepoRequestSchema, async (req) => git.push(req.repoRoot))
+  handle(IPC.gitOutgoing, gitRepoRequestSchema, async (req) => git.listOutgoing(req.repoRoot))
   handle(IPC.gitListBranches, gitRepoRequestSchema, async (req) => ({
     branches: await git.listBranches(req.repoRoot)
   }))

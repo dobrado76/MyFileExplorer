@@ -10,12 +10,18 @@ import { ChevronDown } from '../lib/icons'
 import {
   GitBranchCreateDialog,
   GitCommitDialog,
+  GitPushDialog,
   GitStashDialog,
   gitCmdOk,
   looksLikeConflict
 } from './git/GitDialogs'
 
-type LocalDialog = { kind: 'commit' } | { kind: 'branch-create' } | { kind: 'stash' } | null
+type LocalDialog =
+  | { kind: 'commit' }
+  | { kind: 'branch-create' }
+  | { kind: 'stash' }
+  | { kind: 'push' }
+  | null
 
 function statusForActivePath(
   gitByRoot: Record<string, GitRepositoryStatus>,
@@ -152,9 +158,10 @@ export function GitToolbar(): JSX.Element | null {
       ? createPortal(
           <div
             id="git-toolbar-menu"
-            className="new-item-menu-panel git-toolbar-menu"
-            style={{ top: menuPos.top, left: menuPos.left }}
+            className="context-menu new-item-menu-panel git-toolbar-menu"
+            style={{ position: 'fixed', top: menuPos.top, left: menuPos.left }}
             role="menu"
+            onMouseDown={(e) => e.stopPropagation()}
           >
             {branchOpen
               ? (branches ?? []).map((b) => (
@@ -296,11 +303,15 @@ export function GitToolbar(): JSX.Element | null {
         <button
           type="button"
           className="btn toolbar-btn"
-          disabled={busy || status.stagedCount < 1}
-          title="Commit staged changes"
+          disabled={busy || status.changedCount < 1}
+          title={
+            status.stagedCount > 0
+              ? `Commit ${status.stagedCount} staged change${status.stagedCount === 1 ? '' : 's'}`
+              : `Commit ${status.changedCount} change${status.changedCount === 1 ? '' : 's'} (will stage all)`
+          }
           onClick={() => setDialog({ kind: 'commit' })}
         >
-          Commit
+          Commit ({status.stagedCount > 0 ? status.stagedCount : status.changedCount})
         </button>
         <button
           type="button"
@@ -316,7 +327,7 @@ export function GitToolbar(): JSX.Element | null {
           className="btn toolbar-btn"
           disabled={busy}
           title="Push"
-          onClick={() => void runOp('Pushed', () => call(api.git.push({ repoRoot })))}
+          onClick={() => setDialog({ kind: 'push' })}
         >
           Push
         </button>
@@ -360,6 +371,7 @@ export function GitToolbar(): JSX.Element | null {
         <GitCommitDialog
           repoRoot={repoRoot}
           stagedCount={status.stagedCount}
+          changedCount={status.changedCount}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}
         />
@@ -373,6 +385,13 @@ export function GitToolbar(): JSX.Element | null {
       ) : null}
       {dialog?.kind === 'stash' ? (
         <GitStashDialog
+          repoRoot={repoRoot}
+          onClose={() => setDialog(null)}
+          onDone={() => void refreshRepo()}
+        />
+      ) : null}
+      {dialog?.kind === 'push' ? (
+        <GitPushDialog
           repoRoot={repoRoot}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}
