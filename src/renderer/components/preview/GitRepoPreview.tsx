@@ -332,10 +332,10 @@ export function GitRepoPreview({
         <>
           <div className="git-history" role="list" aria-label="Commit history">
             <div className="git-history-stack">
-            <div className="git-history-graph-layer" aria-hidden>
-              <GitGraphSvg rows={graph} />
-            </div>
-            {commits.map((c, i) => {
+              <div className="git-history-graph-layer" aria-hidden>
+                <GitGraphSvg rows={graph} />
+              </div>
+              {commits.map((c) => {
               const isHead = head != null && c.hash === head
               const isSel = selected === c.hash
               return (
@@ -387,7 +387,7 @@ export function GitRepoPreview({
                   </span>
                 </button>
               )
-            })}
+              })}
             </div>
           </div>
           {truncated ? (

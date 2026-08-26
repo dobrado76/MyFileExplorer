@@ -42,7 +42,7 @@ export function parseDecorations(raw: string): GitDecoratedRef[] {
   const seen = new Set<string>()
   for (const part of trimmed.split(',').map((p) => p.trim()).filter(Boolean)) {
     let name = part
-    let kind: GitRefKind = 'other'
+    let kind: GitRefKind
     let current = false
     if (/^HEAD\s*(?:->|→)\s*/.test(name)) {
       name = name.replace(/^HEAD\s*(?:->|→)\s*/, '').trim()
