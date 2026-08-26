@@ -120,6 +120,7 @@ describe('settings export / import', () => {
             path: '%ProgramFiles%\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe',
             args: '',
             show: 'icon',
+            iconSizePx: 24,
             iconKind: 'shell',
             lucideColor: '#60a5fa'
           }
@@ -135,6 +136,7 @@ describe('settings export / import', () => {
         path: '%ProgramFiles%\\Adobe\\Adobe Photoshop 2025\\Photoshop.exe',
         args: '',
         show: 'icon',
+        iconSizePx: 24,
         iconKind: 'shell',
         lucideColor: '#60a5fa'
       }
@@ -152,6 +154,7 @@ describe('settings export / import', () => {
             path: '%LocalAppData%\\Programs\\Microsoft VS Code\\Code.exe',
             args: '',
             show: 'both',
+            iconSizePx: 32,
             iconKind: 'lucide',
             lucideName: 'Code',
             lucideColor: '#34d399'
@@ -163,6 +166,7 @@ describe('settings export / import', () => {
     const parsed = parseSettingsImport(doc)
     expect(parsed.settings.quickLaunch[0]).toMatchObject({
       show: 'both',
+      iconSizePx: 32,
       iconKind: 'lucide',
       lucideName: 'Code',
       lucideColor: '#34d399'

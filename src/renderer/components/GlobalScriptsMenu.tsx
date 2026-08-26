@@ -1,5 +1,6 @@
 import { type JSX } from 'react'
 import { isGlobalScript, type ScriptDefinition } from '@shared/schemas/scripts'
+import { QUICK_LAUNCH_ICON_SIZE_DEFAULT } from '@shared/schemas/quickLaunch'
 import { useAppStore } from '../store/appStore'
 import { GlobalScriptIcon } from './GlobalScriptIcon'
 
@@ -45,6 +46,7 @@ function GlobalScriptButton({
   const show = script.toolbarShow ?? 'label'
   const showIcon = show !== 'label'
   const showLabel = show !== 'icon'
+  const iconPx = script.iconSizePx ?? QUICK_LAUNCH_ICON_SIZE_DEFAULT
   const tip = script.description.trim() || script.name
   return (
     <button
@@ -52,6 +54,7 @@ function GlobalScriptButton({
       className={`quick-launch-btn global-script-btn${showLabel ? ' has-label' : ''}${show === 'label' ? ' label-only' : ''}`}
       aria-label={script.name}
       title={tip}
+      style={showLabel ? undefined : { width: iconPx, height: iconPx }}
       onClick={onRun}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -59,7 +62,7 @@ function GlobalScriptButton({
         onManage()
       }}
     >
-      {showIcon ? <GlobalScriptIcon script={script} size={showLabel ? 16 : 22} /> : null}
+      {showIcon ? <GlobalScriptIcon script={script} size={iconPx} /> : null}
       {showLabel ? <span className="quick-launch-label">{script.name}</span> : null}
     </button>
   )

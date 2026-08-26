@@ -72,6 +72,7 @@ import { PowerRenameDialog } from './PowerRenameDialog'
 import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { CreateLinkDialog } from './CreateLinkDialog'
+import { CloneGitRepoDialog } from './git/CloneGitRepoDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 import { QuickLaunchSettingsPanel } from './QuickLaunchSettingsPanel'
 import { CloseIcon } from '../lib/icons'
@@ -318,6 +319,8 @@ export function Dialogs(): JSX.Element | null {
       return <OpIssuesDialog />
     case 'new-file':
       return <NewFileDialog parent={dialog.parent} />
+    case 'clone-git-repo':
+      return <CloneGitRepoDialog parent={dialog.parent} />
     case 'paste-name':
       return <PasteNameDialog destDir={dialog.destDir} format={dialog.format} />
     case 'manage-templates':

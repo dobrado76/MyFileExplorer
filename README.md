@@ -139,7 +139,6 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 
 | Doc | What it’s for |
 | --- | --- |
-| **[PLAN.md](PLAN.md)** | Canonical project plan |
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |

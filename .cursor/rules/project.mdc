@@ -9,7 +9,7 @@ alwaysApply: true
 
 - This repo is **MyFileExplorer** — a standalone Windows file manager (Electron + React).
 - **Do not** reference, import, copy from, or depend on any other project (including any LoRA / training apps).
-- Canonical plan: `PLAN.md`. Specs: `docs/`. Implement against those files only.
+- Specs: `docs/` (especially `docs/DECISIONS.md`, `docs/PRODUCT_SPEC.md`). Implement against those files only.
 
 ## Architecture
 
@@ -28,8 +28,7 @@ alwaysApply: true
 
 ## Specs vs code
 
-Until scaffold exists, prefer updating `docs/` + `PLAN.md` when product decisions change; then implement.
-Keep [docs/DECISIONS.md](docs/DECISIONS.md) in sync when locking behavior.
+When product decisions change, update `docs/` (and lock behavior in [docs/DECISIONS.md](docs/DECISIONS.md)); then implement.
 
 ## Unpublished (developer gate)
 

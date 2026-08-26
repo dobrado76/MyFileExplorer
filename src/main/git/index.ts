@@ -31,6 +31,7 @@ export {
   revertCommit,
   stash,
   stashPop,
+  cloneRepository,
   showExternalDiff,
   openRepoTerminal
 } from './ops'

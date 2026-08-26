@@ -83,7 +83,7 @@ describe('quick launch helpers', () => {
     expect(rows[0]?.iconKind).toBe('shell')
   })
 
-  it('keeps Lucide name/color and show=both', () => {
+  it('defaults iconSizePx and keeps Lucide name/color and show=both', () => {
     const rows = sanitizeQuickLaunch([
       {
         id: 'ql_d4_eeee',
@@ -98,9 +98,25 @@ describe('quick launch helpers', () => {
     ])
     expect(rows[0]).toMatchObject({
       show: 'both',
+      iconSizePx: 24,
       iconKind: 'lucide',
       lucideName: 'Code',
       lucideColor: '#34d399'
     })
+  })
+
+  it('clamps per-pin iconSizePx', () => {
+    const rows = sanitizeQuickLaunch([
+      {
+        id: 'ql_e5_ffff',
+        name: 'Big',
+        path: 'C:\\big.exe',
+        args: '',
+        show: 'icon',
+        iconSizePx: 99,
+        iconKind: 'shell'
+      }
+    ])
+    expect(rows[0]?.iconSizePx).toBe(24)
   })
 })

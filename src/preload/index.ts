@@ -279,6 +279,7 @@ const api: MyFileExplorerApi = {
     revert: invoke(IPC.gitRevert),
     stash: invoke(IPC.gitStash),
     stashPop: invoke(IPC.gitStashPop),
+    clone: invoke(IPC.gitClone),
     showDiff: invoke(IPC.gitShowDiff),
     openTerminal: invoke(IPC.gitOpenTerminal),
     relativePaths: invoke(IPC.gitRelativePaths),

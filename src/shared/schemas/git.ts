@@ -170,6 +170,18 @@ export const gitDiffRequestSchema = z.object({
   /** When set with commit, compare blobs at both commits for path. */
   otherCommit: z.string().min(7).max(64).optional()
 })
+export const gitCloneRequestSchema = z.object({
+  parentDir: z.string().min(1),
+  folderName: z.string().min(1).max(200),
+  url: z.string().min(1).max(2048)
+})
+export const gitCloneResultSchema = z.object({
+  path: z.string().min(1),
+  success: z.boolean(),
+  stderr: z.string(),
+  stdout: z.string()
+})
+export type GitCloneResult = z.infer<typeof gitCloneResultSchema>
 export const gitOutgoingCommitSchema = z.object({
   hash: z.string().min(7).max(64),
   subject: z.string().max(2000)

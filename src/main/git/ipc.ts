@@ -9,6 +9,7 @@ import {
   gitCommitRequestSchema,
   gitCreateTagRequestSchema,
   gitDeleteTagRequestSchema,
+  gitCloneRequestSchema,
   gitDiffRequestSchema,
   gitPathRequestSchema,
   gitPathsRequestSchema,
@@ -118,6 +119,9 @@ export function registerGitIpc(handle: Handle): void {
     git.stash(req.repoRoot, req.message, req.includeUntracked)
   )
   handle(IPC.gitStashPop, gitRepoRequestSchema, async (req) => git.stashPop(req.repoRoot))
+  handle(IPC.gitClone, gitCloneRequestSchema, async (req) =>
+    git.cloneRepository(req.parentDir, req.folderName, req.url)
+  )
   handle(IPC.gitShowDiff, gitDiffRequestSchema, async (req) =>
     git.showExternalDiff(req.repoRoot, req.path, {
       commit: req.commit,

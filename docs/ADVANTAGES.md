@@ -144,7 +144,7 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 
 ## What we deliberately do *not* chase
 
-Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PLAN.md](../PLAN.md) and [PRODUCT_SPEC.md](PRODUCT_SPEC.md).
+Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) and [DECISIONS.md](DECISIONS.md).
 
 ---
 

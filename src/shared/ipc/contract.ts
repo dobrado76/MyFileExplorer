@@ -273,6 +273,7 @@ export const IPC = {
   gitRevert: 'git:revert',
   gitStash: 'git:stash',
   gitStashPop: 'git:stashPop',
+  gitClone: 'git:clone',
   gitShowDiff: 'git:showDiff',
   gitOpenTerminal: 'git:openTerminal',
   gitRelativePaths: 'git:relativePaths',

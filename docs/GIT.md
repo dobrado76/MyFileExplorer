@@ -35,11 +35,13 @@ Do **not** confuse with image ADS **Version Control** (D27).
 
 ## IPC
 
-Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches (create may take `startPoint`), stash, showDiff (HEAD ↔ working tree, commit vs parent, or two commits), openTerminal, relativePaths, pickers, **log**, **showCommit**, **logFile**, plus history ops: **createTag** (optional push to remote), **deleteTag** (optional delete on remote), **checkoutCommit**, **mergeCommit**, **rebaseOnto** (non-interactive), **reset** (soft/mixed/hard), **cherryPick**, **revert**.
+Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches (create may take `startPoint`), stash, **clone**, showDiff (HEAD ↔ working tree, commit vs parent, or two commits), openTerminal, relativePaths, pickers, **log**, **showCommit**, **logFile**, plus history ops: **createTag** (optional push to remote), **deleteTag** (optional delete on remote), **checkoutCommit**, **mergeCommit**, **rebaseOnto** (non-interactive), **reset** (soft/mixed/hard), **cherryPick**, **revert**.
 
 ## Context menu
 
 Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage, Discard (confirm), Show changes, **File history…** (single file), Copy repo-relative path, Open repository root, Open terminal at root, Refresh.
+
+**New / Add → GitHub Repository** (below From Template) opens a clone dialog (folder name + URL; URL prefills from the clipboard when it looks like a Git URL). Clashes with an existing name are blocked before clone. Requires Git integration enabled.
 
 ## Repo-root preview
 
@@ -58,5 +60,4 @@ Built-in inline **text diff** pane, interactive rebase / Advanced rewrite, merge
 ## Related
 
 - Decision: [DECISIONS.md](DECISIONS.md) **D64**
-- Plan: Git Aware Integration (phased A–G)
 

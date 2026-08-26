@@ -8,6 +8,11 @@ import {
   SCRIPT_TOOLBAR_LUCIDE_DEFAULT
 } from '@shared/schemas/scripts'
 import type { QuickLaunchItem } from '@shared/schemas/quickLaunch'
+import {
+  QUICK_LAUNCH_ICON_SIZE_DEFAULT,
+  QUICK_LAUNCH_ICON_SIZE_MAX,
+  QUICK_LAUNCH_ICON_SIZE_MIN
+} from '@shared/schemas/quickLaunch'
 import { looksDestructive } from '@shared/scriptDestructive'
 import { useAppStore } from '../store/appStore'
 import {
@@ -22,6 +27,7 @@ import {
 } from './scriptUi'
 import { GlobalScriptIcon } from './GlobalScriptIcon'
 import { QuickLaunchIconPicker, type QuickLaunchIconPatch } from './QuickLaunchIconPicker'
+import { SettingsClampedNumber } from './SettingsClampedNumber'
 
 const LANGS: ScriptLanguage[] = ['powershell', 'python', 'cmd', 'bash']
 
@@ -49,6 +55,8 @@ const T = {
     'Run from its toolbar button with no folder and no selection (the strip is hidden until you save a global script). Turns off Folder, Selection, Recursive, and Context menu. External file can stay on. Set Show (icon / label / both) and Icon… like Quick Launch.',
   toolbarShow:
     'Toolbar face for this global script: icon only (name as tooltip), label only, or both — same as Quick Launch.',
+  toolbarIconSize:
+    'Pixel size of the toolbar glyph for this global script (12–48). Independent of Appearance → Icon size.',
   toolbarIcon:
     'Choose a Lucide glyph, a custom image, or the Windows icon for an External script file.',
   parameters:
@@ -127,6 +135,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toolbarShow, setToolbarShow] = useState<ScriptToolbarShow>('label')
+  const [iconSizePx, setIconSizePx] = useState(QUICK_LAUNCH_ICON_SIZE_DEFAULT)
   const [iconKind, setIconKind] = useState<ScriptDefinition['iconKind']>('lucide')
   const [iconId, setIconId] = useState<string | undefined>(undefined)
   const [lucideName, setLucideName] = useState(SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
@@ -172,6 +181,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
     setSource(src)
     setHasPrevious(prev)
     setToolbarShow(s.toolbarShow ?? 'label')
+    setIconSizePx(s.iconSizePx ?? QUICK_LAUNCH_ICON_SIZE_DEFAULT)
     setIconKind(s.iconKind ?? 'lucide')
     setIconId(s.iconId)
     setLucideName(s.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
@@ -243,6 +253,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               .map((x) => x.trim())
               .filter(Boolean),
             toolbarShow,
+            iconSizePx,
             iconKind,
             iconId: iconKind === 'custom' ? iconId : undefined,
             lucideName: lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT,
@@ -651,12 +662,13 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                         sourceKind,
                         externalPath: sourceKind === 'external' ? externalPath : undefined,
                         toolbarShow,
+                        iconSizePx,
                         iconKind,
                         iconId,
                         lucideName,
                         lucideColor
                       }}
-                      size={24}
+                      size={iconSizePx}
                     />
                   </div>
                   <label className="settings-ql-show">
@@ -673,6 +685,19 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                       <option value="label">Label</option>
                       <option value="both">Icon and label</option>
                     </select>
+                  </label>
+                  <label className="settings-ql-icon-size" title={T.toolbarIconSize}>
+                    <span className="dim">Icon size</span>
+                    <SettingsClampedNumber
+                      value={iconSizePx}
+                      min={QUICK_LAUNCH_ICON_SIZE_MIN}
+                      max={QUICK_LAUNCH_ICON_SIZE_MAX}
+                      title={T.toolbarIconSize}
+                      onCommit={(n) => {
+                        setIconSizePx(n)
+                        setDirty(true)
+                      }}
+                    />
                   </label>
                   <button
                     type="button"
@@ -870,6 +895,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               path: sourceKind === 'external' ? externalPath : '',
               args: '',
               show: toolbarShow,
+              iconSizePx,
               iconKind,
               iconId,
               lucideName,

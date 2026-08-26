@@ -2,7 +2,7 @@
 
 **Status:** parking lot. Closed items stay here so we do not re-propose them. Remaining ideas are still candidates until they get a D-number in [DECISIONS.md](DECISIONS.md).
 
-Canonical plan: [../PLAN.md](../PLAN.md). Locked product decisions: [DECISIONS.md](DECISIONS.md).
+Locked product decisions: [DECISIONS.md](DECISIONS.md).
 
 # 1 File Automator and #10 script actions are **closed** (D51 Script Manager supersedes both). Do not build a pipeline composer.
 

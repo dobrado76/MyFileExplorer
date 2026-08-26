@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import {
   isQuickLaunchPath,
   MAX_QUICK_LAUNCH,
-  mergeQuickLaunchPaths
+  mergeQuickLaunchPaths,
+  QUICK_LAUNCH_ICON_SIZE_DEFAULT
 } from '@shared/schemas/quickLaunch'
 import type { QuickLaunchItem } from '@shared/schemas/quickLaunch'
 import { useAppStore } from '../store/appStore'
@@ -187,6 +188,7 @@ function QuickLaunchButton({
   const show = item.show ?? 'icon'
   const showIcon = show !== 'label'
   const showLabel = show !== 'icon'
+  const iconPx = item.iconSizePx ?? QUICK_LAUNCH_ICON_SIZE_DEFAULT
   return (
     <button
       ref={btnRef}
@@ -194,6 +196,7 @@ function QuickLaunchButton({
       className={`quick-launch-btn${showLabel ? ' has-label' : ''}${show === 'label' ? ' label-only' : ''}`}
       aria-label={item.name}
       title={item.name}
+      style={showLabel ? undefined : { width: iconPx, height: iconPx }}
       onClick={onLaunch}
       onContextMenu={(e) => {
         e.preventDefault()
@@ -201,7 +204,7 @@ function QuickLaunchButton({
         if (btnRef.current) onMenu(btnRef.current)
       }}
     >
-      {showIcon ? <QuickLaunchIcon item={item} size={showLabel ? 20 : 26} /> : null}
+      {showIcon ? <QuickLaunchIcon item={item} size={iconPx} /> : null}
       {showLabel ? <span className="quick-launch-label">{item.name}</span> : null}
     </button>
   )

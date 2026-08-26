@@ -247,6 +247,17 @@ export function NewItemMenu(): JSX.Element {
                 role="menuitem"
                 onClick={() => {
                   closeMenu()
+                  openDialog({ kind: 'clone-git-repo', parent })
+                }}
+              >
+                GitHub Repository
+              </button>
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => {
+                  closeMenu()
                   openDialog({ kind: 'new-file', parent })
                 }}
               >

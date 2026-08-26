@@ -887,6 +887,11 @@ export type MyFileExplorerApi = {
       includeUntracked?: boolean
     }): Promise<Result<import('../schemas/git').GitCommandResult>>
     stashPop(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    clone(req: {
+      parentDir: string
+      folderName: string
+      url: string
+    }): Promise<Result<import('../schemas/git').GitCloneResult>>
     showDiff(req: {
       repoRoot: string
       path: string

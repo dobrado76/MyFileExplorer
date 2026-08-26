@@ -4,6 +4,11 @@ export const MAX_QUICK_LAUNCH = 24
 
 export const QUICK_LAUNCH_LUCIDE_COLOR = '#60a5fa'
 
+/** Per-pin toolbar icon size (px). Independent of Appearance → Icon size. */
+export const QUICK_LAUNCH_ICON_SIZE_MIN = 12
+export const QUICK_LAUNCH_ICON_SIZE_MAX = 48
+export const QUICK_LAUNCH_ICON_SIZE_DEFAULT = 24
+
 export const quickLaunchIconKindSchema = z.enum(['shell', 'custom', 'lucide'])
 export const quickLaunchShowSchema = z.enum(['icon', 'label', 'both'])
 
@@ -21,6 +26,13 @@ export const quickLaunchItemSchema = z.object({
   args: z.string().max(500).catch(''),
   /** Toolbar face: program/custom/Lucide glyph, name, or both. */
   show: quickLaunchShowSchema.catch('icon'),
+  /** Pixel size of the toolbar glyph for this pin. */
+  iconSizePx: z
+    .number()
+    .int()
+    .min(QUICK_LAUNCH_ICON_SIZE_MIN)
+    .max(QUICK_LAUNCH_ICON_SIZE_MAX)
+    .catch(QUICK_LAUNCH_ICON_SIZE_DEFAULT),
   iconKind: quickLaunchIconKindSchema.catch('shell'),
   /** Basename id under userData/quick-launch when iconKind is custom. */
   iconId: z
@@ -131,6 +143,7 @@ export function mergeQuickLaunchPaths(
       path: p,
       args: '',
       show: 'icon',
+      iconSizePx: QUICK_LAUNCH_ICON_SIZE_DEFAULT,
       iconKind: 'shell',
       lucideColor: QUICK_LAUNCH_LUCIDE_COLOR
     })

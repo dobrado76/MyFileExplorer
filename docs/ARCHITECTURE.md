@@ -58,7 +58,6 @@ src/
 │  └─ ipc/           channel names + types
 └─ tests/
 docs/
-PLAN.md
 ```
 
 ---

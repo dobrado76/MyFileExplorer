@@ -303,6 +303,7 @@ Whitelist only — no arbitrary argv from the renderer. See [GIT.md](GIT.md).
 | `git:listBranches` / `git:switchBranch` / `git:createBranch` | Local branches (`createBranch` may take `startPoint`) |
 | `git:createTag` / `git:deleteTag` / `git:checkoutCommit` / `git:mergeCommit` / `git:rebaseOnto` / `git:reset` / `git:cherryPick` / `git:revert` | History ops for repo-root preview (createTag/deleteTag optional remote; non-interactive rebase; reset soft/mixed/hard) |
 | `git:stash` / `git:stashPop` | Stash push / pop |
+| `git:clone` | Clone URL into `parentDir/folderName` (conflict if exists; Credential Manager / SSH) |
 | `git:showDiff` | External diff: HEAD ↔ working tree; or `commit` vs parent; or `commit` vs `otherCommit` (blobs → scratch) |
 | `git:log` | Commit history for repo-root preview (`--all`, decorated) |
 | `git:showCommit` | Single-commit detail (message + `diff-tree --name-status`) |

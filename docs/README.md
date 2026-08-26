@@ -2,7 +2,7 @@
 
 **Status:** **v0.12.0** — **D64** Git-aware browsing (opt-in) + **D63** Quick Launch; daily-workflow **D53–D62** remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D64**). Experimental Linux: [LINUX.md](LINUX.md).
 
-Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
+Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
@@ -10,12 +10,11 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 **New agent / implementer**
 
-1. [../PLAN.md](../PLAN.md)
-2. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (shareable vs Explorer)
-3. [DECISIONS.md](DECISIONS.md)
-4. [ARCHITECTURE.md](ARCHITECTURE.md)
-5. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, GIT, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
-6. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
+1. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (shareable vs Explorer)
+2. [DECISIONS.md](DECISIONS.md)
+3. [ARCHITECTURE.md](ARCHITECTURE.md)
+4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, GIT, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+5. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
 
 ---
 

@@ -2,6 +2,9 @@ import { useEffect, useState, type JSX } from 'react'
 import {
   MAX_QUICK_LAUNCH,
   mergeQuickLaunchPaths,
+  QUICK_LAUNCH_ICON_SIZE_DEFAULT,
+  QUICK_LAUNCH_ICON_SIZE_MAX,
+  QUICK_LAUNCH_ICON_SIZE_MIN,
   type QuickLaunchItem,
   type QuickLaunchShow
 } from '@shared/schemas/quickLaunch'
@@ -9,6 +12,7 @@ import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { QuickLaunchIcon } from './QuickLaunchIcon'
 import { QuickLaunchIconPicker, type QuickLaunchIconPatch } from './QuickLaunchIconPicker'
+import { SettingsClampedNumber } from './SettingsClampedNumber'
 
 export function QuickLaunchSettingsPanel(): JSX.Element {
   const items = useAppStore((s) => s.settings.quickLaunch ?? [])
@@ -98,11 +102,11 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
       <div className="settings-index-head">
         <p className="settings-help">
           Pin the programs you open all day — Photoshop, Visual Studio, a browser — on the toolbar.
-          Each pin can show the icon, the name, or both. The icon is the program’s own glyph, a
-          Lucide icon and color, or a custom image (same choices as tab / item icons). Add, edit,
-          reorder, and remove them here. Click a toolbar button to launch. Right-click for Open
-          file location or Remove. Drop an .exe or shortcut onto the strip (when it is visible)
-          to add another.
+          Each pin can show the icon, the name, or both, and each has its own icon size
+          (12–48 px). The icon is the program’s own glyph, a Lucide icon and color, or a
+          custom image (same choices as tab / item icons). Add, edit, reorder, and remove
+          them here. Click a toolbar button to launch. Right-click for Open file location or
+          Remove. Drop an .exe or shortcut onto the strip (when it is visible) to add another.
         </p>
         <div className="settings-inline">
           <button
@@ -205,7 +209,7 @@ function QuickLaunchSettingsRow({
   return (
     <div className="settings-qa-row settings-ql-row">
       <div className="settings-ql-icon" title="Program icon">
-        <QuickLaunchIcon item={item} size={24} />
+        <QuickLaunchIcon item={item} size={item.iconSizePx ?? QUICK_LAUNCH_ICON_SIZE_DEFAULT} />
       </div>
       <div className="settings-qa-meta">
         <input
@@ -264,6 +268,16 @@ function QuickLaunchSettingsRow({
             <option value="label">Label</option>
             <option value="both">Icon and label</option>
           </select>
+        </label>
+        <label className="settings-ql-icon-size">
+          <span className="dim">Icon size</span>
+          <SettingsClampedNumber
+            value={item.iconSizePx ?? QUICK_LAUNCH_ICON_SIZE_DEFAULT}
+            min={QUICK_LAUNCH_ICON_SIZE_MIN}
+            max={QUICK_LAUNCH_ICON_SIZE_MAX}
+            title={`${QUICK_LAUNCH_ICON_SIZE_MIN}–${QUICK_LAUNCH_ICON_SIZE_MAX} px (toolbar glyph for this pin)`}
+            onCommit={(n) => onUpdate(item.id, { iconSizePx: n })}
+          />
         </label>
         <button
           type="button"

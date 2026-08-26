@@ -225,6 +225,7 @@ export type DialogState =
       doneCount: number
     }
   | { kind: 'new-file'; parent: string }
+  | { kind: 'clone-git-repo'; parent: string }
   | { kind: 'paste-name'; destDir: string; format: ClipboardPasteFormat }
   | { kind: 'manage-templates' }
   | { kind: 'create-link'; source: string }

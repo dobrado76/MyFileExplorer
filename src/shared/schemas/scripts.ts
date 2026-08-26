@@ -1,5 +1,8 @@
 import { z } from 'zod'
 import {
+  QUICK_LAUNCH_ICON_SIZE_DEFAULT,
+  QUICK_LAUNCH_ICON_SIZE_MAX,
+  QUICK_LAUNCH_ICON_SIZE_MIN,
   QUICK_LAUNCH_LUCIDE_COLOR,
   quickLaunchIconKindSchema,
   quickLaunchShowSchema
@@ -75,6 +78,13 @@ export const scriptDefinitionSchema = z.object({
   dependencies: z.array(z.string().min(1).max(120)).max(40).catch([]),
   /** Global toolbar: icon, label, or both (ignored for non-global). */
   toolbarShow: scriptToolbarShowSchema.catch('label'),
+  /** Pixel size of the toolbar glyph when this global script shows an icon. */
+  iconSizePx: z
+    .number()
+    .int()
+    .min(QUICK_LAUNCH_ICON_SIZE_MIN)
+    .max(QUICK_LAUNCH_ICON_SIZE_MAX)
+    .catch(QUICK_LAUNCH_ICON_SIZE_DEFAULT),
   iconKind: quickLaunchIconKindSchema.catch('lucide'),
   /** Basename id under userData/quick-launch when iconKind is custom. */
   iconId: z
@@ -255,6 +265,7 @@ export const defaultScriptDefinition = (): Omit<
   minSelection: 0,
   dependencies: [],
   toolbarShow: 'label',
+  iconSizePx: QUICK_LAUNCH_ICON_SIZE_DEFAULT,
   iconKind: 'lucide',
   lucideName: SCRIPT_TOOLBAR_LUCIDE_DEFAULT,
   lucideColor: SCRIPT_TOOLBAR_LUCIDE_COLOR

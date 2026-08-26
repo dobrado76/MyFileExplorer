@@ -4,9 +4,11 @@ import { spawn } from 'node:child_process'
 import { app } from 'electron'
 import { AppError } from '@shared/result'
 import type { GitBranchInfo, GitCommandResult } from '@shared/schemas/git'
+import { isValidCloneFolderName, looksLikeGitCloneUrl } from '@shared/gitCloneUrl'
 import { settingsStore } from '../settings/store'
 import { normalizeAbsolute } from '../security/paths'
 import { openCommandLineHere } from '../shell/openCommandLine'
+import { pathExists } from '../fs/list'
 import { toRepoRelativePaths, repoRelativeToAbsolute } from './paths'
 import { runGit } from './run'
 import { getOrRefreshStatus, scheduleRefresh } from './cache'
@@ -522,6 +524,62 @@ export async function stashPop(repoRoot: string): Promise<GitCommandResult> {
   return withRefresh(repoRoot, () =>
     runGit({ cwd: repoRoot, args: ['stash', 'pop'], timeoutMs: 120_000 })
   )
+}
+
+/**
+ * Clone a remote into `parentDir/folderName` (must not already exist).
+ * Auth uses Credential Manager / SSH when needed.
+ */
+export async function cloneRepository(
+  parentDir: string,
+  folderName: string,
+  url: string
+): Promise<{ path: string; success: boolean; stderr: string; stdout: string }> {
+  await assertGitReady()
+  const parent = normalizeAbsolute(parentDir)
+  if (!parent) throw new AppError('validation', 'Invalid parent folder')
+
+  const name = folderName.trim()
+  if (!isValidCloneFolderName(name)) {
+    throw new AppError('validation', 'Invalid folder name')
+  }
+  if (name.includes('/') || name.includes('\\') || name.includes('..')) {
+    throw new AppError('validation', 'Invalid folder name')
+  }
+
+  const cloneUrl = url.trim()
+  if (!looksLikeGitCloneUrl(cloneUrl)) {
+    throw new AppError('validation', 'Enter a valid Git repository URL')
+  }
+
+  const dest = path.join(parent, name)
+  if (await pathExists(dest)) {
+    throw new AppError('conflict', `“${name}” already exists in this folder`)
+  }
+
+  const result = await runGit({
+    cwd: parent,
+    args: ['clone', '--', cloneUrl, name],
+    timeoutMs: 600_000,
+    interactiveAuth: true
+  })
+
+  if (!result.success) {
+    // Best-effort cleanup if git left a partial directory
+    try {
+      await fsp.rm(dest, { recursive: true, force: true })
+    } catch {
+      /* ignore */
+    }
+    return {
+      path: dest,
+      success: false,
+      stderr: result.stderr,
+      stdout: result.stdout
+    }
+  }
+
+  return { path: dest, success: true, stderr: result.stderr, stdout: result.stdout }
 }
 
 export async function showExternalDiff(
