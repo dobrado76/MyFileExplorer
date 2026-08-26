@@ -11,6 +11,23 @@ export type GitRunOptions = {
   args: string[]
   /** Kill after this many ms (default none for long fetch/pull). */
   timeoutMs?: number
+  /**
+   * Allow Git Credential Manager / interactive auth UI (push/pull/fetch).
+   * Detection and local ops keep prompts off.
+   */
+  interactiveAuth?: boolean
+}
+
+function gitEnv(interactiveAuth?: boolean): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  if (interactiveAuth) {
+    // Let GCM show its account picker / browser flow when needed.
+    env.GIT_TERMINAL_PROMPT = '1'
+    env.GCM_INTERACTIVE = 'always'
+  } else {
+    env.GIT_TERMINAL_PROMPT = '0'
+  }
+  return env
 }
 
 export async function runGit(opts: GitRunOptions): Promise<GitCommandResult> {
@@ -27,8 +44,9 @@ export async function runGit(opts: GitRunOptions): Promise<GitCommandResult> {
     const child = spawn(exe.path!, opts.args, {
       cwd: opts.cwd,
       shell: false,
-      windowsHide: true,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+      // Hide console for local ops; for auth, leave visible so GCM can attach.
+      windowsHide: opts.interactiveAuth !== true,
+      env: gitEnv(opts.interactiveAuth)
     })
     let stdout = ''
     let stderr = ''
@@ -84,8 +102,8 @@ export async function runGitRaw(
     const child = spawn(exePath, opts.args, {
       cwd: opts.cwd,
       shell: false,
-      windowsHide: true,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
+      windowsHide: opts.interactiveAuth !== true,
+      env: gitEnv(opts.interactiveAuth)
     })
     let stdout = ''
     let stderr = ''

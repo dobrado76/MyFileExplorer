@@ -100,7 +100,8 @@ export async function commit(
       const push = await runGit({
         cwd: repoRoot,
         args: ['push'],
-        timeoutMs: 600_000
+        timeoutMs: 600_000,
+        interactiveAuth: true
       })
       scheduleRefresh(repoRoot)
       void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
@@ -122,19 +123,34 @@ export async function commit(
 
 export async function fetch(repoRoot: string): Promise<GitCommandResult> {
   return withRefresh(repoRoot, () =>
-    runGit({ cwd: repoRoot, args: ['fetch', '--all', '--prune'], timeoutMs: 600_000 })
+    runGit({
+      cwd: repoRoot,
+      args: ['fetch', '--all', '--prune'],
+      timeoutMs: 600_000,
+      interactiveAuth: true
+    })
   )
 }
 
 export async function pull(repoRoot: string): Promise<GitCommandResult> {
   return withRefresh(repoRoot, () =>
-    runGit({ cwd: repoRoot, args: ['pull'], timeoutMs: 600_000 })
+    runGit({
+      cwd: repoRoot,
+      args: ['pull'],
+      timeoutMs: 600_000,
+      interactiveAuth: true
+    })
   )
 }
 
 export async function push(repoRoot: string): Promise<GitCommandResult> {
   return withRefresh(repoRoot, () =>
-    runGit({ cwd: repoRoot, args: ['push'], timeoutMs: 600_000 })
+    runGit({
+      cwd: repoRoot,
+      args: ['push'],
+      timeoutMs: 600_000,
+      interactiveAuth: true
+    })
   )
 }
 

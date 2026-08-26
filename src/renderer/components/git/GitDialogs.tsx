@@ -9,6 +9,18 @@ export function gitCmdOk(res: {
 }): string | null {
   if (res.success) return null
   const msg = (res.stderr || res.stdout || 'Git command failed').trim()
+  const lower = msg.toLowerCase()
+  if (
+    lower.includes('authentication failed') ||
+    lower.includes('could not read username') ||
+    lower.includes('could not read password') ||
+    lower.includes('fatal: user cancelled') ||
+    lower.includes('access was denied') ||
+    lower.includes('403') ||
+    lower.includes('401')
+  ) {
+    return `Authentication failed or was cancelled. ${msg}`.slice(0, 400)
+  }
   return msg.slice(0, 400)
 }
 
