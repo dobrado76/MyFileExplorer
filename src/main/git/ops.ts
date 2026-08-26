@@ -104,7 +104,7 @@ export async function commit(
         interactiveAuth: true
       })
       scheduleRefresh(repoRoot)
-      void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+      await getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
       return push.success
         ? result
         : {
@@ -114,7 +114,7 @@ export async function commit(
           }
     }
     scheduleRefresh(repoRoot)
-    void getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
+    await getOrRefreshStatus(repoRoot, { force: true }).catch(() => undefined)
     return result
   } finally {
     await fsp.unlink(msgFile).catch(() => undefined)
@@ -163,33 +163,44 @@ export async function listOutgoing(repoRoot: string): Promise<{
   commits: { hash: string; subject: string }[]
 }> {
   await assertGitReady()
-  const status = await getOrRefreshStatus(repoRoot, { force: false })
+  // Always refresh — opening Push right after Commit must not use a pre-commit cache.
+  const status = await getOrRefreshStatus(repoRoot, { force: true })
   const branch = status.info.detachedHead ? null : status.info.branch
   const upstream = status.info.upstream ?? null
-  const ahead = status.info.ahead ?? 0
   const behind = status.info.behind ?? 0
 
-  if (!upstream || ahead < 1) {
-    return { branch, upstream, ahead, behind, commits: [] }
+  if (!upstream) {
+    return { branch, upstream: null, ahead: 0, behind, commits: [] }
   }
 
-  const result = await runGit({
-    cwd: repoRoot,
-    args: ['log', '--format=%H%x1f%s', `${upstream}..HEAD`, '--max-count=100'],
-    timeoutMs: 30_000
-  })
-  if (!result.success) {
-    return { branch, upstream, ahead, behind, commits: [] }
-  }
-  const commits = result.stdout
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [hash, subject = ''] = line.split('\x1f')
-      return { hash: hash ?? '', subject }
+  // Authoritative vs remote tip — do not trust cached ahead (race after commit).
+  const [logResult, countResult] = await Promise.all([
+    runGit({
+      cwd: repoRoot,
+      args: ['log', '--format=%H%x1f%s', `${upstream}..HEAD`, '--max-count=100'],
+      timeoutMs: 30_000
+    }),
+    runGit({
+      cwd: repoRoot,
+      args: ['rev-list', '--count', `${upstream}..HEAD`],
+      timeoutMs: 30_000
     })
-    .filter((c) => c.hash.length >= 7)
+  ])
+
+  const commits = logResult.success
+    ? logResult.stdout
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const [hash, subject = ''] = line.split('\x1f')
+          return { hash: hash ?? '', subject }
+        })
+        .filter((c) => c.hash.length >= 7)
+    : []
+
+  const counted = countResult.success ? Number.parseInt(countResult.stdout.trim(), 10) : NaN
+  const ahead = Number.isFinite(counted) && counted >= 0 ? counted : commits.length
 
   return { branch, upstream, ahead, behind, commits }
 }

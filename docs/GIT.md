@@ -25,7 +25,7 @@ Do **not** confuse with image ADS **Version Control** (D27).
 | `enabled` | `false` | Master switch — no Git work when off |
 | `executablePath` | `''` | Optional; else PATH / common Git for Windows paths |
 | `showOverlays` / `showFolderIndicators` / `showToolbar` / `showChangedCount` / `showStatusColumn` / `showAheadBehind` | mostly `true` | Display toggles |
-| `showIgnored` | `false` | Include ignored paths in status |
+| `showIgnored` | `false` | Include ignored paths in status, overlays, and the Changes dialog |
 | `autoFetch` | `false` | Reserved; v1 does not auto-fetch |
 | `refreshDebounceMs` | `400` | Watcher / invalidate debounce |
 | `suspendLargeRepos` + `largeRepoFileThreshold` | off / 500k | Soft guard for huge dirty trees |
@@ -44,7 +44,7 @@ Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage,
 
 When Git is enabled and the preview target is the **repository root** folder (selected, or current folder with nothing selected), the preview pane shows a Git Graph–style history: lane graph, branch/remote/tag badges, author, relative time, short hash (click to copy), and a detail strip for the selected commit. Load more pages history.
 
-**Toolbar** (Git Extensions–inspired): refresh, branch switch/create, fetch/pull, push, commit (staged count), stash/more, open terminal, client-side filter on the loaded list.
+**Toolbar** (Git Extensions–inspired): refresh, branch switch/create, fetch/pull, push, commit (staged count), stash/more, open terminal, client-side filter on the loaded list. The **changes** count is clickable and opens a working-tree dialog (folder tree of dirty paths) with Stage / Unstage / Discard, Reveal, and **Show changes** (external diff tool from Settings → Git).
 
 **Commit row context menu** (GE-inspired): Copy submenu; Merge into current branch; Rebase current branch on (non-interactive); Reset soft/mixed/hard (confirms; hard is strong); Create branch/tag here (create tag can push to origin — tags are not included in a normal branch Push); Delete tag… when the row has tag refs (optional also delete on origin); Checkout (detached); Revert; Cherry-pick; Navigate (parents/HEAD in loaded list); View (refresh / terminal). Conflicts surface via notify + status refresh — no conflict editor.
 
@@ -52,7 +52,7 @@ Not a full commit browser — no blame, interactive rebase, or PR UI.
 
 ## Out of v1
 
-Built-in commit **diff pane**, interactive rebase / Advanced rewrite, merge-conflict **resolver UI**, remotes UI, GitHub/GitLab/PR, credentials UI, submodule/worktree/LFS admin, blame/bisect, full stash manager, built-in text diff, Archive, `git:` search tokens, Power Search Git fields, Properties Git section, `clean`.
+Built-in inline **text diff** pane, interactive rebase / Advanced rewrite, merge-conflict **resolver UI**, remotes UI, GitHub/GitLab/PR, credentials UI, submodule/worktree/LFS admin, blame/bisect, full stash manager, Archive, `git:` search tokens, Power Search Git fields, Properties Git section, `clean`.
 
 ## Related
 

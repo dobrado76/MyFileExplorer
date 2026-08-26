@@ -3543,7 +3543,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <SettingsToggle
                 id="set-git-ignored"
                 label="Show ignored files"
-                hint="Include ignored paths in status (overlays / column)"
+                hint="Include ignored paths in status, overlays, and the Changes dialog"
                 checked={settings.git.showIgnored}
                 onChange={(v) => void applySettingsPatch({ git: { showIgnored: v } })}
               />

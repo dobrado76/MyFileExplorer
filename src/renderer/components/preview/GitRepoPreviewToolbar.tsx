@@ -13,12 +13,14 @@ import {
   gitCmdOk,
   looksLikeConflict
 } from '../git/GitDialogs'
+import { GitChangesDialog } from '../git/GitChangesDialog'
 
 type LocalDialog =
   | { kind: 'commit' }
   | { kind: 'branch-create' }
   | { kind: 'stash' }
   | { kind: 'push' }
+  | { kind: 'changes' }
   | null
 
 export function GitRepoPreviewToolbar({
@@ -346,14 +348,24 @@ export function GitRepoPreviewToolbar({
           <ChevronDown size={12} />
         </button>
         {status ? (
-          <span className="git-preview-toolbar-meta" title="Working tree">
-            {status.changedCount} change{status.changedCount === 1 ? '' : 's'}
-            {status.stagedCount > 0 ? ` · ${status.stagedCount} staged` : ''}
-            {status.conflictCount > 0 ? ` · ${status.conflictCount} conflict` : ''}
-            {info && (info.ahead != null || info.behind != null)
-              ? ` · ↑${info.ahead ?? 0} ↓${info.behind ?? 0}`
-              : ''}
-          </span>
+          <>
+            <button
+              type="button"
+              className="git-preview-toolbar-meta git-preview-changes-btn"
+              disabled={busy || status.changedCount < 1}
+              title="Inspect changed files"
+              onClick={() => setDialog({ kind: 'changes' })}
+            >
+              {status.changedCount} change{status.changedCount === 1 ? '' : 's'}
+              {status.stagedCount > 0 ? ` · ${status.stagedCount} staged` : ''}
+              {status.conflictCount > 0 ? ` · ${status.conflictCount} conflict` : ''}
+            </button>
+            {info && (info.ahead != null || info.behind != null) ? (
+              <span className="git-preview-toolbar-meta">
+                ↑{info.ahead ?? 0} ↓{info.behind ?? 0}
+              </span>
+            ) : null}
+          </>
         ) : null}
         <span className="toolbar-sep" aria-hidden />
         <button
@@ -471,6 +483,13 @@ export function GitRepoPreviewToolbar({
       ) : null}
       {dialog?.kind === 'push' ? (
         <GitPushDialog
+          repoRoot={repoRoot}
+          onClose={() => setDialog(null)}
+          onDone={() => void refreshRepo()}
+        />
+      ) : null}
+      {dialog?.kind === 'changes' ? (
+        <GitChangesDialog
           repoRoot={repoRoot}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}

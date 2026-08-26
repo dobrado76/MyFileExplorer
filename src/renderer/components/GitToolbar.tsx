@@ -15,12 +15,14 @@ import {
   gitCmdOk,
   looksLikeConflict
 } from './git/GitDialogs'
+import { GitChangesDialog } from './git/GitChangesDialog'
 
 type LocalDialog =
   | { kind: 'commit' }
   | { kind: 'branch-create' }
   | { kind: 'stash' }
   | { kind: 'push' }
+  | { kind: 'changes' }
   | null
 
 function statusForActivePath(
@@ -289,9 +291,15 @@ export function GitToolbar(): JSX.Element | null {
         <span className="toolbar-git-summary" title={repoRoot}>
           <span className="toolbar-git-branch">{branchLabel}</span>
           {git.showChangedCount ? (
-            <span className="toolbar-git-meta">
+            <button
+              type="button"
+              className="toolbar-git-meta toolbar-git-changes-btn"
+              disabled={busy || status.changedCount < 1}
+              title="Inspect changed files"
+              onClick={() => setDialog({ kind: 'changes' })}
+            >
               · {status.changedCount === 1 ? '1 change' : `${status.changedCount} changes`}
-            </span>
+            </button>
           ) : null}
           {git.showAheadBehind && (info.ahead != null || info.behind != null) ? (
             <span className="toolbar-git-meta">
@@ -393,6 +401,13 @@ export function GitToolbar(): JSX.Element | null {
       ) : null}
       {dialog?.kind === 'push' ? (
         <GitPushDialog
+          repoRoot={repoRoot}
+          onClose={() => setDialog(null)}
+          onDone={() => void refreshRepo()}
+        />
+      ) : null}
+      {dialog?.kind === 'changes' ? (
+        <GitChangesDialog
           repoRoot={repoRoot}
           onClose={() => setDialog(null)}
           onDone={() => void refreshRepo()}

@@ -38,12 +38,16 @@ export function ModalShell({
   title,
   children,
   actions,
-  onClose
+  onClose,
+  modalClassName,
+  bodyClassName
 }: {
   title: string
   children: ReactNode
   actions: ReactNode
   onClose(): void
+  modalClassName?: string
+  bodyClassName?: string
 }): JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -57,7 +61,7 @@ export function ModalShell({
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <div
-        className="modal"
+        className={modalClassName ? `modal ${modalClassName}` : 'modal'}
         role="dialog"
         aria-label={title}
         onMouseDown={(e) => e.stopPropagation()}
@@ -68,7 +72,7 @@ export function ModalShell({
             ×
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div className={bodyClassName ? `modal-body ${bodyClassName}` : 'modal-body'}>{children}</div>
         <div className="modal-actions">{actions}</div>
       </div>
     </div>
