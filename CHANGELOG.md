@@ -11,12 +11,15 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Who’s locking the file** — when a file/folder is in use, alerts and the end-of-op **In use** review list the locking processes (Windows Restart Manager + fallback), with **Refresh**, **Locate** the exe, and **End task** (confirm → force-end), then **Retry**. No fake “unlock handles” API — that is not supported on Windows.
 - **Git changes dialog** — click the toolbar **N changes** summary (explorer or repo-root preview) to inspect a folder tree of dirty paths, stage/unstage/discard, reveal in the file list, or open the configured external diff tool. **Show ignored** (default off) is persisted as `settings.git.showIgnored`.
 - **Git commit detail** — double-click a commit in repo-root history (or press **Enter** when the list is focused) to open a dialog with the full message, parents, and changed files; double-click a file to diff that version in the external diff tool.
 - **Git file history** — context menu **Git → File history…** on a tracked file lists commits that touched it (`--follow`); pick one commit for changes vs parent, or two for **Compare selected** in the configured diff tool.
 - **Git history page size** — Settings → Git → **History page size** (default 150, 20–500) controls how many commits load initially and per **Load more** in repo-root history and File history.
 - **Clone GitHub repository** — New / Add → **GitHub Repository** (below From Template) asks for folder name + clone URL (clipboard prefills when it looks like a Git URL), blocks name clashes, then runs `git clone` into the current folder (Git integration must be enabled).
 - **Per-pin icon size** — Quick Launch items and Global scripts each have an **Icon size** (12–48 px, default 24), independent of Appearance → Icon size.
+- **Gitignore** — context menu **Git → Gitignore** appends selected files/folders to the repo-root `.gitignore` (folders get a trailing `/`); already-listed patterns are skipped. Tracked paths are also removed from the index so they show as ignored.
+- **Ignored overlays** — gitignored files/folders always show an **I** badge in the file list (status always includes `--ignored=matching`). Settings → Git → **Show ignored files in Changes** only controls the Changes dialog list.
 - **Git repo-root preview toolbar + commit context menu** — GE-inspired controls on the history preview (refresh, branch, fetch/pull/push, commit, stash/more, terminal, filter) and a right-click menu on commit rows (copy, merge, non-interactive rebase, reset soft/mixed/hard with confirm, create branch/tag, checkout, revert, cherry-pick, navigate). New `git:*` IPC for those history ops. See [docs/GIT.md](docs/GIT.md).
 - **Git tag push / delete** — Create tag dialog can push the tag to origin (tags are not part of a normal branch Push). Context menu offers Delete tag… when a commit has tag refs, with optional delete on origin.
 - **Git Push confirm dialog** — Push opens a Cancel/Push dialog with branch → upstream, commits to push, and an editable description note before contacting the remote (Credential Manager only after Confirm).
@@ -28,6 +31,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Ctrl+C / Ctrl+X copied the folder instead of the file selection** — selecting items in the file list now moves keyboard focus out of the folder tree, so copy/cut/delete target the selected files (not the tree folder you had focused earlier).
 - **Git Commit → Push dialog** — opening Push right after Commit used a stale status cache and showed “Nothing to push” even when HEAD was ahead. Outgoing now refreshes and counts `upstream..HEAD` directly.
 - **Git tag push vs pre-push hook** — this repo’s pre-push `npm run check` no longer runs on tag-only pushes (Create tag → Push to origin was failing on unrelated WIP). Branch pushes still run the full check.
 - **Git create tag on origin** — detects when a tag name already exists on the remote (e.g. `v0.12`) and explains instead of a raw Git rejection; optional **Replace on origin** force-push when you mean to move the tag.

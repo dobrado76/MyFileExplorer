@@ -35,6 +35,7 @@ import {
 import type { FolderMeasureResult, PropertiesModel } from '@shared/schemas/properties'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
+import { FileLockersPanel } from './FileLockersPanel'
 import { formatBytes, formatDate } from '../lib/format'
 import { folderViewSummary } from '@shared/folderViews'
 import { addFolderStatsSkipPath, removeFolderStatsSkipPath } from '@shared/folderStatsSkip'
@@ -369,6 +370,7 @@ export function Dialogs(): JSX.Element | null {
           message={dialog.message}
           detail={dialog.detail}
           path={dialog.path}
+          lockers={dialog.lockers}
           retryFolderStats={dialog.retryFolderStats}
         />
       )
@@ -658,17 +660,20 @@ function AlertDialog({
   message,
   detail,
   path,
+  lockers,
   retryFolderStats
 }: {
   title: string
   message: string
   detail?: string
   path?: string
+  lockers?: import('@shared/schemas/lockers').LockingProcess[]
   retryFolderStats?: { path: string }
 }): JSX.Element {
   const close = (): void => useAppStore.setState({ dialog: null })
   const [propsBusy, setPropsBusy] = useState(false)
   const [propsError, setPropsError] = useState<string | null>(null)
+  const showLockers = Boolean(path && (lockers !== undefined || /open in another program|in use by another program/i.test(message)))
   const openWindowsProperties = async (): Promise<void> => {
     if (!path || propsBusy) return
     setPropsBusy(true)
@@ -757,7 +762,7 @@ function AlertDialog({
               Skip all
             </button>
           ) : null}
-          <button type="button" className="btn primary" onClick={close} autoFocus>
+          <button type="button" className="btn primary" onClick={close} autoFocus={!showLockers}>
             OK
           </button>
         </>
@@ -765,6 +770,9 @@ function AlertDialog({
     >
       <div className="alert-message">{message}</div>
       {detail ? <div className="alert-detail">{detail}</div> : null}
+      {showLockers && path ? (
+        <FileLockersPanel path={path} initialLockers={lockers} />
+      ) : null}
       {propsError ? <div className="alert-detail">{propsError}</div> : null}
     </Modal>
   )
@@ -1271,6 +1279,7 @@ function OpIssuesDialog(): JSX.Element | null {
             : 'Delete'
 
   const showCompare = focused?.kind === 'name_conflict'
+  const showLockers = focused?.kind === 'busy'
   const incoming = compare?.source ?? (focused ? sideFromPath(focused.source, focused.sourceMtimeMs) : null)
   const existing =
     compare?.destination ??
@@ -1278,6 +1287,20 @@ function OpIssuesDialog(): JSX.Element | null {
   const renameOp = dialog?.kind === 'op-issues' && dialog.op === 'rename'
   const folderMerge =
     renameOp && incoming?.kind === 'dir' && existing?.kind === 'dir'
+
+  const patchIssueLockers = (source: string, dest: string | undefined, lockers: OpIssue['lockers']): void => {
+    useAppStore.setState((s) => {
+      if (s.dialog?.kind !== 'op-issues') return s
+      return {
+        dialog: {
+          ...s.dialog,
+          issues: s.dialog.issues.map((it) =>
+            it.source === source && (it.dest ?? '') === (dest ?? '') ? { ...it, lockers } : it
+          )
+        }
+      }
+    })
+  }
 
   return (
     <Modal
@@ -1310,6 +1333,11 @@ function OpIssuesDialog(): JSX.Element | null {
             Rename <code>{basename(focused.source)}</code> to{' '}
             <code>{basename(focused.dest)}</code> — that name is already used. Incoming is the
             item you renamed; existing is the name you typed.
+          </>
+        ) : showLockers ? (
+          <>
+            These items are in use. End the locking task(s) below (or close the program yourself),
+            then <strong>Retry</strong>. Expand a group to choose per item.
           </>
         ) : (
           <>
@@ -1363,6 +1391,7 @@ function OpIssuesDialog(): JSX.Element | null {
                   {g.items.map((it) => {
                     const key = issueKey(it)
                     const active = key === focusKey
+                    const rowMsg = (it.message.split('\n')[0] ?? it.message).trim()
                     return (
                       <li key={key}>
                         <button
@@ -1379,7 +1408,9 @@ function OpIssuesDialog(): JSX.Element | null {
                               : basename(it.source)}
                           </span>
                           <span className="op-issues-row-msg" title={it.message}>
-                            {it.message}
+                            {it.kind === 'busy' && it.lockers && it.lockers.length > 0
+                              ? it.lockers.map((p) => p.name).join(', ')
+                              : rowMsg}
                           </span>
                         </button>
                         <div className="op-issues-row-actions">
@@ -1412,6 +1443,18 @@ function OpIssuesDialog(): JSX.Element | null {
           )
         })}
       </div>
+
+      {showLockers && focused ? (
+        <FileLockersPanel
+          path={focused.source}
+          initialLockers={focused.lockers}
+          onChanged={() => {
+            void call(api.fs.findLockers({ path: focused.source }))
+              .then((r) => patchIssueLockers(focused.source, focused.dest, r.lockers))
+              .catch(() => undefined)
+          }}
+        />
+      ) : null}
 
       {showCompare && incoming && existing && (
         <div className="conflict-compare">
@@ -3545,8 +3588,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               />
               <SettingsToggle
                 id="set-git-ignored"
-                label="Show ignored files"
-                hint="Include ignored paths in status, overlays, and the Changes dialog"
+                label="Show ignored files in Changes"
+                hint="Include ignored paths in the Changes dialog. File-list overlays always show an I badge for ignored items."
                 checked={settings.git.showIgnored}
                 onChange={(v) => void applySettingsPatch({ git: { showIgnored: v } })}
               />

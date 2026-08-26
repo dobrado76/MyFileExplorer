@@ -22,4 +22,20 @@ describe('AppError remediation envelope', () => {
     const e = new AppError('busy', 'locked', 'Close the app')
     expect(e.remediation).toBe('Close the app')
   })
+
+  it('carries structured lockers on the error', () => {
+    const lockers = [{ pid: 42, name: 'notepad.exe' }]
+    const e = new AppError('busy', 'locked', 'End the task', 'C:\\a.txt', lockers)
+    expect(e.lockers).toEqual(lockers)
+    expect(e.path).toBe('C:\\a.txt')
+  })
+})
+
+describe('isProtectedLocker', () => {
+  it('protects System and Explorer', async () => {
+    const { isProtectedLocker } = await import('../main/fs/lockers')
+    expect(isProtectedLocker({ pid: 4, name: 'System' })).toBe(true)
+    expect(isProtectedLocker({ pid: 1234, name: 'explorer.exe' })).toBe(true)
+    expect(isProtectedLocker({ pid: 1234, name: 'notepad.exe' })).toBe(false)
+  })
 })

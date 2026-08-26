@@ -49,7 +49,10 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `fs:readImageForEdit` | `{ path, ads? }`                                | `{ dataBase64, mime }` (editor load; tip default) |
 | `fs:saveEditedImageAs` | `{ dataBase64, defaultPath }`                  | `{ path, cancelled }` — no version history    |
 
-`conflictPolicy`: `'fail' (default) | 'replace' | 'skip' | 'rename'` — applied to the whole batch (copy/move) or a single `fs:rename`. Default `fail` **queues** name conflicts as `OpIssue` (`kind: name_conflict`) and continues the rest (D18); inline rename throws `conflict` so the renderer can open the same review. `fs:checkConflicts` accepts optional `targets[]` (same length as `sources`) so rename compare cards use the intended new path, not `dest+basename(source)`. `decision` on `fs:resolveIssues`: `'replace' | 'skip' | 'rename' | 'keep_newer' | 'retry'`. `keep_newer` keeps the newer mtime (equal → keep both). `OpIssue`: `{ kind, code, source, dest?, message, sourceMtimeMs?, destMtimeMs? }`. `aborted`: `'cancelled' | 'fatal'` when the pass stopped early; queued issues are still returned.
+`conflictPolicy`: `'fail' (default) | 'replace' | 'skip' | 'rename'` — applied to the whole batch (copy/move) or a single `fs:rename`. Default `fail` **queues** name conflicts as `OpIssue` (`kind: name_conflict`) and continues the rest (D18); inline rename throws `conflict` so the renderer can open the same review. `fs:checkConflicts` accepts optional `targets[]` (same length as `sources`) so rename compare cards use the intended new path, not `dest+basename(source)`. `decision` on `fs:resolveIssues`: `'replace' | 'skip' | 'rename' | 'keep_newer' | 'retry'`. `keep_newer` keeps the newer mtime (equal → keep both). `OpIssue`: `{ kind, code, source, dest?, message, sourceMtimeMs?, destMtimeMs?, lockers? }` — `lockers` is `{ pid, name, exePath? }[]` on busy issues (D65). `aborted`: `'cancelled' | 'fatal'` when the pass stopped early; queued issues are still returned.
+
+| `fs:findLockers`     | `{ path }`                                       | `{ lockers: { pid, name, exePath? }[] }` — Restart Manager + CIM (D65) |
+| `fs:endProcess`      | `{ pid }`                                        | `{ ended: true }` — `taskkill /T /F` after UI confirm; refuses protected hosts (D65) |
 
 `DirEntry`: `{ name, path, kind: 'file'|'dir'|'symlink', size, mtimeMs, ext, isHidden }`.
 
@@ -298,6 +301,7 @@ Whitelist only — no arbitrary argv from the renderer. See [GIT.md](GIT.md).
 | `git:detect` / `git:test` | Resolve / probe `git.exe` |
 | `git:discover` / `git:getStatus` / `git:refresh` / `git:invalidate` | Repo root + porcelain status cache |
 | `git:stage` / `git:unstage` / `git:discard` | Path-scoped ops (`--` before paths) |
+| `git:ignore` | Append paths to repo-root `.gitignore`; `git rm --cached` when tracked |
 | `git:commit` / `git:fetch` / `git:pull` / `git:push` | Repo ops |
 | `git:outgoing` | Commits ahead of upstream (Push confirm dialog) |
 | `git:listBranches` / `git:switchBranch` / `git:createBranch` | Local branches (`createBranch` may take `startPoint`) |

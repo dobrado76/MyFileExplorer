@@ -13,6 +13,7 @@ export {
   stagePaths,
   unstagePaths,
   discardPaths,
+  addToGitignore,
   commit,
   fetch,
   pull,

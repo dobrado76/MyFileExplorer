@@ -1,10 +1,19 @@
+import type { LockingProcess } from './schemas/lockers'
+
 export type ErrCode =
   'not-found' | 'not-allowed' | 'busy' | 'conflict' | 'validation' | 'cancelled' | 'io' | 'unknown'
 
 export type Ok<T> = { ok: true; value: T }
 export type Err = {
   ok: false
-  error: { code: ErrCode; message: string; remediation?: string; path?: string }
+  error: {
+    code: ErrCode
+    message: string
+    remediation?: string
+    path?: string
+    /** Structured lock owners when code is busy (D65). */
+    lockers?: LockingProcess[]
+  }
 }
 export type Result<T> = Ok<T> | Err
 
@@ -12,14 +21,21 @@ export function ok<T>(value: T): Ok<T> {
   return { ok: true, value }
 }
 
-export function err(code: ErrCode, message: string, remediation?: string, path?: string): Err {
+export function err(
+  code: ErrCode,
+  message: string,
+  remediation?: string,
+  path?: string,
+  lockers?: LockingProcess[]
+): Err {
   return {
     ok: false,
     error: {
       code,
       message,
       ...(remediation ? { remediation } : {}),
-      ...(path ? { path } : {})
+      ...(path ? { path } : {}),
+      ...(lockers && lockers.length > 0 ? { lockers } : {})
     }
   }
 }
@@ -30,7 +46,8 @@ export class AppError extends Error {
     public readonly code: ErrCode,
     message: string,
     public readonly remediation?: string,
-    public readonly path?: string
+    public readonly path?: string,
+    public readonly lockers?: LockingProcess[]
   ) {
     super(message)
     this.name = 'AppError'
@@ -51,7 +68,7 @@ const ERRNO_TO_CODE: Record<string, ErrCode> = {
 }
 
 export function errFromUnknown(e: unknown): Err {
-  if (e instanceof AppError) return err(e.code, e.message, e.remediation, e.path)
+  if (e instanceof AppError) return err(e.code, e.message, e.remediation, e.path, e.lockers)
   if (
     e &&
     typeof e === 'object' &&

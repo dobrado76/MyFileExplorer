@@ -458,7 +458,8 @@ async function toIssue(
     dest,
     message: mapped.message,
     sourceMtimeMs,
-    destMtimeMs
+    destMtimeMs,
+    ...(mapped.lockers && mapped.lockers.length > 0 ? { lockers: mapped.lockers } : {})
   }
 }
 

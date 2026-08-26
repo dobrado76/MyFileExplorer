@@ -125,7 +125,8 @@ export function parsePorcelainV2(stdout: string): ParsedPorcelain {
 
     // Untracked / ignored: ? path  / ! path
     if (line.startsWith('? ') || line.startsWith('! ')) {
-      const rel = line.slice(2).replace(/\\/g, '/')
+      const rel = line.slice(2).replace(/\\/g, '/').replace(/\/+$/, '')
+      if (!rel) continue
       const ignored = line.startsWith('! ')
       paths.push({
         relativePath: rel,

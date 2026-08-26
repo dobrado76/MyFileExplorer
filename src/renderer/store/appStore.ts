@@ -255,6 +255,8 @@ export type DialogState =
       message: string
       detail?: string
       path?: string
+      /** Structured lock owners when the failure was busy (D65). */
+      lockers?: import('@shared/schemas/lockers').LockingProcess[]
       /** Re-run Calculate Statistics (skips folders already tagged). */
       retryFolderStats?: { path: string }
     }
@@ -2084,6 +2086,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     const message = e instanceof IpcError ? e.message : String(e)
     const detail = e instanceof IpcError ? e.envelope.remediation : undefined
     const path = e instanceof IpcError ? e.envelope.path : undefined
+    const lockers = e instanceof IpcError ? e.envelope.lockers : undefined
     set({
       dialog: {
         kind: 'alert',
@@ -2091,6 +2094,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         message,
         detail,
         path,
+        ...(lockers && lockers.length > 0 ? { lockers } : {}),
         ...(extra?.retryFolderStats ? { retryFolderStats: extra.retryFolderStats } : {})
       }
     })

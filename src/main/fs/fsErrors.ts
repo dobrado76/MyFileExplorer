@@ -1,5 +1,6 @@
 import { AppError, type ErrCode } from '@shared/result'
-import { findLockingProcesses, formatLockingProcesses } from './lockers'
+import type { LockingProcess } from '@shared/schemas/lockers'
+import { findLockingProcesses } from './lockers'
 
 function nodeErrno(e: unknown): string | null {
   if (e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string') {
@@ -72,19 +73,19 @@ export async function appErrorFromFsFailure(
     )
   }
 
-  const lockers = await findLockingProcesses(opts.path)
-  const lockerBlock = formatLockingProcesses(lockers)
+  const lockers: LockingProcess[] = await findLockingProcesses(opts.path)
 
   // Only claim “open in another program” when we have lockers or a real errno lock.
   if (lockers.length > 0 || isLockish(code)) {
     const headline = headlineFor(opts.action, isDir)
-    const message = lockerBlock ? `${headline}\n\nOpen in:\n${lockerBlock}` : headline
     return new AppError(
       'busy',
-      message,
-      lockerBlock
-        ? 'Close the listed program(s), then try again.'
-        : 'If nothing obvious is open, check File Explorer windows or terminals with that folder as the current directory.'
+      headline,
+      lockers.length > 0
+        ? 'End the listed task(s) below, or close the program yourself, then Retry.'
+        : 'If nothing obvious is open, check File Explorer windows, terminals with that folder as the current directory, antivirus scans, or sync clients — then Retry.',
+      opts.path,
+      lockers.length > 0 ? lockers : undefined
     )
   }
 

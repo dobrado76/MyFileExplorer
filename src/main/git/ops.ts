@@ -5,6 +5,11 @@ import { app } from 'electron'
 import { AppError } from '@shared/result'
 import type { GitBranchInfo, GitCommandResult } from '@shared/schemas/git'
 import { isValidCloneFolderName, looksLikeGitCloneUrl } from '@shared/gitCloneUrl'
+import {
+  appendGitignorePatterns,
+  gitignoreAlreadyHas,
+  gitignorePatternForRelative
+} from '@shared/gitignorePatterns'
 import { settingsStore } from '../settings/store'
 import { normalizeAbsolute } from '../security/paths'
 import { openCommandLineHere } from '../shell/openCommandLine'
@@ -121,6 +126,109 @@ export async function discardPaths(repoRoot: string, absPaths: string[]): Promis
   return withRefresh(repoRoot, () =>
     runGit({ cwd: repoRoot, args: ['restore', '--', ...rels], timeoutMs: 120_000 })
   )
+}
+
+/**
+ * Append selected paths to the repo-root `.gitignore`.
+ * Directories get a trailing `/`. Already-listed patterns are skipped.
+ * Tracked paths are removed from the index (`git rm --cached`) so they become ignored.
+ */
+export async function addToGitignore(
+  repoRoot: string,
+  absPaths: string[]
+): Promise<{
+  success: boolean
+  patternsAdded: string[]
+  patternsSkipped: string[]
+  removedFromIndex: string[]
+  stderr: string
+  stdout: string
+}> {
+  await assertGitReady()
+  const root = normalizeAbsolute(repoRoot)
+  if (!root) throw new AppError('validation', 'Invalid repo root')
+
+  const rels = toRepoRelativePaths(root, absPaths)
+  const patterns: string[] = []
+  const skipReasons: string[] = []
+
+  for (let i = 0; i < absPaths.length; i++) {
+    const abs = normalizeAbsolute(absPaths[i]!)
+    const rel = rels[i]!
+    if (!abs) continue
+    let isDir: boolean
+    try {
+      const st = await fsp.stat(abs)
+      isDir = st.isDirectory()
+    } catch {
+      // Path may already be gone; treat as file pattern from relative name.
+      isDir = !path.extname(rel)
+    }
+    const pattern = gitignorePatternForRelative(rel, isDir)
+    if (!pattern) {
+      skipReasons.push(rel || '(repo root)')
+      continue
+    }
+    patterns.push(pattern)
+  }
+
+  if (patterns.length === 0) {
+    throw new AppError('validation', 'Nothing to add to .gitignore')
+  }
+
+  const ignorePath = path.join(root, '.gitignore')
+  let existing = ''
+  try {
+    existing = await fsp.readFile(ignorePath, 'utf8')
+  } catch {
+    existing = ''
+  }
+
+  const toAdd = patterns.filter((p) => !gitignoreAlreadyHas(existing, p))
+  const skipped = patterns.filter((p) => gitignoreAlreadyHas(existing, p))
+  const nextBody = appendGitignorePatterns(existing, toAdd)
+  if (toAdd.length > 0) {
+    await fsp.writeFile(ignorePath, nextBody, 'utf8')
+  }
+
+  // Drop from the index when still tracked so status becomes “ignored”.
+  const removedFromIndex: string[] = []
+  const trackedRels: string[] = []
+  for (const rel of rels) {
+    const check = await runGit({
+      cwd: root,
+      args: ['ls-files', '--error-unmatch', '--', rel],
+      timeoutMs: 30_000
+    })
+    if (check.success) trackedRels.push(rel)
+  }
+
+  let rmResult: GitCommandResult | null = null
+  if (trackedRels.length > 0) {
+    rmResult = await runGit({
+      cwd: root,
+      args: ['rm', '-r', '--cached', '--', ...trackedRels],
+      timeoutMs: 120_000
+    })
+    if (rmResult.success) removedFromIndex.push(...trackedRels)
+  }
+
+  scheduleRefresh(root)
+  void getOrRefreshStatus(root, { force: true }).catch(() => undefined)
+
+  const ok = toAdd.length > 0 || skipped.length > 0
+  if (!ok) {
+    throw new AppError('validation', 'Nothing to add to .gitignore')
+  }
+
+  return {
+    success: rmResult ? rmResult.success : true,
+    patternsAdded: toAdd,
+    patternsSkipped: [...skipped, ...skipReasons],
+    removedFromIndex,
+    stderr: rmResult?.stderr ?? '',
+    stdout: rmResult?.stdout ?? ''
+  }
 }
 
 export async function commit(

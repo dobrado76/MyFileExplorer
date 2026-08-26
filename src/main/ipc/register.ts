@@ -115,6 +115,11 @@ import {
   deletePermanently,
   resolveOpIssues
 } from '../fs/ops'
+import { endLockingProcess, findLockingProcesses } from '../fs/lockers'
+import {
+  endProcessRequestSchema,
+  findLockersRequestSchema
+} from '@shared/schemas/lockers'
 import { createShortcuts } from '../fs/shortcuts'
 import { createLink } from '../fs/createLink'
 import { createLinkRequestSchema } from '@shared/schemas/createLink'
@@ -445,6 +450,11 @@ export function registerIpcHandlers(): void {
     return deletePermanently(req.paths)
   })
   handle(IPC.fsCancelOp, emptySchema, () => requestCancelActiveOps())
+  handle(IPC.fsFindLockers, findLockersRequestSchema, async (req) => {
+    const p = requireAbsolute(req.path)
+    return { lockers: await findLockingProcesses(p) }
+  })
+  handle(IPC.fsEndProcess, endProcessRequestSchema, (req) => endLockingProcess(req.pid))
   handle(IPC.fsExists, pathRequestSchema, async (req) => ({ exists: await pathExists(req.path) }))
   handle(IPC.fsWatch, pathRequestSchema, (req, event) => watchDirectory(event.sender, req.path))
   handle(IPC.fsUnwatch, pathRequestSchema, (req, event) => unwatchDirectory(event.sender, req.path))

@@ -18,6 +18,7 @@ import { slideshowCurrentPath } from '../lib/slideshowTypes'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { api, call } from '../lib/ipc'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
+import { clipboardActionPaths, isFolderTreeEventTarget } from '../lib/clipboardActionPaths'
 import {
   FONT_SIZE_PX_MAX,
   FONT_SIZE_PX_MIN,
@@ -50,17 +51,16 @@ function hasTextSelection(): boolean {
   return !!sel && !sel.isCollapsed && (sel.toString().length ?? 0) > 0
 }
 
-function isTreeTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest('.tree, .pane-tree')
-}
-
-/** File-view selection, or the focused tree folder when the tree has keyboard/mouse focus. */
-function clipboardActionPaths(s: ReturnType<typeof useAppStore.getState>, target: EventTarget | null): string[] {
-  if (isTreeTarget(target)) {
-    const p = s.treeFocusPath ?? s.activeTab().path
-    return p ? [p] : []
-  }
-  return s.activeTab().selected
+function pathsForClipboardShortcut(
+  s: ReturnType<typeof useAppStore.getState>,
+  target: EventTarget | null
+): string[] {
+  return clipboardActionPaths({
+    selected: s.activeTab().selected,
+    treeFocusPath: s.treeFocusPath,
+    currentFolder: s.activeTab().path,
+    eventTarget: target
+  })
 }
 
 export function ExplorerShell(): JSX.Element {
@@ -178,8 +178,7 @@ export function ExplorerShell(): JSX.Element {
     } else if (key === 'F2') {
       if (s.recycleBin.active) return
       e.preventDefault()
-      const inTree =
-        e.target instanceof Element && !!e.target.closest('.tree, .pane-tree')
+      const inTree = isFolderTreeEventTarget(e.target)
       const sel = s.activeTab().selected
       if (inTree) {
         const treePath = s.treeFocusPath ?? s.activeTab().path
@@ -194,12 +193,12 @@ export function ExplorerShell(): JSX.Element {
       // Preview / selectable text: native copy. Otherwise copy selected files (or tree focus).
       if (hasTextSelection()) return
       e.preventDefault()
-      s.copySelection(clipboardActionPaths(s, e.target))
+      s.copySelection(pathsForClipboardShortcut(s, e.target))
     } else if (ctrl && !alt && key.toLowerCase() === 'x') {
       if (hasTextSelection()) return
       if (s.recycleBin.active) return
       e.preventDefault()
-      s.cutSelection(clipboardActionPaths(s, e.target))
+      s.cutSelection(pathsForClipboardShortcut(s, e.target))
     } else if (ctrl && !alt && key.toLowerCase() === 'v') {
       if (s.recycleBin.active) return
       e.preventDefault()
@@ -216,7 +215,9 @@ export function ExplorerShell(): JSX.Element {
     } else if (key === 'Delete') {
       e.preventDefault()
       // Tree focus → delete that folder; file view → delete selection (same as F2 / Ctrl+C).
-      const paths = isTreeTarget(e.target) ? clipboardActionPaths(s, e.target) : undefined
+      const paths = isFolderTreeEventTarget(e.target)
+        ? pathsForClipboardShortcut(s, e.target)
+        : undefined
       void s.deleteSelection(shift, paths)
     } else if (ctrl && !shift && !alt && key.toLowerCase() === 'e') {
       // Edit image — no selection / non-image: ignore (do not steal focus elsewhere).

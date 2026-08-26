@@ -2085,6 +2085,40 @@ export function ContextMenu(): JSX.Element | null {
               })()
             }
           },
+          {
+            label: 'Gitignore',
+            action: () => {
+              close()
+              void (async () => {
+                try {
+                  const res = await call(
+                    api.git.ignore({ repoRoot: rootPath, paths: targetPaths })
+                  )
+                  if (res.patternsAdded.length > 0) {
+                    const n = res.patternsAdded.length
+                    const extra =
+                      res.removedFromIndex.length > 0
+                        ? ` (removed ${res.removedFromIndex.length} from the index)`
+                        : ''
+                    s.notify(
+                      n === 1
+                        ? `Added to .gitignore: ${res.patternsAdded[0]}${extra}`
+                        : `Added ${n} patterns to .gitignore${extra}`
+                    )
+                  } else {
+                    s.notify('Already listed in .gitignore')
+                  }
+                  if (!res.success && res.stderr.trim()) {
+                    s.notify(res.stderr.trim().slice(0, 400), true)
+                  }
+                  await refreshAfter()
+                  s.setSelection(targetPaths)
+                } catch (e) {
+                  s.notify(e instanceof IpcError ? e.message : String(e), true)
+                }
+              })()
+            }
+          },
           ...(targetPaths.length === 1 && !isDir
             ? [
                 {

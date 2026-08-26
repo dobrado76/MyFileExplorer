@@ -139,6 +139,15 @@ export const gitPathsRequestSchema = z.object({
   repoRoot: z.string().min(1),
   paths: z.array(z.string().min(1)).min(1)
 })
+export const gitIgnoreResultSchema = z.object({
+  success: z.boolean(),
+  patternsAdded: z.array(z.string()),
+  patternsSkipped: z.array(z.string()),
+  removedFromIndex: z.array(z.string()),
+  stderr: z.string(),
+  stdout: z.string()
+})
+export type GitIgnoreResult = z.infer<typeof gitIgnoreResultSchema>
 export const gitCommitRequestSchema = z.object({
   repoRoot: z.string().min(1),
   message: z.string().min(1).max(10_000),

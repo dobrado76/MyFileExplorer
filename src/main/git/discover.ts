@@ -54,9 +54,9 @@ export async function fetchStatus(repoRoot: string): Promise<GitRepositoryStatus
     throw new AppError('not-allowed', 'Git integration is disabled')
   }
 
-  const showIgnored = settings.git.showIgnored === true
-  const args = ['status', '--porcelain=v2', '-z', '--branch']
-  if (showIgnored) args.push('--ignored=matching')
+  // Always request ignored entries so overlays can show an “I” badge. The
+  // showIgnored setting only controls the Changes dialog (and similar lists).
+  const args = ['status', '--porcelain=v2', '-z', '--branch', '--ignored=matching']
 
   const result = await runGit({ cwd: abs, args, timeoutMs: 120_000 })
   if (!result.success) {
@@ -67,10 +67,7 @@ export async function fetchStatus(repoRoot: string): Promise<GitRepositoryStatus
   }
 
   const parsed = parsePorcelainV2(result.stdout)
-  let paths = parsed.paths
-  if (!showIgnored) {
-    paths = paths.filter((p) => p.workingTree !== 'ignored')
-  }
+  const paths = parsed.paths
 
   const discover = await discoverRepo(abs)
   const gitDir = discover.gitDir ?? abs

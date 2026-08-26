@@ -88,6 +88,14 @@ export type MyFileExplorerApi = {
     ): Promise<Result<{ deleted: string[]; missing: string[] }>>
     /** Request cancel of the in-flight copy/move/trash/delete/vid-thumbs op. */
     cancelOp(): Promise<Result<{ cancelled: boolean }>>
+    /** Processes locking / using a path (D65). */
+    findLockers(
+      req: import('../schemas/lockers').FindLockersRequest
+    ): Promise<Result<import('../schemas/lockers').FindLockersResponse>>
+    /** End a locking process after user confirm (D65). */
+    endProcess(
+      req: import('../schemas/lockers').EndProcessRequest
+    ): Promise<Result<{ ended: true }>>
     exists(req: PathRequest): Promise<Result<{ exists: boolean }>>
     watch(req: PathRequest): Promise<Result<{ watching: true }>>
     unwatch(req: PathRequest): Promise<Result<{ ok: true }>>
@@ -817,6 +825,10 @@ export type MyFileExplorerApi = {
       repoRoot: string
       paths: string[]
     }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    ignore(req: {
+      repoRoot: string
+      paths: string[]
+    }): Promise<Result<import('../schemas/git').GitIgnoreResult>>
     commit(req: {
       repoRoot: string
       message: string

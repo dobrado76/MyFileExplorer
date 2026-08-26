@@ -1,26 +1,45 @@
 /**
- * Identify processes locking a file/folder.
+ * Identify processes locking a file/folder, and end a locker when the user asks.
  *
  * Primary: Windows Restart Manager (same family of APIs Explorer uses).
  * Fallback: Win32_Process scan for ExecutablePath / CommandLine referencing the path
  * (catches many “app has this folder open” cases RM misses on directories).
+ *
+ * There is no safe public Win32 API to close another process’s handles without its
+ * cooperation — “unlock” means ask the user to End Task (or close the app themselves).
  */
 import { execFile } from 'node:child_process'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import koffi from 'koffi'
+import { AppError } from '@shared/result'
+import type { LockingProcess } from '@shared/schemas/lockers'
 
 const execFileAsync = promisify(execFile)
 
-export type LockingProcess = {
-  pid: number
-  name: string
-}
+export type { LockingProcess }
 
 const ERROR_MORE_DATA = 234
 const MAX_SAMPLE_FILES = 400
 const MAX_WALK_DEPTH = 6
+
+/** Kernel / session hosts — never offer End Task on these. */
+const PROTECTED_PROCESS_NAMES = new Set([
+  'system',
+  'smss',
+  'csrss',
+  'wininit',
+  'services',
+  'lsass',
+  'winlogon',
+  'svchost',
+  'fontdrvhost',
+  'dwm',
+  'sihost',
+  'taskhostw',
+  'explorer' // ending Explorer is rarely what the user wants for a file lock
+])
 
 type RmApi = {
   RmStartSession: (pSessionHandle: [number], dwSessionFlags: number, strSessionKey: Buffer) => number
@@ -207,6 +226,15 @@ function isIgnorableLockerName(name: string): boolean {
   )
 }
 
+function baseNameLower(name: string): string {
+  return path.basename(name).toLowerCase().replace(/\.exe$/i, '')
+}
+
+export function isProtectedLocker(p: LockingProcess): boolean {
+  if (p.pid <= 4 || p.pid === process.pid) return true
+  return PROTECTED_PROCESS_NAMES.has(baseNameLower(p.name))
+}
+
 /**
  * Processes whose executable or command line references the path.
  * Helps when RM returns empty for directory locks.
@@ -241,7 +269,9 @@ Get-CimInstance Win32_Process | ForEach-Object {
   }
   if ($hit) {
     $label = if ($name) { $name } else { 'Process' }
-    $out += [PSCustomObject]@{ pid = [int]$procId; name = [string]$label }
+    $row = [ordered]@{ pid = [int]$procId; name = [string]$label }
+    if ($exe) { $row.exePath = [string]$exe }
+    $out += [PSCustomObject]$row
   }
 }
 if ($out.Count -eq 0) { '' } else { $out | ConvertTo-Json -Compress }
@@ -254,7 +284,9 @@ if ($out.Count -eq 0) { '' } else { $out | ConvertTo-Json -Compress }
     )
     const text = stdout.trim()
     if (!text) return []
-    const parsed = JSON.parse(text) as { pid: number; name: string } | { pid: number; name: string }[]
+    const parsed = JSON.parse(text) as
+      | { pid: number; name: string; exePath?: string }
+      | { pid: number; name: string; exePath?: string }[]
     const rows = Array.isArray(parsed) ? parsed : [parsed]
     const self = process.pid
     return rows
@@ -265,9 +297,52 @@ if ($out.Count -eq 0) { '' } else { $out | ConvertTo-Json -Compress }
           r.pid !== self &&
           !isIgnorableLockerName(r.name || '')
       )
-      .map((r) => ({ pid: r.pid, name: r.name || `PID ${r.pid}` }))
+      .map((r) => ({
+        pid: r.pid,
+        name: r.name || `PID ${r.pid}`,
+        ...(typeof r.exePath === 'string' && r.exePath ? { exePath: r.exePath } : {})
+      }))
   } catch {
     return []
+  }
+}
+
+/** Fill missing exePath for RM-only hits (cheap second CIM query by PID). */
+async function enrichExePaths(lockers: LockingProcess[]): Promise<LockingProcess[]> {
+  const missing = lockers.filter((p) => !p.exePath).map((p) => p.pid)
+  if (missing.length === 0 || process.platform !== 'win32') return lockers
+  const idList = missing.join(',')
+  const script = `
+$ErrorActionPreference = 'SilentlyContinue'
+$ids = @(${idList})
+$out = @()
+foreach ($id in $ids) {
+  $p = Get-CimInstance Win32_Process -Filter "ProcessId=$id"
+  if ($p -and $p.ExecutablePath) {
+    $out += [PSCustomObject]@{ pid = [int]$id; exePath = [string]$p.ExecutablePath }
+  }
+}
+if ($out.Count -eq 0) { '' } else { $out | ConvertTo-Json -Compress }
+`
+  try {
+    const { stdout } = await execFileAsync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+      { windowsHide: true, timeout: 5000, maxBuffer: 512 * 1024 }
+    )
+    const text = stdout.trim()
+    if (!text) return lockers
+    const parsed = JSON.parse(text) as
+      | { pid: number; exePath: string }
+      | { pid: number; exePath: string }[]
+    const rows = Array.isArray(parsed) ? parsed : [parsed]
+    const byPid = new Map(rows.map((r) => [r.pid, r.exePath]))
+    return lockers.map((p) => {
+      const exe = byPid.get(p.pid)
+      return exe && !p.exePath ? { ...p, exePath: exe } : p
+    })
+  } catch {
+    return lockers
   }
 }
 
@@ -279,7 +354,15 @@ function mergeLockers(...lists: LockingProcess[][]): LockingProcess[] {
       if (!p.pid || p.pid === self) continue
       if (isIgnorableLockerName(p.name)) continue
       const prev = byPid.get(p.pid)
-      if (!prev || (p.name && p.name.length > prev.name.length)) byPid.set(p.pid, p)
+      if (!prev) {
+        byPid.set(p.pid, p)
+        continue
+      }
+      byPid.set(p.pid, {
+        pid: p.pid,
+        name: p.name && p.name.length > prev.name.length ? p.name : prev.name,
+        exePath: p.exePath ?? prev.exePath
+      })
     }
   }
   return [...byPid.values()].sort((a, b) => a.name.localeCompare(b.name))
@@ -307,7 +390,8 @@ export async function findLockingProcesses(targetPath: string): Promise<LockingP
     const refs =
       isDir || byRm.size === 0 ? await findProcessesReferencingPath(targetPath) : []
 
-    return mergeLockers([...byRm.values()], refs)
+    const merged = mergeLockers([...byRm.values()], refs)
+    return enrichExePaths(merged)
   } catch {
     return []
   }
@@ -316,4 +400,63 @@ export async function findLockingProcesses(targetPath: string): Promise<LockingP
 export function formatLockingProcesses(lockers: LockingProcess[]): string {
   if (lockers.length === 0) return ''
   return lockers.map((p) => (p.name ? `${p.name} (PID ${p.pid})` : `PID ${p.pid}`)).join('\n')
+}
+
+/**
+ * End a process tree that is locking a file. Uses taskkill /T /F.
+ * Refuses kernel / session hosts and this process.
+ */
+export async function endLockingProcess(pid: number): Promise<{ ended: true }> {
+  if (process.platform !== 'win32') {
+    throw new AppError('not-allowed', 'Ending processes is only supported on Windows.')
+  }
+  if (!Number.isInteger(pid) || pid <= 4 || pid === process.pid) {
+    throw new AppError('not-allowed', 'That process cannot be ended from here.')
+  }
+
+  let name = `PID ${pid}`
+  try {
+    const { stdout } = await execFileAsync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        `$p = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if ($p) { $p.ProcessName }`
+      ],
+      { windowsHide: true, timeout: 4000 }
+    )
+    const n = stdout.trim()
+    if (n) name = n
+  } catch {
+    /* proceed — taskkill will fail clearly if gone */
+  }
+
+  if (isProtectedLocker({ pid, name })) {
+    throw new AppError(
+      'not-allowed',
+      `Cannot end ${name} (PID ${pid}) — it is a protected system process.`,
+      'Close the program from its own window, or end it in Task Manager if you are sure.'
+    )
+  }
+
+  try {
+    await execFileAsync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+      windowsHide: true,
+      timeout: 15_000
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (/not found|no running instance|not running/i.test(msg)) {
+      return { ended: true }
+    }
+    throw new AppError(
+      'io',
+      `Could not end ${name} (PID ${pid}).`,
+      'Try Task Manager, or close the program from its own window.'
+    )
+  }
+  return { ended: true }
 }

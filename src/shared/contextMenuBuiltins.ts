@@ -132,7 +132,7 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   {
     id: 'git',
     label: 'Git',
-    hint: 'Stage / unstage / discard and repo helpers when Settings → Git is enabled'
+    hint: 'Stage / unstage / discard / gitignore and repo helpers when Settings → Git is enabled'
   },
   { id: 'alternate-streams', label: 'Alternate streams…' },
   {

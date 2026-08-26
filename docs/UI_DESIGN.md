@@ -77,7 +77,7 @@ Custom theme = user-editable map of these tokens in settings.
 ## Dialogs
 
 - Confirm permanent delete
-- End-of-op issue review (grouped conflicts / locks / denials after copy, move, trash, delete)
+- End-of-op issue review (grouped conflicts / locks / denials after copy, move, trash, delete); **In use** shows lock owners + End task (D65)
 - New file type picker
 - Settings (modal or route)
 - Properties (detailed: drive capacity bar, folder size calc, file metadata)

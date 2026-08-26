@@ -151,7 +151,7 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D64)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D65)  
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [GIT.md](GIT.md) — optional Git-aware browsing (D64)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  

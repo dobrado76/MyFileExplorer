@@ -68,6 +68,9 @@ export function registerGitIpc(handle: Handle): void {
   handle(IPC.gitDiscard, gitPathsRequestSchema, async (req) =>
     git.discardPaths(req.repoRoot, req.paths)
   )
+  handle(IPC.gitIgnore, gitPathsRequestSchema, async (req) =>
+    git.addToGitignore(req.repoRoot, req.paths)
+  )
   handle(IPC.gitCommit, gitCommitRequestSchema, async (req) =>
     git.commit(req.repoRoot, req.message, req.pushAfter, req.stageAll)
   )

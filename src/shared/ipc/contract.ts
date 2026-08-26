@@ -27,6 +27,10 @@ export const IPC = {
   fsEmptyRecycleBin: 'fs:emptyRecycleBin',
   fsDeleteFromRecycleBin: 'fs:deleteFromRecycleBin',
   fsCancelOp: 'fs:cancelOp',
+  /** Who is locking a path (Restart Manager + CIM). */
+  fsFindLockers: 'fs:findLockers',
+  /** End a locking process tree (taskkill /T /F) after user confirm. */
+  fsEndProcess: 'fs:endProcess',
   fsExists: 'fs:exists',
   fsWatch: 'fs:watch',
   fsUnwatch: 'fs:unwatch',
@@ -255,6 +259,7 @@ export const IPC = {
   gitStage: 'git:stage',
   gitUnstage: 'git:unstage',
   gitDiscard: 'git:discard',
+  gitIgnore: 'git:ignore',
   gitCommit: 'git:commit',
   gitFetch: 'git:fetch',
   gitPull: 'git:pull',

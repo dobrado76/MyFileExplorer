@@ -101,6 +101,8 @@ export type OpIssue = {
   message: string
   sourceMtimeMs?: number
   destMtimeMs?: number
+  /** Processes holding the path open (busy issues; D65). */
+  lockers?: import('./lockers').LockingProcess[]
 }
 
 export type CopyResponse = {

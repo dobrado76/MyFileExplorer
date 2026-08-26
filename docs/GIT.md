@@ -25,7 +25,7 @@ Do **not** confuse with image ADS **Version Control** (D27).
 | `enabled` | `false` | Master switch — no Git work when off |
 | `executablePath` | `''` | Optional; else PATH / common Git for Windows paths |
 | `showOverlays` / `showFolderIndicators` / `showToolbar` / `showChangedCount` / `showStatusColumn` / `showAheadBehind` | mostly `true` | Display toggles |
-| `showIgnored` | `false` | Include ignored paths in status, overlays, and the Changes dialog |
+| `showIgnored` | `false` | Include ignored paths in the Changes dialog. Overlays always show ignored items with an **I** badge (status always uses `--ignored=matching`) |
 | `historyPageSize` | `150` | Commits per page in repo-root history and File history (20–500; Load more uses the same size) |
 | `autoFetch` | `false` | Reserved; v1 does not auto-fetch |
 | `refreshDebounceMs` | `400` | Watcher / invalidate debounce |
@@ -35,11 +35,11 @@ Do **not** confuse with image ADS **Version Control** (D27).
 
 ## IPC
 
-Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, commit, fetch/pull/push, branches (create may take `startPoint`), stash, **clone**, showDiff (HEAD ↔ working tree, commit vs parent, or two commits), openTerminal, relativePaths, pickers, **log**, **showCommit**, **logFile**, plus history ops: **createTag** (optional push to remote), **deleteTag** (optional delete on remote), **checkoutCommit**, **mergeCommit**, **rebaseOnto** (non-interactive), **reset** (soft/mixed/hard), **cherryPick**, **revert**.
+Whitelist only (`git:*`): detect, test, discover, getStatus, refresh, stage/unstage/discard, **ignore**, commit, fetch/pull/push, branches (create may take `startPoint`), stash, **clone**, showDiff (HEAD ↔ working tree, commit vs parent, or two commits), openTerminal, relativePaths, pickers, **log**, **showCommit**, **logFile**, plus history ops: **createTag** (optional push to remote), **deleteTag** (optional delete on remote), **checkoutCommit**, **mergeCommit**, **rebaseOnto** (non-interactive), **reset** (soft/mixed/hard), **cherryPick**, **revert**.
 
 ## Context menu
 
-Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage, Discard (confirm), Show changes, **File history…** (single file), Copy repo-relative path, Open repository root, Open terminal at root, Refresh.
+Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage, Discard (confirm), **Gitignore** (append to repo-root `.gitignore`; tracked paths are removed from the index), Show changes, **File history…** (single file), Copy repo-relative path, Open repository root, Open terminal at root, Refresh.
 
 **New / Add → GitHub Repository** (below From Template) opens a clone dialog (folder name + URL; URL prefills from the clipboard when it looks like a Git URL). Clashes with an existing name are blocked before clone. Requires Git integration enabled.
 

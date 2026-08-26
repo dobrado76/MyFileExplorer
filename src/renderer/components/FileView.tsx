@@ -292,6 +292,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const recycleBin = useAppStore((s) => s.recycleBin)
   const restoreFromRecycleBinView = useAppStore((s) => s.restoreFromRecycleBinView)
   const focusPane = useAppStore((s) => s.focusPane)
+  const setTreeFocusPath = useAppStore((s) => s.setTreeFocusPath)
   const paneTabIds = useAppStore((s) => s.paneTabIds)
   const viewLayout = useAppStore((s) => s.viewLayout)
   /** This pane’s tab owns its search — stays visible while you work in another pane (drag). */
@@ -299,10 +300,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const platform = useAppStore((s) => s.platform)
   const recycleMode = recycleBin.active && isFocusedSurface
   const overlayMode = searchMode || recycleMode
-  const ensurePaneFocus = useCallback((): void => {
-    const idx = paneTabIds.indexOf(tabId)
-    if (idx >= 0) focusPane(idx)
-  }, [paneTabIds, tabId, focusPane])
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const hideNameExtensions = settings.hideNameExtensions
@@ -327,6 +324,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const scrollRef = useRef<HTMLDivElement>(null)
   /** Scroll node in state so TanStack rebinds after the callback ref attaches. */
   const [scrollEl, setScrollElState] = useState<HTMLDivElement | null>(null)
+  const ensurePaneFocus = useCallback((): void => {
+    const idx = paneTabIds.indexOf(tabId)
+    if (idx >= 0) focusPane(idx)
+    // Leave tree keyboard focus so Ctrl+C/X/Delete operate on the file-list selection.
+    setTreeFocusPath(null)
+    const el = scrollEl ?? scrollRef.current
+    el?.focus({ preventScroll: true })
+  }, [paneTabIds, tabId, focusPane, setTreeFocusPath, scrollEl])
   /** True after the user (or a follow-selection scroll) moved the list — skip Back-style restore. */
   const userScrolledRef = useRef(false)
   const detailsHeaderRef = useRef<HTMLDivElement>(null)
@@ -458,10 +463,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const lookup = gitLookupForEntry(entry.path)
       if (!lookup?.pathRow) return ''
       const label = gitStatusLabel(lookup.pathRow)
-      if (!gitShowIgnored && label.toLowerCase() === 'ignored') return ''
       return label === 'Clean' ? '' : label
     },
-    [gitShowStatusColumn, gitLookupForEntry, gitShowIgnored]
+    [gitShowStatusColumn, gitLookupForEntry]
   )
   const detailsNameWidth = owningView?.detailsNameWidth ?? settings.detailsNameWidth
   const effectiveSort = useMemo(
@@ -1566,6 +1570,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         return
       }
 
+      ensurePaneFocus()
+
       const alreadySelected = selected.has(entry.path.toLowerCase())
 
       // Recycle Bin: selection only (no left/right file-drag from bin rows).
@@ -1681,7 +1687,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       highlightDropDest,
       clearDragVisuals,
       openContextMenu,
-      performTransfer
+      performTransfer,
+      ensurePaneFocus
     ]
   )
 

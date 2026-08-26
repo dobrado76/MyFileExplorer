@@ -60,8 +60,12 @@ export function lookupGitForPath(
     if (relativePath == null) continue
     if (best && best.rootPath.length >= root.length) continue
     const pathRow =
-      status.paths.find((p) => p.relativePath.replace(/\\/g, '/') === relativePath) ?? null
-    const folderAgg = relativePath ? (status.folders[relativePath] ?? null) : null
+      status.paths.find((p) => {
+        const pr = p.relativePath.replace(/\\/g, '/').replace(/\/+$/, '')
+        const want = relativePath.replace(/\/+$/, '')
+        return pr === want
+      }) ?? null
+    const folderAgg = relativePath ? (status.folders[relativePath.replace(/\/+$/, '')] ?? null) : null
     best = { rootPath: root, status, relativePath, pathRow, folderAgg }
   }
   return best
@@ -125,10 +129,25 @@ export function entryGitOverlay(
   opts: { isDir: boolean; showOverlays: boolean; showFolderIndicators: boolean; showIgnored: boolean }
 ): { letter: string; className: string; label: string } | null {
   if (!lookup || !opts.showOverlays) return null
+
+  const row = lookup.pathRow
+  if (row) {
+    const state = primaryGitState(row)
+    if (state === 'ignored') {
+      // Always surface ignored (file or folder) — independent of Changes-dialog toggle.
+      return {
+        letter: gitMarkerLetter('ignored'),
+        className: gitMarkerClass('ignored'),
+        label: gitStatusLabel(row)
+      }
+    }
+  }
+
   if (opts.isDir && opts.showFolderIndicators && lookup.folderAgg) {
     const prim = folderAggregatePrimary(lookup.folderAgg)
     if (!prim) return null
-    const state: GitFileState = prim === 'conflicted' ? 'conflicted' : prim === 'untracked' ? 'untracked' : 'modified'
+    const state: GitFileState =
+      prim === 'conflicted' ? 'conflicted' : prim === 'untracked' ? 'untracked' : 'modified'
     return {
       letter: '●',
       className: gitMarkerClass(state),
@@ -136,11 +155,9 @@ export function entryGitOverlay(
     }
   }
   if (opts.isDir) return null
-  const row = lookup.pathRow
   if (!row) return null
   const state = primaryGitState(row)
   if (state === 'clean') return null
-  if (state === 'ignored' && !opts.showIgnored) return null
   const letter = gitMarkerLetter(state)
   if (!letter) return null
   return {
