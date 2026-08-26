@@ -244,17 +244,6 @@ export function GitRepoPreviewToolbar({
                   type="button"
                   className="menu-item"
                   role="menuitem"
-                  onClick={() => {
-                    setMoreOpen(false)
-                    void navigate(repoRoot)
-                  }}
-                >
-                  Open repository root
-                </button>
-                <button
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
                   disabled={busy}
                   onClick={() => {
                     setMoreOpen(false)
@@ -318,6 +307,16 @@ export function GitRepoPreviewToolbar({
       <div className="git-repo-preview-toolbar" role="toolbar" aria-label="Git repository">
         <button
           type="button"
+          className="btn toolbar-btn toolbar-git-root-btn"
+          disabled={busy}
+          title={`Open repository root\n${repoRoot}`}
+          aria-label="Open repository root"
+          onClick={() => void navigate(repoRoot)}
+        >
+          <GitBranch size={14} aria-hidden className="toolbar-git-icon" />
+        </button>
+        <button
+          type="button"
           className="btn toolbar-btn"
           disabled={busy}
           title="Refresh"
@@ -327,7 +326,6 @@ export function GitRepoPreviewToolbar({
           <RefreshCw size={14} />
         </button>
         <span className="toolbar-sep" aria-hidden />
-        <GitBranch size={14} aria-hidden className="toolbar-git-icon" />
         <button
           type="button"
           className="btn toolbar-btn git-preview-branch-btn"

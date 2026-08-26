@@ -50,6 +50,11 @@ export const mediaMetadataPathSchema = z.object({
   path: z.string().min(1)
 })
 
+export const mediaMetadataLoadCustomCoverSchema = z.object({
+  path: z.string().min(1),
+  imagePath: z.string().min(1)
+})
+
 export const mediaMetadataSetCoverSchema = z.object({
   path: z.string().min(1),
   coverId: z.string().min(1),

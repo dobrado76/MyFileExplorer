@@ -234,6 +234,7 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `mediaMetadata:clear` | `{ paths[] }` | same |
 | `mediaMetadata:get` | `{ path }` | `{ metadata, thumbnailBase64 }` |
 | `mediaMetadata:listCovers` | `{ path }` | `{ title, covers[] }` — returns the current cover immediately; more arrive on `cover-list` events |
+| `mediaMetadata:loadCustomCover` | `{ path, imagePath }` | `{ cover }` — register a user-picked image file for the picker / `setCover` |
 | `mediaMetadata:setCover` | `{ path, coverId, previewBase64? }` | `{ ok: true }` — preview is a fallback if the cover session is gone |
 | `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
 | `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode?, title?, showTitle? }[] }` |
@@ -282,7 +283,7 @@ window.myFileExplorer = {
   thumbs: { get, generateVidCache },
   meta: { getMany, invalidate },
   ads: { list, listNamesMany, exists, readText, writeText, delete, readBytes, writeBytes, copy },
-  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
+  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, loadCustomCover, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
   slideshow: { listImages, pickOpenFile, … },
   git: { detect, test, discover, getStatus, refresh, stage, unstage, discard, commit, fetch, pull, push, listBranches, switchBranch, createBranch, stash, stashPop, showDiff, openTerminal, … },
   app: { getPath, pickFolder, ready, … },

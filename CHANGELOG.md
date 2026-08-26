@@ -12,6 +12,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Added
 
 - **Who’s locking the file** — when a file/folder is in use, alerts and the end-of-op **In use** review list the locking processes (Windows Restart Manager + fallback), with **Refresh**, **Locate** the exe, and **End task** (confirm → force-end), then **Retry**. No fake “unlock handles” API — that is not supported on Windows.
+- **Custom media cover** — **Change cover** → **Browse for image…** picks any local JPG/PNG/WebP/etc. when Plex / TMDB do not list the right poster.
 - **Git changes dialog** — click the toolbar **N changes** summary (explorer or repo-root preview) to inspect a folder tree of dirty paths, stage/unstage/discard, reveal in the file list, or open the configured external diff tool. **Show ignored** (default off) is persisted as `settings.git.showIgnored`.
 - **Git commit detail** — double-click a commit in repo-root history (or press **Enter** when the list is focused) to open a dialog with the full message, parents, and changed files; double-click a file to diff that version in the external diff tool.
 - **Git file history** — context menu **Git → File history…** on a tracked file lists commits that touched it (`--follow`); pick one commit for changes vs parent, or two for **Compare selected** in the configured diff tool.

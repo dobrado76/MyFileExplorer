@@ -156,6 +156,7 @@ export const IPC = {
   mediaMetadataGet: 'mediaMetadata:get',
   mediaMetadataListCovers: 'mediaMetadata:listCovers',
   mediaMetadataSetCover: 'mediaMetadata:setCover',
+  mediaMetadataLoadCustomCover: 'mediaMetadata:loadCustomCover',
   mediaMetadataSetWatched: 'mediaMetadata:setWatched',
   mediaMetadataFolderLibrary: 'mediaMetadata:folderLibrary',
   mediaMetadataConsolidateSubtitles: 'mediaMetadata:consolidateSubtitles',
@@ -436,7 +437,7 @@ export type MfeEvent =
         done: boolean
         cover?: {
           id: string
-          source: 'plex' | 'tmdb' | 'current'
+          source: 'plex' | 'tmdb' | 'current' | 'custom'
           label: string
           selected: boolean
           previewBase64: string

@@ -47,7 +47,8 @@ function GlobalScriptButton({
   const showIcon = show !== 'label'
   const showLabel = show !== 'icon'
   const iconPx = script.iconSizePx ?? QUICK_LAUNCH_ICON_SIZE_DEFAULT
-  const tip = script.description.trim() || script.name
+  const desc = script.description.trim()
+  const tip = desc ? `${script.name}: ${desc}` : script.name
   return (
     <button
       type="button"

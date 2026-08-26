@@ -55,7 +55,7 @@ export type MediaMetadataOpResult = {
 }
 
 export { probePlex }
-export { listMediaCovers, setMediaCover } from './covers'
+export { listMediaCovers, setMediaCover, loadCustomCover } from './covers'
 export { consolidateSubtitles } from './subtitles'
 
 function isVideoName(name: string): boolean {

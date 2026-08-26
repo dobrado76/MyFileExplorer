@@ -6,7 +6,7 @@ import { CloseIcon } from '../lib/icons'
 
 type Cover = {
   id: string
-  source: 'plex' | 'tmdb' | 'current'
+  source: 'plex' | 'tmdb' | 'current' | 'custom'
   label: string
   selected: boolean
   previewBase64: string
@@ -39,6 +39,7 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -82,6 +83,33 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
     }
   }, [path])
 
+  const browseCustom = async (): Promise<void> => {
+    if (browsing || saving) return
+    setBrowsing(true)
+    setError(null)
+    try {
+      const pick = await call(
+        api.slideshow.pickOpenFile({
+          title: 'Choose cover image',
+          defaultPath: path,
+          filters: [
+            { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff'] }
+          ]
+        })
+      )
+      if (!pick.path) return
+      const res = await call(api.mediaMetadata.loadCustomCover({ path, imagePath: pick.path }))
+      setCovers((cur) => upsertCover(cur, res.cover))
+      setPicked(res.cover.id)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      setError(message)
+      notify(message, true)
+    } finally {
+      setBrowsing(false)
+    }
+  }
+
   const apply = async (): Promise<void> => {
     if (!picked) return
     setSaving(true)
@@ -110,9 +138,25 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
           </button>
         </div>
         <div className="modal-body cover-picker-body">
+          <div className="cover-picker-toolbar">
+            <button
+              type="button"
+              className="btn"
+              disabled={browsing || saving}
+              onClick={() => void browseCustom()}
+            >
+              {browsing ? 'Opening…' : 'Browse for image…'}
+            </button>
+            <span className="dim cover-picker-toolbar-hint">
+              Use your own poster when Plex / TMDB do not have the right one.
+            </span>
+          </div>
           {error ? <p className="cover-picker-error">{error}</p> : null}
           {!loading && !error && covers.length === 0 ? (
-            <p className="dim">No covers found. Extract from Plex or download from the internet first.</p>
+            <p className="dim">
+              No covers found yet. Browse for an image, or extract from Plex / download from the
+              internet first.
+            </p>
           ) : null}
           <div className="cover-picker-grid">
             {covers.map((c) => (
@@ -149,7 +193,7 @@ export function CoverPickerDialog({ path }: { path: string }): JSX.Element {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!picked || saving || covers.length === 0}
+            disabled={!picked || saving}
             onClick={() => void apply()}
           >
             {saving ? 'Saving…' : 'Use this cover'}

@@ -24,7 +24,7 @@ import { readMediaMetadata, readMediaThumbnail, writeMediaMetadata, writeMediaTh
 
 export type MediaCoverChoice = {
   id: string
-  source: 'plex' | 'tmdb' | 'current'
+  source: 'plex' | 'tmdb' | 'current' | 'custom'
   label: string
   selected: boolean
   previewBase64: string
@@ -73,11 +73,16 @@ export function tmdbCoverId(posterPath: string): string {
   return `tmdb:${encodePart(posterPath)}`
 }
 
+export function customFileCoverId(absPath: string): string {
+  return `custom-file:${encodePart(absPath)}`
+}
+
 export function parseCoverSourceId(id: string):
   | { kind: 'current' }
   | { kind: 'plex-file'; path: string }
   | { kind: 'plex-url'; href: string; previewHref: string }
   | { kind: 'tmdb'; posterPath: string }
+  | { kind: 'custom-file'; path: string }
   | null {
   if (id === 'current') return { kind: 'current' }
   if (id.startsWith('plex-file:')) {
@@ -94,6 +99,10 @@ export function parseCoverSourceId(id: string):
     const posterPath = decodePart(id.slice('tmdb:'.length))
     return posterPath ? { kind: 'tmdb', posterPath } : null
   }
+  if (id.startsWith('custom-file:')) {
+    const p = decodePart(id.slice('custom-file:'.length))
+    return p ? { kind: 'custom-file', path: p } : null
+  }
   return null
 }
 
@@ -101,6 +110,13 @@ async function loadFromCoverId(coverId: string): Promise<Buffer | null> {
   const src = parseCoverSourceId(coverId)
   if (!src || src.kind === 'current') return null
   if (src.kind === 'plex-file') {
+    try {
+      return usableImage(await fsp.readFile(src.path))
+    } catch {
+      return null
+    }
+  }
+  if (src.kind === 'custom-file') {
     try {
       return usableImage(await fsp.readFile(src.path))
     } catch {
@@ -462,6 +478,48 @@ export async function listMediaCovers(rawPath: string): Promise<{
 
   void continueCoverList(file, meta, current, job, session)
   return { title: meta?.title || path.basename(file), covers }
+}
+
+/** Register a user-picked image file as a cover choice (session-backed for setCover). */
+export async function loadCustomCover(
+  rawMediaPath: string,
+  rawImagePath: string
+): Promise<MediaCoverChoice> {
+  const file = requireAbsolute(rawMediaPath)
+  const imagePath = requireAbsolute(rawImagePath)
+  const buf = usableImage(await fsp.readFile(imagePath))
+  if (!buf) {
+    throw new AppError('validation', 'That file is not a usable image.')
+  }
+  const dim = await imageMeta(buf)
+  const previewBase64 = await previewJpeg(buf)
+  if (!previewBase64) {
+    throw new AppError('io', 'Could not read that image.')
+  }
+
+  pruneSessions()
+  const fileKey = sessionKey(file)
+  let session = sessions.get(fileKey)
+  if (!session) {
+    session = { at: Date.now(), loaders: new Map(), previews: new Map() }
+    sessions.set(fileKey, session)
+  }
+  const id = customFileCoverId(imagePath)
+  rememberCover(session, id, async () => fsp.readFile(imagePath), buf)
+
+  const current = await readMediaThumbnail(file)
+  const currentHash = current && current.length > 32 ? sha1(current) : null
+  const isCurrent = currentHash != null && sha1(buf) === currentHash
+
+  return {
+    id,
+    source: 'custom',
+    label: path.basename(imagePath),
+    selected: isCurrent,
+    previewBase64,
+    width: dim.width,
+    height: dim.height
+  }
 }
 
 export async function setMediaCover(

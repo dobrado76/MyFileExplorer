@@ -160,6 +160,7 @@ const api: MyFileExplorerApi = {
     clear: invoke(IPC.mediaMetadataClear),
     get: invoke(IPC.mediaMetadataGet),
     listCovers: invoke(IPC.mediaMetadataListCovers),
+    loadCustomCover: invoke(IPC.mediaMetadataLoadCustomCover),
     setCover: invoke(IPC.mediaMetadataSetCover),
     setWatched: invoke(IPC.mediaMetadataSetWatched),
     folderLibrary: invoke(IPC.mediaMetadataFolderLibrary),

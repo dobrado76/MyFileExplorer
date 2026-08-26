@@ -448,13 +448,29 @@ export type MyFileExplorerApi = {
         title: string
         covers: {
           id: string
-          source: 'plex' | 'tmdb' | 'current'
+          source: 'plex' | 'tmdb' | 'current' | 'custom'
           label: string
           selected: boolean
           previewBase64: string
           width: number
           height: number
         }[]
+      }>
+    >
+    loadCustomCover(req: {
+      path: string
+      imagePath: string
+    }): Promise<
+      Result<{
+        cover: {
+          id: string
+          source: 'plex' | 'tmdb' | 'current' | 'custom'
+          label: string
+          selected: boolean
+          previewBase64: string
+          width: number
+          height: number
+        }
       }>
     >
     setCover(req: {

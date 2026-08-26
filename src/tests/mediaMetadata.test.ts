@@ -50,6 +50,7 @@ import {
 } from '../main/mediaMetadata/plexLocal'
 import {
   compareCoverSize,
+  customFileCoverId,
   parseCoverSourceId,
   plexFileCoverId,
   plexUrlCoverId,
@@ -647,6 +648,8 @@ describe('cover source ids', () => {
       kind: 'tmdb',
       posterPath: '/abc/poster.jpg'
     })
+    const custom = 'D:\\Art\\maid-poster.jpg'
+    expect(parseCoverSourceId(customFileCoverId(custom))).toEqual({ kind: 'custom-file', path: custom })
     expect(parseCoverSourceId('current')).toEqual({ kind: 'current' })
     expect(parseCoverSourceId('plex-local-3')).toBeNull()
   })

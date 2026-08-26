@@ -267,12 +267,14 @@ import {
   consolidateSubtitles,
   getMediaMetadataView,
   listMediaCovers,
+  loadCustomCover,
   probePlex,
   refreshMany,
   setMediaCover,
   setWatchedMany
 } from '../mediaMetadata'
 import {
+  mediaMetadataLoadCustomCoverSchema,
   mediaMetadataPathSchema,
   mediaMetadataPathsSchema,
   mediaMetadataSetCoverSchema,
@@ -854,6 +856,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.mediaMetadataListCovers, mediaMetadataPathSchema, (req) => {
     assertMediaMetadataEnabled()
     return listMediaCovers(req.path)
+  })
+  handle(IPC.mediaMetadataLoadCustomCover, mediaMetadataLoadCustomCoverSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return loadCustomCover(req.path, req.imagePath).then((cover) => ({ cover }))
   })
   handle(IPC.mediaMetadataSetCover, mediaMetadataSetCoverSchema, async (req) => {
     assertMediaMetadataEnabled()

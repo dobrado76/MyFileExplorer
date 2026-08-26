@@ -215,17 +215,6 @@ export function GitToolbar(): JSX.Element | null {
                   type="button"
                   className="menu-item"
                   role="menuitem"
-                  onClick={() => {
-                    setMoreOpen(false)
-                    void navigate(repoRoot)
-                  }}
-                >
-                  Open repository root
-                </button>
-                <button
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
                   disabled={busy}
                   onClick={() => {
                     setMoreOpen(false)
@@ -287,7 +276,15 @@ export function GitToolbar(): JSX.Element | null {
     <>
       <div className="toolbar-edit toolbar-git" role="group" aria-label="Git">
         <span className="toolbar-sep" aria-hidden />
-        <GitBranch size={14} aria-hidden className="toolbar-git-icon" />
+        <button
+          type="button"
+          className="btn toolbar-btn toolbar-git-root-btn"
+          title={`Open repository root\n${repoRoot}`}
+          aria-label="Open repository root"
+          onClick={() => void navigate(repoRoot)}
+        >
+          <GitBranch size={14} aria-hidden className="toolbar-git-icon" />
+        </button>
         <span className="toolbar-git-summary" title={repoRoot}>
           <span className="toolbar-git-branch">{branchLabel}</span>
           {git.showChangedCount ? (

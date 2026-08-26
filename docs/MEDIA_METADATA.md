@@ -57,7 +57,7 @@ Shown only on **folders** and **video files**. Remotes (`mfe-remote://`) are ski
 | **Update** | Refresh items that already have metadata from their stored source (Plex vs internet). Missing items are extracted from Plex. Internet items reuse the stored id (no second title ask). |
 | **Clear** | Remove this app’s metadata + cover streams. Folders walk every video inside. |
 | **Consolidate subtitles** | Copy the first English subtitle next to each video, then Recycle the `Subs` / `Subtitles` tree. Confirms first. |
-| **Change cover…** | Single item only. Pick a poster (does **not** change Plex’s own selected poster). |
+| **Change cover…** | Single item only. Pick a poster from Plex / TMDB, **browse for your own image**, or keep the current cover. Does **not** change Plex’s own selected poster. |
 | **Mark as Watched** | Toggles to **Mark as Unwatched** when the selection is already watched. Needs stored metadata. |
 
 Status-bar progress shows while a batch runs; **Cancel** stops between items.

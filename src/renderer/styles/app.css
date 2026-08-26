@@ -1162,6 +1162,13 @@ textarea:focus {
   flex: 0 0 auto;
   opacity: 0.85;
 }
+.toolbar-git-root-btn {
+  padding: 2px 5px;
+  min-width: 0;
+}
+.toolbar-git-root-btn:hover .toolbar-git-icon {
+  opacity: 1;
+}
 .toolbar-git-summary {
   display: inline-flex;
   align-items: baseline;
@@ -3258,6 +3265,16 @@ button.media-metadata-hero-poster.is-clickable:hover {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+.cover-picker-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.cover-picker-toolbar-hint {
+  font-size: 0.82em;
 }
 .cover-picker-grid {
   display: grid;
