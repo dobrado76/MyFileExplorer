@@ -23,6 +23,9 @@ export function emitFsChanged(dirPath: string, opts?: { bypassMute?: boolean }):
   try {
     const dir = requireAbsolute(dirPath)
     broadcast({ type: 'fs-changed', payload: { path: dir, reason: 'change' } })
+    void import('../git/cache')
+      .then((m) => m.notifyPathChanged(dir))
+      .catch(() => undefined)
   } catch {
     /* ignore */
   }

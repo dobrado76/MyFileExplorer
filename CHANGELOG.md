@@ -9,6 +9,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-08-26
+
+Twelfth product release: optional **Git-aware browsing** (**D64**), toolbar **Quick Launch** (**D63**), global scripts as toolbar buttons, Recycle Bin placement, Explorer clipboard parity, and search/slideshow/preview polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+### Added
+
+- **Git-aware browsing** (D64, **off by default**) — Settings → **Git** → Enable. Discovers repos via the system `git` CLI, shows status overlays / folder indicators / optional Details **Git status** column, and an active-pane toolbar (branch · changes · ahead/behind, Commit / Pull / Push / branch / stash). Context **Git >** for stage, unstage, discard (confirm), external diff (HEAD ↔ working tree), copy repo-relative path, open root / terminal, refresh. Never stores credentials. Guide: [docs/GIT.md](docs/GIT.md).
+- **Recycle Bin placement** — Settings → Appearance **Recycle Bin**: Don’t show / Show in Tree / Show in Toolbar / Show in both Tree and Bar (default both). Tree row keeps the label; the tab-bar control is icon-only. Right-click the **Drives** header still offers Open / Empty Recycle Bin.
+- **Global scripts** — Script Manager **Global** (next to Min selection) marks a script that runs with no folder or selection. Folder / Selection / Recursive / Context menu / Destructive / Dry-run turn off and stay disabled; External file can stay. Each global script is a toolbar button (hidden when none exist). Generate / Modify with AI Target **Global** so the draft does not require `--root` or `--input-list`.
+- **Quick Launch** — toolbar pins for the programs you use every day (Photoshop, Visual Studio, …). Settings → Quick Launch adds and edits name, path, arguments, icon / label / both, program / Lucide / custom icon, and order. Click to launch; right-click for Open file location / Remove. Drop an .exe or shortcut onto the strip when it is visible.
+
 ### Changed
 
 - **Quick Launch** — program icons fill the toolbar control. Add / edit / remove is Settings only (no toolbar +). The strip is hidden until at least one program is pinned. Each pin can show **icon**, **label**, or **both**. The glyph is the program icon, a Lucide icon + color, or a custom image (same choices as tab / item icons).
@@ -30,15 +41,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Recycle Bin view** — view filters (e.g. `$RECYCLE.BIN$`) and Hidden-attribute hiding no longer apply when the in-app Recycle Bin is open; the list is always the full bin contents.
 - **Session temp folders** — `userData` directories named `*-scratch`, `*-preview`, or `*-remux` (`media-scratch`, `remote-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`, …) are emptied when the app starts, when it quits, and when Settings clears caches. `media-scratch` is still capped at 20 files mid-session (oldest deleted first).
 
-### Added
-
-- **Recycle Bin placement** — Settings → Appearance **Recycle Bin**: Don’t show / Show in Tree / Show in Toolbar / Show in both Tree and Bar (default both). Tree row keeps the label; the tab-bar control is icon-only. Right-click the **Drives** header still offers Open / Empty Recycle Bin.
-- **Global scripts** — Script Manager **Global** (next to Min selection) marks a script that runs with no folder or selection. Folder / Selection / Recursive / Context menu / Destructive / Dry-run turn off and stay disabled; External file can stay. Each global script is a toolbar button (hidden when none exist). Generate / Modify with AI Target **Global** so the draft does not require `--root` or `--input-list`.
-- **Quick Launch** — toolbar pins for the programs you use every day (Photoshop, Visual Studio, …). Settings → Quick Launch adds and edits name, path, arguments, icon / label / both, program / Lucide / custom icon, and order. Click to launch; right-click for Open file location / Remove. Drop an .exe or shortcut onto the strip when it is visible.
-
 ## [0.11.0] - 2026-08-24
 
-Eleventh product release: daily-workflow closeout **D53–D62** (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons) plus tab-icon and copy-timestamp polish accumulated after 0.10. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+Eleventh product release: daily-workflow closeout **D53–D62** (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons) plus tab-icon and copy-timestamp polish accumulated after 0.10.
 
 ### Added
 

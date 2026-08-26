@@ -19,6 +19,13 @@
   --folder-fill: #e8b64c;
   --file-fill: #8b94a6;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --git-status-modified: #eab308;
+  --git-status-added: #22c55e;
+  --git-status-deleted: #ef4444;
+  --git-status-renamed: #38bdf8;
+  --git-status-untracked: #a78bfa;
+  --git-status-ignored: #6b7280;
+  --git-status-conflicted: #f97316;
   /* Preview syntax — VS Code / Cursor Dark+ */
   --code-fg: #d4d4d4;
   --code-comment: #6a9955;
@@ -44,6 +51,13 @@
   --folder-fill: #e8b64c;
   --file-fill: #7a8294;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  --git-status-modified: #ca8a04;
+  --git-status-added: #16a34a;
+  --git-status-deleted: #dc2626;
+  --git-status-renamed: #0284c7;
+  --git-status-untracked: #7c3aed;
+  --git-status-ignored: #9ca3af;
+  --git-status-conflicted: #ea580c;
   /* Preview syntax — VS Code / Cursor Light+ */
   --code-fg: #000000;
   --code-comment: #008000;

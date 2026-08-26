@@ -251,6 +251,31 @@ const api: MyFileExplorerApi = {
     modify: invoke(IPC.aiModify),
     fix: invoke(IPC.aiFix)
   },
+  git: {
+    detect: invokeVoid(IPC.gitDetect),
+    test: invoke(IPC.gitTest),
+    discover: invoke(IPC.gitDiscover),
+    getStatus: invoke(IPC.gitGetStatus),
+    refresh: invoke(IPC.gitRefresh),
+    invalidate: invoke(IPC.gitInvalidate),
+    stage: invoke(IPC.gitStage),
+    unstage: invoke(IPC.gitUnstage),
+    discard: invoke(IPC.gitDiscard),
+    commit: invoke(IPC.gitCommit),
+    fetch: invoke(IPC.gitFetch),
+    pull: invoke(IPC.gitPull),
+    push: invoke(IPC.gitPush),
+    listBranches: invoke(IPC.gitListBranches),
+    switchBranch: invoke(IPC.gitSwitchBranch),
+    createBranch: invoke(IPC.gitCreateBranch),
+    stash: invoke(IPC.gitStash),
+    stashPop: invoke(IPC.gitStashPop),
+    showDiff: invoke(IPC.gitShowDiff),
+    openTerminal: invoke(IPC.gitOpenTerminal),
+    relativePaths: invoke(IPC.gitRelativePaths),
+    pickExecutable: invokeVoid(IPC.gitPickExecutable),
+    pickDiffTool: invokeVoid(IPC.gitPickDiffTool)
+  },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)
     ipcRenderer.on(EVENT_CHANNEL, listener)

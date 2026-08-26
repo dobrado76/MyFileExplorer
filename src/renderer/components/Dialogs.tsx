@@ -3431,6 +3431,249 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
           )}
 
           {section === 'mediametadata' && <MediaMetadataSettingsPanel />}
+          {section === 'git' && (
+            <div className="settings-stack">
+              <p className="settings-help">
+                Optional Git-aware browsing. Off by default. Uses the system Git CLI — never stores
+                credentials. Details: <code>docs/GIT.md</code>.
+              </p>
+              <SettingsToggle
+                id="set-git-enabled"
+                label="Enable Git integration"
+                hint="Discover repos while browsing and show status overlays / toolbar"
+                checked={settings.git.enabled}
+                onChange={(v) => void applySettingsPatch({ git: { enabled: v } })}
+              />
+              <label
+                className="settings-field"
+                htmlFor="set-git-exe"
+                title="Optional path to git.exe. Empty = PATH / common Git for Windows locations."
+              >
+                <span>Git executable</span>
+                <div className="settings-inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    id="set-git-exe"
+                    type="text"
+                    placeholder="(auto-detect)"
+                    value={settings.git.executablePath}
+                    disabled={!settings.git.enabled}
+                    onChange={(e) =>
+                      void applySettingsPatch({ git: { executablePath: e.target.value } })
+                    }
+                    style={{ flex: 1, minWidth: 180 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!settings.git.enabled}
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          const res = await call(api.git.pickExecutable())
+                          if (res.path) {
+                            void applySettingsPatch({ git: { executablePath: res.path } })
+                          }
+                        } catch (e) {
+                          notify(e instanceof Error ? e.message : String(e), true)
+                        }
+                      })()
+                    }}
+                  >
+                    Browse…
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!settings.git.enabled}
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          const res = await call(
+                            api.git.test({
+                              executablePath: settings.git.executablePath || undefined
+                            })
+                          )
+                          if (res.found && res.version) {
+                            notify(`Git ${res.version}${res.path ? ` — ${res.path}` : ''}`)
+                          } else {
+                            notify(res.message || 'Git not found', true)
+                          }
+                        } catch (e) {
+                          notify(e instanceof Error ? e.message : String(e), true)
+                        }
+                      })()
+                    }}
+                  >
+                    Test Git
+                  </button>
+                </div>
+              </label>
+              <fieldset
+                className="settings-stack"
+                style={{ border: 'none', margin: 0, padding: 0 }}
+                disabled={!settings.git.enabled}
+              >
+              <SettingsToggle
+                id="set-git-overlays"
+                label="Status overlays"
+                hint="Colored markers on changed files in the file view"
+                checked={settings.git.showOverlays}
+                onChange={(v) => void applySettingsPatch({ git: { showOverlays: v } })}
+              />
+              <SettingsToggle
+                id="set-git-folder-ind"
+                label="Folder indicators"
+                hint="Dot on folders that contain Git changes"
+                checked={settings.git.showFolderIndicators}
+                onChange={(v) => void applySettingsPatch({ git: { showFolderIndicators: v } })}
+              />
+              <SettingsToggle
+                id="set-git-toolbar"
+                label="Toolbar"
+                hint="Branch / changes / Commit · Pull · Push when browsing inside a repo"
+                checked={settings.git.showToolbar}
+                onChange={(v) => void applySettingsPatch({ git: { showToolbar: v } })}
+              />
+              <SettingsToggle
+                id="set-git-changed-count"
+                label="Changed count in toolbar"
+                checked={settings.git.showChangedCount}
+                onChange={(v) => void applySettingsPatch({ git: { showChangedCount: v } })}
+              />
+              <SettingsToggle
+                id="set-git-ignored"
+                label="Show ignored files"
+                hint="Include ignored paths in status (overlays / column)"
+                checked={settings.git.showIgnored}
+                onChange={(v) => void applySettingsPatch({ git: { showIgnored: v } })}
+              />
+              <SettingsToggle
+                id="set-git-status-col"
+                label="Git status column"
+                hint="Details view column (when visible in column layout)"
+                checked={settings.git.showStatusColumn}
+                onChange={(v) => void applySettingsPatch({ git: { showStatusColumn: v } })}
+              />
+              <SettingsToggle
+                id="set-git-ahead-behind"
+                label="Ahead / behind in toolbar"
+                checked={settings.git.showAheadBehind}
+                onChange={(v) => void applySettingsPatch({ git: { showAheadBehind: v } })}
+              />
+              <label
+                className="settings-labeled-row"
+                htmlFor="set-git-debounce"
+                title="Debounce for watcher-driven status refresh (ms)"
+              >
+                <span>Refresh debounce (ms)</span>
+                <SettingsClampedNumber
+                  id="set-git-debounce"
+                  value={settings.git.refreshDebounceMs}
+                  min={100}
+                  max={5000}
+                  title="100–5000 ms"
+                  onCommit={(n) => void applySettingsPatch({ git: { refreshDebounceMs: n } })}
+                />
+              </label>
+              <label
+                className="settings-field"
+                htmlFor="set-git-diff-exe"
+                title="External diff tool. Placeholders: {left} {right} {relativePath} {repoRoot}"
+              >
+                <span>Diff tool executable</span>
+                <div className="settings-inline" style={{ gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    id="set-git-diff-exe"
+                    type="text"
+                    placeholder="(not set)"
+                    value={settings.git.diffTool.executable}
+                    onChange={(e) =>
+                      void applySettingsPatch({
+                        git: {
+                          diffTool: {
+                            ...settings.git.diffTool,
+                            executable: e.target.value
+                          }
+                        }
+                      })
+                    }
+                    style={{ flex: 1, minWidth: 180 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          const res = await call(api.git.pickDiffTool())
+                          if (res.path) {
+                            void applySettingsPatch({
+                              git: {
+                                diffTool: {
+                                  ...settings.git.diffTool,
+                                  executable: res.path
+                                }
+                              }
+                            })
+                          }
+                        } catch (e) {
+                          notify(e instanceof Error ? e.message : String(e), true)
+                        }
+                      })()
+                    }}
+                  >
+                    Browse…
+                  </button>
+                </div>
+              </label>
+              <label className="settings-field" htmlFor="set-git-diff-args">
+                <span>Diff tool args</span>
+                <input
+                  id="set-git-diff-args"
+                  type="text"
+                  value={settings.git.diffTool.argsTemplate}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      git: {
+                        diffTool: {
+                          ...settings.git.diffTool,
+                          argsTemplate: e.target.value
+                        }
+                      }
+                    })
+                  }
+                />
+                <span className="settings-toggle-hint">
+                  Placeholders: {'{left}'} {'{right}'} {'{relativePath}'} {'{repoRoot}'}
+                </span>
+              </label>
+              <SettingsToggle
+                id="set-git-suspend-large"
+                label="Warn on large dirty trees"
+                hint="When many changed paths are reported, still show status but treat as a heavy repo"
+                checked={settings.git.suspendLargeRepos}
+                onChange={(v) => void applySettingsPatch({ git: { suspendLargeRepos: v } })}
+              />
+              <label
+                className="settings-labeled-row"
+                htmlFor="set-git-large-threshold"
+                title="Changed-path count treated as a large dirty tree"
+              >
+                <span>Large-repo threshold</span>
+                <SettingsClampedNumber
+                  id="set-git-large-threshold"
+                  value={settings.git.largeRepoFileThreshold}
+                  min={10_000}
+                  max={5_000_000}
+                  title="10 000–5 000 000"
+                  onCommit={(n) =>
+                    void applySettingsPatch({ git: { largeRepoFileThreshold: n } })
+                  }
+                />
+              </label>
+              </fieldset>
+            </div>
+          )}
           {section === 'ai' && <AiSettingsPanel />}
 
           {section === 'behavior' && (

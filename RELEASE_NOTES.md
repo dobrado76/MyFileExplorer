@@ -1,70 +1,48 @@
-# MyFileExplorer v0.11.0 — release notes
+# MyFileExplorer v0.12.0 — release notes
 
-**Date:** 2026-08-24  
-**Tag:** `v0.11.0` (package **0.11.0**)  
-**Previous product baseline:** [v0.10.0](CHANGELOG.md#0100---2026-08-21)
+**Date:** 2026-08-26  
+**Tag:** `v0.12.0` (package **0.12.0**)  
+**Previous product baseline:** [v0.11.0](CHANGELOG.md#0110---2026-08-24)
 
-Eleventh product release (**v0.11**): the daily-workflow wave (**D53–D62**). Reopen a tab you closed, paste a screenshot as a file, drop a template into the folder, group Quick access, create a link, save a view preset, and pin a note or icon on the item itself — without writing sidecars into the folder you browse.
+Twelfth product release (**v0.12**): optional **Git-aware browsing** (**D64**), toolbar **Quick Launch** (**D63**), global scripts as their own toolbar buttons, Recycle Bin placement, clipboard parity with Explorer, and a dogfood polish pass on search, slideshow, and preview.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Notes / icons streams: [docs/ADS.md](docs/ADS.md). Search operators: [docs/SEARCH.md](docs/SEARCH.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Git guide: [docs/GIT.md](docs/GIT.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Reopen closed tabs (D55)
+### Git-aware browsing (D64)
 
-`Ctrl+Shift+T`, tab-bar **Reopen closed tab**, or **Recently closed**. Last 25 tabs persist across relaunch (path, view, icon, search query). **Clear recently closed** empties the stack. Search *results* are not restored — re-run the query.
+**Off by default** — Settings → **Git** → Enable. Uses your installed `git` CLI (never stores credentials). While browsing a repo you get status overlays, folder indicators, an optional Details **Git status** column, and an active-pane toolbar (branch · changes · ahead/behind, Commit / Pull / Push / branch / stash). Context **Git >** covers stage, unstage, discard (with confirm), external diff (HEAD ↔ working tree), copy repo-relative path, open root / terminal, and refresh.
 
-### Smart clipboard paste (D56)
+### Quick Launch (D63)
 
-When the clipboard is an image, text, a single URL, or HTML (not files), Paste creates a file in the current folder. **Paste Special** picks format or name. Settings → Behavior can turn this off. A URL becomes a `.url` shortcut — the page is never downloaded.
+Toolbar pins for the programs you use every day. Settings → **Quick Launch** adds name, path, arguments, **icon** / **label** / **both**, and Lucide / custom / program glyph. The strip stays hidden until at least one pin exists. Click to launch; drop an `.exe` or shortcut onto the strip to add.
 
-### New-file templates (D57)
+### Global scripts + Recycle Bin placement
 
-New / Add → **From Template** copies a file from the app Templates folder. **Manage Templates…** sets a pretty name (menu label and default filename), reorders with ↑↓, replaces the input file, duplicates, and deletes. Cap 40. Stored under app data, not in the folder you browse.
+- Script Manager **Global** — each global script is its own toolbar button (same face options as Quick Launch).
+- Settings → Appearance **Recycle Bin**: Don’t show / Tree / Toolbar / both (default both).
 
-### Grouped Quick access (D58)
+### Also in this release
 
-Name groups in Settings, color them, collapse them in the tree. Drop a folder onto a group to pin it there. Flat pin lists from earlier versions still load.
-
-### Create link (D59)
-
-File Tools → **Create link…** — symbolic link, hard link (same volume), or junction. Directory symlinks may need Developer Mode.
-
-### View presets (D60)
-
-The pane view-presets control saves and reapplies view mode, sort, and Details columns. Path and selection do not jump. If the folder already has a customization, Apply updates that override instead of creating a new one.
-
-### Attached notes (D61)
-
-Right-click **Note…** — text, optional status, small checklist — on the file or folder (NTFS stream `mfe_note`). Preview shows it. Details can add **Note** / **Status** / **Has note** / **Checklist** (items separated by `; `, checked items struck through). Power Search: **Note**, **Note status**, **Has a note**, **Open checklist items** (`note:` / `notestatus:` / `hasnote:` / `todo:`). Search only *reads* the stream. Writes restore host Created / Access / Write / Change.
-
-### Item icons (D62)
-
-Right-click **Set icon…** — Lucide glyph, custom image, or tint the Windows icon. One source at a time (not stacked). Distinct from File Tools **Change Icon…** (`desktop.ini` / `Folder.ico`). Same timestamp rule as notes.
-
-### Also since 0.10
-
-- **Custom tab icons** (D54) — cover-crop a PNG/JPG/ICO; icon-only tabs hug the image.
-- **Copy timestamps** (D53) — copy / cross-volume move keeps source Created and Modified.
-- **Search Show hidden** (off by default); `attrib:h` still finds Hidden items.
-- **Stream-value Details columns** — tick streams found in the current folder.
-- **3-pane layout** and a **per-pane** folder-tree toggle.
-- Empty Recycle Bin uses the Windows API; USN Recent can elevate; NSIS pack is reliable again.
+- **Copy/Cut ↔ Explorer** — native Win32 `CF_HDROP` so paste works both ways (including Cut → move).
+- Search **Show hidden** vs view filter clarified; slideshow respects the toolbar eye; leading `!Name` search is literal.
+- Slideshow **Alt** toggles full path in the title bar; large folders no longer slow play speed.
+- New tab **+** sits after the last tab; Enter on images opens the folder gallery.
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.11.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.12.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
 3. Before a PC swap: **Settings → About → Export…** (includes the script library and templates catalog; AI keys stay on the machine).
 
 ## Upgrade notes
 
-- Fully quit and relaunch (notes, icons, templates, and search operators are main-process IPC — HMR is not enough).
-- Existing Quick access pins stay ungrouped until you create groups.
-- Notes and item icons need **local NTFS**. Hidden on remotes and in Recycle Bin. No extra files appear in the browsed folder.
-- Scripts and Media Metadata stay **off** until you enable them (same as 0.9 / 0.10).
+- Fully quit and relaunch (Git IPC and toolbar chrome need a cold start after upgrade).
+- **Git**, Scripts, and Media Metadata stay **off** until you enable them. For Git: install Git for Windows or set `git.exe` under Settings → Git.
+- Notes and item icons still need **local NTFS**.
 - Re-enter remote passwords after settings import if you use remotes.

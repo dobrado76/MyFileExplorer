@@ -71,6 +71,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 **Run anything on the folder in front of you**
 - **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder, selection, or **global** (its own toolbar button when one exists, no folder needed). Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
 - Optional **AI** (same settings page) writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](docs/SCRIPTS.md)**
+- **Git-aware browsing** (D64, **off by default**) — Settings → Git → Enable for status overlays, toolbar Commit/Pull/Push, and context Git actions. Uses your installed `git`; never stores credentials. Guide: **[docs/GIT.md](docs/GIT.md)**
 
 **Find things on purpose**
 - **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, content scan, filters/bookmarks
@@ -155,7 +156,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)** | Opt-in movie/TV metadata (D50) |
 | **[docs/SCRIPTS.md](docs/SCRIPTS.md)** | Universal script runner — use cases and copy-paste examples (D51) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.11.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.12.0 product-release summary |
 
 ---
 

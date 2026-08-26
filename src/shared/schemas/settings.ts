@@ -50,6 +50,7 @@ import {
   aiProviderProfileSchema,
   scriptsSettingsSchema
 } from './ai'
+import { defaultGitSettings, gitSettingsSchema, gitToolConfigSchema } from './git'
 import {
   MAX_CONTEXT_MENU_COMMANDS,
   type ContextMenuCommand
@@ -517,6 +518,11 @@ const settingsFieldsSchema = z.object({
       providers: Array.isArray(o.providers) ? o.providers : defaultAiSettings.providers
     }
   }, aiSettingsSchema),
+  /** Optional Git-aware browsing / lightweight client (D64). Off by default. */
+  git: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultGitSettings
+    return { ...defaultGitSettings, ...(raw as object) }
+  }, gitSettingsSchema),
   /** Last USN Manager createjournal sizes (D52). */
   usnJournalMaxBytes: z
     .number()
@@ -732,6 +738,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   scriptRunnerBounds: null,
   scripts: defaultScriptsSettings,
   ai: defaultAiSettings,
+  git: defaultGitSettings,
   contextMenu: defaultContextMenuSettings
 })
 
@@ -744,6 +751,13 @@ export const settingsPatchSchema = settingsFieldsSchema
     remoteRepos: remoteReposSettingsSchema.partial().optional(),
     mediaMetadata: mediaMetadataSettingsSchema.partial().optional(),
     scripts: scriptsSettingsSchema.partial().optional(),
+    git: gitSettingsSchema
+      .partial()
+      .extend({
+        diffTool: gitToolConfigSchema.partial().optional(),
+        externalClient: gitToolConfigSchema.partial().optional()
+      })
+      .optional(),
     ai: aiSettingsSchema
       .omit({ providers: true })
       .partial()

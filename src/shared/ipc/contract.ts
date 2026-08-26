@@ -244,7 +244,31 @@ export const IPC = {
   aiListModels: 'ai:listModels',
   aiGenerate: 'ai:generate',
   aiModify: 'ai:modify',
-  aiFix: 'ai:fix'
+  aiFix: 'ai:fix',
+
+  gitDetect: 'git:detect',
+  gitTest: 'git:test',
+  gitDiscover: 'git:discover',
+  gitGetStatus: 'git:getStatus',
+  gitRefresh: 'git:refresh',
+  gitInvalidate: 'git:invalidate',
+  gitStage: 'git:stage',
+  gitUnstage: 'git:unstage',
+  gitDiscard: 'git:discard',
+  gitCommit: 'git:commit',
+  gitFetch: 'git:fetch',
+  gitPull: 'git:pull',
+  gitPush: 'git:push',
+  gitListBranches: 'git:listBranches',
+  gitSwitchBranch: 'git:switchBranch',
+  gitCreateBranch: 'git:createBranch',
+  gitStash: 'git:stash',
+  gitStashPop: 'git:stashPop',
+  gitShowDiff: 'git:showDiff',
+  gitOpenTerminal: 'git:openTerminal',
+  gitRelativePaths: 'git:relativePaths',
+  gitPickExecutable: 'git:pickExecutable',
+  gitPickDiffTool: 'git:pickDiffTool'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -406,4 +430,8 @@ export type MfeEvent =
   | {
       type: 'dev-gate'
       payload: { present: boolean; enable: boolean; active: boolean }
+    }
+  | {
+      type: 'git-status'
+      payload: { status: import('../schemas/git').GitRepositoryStatus }
     }

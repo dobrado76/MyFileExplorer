@@ -38,6 +38,12 @@ import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
 import {
+  entryGitOverlay,
+  gitStatusLabel,
+  lookupGitForPath,
+  type GitPathLookup
+} from '../lib/gitUi'
+import {
   beginRightDragGesture,
   getLiveRightDragSession,
   shouldSuppressContextMenu
@@ -376,15 +382,87 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
    * normal browsing; inject Folder only while search is active.
    */
   const showFolderStatistics = settings.showFolderStatistics !== false
+  const gitEnabled = settings.git?.enabled === true
+  const gitShowOverlays = gitEnabled && settings.git.showOverlays
+  const gitShowFolderIndicators = settings.git?.showFolderIndicators !== false
+  const gitShowIgnored = settings.git?.showIgnored === true
+  const gitShowStatusColumn = gitEnabled && settings.git.showStatusColumn
+  const gitByRoot = useAppStore((s) => s.gitByRoot)
   const detailsColumns = useMemo(() => {
     const base = detailsColumnsBase.filter((c) => {
       if (c.id === 'folder') return false
       if (!showFolderStatistics && isFolderStatsColumnId(c.id)) return false
+      if (c.id === 'gitStatus' && !gitShowStatusColumn) return false
       return true
     })
     if (!searchMode) return base
     return [{ id: 'folder' as const, width: searchFolderWidth }, ...base]
-  }, [searchMode, detailsColumnsBase, searchFolderWidth, showFolderStatistics])
+  }, [
+    searchMode,
+    detailsColumnsBase,
+    searchFolderWidth,
+    showFolderStatistics,
+    gitShowStatusColumn
+  ])
+
+  const gitLookupForEntry = useCallback(
+    (entryPath: string): GitPathLookup | null => {
+      if (!gitEnabled) return null
+      return lookupGitForPath(gitByRoot, entryPath)
+    },
+    [gitEnabled, gitByRoot]
+  )
+
+  const gitBadge = useCallback(
+    (entry: DirEntry): JSX.Element | null => {
+      if (!gitShowOverlays) return null
+      const lookup = gitLookupForEntry(entry.path)
+      const overlay = entryGitOverlay(lookup, {
+        isDir: entry.kind === 'dir',
+        showOverlays: true,
+        showFolderIndicators: gitShowFolderIndicators,
+        showIgnored: gitShowIgnored
+      })
+      if (!overlay) return null
+      return (
+        <span
+          className={`git-status-badge ${overlay.className}`}
+          title={overlay.label}
+          aria-hidden
+        >
+          {overlay.letter}
+        </span>
+      )
+    },
+    [gitShowOverlays, gitLookupForEntry, gitShowFolderIndicators, gitShowIgnored]
+  )
+
+  const gitAriaSuffix = useCallback(
+    (entry: DirEntry): string => {
+      if (!gitShowOverlays) return ''
+      const lookup = gitLookupForEntry(entry.path)
+      const overlay = entryGitOverlay(lookup, {
+        isDir: entry.kind === 'dir',
+        showOverlays: true,
+        showFolderIndicators: gitShowFolderIndicators,
+        showIgnored: gitShowIgnored
+      })
+      return overlay ? `, ${overlay.label}` : ''
+    },
+    [gitShowOverlays, gitLookupForEntry, gitShowFolderIndicators, gitShowIgnored]
+  )
+
+  const gitStatusCellText = useCallback(
+    (entry: DirEntry): string => {
+      if (!gitShowStatusColumn) return ''
+      const lookup = gitLookupForEntry(entry.path)
+      if (!lookup?.pathRow) return ''
+      const label = gitStatusLabel(lookup.pathRow)
+      if (!gitShowIgnored && label.toLowerCase() === 'ignored') return ''
+      return label === 'Clean' ? '' : label
+    },
+    [gitShowStatusColumn, gitLookupForEntry, gitShowIgnored]
+  )
   const detailsNameWidth = owningView?.detailsNameWidth ?? settings.detailsNameWidth
   const effectiveSort = useMemo(
     () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
@@ -2086,6 +2164,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       width: spec.cellW - 8,
                       height: spec.cellH - 8
                     }}
+                    aria-label={`${entry.name}${gitAriaSuffix(entry)}`}
                     {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
                     draggable={false}
                     onPointerDown={(e) => onItemPointerDown(entry, e)}
@@ -2142,6 +2221,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           }
                         />
                       )}
+                      {gitBadge(entry)}
                     </div>
                     {renameSource === 'files' &&
                     renamingPath !== null &&
@@ -2186,6 +2266,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 key={entry.path}
                 className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}`}
                 style={{ top: vRow.start, height: rowHeight }}
+                aria-label={`${entry.name}${gitAriaSuffix(entry)}`}
                 {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
                 draggable={false}
                 onPointerDown={(e) => onItemPointerDown(entry, e)}
@@ -2215,17 +2296,20 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   }
                 >
                   {itemCheck(entry, isSel)}
-                  <ItemGlyph
-                    path={entry.path}
-                    size={16}
-                    isDir={entry.kind === 'dir'}
-                    overlay={lookupItemAds(entry.path, itemAdsByPath)}
-                    renaming={
-                      renameSource === 'files' &&
-                      renamingPath !== null &&
-                      samePath(renamingPath, entry.path)
-                    }
-                  />
+                  <span className="row-glyph-wrap">
+                    <ItemGlyph
+                      path={entry.path}
+                      size={16}
+                      isDir={entry.kind === 'dir'}
+                      overlay={lookupItemAds(entry.path, itemAdsByPath)}
+                      renaming={
+                        renameSource === 'files' &&
+                        renamingPath !== null &&
+                        samePath(renamingPath, entry.path)
+                      }
+                    />
+                    {gitBadge(entry)}
+                  </span>
                   {renameSource === 'files' &&
                   renamingPath !== null &&
                   samePath(renamingPath, entry.path)
@@ -2260,12 +2344,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 {viewMode === 'details' &&
                   !recycleMode &&
                   detailsColumns.map((c) => {
-                    const text = detailCellValue(
-                      c.id,
-                      entry,
-                      metaByPath[entry.path],
-                      showFolderStatistics
-                    )
+                    const text =
+                      c.id === 'gitStatus'
+                        ? gitStatusCellText(entry)
+                        : detailCellValue(
+                            c.id,
+                            entry,
+                            metaByPath[entry.path],
+                            showFolderStatistics
+                          )
                     const raw = metaByPath[entry.path]?.[c.id] ?? ''
                     return (
                       <span

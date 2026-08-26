@@ -33,6 +33,7 @@ import { RemoteReposToolbar } from './RemoteReposToolbar'
 import { MediaLibraryToolbar } from './MediaLibraryToolbar'
 import { GlobalScriptsMenu } from './GlobalScriptsMenu'
 import { QuickLaunchToolbar } from './QuickLaunchToolbar'
+import { GitToolbar } from './GitToolbar'
 import { isVolumeRootPath } from '../lib/rightDrag'
 
 export function Toolbar(): JSX.Element {
@@ -255,6 +256,7 @@ export function Toolbar(): JSX.Element {
 
       <QuickLaunchToolbar />
 
+      <GitToolbar />
       <RemoteReposToolbar />
       <MediaLibraryToolbar />
 

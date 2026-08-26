@@ -44,6 +44,7 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'network-refresh',
   'item-note',
   'item-icon',
+  'git',
   'alternate-streams',
   'calculate-folder-statistics',
   'properties'
@@ -128,6 +129,11 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   { id: 'network-refresh', label: 'Refresh Network', hint: 'Re-run LAN discovery' },
   { id: 'item-note', label: 'Note…', hint: 'NTFS note on the file or folder' },
   { id: 'item-icon', label: 'Set icon…', hint: 'Lucide, custom image, or tint the Windows icon' },
+  {
+    id: 'git',
+    label: 'Git',
+    hint: 'Stage / unstage / discard and repo helpers when Settings → Git is enabled'
+  },
   { id: 'alternate-streams', label: 'Alternate streams…' },
   {
     id: 'calculate-folder-statistics',
@@ -246,6 +252,7 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'sep', id: 'sep-default-9' },
   { type: 'item', id: 'item-note' },
   { type: 'item', id: 'item-icon' },
+  { type: 'item', id: 'git' },
   { type: 'item', id: 'alternate-streams' },
   { type: 'item', id: 'calculate-folder-statistics' },
   { type: 'item', id: 'properties' }

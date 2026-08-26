@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.11.0
+**App:** MyFileExplorer · **Version:** 0.12.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -16,8 +16,9 @@ Features are deliberately patterned after tools people already trust — then fo
 | **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
 | **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
 | **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / **Python 3** (not 2.x) / cmd / bash on the folder or selection you are looking at. Saved scripts become context-menu verbs with live output, dry-run, and Stop. Optional AI drafts source and **never reads your files**. Explorer only opens a prompt. Guide: [SCRIPTS.md](SCRIPTS.md). |
+| **Git CLI + a file manager** | **Git-aware browsing** (D64, opt-in): overlays, toolbar Commit/Pull/Push, context Stage/Discard — without becoming a full Git GUI. Guide: [GIT.md](GIT.md). |
 
-Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md).
+Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md). Git: [GIT.md](GIT.md).
 
 ---
 
@@ -40,6 +41,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. |
 | **Grouped Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings. Name groups, color them, collapse them in the tree, drop a folder onto a group. Explorer’s Quick access is a flat, harder-to-curate strip. |
 | **Quick Launch toolbar** | Pin Photoshop, Visual Studio, a browser — anything with an `.exe` or shortcut. Each pin can be icon, name, or both; the glyph is the program icon, a Lucide + color, or a custom image. Manage the list in Settings (the strip is hidden until you add one). Click to launch, right-click for location / remove. Explorer’s old Quick Launch is gone; this one exports with your prefs. |
+| **Git-aware browsing (opt-in)** | Settings → Git → Enable: status overlays while you browse, folder indicators, Commit / Pull / Push on the active pane, context **Git >**. Uses your system `git` — no tokens stored. Not Tortoise-style shell overlays dumped into every menu. Guide: [GIT.md](GIT.md). |
 
 ---
 
@@ -118,7 +120,7 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share / Git overlays. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). **Open Command Line here** opens cmd or PowerShell (Settings → Behavior); click = current user; **Shift+click** = Administrator. |
+| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share dump. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). Opt-in **Git >** (D64) is a controlled submenu, not Tortoise overlays. **Open Command Line here** opens cmd or PowerShell (Settings → Behavior); click = current user; **Shift+click** = Administrator. |
 | **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Create link…** (symlink / hard link / junction); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
 | **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
@@ -149,8 +151,9 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D63)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D64)  
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
+- [GIT.md](GIT.md) — optional Git-aware browsing (D64)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
 - [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  

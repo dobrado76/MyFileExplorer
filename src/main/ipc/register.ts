@@ -219,6 +219,7 @@ import {
 } from '@shared/schemas/remoteIpc'
 import { registerScriptIpc } from '../scripts/ipc'
 import { registerAiIpc } from '../ai/ipc'
+import { registerGitIpc } from '../git/ipc'
 import { listScriptsForExport, replaceScriptsFromExport } from '../scripts/library'
 
 function assertRemoteReposEnabled(): void {
@@ -1211,4 +1212,5 @@ export function registerIpcHandlers(): void {
 
   registerScriptIpc(handle)
   registerAiIpc(handle)
+  registerGitIpc(handle)
 }

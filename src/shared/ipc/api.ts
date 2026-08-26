@@ -789,5 +789,71 @@ export type MyFileExplorerApi = {
       model?: string
     }): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>
   }
+  git: {
+    detect(): Promise<Result<import('../schemas/git').GitExecutableInfo>>
+    test(req?: { executablePath?: string }): Promise<Result<import('../schemas/git').GitExecutableInfo>>
+    discover(req: { path: string }): Promise<
+      Result<{ inRepo: boolean; rootPath?: string; gitDir?: string }>
+    >
+    getStatus(req: { path: string }): Promise<
+      Result<{
+        inRepo: boolean
+        status: import('../schemas/git').GitRepositoryStatus | null
+      }>
+    >
+    refresh(req: {
+      repoRoot: string
+    }): Promise<Result<{ status: import('../schemas/git').GitRepositoryStatus }>>
+    invalidate(req: { repoRoot: string }): Promise<Result<{ ok: true }>>
+    stage(req: {
+      repoRoot: string
+      paths: string[]
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    unstage(req: {
+      repoRoot: string
+      paths: string[]
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    discard(req: {
+      repoRoot: string
+      paths: string[]
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    commit(req: {
+      repoRoot: string
+      message: string
+      pushAfter?: boolean
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    fetch(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    pull(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    push(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    listBranches(req: {
+      repoRoot: string
+    }): Promise<Result<{ branches: import('../schemas/git').GitBranchInfo[] }>>
+    switchBranch(req: {
+      repoRoot: string
+      branch: string
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    createBranch(req: {
+      repoRoot: string
+      branch: string
+      switchTo?: boolean
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    stash(req: {
+      repoRoot: string
+      message?: string
+      includeUntracked?: boolean
+    }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    stashPop(req: { repoRoot: string }): Promise<Result<import('../schemas/git').GitCommandResult>>
+    showDiff(req: {
+      repoRoot: string
+      path: string
+    }): Promise<Result<{ launched: boolean; message?: string }>>
+    openTerminal(req: { repoRoot: string }): Promise<Result<{ opened: true }>>
+    relativePaths(req: {
+      repoRoot: string
+      paths: string[]
+    }): Promise<Result<{ paths: string[] }>>
+    pickExecutable(): Promise<Result<{ path: string | null }>>
+    pickDiffTool(): Promise<Result<{ path: string | null }>>
+  }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.11.0** — daily-workflow closeout **D53–D62**. **D63** Quick Launch is in tree (Unreleased). Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D63**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.12.0** — **D64** Git-aware browsing (opt-in) + **D63** Quick Launch; daily-workflow **D53–D62** remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D64**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Canonical plan: [../PLAN.md](../PLAN.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -14,7 +14,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 2. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (shareable vs Explorer)
 3. [DECISIONS.md](DECISIONS.md)
 4. [ARCHITECTURE.md](ARCHITECTURE.md)
-5. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+5. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, GIT, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 6. Deferred notes only when relevant — [FUTURE_IDEAS.md](FUTURE_IDEAS.md) is a parking lot, not current work
 
 ---
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D63               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D64               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
@@ -43,9 +43,21 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
+| [GIT.md](GIT.md)                                 | Optional Git-aware browsing / lightweight client (D64) |
 | [FUTURE_IDEAS.md](FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 
 ---
+
+## Recent behavior (v0.12.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Git-aware browsing (D64) | **Opt-in** Settings → Git. Overlays / folder indicators / Details Git status / toolbar Commit·Pull·Push / context Git. System `git` only — [GIT.md](GIT.md) |
+| Quick Launch (D63) | Toolbar pins (icon / label / both). Settings manage; strip hidden when empty. |
+| Global scripts | Each Global script is its own toolbar button (face matches Quick Launch). |
+| Recycle Bin placement | Appearance: none / tree / toolbar / both (default both). |
+| Explorer clipboard | Native CF_HDROP + DropEffect both ways (Cut → move). |
+| Search / slideshow polish | Show hidden vs view filter; `!Name` literal; slideshow respects eye; Alt title path. |
 
 ## Recent behavior (v0.11.0)
 
@@ -79,6 +91,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Universal scripts (D51) | **Opt-in** (Settings → Scripting and AI, off by default). PowerShell / **Python 3** (not 2.x) / cmd / bash on the current folder or selection; saved library; context **Scripts**; optional AI that never sends files — [SCRIPTS.md](SCRIPTS.md) |
+| Git-aware browsing (D64) | **Opt-in** (Settings → Git, off by default). Status overlays, toolbar Commit/Pull/Push, context Git actions via system `git` — [GIT.md](GIT.md) |
 | Media metadata (D50) | Opt-in Plex / TMDB / OMDb cards on the file or folder (NTFS streams). Show poster on the show folder; episode `SxxExx` tiles; Change cover; consolidate Subs; watched / genre toolbar — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | This PC tools | Right-click **Drives** → Computer Manager / Device Manager / Control Panel / Recycle Bin / Properties |
 | Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |

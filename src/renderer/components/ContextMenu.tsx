@@ -19,7 +19,8 @@ import { isEditableImagePath } from '@shared/imageEdit'
 import { parseUnc } from '@shared/networkPaths'
 import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
-import { api, call } from '../lib/ipc'
+import { api, call, IpcError } from '../lib/ipc'
+import { lookupGitForPath } from '../lib/gitUi'
 import type { ClipboardPasteFormat, ClipboardPeek } from '@shared/schemas/clipboardPaste'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { slideshowCurrentPath } from '../lib/slideshowTypes'
@@ -2000,6 +2001,159 @@ export function ContextMenu(): JSX.Element | null {
             }
           ]
         : []),
+      ...(() => {
+        if (!s.settings.git?.enabled || paths.length < 1) return [] as MenuItem[]
+        if (paths.some((p) => isRemoteLocation(p))) return [] as MenuItem[]
+        const lookups = paths.map((p) => lookupGitForPath(s.gitByRoot, p))
+        if (lookups.some((l) => !l)) return [] as MenuItem[]
+        const rootPath = lookups[0]!.rootPath
+        if (!lookups.every((l) => l && samePath(l.rootPath, rootPath))) return [] as MenuItem[]
+        const targetPaths = [...paths]
+        const refreshAfter = async (): Promise<void> => {
+          try {
+            const res = await call(api.git.refresh({ repoRoot: rootPath }))
+            s.mergeGitStatus(res.status)
+          } catch {
+            void s.refreshGitForPath(rootPath)
+          }
+        }
+        const runGit = async (
+          okMsg: string,
+          fn: () => Promise<{ success: boolean; stderr: string; stdout: string }>
+        ): Promise<void> => {
+          try {
+            const res = await fn()
+            if (!res.success) {
+              s.notify((res.stderr || res.stdout || 'Git command failed').trim().slice(0, 400), true)
+              return
+            }
+            s.notify(okMsg)
+            await refreshAfter()
+            s.setSelection(targetPaths)
+          } catch (e) {
+            s.notify(e instanceof IpcError ? e.message : String(e), true)
+          }
+        }
+        const gitItems: SubEntry[] = [
+          {
+            label: 'Stage',
+            action: () => {
+              close()
+              void runGit('Staged', () =>
+                call(api.git.stage({ repoRoot: rootPath, paths: targetPaths }))
+              )
+            }
+          },
+          {
+            label: 'Unstage',
+            action: () => {
+              close()
+              void runGit('Unstaged', () =>
+                call(api.git.unstage({ repoRoot: rootPath, paths: targetPaths }))
+              )
+            }
+          },
+          {
+            label: 'Discard…',
+            action: () => {
+              close()
+              void (async () => {
+                const ok = await s.askConfirm({
+                  title: 'Discard changes?',
+                  message:
+                    targetPaths.length === 1
+                      ? `Discard uncommitted changes to “${basename(targetPaths[0]!)}”? This cannot be undone.`
+                      : `Discard uncommitted changes to ${targetPaths.length} items? This cannot be undone.`,
+                  confirmLabel: 'Discard',
+                  danger: true
+                })
+                if (!ok) return
+                await runGit('Discarded', () =>
+                  call(api.git.discard({ repoRoot: rootPath, paths: targetPaths }))
+                )
+              })()
+            }
+          },
+          ...(targetPaths.length === 1 && !isDir
+            ? [
+                {
+                  label: 'Show changes',
+                  action: () => {
+                    close()
+                    void (async () => {
+                      try {
+                        const res = await call(
+                          api.git.showDiff({ repoRoot: rootPath, path: targetPaths[0]! })
+                        )
+                        if (!res.launched) {
+                          s.notify(res.message || 'Diff tool not configured', true)
+                        }
+                      } catch (e) {
+                        s.notify(e instanceof IpcError ? e.message : String(e), true)
+                      }
+                    })()
+                  }
+                } satisfies SubEntry
+              ]
+            : []),
+          {
+            label: 'Copy repo-relative path',
+            action: () => {
+              close()
+              void (async () => {
+                try {
+                  const res = await call(
+                    api.git.relativePaths({ repoRoot: rootPath, paths: targetPaths })
+                  )
+                  await navigator.clipboard.writeText(res.paths.join('\r\n'))
+                  s.notify(res.paths.length === 1 ? 'Relative path copied' : 'Relative paths copied')
+                } catch (e) {
+                  s.notify(e instanceof IpcError ? e.message : String(e), true)
+                }
+              })()
+            }
+          },
+          {
+            label: 'Open repository root',
+            action: () => {
+              close()
+              void s.navigate(rootPath)
+            }
+          },
+          {
+            label: 'Open terminal at root',
+            action: () => {
+              close()
+              void (async () => {
+                try {
+                  await call(api.git.openTerminal({ repoRoot: rootPath }))
+                } catch (e) {
+                  s.notify(e instanceof IpcError ? e.message : String(e), true)
+                }
+              })()
+            }
+          },
+          {
+            label: 'Refresh Git status',
+            action: () => {
+              close()
+              void (async () => {
+                await refreshAfter()
+                s.notify('Git status refreshed')
+                s.setSelection(targetPaths)
+              })()
+            }
+          }
+        ]
+        return [
+          {
+            type: 'submenu' as const,
+            label: 'Git',
+            builtin: 'git' as const,
+            items: gitItems
+          }
+        ]
+      })(),
       {
         type: 'item',
         label: 'Properties',

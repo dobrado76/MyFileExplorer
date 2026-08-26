@@ -33,6 +33,8 @@ import {
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
+import type { GitRepositoryStatus } from '@shared/schemas/git'
+import { gitRootKey } from '../lib/gitUi'
 import { networkDiscoveryIntervalMs } from '@shared/schemas/settings'
 import type { IndexRootInfo, SearchResultItem } from '@shared/schemas/search'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
@@ -615,6 +617,11 @@ type AppState = {
   slideshow: SlideshowSession
   /** Toolbar filters for a folder marked as a media metadata container. */
   mediaLibrary: MediaLibraryState
+  /**
+   * Git repo status keyed by lowercase canonical root path (D64).
+   * Updated by `git-status` events and refresh/getStatus actions.
+   */
+  gitByRoot: Record<string, GitRepositoryStatus>
 
   // derived helpers
   activeTab(): Tab
@@ -650,6 +657,12 @@ type AppState = {
   goForward(): Promise<void>
   goUp(): Promise<void>
   refresh(): Promise<void>
+  /** Soft-refresh Git status for a path (discover + cache). No-op when Git disabled. */
+  refreshGitForPath(path: string): Promise<void>
+  /** Ensure Git status for the active pane folder when Settings → Git is enabled. */
+  ensureGitForActivePane(): Promise<void>
+  /** Merge a status snapshot into `gitByRoot`. */
+  mergeGitStatus(status: GitRepositoryStatus): void
   setAddressEditing(v: boolean): void
   /** Clear Back/Forward stacks for a tab (address-bar Recent locations). */
   clearHistory(tabId?: string): void
@@ -2052,6 +2065,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().clearFileListScrollRequest()
     }
     await loadListing(path, { tabId, history: true })
+    if (tabId === get().activeTabId) {
+      void get().ensureGitForActivePane()
+    }
   }
 
   /** Always surface FS failures in a modal — never status-bar-only. */
@@ -2750,6 +2766,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     paneSplitRows: 0.5,
     listingsByTabId: {},
     listing: { path: '', entries: [], loading: false, error: null, offline: false },
+    gitByRoot: {},
     selectionAnchor: null,
     focusedPath: null,
     fileListScrollRequest: null,
@@ -3176,6 +3193,8 @@ export const useAppStore = create<AppState>()((set, get) => {
               }
             }
           })
+        } else if (event.type === 'git-status') {
+          get().mergeGitStatus(event.payload.status)
         }
       })
 
@@ -3194,6 +3213,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (active.search.active && active.search.query.trim()) {
           void get().runSearch()
         }
+        void get().ensureGitForActivePane()
         if (get().platform !== 'win32') return
         // Defer discovery so PowerShell/ARP does not compete with first folder lists / icons.
         window.setTimeout(() => {
@@ -3361,6 +3381,39 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       }
       await loadListing(path, { tabId })
+      if (tabId === get().activeTabId) {
+        void get().ensureGitForActivePane()
+      }
+    },
+
+    mergeGitStatus(status) {
+      const key = gitRootKey(status.info.rootPath)
+      set((s) => ({
+        gitByRoot: { ...s.gitByRoot, [key]: status }
+      }))
+    },
+
+    async refreshGitForPath(path) {
+      if (!get().settings.git?.enabled) return
+      if (!path || isRemoteLocation(path)) return
+      try {
+        const res = await call(api.git.getStatus({ path }))
+        if (res.inRepo && res.status) {
+          get().mergeGitStatus(res.status)
+        }
+      } catch (e) {
+        // Soft-fail: Git optional; avoid spamming notices on every navigate.
+        if (get().settings.git.diagnostics) {
+          get().notify(e instanceof IpcError ? e.message : String(e), true)
+        }
+      }
+    },
+
+    async ensureGitForActivePane() {
+      if (!get().settings.git?.enabled) return
+      const path = get().activeTab().path
+      if (!path || isRemoteLocation(path)) return
+      await get().refreshGitForPath(path)
     },
 
     async goBack() {
@@ -3809,6 +3862,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (!listing || !samePath(listing.path, tab.path)) {
           await loadListing(tab.path, { tabId: id })
         }
+        void get().ensureGitForActivePane()
         return
       }
       // Not in a pane — assign into focused slot (replace).
@@ -6061,6 +6115,20 @@ export const useAppStore = create<AppState>()((set, get) => {
           discovered: patch.contextMenu.discovered ?? prev.contextMenu.discovered
         }
       }
+      if (patch.git) {
+        mergedPatch.git = {
+          ...prev.git,
+          ...patch.git,
+          diffTool: {
+            ...prev.git.diffTool,
+            ...(patch.git.diffTool ?? {})
+          },
+          externalClient: {
+            ...prev.git.externalClient,
+            ...(patch.git.externalClient ?? {})
+          }
+        }
+      }
       // Optimistic update so toggles don’t snap back while IPC runs.
       set((s) => {
         const slideshowActive = s.slideshow.active != null
@@ -6115,7 +6183,21 @@ export const useAppStore = create<AppState>()((set, get) => {
                   mergedPatch.contextMenu.builtinLayout ?? s.settings.contextMenu.builtinLayout,
                 discovered: mergedPatch.contextMenu.discovered ?? s.settings.contextMenu.discovered
               }
-            : s.settings.contextMenu
+            : s.settings.contextMenu,
+          git: mergedPatch.git
+            ? {
+                ...s.settings.git,
+                ...mergedPatch.git,
+                diffTool: {
+                  ...s.settings.git.diffTool,
+                  ...(mergedPatch.git.diffTool ?? {})
+                },
+                externalClient: {
+                  ...s.settings.git.externalClient,
+                  ...(mergedPatch.git.externalClient ?? {})
+                }
+              }
+            : s.settings.git
         },
         ...(typeof patch.searchIndexedOnly === 'boolean'
           ? { search: { ...s.search, indexedOnly: patch.searchIndexedOnly } }
@@ -6124,6 +6206,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       if (patch.networkDiscovery) {
         syncNetworkDiscoveryPoll()
+      }
+      if (patch.git?.enabled === true && prev.git?.enabled !== true) {
+        void get().ensureGitForActivePane()
+      }
+      if (patch.git?.enabled === false) {
+        set({ gitByRoot: {} })
       }
       try {
         const settings = await call(api.settings.set(mergedPatch))

@@ -20,7 +20,8 @@ export const FILE_COLUMN_IDS = [
   'itemNote',
   'itemNoteStatus',
   'itemHasNote',
-  'itemNoteTodos'
+  'itemNoteTodos',
+  'gitStatus'
 ] as const
 
 /** Image technical columns (Sharp / headers). */
@@ -288,6 +289,12 @@ export const DETAILS_COLUMN_META: Record<BuiltinDetailsColumnId, DetailsColumnMe
     group: 'file',
     defaultWidth: 200,
     async: true
+  },
+  gitStatus: {
+    id: 'gitStatus',
+    label: 'Git status',
+    group: 'file',
+    defaultWidth: 120
   },
 
   fsFileCount: {

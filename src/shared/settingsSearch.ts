@@ -13,6 +13,7 @@ export type SettingsSection =
   | 'remoterepos'
   | 'slideshow'
   | 'mediametadata'
+  | 'git'
   | 'ai'
   | 'advanced'
   | 'about'
@@ -104,6 +105,12 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     label: 'Media Metadata',
     keywords:
       'media metadata plex tmdb omdb imdb cover poster season episode watched genre movie tv show'
+  },
+  {
+    id: 'git',
+    label: 'Git',
+    keywords:
+      'git source control repository branch commit stage unstage discard diff pull push stash overlay status'
   },
   {
     id: 'ai',

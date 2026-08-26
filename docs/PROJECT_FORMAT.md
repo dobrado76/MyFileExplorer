@@ -1,6 +1,6 @@
 # Project / app data format
 
-**Version:** 0.11.0
+**Version:** 0.12.0
 
 MyFileExplorer browses the **real filesystem**. App-owned state lives only under Electron **`userData`** — always **`%APPDATA%\MyFileExplorer`** for both `npm run dev` and packaged installs (D17). Optional overrides: `MFE_USER_DATA`, or `MFE_ISOLATED_USER_DATA=1` for a repo-local `.dev-user-data/`.
 
@@ -29,6 +29,7 @@ Do **not** write app sidecars into arbitrary user folders being browsed. NSIS mu
   Templates/             # D57 new-file template copies (catalog in settings.templates)
   logs/                  # optional main log files
   scripts/               # D51 library.json + managed/*.ps1|py|… (not browsed folders)
+  git-scratch/           # D64 commit -F messages + HEAD blobs for external diff (session wipe)
   ai-secrets.json        # D51 API keys via safeStorage (never exported)
 ```
 
@@ -102,6 +103,7 @@ Notes:
 - `mediaMetadata`: opt-in movie/TV metadata (D50). `{ enabled` (default false), `coverHeightPx` (56–240, default 120), `showEpisodeIconLabels` (default true — icon tiles use `SxxExx` + episode title; false = filename), `mixFilesAndFolders` (default false — Folders first; on = media-container **icon/thumbnail** listings ignore Folders first; List/Details follow Behavior → Folders first), `tmdbApiKey`, `omdbApiKey`, `internetSource` (`tmdb` \| `omdb`), `plexUrl`, `plexToken`, `plexDataDir` }. Streams on the media file/folder: `media_metadata` (JSON, including optional `watched`), `media_metadata_thumbnail` (cover bytes, not on episode files). Folder flag: `media_metadata_container` on the library parent and the title folder — not under `userData`. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 - **Item notes / icons (D61 / D62)** are **not** settings — they live on the file or folder as NTFS ADS `mfe_note` (JSON), `mfe_icon` (JSON), and `mfe_icon_img` (PNG). Host timestamps are restored after every write/delete. Search reads `mfe_note` only. A small `item_notes` catalog in `search-index.sqlite` (userData) speeds indexed `todo:` / `hasnote:` after a note is saved. Not under browsed folders.
 - `scripts` / `ai`: D51 — `scripts.enabled` (default **false**, hides Scripts chrome), runner overrides, first-run ack + OpenAI-compatible provider metadata (no API keys). Geometry: `scriptManagerBounds`, `scriptGenerateBounds`, `scriptRunnerBounds` (stripped on export). Guide: [SCRIPTS.md](SCRIPTS.md).
+- `git`: D64 — `{ enabled` (default **false**), `executablePath`, overlay/toolbar/column toggles, `showIgnored`, `refreshDebounceMs`, large-repo threshold, `diffTool` / `externalClient` templates, … }. Temps under `userData/git-scratch`. Guide: [GIT.md](GIT.md).
 
 ---
 
@@ -170,7 +172,7 @@ Notes:
 
 ## Session temp (`*-scratch` / `*-preview` / `*-remux`)
 
-Any directory directly under `userData` whose name ends in **`-scratch`**, **`-preview`**, or **`-remux`** is wiped on start, on quit, and when Settings clears caches. These are rebuildable preview/staging copies (D7) — not settings, scripts, thumbs, or tab icons. Known today: `media-scratch`, `remote-scratch`, `remote-transfer-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`.
+Any directory directly under `userData` whose name ends in **`-scratch`**, **`-preview`**, or **`-remux`** is wiped on start, on quit, and when Settings clears caches. These are rebuildable preview/staging copies (D7) — not settings, scripts, thumbs, or tab icons. Known today: `media-scratch`, `remote-scratch`, `remote-transfer-scratch`, `chm-preview`, `pptx-preview`, `psd-preview`, `raster-preview`, `video-remux`. `git-scratch` (D64) follows the same wipe rule when named `*-scratch`.
 
 ---
 

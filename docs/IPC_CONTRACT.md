@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.11.0
+**Version:** 0.12.0
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 
@@ -261,6 +261,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `index-progress`          | `{ rootPath, processed, total? }`             |
 | `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/media-metadata; byte fields for large streaming copies |
 | `cover-list`              | `{ path, done, cover? }` — Change cover tiles as previews load |
+| `git-status`              | `{ status: GitRepositoryStatus }` — repo cache update (D64) |
 | `session-external-change` | rare: multi-window later                      |
 
 ---
@@ -280,9 +281,25 @@ window.myFileExplorer = {
   ads: { list, listNamesMany, exists, readText, writeText, delete, readBytes, writeBytes, copy },
   mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
   slideshow: { listImages, pickOpenFile, … },
+  git: { detect, test, discover, getStatus, refresh, stage, unstage, discard, commit, fetch, pull, push, listBranches, switchBranch, createBranch, stash, stashPop, showDiff, openTerminal, … },
   app: { getPath, pickFolder, ready, … },
   onEvent: (handler) => unsubscribe
 }
 ```
 
-`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history), `network-discovery` (D44).
+`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history), `network-discovery` (D44), `git-status` (D64).
+
+### `git.*` (D64 — opt-in; no work when Settings → Git is off)
+
+Whitelist only — no arbitrary argv from the renderer. See [GIT.md](GIT.md).
+
+| Channel | Purpose |
+| ------- | ------- |
+| `git:detect` / `git:test` | Resolve / probe `git.exe` |
+| `git:discover` / `git:getStatus` / `git:refresh` / `git:invalidate` | Repo root + porcelain status cache |
+| `git:stage` / `git:unstage` / `git:discard` | Path-scoped ops (`--` before paths) |
+| `git:commit` / `git:fetch` / `git:pull` / `git:push` | Repo ops |
+| `git:listBranches` / `git:switchBranch` / `git:createBranch` | Local branches |
+| `git:stash` / `git:stashPop` | Stash push / pop |
+| `git:showDiff` | HEAD blob → scratch + external diff tool |
+| `git:openTerminal` / `git:relativePaths` / pickers | Helpers |

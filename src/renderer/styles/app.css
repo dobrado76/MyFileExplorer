@@ -1157,6 +1157,95 @@ textarea:focus {
   padding: 2px 6px;
   font-size: 0.85em;
 }
+
+.toolbar-git {
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.toolbar-git-icon {
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+.toolbar-git-summary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92em;
+  margin-right: 4px;
+}
+.toolbar-git-branch {
+  font-weight: 600;
+}
+.toolbar-git-meta {
+  color: var(--text-dim);
+}
+.git-toolbar-menu {
+  min-width: 200px;
+  max-height: min(360px, 70vh);
+  overflow: auto;
+  z-index: 4000;
+}
+
+.git-status-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-width: 1.1em;
+  height: 1.1em;
+  padding: 0 2px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1em;
+  text-align: center;
+  color: #fff;
+  background: var(--git-status-modified);
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.row-glyph-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+.row-glyph-wrap .git-status-badge {
+  right: -4px;
+  bottom: -2px;
+  font-size: 8px;
+  min-width: 1em;
+  height: 1em;
+  line-height: 1em;
+}
+.git-status-badge.git-status-conflicted {
+  background: var(--git-status-conflicted);
+}
+.git-status-badge.git-status-deleted {
+  background: var(--git-status-deleted);
+}
+.git-status-badge.git-status-added {
+  background: var(--git-status-added);
+}
+.git-status-badge.git-status-modified {
+  background: var(--git-status-modified);
+}
+.git-status-badge.git-status-renamed {
+  background: var(--git-status-renamed);
+}
+.git-status-badge.git-status-untracked {
+  background: var(--git-status-untracked);
+}
+.git-status-badge.git-status-ignored {
+  background: var(--git-status-ignored);
+}
+
 .toolbar-media-label {
   display: flex;
   align-items: center;
@@ -1514,6 +1603,7 @@ body.right-dragging * {
   justify-content: center;
   width: 100%;
   min-height: 0;
+  position: relative;
 }
 /* Shell icon only: icon stays centered; filename sits just under it (not cell-bottom). */
 .grid-cell.icon-only .cell-thumb {
@@ -1691,7 +1781,8 @@ body.right-dragging * {
   flex: 1 1 auto;
   min-width: 0;
 }
-.row .row-name > .shell-icon {
+.row .row-name > .shell-icon,
+.row .row-name > .row-glyph-wrap {
   flex-shrink: 0;
 }
 .row .row-name > .item-check {

@@ -89,6 +89,23 @@ export function patchSettings(patch: unknown): Settings {
           providers: parsed.ai.providers ?? cur.ai?.providers ?? defaultSettings.ai.providers
         }
       : (cur.ai ?? defaultSettings.ai),
+    git: parsed.git
+      ? {
+          ...defaultSettings.git,
+          ...cur.git,
+          ...parsed.git,
+          diffTool: {
+            ...defaultSettings.git.diffTool,
+            ...cur.git?.diffTool,
+            ...parsed.git.diffTool
+          },
+          externalClient: {
+            ...defaultSettings.git.externalClient,
+            ...cur.git?.externalClient,
+            ...parsed.git.externalClient
+          }
+        }
+      : (cur.git ?? defaultSettings.git),
     contextMenu: parsed.contextMenu
       ? {
           ...defaultSettings.contextMenu,
@@ -114,6 +131,11 @@ export function patchSettings(patch: unknown): Settings {
   settingsStore().replace(next)
   // Settings toggles should hit disk immediately (don’t wait for debounce / quit).
   settingsStore().flush()
+  if (parsed.git?.enabled === false) {
+    void import('../git/cache')
+      .then((m) => m.clearAllGitCache())
+      .catch(() => undefined)
+  }
   // D34: optional search HTTP API follows settings.
   if (
     'searchHttpEnabled' in parsed ||

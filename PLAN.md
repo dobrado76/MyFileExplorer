@@ -2,13 +2,13 @@
 
 **This file is the canonical plan for this repo.** Open this folder as its own workspace. Do not depend on any other project or external chat plans.
 
-Status: **v0.11.0** — **D53–D62** daily workflows (reopen tabs, smart paste, templates, Quick access groups, create link, view presets, attached notes, per-item icons); **D63** toolbar Quick Launch (Unreleased); **D52** NTFS USN journal manager; **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
+Status: **v0.12.0** — **D64** optional Git-aware browsing ([docs/GIT.md](docs/GIT.md)); **D63** toolbar Quick Launch; **D53–D62** daily workflows; **D52** NTFS USN journal manager; **D51** opt-in universal local script runner + optional AI that never reads files ([docs/SCRIPTS.md](docs/SCRIPTS.md)); **D50** media metadata. Phases 0–10 shipped. Experimental Linux AppImage helpers — Windows remains primary ([docs/LINUX.md](docs/LINUX.md)). See [RELEASE_NOTES.md](RELEASE_NOTES.md) and [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## What we are building
 
-A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), an **opt-in universal local script runner** (D51 — Settings → Scripting and AI; PowerShell / Python / cmd / bash on the current folder or selection), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, and **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38).
+A Windows-first **Electron + React** file manager: a highly functional Explorer-style shell with a **streamlined context menu**, **rich previews** (including A1111 / ComfyUI generation metadata when present), **tabs**, **persisted session/UI**, standard file ops with **status-bar progress**, **Everything-inspired opt-in search** (folder + optional drive index), an **opt-in universal local script runner** (D51 — Settings → Scripting and AI; PowerShell / Python / cmd / bash on the current folder or selection), optional **video preview-strip generation** into `!VIDTHUMB_CACHE`, **NTFS Alternate Data Streams** tooling (opt-in Details column + manager — D38), and optional **Git-aware browsing** (D64 — Settings → Git).
 
 ## Stack (locked)
 
@@ -29,6 +29,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 - Replacing OS file dialogs system-wide
 - macOS / Linux as primary targets (Linux packaging helpers are experimental only — [docs/LINUX.md](docs/LINUX.md))
 - Remote FTP/SFTP as a must-have (optional bonus only — [docs/REMOTE_FTP.md](docs/REMOTE_FTP.md); opt-in D46)
+- Full Git GUI (commit graph, rebase editors, remotes UI, PR integration) — D64 is awareness + light ops only
 
 ## Doc map
 
@@ -41,7 +42,7 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/BUILD.md](docs/BUILD.md)                             | Local build + tagged GitHub Releases |
 | [docs/LINUX.md](docs/LINUX.md)                             | Experimental Linux AppImage / Wayland |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)               | Process model & layout        |
-| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D63) |
+| [docs/DECISIONS.md](docs/DECISIONS.md)                     | Locked product/tech decisions (D1–D64) |
 | [docs/IPC_CONTRACT.md](docs/IPC_CONTRACT.md)               | Main ↔ renderer API           |
 | [docs/PROJECT_FORMAT.md](docs/PROJECT_FORMAT.md)           | On-disk `userData` layout     |
 | [docs/UI_DESIGN.md](docs/UI_DESIGN.md)                     | Chrome & themes               |
@@ -55,16 +56,16 @@ A Windows-first **Electron + React** file manager: a highly functional Explorer-
 | [docs/ADS.md](docs/ADS.md)                                 | NTFS Alternate Data Streams (D38) |
 | [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [docs/SCRIPTS.md](docs/SCRIPTS.md)                         | Universal script runner + optional AI (D51) |
+| [docs/GIT.md](docs/GIT.md)                                 | Optional Git-aware browsing (D64) |
 | [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 | [CHANGELOG.md](CHANGELOG.md)                               | Shipped changes               |
 | [RELEASE_NOTES.md](RELEASE_NOTES.md)                       | Latest release summary        |
 
 ## Immediate next work
 
-1. Ship tag `v0.11.0` (installer + GitHub Release) — [docs/BUILD.md](docs/BUILD.md)
-2. Dogfood notes / item icons on NTFS (THE RULE: host Created / Modified / Change stay put) and Power Search `todo:` / `note:`
-3. Dogfood templates (pretty name + menu order) and grouped Quick access
-4. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)
+1. Ship tag `v0.12.0` (installer + GitHub Release) — [docs/BUILD.md](docs/BUILD.md)
+2. Dogfood Git on this repo and a large dirty tree (overlays, toolbar, stage → commit → push)
+3. Longer-horizon optional ideas (not scheduled): [docs/FUTURE_IDEAS.md](docs/FUTURE_IDEAS.md)
 
 ## Agent rules
 
