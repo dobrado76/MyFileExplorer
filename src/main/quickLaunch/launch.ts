@@ -12,7 +12,7 @@ import { requireAbsolute, pathExists } from '../fs/list'
 
 function itemById(id: string): QuickLaunchItem {
   const found = getSettings().quickLaunch.find((x) => x.id === id)
-  if (!found) throw new AppError('not-found', 'That Quick Launch item was removed')
+  if (!found) throw new AppError('not-found', 'That Quick launch item was removed')
   return found
 }
 
@@ -28,7 +28,7 @@ export async function resolvedQuickLaunchPath(item: QuickLaunchItem): Promise<st
     )
   }
   if (!(await pathExists(abs))) {
-    throw new AppError('not-found', `Program not found: ${abs}`, 'Browse to it in Settings → Quick Launch.')
+    throw new AppError('not-found', `Program not found: ${abs}`, 'Browse to it in Settings → Quick launch.')
   }
   return abs
 }

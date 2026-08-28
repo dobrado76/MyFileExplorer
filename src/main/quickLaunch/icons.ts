@@ -42,7 +42,7 @@ export async function pickQuickLaunchIconSource(
 ): Promise<{ path: string } | { cancelled: true }> {
   const win = BrowserWindow.fromWebContents(sender)
   const opts: Electron.OpenDialogOptions = {
-    title: 'Choose a Quick Launch icon',
+    title: 'Choose a Quick launch icon',
     properties: ['openFile'],
     filters: [
       { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'jfif', 'webp', 'ico'] },
@@ -62,7 +62,7 @@ export async function pickQuickLaunchProgram(
 ): Promise<{ path: string } | { cancelled: true }> {
   const win = BrowserWindow.fromWebContents(sender)
   const opts: Electron.OpenDialogOptions = {
-    title: 'Add to Quick Launch',
+    title: 'Add to Quick launch',
     properties: ['openFile'],
     filters: [
       { name: 'Programs', extensions: ['exe', 'lnk', 'url', 'bat', 'cmd', 'msc', 'com'] },

@@ -8,7 +8,7 @@ import { ViewPresetsMenu } from './ViewPresetsMenu'
 import { FolderTree } from './FolderTree'
 import { FileView } from './FileView'
 import { Splitter } from './Splitter'
-import { ArrowLeft, ArrowRight, ArrowUp, PinIcon, PinOffIcon, RefreshIcon } from '../lib/icons'
+import { ArrowLeft, ArrowRight, ArrowUp, PinIcon, PinOffIcon, RefreshIcon, TreePanelIcon } from '../lib/icons'
 import { parentOf, samePath } from '../lib/paths'
 
 const VIEW_MODES: { mode: ViewMode; label: string }[] = [
@@ -42,6 +42,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const setSplitters = useAppStore((s) => s.setSplitters)
   const treeCollapsed = useAppStore((s) => s.paneTreeCollapsed[paneIndex] === true)
   const togglePaneTree = useAppStore((s) => s.togglePaneTree)
+  const treePinToggle = useAppStore((s) => s.settings.treePinToggle)
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const goBack = useAppStore((s) => s.goBack)
   const goForward = useAppStore((s) => s.goForward)
@@ -224,6 +225,21 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
           <RefreshIcon />
         </button>
         <Breadcrumb tabId={tabId} />
+        {!treePinToggle && (
+          <button
+            type="button"
+            className={`icon-btn${treeCollapsed ? '' : ' active'}`}
+            aria-label={treeCollapsed ? 'Show folder tree' : 'Hide folder tree'}
+            title={treeCollapsed ? 'Show folder tree' : 'Hide folder tree'}
+            onClick={(e) => {
+              e.stopPropagation()
+              focusPane(paneIndex)
+              togglePaneTree(paneIndex)
+            }}
+          >
+            <TreePanelIcon />
+          </button>
+        )}
         <ViewPresetsMenu />
         <select
           aria-label="View mode"
@@ -243,7 +259,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
         </select>
       </div>
       <div className="pane-body">
-        {treeCollapsed && (
+        {treePinToggle && treeCollapsed && (
           <div className="pane-tree-collapsed-rail">
             <button
               className="icon-btn pane-tree-toggle-collapsed"
@@ -259,7 +275,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
             </button>
           </div>
         )}
-        {!treeCollapsed && (
+        {treePinToggle && !treeCollapsed && (
           <button
             className="pane-tree-toggle icon-btn"
             aria-label="Hide folder tree"

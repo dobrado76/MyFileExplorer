@@ -49,7 +49,11 @@ import {
 } from '@shared/schemas/mediaMetadata'
 import { parseMediaSourceInput } from '@shared/mediaMetadata'
 import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
-import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
+import {
+  flattenQuickAccessTokens,
+  isQuickAccessGroup,
+  nextQuickAccessGroupName
+} from '@shared/schemas/quickAccess'
 import {
   MAX_FILE_TEMPLATES,
   sanitizeTemplateStem,
@@ -3070,6 +3074,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showTabIcons}
                 onChange={(v) => void applySettingsPatch({ showTabIcons: v })}
               />
+              <SettingsToggle
+                id="set-tree-pin-toggle"
+                label="Pin control to hide the folder tree"
+                hint="On: pin / unpin on the tree (each pane). Off: a toolbar button between the address bar and view presets (same idea as Show/Hide preview, flipped) — still per pane in multi-pane layouts."
+                checked={settings.treePinToggle}
+                onChange={(v) => void applySettingsPatch({ treePinToggle: v })}
+              />
               <label
                 className="settings-field"
                 htmlFor="set-recycle-bin-placement"
@@ -3939,11 +3950,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   <button
                     type="button"
                     className="btn"
-                    title="Create a named group"
-                    onClick={() => {
-                      const name = window.prompt('Group name', 'Group')
-                      if (name) void createQuickAccessGroup(name)
-                    }}
+                    title="Create a named group (rename it in the list)"
+                    onClick={() => void createQuickAccessGroup(nextQuickAccessGroupName(qaList))}
                   >
                     Add group…
                   </button>

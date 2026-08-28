@@ -51,7 +51,7 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
 
   const add = async (): Promise<void> => {
     if (items.length >= MAX_QUICK_LAUNCH) {
-      notify(`Quick Launch is limited to ${MAX_QUICK_LAUNCH} items`, true)
+      notify(`Quick launch is limited to ${MAX_QUICK_LAUNCH} items`, true)
       return
     }
     try {
@@ -59,7 +59,7 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
       if (res.cancelled) return
       const { next, added } = mergeQuickLaunchPaths(items, [res.path])
       if (added === 0) {
-        notify('That program is already on Quick Launch')
+        notify('That program is already on Quick launch')
         return
       }
       persist(next)

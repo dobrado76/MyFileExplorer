@@ -179,12 +179,21 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const platform = useAppStore((s) => s.platform)
   const treeAdsPaths = useMemo(() => {
     const out: string[] = []
-    for (const [p, n] of Object.entries(nodes)) {
+    const seen = new Set<string>()
+    const push = (p: string): void => {
+      const key = p.replace(/[/\\]+$/g, '').toLowerCase()
+      if (!key || seen.has(key)) return
+      seen.add(key)
       out.push(p)
-      if (n.children) out.push(...n.children)
     }
+    for (const [p, n] of Object.entries(nodes)) {
+      push(p)
+      if (n.children) for (const c of n.children) push(c)
+    }
+    // Quick access pins are painted outside `nodes` — still need ADS overlays.
+    for (const e of quickAccess) push(e.path)
     return out
-  }, [nodes])
+  }, [nodes, quickAccess])
   const itemAdsByPath = useItemAdsOverlays(treeAdsPaths, platform === 'win32', `tree:${activeTabId}`)
   const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
   const setDropHighlight = useAppStore((s) => s.setDropHighlight)

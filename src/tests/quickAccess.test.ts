@@ -5,6 +5,7 @@ import {
   materializeQuickAccessTokens,
   type KnownFolder
 } from '../renderer/lib/quickAccess'
+import { nextQuickAccessGroupName } from '../shared/schemas/quickAccess'
 
 const known: KnownFolder[] = [
   { id: 'desktop', label: 'Desktop', path: 'C:\\Users\\x\\Desktop' },
@@ -55,6 +56,21 @@ describe('grouped quick access (D58)', () => {
       []
     )
     expect(materializeQuickAccessTokens(list, [], [])).toEqual(['desktop', 'D:\\Projects'])
+  })
+
+  it('suggests unique default group names', () => {
+    expect(nextQuickAccessGroupName([])).toBe('Group')
+    expect(
+      nextQuickAccessGroupName([
+        { kind: 'group', id: 'qag_a1_xxxx', name: 'Group', collapsed: false, items: [] }
+      ])
+    ).toBe('Group 2')
+    expect(
+      nextQuickAccessGroupName([
+        { kind: 'group', id: 'qag_a1_xxxx', name: 'Group', collapsed: false, items: [] },
+        { kind: 'group', id: 'qag_a2_yyyy', name: 'Group 2', collapsed: false, items: [] }
+      ])
+    ).toBe('Group 3')
   })
 })
 

@@ -69,3 +69,14 @@ export function tokenExistsInQuickAccess(list: QuickAccessItem[], token: string)
   const key = token.toLowerCase()
   return flattenQuickAccessTokens(list).some((t) => t.toLowerCase() === key)
 }
+
+/** Default name for Settings → Quick access → Add group… (Electron has no window.prompt). */
+export function nextQuickAccessGroupName(list: readonly QuickAccessItem[]): string {
+  const used = new Set(
+    list.filter(isQuickAccessGroup).map((g) => g.name.trim().toLowerCase()).filter(Boolean)
+  )
+  if (!used.has('group')) return 'Group'
+  let n = 2
+  while (used.has(`group ${n}`)) n += 1
+  return `Group ${n}`
+}

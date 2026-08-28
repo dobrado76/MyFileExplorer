@@ -70,12 +70,12 @@ export function QuickLaunchToolbar(): JSX.Element | null {
     }
     const cur = useAppStore.getState().settings.quickLaunch
     if (cur.length >= MAX_QUICK_LAUNCH) {
-      notify(`Quick Launch is limited to ${MAX_QUICK_LAUNCH} items`, true)
+      notify(`Quick launch is limited to ${MAX_QUICK_LAUNCH} items`, true)
       return
     }
     const { next, added } = mergeQuickLaunchPaths(cur, launchable)
     if (added === 0) {
-      notify('Already on Quick Launch')
+      notify('Already on Quick launch')
       return
     }
     await applySettingsPatch({ quickLaunch: next })
@@ -115,7 +115,7 @@ export function QuickLaunchToolbar(): JSX.Element | null {
     <div
       className={`toolbar-edit toolbar-quick-launch${dropHover ? ' drop-hover' : ''}`}
       role="group"
-      aria-label="Quick Launch"
+      aria-label="Quick launch"
       onDragEnter={onDragOver}
       onDragOver={onDragOver}
       onDragLeave={(e) => {
@@ -244,11 +244,11 @@ function QuickLaunchItemMenu({
         Open file location
       </button>
       <button type="button" className="menu-item" role="menuitem" onClick={onManage}>
-        Manage Quick Launch…
+        Manage Quick launch…
       </button>
       <div className="menu-sep" />
       <button type="button" className="menu-item" role="menuitem" onClick={onRemove}>
-        Remove from Quick Launch
+        Remove from Quick launch
       </button>
     </div>
   )

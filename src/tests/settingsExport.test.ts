@@ -313,6 +313,17 @@ describe('settings export / import', () => {
     expect(parsed.settings.showTabIcons).toBe(false)
   })
 
+  it('defaults treePinToggle on and round-trips off', () => {
+    expect(defaultSettings.treePinToggle).toBe(true)
+    const { treePinToggle: _omit, ...rest } = defaultSettings
+    expect(settingsSchema.parse(rest).treePinToggle).toBe(true)
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, treePinToggle: false },
+      networkHosts: []
+    })
+    expect(parseSettingsImport(doc).settings.treePinToggle).toBe(false)
+  })
+
   it('defaults recycleBinPlacement to both and round-trips tree-only', () => {
     expect(defaultSettings.recycleBinPlacement).toBe('both')
     const { recycleBinPlacement: _omit, ...rest } = defaultSettings

@@ -11,6 +11,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Tree hide/show control** — Settings → Appearance **Pin control to hide the folder tree** (on by default). On: pin / unpin on the tree. Off: per-pane toolbar button between the address bar and view presets (same glyph as Show/Hide preview, flipped for the left rail).
+
 - **File operation plan (Ctrl)** — hold **Ctrl** during any copy, move, paste, or delete to open a review panel: full operation list (source, destination, action), options, **Dry run** button (visual preview in the dialog — nothing changes on disk), then **Run** to execute with the same settings without redoing the action. Copy/move include a **Name conflicts** policy (Ask on conflict, Keep both, Skip, Replace); same-folder paste defaults to **Keep both**.
 - **Custom media cover** — **Change cover** → **Browse for image…** picks any local JPG/PNG/WebP/etc. when Plex / TMDB do not list the right poster.
 - **Git changes dialog** — click the toolbar **N changes** summary (explorer or repo-root preview) to inspect a folder tree of dirty paths, stage/unstage/discard, reveal in the file list, or open the configured external diff tool. **Show ignored** (default off) is persisted as `settings.git.showIgnored`.
@@ -38,6 +40,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Git tag push vs pre-push hook** — this repo’s pre-push `npm run check` no longer runs on tag-only pushes (Create tag → Push to origin was failing on unrelated WIP). Branch pushes still run the full check.
 - **Git create tag on origin** — detects when a tag name already exists on the remote (e.g. `v0.12`) and explains instead of a raw Git rejection; optional **Replace on origin** force-push when you mean to move the tag.
 - **Tree custom folder icons after restart** — expanding the tree during session restore cancelled ADS overlay fetches and left those paths stuck as “already requested,” so Lucide/custom colors never reappeared in the tree (file list was fine). Cancelled paths are unlocked so they can load again.
+- **Quick access custom folder icons** — pins in Quick access now load per-item Lucide/custom icons (ADS overlays). They were skipped because overlay fetches only covered expanded Drives-tree paths.
 
 ## [0.12.0] - 2026-08-26
 

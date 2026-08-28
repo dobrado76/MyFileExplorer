@@ -32,7 +32,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'appearance',
     label: 'Appearance',
     keywords:
-      'theme dark light custom font family size icon px tab equal width icons color colour colors chrome look recycle bin tree toolbar bar placement'
+      'theme dark light custom font family size icon px tab equal width icons color colour colors chrome look recycle bin tree toolbar bar placement pin unpin collapse expand panel',
   },
   {
     id: 'behavior',
@@ -54,7 +54,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   },
   {
     id: 'quicklaunch',
-    label: 'Quick Launch',
+    label: 'Quick launch',
     keywords:
       'quick launch toolbar photoshop visual studio vscode browser chrome firefox pin program exe shortcut icon app dock'
   },

@@ -280,6 +280,12 @@ const settingsFieldsSchema = z.object({
   /** Paint Lucide icons on tabs. Assigned icons stay in the session when this is off. */
   showTabIcons: z.boolean().catch(true),
   /**
+   * When true (default), each pane uses the pin / unpin control on the tree (collapsed rail + floating unpin).
+   * When false, use a flipped preview-panel icon on that pane’s toolbar (between address and view presets).
+   * Tree visibility stays per-pane either way.
+   */
+  treePinToggle: z.boolean().catch(true),
+  /**
    * Recycle Bin chrome: none | tree | toolbar | both (default both).
    * Tab-bar button is icon-only; tree row keeps the label.
    */
@@ -675,6 +681,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   iconSizePx: 20,
   tabEqualWidth: false,
   showTabIcons: true,
+  treePinToggle: true,
   recycleBinPlacement: 'both',
   foldersFirst: true,
   itemCheckboxes: false,

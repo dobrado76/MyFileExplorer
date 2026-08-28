@@ -93,6 +93,7 @@ import {
 } from '../lib/quickAccess'
 import {
   isQuickAccessGroup,
+  MAX_QUICK_ACCESS_GROUPS,
   removeQuickAccessToken,
   tokenExistsInQuickAccess,
   type QuickAccessItem
@@ -6527,6 +6528,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         s.settings.quickAccessPins,
         s.settings.quickAccessHiddenDefaults
       )
+      const groupCount = list.filter(isQuickAccessGroup).length
+      if (groupCount >= MAX_QUICK_ACCESS_GROUPS) {
+        get().notify(`Quick access is limited to ${MAX_QUICK_ACCESS_GROUPS} groups`, true)
+        return
+      }
       const id = `qag_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
       await get().applySettingsPatch({
         quickAccess: [...list, { kind: 'group', id, name: trimmed, collapsed: false, items: [] }],

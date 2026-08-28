@@ -52,9 +52,9 @@ const T = {
   minSelection:
     'For Selection scope: hide the script in the context menu unless at least this many items are selected. 0 = no minimum. Ignored when Global is on.',
   global:
-    'Run from its toolbar button with no folder and no selection (the strip is hidden until you save a global script). Turns off Folder, Selection, Recursive, and Context menu. External file can stay on. Set Show (icon / label / both) and Icon… like Quick Launch.',
+    'Run from its toolbar button with no folder and no selection (the strip is hidden until you save a global script). Turns off Folder, Selection, Recursive, and Context menu. External file can stay on. Set Show (icon / label / both) and Icon… like Quick launch.',
   toolbarShow:
-    'Toolbar face for this global script: icon only (name as tooltip), label only, or both — same as Quick Launch.',
+    'Toolbar face for this global script: icon only (name as tooltip), label only, or both — same as Quick launch.',
   toolbarIconSize:
     'Pixel size of the toolbar glyph for this global script (12–48). Independent of Appearance → Icon size.',
   toolbarIcon:
