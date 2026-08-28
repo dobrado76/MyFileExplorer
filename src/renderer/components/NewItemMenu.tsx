@@ -16,6 +16,7 @@ export function NewItemMenu(): JSX.Element {
   const createTypedFile = useAppStore((s) => s.createTypedFile)
   const createFromTemplate = useAppStore((s) => s.createFromTemplate)
   const templates = useAppStore((s) => s.settings.templates)
+  const gitEnabled = useAppStore((s) => s.settings.git?.enabled === true)
   const openDialog = useAppStore((s) => s.openDialog)
   const [open, setOpen] = useState(false)
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null)
@@ -241,17 +242,19 @@ export function NewItemMenu(): JSX.Element {
                 From Template
                 <span className="menu-hint">▸</span>
               </button>
-              <button
-                type="button"
-                className="menu-item"
-                role="menuitem"
-                onClick={() => {
-                  closeMenu()
-                  openDialog({ kind: 'clone-git-repo', parent })
-                }}
-              >
-                GitHub Repository
-              </button>
+              {gitEnabled ? (
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenu()
+                    openDialog({ kind: 'clone-git-repo', parent })
+                  }}
+                >
+                  GitHub Repository
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="menu-item"
@@ -293,7 +296,7 @@ export function NewItemMenu(): JSX.Element {
         onClick={() => setOpen((v) => !v)}
       >
         <span className="new-item-plus" aria-hidden>
-          <PlusIcon />
+          <PlusIcon size={11} />
         </span>
         <span className="new-item-label">New</span>
         <ChevronDown size={12} />

@@ -449,13 +449,17 @@ function newSubmenu(
           }
         ]
       },
-      {
-        label: 'GitHub Repository',
-        action: () => {
-          close()
-          s.openDialog({ kind: 'clone-git-repo', parent })
-        }
-      },
+      ...(s.settings.git?.enabled
+        ? [
+            {
+              label: 'GitHub Repository',
+              action: () => {
+                close()
+                s.openDialog({ kind: 'clone-git-repo', parent })
+              }
+            }
+          ]
+        : []),
       { label: '', sep: true, action: () => undefined },
       {
         label: 'Other…',
