@@ -45,7 +45,11 @@ Builtin **Git** submenu (hideable in Settings → Context menu): Stage, Unstage,
 
 ## Repo-root preview
 
-When Git is enabled and the preview target is the **repository root** folder (selected, or current folder with nothing selected), the preview pane shows a Git Graph–style history: lane graph, branch/remote/tag badges, author, relative time, short hash (click to copy), and a detail strip for the selected commit. **Double-click** a row (or **Enter** when the list is focused) opens a commit detail dialog (full message, parents, file list; double-click a file for external diff). Load more pages history.
+When Git is enabled and the preview target is the **repository root** folder (selected, or current folder with nothing selected), the preview header shows **Git | Folder** tabs (**Git** selected by default). Switching repos resets to **Git**.
+
+**Git tab** — Git Graph–style history: lane graph, branch/remote/tag badges, author, relative time, short hash (click to copy), and a detail strip for the selected commit. **Double-click** a row (or **Enter** when the list is focused) opens a commit detail dialog (full message, parents, file list; double-click a file for external diff). Load more pages history.
+
+**Folder tab** — same directory / folder-statistics preview as any other folder (D66 space map when Calculate Statistics has run). Use this when you want the WinDirStat-style card without leaving the repo root.
 
 **Toolbar** (Git Extensions–inspired): refresh, branch switch/create, fetch/pull, push, commit (staged count), stash/more, open terminal, client-side filter on the loaded list. The **changes** count is clickable and opens a working-tree dialog (folder tree of dirty paths) with Stage / Unstage / Discard, Reveal, and **Show changes** (external diff tool from Settings → Git).
 

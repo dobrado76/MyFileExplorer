@@ -9,13 +9,17 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Changed
+
+- **Git repo-root preview** — header **Git | Folder** tabs (**Git** by default). **Folder** shows the normal directory / folder-statistics card (D66 space map) so repo roots are not limited to history only. See [docs/GIT.md](docs/GIT.md), [docs/PREVIEW.md](docs/PREVIEW.md).
+
 ## [0.13.0] - 2026-08-28
 
 Thirteenth product release: **WinDirStat-style folder space maps** in preview (**D66**), richer Calculate Statistics ADS, Git history/changes polish, Ctrl+file-op plan, and lock-owner End task (**D65**). See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ### Added
 
-- **Folder statistics preview + space map** (D66) — after **Calculate Statistics**, selecting an ordinary folder (not a Git repo root) shows counts, size, category breakdown (count · bytes · %), largest/recent lists, and a WinDirStat-style treemap of the largest files. Nested by path, cushion shading, extension colors, hover folder outlines, click to reveal / double-click to open. Remainder is **Other N · size** on the Space usage heading (not a map tile). Stats stay in ADS (`FolderStatsPreview`); host timestamps preserved. Settings → Behavior → **Folder space map max files** (default 50000; ADS JSON may shrink N if over ~16 MB). **Other N files** = `FileTotCount − leaves.length`. **Shift+Calculate** may retag trees once after this upgrade (JSON is now part of “complete”). Guides: [docs/ADS.md](docs/ADS.md), [docs/PREVIEW.md](docs/PREVIEW.md).
+- **Folder statistics preview + space map** (D66) — after **Calculate Statistics**, selecting a folder shows counts, size, category breakdown (count · bytes · %), largest/recent lists, and a WinDirStat-style treemap of the largest files. On a Git repo root, use the preview **Folder** tab (history remains the default). Nested by path, cushion shading, extension colors, hover folder outlines, click to reveal / double-click to open. Remainder is **Other N · size** on the Space usage heading (not a map tile). Stats stay in ADS (`FolderStatsPreview`); host timestamps preserved. Settings → Behavior → **Folder space map max files** (default 50000; ADS JSON may shrink N if over ~16 MB). **Other N files** = `FileTotCount − leaves.length`. **Shift+Calculate** may retag trees once after this upgrade (JSON is now part of “complete”). Guides: [docs/ADS.md](docs/ADS.md), [docs/PREVIEW.md](docs/PREVIEW.md).
 - **Tree hide/show control** — Settings → Appearance **Pin control to hide the folder tree** (on by default). On: pin / unpin on the tree. Off: per-pane toolbar button between the address bar and view presets (same glyph as Show/Hide preview, flipped for the left rail).
 - **File operation plan (Ctrl)** — hold **Ctrl** during any copy, move, paste, or delete to open a review panel: full operation list (source, destination, action), options, **Dry run** button (visual preview in the dialog — nothing changes on disk), then **Run** to execute with the same settings without redoing the action. Copy/move include a **Name conflicts** policy (Ask on conflict, Keep both, Skip, Replace); same-folder paste defaults to **Keep both**.
 - **Custom media cover** — **Change cover** → **Browse for image…** picks any local JPG/PNG/WebP/etc. when Plex / TMDB do not list the right poster.

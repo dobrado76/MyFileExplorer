@@ -167,7 +167,7 @@ See [PREVIEW.md](PREVIEW.md).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
 - **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 - **Folder statistics + space map** (D66): when Calculate Statistics has tagged a non–Git-root folder, preview shows the rich folder card and WinDirStat-style space map (ADS read-only). See [PREVIEW.md](PREVIEW.md), [ADS.md](ADS.md).
-- **Git repository root** (D64, opt-in): repo-root selection shows commit history instead of the folder-stats card. See [GIT.md](GIT.md).
+- **Git repository root** (D64, opt-in): repo-root selection shows **Git | Folder** tabs (**Git** = commit history by default; **Folder** = normal directory / stats card). See [GIT.md](GIT.md).
 
 See [SEARCH.md](SEARCH.md).
 

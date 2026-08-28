@@ -90,7 +90,7 @@ export function PreviewPane(): JSX.Element {
   }, [gitEnabled, previewPath, driveSpace, mergeGitStatus])
 
   const { model, loading, retryPlayableForce } = usePreviewFetch(
-    gitRepo ? null : previewPath,
+    previewPath,
     versionOverrideAds,
     selectedStamp
   )

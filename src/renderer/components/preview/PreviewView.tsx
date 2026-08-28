@@ -1,4 +1,4 @@
-import { useMemo, useState, type JSX, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
 import { highlightLanguage } from '../../lib/highlight'
 import { basename } from '../../lib/paths'
@@ -146,7 +146,7 @@ export type PreviewViewProps = {
   onRetryPlayableForce: () => void
   /** Volume pies — all drives, or one drive when `focusPath` is set. */
   driveSpace?: { drives: DriveInfo[]; focusPath?: string | null } | null
-  /** Git history when the preview target is a repository root (D64). */
+  /** Git history when the preview target is a repository root (D64). Folder tab shows the normal directory / stats card. */
   gitRepo?: {
     repoRoot: string
     status: import('@shared/schemas/git').GitRepositoryStatus | null
@@ -181,12 +181,21 @@ export function PreviewView({
   extraBeforeFields = null,
   onRevealPath
 }: PreviewViewProps): JSX.Element {
+  const [repoTab, setRepoTab] = useState<'git' | 'folder'>('git')
+  useEffect(() => {
+    setRepoTab('git')
+  }, [gitRepo?.repoRoot])
+
+  const showRepoTabs = !!gitRepo && !driveSpace && !zen
+  const onFolderTab = showRepoTabs && repoTab === 'folder'
+  const showGitHistory = !!gitRepo && !driveSpace && (zen || repoTab === 'git')
+
   const headerSub = driveSpace
     ? driveSpace.focusPath
       ? 'Local disk'
       : 'Drives'
-    : gitRepo
-      ? 'Git'
+    : showRepoTabs
+      ? null
       : model
         ? (model.subtitle ?? kindLabel(model.kind))
         : null
@@ -208,9 +217,11 @@ export function PreviewView({
             ? ' preview-kind-chm'
             : model?.kind === 'model3d'
               ? ' preview-kind-model3d'
-              : model?.kind === 'directory' && model.folderStats
+              : (onFolderTab || !gitRepo) && model?.kind === 'directory' && model.folderStats
                 ? ' preview-kind-folder-stats'
-                : ''
+                : showGitHistory
+                  ? ' preview-kind-git-repo'
+                  : ''
 
   const showWrapToggle =
     !!onToggleTextWordWrap &&
@@ -226,10 +237,33 @@ export function PreviewView({
             {multiHint ? (
               <>
                 <span className="preview-multi-badge">{multiHint}</span>
-                {headerSub ? <span className="preview-multi-sep">·</span> : null}
+                {headerSub || showRepoTabs ? <span className="preview-multi-sep">·</span> : null}
               </>
             ) : null}
-            {headerSub}
+            {showRepoTabs ? (
+              <div className="preview-repo-tabs" role="tablist" aria-label="Repository preview">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={repoTab === 'git'}
+                  className={`preview-source-tab${repoTab === 'git' ? ' active' : ''}`}
+                  onClick={() => setRepoTab('git')}
+                >
+                  Git
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={repoTab === 'folder'}
+                  className={`preview-source-tab${repoTab === 'folder' ? ' active' : ''}`}
+                  onClick={() => setRepoTab('folder')}
+                >
+                  Folder
+                </button>
+              </div>
+            ) : (
+              headerSub
+            )}
           </div>
         ) : null}
         {showWrapToggle || headerActions ? (
@@ -255,7 +289,7 @@ export function PreviewView({
 
       {driveSpace ? (
         <DriveSpacePreview drives={driveSpace.drives} focusPath={driveSpace.focusPath} />
-      ) : gitRepo ? (
+      ) : showGitHistory && gitRepo ? (
         <GitRepoPreview
           repoRoot={gitRepo.repoRoot}
           status={gitRepo.status}
