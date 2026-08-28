@@ -10,15 +10,11 @@ import { formatBytesBinary } from '@shared/driveSpace'
 
 export type FolderStatsTreemapProps = {
   leaves: FolderStatsLeaf[]
-  clump: { size: number; fileCount: number } | null
-  totalSize: number
   onLeafClick: (leaf: FolderStatsLeaf) => void
   onLeafDoubleClick: (leaf: FolderStatsLeaf) => void
 }
 
-type Hit =
-  | { kind: 'leaf'; leaf: FolderStatsLeaf; rect: NestedTreemapRect }
-  | { kind: 'clump'; rect: NestedTreemapRect; size: number; fileCount: number }
+type Hit = { kind: 'leaf'; leaf: FolderStatsLeaf; rect: NestedTreemapRect }
 
 /** Stable WinDirStat-like palette: hash extension → vivid HSL. */
 function colorForExtension(ext: string): { r: number; g: number; b: number } {
@@ -100,53 +96,6 @@ function fillCushion(
   }
 }
 
-function drawClump(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  fileCount: number
-): void {
-  ctx.fillStyle = '#4a5568'
-  ctx.fillRect(x, y, w, h)
-  const grad = ctx.createRadialGradient(
-    x + w * 0.3,
-    y + h * 0.25,
-    0,
-    x + w / 2,
-    y + h / 2,
-    Math.max(w, h)
-  )
-  grad.addColorStop(0, 'rgba(255,255,255,0.12)')
-  grad.addColorStop(1, 'rgba(0,0,0,0.35)')
-  ctx.fillStyle = grad
-  ctx.fillRect(x, y, w, h)
-
-  ctx.save()
-  ctx.beginPath()
-  ctx.rect(x, y, w, h)
-  ctx.clip()
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)'
-  ctx.lineWidth = 1
-  const step = 5
-  for (let s = -h; s < w + h; s += step) {
-    ctx.beginPath()
-    ctx.moveTo(x + s, y)
-    ctx.lineTo(x + s + h, y + h)
-    ctx.stroke()
-  }
-  ctx.restore()
-
-  if (w > 64 && h > 24) {
-    ctx.fillStyle = 'rgba(255,255,255,0.88)'
-    ctx.font = '600 11px system-ui, Segoe UI, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(`Other ${fileCount.toLocaleString()} files`, x + w / 2, y + h / 2, w - 8)
-  }
-}
-
 function rectContains(outer: NestedTreemapRect, inner: NestedTreemapRect, eps = 0.75): boolean {
   return (
     inner.x >= outer.x - eps &&
@@ -164,7 +113,6 @@ function sameDirIds(a: NestedTreemapRect[], b: NestedTreemapRect[]): boolean {
 
 export function FolderStatsTreemap({
   leaves,
-  clump,
   onLeafClick,
   onLeafDoubleClick
 }: FolderStatsTreemapProps): JSX.Element | null {
@@ -192,18 +140,8 @@ export function FolderStatsTreemap({
       if (leaf.size <= 0) continue
       insertNestedLeaf(root, splitPath(leaf.relativePath), `leaf:${i}`, leaf.size)
     }
-    if (clump && clump.size > 0) {
-      if (!root.children) root.children = []
-      root.children.push({
-        id: 'clump',
-        name: 'Other files',
-        size: clump.size,
-        leafId: 'clump'
-      })
-      root.size += clump.size
-    }
     return root.size > 0 ? root : null
-  }, [leaves, clump])
+  }, [leaves])
 
   const composeFrame = useCallback(() => {
     const canvas = canvasRef.current
@@ -268,13 +206,11 @@ export function FolderStatsTreemap({
     canvas.style.width = '100%'
     canvas.style.height = '100%'
 
-    let base = baseCanvasRef.current
-    if (!base) {
-      base = document.createElement('canvas')
-      baseCanvasRef.current = base
-    }
+    // Fresh offscreen buffer each paint (avoids mutating a ref-held canvas).
+    const base = document.createElement('canvas')
     base.width = bw
     base.height = bh
+    baseCanvasRef.current = base
     const ctx = base.getContext('2d')
     if (!ctx) return
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -287,6 +223,7 @@ export function FolderStatsTreemap({
     const hits: Hit[] = []
     const dirs: NestedTreemapRect[] = []
 
+    // Shared right/bottom hairlines (abutting tiles share one line).
     const strokeSharedEdges = (x: number, y: number, w: number, h: number) => {
       ctx.strokeStyle = 'rgba(0,0,0,0.4)'
       ctx.lineWidth = 1
@@ -304,9 +241,21 @@ export function FolderStatsTreemap({
       ctx.stroke()
     }
 
+    // Pass 1: solid overpaint seals float seams so the dark clear never peeks through
+    // as black patches between tiny tiles. Pass 2: cushion + borders (unchanged look).
+    type LeafDraw = {
+      leaf: FolderStatsLeaf
+      x: number
+      y: number
+      w: number
+      h: number
+      rgb: { r: number; g: number; b: number }
+      rect: NestedTreemapRect
+    }
+    const draws: LeafDraw[] = []
+
     for (const rect of layout) {
       if (rect.isDir) {
-        // Skip root (whole map); keep nested folders for hover outlines.
         if (rect.id !== 'root' && rect.depth > 0) dirs.push(rect)
         continue
       }
@@ -314,34 +263,36 @@ export function FolderStatsTreemap({
       const y = rect.y
       const w = rect.w
       const h = rect.h
-      if (w < 1 || h < 1) continue
-
-      if (rect.id === 'clump') {
-        drawClump(ctx, x, y, w, h, clump?.fileCount ?? 0)
-        strokeSharedEdges(x, y, w, h)
-        hits.push({
-          kind: 'clump',
-          rect: { ...rect, x, y, w, h },
-          size: rect.size,
-          fileCount: clump?.fileCount ?? 0
-        })
-        continue
-      }
-
+      if (w <= 0 || h <= 0) continue
       const leaf = leafById.get(rect.id)
       if (!leaf) continue
+      draws.push({
+        leaf,
+        x,
+        y,
+        w,
+        h,
+        rgb: colorForExtension(leaf.ext),
+        rect: { ...rect, x, y, w, h }
+      })
+    }
 
-      fillCushion(ctx, x, y, w, h, colorForExtension(leaf.ext))
-      strokeSharedEdges(x, y, w, h)
-
-      hits.push({ kind: 'leaf', leaf, rect: { ...rect, x, y, w, h } })
+    for (const d of draws) {
+      const { r, g, b } = d.rgb
+      ctx.fillStyle = `rgb(${r},${g},${b})`
+      ctx.fillRect(d.x, d.y, d.w + 1, d.h + 1)
+    }
+    for (const d of draws) {
+      fillCushion(ctx, d.x, d.y, d.w, d.h, d.rgb)
+      strokeSharedEdges(d.x, d.y, d.w, d.h)
+      hits.push({ kind: 'leaf', leaf: d.leaf, rect: d.rect })
     }
 
     hitsRef.current = hits
     dirRectsRef.current = dirs
     hoverDirsRef.current = []
     composeFrame()
-  }, [tree, size, clump, leafById, composeFrame])
+  }, [tree, size, leafById, composeFrame])
 
   const hitTest = useCallback((clientX: number, clientY: number): Hit | null => {
     const canvas = canvasRef.current
@@ -358,7 +309,6 @@ export function FolderStatsTreemap({
   }, [size.w, size.h])
 
   const foldersForHit = useCallback((hit: Hit): NestedTreemapRect[] => {
-    if (hit.kind === 'clump') return []
     return dirRectsRef.current
       .filter((d) => rectContains(d, hit.rect))
       .sort((a, b) => a.depth - b.depth)
@@ -390,9 +340,7 @@ export function FolderStatsTreemap({
         ref={canvasRef}
         className="folder-stats-treemap-canvas"
         role="img"
-        aria-label={`Space map of ${leaves.length.toLocaleString()} largest files${
-          clump ? ` and ${clump.fileCount.toLocaleString()} other files` : ''
-        }`}
+        aria-label={`Space map of ${leaves.length.toLocaleString()} largest files`}
         onMouseMove={(e) => {
           const hit = hitTest(e.clientX, e.clientY)
           if (!hit) {
@@ -402,13 +350,13 @@ export function FolderStatsTreemap({
           }
           const folders = foldersForHit(hit)
           setHoverDirs(folders)
-          const text =
-            hit.kind === 'clump'
-              ? `Other ${hit.fileCount.toLocaleString()} files · ${formatBytesBinary(hit.size)}`
-              : `${hit.leaf.relativePath} · ${formatBytesBinary(hit.leaf.size)}${
-                  hit.leaf.ext ? ` · .${hit.leaf.ext}` : ''
-                }`
-          setTip({ x: e.clientX, y: e.clientY, text })
+          setTip({
+            x: e.clientX,
+            y: e.clientY,
+            text: `${hit.leaf.relativePath} · ${formatBytesBinary(hit.leaf.size)}${
+              hit.leaf.ext ? ` · .${hit.leaf.ext}` : ''
+            }`
+          })
         }}
         onMouseLeave={() => {
           setHoverDirs([])
@@ -416,7 +364,7 @@ export function FolderStatsTreemap({
         }}
         onClick={(e) => {
           const hit = hitTest(e.clientX, e.clientY)
-          if (!hit || hit.kind === 'clump') return
+          if (!hit) return
           const now = Date.now()
           const prev = lastClickRef.current
           if (prev && prev.id === hit.leaf.relativePath && now - prev.t < 400) {

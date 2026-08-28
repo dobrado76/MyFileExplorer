@@ -51,7 +51,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
-| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap (hover folder outlines, Other clump). ADS `FolderStatsPreview`; max leaves default 50000 — [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md) |
+| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap (hover folder outlines); **Other N · size** on the Space usage heading. ADS `FolderStatsPreview`; max leaves default 50000 — [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md) |
 | Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
 | File op plan | Hold **Ctrl** on copy/move/paste/delete → plan dialog with Dry run |
 | Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](GIT.md) |

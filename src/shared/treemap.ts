@@ -36,6 +36,10 @@ export type NestedTreemapRect = TreemapRect & {
  * Classic Bruls squarify fed with raw byte sizes (or with a flat leftover
  * band) collapses into full-width horizontal strips. BSP always fills the
  * rectangle with proper tiles — the WinDirStat look users expect.
+ *
+ * Important: never abandon a region. When the remaining rect is too thin to
+ * split further, the largest remaining item fills the whole slot (otherwise
+ * tiny maps leave blank holes that vanish when the canvas is larger).
  */
 export function squarify(
   items: readonly TreemapInput[],
@@ -51,8 +55,9 @@ export function squarify(
   const out: TreemapRect[] = []
 
   function layout(list: TreemapInput[], rx: number, ry: number, rw: number, rh: number): void {
-    if (list.length === 0 || rw < 0.5 || rh < 0.5) return
-    if (list.length === 1) {
+    if (list.length === 0 || rw <= 0 || rh <= 0) return
+    // Too thin to split — fill the entire remaining slot (no holes).
+    if (list.length === 1 || rw < 1 || rh < 1) {
       out.push({
         id: list[0]!.id,
         size: list[0]!.size,
@@ -97,9 +102,27 @@ export function squarify(
   return out
 }
 
+/** Largest file leaf under a node (for collapsing cramped dirs into one tile). */
+function largestLeafId(node: NestedTreemapNode): string {
+  if (node.leafId) return node.leafId
+  let bestId = node.id
+  let bestSize = -1
+  const stack: NestedTreemapNode[] = [node]
+  while (stack.length > 0) {
+    const n = stack.pop()!
+    if (n.leafId && n.size > bestSize) {
+      bestSize = n.size
+      bestId = n.leafId
+    }
+    if (n.children) for (const c of n.children) stack.push(c)
+  }
+  return bestId
+}
+
 /**
  * Recursively layout a folder tree (WinDirStat-style nesting).
  * Directory nodes get a 1px inset so children sit inside parent frames.
+ * Cramped regions collapse to a single leaf tile so the map never leaves holes.
  */
 export function squarifyNested(
   root: NestedTreemapNode,
@@ -121,10 +144,20 @@ export function squarifyNested(
     rh: number,
     depth: number
   ): void {
-    if (rw < 1 || rh < 1 || node.size <= 0) return
+    if (rw <= 0 || rh <= 0 || node.size <= 0) return
     const kids = node.children?.filter((c) => c.size > 0) ?? []
-    if (kids.length === 0 || !node.children || depth >= maxDepth) {
-      out.push({ id: node.id, size: node.size, x: rx, y: ry, w: rw, h: rh, depth, isDir: false })
+    const tooTight = rw < 1 || rh < 1
+    if (kids.length === 0 || !node.children || depth >= maxDepth || tooTight) {
+      out.push({
+        id: largestLeafId(node),
+        size: node.size,
+        x: rx,
+        y: ry,
+        w: rw,
+        h: rh,
+        depth,
+        isDir: false
+      })
       return
     }
 
@@ -135,7 +168,20 @@ export function squarifyNested(
     const iy = ry + pad
     const iw = rw - pad * 2
     const ih = rh - pad * 2
-    if (iw < 1 || ih < 1) return
+    if (iw <= 0 || ih <= 0) {
+      // Inset ate the slot — cover with a leaf instead of leaving a hole.
+      out.push({
+        id: largestLeafId(node),
+        size: node.size,
+        x: rx,
+        y: ry,
+        w: rw,
+        h: rh,
+        depth: depth + 1,
+        isDir: false
+      })
+      return
+    }
 
     const layout = squarify(
       kids.map((c) => ({ id: c.id, size: c.size })),

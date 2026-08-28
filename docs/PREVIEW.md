@@ -15,7 +15,7 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 - **Summary** — folder/file totals · size; **Date modified** (host) vs **Newest content** (rolled max mtime under the tree); “Statistics calculated …” / “may be out of date”; **map shows N files** (actual leaf count after any ADS size shrink)
 - **Contents** — category rows with **count · bytes · %**, plus top extensions
 - **Largest** / **Recently modified** — clickable paths (reveal in the explorer)
-- **Space usage** (bottom ~40% of the card) — WinDirStat-style nested cushion treemap: tiles sized by bytes, colored by extension, hover outlines containing folders (dark amber), hatched **Other N files** clump for the remainder. Click a leaf to select/reveal; double-click opens with the default app. The clump is not clickable. Uniform 1 px shared seams (no stacked folder+file borders at rest)
+- **Space usage** (bottom ~40% of the card) — WinDirStat-style nested cushion treemap of the largest files only (tiles sized by bytes, colored by extension, hover outlines containing folders). Files outside the leaf cap are summarized as **Other N files · size** on the right of the Space usage heading (not drawn as a map tile). Click a leaf to select/reveal; double-click opens with the default app. Uniform 1 px shared seams (no stacked folder+file borders at rest)
 
 Preview **only reads** ADS — it never starts Calculate Statistics. Changing **Folder space map max files** requires a new Calculate (plain click). Clump count is always `FileTotCount − leaves.length`. See [ADS.md](ADS.md).
 

@@ -202,4 +202,57 @@ describe('squarifyNested', () => {
     expect(files.map((f) => f.id).sort()).toEqual(['leaf:0', 'leaf:1', 'leaf:2'])
     expect(layout.some((r) => r.isDir && r.depth > 0)).toBe(true)
   })
+
+  it('covers the full area on a tiny canvas (no blank holes)', () => {
+    const root: NestedTreemapNode = { id: 'root', name: '', size: 0, children: [] }
+    for (let i = 0; i < 200; i++) {
+      insertNestedLeaf(root, ['A', 'B', `f${i}.bin`], `leaf:${i}`, 1000 + (i % 7))
+    }
+    const W = 80
+    const H = 48
+    const layout = squarifyNested(root, 0, 0, W, H, { inset: 0 })
+    const leaves = layout.filter((r) => !r.isDir)
+    expect(leaves.length).toBeGreaterThan(0)
+    // Every leaf pixel should be covered by at least one leaf rect (sample grid).
+    const covered = Array.from({ length: H }, () => Array.from({ length: W }, () => false))
+    for (const r of leaves) {
+      const x0 = Math.max(0, Math.floor(r.x))
+      const y0 = Math.max(0, Math.floor(r.y))
+      const x1 = Math.min(W, Math.ceil(r.x + r.w))
+      const y1 = Math.min(H, Math.ceil(r.y + r.h))
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) covered[y]![x] = true
+      }
+    }
+    let holes = 0
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) if (!covered[y]![x]) holes++
+    }
+    expect(holes).toBe(0)
+  })
+})
+
+describe('squarify holes', () => {
+  it('fills the container even when many items share a tiny area', () => {
+    const items = Array.from({ length: 80 }, (_, i) => ({ id: `f${i}`, size: 10 + (i % 5) }))
+    const W = 40
+    const H = 24
+    const rects = squarify(items, 0, 0, W, H)
+    expect(rects.length).toBeGreaterThan(0)
+    const covered = Array.from({ length: H }, () => Array.from({ length: W }, () => false))
+    for (const r of rects) {
+      const x0 = Math.max(0, Math.floor(r.x))
+      const y0 = Math.max(0, Math.floor(r.y))
+      const x1 = Math.min(W, Math.ceil(r.x + r.w))
+      const y1 = Math.min(H, Math.ceil(r.y + r.h))
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) covered[y]![x] = true
+      }
+    }
+    let holes = 0
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) if (!covered[y]![x]) holes++
+    }
+    expect(holes).toBe(0)
+  })
 })

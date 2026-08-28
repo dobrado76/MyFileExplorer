@@ -61,7 +61,7 @@ export function FolderStatsCard({
   const name = basename(folderPath) || folderPath
   const mayBeStale = stats.folderMtimeMs > stats.calculatedAtMs
   const total = stats.totalSize
-  const hasMap = stats.leaves.length > 0 || (stats.clump != null && stats.clump.size > 0)
+  const hasMap = stats.leaves.length > 0
 
   const resolveLeaf = (relativePath: string): string => joinUnder(folderPath, relativePath)
 
@@ -192,11 +192,22 @@ export function FolderStatsCard({
 
       {hasMap ? (
         <section className="folder-stats-section folder-stats-section-map">
-          <div className="folder-stats-section-title">Space usage</div>
+          <div className="folder-stats-map-heading">
+            <div className="folder-stats-section-title">Space usage</div>
+            {stats.clump != null && stats.clump.fileCount > 0 ? (
+              <div
+                className="folder-stats-map-other"
+                title={`${stats.clump.fileCount.toLocaleString()} files not shown as tiles · ${
+                  formatBytesBinary(stats.clump.size) || '0 B'
+                }`}
+              >
+                Other {stats.clump.fileCount.toLocaleString()} files
+                {stats.clump.size > 0 ? ` · ${formatBytesBinary(stats.clump.size)}` : ''}
+              </div>
+            ) : null}
+          </div>
           <FolderStatsTreemap
             leaves={stats.leaves}
-            clump={stats.clump}
-            totalSize={stats.totalSize}
             onLeafClick={(leaf) => reveal(leaf.relativePath)}
             onLeafDoubleClick={(leaf) => onOpenPath(resolveLeaf(leaf.relativePath))}
           />

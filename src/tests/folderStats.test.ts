@@ -34,6 +34,36 @@ vi.mock('../main/settings/store', () => ({
   patchSettings: vi.fn()
 }))
 
+// folderStats → preview → search → node:sqlite (Node 22+ only). Stub the chain for unit tests.
+vi.mock('../main/preview', () => ({
+  invalidatePreviewCache: vi.fn()
+}))
+vi.mock('../main/meta/columns', () => ({
+  dropColumnMetaMemoryPath: vi.fn(),
+  invalidateColumnMetaPaths: vi.fn()
+}))
+vi.mock('../main/fs/adsWin32', () => ({
+  readStreamText: vi.fn(),
+  writeStreamText: vi.fn(),
+  withPreservedHostTimes: vi.fn(async (_p: string, fn: () => Promise<unknown>) => fn())
+}))
+vi.mock('../main/fs/listWin32', () => ({
+  listDirectoryForStats: vi.fn(async () => [])
+}))
+vi.mock('../main/fs/opProgress', () => ({
+  beginOp: vi.fn(() => ({
+    pulse: vi.fn(),
+    finish: vi.fn(),
+    fail: vi.fn()
+  }))
+}))
+vi.mock('../main/fs/watch', () => ({
+  muteWatchers: vi.fn()
+}))
+vi.mock('../main/fs/list', () => ({
+  requireAbsolute: (p: string) => p
+}))
+
 import {
   addFolderStatsSkipPath,
   folderStatsSkipPathKeys,

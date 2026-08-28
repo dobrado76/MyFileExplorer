@@ -2167,6 +2167,29 @@ body.right-dragging * {
 }
 .folder-stats-section-map .folder-stats-section-title {
   flex-shrink: 0;
+  margin-bottom: 0;
+}
+.folder-stats-map-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-bottom: 6px;
+  min-width: 0;
+}
+.folder-stats-map-heading .folder-stats-section-title {
+  flex: 0 0 auto;
+}
+.folder-stats-map-other {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .folder-stats-treemap {
   flex: 1 1 auto;
