@@ -1,11 +1,13 @@
 import type { JSX } from 'react'
 import type { DriveInfo } from '@shared/schemas/fs'
+import type { FolderStatsPreviewModel } from '@shared/folderStats'
 import {
   driveHasSpace,
   driveSpaceIsLow,
   formatFreeOfTotal,
   usedBytesOf
 } from '@shared/driveSpace'
+import { FolderStatsCard } from './FolderStatsCard'
 
 function DrivePie({
   drive,
@@ -46,10 +48,13 @@ function DrivePie({
 
 function DriveSpaceCard({
   drive,
-  large
+  large,
+  compact
 }: {
   drive: DriveInfo
   large?: boolean
+  /** Slimmer row when folder statistics / space map sit below. */
+  compact?: boolean
 }): JSX.Element {
   const letter = /^([a-zA-Z]):/.exec(drive.path)?.[1]?.toUpperCase() ?? drive.label
   const name = drive.volumeName || (drive.driveType === 'remote' ? drive.remotePath : undefined)
@@ -58,12 +63,15 @@ function DriveSpaceCard({
     : drive.offline
       ? 'Disconnected'
       : 'Size unknown'
+  const pieSize = compact ? 48 : large ? 88 : 56
   return (
-    <div className={`drive-space-card${large ? ' large' : ''}`}>
+    <div
+      className={`drive-space-card${large && !compact ? ' large' : ''}${compact ? ' compact' : ''}`}
+    >
       {driveHasSpace(drive) ? (
-        <DrivePie drive={drive} size={large ? 88 : 56} />
+        <DrivePie drive={drive} size={pieSize} />
       ) : (
-        <div className="drive-pie drive-pie-empty" style={{ width: large ? 88 : 56, height: large ? 88 : 56 }} />
+        <div className="drive-pie drive-pie-empty" style={{ width: pieSize, height: pieSize }} />
       )}
       <div className="drive-space-meta">
         <div className="drive-space-letter">{letter}</div>
@@ -76,26 +84,66 @@ function DriveSpaceCard({
 
 export function DriveSpacePreview({
   drives,
-  focusPath
+  focusPath,
+  folderStats,
+  folderPath,
+  dateModifiedLabel,
+  indexedLabel,
+  onRevealPath,
+  onOpenPath,
+  onNotify
 }: {
   drives: DriveInfo[]
   focusPath?: string | null
+  /** When Calculate Statistics has tagged this volume root (D66). */
+  folderStats?: FolderStatsPreviewModel | null
+  folderPath?: string | null
+  dateModifiedLabel?: string
+  indexedLabel?: string
+  onRevealPath?: (path: string) => void
+  onOpenPath?: (path: string) => void
+  onNotify?: (text: string, isError?: boolean) => void
 }): JSX.Element {
   const letter = focusPath ? /^([a-zA-Z]):/.exec(focusPath)?.[1]?.toUpperCase() : null
   const focused = letter
     ? drives.find((d) => d.path[0]?.toUpperCase() === letter)
     : undefined
   const list = focused ? [focused] : drives
+  const showStats =
+    !!focused &&
+    !!folderStats &&
+    !!folderPath &&
+    !!onRevealPath &&
+    !!onOpenPath
 
   if (list.length === 0) {
     return <div className="preview-empty">No drives listed</div>
   }
 
   return (
-    <div className={`drive-space-preview${focused ? ' single' : ''}`}>
+    <div
+      className={`drive-space-preview${focused ? ' single' : ''}${showStats ? ' with-stats' : ''}`}
+    >
       {list.map((d) => (
-        <DriveSpaceCard key={d.path} drive={d} large={!!focused} />
+        <DriveSpaceCard
+          key={d.path}
+          drive={d}
+          large={!!focused}
+          compact={showStats}
+        />
       ))}
+      {showStats ? (
+        <FolderStatsCard
+          folderPath={folderPath!}
+          stats={folderStats!}
+          dateModifiedLabel={dateModifiedLabel ?? '—'}
+          indexedLabel={indexedLabel}
+          onRevealPath={onRevealPath!}
+          onOpenPath={onOpenPath!}
+          onNotify={onNotify}
+          suppressHero
+        />
+      ) : null}
     </div>
   )
 }

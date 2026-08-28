@@ -288,7 +288,21 @@ export function PreviewView({
       {!zen ? banner : null}
 
       {driveSpace ? (
-        <DriveSpacePreview drives={driveSpace.drives} focusPath={driveSpace.focusPath} />
+        <DriveSpacePreview
+          drives={driveSpace.drives}
+          focusPath={driveSpace.focusPath}
+          folderStats={
+            driveSpace.focusPath && model?.kind === 'directory' ? model.folderStats : null
+          }
+          folderPath={driveSpace.focusPath && model?.kind === 'directory' ? model.path : null}
+          dateModifiedLabel={
+            model?.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
+          }
+          indexedLabel={model?.fields.find((f) => f.id === 'dir.indexed')?.value}
+          onRevealPath={onRevealPath}
+          onOpenPath={onOpenPath}
+          onNotify={onNotify}
+        />
       ) : showGitHistory && gitRepo ? (
         <GitRepoPreview
           repoRoot={gitRepo.repoRoot}

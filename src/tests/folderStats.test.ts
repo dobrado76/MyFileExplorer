@@ -73,7 +73,7 @@ import {
   removeFolderStatsSkipPath,
   shouldSkipFolderForStats
 } from '../shared/folderStatsSkip'
-import { folderStatWriteError, isFolderStatsCancelled } from '../main/fs/folderStats'
+import { folderStatWriteError, folderStatsWalkFlags, isFolderStatsCancelled } from '../main/fs/folderStats'
 import { pathIsReadOnly } from '../main/fs/winAttrs'
 
 describe('folderStats streams', () => {
@@ -105,6 +105,29 @@ describe('folderStats streams', () => {
     }
     expect(completeTaggedChildStats([ok, ok])).toEqual([ok, ok])
     expect(completeTaggedChildStats([ok, null])).toBeNull()
+  })
+
+  it('volume-root Calculate reuses tagged children and always rewrites the drive', () => {
+    expect(folderStatsWalkFlags('Z:\\', false)).toEqual({
+      volumeRoot: true,
+      reuseCompleteChildren: true,
+      forceRetagRoot: true
+    })
+    expect(folderStatsWalkFlags('C:', true)).toEqual({
+      volumeRoot: true,
+      reuseCompleteChildren: true,
+      forceRetagRoot: true
+    })
+    expect(folderStatsWalkFlags('D:\\Projects', false)).toEqual({
+      volumeRoot: false,
+      reuseCompleteChildren: false,
+      forceRetagRoot: false
+    })
+    expect(folderStatsWalkFlags('D:\\Projects', true)).toEqual({
+      volumeRoot: false,
+      reuseCompleteChildren: true,
+      forceRetagRoot: false
+    })
   })
 
   it('rollupFolderStats adds immediate counts to child subtree totals', () => {

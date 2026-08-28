@@ -10,7 +10,7 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 **Git repository root (D64):** when Settings → Git is enabled and the preview target is the **repository root** folder, the pane header shows **Git | Folder** tabs (**Git** by default). **Git** is the Git Graph–style commit history (toolbar + row context menu). **Folder** is the same directory / folder-statistics card used for any other folder (D66). Guide: [GIT.md](GIT.md).
 
-**Folder statistics preview (D66):** when **Calculate Statistics** has written `FolderStatsPreview` ADS, selecting that folder shows a rich folder card (not a bare directory listing). On a Git repo root, open the **Folder** tab to see it (the **Git** tab remains the default).
+**Folder statistics preview (D66):** when **Calculate Statistics** has written `FolderStatsPreview` ADS, selecting that folder shows a rich folder card (not a bare directory listing). On a Git repo root, open the **Folder** tab to see it (the **Git** tab remains the default). On a **volume root**, the free-space pie stays (compact when stats exist) and the same card / **Space usage** map is shown below — Calculate on the drive compiles from root-folder ADS + root files.
 
 - **Summary** — folder/file totals · size; **Date modified** (host) vs **Newest content** (rolled max mtime under the tree); “Statistics calculated …” / “may be out of date”; **map shows N files** (actual leaf count after any ADS size shrink)
 - **Contents** — category rows with **count · bytes · %**, plus top extensions

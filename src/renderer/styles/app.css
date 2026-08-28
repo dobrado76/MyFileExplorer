@@ -2042,6 +2042,14 @@ body.right-dragging * {
   min-width: 0;
   flex: 1;
 }
+.folder-stats-card-drive {
+  padding-top: 8px;
+}
+.folder-stats-drive-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .folder-stats-name {
   font-size: 15px;
   font-weight: 600;
@@ -8285,6 +8293,22 @@ html.idle-cursor-hidden * {
 .drive-space-preview.single {
   justify-content: flex-start;
 }
+.drive-space-preview.with-stats {
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+.drive-space-preview.with-stats .drive-space-card {
+  flex-shrink: 0;
+}
+.drive-space-preview.with-stats .folder-stats-card {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  overflow: hidden;
+}
 .drive-space-card {
   display: flex;
   align-items: center;
@@ -8296,6 +8320,16 @@ html.idle-cursor-hidden * {
 }
 .drive-space-card.large {
   padding: 14px 12px;
+}
+.drive-space-card.compact {
+  padding: 6px 10px;
+  gap: 10px;
+}
+.drive-space-card.compact .drive-space-letter {
+  font-size: 1.1em;
+}
+.drive-space-card.compact .drive-space-line {
+  font-size: 0.92em;
 }
 .drive-pie {
   flex: 0 0 auto;

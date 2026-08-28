@@ -31,7 +31,7 @@ import {
   shouldSkipFolderForStats
 } from '@shared/folderStatsSkip'
 import { compilePathPatterns, type PathPatternPredicate } from '@shared/pathPatterns'
-import { pathKey, samePath } from '@shared/paths'
+import { isVolumeRootPath, pathKey, samePath } from '@shared/paths'
 import { AppError } from '@shared/result'
 import { requireAbsolute } from './list'
 import { readStreamText, withPreservedHostTimes, writeStreamText } from './adsWin32'
@@ -57,6 +57,19 @@ export type CalculateFolderStatisticsOptions = {
   skipOnError?: boolean
   /** Override settings.folderStatsTreemapMaxLeaves for this run. */
   treemapMaxLeaves?: number
+}
+
+/** Walk flags derived from the calculate root (volume roots compile from children). */
+export function folderStatsWalkFlags(
+  root: string,
+  skipTagged: boolean
+): { reuseCompleteChildren: boolean; forceRetagRoot: boolean; volumeRoot: boolean } {
+  const volumeRoot = isVolumeRootPath(root)
+  return {
+    volumeRoot,
+    reuseCompleteChildren: skipTagged || volumeRoot,
+    forceRetagRoot: volumeRoot
+  }
 }
 
 function errMsg(e: unknown): string {
@@ -85,6 +98,13 @@ type WalkState = {
   lastDir: string
   pendingInvalidate: string[]
   skipTagged: boolean
+  /**
+   * Prefer complete child ADS over re-walking (Shift+skip, or volume-root
+   * Calculate which compiles drive stats from root folders + root files).
+   */
+  reuseCompleteChildren: boolean
+  /** Always rewrite ADS on the walk root (volume roots — never skip as “already tagged”). */
+  forceRetagRoot: boolean
   skipOnError: boolean
   hideHidden: boolean
   filterMatch: PathPatternPredicate
@@ -198,6 +218,7 @@ async function trySkipTaggedFolder(
   state: WalkState,
   op: OpReporter
 ): Promise<TaggedResult | null> {
+  if (state.forceRetagRoot && samePath(dir, state.root)) return null
   if (!state.skipTagged) return null
   const existing = await readCompleteTaggedFolder(dir, state.maxLeaves)
   if (!existing) return null
@@ -211,12 +232,12 @@ async function trySkipTaggedFolder(
   }
 }
 
-/** Shift+click: use ADS for every child only when ints + preview are complete. */
+/** Prefer complete child ADS when Shift+skip or compiling a volume root. */
 async function tryReadAllTaggedChildren(
   subdirs: readonly string[],
   state: WalkState
 ): Promise<ChildTagged[] | null> {
-  if (!state.skipTagged || subdirs.length === 0) return null
+  if (!state.reuseCompleteChildren || subdirs.length === 0) return null
   const rows: (ChildTagged | null)[] = []
   for (let i = 0; i < subdirs.length; i += STAT_CONCURRENCY) {
     const batch = subdirs.slice(i, i + STAT_CONCURRENCY)
@@ -428,7 +449,7 @@ async function loadChildStats(
   op: OpReporter,
   state: WalkState
 ): Promise<ChildTagged | null> {
-  if (state.skipTagged) {
+  if (state.reuseCompleteChildren) {
     const existing = await readCompleteTaggedFolder(sub, state.maxLeaves)
     if (existing) {
       state.foldersSkipped++
@@ -562,6 +583,10 @@ export async function calculateFolderStatistics(
 
   const skipTagged = opts.skipTagged === true
   const skipOnError = opts.skipOnError === true
+  const { volumeRoot, reuseCompleteChildren, forceRetagRoot } = folderStatsWalkFlags(
+    root,
+    skipTagged
+  )
   const settings = settingsStore().get()
   const hideHidden = settings.viewFilterEnabled === true
   const filterMatch = compilePathPatterns(hideHidden ? settings.viewFilterPatterns : [])
@@ -580,9 +605,13 @@ export async function calculateFolderStatistics(
   const rootLabel = path.basename(root) || root
   const label = skipOnError
     ? `Calculating statistics (skip errors) — ${rootLabel}`
-    : skipTagged
-      ? `Calculating statistics (skip tagged) — ${rootLabel}`
-      : `Calculating statistics — ${rootLabel}`
+    : volumeRoot
+      ? skipTagged
+        ? `Compiling drive statistics (skip tagged) — ${rootLabel}`
+        : `Compiling drive statistics — ${rootLabel}`
+      : skipTagged
+        ? `Calculating statistics (skip tagged) — ${rootLabel}`
+        : `Calculating statistics — ${rootLabel}`
   const progress = beginOp('folder-stats', 0, label)
   muteWatchers(120_000)
   const state: WalkState = {
@@ -593,6 +622,8 @@ export async function calculateFolderStatistics(
     lastDir: root,
     pendingInvalidate: [],
     skipTagged,
+    reuseCompleteChildren,
+    forceRetagRoot,
     skipOnError,
     hideHidden,
     filterMatch,
@@ -605,9 +636,13 @@ export async function calculateFolderStatistics(
     progress.pulse(
       skipOnError
         ? 'Scanning — skipping folders that fail…'
-        : skipTagged
-          ? 'Scanning untagged folders…'
-          : 'Scanning and tagging folders…'
+        : volumeRoot
+          ? skipTagged
+            ? 'Reading tagged root folders…'
+            : 'Compiling from root folders (retagging untagged)…'
+          : skipTagged
+            ? 'Scanning untagged folders…'
+            : 'Scanning and tagging folders…'
     )
     const tagged = await tagFolderTree(root, progress, state)
     if (tagged.skipped) {

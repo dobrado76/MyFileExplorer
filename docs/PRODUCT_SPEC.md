@@ -139,7 +139,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
 - Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
-- **Calculate Statistics** (local NTFS folders) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). **Shift+click** skips already-complete tags. Guide: [ADS.md](ADS.md).
+- **Calculate Statistics** (local NTFS folders and volume roots) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). On a **drive root**, compiles from each root folder’s ADS (retagging only untagged children) plus root files. **Shift+click** skips already-complete tags. Guide: [ADS.md](ADS.md).
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
@@ -166,7 +166,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
 - **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
-- **Folder statistics + space map** (D66): when Calculate Statistics has tagged a non–Git-root folder, preview shows the rich folder card and WinDirStat-style space map (ADS read-only). See [PREVIEW.md](PREVIEW.md), [ADS.md](ADS.md).
+- **Folder statistics + space map** (D66): when Calculate Statistics has tagged a folder (or volume root), preview shows the rich card and WinDirStat-style space map (ADS read-only). Volume roots keep the free-space pie and add the map below. See [PREVIEW.md](PREVIEW.md), [ADS.md](ADS.md).
 - **Git repository root** (D64, opt-in): repo-root selection shows **Git | Folder** tabs (**Git** = commit history by default; **Folder** = normal directory / stats card). See [GIT.md](GIT.md).
 
 See [SEARCH.md](SEARCH.md).

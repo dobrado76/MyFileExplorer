@@ -12,6 +12,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ### Changed
 
 - **Git repo-root preview** — header **Git | Folder** tabs (**Git** by default). **Folder** shows the normal directory / folder-statistics card (D66 space map) so repo roots are not limited to history only. See [docs/GIT.md](docs/GIT.md), [docs/PREVIEW.md](docs/PREVIEW.md).
+- **Drive statistics** — **Calculate Statistics** on a volume root compiles ADS from each root-level folder (reusing tagged folders; retagging only untagged ones) plus files on the drive root, then writes the same streams on the volume. Focused drive preview keeps the free-space pie (compact) and adds Contents / Space usage when stats exist. See [docs/ADS.md](docs/ADS.md), [docs/PREVIEW.md](docs/PREVIEW.md).
 
 ## [0.13.0] - 2026-08-28
 

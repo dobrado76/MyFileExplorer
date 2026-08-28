@@ -47,6 +47,8 @@ export type FolderStatsCardProps = {
   onRevealPath: (absPath: string) => void
   onOpenPath: (absPath: string) => void
   onNotify?: (text: string, isError?: boolean) => void
+  /** Drive preview already shows free-space pie — skip the folder icon hero. */
+  suppressHero?: boolean
 }
 
 export function FolderStatsCard({
@@ -56,7 +58,8 @@ export function FolderStatsCard({
   indexedLabel,
   onRevealPath,
   onOpenPath,
-  onNotify
+  onNotify,
+  suppressHero = false
 }: FolderStatsCardProps): JSX.Element {
   const name = basename(folderPath) || folderPath
   const mayBeStale = stats.folderMtimeMs > stats.calculatedAtMs
@@ -74,44 +77,69 @@ export function FolderStatsCard({
   }
 
   return (
-    <div className={`folder-stats-card${hasMap ? ' folder-stats-card-with-map' : ''}`}>
+    <div
+      className={`folder-stats-card${hasMap ? ' folder-stats-card-with-map' : ''}${
+        suppressHero ? ' folder-stats-card-drive' : ''
+      }`}
+    >
       <div className="folder-stats-scroll">
-        <div className="folder-stats-hero">
-          <div className="preview-icon folder-stats-icon">
-            <FolderIcon size={48} />
+        {!suppressHero ? (
+          <div className="folder-stats-hero">
+            <div className="preview-icon folder-stats-icon">
+              <FolderIcon size={48} />
+            </div>
+            <div className="folder-stats-hero-text">
+              <div className="folder-stats-name" title={folderPath}>
+                {name}
+              </div>
+              <div className="folder-stats-path mono" title={folderPath}>
+                {folderPath}
+              </div>
+              <div className="folder-stats-summary">
+                {stats.folderTotCount.toLocaleString()} folder
+                {stats.folderTotCount === 1 ? '' : 's'} · {stats.fileTotCount.toLocaleString()} file
+                {stats.fileTotCount === 1 ? '' : 's'} · {formatBytesBinary(stats.totalSize) || '0 B'}
+              </div>
+              <div className="folder-stats-meta-line">
+                <span>Date modified {dateModifiedLabel}</span>
+                {stats.newestMtimeMs > 0 ? (
+                  <span>Newest content {new Date(stats.newestMtimeMs).toLocaleString()}</span>
+                ) : null}
+                {indexedLabel ? <span>Indexed {indexedLabel}</span> : null}
+              </div>
+              <div
+                className="folder-stats-stale"
+                title="Statistics update when you run Calculate Statistics"
+              >
+                {mayBeStale
+                  ? 'Statistics may be out of date'
+                  : `Statistics calculated ${formatAge(stats.calculatedAtMs)}`}
+                {stats.leaves.length > 0
+                  ? ` · map shows ${stats.leaves.length.toLocaleString()} files`
+                  : ''}
+              </div>
+            </div>
           </div>
-          <div className="folder-stats-hero-text">
-            <div className="folder-stats-name" title={folderPath}>
-              {name}
-            </div>
-            <div className="folder-stats-path mono" title={folderPath}>
-              {folderPath}
-            </div>
+        ) : (
+          <div className="folder-stats-drive-summary">
             <div className="folder-stats-summary">
               {stats.folderTotCount.toLocaleString()} folder
               {stats.folderTotCount === 1 ? '' : 's'} · {stats.fileTotCount.toLocaleString()} file
               {stats.fileTotCount === 1 ? '' : 's'} · {formatBytesBinary(stats.totalSize) || '0 B'}
             </div>
-            <div className="folder-stats-meta-line">
-              <span>Date modified {dateModifiedLabel}</span>
-              {stats.newestMtimeMs > 0 ? (
-                <span>Newest content {new Date(stats.newestMtimeMs).toLocaleString()}</span>
-              ) : null}
-              {indexedLabel ? <span>Indexed {indexedLabel}</span> : null}
+            <div
+              className="folder-stats-stale"
+              title="Statistics update when you run Calculate Statistics"
+            >
+              {mayBeStale
+                ? 'Statistics may be out of date'
+                : `Statistics calculated ${formatAge(stats.calculatedAtMs)}`}
+              {stats.leaves.length > 0
+                ? ` · map shows ${stats.leaves.length.toLocaleString()} files`
+                : ''}
             </div>
-          <div
-            className="folder-stats-stale"
-            title="Statistics update when you run Calculate Statistics"
-          >
-            {mayBeStale
-              ? 'Statistics may be out of date'
-              : `Statistics calculated ${formatAge(stats.calculatedAtMs)}`}
-            {stats.leaves.length > 0
-              ? ` · map shows ${stats.leaves.length.toLocaleString()} files`
-              : ''}
           </div>
-          </div>
-        </div>
+        )}
 
         <section className="folder-stats-section">
           <div className="folder-stats-section-title">Contents</div>
