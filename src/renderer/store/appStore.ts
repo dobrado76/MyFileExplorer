@@ -6918,6 +6918,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
         )
         get().bumpColumnMeta(res.path)
+        for (const p of res.propagatedPaths ?? []) {
+          get().bumpColumnMeta(p)
+        }
         if (opts?.skipOnError) {
           try {
             const settings = await call(api.settings.get())
@@ -6930,8 +6933,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           res.foldersSkipped != null && res.foldersSkipped > 0
             ? ` · ${res.foldersSkipped.toLocaleString()} skipped`
             : ''
+        const parents =
+          res.parentsUpdated != null && res.parentsUpdated > 0
+            ? ` · ${res.parentsUpdated.toLocaleString()} parent${res.parentsUpdated === 1 ? '' : 's'} updated`
+            : ''
         get().notify(
-          `Statistics saved — ${res.foldersTagged.toLocaleString()} folders tagged${skipped} · ${res.fileTotCount.toLocaleString()} files · ${res.folderTotCount.toLocaleString()} folders · ${formatBytes(res.totalSize)}`
+          `Statistics saved — ${res.foldersTagged.toLocaleString()} folders tagged${skipped}${parents} · ${res.fileTotCount.toLocaleString()} files · ${res.folderTotCount.toLocaleString()} folders · ${formatBytes(res.totalSize)}`
         )
       } catch (e) {
         reportOperationError('Calculate Statistics failed', e, {

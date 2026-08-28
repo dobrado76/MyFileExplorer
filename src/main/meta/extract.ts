@@ -49,6 +49,7 @@ const AV_EXTS = new Set([
   'divx',
   'mov',
   'wmv',
+  'asf',
   'mpg',
   'mpeg',
   'flv',

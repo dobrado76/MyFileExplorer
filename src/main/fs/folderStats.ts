@@ -547,6 +547,115 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
   return { path: dir, stats, merge, dirty: true }
 }
 
+/**
+ * Parent directory for stats propagation, or null at a volume root / path ceiling.
+ * Shared helper so tests can pin the stop condition without touching the filesystem.
+ */
+export function statsPropagationParent(dir: string): string | null {
+  if (isVolumeRootPath(dir)) return null
+  const parent = path.dirname(dir)
+  if (!parent || parent === '.' || samePath(parent, dir)) return null
+  return parent
+}
+
+/**
+ * After a folder is recalculated, rewrite each ancestor that already has complete
+ * statistics by composing immediate files + sibling ADS (using `known` for the
+ * updated child). Stops at the first parent without tags, on the skip list, or
+ * when a sibling is missing complete ADS (cannot rebuild accurately).
+ */
+async function propagateStatsToAncestors(
+  known: TaggedResult,
+  state: WalkState,
+  op: OpReporter
+): Promise<string[]> {
+  let child = known
+  const propagated: string[] = []
+  while (true) {
+    op.throwIfCancelled()
+    const parent = statsPropagationParent(child.path)
+    if (!parent) break
+    if (isSkippedStatsPath(parent, state.skipPathKeys)) break
+
+    const existingParent = await readCompleteTaggedFolder(parent)
+    if (!existingParent) break
+
+    state.lastDir = parent
+    muteWatchers(2500)
+
+    let scan: ImmediateScan
+    try {
+      scan = await scanImmediate(parent, state)
+    } catch (e) {
+      if (isFolderStatsCancelled(e)) throw wrapFolderStatsError(e)
+      break
+    }
+
+    const children: ChildTagged[] = []
+    let siblingsOk = true
+    for (let i = 0; i < scan.subdirs.length; i += STAT_CONCURRENCY) {
+      op.throwIfCancelled()
+      const batch = scan.subdirs.slice(i, i + STAT_CONCURRENCY)
+      const batchRows = await Promise.all(
+        batch.map(async (sub) => {
+          if (samePath(sub, child.path)) {
+            return {
+              path: child.path,
+              stats: child.stats,
+              merge: child.merge,
+              dirty: true
+            } satisfies ChildTagged
+          }
+          const existing = await readCompleteTaggedFolder(sub)
+          if (!existing) return null
+          return {
+            path: sub,
+            stats: existing.stats,
+            merge: previewMergeStateFromPayload(existing.preview),
+            dirty: false
+          } satisfies ChildTagged
+        })
+      )
+      for (const row of batchRows) {
+        if (!row) {
+          siblingsOk = false
+          break
+        }
+        children.push(row)
+      }
+      if (!siblingsOk) break
+    }
+    if (!siblingsOk) break
+
+    const folders = children.length
+    const stats = rollupFolderStats(
+      { files: scan.files, folders, fileBytes: scan.fileBytes },
+      children.map((c) => c.stats)
+    )
+    const merge = emptyPreviewMergeState()
+    for (const f of scan.fileEntries) {
+      addImmediateFile(merge, f, state.maxLeaves)
+    }
+    for (const c of children) {
+      mergeChildMergeState(merge, path.basename(c.path), c.merge, state.maxLeaves)
+    }
+    const preview = finalizePreviewPayload(merge, stats, state.maxLeaves, Date.now())
+
+    try {
+      await writeFolderStatStreams(parent, stats, preview)
+    } catch (e) {
+      if (isFolderStatsCancelled(e)) throw wrapFolderStatsError(e)
+      break
+    }
+    trackFolderTagged(parent, state)
+    await flushMetaInvalidation(state)
+    reportProgress(state, op, stats, true)
+    propagated.push(parent)
+    child = { path: parent, stats, merge, dirty: true }
+  }
+  return propagated
+}
+
 /** Read ints + FolderStatsPreview for the preview pane (no walk). */
 export async function readFolderStatsForPreview(
   dir: string,
@@ -648,6 +757,13 @@ export async function calculateFolderStatistics(
     if (tagged.skipped) {
       throw new AppError('io', `Could not calculate statistics for “${root}”`, undefined, root)
     }
+    let parentsUpdated = 0
+    let propagatedPaths: string[] = []
+    if (tagged.dirty) {
+      progress.pulse('Updating parent folder statistics…')
+      propagatedPaths = await propagateStatsToAncestors(tagged, state, progress)
+      parentsUpdated = propagatedPaths.length
+    }
     persistErrorSkips(state)
     await flushMetaInvalidation(state, true)
     reportProgress(state, progress, tagged.stats, true)
@@ -657,7 +773,10 @@ export async function calculateFolderStatistics(
       path: root,
       ...tagged.stats,
       foldersTagged: state.foldersTagged,
-      ...(state.foldersSkipped > 0 ? { foldersSkipped: state.foldersSkipped } : {})
+      ...(state.foldersSkipped > 0 ? { foldersSkipped: state.foldersSkipped } : {}),
+      ...(parentsUpdated > 0
+        ? { parentsUpdated, propagatedPaths }
+        : {})
     }
   } catch (e) {
     persistErrorSkips(state)

@@ -41,6 +41,7 @@ const VIDEO_EXTS = new Set([
   'mov',
   'avi',
   'wmv',
+  'asf',
   'm4v',
   'mpg',
   'mpeg',

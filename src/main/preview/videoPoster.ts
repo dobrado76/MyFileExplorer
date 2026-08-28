@@ -15,6 +15,7 @@ import { runFfmpeg } from './ffmpegBin'
 export const CHROMIUM_WEAK_VIDEO_EXTS = new Set([
   'mkv',
   'wmv',
+  'asf',
   'mpg',
   'mpeg',
   'ts',

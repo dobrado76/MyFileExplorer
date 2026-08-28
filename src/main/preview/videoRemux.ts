@@ -27,7 +27,7 @@ type PrepMode = 'copy' | 'aac' | 'h264aac'
 const CACHE_VER = 'mp4-v4'
 
 /** Always re-encode — stream-copy yields audio-only + wrong control chrome. */
-const FORCE_TRANSCODE_EXTS = new Set(['wmv', 'mpg', 'mpeg', 'flv'])
+const FORCE_TRANSCODE_EXTS = new Set(['wmv', 'asf', 'mpg', 'mpeg', 'flv'])
 
 /** When a non-force container still needs re-encode and is huge, clip it. */
 const LARGE_REENCODE_BYTES = 80 * 1024 * 1024

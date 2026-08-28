@@ -128,6 +128,13 @@ export type FolderStatisticsResult = FolderStatCounts & {
   foldersTagged: number
   /** Folders not entered: already tagged, system / hidden / view-filter, skip list, or Skip all. */
   foldersSkipped?: number
+  /**
+   * Ancestors rewritten by rolling up child ADS (no deep re-walk).
+   * Stops at the first parent without existing complete statistics.
+   */
+  parentsUpdated?: number
+  /** Absolute paths of those ancestors (UI cache bust). */
+  propagatedPaths?: string[]
   truncated?: boolean
 }
 

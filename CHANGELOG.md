@@ -13,6 +13,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Git repo-root preview** — header **Git | Folder** tabs (**Git** by default). **Folder** shows the normal directory / folder-statistics card (D66 space map) so repo roots are not limited to history only. See [docs/GIT.md](docs/GIT.md), [docs/PREVIEW.md](docs/PREVIEW.md).
 - **Drive statistics** — **Calculate Statistics** on a volume root compiles ADS from each root-level folder (reusing tagged folders; retagging only untagged ones) plus files on the drive root, then writes the same streams on the volume. Focused drive preview keeps the free-space pie (compact) and adds Contents / Space usage when stats exist. See [docs/ADS.md](docs/ADS.md), [docs/PREVIEW.md](docs/PREVIEW.md).
+- **Folder statistics parent rollup** — after recalculating a folder, ancestors that already have complete statistics are updated from the new child ADS + sibling ADS + immediate files (no deep re-walk), so removing a large file and recalculating the leaf folder refreshes parent space maps too. Stops at the first parent without tags.
+- **`.asf` video** — recognized as video for preview kind, Details media columns, `video:` / Videos search, folder-stats category, icons, and media-metadata walks. Preview uses the same remux/transcode path as `.wmv` when Chromium cannot play the container.
 
 ## [0.13.0] - 2026-08-28
 

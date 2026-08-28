@@ -19,6 +19,7 @@ describe('classifyFolderStatsExt', () => {
     expect(classifyFolderStatsExt('jpg')).toBe('images')
     expect(classifyFolderStatsExt('.PNG')).toBe('images')
     expect(classifyFolderStatsExt('mp4')).toBe('videos')
+    expect(classifyFolderStatsExt('asf')).toBe('videos')
     expect(classifyFolderStatsExt('docx')).toBe('documents')
     expect(classifyFolderStatsExt('zip')).toBe('archives')
     expect(classifyFolderStatsExt('exe')).toBe('other')

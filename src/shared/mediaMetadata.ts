@@ -91,7 +91,8 @@ export type ParsedMediaName = {
   kind: 'movie' | 'episode' | 'unknown'
 }
 
-const VIDEO_EXT_RE = /\.(mp4|mkv|webm|avi|divx|mov|wmv|m4v|mpg|mpeg|ts|m2ts|vob|flv|rmvb|rm)$/i
+const VIDEO_EXT_RE =
+  /\.(mp4|mkv|webm|avi|divx|mov|wmv|asf|m4v|mpg|mpeg|ts|m2ts|vob|flv|rmvb|rm)$/i
 
 export function isMediaMetadataVideoName(name: string): boolean {
   return VIDEO_EXT_RE.test(name)

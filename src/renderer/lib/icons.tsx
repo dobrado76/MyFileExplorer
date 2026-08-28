@@ -313,6 +313,7 @@ const VIDEO_EXTS = new Set([
   'divx',
   'mov',
   'wmv',
+  'asf',
   'm4v',
   'mpg',
   'mpeg',

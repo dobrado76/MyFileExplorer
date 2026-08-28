@@ -73,7 +73,7 @@ import {
   removeFolderStatsSkipPath,
   shouldSkipFolderForStats
 } from '../shared/folderStatsSkip'
-import { folderStatWriteError, folderStatsWalkFlags, isFolderStatsCancelled } from '../main/fs/folderStats'
+import { folderStatWriteError, folderStatsWalkFlags, isFolderStatsCancelled, statsPropagationParent } from '../main/fs/folderStats'
 import { pathIsReadOnly } from '../main/fs/winAttrs'
 
 describe('folderStats streams', () => {
@@ -128,6 +128,13 @@ describe('folderStats streams', () => {
       reuseCompleteChildren: true,
       forceRetagRoot: false
     })
+  })
+
+  it('statsPropagationParent walks up to the volume root then stops', () => {
+    expect(statsPropagationParent('D:\\A\\B\\C')).toBe('D:\\A\\B')
+    expect(statsPropagationParent('D:\\A')).toBe('D:\\')
+    expect(statsPropagationParent('D:\\')).toBeNull()
+    expect(statsPropagationParent('D:')).toBeNull()
   })
 
   it('rollupFolderStats adds immediate counts to child subtree totals', () => {
