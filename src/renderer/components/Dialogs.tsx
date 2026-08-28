@@ -3887,6 +3887,29 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showFolderStatistics !== false}
                 onChange={(v) => void applySettingsPatch({ showFolderStatistics: v })}
               />
+              <label
+                className="settings-field"
+                htmlFor="set-folder-stats-treemap-leaves"
+                title="Space map keeps up to N largest files; the rest are clumped. Run Calculate Statistics again after changing."
+              >
+                <span>Folder space map max files</span>
+                <SettingsClampedNumber
+                  id="set-folder-stats-treemap-leaves"
+                  value={settings.folderStatsTreemapMaxLeaves ?? 50000}
+                  min={100}
+                  max={50000}
+                  step={50}
+                  title="100–50000 files"
+                  onCommit={(n) => void applySettingsPatch({ folderStatsTreemapMaxLeaves: n })}
+                />
+                <span className="settings-field-hint">
+                  Space map keeps up to this many largest files (100–50000, default 50000); the rest
+                  are clumped as “Other”. If the ADS JSON would exceed ~16 MB, N is reduced
+                  automatically. Run Calculate Statistics again after changing (plain click — not
+                  Shift+click alone if the old count is still tagged). Type a value or use the
+                  steppers.
+                </span>
+              </label>
               <div className="settings-field settings-field-separator">
                 <span title="Folders omitted from Calculate Statistics. They stay visible in the file list.">
                   Calculate Statistics skip list

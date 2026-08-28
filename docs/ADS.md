@@ -74,7 +74,7 @@ Well-known streams such as `Zone.Identifier` appear in the list with **no** spec
 
 **Caption** (UTF-8 JSON): optional array of `{ Caption, Descriptor, Sentence }`. When Settings → Slideshow → **Draw caption** is on, preview / slideshow / image viewer frame the photo in a poster using a random entry; border + titles are colored from a hash of the **entire stream text** (fixed per file, independent of which entry is picked). See [SLIDESHOW.md](SLIDESHOW.md).
 
-**Folder statistics** (UTF-8 decimal integers): optional streams written by folder context menu **Calculate Statistics** (local NTFS folders only). The walk is **depth-first**: every subfolder receives all five streams with immediate counts plus rolled-up totals from its subtree. **Shift+click** runs an incremental pass: a folder that already has a **complete** five-stream record is not entered (stats read from ADS only). When **every direct subfolder** is complete, their totals are read from ADS in batch — those subtrees are not opened. A child with only some streams (interrupted write) is **retagged**, not treated as a fatal error. Write/permission failures show the full path, **Windows Properties**, **Retry** (same root, skip already-tagged folders), **Skip folder** (omit that path and resume), and **Skip all** (omit failures and keep tagging the rest; skipped paths are saved). Manage the list in Settings → Behavior. A tagged parent is therefore instant (no `readdir` under it). The walk **does not enter** Windows system folders (`$RECYCLE.BIN`, `System Volume Information`, the System attribute), or — when the view filter is on — Hidden folders and view-filter pattern matches (same omit rules as the listing). Those children are omitted from counts and are not tagged. The walk does **not** open file contents: sizes come from `FindFirstFile` (`WIN32_FIND_DATA`). The only extra opens are the five statistics ADS writes per folder (serialized, one host-time snapshot). Details columns **Files**, **Total Files**, **Folders**, **Total Folders** (opt-in) read these when present.
+**Folder statistics** (UTF-8 decimal integers + optional JSON): optional streams written by folder context menu **Calculate Statistics** (local NTFS folders only). The walk is **depth-first**: every subfolder receives all five integer streams with immediate counts plus rolled-up totals from its subtree, and a **`FolderStatsPreview`** JSON stream (category count/bytes, top extensions, largest/recent, space-map leaves + clump, `calculatedAtMs`). **Shift+click** runs an incremental pass: a folder that already has a **complete** five-stream **and** valid `FolderStatsPreview` (`version: 1`) record is not entered (stats read from ADS only). Folders tagged before this JSON existed are **retagged once** on the next Shift+Calculate (or a full calculate). When **every direct subfolder** is complete, their totals are read from ADS in batch — those subtrees are not opened. A child with only some streams (interrupted write) is **retagged**, not treated as a fatal error. Write/permission failures show the full path, **Windows Properties**, **Retry** (same root, skip already-tagged folders), **Skip folder** (omit that path and resume), and **Skip all** (omit failures and keep tagging the rest; skipped paths are saved). Manage the list in Settings → Behavior. A tagged parent is therefore instant (no `readdir` under it). The walk **does not enter** Windows system folders (`$RECYCLE.BIN`, `System Volume Information`, the System attribute), or — when the view filter is on — Hidden folders and view-filter pattern matches (same omit rules as the listing). Those children are omitted from counts and are not tagged. The walk does **not** open file contents: sizes and last-write times come from `FindFirstFile` (`WIN32_FIND_DATA`). The only extra opens are the statistics ADS writes per folder (serialized, one host-time snapshot). Details columns **Files**, **Total Files**, **Folders**, **Total Folders** (opt-in) read the integer streams when present. The preview pane reads `FolderStatsPreview` when present (see [PREVIEW.md](PREVIEW.md)).
 
 | Stream | Meaning |
 | ------ | ------- |
@@ -83,6 +83,9 @@ Well-known streams such as `Zone.Identifier` appear in the list with **no** spec
 | `FolderCount` | Subfolders in this folder only |
 | `FolderTotCount` | Subfolders in this folder and all subfolders |
 | `TotalSize` | Total size in bytes of all files under this folder (recursive) |
+| `FolderStatsPreview` | UTF-8 JSON: categories (`count` + `bytes`), top extensions, largest/recent, `newestMtimeMs`, up to N largest file leaves + optional clump, `calculatedAtMs`, `maxLeaves` |
+
+Leaf paths are **complete** relative paths (never truncated). If the JSON would exceed ~16 MB, Calculate Statistics **reduces N** and rebuilds the clump. Settings → Behavior → **Folder space map max files** (default 50000, 100–50000) sets N for the next calculate. The clump’s **Other N files** count is always `FileTotCount − leaves.length` (not “setting − something else”).
 
 The standard **Size** column shows `TotalSize` for folders when that stream exists (same B / KB / MB / GB formatting as files). Those ADS reads run only for **visible** folder rows (not the whole listing). Settings → Behavior → **Show folder statistics** (on by default) controls that display and the Files / Folders columns. Off skips those ADS reads so folders show no size; **Calculate Statistics** still writes streams.
 
@@ -106,10 +109,15 @@ All paths go through `requireAbsolute` in main. Full request/response shapes: [I
 | --- | ------- |
 | `adsManagerBounds` | `{ x, y, width, height }` or `null` for centered defaults |
 | `adsFieldColumns` | `{ stream, label? }[]` — Details **Stream values** catalog (`adsField:<stream>` columns) |
+| `showFolderStatistics` | When true (default), Details shows calculated folder Size / Files / Folders columns from ADS |
+| `folderStatsTreemapMaxLeaves` | Max file tiles in the space map (100–50000, default **50000**). Changing does not rewrite ADS until the next Calculate |
+| `folderStatsSkipPaths` | Paths omitted after Skip folder / Skip all during Calculate (manage in Settings → Behavior) |
 
 Column visibility / order live with the rest of the Details layout in settings (see [PROJECT_FORMAT.md](PROJECT_FORMAT.md)).
 
 ## Related uses
+
+**Folder statistics / space map (D66)** — integer streams + `FolderStatsPreview` JSON; preview UX in [PREVIEW.md](PREVIEW.md). Decision: [DECISIONS.md](DECISIONS.md) **D66**.
 
 **Media metadata (D50)** writes `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes — not on episode files), and `media_metadata_container` (library + title folder flag). Same NTFS mechanism; not under `userData`. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 

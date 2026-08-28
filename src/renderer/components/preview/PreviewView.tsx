@@ -32,6 +32,7 @@ import { ChmPreview } from './ChmPreview'
 import { FontPreview } from './FontPreview'
 import { Model3dPreview } from './Model3dPreview'
 import { DriveSpacePreview } from './DriveSpacePreview'
+import { FolderStatsCard } from './FolderStatsCard'
 import { GitRepoPreview } from './GitRepoPreview'
 import {
   MediaMetadataDetails,
@@ -141,7 +142,7 @@ export type PreviewViewProps = {
   banner?: ReactNode
   onOpenPath: (path: string) => void
   onExtractZip?: (paths: string[]) => void
-  onNotify?: (text: string) => void
+  onNotify?: (text: string, isError?: boolean) => void
   onRetryPlayableForce: () => void
   /** Volume pies — all drives, or one drive when `focusPath` is set. */
   driveSpace?: { drives: DriveInfo[]; focusPath?: string | null } | null
@@ -153,6 +154,8 @@ export type PreviewViewProps = {
   } | null
   /** Attached item note (D61) shown above file metadata. */
   extraBeforeFields?: ReactNode
+  /** Reveal a path in the file list (folder stats treemap / lists). */
+  onRevealPath?: (path: string) => void
 }
 
 export function PreviewView({
@@ -175,7 +178,8 @@ export function PreviewView({
   onRetryPlayableForce,
   driveSpace = null,
   gitRepo = null,
-  extraBeforeFields = null
+  extraBeforeFields = null,
+  onRevealPath
 }: PreviewViewProps): JSX.Element {
   const headerSub = driveSpace
     ? driveSpace.focusPath
@@ -204,7 +208,9 @@ export function PreviewView({
             ? ' preview-kind-chm'
             : model?.kind === 'model3d'
               ? ' preview-kind-model3d'
-              : ''
+              : model?.kind === 'directory' && model.folderStats
+                ? ' preview-kind-folder-stats'
+                : ''
 
   const showWrapToggle =
     !!onToggleTextWordWrap &&
@@ -273,7 +279,7 @@ export function PreviewView({
       ) : (
         <PreviewBody
           model={model}
-          previewPath={previewPath}
+          previewPath={previewPath ?? model.path}
           mediaHold={mediaHold}
           previewWindowOpen={previewWindowOpen}
           previewVideoAutoplay={previewVideoAutoplay}
@@ -284,6 +290,8 @@ export function PreviewView({
           onCopy={copyValue}
           onRetryPlayableForce={onRetryPlayableForce}
           extraBeforeFields={extraBeforeFields}
+          onRevealPath={onRevealPath}
+          onNotify={onNotify}
         />
       )}
     </div>
@@ -302,7 +310,9 @@ function PreviewBody({
   onExtractZip,
   onCopy,
   onRetryPlayableForce,
-  extraBeforeFields
+  extraBeforeFields,
+  onRevealPath,
+  onNotify
 }: {
   model: PreviewModel
   previewPath: string
@@ -316,6 +326,8 @@ function PreviewBody({
   onCopy: (value: string) => Promise<void>
   onRetryPlayableForce: () => void
   extraBeforeFields?: ReactNode
+  onRevealPath?: (path: string) => void
+  onNotify?: (text: string, isError?: boolean) => void
 }): JSX.Element {
   const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
@@ -450,11 +462,24 @@ function PreviewBody({
             ) : null}
           </>
         )}
-        {model.kind === 'directory' && (
-          <div className="preview-icon">
-            <FolderIcon size={56} />
-          </div>
-        )}
+        {model.kind === 'directory' &&
+          (model.folderStats && onRevealPath ? (
+            <FolderStatsCard
+              folderPath={model.path}
+              stats={model.folderStats}
+              dateModifiedLabel={
+                model.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
+              }
+              indexedLabel={model.fields.find((f) => f.id === 'dir.indexed')?.value}
+              onRevealPath={onRevealPath}
+              onOpenPath={onOpenPath}
+              onNotify={onNotify}
+            />
+          ) : (
+            <div className="preview-icon">
+              <FolderIcon size={56} />
+            </div>
+          ))}
         {model.kind === 'archive' && (
           <>
             {!zen && model.mediaUrl && (

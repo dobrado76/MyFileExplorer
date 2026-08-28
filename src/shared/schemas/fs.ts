@@ -37,7 +37,12 @@ export const calculateFolderStatisticsRequestSchema = z.object({
   /** When true, skip folders that already have a valid TotalSize ADS stream. */
   skipTagged: z.boolean().optional(),
   /** When true, omit folders that fail and keep walking. */
-  skipOnError: z.boolean().optional()
+  skipOnError: z.boolean().optional(),
+  /**
+   * Space-map leaf cap for this run (from renderer settings). When omitted,
+   * main uses `settings.folderStatsTreemapMaxLeaves`.
+   */
+  treemapMaxLeaves: z.number().int().min(100).max(50_000).optional()
 })
 export type CalculateFolderStatisticsRequest = z.infer<
   typeof calculateFolderStatisticsRequestSchema

@@ -1,6 +1,6 @@
 # Project / app data format
 
-**Version:** 0.12.0
+**Version:** 0.13.0
 
 MyFileExplorer browses the **real filesystem**. App-owned state lives only under Electron **`userData`** — always **`%APPDATA%\MyFileExplorer`** for both `npm run dev` and packaged installs (D17). Optional overrides: `MFE_USER_DATA`, or `MFE_ISOLATED_USER_DATA=1` for a repo-local `.dev-user-data/`.
 
@@ -92,6 +92,9 @@ Notes:
 - `vidThumbFrameMs`: delay between `!VIDTHUMB_CACHE` strip frames in icon views (50–2000, default 300). Strips themselves live next to videos as a sibling hidden `!VIDTHUMB_CACHE` folder (not under `userData` — D26 external convention / optional in-app generate).
 - `previewVideoAutoplay`: when true, preview `<video>` / `<audio>` start automatically on select (default `false`).
 - `hideNameExtensions`: extensions (no leading dot) whose “.ext” is omitted from file-view/search **labels** only (default `["lnk"]`). Does not hide files from the listing; rename/tooltips still use the real name.
+- `showFolderStatistics`: when true (default), Details shows Size / Files / Folders from Calculate Statistics ADS.
+- `folderStatsTreemapMaxLeaves`: max file tiles in the folder space map (100–50000, default **50000**). Written into `FolderStatsPreview.maxLeaves` on Calculate (D66).
+- `folderStatsSkipPaths`: absolute paths skipped after Calculate Skip folder / Skip all.
 - `searchExcludeDirNames`: search/index exclude patterns (view-filter language — folder names, file names, `.tmp` / `*.log`, wildcards, or an absolute path)
 - `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
 - `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, tabs: [{ path, title, icon, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. `paneTabIndexes` are indices into `tabs` (or null). `icon` is `{ name, color }`, `{ kind: 'custom', id, showLabel, sizePx }` (D54; PNG stays in `tab-icons/`), or `null` (D32).

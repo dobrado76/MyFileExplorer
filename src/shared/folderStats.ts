@@ -4,6 +4,55 @@ export const FOLDER_STAT_FILE_TOT_COUNT = 'FileTotCount'
 export const FOLDER_STAT_FOLDER_COUNT = 'FolderCount'
 export const FOLDER_STAT_FOLDER_TOT_COUNT = 'FolderTotCount'
 export const FOLDER_STAT_TOTAL_SIZE = 'TotalSize'
+/** UTF-8 JSON: category breakdown, leaves/clump, newest content (see folderStatsPreview). */
+export const FOLDER_STAT_PREVIEW = 'FolderStatsPreview'
+
+export const FOLDER_STATS_CATEGORY_KEYS = [
+  'images',
+  'videos',
+  'documents',
+  'archives',
+  'other'
+] as const
+
+export type FolderStatsCategoryKey = (typeof FOLDER_STATS_CATEGORY_KEYS)[number]
+
+export type FolderStatsCategoryStat = {
+  count: number
+  bytes: number
+}
+
+/** One file represented in the space map / largest list. */
+export type FolderStatsLeaf = {
+  /** Path relative to the tagged folder root (complete — never truncated). */
+  relativePath: string
+  name: string
+  size: number
+  /** Lowercase extension without dot; '' if none. */
+  ext: string
+}
+
+export type FolderStatsRecentEntry = {
+  name: string
+  relativePath: string
+  mtimeMs: number
+  isDir: boolean
+}
+
+export type FolderStatsPreviewPayload = {
+  version: 1
+  calculatedAtMs: number
+  categories: Record<FolderStatsCategoryKey, FolderStatsCategoryStat>
+  topExtensions: { ext: string; count: number }[]
+  largest: FolderStatsLeaf[]
+  recent: FolderStatsRecentEntry[]
+  /** Max mtime under the tree — UI label “Newest content”. */
+  newestMtimeMs: number
+  leaves: FolderStatsLeaf[]
+  clump: { size: number; fileCount: number } | null
+  /** Effective N written (may be lower than the setting if JSON was capped). */
+  maxLeaves: number
+}
 
 export const FOLDER_STATS_COLUMN_IDS = [
   'fsFileCount',
@@ -28,6 +77,13 @@ export type FolderStatCounts = {
   folderTotCount: number
   totalSize: number
 }
+
+/** Preview model attachment: integers + JSON payload. */
+export type FolderStatsPreviewModel = FolderStatsPreviewPayload &
+  FolderStatCounts & {
+    /** Host folder Date modified (for staleness vs calculatedAtMs). */
+    folderMtimeMs: number
+  }
 
 /**
  * Shift+click fast path: every child must have a complete 5-stream record.

@@ -160,6 +160,7 @@ export function PreviewWindowApp(): JSX.Element {
           </button>
         }
         onOpenPath={(path) => void api.shell.openPath({ path })}
+        onRevealPath={(path) => void api.shell.showItemInFolder({ path })}
         onExtractZip={(paths) => void api.fs.extractZip({ paths })}
         onRetryPlayableForce={retryPlayableForce}
         extraBeforeFields={itemNote ? <ItemNotePreview note={itemNote} /> : null}

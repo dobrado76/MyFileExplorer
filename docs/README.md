@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.12.0** — **D64** Git-aware browsing (opt-in) + **D63** Quick Launch; daily-workflow **D53–D62** remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D64**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.13.0** — **D66** WinDirStat-style folder space map + **D65** lock owners; **D64** Git / **D63** Quick Launch remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D66**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -29,9 +29,9 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D64               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D66               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
-| [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
+| [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips, folder space map |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
 | [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
 | [NETWORKS.md](NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
@@ -39,13 +39,23 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
-| [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) |
+| [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
 | [GIT.md](GIT.md)                                 | Optional Git-aware browsing / lightweight client (D64) |
 | [FUTURE_IDEAS.md](FUTURE_IDEAS.md)               | Optional later candidates (not scheduled) |
 
 ---
+
+## Recent behavior (v0.13.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap (hover folder outlines, Other clump). ADS `FolderStatsPreview`; max leaves default 50000 — [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md) |
+| Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
+| File op plan | Hold **Ctrl** on copy/move/paste/delete → plan dialog with Dry run |
+| Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](GIT.md) |
+| Tree hide control | Appearance pin vs per-pane toolbar button |
 
 ## Recent behavior (v0.12.0)
 

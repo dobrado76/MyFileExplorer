@@ -1,6 +1,6 @@
 # Preview & metadata
 
-**Version:** 0.12.0
+**Version:** 0.13.0
 
 The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params). Short File-tab values (duration, bitrate, channels, Yes/No, …) share a row; titles, comments, and other long values stay full-width boxed rows.
 
@@ -9,6 +9,15 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 **Movie / TV overlay (D50):** when Settings → Media Metadata is on and the file/folder has stored streams, a portrait poster + title sit above the player. Movie/TV fields and extracted file metadata (duration, codec, …) use **Media** / **File** tabs under the player when both exist (no tabs if only one). Media rows use the same boxed field layout as File; genres stay pills. Click the poster for the stored full-size cover. With no file selected, the pane previews the **current folder** so a show folder keeps its card until you click an episode. Episode files keep `!VIDTHUMB_CACHE` icons; the show cover is used in preview when the episode has none. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 **Git repository root (D64):** when Settings → Git is enabled and the preview target is the **repository root** folder, the pane shows a Git Graph–style commit history (toolbar + row context menu) instead of the normal folder card. Guide: [GIT.md](GIT.md).
+
+**Folder statistics preview (D66):** when the selected folder is **not** a Git repo root and **Calculate Statistics** has written `FolderStatsPreview` ADS, the pane shows a rich folder card (not a bare directory listing):
+
+- **Summary** — folder/file totals · size; **Date modified** (host) vs **Newest content** (rolled max mtime under the tree); “Statistics calculated …” / “may be out of date”; **map shows N files** (actual leaf count after any ADS size shrink)
+- **Contents** — category rows with **count · bytes · %**, plus top extensions
+- **Largest** / **Recently modified** — clickable paths (reveal in the explorer)
+- **Space usage** (bottom ~40% of the card) — WinDirStat-style nested cushion treemap: tiles sized by bytes, colored by extension, hover outlines containing folders (dark amber), hatched **Other N files** clump for the remainder. Click a leaf to select/reveal; double-click opens with the default app. The clump is not clickable. Uniform 1 px shared seams (no stacked folder+file borders at rest)
+
+Preview **only reads** ADS — it never starts Calculate Statistics. Changing **Folder space map max files** requires a new Calculate (plain click). Clump count is always `FileTotCount − leaves.length`. See [ADS.md](ADS.md).
 
 ### Detached preview window
 

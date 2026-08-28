@@ -38,7 +38,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'behavior',
     label: 'Behavior',
     keywords:
-      'folders first checkbox checkboxes explorer default new tab path home video thumbnail thumb frame delay vidthumb autoplay preview confirm delete recycle bin trash permanent shift+del hide extension lnk url shortcut folder statistics size files columns calculate skip command line cmd powershell administrator uac admin paste clipboard image text html url special template templates new file'
+      'folders first checkbox checkboxes explorer default new tab path home video thumbnail thumb frame delay vidthumb autoplay preview confirm delete recycle bin trash permanent shift+del hide extension lnk url shortcut folder statistics size files columns calculate skip command line cmd powershell administrator uac admin paste clipboard image text html url special template templates new file treemap windirstat space map'
   },
   {
     id: 'contextmenu',
@@ -77,7 +77,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'preview',
     label: 'Preview',
-    keywords: 'preview pane text markdown html max bytes truncate code wrap word wrap'
+    keywords: 'preview pane text markdown html max bytes truncate code wrap word wrap folder statistics space map treemap'
   },
   {
     id: 'search',

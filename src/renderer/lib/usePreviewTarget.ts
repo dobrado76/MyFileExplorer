@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { resolvePreviewTargetPath } from '@shared/previewTarget'
+import { isUnderPath } from '@shared/paths'
 import { useAppStore } from '../store/appStore'
 import { samePath } from './paths'
 import { searchResultsToEntries } from './searchEntries'
@@ -43,7 +44,7 @@ export function usePreviewTarget(): {
     const e = entries.find((en) => samePath(en.path, previewPath))
     const base = e ? `${e.mtimeMs}:${e.size}` : ''
     const contentBump =
-      columnMetaBump.path && samePath(columnMetaBump.path, previewPath)
+      columnMetaBump.path && isUnderPath(previewPath, columnMetaBump.path)
         ? `b${columnMetaBump.rev}`
         : ''
     if (!base && !contentBump) return null

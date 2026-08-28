@@ -5,13 +5,25 @@ import {
   FOLDER_STAT_FILE_TOT_COUNT,
   FOLDER_STAT_FOLDER_COUNT,
   FOLDER_STAT_FOLDER_TOT_COUNT,
+  FOLDER_STAT_PREVIEW,
   FOLDER_STAT_TOTAL_SIZE,
-  completeTaggedChildStats,
   parseFolderStatInt,
   rollupFolderStats,
   type FolderStatCounts,
-  type FolderStatisticsResult
+  type FolderStatisticsResult,
+  type FolderStatsPreviewPayload
 } from '@shared/folderStats'
+import {
+  addImmediateFile,
+  clampFolderStatsTreemapMaxLeaves,
+  emptyPreviewMergeState,
+  finalizePreviewPayload,
+  mergeChildMergeState,
+  parseFolderStatsPreviewJson,
+  previewMergeStateFromPayload,
+  shrinkPreviewPayloadForAds,
+  type PreviewMergeState
+} from '@shared/folderStatsPreview'
 import {
   folderStatsSkipPathKeys,
   isSkippedStatsPath,
@@ -27,6 +39,7 @@ import { listDirectoryForStats, type StatsScanEntry } from './listWin32'
 import { beginOp, type OpReporter } from './opProgress'
 import { muteWatchers } from './watch'
 import { dropColumnMetaMemoryPath, invalidateColumnMetaPaths } from '../meta/columns'
+import { invalidatePreviewCache } from '../preview'
 import { getWinAttributeFlags, pathIsHidden, pathIsReadOnly } from './winAttrs'
 import { patchSettings, settingsStore } from '../settings/store'
 
@@ -42,6 +55,8 @@ export type CalculateFolderStatisticsOptions = {
   skipTagged?: boolean
   /** Keep walking when a folder cannot be read or tagged; persist those paths. */
   skipOnError?: boolean
+  /** Override settings.folderStatsTreemapMaxLeaves for this run. */
+  treemapMaxLeaves?: number
 }
 
 function errMsg(e: unknown): string {
@@ -75,14 +90,17 @@ type WalkState = {
   filterMatch: PathPatternPredicate
   skipPathKeys: Set<string>
   errorSkipPaths: string[]
+  maxLeaves: number
 }
 
-type TaggedResult = {
+type ChildTagged = {
+  path: string
   stats: FolderStatCounts
-  /** This folder or a descendant was written this run. */
+  merge: PreviewMergeState
   dirty: boolean
-  skipped?: false
 }
+
+type TaggedResult = ChildTagged & { skipped?: false }
 
 type TagResult = TaggedResult | { skipped: true }
 
@@ -131,7 +149,7 @@ async function readStatStreamInt(dir: string, streamName: string): Promise<numbe
   }
 }
 
-async function readFolderStatsFromAds(dir: string): Promise<FolderStatCounts | null> {
+async function readFolderStatsIntsFromAds(dir: string): Promise<FolderStatCounts | null> {
   const fileCount = await readStatStreamInt(dir, FOLDER_STAT_FILE_COUNT)
   const fileTotCount = await readStatStreamInt(dir, FOLDER_STAT_FILE_TOT_COUNT)
   const folderCount = await readStatStreamInt(dir, FOLDER_STAT_FOLDER_COUNT)
@@ -149,34 +167,76 @@ async function readFolderStatsFromAds(dir: string): Promise<FolderStatCounts | n
   return { fileCount, fileTotCount, folderCount, folderTotCount, totalSize }
 }
 
+async function readFolderStatsPreviewFromAds(dir: string): Promise<FolderStatsPreviewPayload | null> {
+  try {
+    const raw = await readStreamText(dir, FOLDER_STAT_PREVIEW)
+    return parseFolderStatsPreviewJson(raw)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Complete tagged folder: five ints + valid FolderStatsPreview JSON.
+ * When `requiredMaxLeaves` is set (Shift+skip), also require matching `maxLeaves`
+ * so changing the space-map setting forces a retag.
+ */
+async function readCompleteTaggedFolder(
+  dir: string,
+  requiredMaxLeaves?: number
+): Promise<{ stats: FolderStatCounts; preview: FolderStatsPreviewPayload } | null> {
+  const stats = await readFolderStatsIntsFromAds(dir)
+  if (!stats) return null
+  const preview = await readFolderStatsPreviewFromAds(dir)
+  if (!preview) return null
+  if (requiredMaxLeaves != null && preview.maxLeaves !== requiredMaxLeaves) return null
+  return { stats, preview }
+}
+
 async function trySkipTaggedFolder(
   dir: string,
   state: WalkState,
   op: OpReporter
 ): Promise<TaggedResult | null> {
   if (!state.skipTagged) return null
-  const existing = await readFolderStatsFromAds(dir)
+  const existing = await readCompleteTaggedFolder(dir, state.maxLeaves)
   if (!existing) return null
   state.foldersSkipped++
-  reportProgress(state, op, existing)
-  return { stats: existing, dirty: false }
+  reportProgress(state, op, existing.stats)
+  return {
+    path: dir,
+    stats: existing.stats,
+    merge: previewMergeStateFromPayload(existing.preview),
+    dirty: false
+  }
 }
 
-/** Shift+click: use ADS for every child only when all five streams are present. */
+/** Shift+click: use ADS for every child only when ints + preview are complete. */
 async function tryReadAllTaggedChildren(
   subdirs: readonly string[],
   state: WalkState
-): Promise<FolderStatCounts[] | null> {
+): Promise<ChildTagged[] | null> {
   if (!state.skipTagged || subdirs.length === 0) return null
-  const rows: (FolderStatCounts | null)[] = []
+  const rows: (ChildTagged | null)[] = []
   for (let i = 0; i < subdirs.length; i += STAT_CONCURRENCY) {
     const batch = subdirs.slice(i, i + STAT_CONCURRENCY)
-    rows.push(...(await Promise.all(batch.map((sub) => readFolderStatsFromAds(sub)))))
+    const batchRows = await Promise.all(
+      batch.map(async (sub) => {
+        const existing = await readCompleteTaggedFolder(sub, state.maxLeaves)
+        if (!existing) return null
+        return {
+          path: sub,
+          stats: existing.stats,
+          merge: previewMergeStateFromPayload(existing.preview),
+          dirty: false
+        } satisfies ChildTagged
+      })
+    )
+    rows.push(...batchRows)
   }
-  const complete = completeTaggedChildStats(rows)
-  if (!complete) return null
-  state.foldersSkipped += complete.length
-  return complete
+  if (rows.some((r) => !r)) return null
+  state.foldersSkipped += rows.length
+  return rows as ChildTagged[]
 }
 
 function errCode(e: unknown): string | null {
@@ -244,16 +304,22 @@ async function writeStatStream(dir: string, streamName: string, value: string): 
   }
 }
 
-async function writeFolderStatStreams(dir: string, stats: FolderStatCounts): Promise<void> {
+async function writeFolderStatStreams(
+  dir: string,
+  stats: FolderStatCounts,
+  preview: FolderStatsPreviewPayload
+): Promise<void> {
   await assertFolderWritableForStats(dir)
+  const payload = shrinkPreviewPayloadForAds(preview, stats)
   const rows: [string, string][] = [
     [FOLDER_STAT_FILE_COUNT, String(stats.fileCount)],
     [FOLDER_STAT_FILE_TOT_COUNT, String(stats.fileTotCount)],
     [FOLDER_STAT_FOLDER_COUNT, String(stats.folderCount)],
     [FOLDER_STAT_FOLDER_TOT_COUNT, String(stats.folderTotCount)],
-    [FOLDER_STAT_TOTAL_SIZE, String(stats.totalSize)]
+    [FOLDER_STAT_TOTAL_SIZE, String(stats.totalSize)],
+    [FOLDER_STAT_PREVIEW, JSON.stringify(payload)]
   ]
-  // One host-time snapshot for all five streams — do not open them in parallel.
+  // One host-time snapshot for all streams — do not open them in parallel.
   await withPreservedHostTimes(dir, async () => {
     for (const [name, value] of rows) {
       await writeStatStream(dir, name, value)
@@ -270,8 +336,10 @@ function trackFolderTagged(dir: string, state: WalkState): void {
 async function flushMetaInvalidation(state: WalkState, force = false): Promise<void> {
   if (state.pendingInvalidate.length === 0) return
   if (!force && state.pendingInvalidate.length < INVALIDATE_EVERY) return
-  await invalidateColumnMetaPaths(state.pendingInvalidate)
+  const paths = state.pendingInvalidate
   state.pendingInvalidate = []
+  await invalidateColumnMetaPaths(paths)
+  invalidatePreviewCache(paths)
 }
 
 function skipStatsChild(
@@ -290,14 +358,20 @@ function skipStatsChild(
   })
 }
 
-function foldStatsListing(
-  listed: readonly StatsScanEntry[],
-  state: WalkState
-): { files: number; folders: number; fileBytes: number; subdirs: string[] } {
+type ImmediateScan = {
+  files: number
+  folders: number
+  fileBytes: number
+  subdirs: string[]
+  fileEntries: { name: string; size: number; mtimeMs: number }[]
+}
+
+function foldStatsListing(listed: readonly StatsScanEntry[], state: WalkState): ImmediateScan {
   let files = 0
   let folders = 0
   let fileBytes = 0
   const subdirs: string[] = []
+  const fileEntries: ImmediateScan['fileEntries'] = []
   for (const e of listed) {
     if (e.isReparse) continue
     if (e.isDir) {
@@ -311,15 +385,13 @@ function foldStatsListing(
       files++
       state.entriesScanned++
       fileBytes += e.size
+      fileEntries.push({ name: e.name, size: e.size, mtimeMs: e.mtimeMs })
     }
   }
-  return { files, folders, fileBytes, subdirs }
+  return { files, folders, fileBytes, subdirs, fileEntries }
 }
 
-async function scanImmediate(
-  dir: string,
-  state: WalkState
-): Promise<{ files: number; folders: number; fileBytes: number; subdirs: string[] }> {
+async function scanImmediate(dir: string, state: WalkState): Promise<ImmediateScan> {
   const listed = listDirectoryForStats(dir)
   if (listed) return foldStatsListing(listed, state)
 
@@ -348,26 +420,31 @@ async function scanImmediate(
       state.entriesScanned++
     }
   }
-  return { files, folders, fileBytes: 0, subdirs }
+  return { files, folders, fileBytes: 0, subdirs, fileEntries: [] }
 }
 
 async function loadChildStats(
   sub: string,
   op: OpReporter,
   state: WalkState
-): Promise<FolderStatCounts | null> {
+): Promise<ChildTagged | null> {
   if (state.skipTagged) {
-    const existing = await readFolderStatsFromAds(sub)
+    const existing = await readCompleteTaggedFolder(sub, state.maxLeaves)
     if (existing) {
       state.foldersSkipped++
-      return existing
+      return {
+        path: sub,
+        stats: existing.stats,
+        merge: previewMergeStateFromPayload(existing.preview),
+        dirty: false
+      }
     }
   }
   const child = await tagFolderTree(sub, op, state)
-  return child.skipped ? null : child.stats
+  return child.skipped ? null : child
 }
 
-/** Depth-first walk: tag folders with immediate + rolled-up statistics. */
+/** Depth-first walk: tag folders with immediate + rolled-up statistics + preview JSON. */
 async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Promise<TagResult> {
   op.throwIfCancelled()
   state.lastDir = dir
@@ -380,8 +457,9 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
   let folders: number
   let fileBytes: number
   let subdirs: string[]
+  let fileEntries: ImmediateScan['fileEntries']
   try {
-    ;({ files, folders, fileBytes, subdirs } = await scanImmediate(dir, state))
+    ;({ files, folders, fileBytes, subdirs, fileEntries } = await scanImmediate(dir, state))
   } catch (e) {
     if (isFolderStatsCancelled(e) || !state.skipOnError || samePath(dir, state.root)) {
       throw wrapFolderStatsError(e)
@@ -390,12 +468,12 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
     return { skipped: true }
   }
 
-  let childStats = await tryReadAllTaggedChildren(subdirs, state)
-  if (childStats) {
+  let children = await tryReadAllTaggedChildren(subdirs, state)
+  if (children) {
     const done = await trySkipTaggedFolder(dir, state, op)
     if (done) return done
   } else {
-    childStats = []
+    children = []
     for (let i = 0; i < subdirs.length; i += STAT_CONCURRENCY) {
       op.throwIfCancelled()
       const batch = subdirs.slice(i, i + STAT_CONCURRENCY)
@@ -410,22 +488,33 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
           rememberErrorSkip(state, reason instanceof AppError && reason.path ? reason.path : batch[j]!)
           continue
         }
-        if (s.value) childStats.push(s.value)
+        if (s.value) children.push(s.value)
       }
     }
-    folders = childStats.length
+    folders = children.length
   }
 
+  const childStats = children.map((c) => c.stats)
   const stats = rollupFolderStats({ files, folders, fileBytes }, childStats)
+
+  const merge = emptyPreviewMergeState()
+  for (const f of fileEntries) {
+    addImmediateFile(merge, f, state.maxLeaves)
+  }
+  for (const child of children) {
+    mergeChildMergeState(merge, path.basename(child.path), child.merge, state.maxLeaves)
+  }
+
+  const preview = finalizePreviewPayload(merge, stats, state.maxLeaves, Date.now())
   try {
-    await writeFolderStatStreams(dir, stats)
+    await writeFolderStatStreams(dir, stats, preview)
   } catch (e) {
     if (isFolderStatsCancelled(e) || !state.skipOnError) {
       throw wrapFolderStatsError(e)
     }
     if (samePath(dir, state.root)) {
       reportProgress(state, op, stats)
-      return { stats, dirty: false }
+      return { path: dir, stats, merge, dirty: false }
     }
     rememberErrorSkip(state, dir)
     return { skipped: true }
@@ -434,10 +523,24 @@ async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Pro
   await flushMetaInvalidation(state)
   reportProgress(state, op, stats)
 
-  return { stats, dirty: true }
+  return { path: dir, stats, merge, dirty: true }
 }
 
-/** Walk a local folder tree and attach FileCount / FileTotCount / FolderCount / FolderTotCount / TotalSize ADS. */
+/** Read ints + FolderStatsPreview for the preview pane (no walk). */
+export async function readFolderStatsForPreview(
+  dir: string,
+  folderMtimeMs: number
+): Promise<import('@shared/folderStats').FolderStatsPreviewModel | null> {
+  const existing = await readCompleteTaggedFolder(dir)
+  if (!existing) return null
+  return {
+    ...existing.preview,
+    ...existing.stats,
+    folderMtimeMs
+  }
+}
+
+/** Walk a local folder tree and attach FileCount / FileTotCount / FolderCount / FolderTotCount / TotalSize / FolderStatsPreview ADS. */
 export async function calculateFolderStatistics(
   inputPath: string,
   opts: CalculateFolderStatisticsOptions = {}
@@ -463,6 +566,9 @@ export async function calculateFolderStatistics(
   const hideHidden = settings.viewFilterEnabled === true
   const filterMatch = compilePathPatterns(hideHidden ? settings.viewFilterPatterns : [])
   const skipPathKeys = folderStatsSkipPathKeys(settings.folderStatsSkipPaths ?? [])
+  const maxLeaves = clampFolderStatsTreemapMaxLeaves(
+    opts.treemapMaxLeaves ?? settings.folderStatsTreemapMaxLeaves
+  )
   if (isSkippedStatsPath(root, skipPathKeys)) {
     throw new AppError(
       'validation',
@@ -491,7 +597,8 @@ export async function calculateFolderStatistics(
     hideHidden,
     filterMatch,
     skipPathKeys,
-    errorSkipPaths: []
+    errorSkipPaths: [],
+    maxLeaves
   }
 
   try {

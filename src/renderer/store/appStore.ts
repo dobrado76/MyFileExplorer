@@ -59,6 +59,7 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
+import { clampFolderStatsTreemapMaxLeaves } from '@shared/folderStatsPreview'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
 import {
   patchDirEntriesForRename,
@@ -6905,9 +6906,13 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async calculateFolderStatistics(folderPath, opts) {
       try {
+        const treemapMaxLeaves = clampFolderStatsTreemapMaxLeaves(
+          get().settings.folderStatsTreemapMaxLeaves
+        )
         const res = await call(
           api.fs.calculateFolderStatistics({
             path: folderPath,
+            treemapMaxLeaves,
             ...(opts?.skipTagged ? { skipTagged: true } : {}),
             ...(opts?.skipOnError ? { skipOnError: true } : {})
           })

@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.12.0
+**Version:** 0.13.0
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).
@@ -139,6 +139,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
 - Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- **Calculate Statistics** (local NTFS folders) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). **Shift+click** skips already-complete tags. Guide: [ADS.md](ADS.md).
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
 - Properties
@@ -165,10 +166,8 @@ See [PREVIEW.md](PREVIEW.md).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
 - **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
-
----
-
-## Search
+- **Folder statistics + space map** (D66): when Calculate Statistics has tagged a non–Git-root folder, preview shows the rich folder card and WinDirStat-style space map (ADS read-only). See [PREVIEW.md](PREVIEW.md), [ADS.md](ADS.md).
+- **Git repository root** (D64, opt-in): repo-root selection shows commit history instead of the folder-stats card. See [GIT.md](GIT.md).
 
 See [SEARCH.md](SEARCH.md).
 
@@ -190,7 +189,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | Area         | Fields                                                                             |
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size; icon size; **equal-width tabs** (`tabEqualWidth`, default off); **show tab icons** (`showTabIcons`, default on); **pin control to hide the folder tree** (`treePinToggle`, default on — off uses a per-pane toolbar button, flipped preview-panel icon); **Recycle Bin** (`recycleBinPlacement`: none / tree / toolbar / both, default both) |
-| Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); **autoplay media in preview** (`previewVideoAutoplay`, default off); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files |
+| Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); **autoplay media in preview** (`previewVideoAutoplay`, default off); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files; **Show folder statistics** (`showFolderStatistics`, default on); **Folder space map max files** (`folderStatsTreemapMaxLeaves`, default 50000, 100–50000) — N largest files kept in the Calculate Statistics space map (D66); skip-path list for Calculate failures |
 | Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
 | Quick access | Manage tree shortcuts                                                              |
 | Quick Launch | Toolbar apps: add / name / path / arguments / show (icon, label, both) / icon (app, Lucide, custom) / order (D63) |

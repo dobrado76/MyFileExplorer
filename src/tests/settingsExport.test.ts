@@ -274,6 +274,15 @@ describe('settings export / import', () => {
     expect(parsed.settings.commandLineShell).toBe('powershell')
   })
 
+  it('round-trips folderStatsTreemapMaxLeaves via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, folderStatsTreemapMaxLeaves: 500 },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.folderStatsTreemapMaxLeaves).toBe(500)
+  })
+
   it('round-trips showFolderStatistics via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: { ...defaultSettings, showFolderStatistics: false },

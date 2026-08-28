@@ -16,6 +16,7 @@ import { samePath } from '../lib/paths'
 export function PreviewPane(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const openPath = useAppStore((s) => s.openPath)
+  const openFileLocation = useAppStore((s) => s.openFileLocation)
   const openImageEditor = useAppStore((s) => s.openImageEditor)
   const extractZip = useAppStore((s) => s.extractZip)
   const mediaHold = useAppStore((s) => s.mediaHold)
@@ -212,6 +213,7 @@ export function PreviewPane(): JSX.Element {
       onToggleTextWordWrap={() => void applySettingsPatch({ previewTextWordWrap: !textWordWrap })}
       banner={versionBanner}
       onOpenPath={(path) => void openPath(path)}
+      onRevealPath={(path) => void openFileLocation(path)}
       onExtractZip={(paths) => void extractZip(paths)}
       onNotify={notify}
       onRetryPlayableForce={retryPlayableForce}

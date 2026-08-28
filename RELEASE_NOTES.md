@@ -1,48 +1,55 @@
-# MyFileExplorer v0.12.0 — release notes
+# MyFileExplorer v0.13.0 — release notes
 
-**Date:** 2026-08-26  
-**Tag:** `v0.12.0` (package **0.12.0**)  
-**Previous product baseline:** [v0.11.0](CHANGELOG.md#0110---2026-08-24)
+**Date:** 2026-08-28  
+**Tag:** `v0.13.0` (package **0.13.0**)  
+**Previous product baseline:** [v0.12.0](CHANGELOG.md#0120---2026-08-26)
 
-Twelfth product release (**v0.12**): optional **Git-aware browsing** (**D64**), toolbar **Quick Launch** (**D63**), global scripts as their own toolbar buttons, Recycle Bin placement, clipboard parity with Explorer, and a dogfood polish pass on search, slideshow, and preview.
+Thirteenth product release (**v0.13**): **WinDirStat-style folder space maps** in the preview pane (**D66**), richer Calculate Statistics payloads, Git history/changes polish, Ctrl+file-op plan, and lock-owner End task (**D65**).
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Git guide: [docs/GIT.md](docs/GIT.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Folder stats / ADS: [docs/ADS.md](docs/ADS.md) · [docs/PREVIEW.md](docs/PREVIEW.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Git-aware browsing (D64)
+### Folder space map (D66) — WinDirStat inside the file manager
 
-**Off by default** — Settings → **Git** → Enable. Uses your installed `git` CLI (never stores credentials). While browsing a repo you get status overlays, folder indicators, an optional Details **Git status** column, and an active-pane toolbar (branch · changes · ahead/behind, Commit / Pull / Push / branch / stash). Context **Git >** covers stage, unstage, discard (with confirm), external diff (HEAD ↔ working tree), copy repo-relative path, open root / terminal, and refresh. Select the **repository root** to open a Git Graph–style history in the preview pane.
+After **Calculate Statistics** on a local NTFS folder, select that folder (not a Git repo root) and the preview pane becomes a **folder statistics card**:
 
-### Quick Launch (D63)
+- Summary counts and total size, **Newest content** vs Date modified, calculated age / may-be-stale
+- Contents by category (count · bytes · %), top extensions, Largest, Recently modified
+- **Space usage** treemap docked at the bottom — nested by folder path, cushion shading, color by extension; remainder as hatched **Other N files**
+- Hover outlines containing folders (dark amber); click a tile to reveal; double-click to open
+- Stats live in NTFS ADS (`FolderStatsPreview` + integer streams) with **host timestamps preserved** — no sidecars in your folders
 
-Toolbar pins for the programs you use every day. Settings → **Quick Launch** adds name, path, arguments, **icon** / **label** / **both**, and Lucide / custom / program glyph. The strip stays hidden until at least one pin exists. Click to launch; drop an `.exe` or shortcut onto the strip to add.
+Settings → Behavior → **Folder space map max files** (default **50000**, 100–50000). If the ADS JSON would exceed ~16 MB, N is reduced automatically; **Other** is always `total files − tiles shown`. Recalculate with a plain click after changing N (Shift+Calculate may retag once when JSON completeness rules change).
 
-### Global scripts + Recycle Bin placement
+Explorer has no equivalent; you no longer need a separate WinDirStat window for everyday “what’s eating this folder?” questions.
 
-- Script Manager **Global** — each global script is its own toolbar button (same face options as Quick Launch).
-- Settings → Appearance **Recycle Bin**: Don’t show / Tree / Toolbar / both (default both).
+### Git history & changes (D64 polish)
 
-### Also in this release
+- **Changes** dialog from the toolbar changes summary (stage / unstage / discard / reveal / external diff; optional ignored list)
+- **Commit detail** and **File history…** with compare in your configured diff tool
+- Repo-root preview toolbar + commit context menu (branch, merge, reset with confirm, tags with optional origin push/delete, …)
+- Clone via New → **GitHub Repository**; **Gitignore** from the context menu; ignored **I** overlays always on
 
-- **Copy/Cut ↔ Explorer** — native Win32 `CF_HDROP` so paste works both ways (including Cut → move).
-- Search **Show hidden** vs view filter clarified; slideshow respects the toolbar eye; leading `!Name` search is literal.
-- Slideshow **Alt** toggles full path in the title bar; large folders no longer slow play speed.
-- New tab **+** sits after the last tab; Enter on images opens the folder gallery.
+### File ops & chrome
+
+- Hold **Ctrl** on copy / move / paste / delete for a **plan** dialog (list, options, **Dry run**, then **Run**)
+- **In use** review lists lock owners with **End task** / Locate / Refresh (**D65**)
+- Tree pin vs toolbar hide control; custom media cover browse; Quick Launch / Global script per-pin icon size
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.12.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.13.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
 3. Before a PC swap: **Settings → About → Export…** (includes the script library and templates catalog; AI keys stay on the machine).
 
 ## Upgrade notes
 
-- Fully quit and relaunch (Git IPC and toolbar chrome need a cold start after upgrade).
-- **Git**, Scripts, and Media Metadata stay **off** until you enable them. For Git: install Git for Windows or set `git.exe` under Settings → Git.
-- Notes and item icons still need **local NTFS**.
-- Re-enter remote passwords after settings import if you use remotes.
+- Fully quit and relaunch (IPC and preview chrome need a cold start after upgrade).
+- **Calculate Statistics** again on folders you care about so `FolderStatsPreview` (and the space map) is written. Shift+Calculate may retag once if older tags lacked the JSON stream or used a different max-leaves cap.
+- **Git**, Scripts, and Media Metadata stay **off** until you enable them.
+- Notes, item icons, and folder statistics streams need **local NTFS**.

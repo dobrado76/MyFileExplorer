@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.12.0
+**App:** MyFileExplorer · **Version:** 0.13.0
 
 MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
@@ -17,8 +17,9 @@ Features are deliberately patterned after tools people already trust — then fo
 | **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
 | **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / **Python 3** (not 2.x) / cmd / bash on the folder or selection you are looking at. Saved scripts become context-menu verbs with live output, dry-run, and Stop. Optional AI drafts source and **never reads your files**. Explorer only opens a prompt. Guide: [SCRIPTS.md](SCRIPTS.md). |
 | **Git CLI + a file manager** | **Git-aware browsing** (D64, opt-in): overlays, toolbar Commit/Pull/Push, context Stage/Discard — without becoming a full Git GUI. Guide: [GIT.md](GIT.md). |
+| **[WinDirStat](https://windirstat.net/)** | Nested **space-usage treemap** for a folder — cushion tiles, extension colors, “other” clump — but **inside** the preview pane after Calculate Statistics (ADS on the folder, no separate app window). Guide: [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md) (D66). |
 
-Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md). Git: [GIT.md](GIT.md).
+Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md). Git: [GIT.md](GIT.md). Folder space map: [ADS.md](ADS.md) / [PREVIEW.md](PREVIEW.md) (D66).
 
 ---
 
@@ -50,6 +51,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
 | **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detached preview window** (Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
+| **WinDirStat-style folder space map (D66)** | After **Calculate Statistics**, the folder preview shows counts, categories, largest/recent, and a nested cushion **space-usage** treemap (extension colors, hover folder outlines, “Other N files” clump). Click to reveal; double-click to open. Data stays in NTFS ADS — no sidecars, no separate WinDirStat window. Guide: [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md). |
 | **Drive free space at a glance** | Status bar `N GB free of M GB (P%)`; click **Drives** for pies on every volume, including mapped letters. Offline / empty media do not hide the rest. |
 | **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |
 | **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
@@ -83,7 +85,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
 | **Status-bar progress + Cancel** | Copy / move / trash / delete / rename / video-preview generation show clear progress; Cancel stops between items (and mid large-file copy). |
-| **Continue-then-review bulk ops** | Copy / move / trash / delete keep going through every auto-ok item. One review at the end groups similar issues (already exist, in use, access denied, …) with apply-to-similar — including **Keep most recent**. Name conflicts still get side-by-side compare (size/dates/thumbs). No mid-copy “do this for all” stall. |
+| **Continue-then-review bulk ops** | Copy / move / trash / delete keep going through every auto-ok item. One review at the end groups similar issues (already exist, in use, access denied, …) with apply-to-similar — including **Keep most recent**. Name conflicts still get side-by-side compare (size/dates/thumbs). **In use** rows list lock owners with **End task** (D65). Hold **Ctrl** for a plan dialog with **Dry run** before execute. No mid-copy “do this for all” stall. |
 | **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
 | **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. Drive Properties also has **USN…** to view, enable, clear, or disable the NTFS change journal. |
 | **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
@@ -124,7 +126,7 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 | **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Create link…** (symlink / hard link / junction); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
 | **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
-| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column (names) plus per-stream **value** columns, and a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. |
+| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column (names) plus per-stream **value** columns, and a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. **Calculate Statistics** tags folders with counts, size, and a rich preview payload (D66 space map). |
 | **Attached notes & item icons** | Right-click **Note…** / **Set icon…** on the file or folder (NTFS streams `mfe_note` / `mfe_icon`). Preview + Details Checklist; Power Search `note:` / `todo:`. Host Created / Modified / Change stay put. Explorer has no per-item note or icon overlay. |
 | **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
 | **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
@@ -151,7 +153,7 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 ## Related docs
 
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D65)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D66)  
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [GIT.md](GIT.md) — optional Git-aware browsing (D64)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  

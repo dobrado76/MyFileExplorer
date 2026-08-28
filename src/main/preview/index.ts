@@ -175,7 +175,21 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 23
+const PREVIEW_CACHE_REV = 24
+
+/** Drop cached previews for paths (Calculate Statistics preserves host mtime/size). */
+export function invalidatePreviewCache(paths?: readonly string[]): void {
+  if (!paths || paths.length === 0) {
+    cache.clear()
+    return
+  }
+  const want = new Set(paths.map((p) => p.toLowerCase()))
+  for (const key of [...cache.keys()]) {
+    // `${rev}|${file.toLowerCase()}|v…|…`
+    const filePart = key.split('|')[1]
+    if (filePart && want.has(filePart)) cache.delete(key)
+  }
+}
 
 function bytesHuman(n: number): string {
   if (n < 1024) return `${n} B`
@@ -313,6 +327,15 @@ export async function getPreview(
       // search db unavailable — omit row
     }
     model = { path: file, kind: 'directory', fields, warnings }
+    try {
+      const { readFolderStatsForPreview } = await import('../fs/folderStats')
+      const folderStats = await readFolderStatsForPreview(file, st.mtimeMs)
+      if (folderStats) {
+        model = { ...model, folderStats }
+      }
+    } catch {
+      // ADS unavailable — plain folder preview
+    }
   } else {
     fields.push({
       id: 'file.type',

@@ -474,7 +474,8 @@ export function registerIpcHandlers(): void {
   handle(IPC.fsCalculateFolderStatistics, calculateFolderStatisticsRequestSchema, (req) =>
     calculateFolderStatistics(req.path, {
       skipTagged: req.skipTagged === true,
-      skipOnError: req.skipOnError === true
+      skipOnError: req.skipOnError === true,
+      ...(req.treemapMaxLeaves != null ? { treemapMaxLeaves: req.treemapMaxLeaves } : {})
     })
   )
   handle(IPC.fsSetAttributes, setAttributesRequestSchema, (req) =>

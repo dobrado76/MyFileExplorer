@@ -9,10 +9,14 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-08-28
+
+Thirteenth product release: **WinDirStat-style folder space maps** in preview (**D66**), richer Calculate Statistics ADS, Git history/changes polish, Ctrl+file-op plan, and lock-owner End task (**D65**). See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
+- **Folder statistics preview + space map** (D66) — after **Calculate Statistics**, selecting an ordinary folder (not a Git repo root) shows counts, size, category breakdown (count · bytes · %), largest/recent lists, and a WinDirStat-style treemap of the largest files (remainder clumped). Nested by path, cushion shading, extension colors, hover folder outlines, click to reveal / double-click to open. Stats stay in ADS (`FolderStatsPreview`); host timestamps preserved. Settings → Behavior → **Folder space map max files** (default 50000; ADS JSON may shrink N if over ~16 MB). **Other N files** = `FileTotCount − leaves.length`. **Shift+Calculate** may retag trees once after this upgrade (JSON is now part of “complete”). Guides: [docs/ADS.md](docs/ADS.md), [docs/PREVIEW.md](docs/PREVIEW.md).
 - **Tree hide/show control** — Settings → Appearance **Pin control to hide the folder tree** (on by default). On: pin / unpin on the tree. Off: per-pane toolbar button between the address bar and view presets (same glyph as Show/Hide preview, flipped for the left rail).
-
 - **File operation plan (Ctrl)** — hold **Ctrl** during any copy, move, paste, or delete to open a review panel: full operation list (source, destination, action), options, **Dry run** button (visual preview in the dialog — nothing changes on disk), then **Run** to execute with the same settings without redoing the action. Copy/move include a **Name conflicts** policy (Ask on conflict, Keep both, Skip, Replace); same-folder paste defaults to **Keep both**.
 - **Custom media cover** — **Change cover** → **Browse for image…** picks any local JPG/PNG/WebP/etc. when Plex / TMDB do not list the right poster.
 - **Git changes dialog** — click the toolbar **N changes** summary (explorer or repo-root preview) to inspect a folder tree of dirty paths, stage/unstage/discard, reveal in the file list, or open the configured external diff tool. **Show ignored** (default off) is persisted as `settings.git.showIgnored`.
@@ -34,6 +38,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Folder statistics preview after Calculate** — Calculate Statistics preserves the folder’s Date modified, so the preview cache kept serving a plain folder card. Tagged paths now invalidate that cache and the preview stamp refreshes for the calculated tree.
+- **Folder space map** — treemap is nested by folder path (WinDirStat-style), cushion-shaded, colored by extension, and moved to the **bottom** of the folder preview card.
 - **Recycle Bin restore / undo** — restore no longer lists and walks the entire bin twice (COM + PowerShell). It resolves targets via `$I` metadata or direct `$R…` paths, then restores only those rows. Avoids multi-minute hangs on large bins and blocks forever when a hidden name-conflict dialog would stall shell `DoIt()`.
 - **Ctrl+C / Ctrl+X copied the folder instead of the file selection** — selecting items in the file list now moves keyboard focus out of the folder tree, so copy/cut/delete target the selected files (not the tree folder you had focused earlier).
 - **Git Commit → Push dialog** — opening Push right after Commit used a stale status cache and showed “Nothing to push” even when HEAD was ahead. Outgoing now refreshes and counts `upstream..HEAD` directly.

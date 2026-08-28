@@ -397,6 +397,18 @@ const settingsFieldsSchema = z.object({
    */
   showFolderStatistics: z.boolean().catch(true),
   /**
+   * Max file rectangles in the folder-stats space map (Calculate Statistics).
+   * Remainder is clumped. Changing this does not rewrite ADS until recalculate.
+   */
+  folderStatsTreemapMaxLeaves: z.preprocess(
+    (v) => {
+      const n = typeof v === 'number' ? v : Number(v)
+      if (!Number.isFinite(n)) return 50_000
+      return Math.min(50_000, Math.max(100, Math.round(n)))
+    },
+    z.number().int().min(100).max(50_000).catch(50_000)
+  ),
+  /**
    * Console for **Open Command Line here**: Command Prompt (`cmd`) or PowerShell.
    * Click = current user; Shift+click = Administrator (UAC).
    */
@@ -711,6 +723,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   viewFilterPatterns: [],
   folderStatsSkipPaths: [],
   showFolderStatistics: true,
+  folderStatsTreemapMaxLeaves: 50_000,
   commandLineShell: 'cmd',
   hideNameExtensions: ['lnk'],
   detailsNameWidth: 320,

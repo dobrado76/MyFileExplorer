@@ -53,6 +53,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
+- **Folder space map** — after **Calculate Statistics**, WinDirStat-style usage treemap in the folder preview (NTFS ADS; no sidecars) — **[docs/ADS.md](docs/ADS.md)** · **[docs/PREVIEW.md](docs/PREVIEW.md)**
 - **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
 - **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
 
@@ -84,7 +85,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
 - Per-folder view overrides, view filters, Details columns for media & generation fields
 - Optional gated **slideshow / categorizer** (manual crop, draw caption) for media libraries
-- NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts (depth-first subtree tagging)
+- NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts **and** a WinDirStat-style space map in preview (D66)
 - Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
 - Optional “disable hardware acceleration” when you need the GPU for training
 
@@ -155,7 +156,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)** | Opt-in movie/TV metadata (D50) |
 | **[docs/SCRIPTS.md](docs/SCRIPTS.md)** | Universal script runner — use cases and copy-paste examples (D51) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.12.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.13.0 product-release summary |
 
 ---
 

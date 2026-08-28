@@ -24,7 +24,12 @@ vi.mock('../main/fs/winAttrs', () => ({
 
 vi.mock('../main/settings/store', () => ({
   settingsStore: () => ({
-    get: () => ({ viewFilterEnabled: true, viewFilterPatterns: [], folderStatsSkipPaths: [] })
+    get: () => ({
+      viewFilterEnabled: true,
+      viewFilterPatterns: [],
+      folderStatsSkipPaths: [],
+      folderStatsTreemapMaxLeaves: 50_000
+    })
   }),
   patchSettings: vi.fn()
 }))

@@ -137,6 +137,8 @@ export type StatsScanEntry = {
   isDir: boolean
   isReparse: boolean
   size: number
+  /** Last write time from WIN32_FIND_DATA (ms since epoch). */
+  mtimeMs: number
   hidden: boolean
   system: boolean
 }
@@ -169,6 +171,7 @@ export function listDirectoryForStats(dirPath: string): StatsScanEntry[] | null 
           isDir,
           isReparse: (attrs & FILE_ATTRIBUTE_REPARSE_POINT) !== 0,
           size: isDir ? 0 : sizeHigh * 0x1_0000_0000 + sizeLow,
+          mtimeMs: fileTimeToMs(buf, 20),
           hidden: (attrs & FILE_ATTRIBUTE_HIDDEN) !== 0,
           system: (attrs & FILE_ATTRIBUTE_SYSTEM) !== 0
         })

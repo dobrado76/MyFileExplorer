@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { FolderStatsPreviewModel } from '../folderStats'
 
 export const previewKindSchema = z.enum([
   'image',
@@ -123,6 +124,8 @@ export type PreviewModel = {
     | 'img'
   fields: PreviewField[]
   warnings?: string[]
+  /** Present when Calculate Statistics has written FolderStatsPreview ADS. */
+  folderStats?: FolderStatsPreviewModel
 }
 
 export const previewRequestSchema = z.object({
