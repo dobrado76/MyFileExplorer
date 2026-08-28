@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import type { ScriptDefinition, ScriptLanguage, ScriptRunMode } from '@shared/schemas/scripts'
 import { useAppStore } from '../store/appStore'
 import {
@@ -53,6 +53,9 @@ export function ScriptRunnerDialog(props: {
   const [redactPaths, setRedactPaths] = useState(true)
   const runIdRef = useRef<string | null>(null)
   const stderrRef = useRef('')
+  const outputRef = useRef<HTMLPreElement>(null)
+  /** When true, new output keeps the view pinned to the end (console-style). */
+  const stickToBottomRef = useRef(true)
 
   useEffect(() => {
     if (!props.scriptId) return
@@ -91,6 +94,19 @@ export function ScriptRunnerDialog(props: {
     return unsub
   }, [])
 
+  useLayoutEffect(() => {
+    const el = outputRef.current
+    if (!el || !stickToBottomRef.current) return
+    el.scrollTop = el.scrollHeight
+  }, [output])
+
+  const onOutputScroll = (): void => {
+    const el = outputRef.current
+    if (!el) return
+    const distFromEnd = el.scrollHeight - el.scrollTop - el.clientHeight
+    stickToBottomRef.current = distFromEnd <= 24
+  }
+
   useEffect(() => {
     if (status !== 'running' || !startedAt) return
     const t = setInterval(() => {
@@ -108,6 +124,7 @@ export function ScriptRunnerDialog(props: {
       setError(null)
       setOutput('')
       stderrRef.current = ''
+      stickToBottomRef.current = true
       setExitCode(null)
       const runId = newRunId()
       runIdRef.current = runId
@@ -265,7 +282,13 @@ export function ScriptRunnerDialog(props: {
         {props.mode === 'selection' ? ` · ${props.paths?.length ?? 0} selected` : ''}
         {props.mode === 'global' ? ' · global' : ''}
       </div>
-      <pre className="script-output">{output || 'Output appears here.'}</pre>
+      <pre
+        ref={outputRef}
+        className="script-output"
+        onScroll={onOutputScroll}
+      >
+        {output || 'Output appears here.'}
+      </pre>
       {error && <div className="script-banner script-banner-warn">{error}</div>}
       {status === 'done' && exitCode != null && exitCode !== 0 && settings.ai.enabled && (
         <div className="script-fix">
