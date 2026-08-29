@@ -39,6 +39,11 @@ export const calculateFolderStatisticsRequestSchema = z.object({
   /** When true, omit folders that fail and keep walking. */
   skipOnError: z.boolean().optional(),
   /**
+   * Paths to omit for this run in addition to `settings.folderStatsSkipPaths`
+   * (Skip folder / Skip all — applied even if settings write is still settling).
+   */
+  extraSkipPaths: z.array(z.string().min(1)).max(256).optional(),
+  /**
    * Space-map leaf cap for this run (from renderer settings). When omitted,
    * main uses `settings.folderStatsTreemapMaxLeaves`.
    */

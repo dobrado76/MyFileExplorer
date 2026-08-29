@@ -19,7 +19,8 @@ import { AppError } from '@shared/result'
 vi.mock('../main/fs/winAttrs', () => ({
   pathIsReadOnly: vi.fn(() => false),
   pathIsHidden: vi.fn(() => false),
-  getWinAttributeFlags: vi.fn(() => null)
+  getWinAttributeFlags: vi.fn(() => null),
+  withClearedReadOnlyAttribute: vi.fn(async (_p: string, fn: () => Promise<unknown>) => fn())
 }))
 
 vi.mock('../main/settings/store', () => ({
@@ -270,6 +271,15 @@ describe('folderStatWriteError', () => {
     expect(err.message).toContain('Read-only')
     expect(err.message).not.toContain('EPERM')
     expect(err.path).toBe('Z:\\Music\\Stories')
+  })
+
+  it('maps volume-root Read-only without suggesting folder Properties', () => {
+    vi.mocked(pathIsReadOnly).mockReturnValueOnce(true)
+    const err = folderStatWriteError('D:\\', 'FileCount', null)
+    expect(err.message).toContain('D:\\')
+    expect(err.message).toContain('volume root')
+    expect(err.message).not.toContain('apply to this folder only')
+    expect(err.path).toBe('D:\\')
   })
 
   it('maps EMFILE to a short retry hint', () => {

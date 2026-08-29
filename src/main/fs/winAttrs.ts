@@ -81,6 +81,31 @@ export function pathIsReadOnly(absPath: string): boolean {
   return getWinAttributeFlags(absPath)?.readOnly === true
 }
 
+/**
+ * Run `fn` with FILE_ATTRIBUTE_READONLY temporarily cleared (restored afterward).
+ * Volume roots and some folders report Read-only via GetFileAttributes even when
+ * Explorer does not expose a usable checkbox — ADS writes still need the bit off.
+ */
+export async function withClearedReadOnlyAttribute<T>(
+  absPath: string,
+  fn: () => Promise<T>
+): Promise<T> {
+  const k = ensureApi()
+  if (!k) return fn()
+  const attrs = k.GetFileAttributesW(absPath)
+  if (attrs === INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_READONLY) === 0) {
+    return fn()
+  }
+  if (!k.SetFileAttributesW(absPath, attrs & ~FILE_ATTRIBUTE_READONLY)) {
+    return fn()
+  }
+  try {
+    return await fn()
+  } finally {
+    k.SetFileAttributesW(absPath, attrs)
+  }
+}
+
 export function attributeLabels(flags: WinAttrFlags): string[] {
   const out: string[] = []
   if (flags.readOnly) out.push('Read-only')

@@ -978,7 +978,7 @@ type AppState = {
   /** Count files/folders and attach FileCount / FolderCount ADS streams on a local folder. */
   calculateFolderStatistics(
     folderPath: string,
-    opts?: { skipTagged?: boolean; skipOnError?: boolean }
+    opts?: { skipTagged?: boolean; skipOnError?: boolean; extraSkipPaths?: string[] }
   ): Promise<void>
   mediaMetadataExtractPlex(paths: string[]): Promise<void>
   mediaMetadataDownload(paths: string[]): Promise<void>
@@ -2642,8 +2642,33 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (removed.some((p) => samePath(p, tab.path) || isUnderPath(tab.path, p))) {
       return null
     }
-    const nextPath = nextPathAfterDelete(removed)
+    const ordered = pathsInViewOrder()
+    const gone = new Set(removed.map((p) => p.toLowerCase()))
+    const removedInView = ordered.some((p) => gone.has(p.toLowerCase()))
     pruneListingRemoved(removed)
+
+    // Space Usage / preview delete of a deep file: path is not in the current listing.
+    // Keep the current selection (e.g. the folder whose stats map is open).
+    if (!removedInView) {
+      const stillSelected = tab.selected.filter(
+        (path) =>
+          !removed.some((r) => samePath(path, r) || isUnderPath(path, r))
+      )
+      if (stillSelected.length !== tab.selected.length) {
+        const focus =
+          get().focusedPath && stillSelected.some((p) => samePath(p, get().focusedPath!))
+            ? get().focusedPath
+            : (stillSelected[stillSelected.length - 1] ?? null)
+        updateActiveTab({ selected: stillSelected })
+        set({
+          selectionAnchor: stillSelected[0] ?? null,
+          focusedPath: focus
+        })
+      }
+      return stillSelected[0] ?? get().focusedPath
+    }
+
+    const nextPath = nextSelectionAfterDelete(ordered, removed)
     if (nextPath) {
       updateActiveTab({ selected: [nextPath] })
       set({ selectionAnchor: nextPath, focusedPath: nextPath })
@@ -7484,7 +7509,10 @@ export const useAppStore = create<AppState>()((set, get) => {
             path: folderPath,
             treemapMaxLeaves,
             ...(opts?.skipTagged ? { skipTagged: true } : {}),
-            ...(opts?.skipOnError ? { skipOnError: true } : {})
+            ...(opts?.skipOnError ? { skipOnError: true } : {}),
+            ...(opts?.extraSkipPaths && opts.extraSkipPaths.length > 0
+              ? { extraSkipPaths: opts.extraSkipPaths }
+              : {})
           })
         )
         get().bumpColumnMeta(res.path)

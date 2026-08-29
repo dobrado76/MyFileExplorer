@@ -41,7 +41,7 @@ import { beginOp, type OpReporter } from './opProgress'
 import { muteWatchers } from './watch'
 import { dropColumnMetaMemoryPath, invalidateColumnMetaPaths } from '../meta/columns'
 import { invalidatePreviewCache } from '../preview'
-import { getWinAttributeFlags, pathIsHidden, pathIsReadOnly } from './winAttrs'
+import { getWinAttributeFlags, pathIsHidden, pathIsReadOnly, withClearedReadOnlyAttribute } from './winAttrs'
 import { patchSettings, settingsStore } from '../settings/store'
 
 /** Folder trees in flight — keep low so ADS writes do not exhaust process handles. */
@@ -56,6 +56,8 @@ export type CalculateFolderStatisticsOptions = {
   skipTagged?: boolean
   /** Keep walking when a folder cannot be read or tagged; persist those paths. */
   skipOnError?: boolean
+  /** Extra omit paths for this run (merged with settings.folderStatsSkipPaths). */
+  extraSkipPaths?: string[]
   /** Override settings.folderStatsTreemapMaxLeaves for this run. */
   treemapMaxLeaves?: number
 }
@@ -271,6 +273,14 @@ function errCode(e: unknown): string | null {
 /** User-facing error when ADS statistics cannot be written on a folder. */
 export function folderStatWriteError(dir: string, streamName: string, e: unknown): AppError {
   if (pathIsReadOnly(dir)) {
+    if (isVolumeRootPath(dir)) {
+      return new AppError(
+        'io',
+        `Could not save statistics on “${dir}”: Windows reports this volume root as Read-only (drive Properties has no such checkbox). Retry after remounting the volume, or run Calculate on a folder under the drive instead.`,
+        undefined,
+        dir
+      )
+    }
     return new AppError(
       'io',
       `Could not save statistics on “${dir}”: the folder is Read-only. Open Properties, clear Read-only (apply to this folder only), then try again.`,
@@ -303,12 +313,6 @@ export function folderStatWriteError(dir: string, streamName: string, e: unknown
   )
 }
 
-async function assertFolderWritableForStats(dir: string): Promise<void> {
-  if (pathIsReadOnly(dir)) {
-    throw folderStatWriteError(dir, FOLDER_STAT_FILE_COUNT, null)
-  }
-}
-
 async function writeStatStream(dir: string, streamName: string, value: string): Promise<void> {
   try {
     await writeStreamText(dir, streamName, value, false, { preserveHostTimes: false })
@@ -331,7 +335,6 @@ async function writeFolderStatStreams(
   stats: FolderStatCounts,
   preview: FolderStatsPreviewPayload
 ): Promise<void> {
-  await assertFolderWritableForStats(dir)
   const payload = shrinkPreviewPayloadForAds(preview, stats)
   const rows: [string, string][] = [
     [FOLDER_STAT_FILE_COUNT, String(stats.fileCount)],
@@ -341,11 +344,14 @@ async function writeFolderStatStreams(
     [FOLDER_STAT_TOTAL_SIZE, String(stats.totalSize)],
     [FOLDER_STAT_PREVIEW, JSON.stringify(payload)]
   ]
-  // One host-time snapshot for all streams — do not open them in parallel.
-  await withPreservedHostTimes(dir, async () => {
-    for (const [name, value] of rows) {
-      await writeStatStream(dir, name, value)
-    }
+  // Temporarily clear FILE_ATTRIBUTE_READONLY (common on volume roots / some folders)
+  // so ADS writes can succeed — same idea as ADS timestamp restore.
+  await withClearedReadOnlyAttribute(dir, async () => {
+    await withPreservedHostTimes(dir, async () => {
+      for (const [name, value] of rows) {
+        await writeStatStream(dir, name, value)
+      }
+    })
   })
 }
 
@@ -469,6 +475,12 @@ async function loadChildStats(
 /** Depth-first walk: tag folders with immediate + rolled-up statistics + preview JSON. */
 async function tagFolderTree(dir: string, op: OpReporter, state: WalkState): Promise<TagResult> {
   op.throwIfCancelled()
+  // Parent listing usually filters skips; guard entry so a retry never re-enters
+  // a just-skipped permission-denied folder.
+  if (!samePath(dir, state.root) && isSkippedStatsPath(dir, state.skipPathKeys)) {
+    state.foldersSkipped++
+    return { skipped: true }
+  }
   state.lastDir = dir
   muteWatchers(2500)
 
@@ -764,7 +776,10 @@ export async function calculateFolderStatistics(
   const settings = settingsStore().get()
   const hideHidden = settings.viewFilterEnabled === true
   const filterMatch = compilePathPatterns(hideHidden ? settings.viewFilterPatterns : [])
-  const skipPathKeys = folderStatsSkipPathKeys(settings.folderStatsSkipPaths ?? [])
+  const skipPathKeys = folderStatsSkipPathKeys([
+    ...(settings.folderStatsSkipPaths ?? []),
+    ...(opts.extraSkipPaths ?? [])
+  ])
   const maxLeaves = clampFolderStatsTreemapMaxLeaves(
     opts.treemapMaxLeaves ?? settings.folderStatsTreemapMaxLeaves
   )

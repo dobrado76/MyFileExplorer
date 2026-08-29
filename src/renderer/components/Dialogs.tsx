@@ -709,26 +709,37 @@ function AlertDialog({
     if (!skipOnError && !path) return
     setSkipBusy(true)
     const store = useAppStore.getState()
-    if (path) {
-      await store.applySettingsPatch({
-        folderStatsSkipPaths: addFolderStatsSkipPath(store.settings.folderStatsSkipPaths, path)
-      })
-      const saved = useAppStore.getState().settings.folderStatsSkipPaths
-      if (!saved.some((p) => samePath(p, path))) {
-        setSkipBusy(false)
-        return
+    const skipPath = path
+    const skippingWalkRoot =
+      Boolean(skipPath) && samePath(skipPath!, retryFolderStats.path)
+    try {
+      // Persist omit for a failed subfolder. Do not put the walk root on the skip
+      // list when Skip all continues — that would abort the resume with a validation error.
+      if (skipPath && (!skippingWalkRoot || !skipOnError)) {
+        try {
+          await store.applySettingsPatch({
+            folderStatsSkipPaths: addFolderStatsSkipPath(
+              store.settings.folderStatsSkipPaths,
+              skipPath
+            )
+          })
+        } catch {
+          // Still resume via extraSkipPaths so a settings write glitch cannot trap the dialog.
+        }
       }
-      if (samePath(path, retryFolderStats.path)) {
-        close()
+      close()
+      if (!skipOnError && skippingWalkRoot) {
         store.notify('Folder added to the Calculate Statistics skip list')
         return
       }
+      void store.calculateFolderStatistics(retryFolderStats.path, {
+        skipTagged: true,
+        ...(skipOnError ? { skipOnError: true } : {}),
+        ...(skipPath && !skippingWalkRoot ? { extraSkipPaths: [skipPath] } : {})
+      })
+    } finally {
+      setSkipBusy(false)
     }
-    close()
-    void store.calculateFolderStatistics(retryFolderStats.path, {
-      skipTagged: true,
-      ...(skipOnError ? { skipOnError: true } : {})
-    })
   }
   return (
     <Modal

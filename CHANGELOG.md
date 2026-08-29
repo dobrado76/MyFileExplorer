@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- **Calculate Statistics → Skip folder** — no longer stalls on the same permission-denied folder; the path is omitted for the resumed walk (and saved to Settings → Behavior) so the job can continue.
+
 ### Added
 
 - **Virtual Folders (`.mfevirtual`)** — portable JSON folder-like collections of path references (D67). Open as a first-class folder location (document path, not fake nested paths); New → Virtual Folder; drop/paste adds refs; Del removes membership; Manual sort + Location column; dedicated preview. See [docs/VIRTUAL_FOLDERS.md](docs/VIRTUAL_FOLDERS.md).

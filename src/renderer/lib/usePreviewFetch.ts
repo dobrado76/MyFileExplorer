@@ -29,7 +29,9 @@ export function usePreviewFetch(
     forcePlayableTried.current = null
     const seq = ++previewSeq
     setLoading(true)
-    setModel((prev) => (prev && samePath(prev.path, previewPath) ? null : prev))
+    // Keep the current card while refetching the same path (e.g. live Space Usage patch)
+    // so the map does not flash away.
+    setModel((prev) => (prev && samePath(prev.path, previewPath) ? prev : null))
     const adsArg = versionOverrideAds === undefined ? {} : { ads: versionOverrideAds }
 
     const base = basename(previewPath)

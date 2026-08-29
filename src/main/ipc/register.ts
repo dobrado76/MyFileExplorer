@@ -497,6 +497,9 @@ export function registerIpcHandlers(): void {
     calculateFolderStatistics(req.path, {
       skipTagged: req.skipTagged === true,
       skipOnError: req.skipOnError === true,
+      ...(req.extraSkipPaths && req.extraSkipPaths.length > 0
+        ? { extraSkipPaths: req.extraSkipPaths }
+        : {}),
       ...(req.treemapMaxLeaves != null ? { treemapMaxLeaves: req.treemapMaxLeaves } : {})
     })
   )
