@@ -2581,11 +2581,6 @@ export const useAppStore = create<AppState>()((set, get) => {
     return paths
   }
 
-  /** Next path to select after delete, from the current sorted/filtered listing. */
-  function nextPathAfterDelete(removed: string[]): string | null {
-    return nextSelectionAfterDelete(pathsInViewOrder(), removed)
-  }
-
   /** Drop removed paths from in-memory listings (no full-folder re-stat). */
   function pruneListingRemoved(removed: string[]): void {
     if (removed.length === 0) return
