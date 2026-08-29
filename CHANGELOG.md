@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Virtual Folders (`.mfevirtual`)** — portable JSON folder-like collections of path references (D67). Open as a first-class folder location (document path, not fake nested paths); New → Virtual Folder; drop/paste adds refs; Del removes membership; Manual sort + Location column; dedicated preview. See [docs/VIRTUAL_FOLDERS.md](docs/VIRTUAL_FOLDERS.md).
+
 ### Changed
 
 - **Git repo-root preview** — header **Git | Folder** tabs (**Git** by default). **Folder** shows the normal directory / folder-statistics card (D66 space map) so repo roots are not limited to history only. See [docs/GIT.md](docs/GIT.md), [docs/PREVIEW.md](docs/PREVIEW.md).

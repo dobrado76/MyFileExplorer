@@ -8,6 +8,7 @@ import {
   stripTrailingSep,
   isUnderPath
 } from '../lib/paths'
+import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 import { api, call } from '../lib/ipc'
 import { ChevronDown, ChevronRight } from '../lib/icons'
 import { historyEntries, type RecentLocation } from '../lib/historyEntries'
@@ -169,7 +170,13 @@ export function Breadcrumb({ tabId: tabIdProp }: Props = {}): JSX.Element {
 
   const segments = useMemo(() => {
     const all = segmentsOf(path)
-    return rootPath ? all.filter((seg) => isUnderPath(seg.path, rootPath)) : all
+    const scoped = rootPath ? all.filter((seg) => isUnderPath(seg.path, rootPath)) : all
+    if (!isVirtualFolderDocumentPath(path) || scoped.length === 0) return scoped
+    const last = scoped[scoped.length - 1]!
+    return [
+      ...scoped.slice(0, -1),
+      { ...last, label: virtualFolderDisplayName(path) }
+    ]
   }, [path, rootPath])
 
   useLayoutEffect(() => {

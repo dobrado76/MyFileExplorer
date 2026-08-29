@@ -134,7 +134,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Delete / Delete permanently
 - Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
 - Extract All… (on `.zip` selection — sibling folder named after the archive)
-- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / From Template / GitHub Repository / Other…
+- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / From Template / GitHub Repository / **Virtual Folder** / Other…
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
@@ -167,6 +167,7 @@ See [PREVIEW.md](PREVIEW.md).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
 - **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 - **Folder statistics + space map** (D66): when Calculate Statistics has tagged a folder (or volume root), preview shows the rich card and WinDirStat-style space map (ADS read-only). Volume roots keep the free-space pie and add the map below. See [PREVIEW.md](PREVIEW.md), [ADS.md](ADS.md).
+- **Virtual Folders** (D67): selecting a `.mfevirtual` file shows a Virtual Folder preview (counts / sample locations), not raw JSON. Opening navigates into the collection. See [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md).
 - **Git repository root** (D64, opt-in): repo-root selection shows **Git | Folder** tabs (**Git** = commit history by default; **Folder** = normal directory / stats card). See [GIT.md](GIT.md).
 
 See [SEARCH.md](SEARCH.md).

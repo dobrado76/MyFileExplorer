@@ -135,11 +135,15 @@ export type TrashResponse = {
   trashed: string[]
   issues: OpIssue[]
   aborted?: 'cancelled' | 'fatal'
+  /** Folders whose folder-stats ADS were live-patched after file deletes. */
+  patchedStatsPaths?: string[]
 }
 export type DeletePermanentResponse = {
   deleted: string[]
   issues: OpIssue[]
   aborted?: 'cancelled' | 'fatal'
+  /** Folders whose folder-stats ADS were live-patched after file deletes. */
+  patchedStatsPaths?: string[]
 }
 
 export const relocateRequestSchema = z.object({
@@ -288,6 +292,7 @@ export type ResolveIssuesResponse = {
   deleted: string[]
   skipped: number
   issues: OpIssue[]
+  patchedStatsPaths?: string[]
 }
 
 export const pathsRequestSchema = z.object({ paths: z.array(z.string().min(1)).min(1) })

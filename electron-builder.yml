@@ -42,6 +42,12 @@ protocols:
   - name: MyFileExplorer
     schemes:
       - mfe
+fileAssociations:
+  - ext: mfevirtual
+    name: MyFileExplorer Virtual Folder
+    description: MyFileExplorer Virtual Folder
+    role: Editor
+    mimeType: application/x-myfileexplorer-virtualfolder
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

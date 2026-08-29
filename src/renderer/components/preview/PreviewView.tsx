@@ -116,6 +116,8 @@ export function kindLabel(kind: PreviewModel['kind']): string {
       return 'Application'
     case 'model3d':
       return '3D model'
+    case 'virtualFolder':
+      return 'Virtual Folder'
     case 'missing':
       return 'Missing'
     default:
@@ -528,6 +530,11 @@ function PreviewBody({
               <FolderIcon size={56} />
             </div>
           ))}
+        {model.kind === 'virtualFolder' && (
+          <div className="preview-icon">
+            <FolderIcon size={56} />
+          </div>
+        )}
         {model.kind === 'archive' && (
           <>
             {!zen && model.mediaUrl && (

@@ -591,6 +591,85 @@ export function parseFolderStatsPreviewJson(raw: string | null | undefined): Fol
   }
 }
 
+function normalizeRelPath(rel: string): string {
+  return rel.replace(/\//g, '\\').replace(/^\\+/, '').replace(/\\+$/, '')
+}
+
+/**
+ * Subtract one removed file from tagged folder stats + preview (live map update).
+ * `relativePath` is relative to the tagged folder. Immediate children also decrement
+ * `fileCount`; nested paths only touch `fileTotCount` / `totalSize` / preview lists.
+ */
+export function subtractFileFromPreview(
+  stats: FolderStatCounts,
+  preview: FolderStatsPreviewPayload,
+  relativePath: string,
+  known?: { size?: number; ext?: string }
+): { stats: FolderStatCounts; preview: FolderStatsPreviewPayload } {
+  const rel = normalizeRelPath(relativePath)
+  const relKey = rel.toLowerCase()
+  const leaf = preview.leaves.find((l) => normalizeRelPath(l.relativePath).toLowerCase() === relKey)
+  const size =
+    known?.size != null && Number.isFinite(known.size)
+      ? Math.max(0, known.size)
+      : leaf
+        ? Math.max(0, leaf.size)
+        : 0
+  const ext =
+    (known?.ext != null ? known.ext : leaf?.ext)?.replace(/^\./, '').toLowerCase() ||
+    fileExtOf(rel)
+
+  const isImmediate = !rel.includes('\\')
+  const nextStats: FolderStatCounts = {
+    fileCount: isImmediate ? Math.max(0, stats.fileCount - 1) : stats.fileCount,
+    folderCount: stats.folderCount,
+    fileTotCount: Math.max(0, stats.fileTotCount - 1),
+    folderTotCount: stats.folderTotCount,
+    totalSize: Math.max(0, stats.totalSize - size)
+  }
+
+  const categories = emptyCategories()
+  for (const key of FOLDER_STATS_CATEGORY_KEYS) {
+    categories[key] = { ...preview.categories[key] }
+  }
+  const catKey = classifyFolderStatsExt(ext)
+  const cat = categories[catKey]
+  cat.count = Math.max(0, cat.count - 1)
+  cat.bytes = Math.max(0, cat.bytes - size)
+
+  const topExtensions = preview.topExtensions
+    .map((t) =>
+      t.ext.toLowerCase() === ext
+        ? { ext: t.ext, count: Math.max(0, t.count - 1) }
+        : { ...t }
+    )
+    .filter((t) => t.count > 0)
+
+  const leaves = preview.leaves.filter(
+    (l) => normalizeRelPath(l.relativePath).toLowerCase() !== relKey
+  )
+  const recent = preview.recent.filter(
+    (r) => r.isDir || normalizeRelPath(r.relativePath).toLowerCase() !== relKey
+  )
+  const sortedLeaves = sortLeavesDesc(leaves)
+  const clump = computeClump(sortedLeaves, nextStats.fileTotCount, nextStats.totalSize)
+
+  return {
+    stats: nextStats,
+    preview: {
+      ...preview,
+      calculatedAtMs: Date.now(),
+      categories,
+      topExtensions,
+      leaves: sortedLeaves,
+      largest: sortedLeaves.slice(0, 5),
+      recent,
+      clump,
+      maxLeaves: preview.maxLeaves
+    }
+  }
+}
+
 /** Completeness for Shift+skip: five ints already known + valid preview JSON. */
 export function folderStatsPreviewIsComplete(preview: FolderStatsPreviewPayload | null): boolean {
   return preview != null && preview.version === 1

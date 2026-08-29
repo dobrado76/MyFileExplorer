@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState, type CSSProperties, type JSX } from 'react'
 import { api } from '../lib/ipc'
-import { FileIcon, FolderIcon } from '../lib/icons'
+import { FileIcon, FolderIcon, VirtualFolderIcon } from '../lib/icons'
 import { withIconRequestSlot } from '../lib/iconRequestQueue'
 import { useAppStore } from '../store/appStore'
 
@@ -91,13 +91,18 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
   const px = size <= 20 ? 16 : 32
   // Include kind in the key so a poisoned file glyph can't stick on a folder path.
   const key = `${path.toLowerCase()}|${px}|${isDir ? 'd' : 'f'}`
-  const ext = isDir ? '' : extOf(path)
+  const ext = extOf(path)
+  const isVirtualFolder = ext === 'mfevirtual'
+  // isDir hint still used for shell fetch / placeholders; virtual folders always use in-app glyph.
   const extKey =
-    isDir !== true && ext && !PER_FILE_EXTS.has(ext) ? `${ext}|${px}` : null
-  const [url, setUrl] = useState<string | null>(() => cachedUrl(key, extKey))
+    !isVirtualFolder && isDir !== true && ext && !PER_FILE_EXTS.has(ext) ? `${ext}|${px}` : null
+  const [url, setUrl] = useState<string | null>(() =>
+    isVirtualFolder ? null : cachedUrl(key, extKey)
+  )
   const [failed, setFailed] = useState(false)
 
   const restoreFromCache = (): boolean => {
+    if (isVirtualFolder) return true
     const hit = cachedUrl(key, extKey)
     if (!hit) return false
     if (extKey && !memoryCache.get(key)) {
@@ -118,12 +123,13 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
 
   // Cancel / same-name commit: no listing refresh — pull the glyph back from cache.
   useLayoutEffect(() => {
-    if (renaming) return
+    if (isVirtualFolder || renaming) return
     restoreFromCache()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when rename ends
-  }, [renaming, key])
+  }, [renaming, key, isVirtualFolder])
 
   useEffect(() => {
+    if (isVirtualFolder) return
     let alive = true
     if (restoreFromCache()) return
 
@@ -164,9 +170,10 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, path, size, extKey, isDir, ext, deferred])
+  }, [key, path, size, extKey, isDir, ext, deferred, isVirtualFolder])
 
   useEffect(() => {
+    if (isVirtualFolder) return
     const onInvalidate = (ev: Event): void => {
       const detail = (ev as CustomEvent<{ path?: string }>).detail
       const target = detail?.path
@@ -203,7 +210,7 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     }
     window.addEventListener('mfe-shell-icon-invalidate', onInvalidate)
     return () => window.removeEventListener('mfe-shell-icon-invalidate', onInvalidate)
-  }, [key, path, size, isDir, deferred])
+  }, [key, path, size, isDir, deferred, isVirtualFolder])
 
   const cls = `shell-icon${className ? ` ${className}` : ''}`
   const box: CSSProperties = {
@@ -211,6 +218,10 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     height: size,
     flexShrink: 0,
     display: 'block'
+  }
+
+  if (isVirtualFolder) {
+    return <VirtualFolderIcon size={size} className={cls} style={box} />
   }
 
   if (url && !failed) {

@@ -1386,6 +1386,43 @@ export async function moveEntries(
   return { moved, moves, skipped, issues, aborted: fatal ? 'fatal' : undefined }
 }
 
+type RemovedFileForStatsPatch = {
+  path: string
+  size: number
+  ext: string
+}
+
+async function collectFilesForStatsPatch(paths: string[]): Promise<RemovedFileForStatsPatch[]> {
+  const out: RemovedFileForStatsPatch[] = []
+  for (const p of paths) {
+    try {
+      const st = await fsp.lstat(p)
+      if (st.isDirectory()) continue
+      const ext = path.extname(path.basename(p)).replace(/^\./, '').toLowerCase()
+      out.push({ path: p, size: st.size, ext })
+    } catch {
+      /* missing — skip */
+    }
+  }
+  return out
+}
+
+async function patchStatsForSuccessfulRemoves(
+  candidates: RemovedFileForStatsPatch[],
+  succeeded: string[]
+): Promise<string[]> {
+  if (candidates.length === 0 || succeeded.length === 0) return []
+  const ok = new Set(succeeded.map((p) => p.toLowerCase()))
+  const files = candidates.filter((f) => ok.has(f.path.toLowerCase()))
+  if (files.length === 0) return []
+  try {
+    const { patchFolderStatsAfterFileRemoval } = await import('./folderStats')
+    return await patchFolderStatsAfterFileRemoval(files)
+  } catch {
+    return []
+  }
+}
+
 export async function trashEntries(paths: string[]): Promise<TrashResponse> {
   const issues: OpIssue[] = []
   const absolute: string[] = []
@@ -1412,6 +1449,8 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
     }
     absolute.push(p)
   }
+
+  const statsFiles = await collectFilesForStatsPatch(absolute)
 
   suspendWatching()
   muteWatchers(8000)
@@ -1456,7 +1495,8 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
     muteWatchers(8000)
     resumeWatching()
   }
-  return { trashed, issues }
+  const patchedStatsPaths = await patchStatsForSuccessfulRemoves(statsFiles, trashed)
+  return { trashed, issues, ...(patchedStatsPaths.length > 0 ? { patchedStatsPaths } : {}) }
 }
 
 export async function deletePermanently(paths: string[]): Promise<DeletePermanentResponse> {
@@ -1470,6 +1510,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
   const locals = absolute.filter((p) => !p.toLowerCase().startsWith('mfe-remote://'))
   const deleted: string[] = []
   const issues: OpIssue[] = []
+  const statsFiles = await collectFilesForStatsPatch(locals)
   if (remotes.length > 0) {
     const { remoteDelete } = await import('../remote/sessionPool')
     const progress = beginOp('delete', remotes.length, 'Deleting…')
@@ -1549,7 +1590,8 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
     muteWatchers(8000)
     resumeWatching()
   }
-  return { deleted, issues }
+  const patchedStatsPaths = await patchStatsForSuccessfulRemoves(statsFiles, deleted)
+  return { deleted, issues, ...(patchedStatsPaths.length > 0 ? { patchedStatsPaths } : {}) }
 }
 
 export async function resolveOpIssues(req: ResolveIssuesRequest): Promise<ResolveIssuesResponse> {
@@ -1603,6 +1645,7 @@ export async function resolveOpIssues(req: ResolveIssuesRequest): Promise<Resolv
     const res = await trashEntries(paths)
     out.trashed = res.trashed
     out.issues = res.issues
+    if (res.patchedStatsPaths?.length) out.patchedStatsPaths = res.patchedStatsPaths
     return out
   }
   if (req.op === 'delete') {
@@ -1611,6 +1654,7 @@ export async function resolveOpIssues(req: ResolveIssuesRequest): Promise<Resolv
     const res = await deletePermanently(paths)
     out.deleted = res.deleted
     out.issues = res.issues
+    if (res.patchedStatsPaths?.length) out.patchedStatsPaths = res.patchedStatsPaths
     return out
   }
 

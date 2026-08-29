@@ -230,6 +230,18 @@ export const IPC = {
   remoteConnectedIds: 'remote:connectedIds',
   remoteTestPresets: 'remote:testPresets',
 
+  /** Virtual Folders (`.mfevirtual` virtual collections — D67). */
+  virtualFolderGet: 'virtualFolder:get',
+  virtualFolderList: 'virtualFolder:list',
+  virtualFolderCreate: 'virtualFolder:create',
+  virtualFolderAdd: 'virtualFolder:add',
+  virtualFolderRemove: 'virtualFolder:remove',
+  virtualFolderReorder: 'virtualFolder:reorder',
+  virtualFolderRelink: 'virtualFolder:relink',
+  virtualFolderSetLabel: 'virtualFolder:setLabel',
+  virtualFolderUpdatePaths: 'virtualFolder:updatePaths',
+  virtualFolderPreviewStats: 'virtualFolder:previewStats',
+
   scriptDetectRuntimes: 'script:detectRuntimes',
   scriptList: 'script:list',
   scriptGet: 'script:get',

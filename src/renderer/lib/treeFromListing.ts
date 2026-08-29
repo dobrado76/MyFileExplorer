@@ -1,10 +1,17 @@
 /** Dir children for the folder tree, matching the file list sort. */
 
+import { isVirtualFolderDocumentPath } from '@shared/virtualFolder'
+
 export function dirChildrenFromListing(
-  entries: Array<{ path: string; name: string; kind: string; isHidden?: boolean }>
+  entries: Array<{ path: string; name: string; kind: string; isHidden?: boolean; ext?: string }>
 ): { dirs: string[]; childHidden: Record<string, boolean> } {
   const dirEntries = entries
-    .filter((e) => e.kind === 'dir')
+    .filter(
+      (e) =>
+        e.kind === 'dir' ||
+        e.ext?.toLowerCase() === 'mfevirtual' ||
+        isVirtualFolderDocumentPath(e.path)
+    )
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
   const dirs = dirEntries.map((e) => e.path)
   const childHidden: Record<string, boolean> = {}

@@ -20,6 +20,7 @@ export const previewKindSchema = z.enum([
   'chm',
   'font',
   'model3d',
+  'virtualFolder',
   'missing'
 ])
 export type PreviewKind = z.infer<typeof previewKindSchema>
@@ -126,6 +127,8 @@ export type PreviewModel = {
   warnings?: string[]
   /** Present when Calculate Statistics has written FolderStatsPreview ADS. */
   folderStats?: FolderStatsPreviewModel
+  /** Cheap Virtual Folder summary when `kind === 'virtualFolder'`. */
+  virtualFolderStats?: import('./virtualFolder').VirtualFolderPreviewStats
 }
 
 export const previewRequestSchema = z.object({

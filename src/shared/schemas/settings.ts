@@ -418,9 +418,9 @@ const settingsFieldsSchema = z.object({
    * Values without a leading dot, e.g. `lnk`. Default includes `lnk`.
    */
   hideNameExtensions: z.preprocess((raw) => {
-    if (raw === undefined || raw === null) return ['lnk']
+    if (raw === undefined || raw === null) return ['lnk', 'mfevirtual']
     return normalizeHideNameExtensions(raw)
-  }, z.array(z.string()).catch(['lnk'])),
+  }, z.array(z.string()).catch(['lnk', 'mfevirtual'])),
   detailsNameWidth: z.number().int().min(120).max(1600).catch(320),
   detailsColumns: z.preprocess(
     sanitizeDetailsColumns,
@@ -725,7 +725,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   showFolderStatistics: true,
   folderStatsTreemapMaxLeaves: 50_000,
   commandLineShell: 'cmd',
-  hideNameExtensions: ['lnk'],
+  hideNameExtensions: ['lnk', 'mfevirtual'],
   detailsNameWidth: 320,
   detailsColumns: defaultDetailsColumns,
   adsFieldColumns: [],

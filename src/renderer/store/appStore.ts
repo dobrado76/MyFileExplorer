@@ -36,6 +36,8 @@ import {
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
+import type { VirtualFolderDocument, VirtualFolderMembership } from '@shared/virtualFolder'
+import { isVirtualFolderDocumentPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
 import type { GitRepositoryStatus } from '@shared/schemas/git'
 import { gitRootKey } from '../lib/gitUi'
 import { networkDiscoveryIntervalMs } from '@shared/schemas/settings'
@@ -61,6 +63,7 @@ import { api, call, IpcError } from '../lib/ipc'
 import { formatBytes } from '../lib/format'
 import { clampFolderStatsTreemapMaxLeaves } from '@shared/folderStatsPreview'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { pathKey } from '@shared/paths'
 import {
   patchDirEntriesForRename,
   renameDestOccupied,
@@ -204,6 +207,16 @@ export type Listing = {
   error: string | null
   /** Path is unreachable (unmounted / encrypted / network) — keep tab, poll until back. */
   offline: boolean
+  /** Present when `path` is an open `.mfevirtual` document (virtual collection). */
+  virtualFolder?: {
+    document: VirtualFolderDocument
+    mtimeMs: number
+    readOnly: boolean
+    /** entryId → membership */
+    byEntryId: Record<string, VirtualFolderMembership>
+    /** resolved/stored row path key → entryId */
+    entryIdByPathKey: Record<string, string>
+  } | null
 }
 
 export type ClipboardState = { mode: 'copy' | 'cut'; paths: string[] } | null
@@ -271,6 +284,11 @@ export type DialogState =
       message: string
       confirmLabel?: string
       danger?: boolean
+    }
+  | {
+      kind: 'virtual-folder-conflict'
+      title: string
+      message: string
     }
   | { kind: 'file-op-plan'; plan: FileOpPlanResponse; request: FileOpPlanRequest }
   | { kind: 'power-rename'; paths: string[] }
@@ -357,6 +375,8 @@ export type ContextMenuState = {
   dropTransfer?: { destDir: string }
   /** Slideshow player menu (categorize / delete / undo / edit / reveal / exit). */
   slideshow?: boolean
+  /** Space usage treemap / Largest / Recent leaf menu. */
+  spaceUsage?: boolean
   /** Tree section header (Drives / Network) — This PC tools / Map / Disconnect / Refresh. */
   treeSection?: 'drives' | 'network' | 'recycle-bin'
 } | null
@@ -435,7 +455,7 @@ const softReloadInFlight = new Set<string>()
 const lastSoftReloadAtByPath = new Map<string, number>()
 
 function emptyListing(path = ''): Listing {
-  return { path, entries: [], loading: false, error: null, offline: false }
+  return { path, entries: [], loading: false, error: null, offline: false, virtualFolder: null }
 }
 
 /** Session-only last listing for UNC / mapped / `mfe-remote://` (D49). */
@@ -494,6 +514,8 @@ const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
+let virtualFolderConflictResolve: ((choice: 'reload' | 'overwrite' | 'cancel') => void) | null =
+  null
 let fileOpPlanResolve: ((choice: FileOpPlanChoice | null) => void) | null = null
 let mediaKindResolve: ((choice: 'movie' | 'show' | null) => void) | null = null
 export type MediaPickResult = { action: 'pick'; id: string } | { action: 'search-as' }
@@ -794,6 +816,16 @@ type AppState = {
   /** Select the tree Drives header (all-volumes status + preview pies). */
   showDrivesOverview(): void
   createFolder(parent?: string): Promise<void>
+  /** Create an empty `.mfevirtual` collection and navigate into it. */
+  createVirtualFolder(parent?: string): Promise<void>
+  /** Add filesystem paths as references into an open Virtual Folder. */
+  addToVirtualFolder(documentPath: string, paths: string[]): Promise<void>
+  /** Remove membership rows (does not delete targets). */
+  removeFromVirtualFolder(entryIds: string[]): Promise<void>
+  relinkVirtualFolderEntry(entryId: string, newPath: string): Promise<void>
+  reorderVirtualFolder(entryIds: string[]): Promise<void>
+  /** Nudge selection within Manual order (−1 = up, +1 = down). */
+  moveVirtualFolderSelection(delta: -1 | 1): Promise<void>
   createNewFile(parent: string, name: string): Promise<void>
   /** Create “New …ext” with a unique name and start inline rename. */
   createTypedFile(parent: string, stem: string, ext: string): Promise<void>
@@ -879,6 +911,9 @@ type AppState = {
     confirmLabel?: string
     danger?: boolean
   }): Promise<boolean>
+  /** Virtual Folder external-edit conflict: reload, overwrite, or cancel. */
+  askVirtualFolderConflict(opts?: { title?: string; message?: string }): Promise<'reload' | 'overwrite' | 'cancel'>
+  resolveVirtualFolderConflict(choice: 'reload' | 'overwrite' | 'cancel'): void
   resolveConfirm(confirmed: boolean): void
   askFileOpPlan(plan: FileOpPlanResponse, request: FileOpPlanRequest): Promise<FileOpPlanChoice | null>
   resolveFileOpPlan(choice: FileOpPlanChoice | null): void
@@ -1627,7 +1662,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       )
       if (res.deleted.length > 0) {
         await afterPathsRemoved(res.deleted, {
-          expectedSelection: autoSelectedPath ? [autoSelectedPath] : []
+          expectedSelection: autoSelectedPath ? [autoSelectedPath] : [],
+          patchedStatsPaths: res.patchedStatsPaths
         })
       }
       if (res.issues.length > 0) {
@@ -1718,6 +1754,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       if (clearCut) set({ clipboard: null })
       if (get().mediaHold) set({ mediaHold: false })
+      if (op2 === 'move' && r.movePairs.length > 0) {
+        await syncOpenVirtualFoldersAfterRenames(r.movePairs)
+      }
       await get().refresh()
       // After same-folder Keep both (and any successful copy into the open folder),
       // select the new paths so the user can see/rename the duplicates.
@@ -1727,6 +1766,36 @@ export const useAppStore = create<AppState>()((set, get) => {
     } catch (e) {
       set({ mediaHold: false })
       throw e
+    }
+  }
+
+  /** Update open Virtual Folder documents when MFE renames/moves referenced targets. */
+  async function syncOpenVirtualFoldersAfterRenames(
+    renames: { from: string; to: string }[]
+  ): Promise<void> {
+    if (renames.length === 0) return
+    const s = get()
+    const open = new Map<string, number>()
+    for (const L of Object.values(s.listingsByTabId)) {
+      if (L?.virtualFolder) open.set(L.path, L.virtualFolder.mtimeMs)
+    }
+    if (s.listing.virtualFolder) open.set(s.listing.path, s.listing.virtualFolder.mtimeMs)
+    for (const [documentPath, mtimeMs] of open) {
+      try {
+        await call(
+          api.virtualFolder.updatePaths({
+            documentPath,
+            renames,
+            expectedMtimeMs: mtimeMs
+          })
+        )
+        const tab = get().tabs.find(
+          (t) => samePath(t.path, documentPath) || samePath(get().listingsByTabId[t.id]?.path ?? '', documentPath)
+        )
+        if (tab) await loadListing(documentPath, { force: true, preserveSelection: true, tabId: tab.id })
+      } catch {
+        /* conflict / read-only — leave document; next refresh re-resolves */
+      }
     }
   }
 
@@ -1798,6 +1867,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       void api.fs.unwatch({ path: dirPath }).catch(() => {})
       return
     }
+    // Virtual Folder document: watch the file and its parent (atomic .tmp replace).
+    if (isVirtualFolderDocumentPath(dirPath)) {
+      const parent = virtualFolderDocumentDir(dirPath) || parentOf(dirPath)
+      void api.fs.watch({ path: dirPath })
+      if (parent && !isNetworkHostUnc(parent)) void api.fs.watch({ path: parent })
+      return
+    }
     const mode = watchArmModeForCount(entryCount)
     const parent = parentOf(dirPath)
     if (mode === 'full') {
@@ -1866,7 +1942,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     tabId: string,
     listedPath: string,
     entries: DirEntry[],
-    opts?: { preserveSelection?: boolean; clearRemoteBusy?: boolean }
+    opts?: {
+      preserveSelection?: boolean
+      clearRemoteBusy?: boolean
+      virtualFolder?: Listing['virtualFolder']
+    }
   ): DirEntry[] {
     const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
     const owning = resolveFolderView(tab.path, get().settings.folderViews)
@@ -1879,7 +1959,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       entries: sortedEntries,
       loading: false,
       error: null,
-      offline: false
+      offline: false,
+      virtualFolder: opts?.virtualFolder ?? null
     }
     set((s) => {
       const valid = new Set(sortedEntries.map((e) => e.path.toLowerCase()))
@@ -1942,7 +2023,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!tabId) return
     const seq = nextListSeq(tabId)
     const cached =
-      !opts?.soft && !opts?.force
+      !opts?.soft && !opts?.force && !isVirtualFolderDocumentPath(path)
         ? (listingCacheOk(path, get().drives) ? remoteListingCache.get(path) : undefined) ??
           (opts?.history ? historyListingCache.get(path) : undefined)
         : undefined
@@ -1987,6 +2068,55 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
     }
     try {
+      if (isVirtualFolderDocumentPath(path)) {
+        const res = await call(api.virtualFolder.list({ path }))
+        if (seq !== listRequestSeqByTab.get(tabId)) return
+        if (opts?.soft) lastSoftReloadAtByPath.set(path.toLowerCase(), Date.now())
+        // Document remembers Manual order — restore that sort mode when opening.
+        if (res.document.settings?.manualOrder === true) {
+          const tab = get().tabs.find((t) => t.id === tabId)
+          const owning = tab
+            ? resolveFolderView(tab.path, get().settings.folderViews)
+            : null
+          const cur = owning?.sort ?? tab?.sort
+          if (cur && cur.key !== 'manual') {
+            if (owning) {
+              void get().applySettingsPatch({
+                folderViews: patchFolderView(get().settings.folderViews, owning.path, {
+                  sort: { key: 'manual', dir: 'asc' }
+                })
+              })
+            } else if (tab) {
+              updateTab(tabId, { sort: { key: 'manual', dir: 'asc' } })
+            }
+          }
+        }
+        const byEntryId: Record<string, VirtualFolderMembership> = {}
+        const entryIdByPathKey: Record<string, string> = {}
+        for (const row of res.entries) {
+          byEntryId[row.membership.entryId] = row.membership
+          entryIdByPathKey[pathKey(row.entry.path)] = row.membership.entryId
+        }
+        const sortedEntries = commitListing(
+          tabId,
+          res.path,
+          res.entries.map((r) => r.entry),
+          {
+            preserveSelection: opts?.preserveSelection,
+            clearRemoteBusy: showRemoteBusy,
+            virtualFolder: {
+              document: res.document,
+              mtimeMs: res.mtimeMs,
+              readOnly: res.readOnly,
+              byEntryId,
+              entryIdByPathKey
+            }
+          }
+        )
+        historyListingCache.set(res.path, sortedEntries)
+        afterListingPainted(tabId, path, sortedEntries)
+        return
+      }
       const res = await call(api.fs.list({ path, includeHidden: true }))
       if (seq !== listRequestSeqByTab.get(tabId)) return // superseded
       if (opts?.soft) lastSoftReloadAtByPath.set(path.toLowerCase(), Date.now())
@@ -2018,7 +2148,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         entries: [],
         loading: false,
         error: offline ? null : message,
-        offline
+        offline,
+        virtualFolder: null
       }
       set((s) => {
         const listingsByTabId = { ...s.listingsByTabId, [tabId]: nextListing }
@@ -2278,12 +2409,25 @@ export const useAppStore = create<AppState>()((set, get) => {
     let targets = s.tabs.filter(
       (t) =>
         s.paneTabIds.includes(t.id) &&
-        (samePath(t.path, dirPath) || samePath(s.listingsByTabId[t.id]?.path ?? '', dirPath))
+        (samePath(t.path, dirPath) ||
+          samePath(s.listingsByTabId[t.id]?.path ?? '', dirPath) ||
+          // Parent-dir watch for an open Virtual Folder document
+          (isVirtualFolderDocumentPath(t.path) &&
+            samePath(virtualFolderDocumentDir(t.path) || parentOf(t.path) || '', dirPath)))
     )
     if (targets.length === 0) {
       // Fallback: active tab only (e.g. layout 1).
-      if (!samePath(s.activeTab().path, dirPath)) return
-      targets = [s.activeTab()]
+      const active = s.activeTab()
+      if (
+        !samePath(active.path, dirPath) &&
+        !(
+          isVirtualFolderDocumentPath(active.path) &&
+          samePath(virtualFolderDocumentDir(active.path) || parentOf(active.path) || '', dirPath)
+        )
+      ) {
+        return
+      }
+      targets = [active]
     }
     for (const tab of targets) {
       const key = tab.id
@@ -2525,8 +2669,13 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   async function afterPathsRemoved(
     removed: string[],
-    opts?: { expectedSelection?: string[] }
+    opts?: { expectedSelection?: string[]; patchedStatsPaths?: string[] }
   ): Promise<void> {
+    if (opts?.patchedStatsPaths?.length) {
+      for (const p of opts.patchedStatsPaths) {
+        get().bumpColumnMeta(p)
+      }
+    }
     syncImageViewerAfterDelete(removed)
     notifyTreeRemoved(removed)
     const activeDoomed = tabsWhoseRootIsDeleted(get().tabs, removed).some(
@@ -3295,14 +3444,22 @@ export const useAppStore = create<AppState>()((set, get) => {
           get().notify(`Path not found: ${targetPath}`, true)
           return
         }
+        const isVirtual = isVirtualFolderDocumentPath(targetPath)
         const isDir = st.kind === 'dir'
-        const folder = isDir ? targetPath : (parentOf(targetPath) ?? targetPath)
+        // Open Virtual Folder documents as virtual collections; --reveal still shows the file in its parent.
+        const folder =
+          isVirtual && !reveal
+            ? targetPath
+            : isDir
+              ? targetPath
+              : (parentOf(targetPath) ?? targetPath)
         const selectFile = !isDir && reveal ? targetPath : null
 
         // Reuse an unscoped tab already on that folder when possible.
         const existing = get().tabs.find((t) => !t.rootPath && samePath(t.path, folder))
         if (existing) {
           await get().activateTab(existing.id)
+          if (isVirtual && !reveal) await loadListing(folder, { force: true })
         } else {
           await get().newTab(folder)
         }
@@ -3310,7 +3467,13 @@ export const useAppStore = create<AppState>()((set, get) => {
           get().setSelection([selectFile], selectFile, selectFile)
           get().requestFileListScrollTo(selectFile)
         }
-        get().notify(selectFile ? `Revealed ${basename(selectFile)}` : `Opened ${basename(folder)}`)
+        get().notify(
+          selectFile
+            ? `Revealed ${basename(selectFile)}`
+            : isVirtual && !reveal
+              ? `Opened ${basename(folder).replace(/\.mfevirtual$/i, '')}`
+              : `Opened ${basename(folder)}`
+        )
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }
@@ -3368,9 +3531,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tabId = opts?.tabId ?? s.activeTabId
       const tab = s.tabs.find((t) => t.id === tabId) ?? s.activeTab()
       const old = tab.path
-      if (tab.rootPath && !isUnderPath(path, tab.rootPath)) {
-        get().notify(`This tab is limited to ${basename(tab.rootPath)} — open a new tab to leave`)
-        return
+      if (tab.rootPath && !isUnderPath(path, tab.rootPath) && !samePath(path, tab.rootPath)) {
+        // Virtual Folder as tab root: referenced targets live outside the .mfevirtual path.
+        if (!isVirtualFolderDocumentPath(tab.rootPath)) {
+          get().notify(`This tab is limited to ${basename(tab.rootPath)} — open a new tab to leave`)
+          return
+        }
       }
       if (tabId === s.activeTabId) {
         if (get().recycleBin.active) get().closeRecycleBinView()
@@ -3502,6 +3668,34 @@ export const useAppStore = create<AppState>()((set, get) => {
       const tab = get().activeTab()
       if (tab.search.active) {
         get().clearSearch()
+        return
+      }
+      if (tab.rootPath && samePath(tab.path, tab.rootPath)) return
+      // Virtual Folder as root: Up from a direct member → collection; deeper → real parent.
+      if (
+        tab.rootPath &&
+        isVirtualFolderDocumentPath(tab.rootPath) &&
+        !samePath(tab.path, tab.rootPath)
+      ) {
+        try {
+          const res = await call(api.virtualFolder.list({ path: tab.rootPath }))
+          const members = res.entries.map((r) => r.entry.path)
+          if (members.some((m) => samePath(m, tab.path))) {
+            await get().navigate(tab.rootPath)
+            return
+          }
+          const parent = parentOf(tab.path)
+          if (
+            parent &&
+            members.some((m) => samePath(parent, m) || isUnderPath(parent, m))
+          ) {
+            await get().navigate(parent)
+            return
+          }
+        } catch {
+          /* fall through to collection */
+        }
+        await get().navigate(tab.rootPath)
         return
       }
       const parent = parentOf(tab.path)
@@ -4181,6 +4375,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       // Keep listing in view order so FileView can skip a 20k re-sort on paint.
       if (id === s.activeTabId) viewOrderCache = null
       const listing = s.listingsByTabId[id] ?? (id === s.activeTabId ? s.listing : null)
+      // Switching to Manual on a Virtual Folder must reload document order (not current name sort).
+      if (sort.key === 'manual' && listing?.virtualFolder) {
+        void loadListing(listing.path, { force: true, preserveSelection: true, tabId: id })
+        return
+      }
       if (
         listing &&
         listing.entries.length > 0 &&
@@ -4631,16 +4830,27 @@ export const useAppStore = create<AppState>()((set, get) => {
         set({ renamingPath: null, renameSource: null })
         return
       }
+      // Virtual Folders: keep the .mfevirtual extension even when the UI hides it.
+      let renameTo = trimmed
+      if (isVirtualFolderDocumentPath(path)) {
+        if (!renameTo.toLowerCase().endsWith('.mfevirtual')) {
+          renameTo = `${renameTo.replace(/\.+$/, '')}.mfevirtual`
+        }
+        if (renameTo === oldName) {
+          set({ renamingPath: null, renameSource: null })
+          return
+        }
+      }
       const parent = parentOf(path)
-      const dest = parent ? joinPath(parent, trimmed) : path
+      const dest = parent ? joinPath(parent, renameTo) : path
       // Don't rewrite Test2 → Test while Test is already a sibling — that aliases
       // both rows onto one path and the conflict revert then labels both Test2.
       const destOccupied = renameDestOccupied(get().listing.entries, path, dest)
-      if (!destOccupied) applyListingRename(path, dest, trimmed)
+      if (!destOccupied) applyListingRename(path, dest, renameTo)
       try {
         await releaseMediaLocks()
-        const res = await withBusyFeedback('relocate', 'Renaming…', trimmed, () =>
-          call(api.fs.rename({ path, newName: trimmed }))
+        const res = await withBusyFeedback('relocate', 'Renaming…', renameTo, () =>
+          call(api.fs.rename({ path, newName: renameTo }))
         )
         recordUndo({
           kind: 'rename',
@@ -4686,6 +4896,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             get().requestFileListScrollTo(res.path)
           }
         }
+        await syncOpenVirtualFoldersAfterRenames([{ from: path, to: res.path }])
       } catch (e) {
         if (!destOccupied) {
           const stillAtSource = get().listing.entries.some((en) => samePath(en.path, path))
@@ -4863,6 +5074,10 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async createFolder(parent) {
       const dir = parent ?? get().activeTab().path
+      if (isVirtualFolderDocumentPath(dir)) {
+        get().notify('Cannot create a folder inside a Virtual Folder — add a real folder reference instead', true)
+        return
+      }
       try {
         // If creating inside another folder while viewing elsewhere, open it first.
         if (!samePath(dir, get().activeTab().path)) await get().navigate(dir)
@@ -4876,6 +5091,293 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch (e) {
         reportOperationError('New folder failed', e)
       }
+    },
+
+    async createVirtualFolder(parent) {
+      const target = parent ?? get().activeTab().path
+      if (!target || get().recycleBin.active) {
+        get().notify('Open a folder to create a Virtual Folder', true)
+        return
+      }
+      const nestInDoc = isVirtualFolderDocumentPath(target) ? target : null
+      try {
+        if (nestInDoc) {
+          const listing = get().listing
+          if (
+            listing.virtualFolder &&
+            samePath(listing.path, nestInDoc) &&
+            listing.virtualFolder.readOnly
+          ) {
+            get().notify('Virtual Folder is read-only', true)
+            return
+          }
+          const parentDir = virtualFolderDocumentDir(nestInDoc)
+          if (!parentDir) {
+            get().notify('Cannot determine where to create the Virtual Folder', true)
+            return
+          }
+          const res = await call(
+            api.virtualFolder.create({ parentDir, name: 'New Virtual Folder' })
+          )
+          const expected =
+            listing.virtualFolder && samePath(listing.path, nestInDoc)
+              ? listing.virtualFolder.mtimeMs
+              : undefined
+          const addOnce = async (expectedMtimeMs: number | undefined): Promise<void> => {
+            await call(
+              api.virtualFolder.add({
+                documentPath: nestInDoc,
+                paths: [res.path],
+                expectedMtimeMs
+              })
+            )
+          }
+          try {
+            await addOnce(expected)
+          } catch (e) {
+            if (e instanceof IpcError && e.code === 'conflict') {
+              const choice = await get().askVirtualFolderConflict()
+              if (choice === 'reload') {
+                await loadListing(nestInDoc, { force: true })
+                return
+              }
+              if (choice === 'overwrite') await addOnce(undefined)
+              else return
+            } else {
+              throw e
+            }
+          }
+          await loadListing(nestInDoc, { force: true })
+          get().setSelection([res.path], res.path, res.path)
+          await get().navigate(res.path)
+          get().notify('Virtual Folder created')
+          return
+        }
+
+        if (!samePath(target, get().activeTab().path)) await get().navigate(target)
+        const res = await call(
+          api.virtualFolder.create({ parentDir: target, name: 'New Virtual Folder' })
+        )
+        await get().refresh()
+        get().setSelection([res.path], res.path, res.path)
+        await get().navigate(res.path)
+        get().notify('Virtual Folder created')
+      } catch (e) {
+        reportOperationError('New Virtual Folder failed', e)
+      }
+    },
+
+    async addToVirtualFolder(documentPath, paths) {
+      if (!isVirtualFolderDocumentPath(documentPath) || paths.length === 0) return
+      const listing = get().listing
+      if (listing.virtualFolder && samePath(listing.path, documentPath) && listing.virtualFolder.readOnly) {
+        get().notify('Virtual Folder is read-only', true)
+        return
+      }
+      const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
+        const res = await call(
+          api.virtualFolder.add({
+            documentPath,
+            paths,
+            expectedMtimeMs
+          })
+        )
+        const added = res.added ?? 0
+        const skipped = res.skippedDuplicates ?? 0
+        if (added > 0) {
+          get().notify(
+            `Added ${added} item${added === 1 ? '' : 's'} to Virtual Folder${
+              skipped > 0 ? ` · ${skipped} already present` : ''
+            }`
+          )
+        } else if (skipped > 0) {
+          get().notify('Already in Virtual Folder')
+        }
+        if (samePath(get().activeTab().path, documentPath)) {
+          await loadListing(documentPath, { force: true, preserveSelection: true })
+        }
+      }
+      const expected =
+        listing.virtualFolder && samePath(listing.path, documentPath)
+          ? listing.virtualFolder.mtimeMs
+          : undefined
+      try {
+        await run(expected)
+      } catch (e) {
+        if (e instanceof IpcError && e.code === 'conflict') {
+          const choice = await get().askVirtualFolderConflict()
+          if (choice === 'reload') await loadListing(documentPath, { force: true })
+          else if (choice === 'overwrite') {
+            try {
+              await run(undefined)
+            } catch (e2) {
+              reportOperationError('Add to Virtual Folder failed', e2)
+            }
+          }
+          return
+        }
+        reportOperationError('Add to Virtual Folder failed', e)
+      }
+    },
+
+    async removeFromVirtualFolder(entryIds) {
+      const listing = get().listing
+      if (!listing.virtualFolder || entryIds.length === 0) return
+      if (listing.virtualFolder.readOnly) {
+        get().notify('Virtual Folder is read-only', true)
+        return
+      }
+      const documentPath = listing.path
+      const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
+        await call(
+          api.virtualFolder.remove({
+            documentPath,
+            entryIds,
+            expectedMtimeMs
+          })
+        )
+        get().notify(
+          `Removed ${entryIds.length} item${entryIds.length === 1 ? '' : 's'} from Virtual Folder`
+        )
+        await loadListing(documentPath, { force: true })
+      }
+      try {
+        await run(listing.virtualFolder.mtimeMs)
+      } catch (e) {
+        if (e instanceof IpcError && e.code === 'conflict') {
+          const choice = await get().askVirtualFolderConflict()
+          if (choice === 'reload') await loadListing(documentPath, { force: true })
+          else if (choice === 'overwrite') {
+            try {
+              await run(undefined)
+            } catch (e2) {
+              reportOperationError('Remove from Virtual Folder failed', e2)
+            }
+          }
+          return
+        }
+        reportOperationError('Remove from Virtual Folder failed', e)
+      }
+    },
+
+    async relinkVirtualFolderEntry(entryId, newPath) {
+      const listing = get().listing
+      if (!listing.virtualFolder) return
+      if (listing.virtualFolder.readOnly) {
+        get().notify('Virtual Folder is read-only', true)
+        return
+      }
+      const documentPath = listing.path
+      const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
+        await call(
+          api.virtualFolder.relink({
+            documentPath,
+            entryId,
+            newPath,
+            expectedMtimeMs
+          })
+        )
+        get().notify('Target updated')
+        await loadListing(documentPath, { force: true, preserveSelection: true })
+      }
+      try {
+        await run(listing.virtualFolder.mtimeMs)
+      } catch (e) {
+        if (e instanceof IpcError && e.code === 'conflict') {
+          const choice = await get().askVirtualFolderConflict()
+          if (choice === 'reload') await loadListing(documentPath, { force: true })
+          else if (choice === 'overwrite') {
+            try {
+              await run(undefined)
+            } catch (e2) {
+              reportOperationError('Locate Target failed', e2)
+            }
+          }
+          return
+        }
+        reportOperationError('Locate Target failed', e)
+      }
+    },
+
+    async reorderVirtualFolder(entryIds) {
+      const listing = get().listing
+      if (!listing.virtualFolder) return
+      if (listing.virtualFolder.readOnly) {
+        get().notify('Virtual Folder is read-only', true)
+        return
+      }
+      const documentPath = listing.path
+      const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
+        await call(
+          api.virtualFolder.reorder({
+            documentPath,
+            entryIds,
+            expectedMtimeMs
+          })
+        )
+        await loadListing(documentPath, { force: true, preserveSelection: true })
+      }
+      try {
+        await run(listing.virtualFolder.mtimeMs)
+      } catch (e) {
+        if (e instanceof IpcError && e.code === 'conflict') {
+          const choice = await get().askVirtualFolderConflict()
+          if (choice === 'reload') await loadListing(documentPath, { force: true })
+          else if (choice === 'overwrite') {
+            try {
+              await run(undefined)
+            } catch (e2) {
+              reportOperationError('Reorder Virtual Folder failed', e2)
+            }
+          }
+          return
+        }
+        reportOperationError('Reorder Virtual Folder failed', e)
+      }
+    },
+
+    async moveVirtualFolderSelection(delta) {
+      const listing = get().listing
+      const pf = listing.virtualFolder
+      if (!pf || pf.readOnly) return
+      const tab = get().activeTab()
+      const owning = resolveFolderView(tab.path, get().settings.folderViews)
+      const sort = owning?.sort ?? tab.sort
+      if (sort.key !== 'manual') {
+        get().notify('Switch Sort to Manual to reorder', true)
+        return
+      }
+      const ids = listing.entries
+        .map((e) => pf.entryIdByPathKey[pathKey(e.path)])
+        .filter((id): id is string => !!id)
+      if (ids.length === 0) return
+      const selectedIds = new Set(
+        tab.selected
+          .map((p) => pf.entryIdByPathKey[pathKey(p)])
+          .filter((id): id is string => !!id)
+      )
+      if (selectedIds.size === 0) return
+      const next = [...ids]
+      if (delta < 0) {
+        for (let i = 1; i < next.length; i++) {
+          if (selectedIds.has(next[i]!) && !selectedIds.has(next[i - 1]!)) {
+            const t = next[i - 1]!
+            next[i - 1] = next[i]!
+            next[i] = t
+          }
+        }
+      } else {
+        for (let i = next.length - 2; i >= 0; i--) {
+          if (selectedIds.has(next[i]!) && !selectedIds.has(next[i + 1]!)) {
+            const t = next[i + 1]!
+            next[i + 1] = next[i]!
+            next[i] = t
+          }
+        }
+      }
+      const same = next.every((id, i) => id === ids[i])
+      if (same) return
+      await get().reorderVirtualFolder(next)
     },
 
     async createNewFile(parent, name) {
@@ -5004,6 +5506,15 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async pasteInto(destDir, opts) {
       if (get().recycleBin.active) return
+      if (isVirtualFolderDocumentPath(destDir)) {
+        const clip = await resolveClipboard(get)
+        if (clip && clip.paths.length > 0) {
+          await get().addToVirtualFolder(destDir, clip.paths)
+          return
+        }
+        get().notify('Clipboard has no files to add', true)
+        return
+      }
       if (isRemoteLocation(destDir)) {
         get().notify('Cannot paste into a remote folder from the clipboard', true)
         return
@@ -5067,6 +5578,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       planMode = false,
       planChoice: FileOpPlanChoice | null = null
     ) {
+      if (isVirtualFolderDocumentPath(destinationDir)) {
+        await get().addToVirtualFolder(destinationDir, sources)
+        return true
+      }
       // Moving into the same folder is a no-op.
       const effective =
         op === 'move'
@@ -5403,11 +5918,11 @@ export const useAppStore = create<AppState>()((set, get) => {
             label: basename(res.trashed[0]!)
           })
           done += res.trashed.length
-          await afterPathsRemoved(res.trashed)
+          await afterPathsRemoved(res.trashed, { patchedStatsPaths: res.patchedStatsPaths })
         }
         if (res.deleted.length > 0) {
           done += res.deleted.length
-          await afterPathsRemoved(res.deleted)
+          await afterPathsRemoved(res.deleted, { patchedStatsPaths: res.patchedStatsPaths })
         }
 
         const remaining = [...leftover, ...(res.issues ?? [])]
@@ -5454,6 +5969,17 @@ export const useAppStore = create<AppState>()((set, get) => {
         // In the bin: Del / Shift+Del permanently remove from the Recycle Bin.
         get().deleteFromRecycleBinView(paths)
         return
+      }
+      const listing = s.listing
+      if (listing.virtualFolder && !permanent) {
+        const selected = paths ?? s.activeTab().selected
+        const ids = selected
+          .map((p) => listing.virtualFolder!.entryIdByPathKey[pathKey(p)])
+          .filter((id): id is string => !!id)
+        if (ids.length > 0) {
+          await get().removeFromVirtualFolder(ids)
+          return
+        }
       }
       let target = (paths ?? s.activeTab().selected).filter((p) => !isVolumeRootPath(p))
       if (target.length === 0) return
@@ -5560,7 +6086,8 @@ export const useAppStore = create<AppState>()((set, get) => {
               label: basename(res.trashed[0]!)
             })
             await afterPathsRemoved(res.trashed, {
-              expectedSelection: autoSelectedPath ? [autoSelectedPath] : []
+              expectedSelection: autoSelectedPath ? [autoSelectedPath] : [],
+              patchedStatsPaths: res.patchedStatsPaths
             })
           }
           if (res.issues.length > 0) {
@@ -5609,9 +6136,26 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async openEntry(entry) {
+      if (isVirtualFolderDocumentPath(entry.path) || entry.ext.toLowerCase() === 'mfevirtual') {
+        await get().navigate(entry.path)
+        return
+      }
       if (entry.kind === 'dir') {
         await get().navigate(entry.path)
         return
+      }
+      const listing = get().listing
+      if (listing.virtualFolder) {
+        const mid = listing.virtualFolder.entryIdByPathKey[pathKey(entry.path)]
+        const mem = mid ? listing.virtualFolder.byEntryId[mid] : null
+        if (mem && mem.state !== 'resolved') {
+          get().notify('Item is missing — use Locate Target to relink', true)
+          return
+        }
+        if (mem?.expectedKind === 'virtualFolder' && mem.resolvedPath) {
+          await get().navigate(mem.resolvedPath)
+          return
+        }
       }
       if (isImageExt(entry.ext)) {
         get().openImageViewer(
@@ -5815,6 +6359,32 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         })
       })
+    },
+
+    async askVirtualFolderConflict(opts) {
+      if (virtualFolderConflictResolve) {
+        virtualFolderConflictResolve('cancel')
+        virtualFolderConflictResolve = null
+      }
+      return await new Promise<'reload' | 'overwrite' | 'cancel'>((resolve) => {
+        virtualFolderConflictResolve = resolve
+        set({
+          dialog: {
+            kind: 'virtual-folder-conflict',
+            title: opts?.title ?? 'Virtual Folder changed',
+            message:
+              opts?.message ??
+              'This Virtual Folder was modified outside MyFileExplorer. Reload from disk, overwrite with your change, or cancel.'
+          }
+        })
+      })
+    },
+
+    resolveVirtualFolderConflict(choice) {
+      set({ dialog: null })
+      const r = virtualFolderConflictResolve
+      virtualFolderConflictResolve = null
+      r?.(choice)
     },
 
     resolveConfirm(confirmed) {
@@ -7363,6 +7933,8 @@ export function sortEntries(
   sort: SortSpec,
   foldersFirst: boolean
 ): DirEntry[] {
+  // Virtual Folder Manual sort: keep document / listing order as provided.
+  if (sort.key === 'manual') return [...entries]
   const dir = sort.dir === 'asc' ? 1 : -1
   // Shared collator — localeCompare options-object per call is much slower on 10k+ rows.
   const sorted = [...entries].sort((a, b) => {

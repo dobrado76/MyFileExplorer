@@ -9,7 +9,8 @@ import {
   mergeChildMergeState,
   parseFolderStatsPreviewJson,
   shrinkPreviewPayloadForAds,
-  sortLeavesDesc
+  sortLeavesDesc,
+  subtractFileFromPreview
 } from '@shared/folderStatsPreview'
 import { insertNestedLeaf, squarify, squarifyNested, type NestedTreemapNode } from '@shared/treemap'
 import type { FolderStatCounts, FolderStatsLeaf } from '@shared/folderStats'
@@ -255,5 +256,112 @@ describe('squarify holes', () => {
       for (let x = 0; x < W; x++) if (!covered[y]![x]) holes++
     }
     expect(holes).toBe(0)
+  })
+})
+
+describe('subtractFileFromPreview', () => {
+  it('removes a leaf and adjusts counts / categories / largest / recent', () => {
+    const stats: FolderStatCounts = {
+      fileCount: 2,
+      folderCount: 0,
+      fileTotCount: 2,
+      folderTotCount: 0,
+      totalSize: 150
+    }
+    const preview = finalizePreviewPayload(
+      (() => {
+        const s = emptyPreviewMergeState()
+        addImmediateFile(s, { name: 'big.mp4', size: 100, mtimeMs: 10 }, 50)
+        addImmediateFile(s, { name: 'small.jpg', size: 50, mtimeMs: 20 }, 50)
+        return s
+      })(),
+      stats,
+      50,
+      1000
+    )
+    const next = subtractFileFromPreview(stats, preview, 'big.mp4')
+    expect(next.stats.fileCount).toBe(1)
+    expect(next.stats.fileTotCount).toBe(1)
+    expect(next.stats.totalSize).toBe(50)
+    expect(next.preview.leaves.map((l) => l.name)).toEqual(['small.jpg'])
+    expect(next.preview.largest.map((l) => l.name)).toEqual(['small.jpg'])
+    expect(next.preview.categories.videos.count).toBe(0)
+    expect(next.preview.categories.images.count).toBe(1)
+    expect(next.preview.clump).toBeNull()
+    expect(next.preview.recent.every((r) => r.name !== 'big.mp4')).toBe(true)
+  })
+
+  it('nested paths only decrement fileTotCount, not fileCount', () => {
+    const stats: FolderStatCounts = {
+      fileCount: 0,
+      folderCount: 1,
+      fileTotCount: 3,
+      folderTotCount: 1,
+      totalSize: 300
+    }
+    const preview = {
+      version: 1 as const,
+      calculatedAtMs: 1,
+      categories: {
+        images: { count: 0, bytes: 0 },
+        videos: { count: 1, bytes: 100 },
+        documents: { count: 0, bytes: 0 },
+        archives: { count: 0, bytes: 0 },
+        other: { count: 2, bytes: 200 }
+      },
+      topExtensions: [
+        { ext: 'bin', count: 2 },
+        { ext: 'mp4', count: 1 }
+      ],
+      largest: [{ relativePath: 'sub\\a.mp4', name: 'a.mp4', size: 100, ext: 'mp4' }],
+      recent: [] as { name: string; relativePath: string; mtimeMs: number; isDir: boolean }[],
+      newestMtimeMs: 0,
+      leaves: [
+        { relativePath: 'sub\\a.mp4', name: 'a.mp4', size: 100, ext: 'mp4' },
+        { relativePath: 'sub\\b.bin', name: 'b.bin', size: 80, ext: 'bin' }
+      ],
+      clump: { size: 120, fileCount: 1 },
+      maxLeaves: 50
+    }
+    const next = subtractFileFromPreview(stats, preview, 'sub/a.mp4', { size: 100, ext: 'mp4' })
+    expect(next.stats.fileCount).toBe(0)
+    expect(next.stats.fileTotCount).toBe(2)
+    expect(next.stats.totalSize).toBe(200)
+    expect(next.preview.leaves.map((l) => l.name)).toEqual(['b.bin'])
+    expect(next.preview.categories.videos.count).toBe(0)
+    expect(next.preview.clump).toEqual({ size: 120, fileCount: 1 })
+  })
+
+  it('clump-only removals still adjust totals without changing leaves', () => {
+    const stats: FolderStatCounts = {
+      fileCount: 1,
+      folderCount: 0,
+      fileTotCount: 5,
+      folderTotCount: 0,
+      totalSize: 200
+    }
+    const preview = {
+      version: 1 as const,
+      calculatedAtMs: 1,
+      categories: {
+        images: { count: 0, bytes: 0 },
+        videos: { count: 0, bytes: 0 },
+        documents: { count: 0, bytes: 0 },
+        archives: { count: 0, bytes: 0 },
+        other: { count: 5, bytes: 200 }
+      },
+      topExtensions: [{ ext: 'bin', count: 5 }],
+      largest: [{ relativePath: 'kept.bin', name: 'kept.bin', size: 100, ext: 'bin' }],
+      recent: [] as { name: string; relativePath: string; mtimeMs: number; isDir: boolean }[],
+      newestMtimeMs: 0,
+      leaves: [{ relativePath: 'kept.bin', name: 'kept.bin', size: 100, ext: 'bin' }],
+      clump: { size: 100, fileCount: 4 },
+      maxLeaves: 1
+    }
+    const next = subtractFileFromPreview(stats, preview, 'tiny.bin', { size: 25, ext: 'bin' })
+    expect(next.stats.fileTotCount).toBe(4)
+    expect(next.stats.totalSize).toBe(175)
+    expect(next.preview.leaves).toHaveLength(1)
+    expect(next.preview.clump).toEqual({ size: 75, fileCount: 3 })
   })
 })

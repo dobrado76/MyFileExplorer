@@ -12,6 +12,7 @@ export type FolderStatsTreemapProps = {
   leaves: FolderStatsLeaf[]
   onLeafClick: (leaf: FolderStatsLeaf) => void
   onLeafDoubleClick: (leaf: FolderStatsLeaf) => void
+  onLeafContextMenu?: (leaf: FolderStatsLeaf, clientX: number, clientY: number) => void
 }
 
 type Hit = { kind: 'leaf'; leaf: FolderStatsLeaf; rect: NestedTreemapRect }
@@ -114,7 +115,8 @@ function sameDirIds(a: NestedTreemapRect[], b: NestedTreemapRect[]): boolean {
 export function FolderStatsTreemap({
   leaves,
   onLeafClick,
-  onLeafDoubleClick
+  onLeafDoubleClick,
+  onLeafContextMenu
 }: FolderStatsTreemapProps): JSX.Element | null {
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -126,6 +128,8 @@ export function FolderStatsTreemap({
   const dirRectsRef = useRef<NestedTreemapRect[]>([])
   const hoverDirsRef = useRef<NestedTreemapRect[]>([])
   const lastClickRef = useRef<{ id: string; t: number } | null>(null)
+  /** Suppress the click that follows a contextmenu (Windows fires both). */
+  const suppressClickRef = useRef(false)
 
   const leafById = useMemo(() => {
     const m = new Map<string, FolderStatsLeaf>()
@@ -363,6 +367,10 @@ export function FolderStatsTreemap({
           setTip(null)
         }}
         onClick={(e) => {
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false
+            return
+          }
           const hit = hitTest(e.clientX, e.clientY)
           if (!hit) return
           const now = Date.now()
@@ -374,6 +382,16 @@ export function FolderStatsTreemap({
           }
           lastClickRef.current = { id: hit.leaf.relativePath, t: now }
           onLeafClick(hit.leaf)
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          if (!onLeafContextMenu) return
+          const hit = hitTest(e.clientX, e.clientY)
+          if (!hit) return
+          suppressClickRef.current = true
+          lastClickRef.current = null
+          onLeafContextMenu(hit.leaf, e.clientX, e.clientY)
         }}
       />
       {tip ? (

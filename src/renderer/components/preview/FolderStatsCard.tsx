@@ -1,7 +1,8 @@
-import type { JSX } from 'react'
+import type { JSX, MouseEvent } from 'react'
 import type { FolderStatsPreviewModel, FolderStatsCategoryKey } from '@shared/folderStats'
 import { FOLDER_STATS_CATEGORY_KEYS } from '@shared/folderStats'
 import { formatBytesBinary } from '@shared/driveSpace'
+import { useAppStore } from '../../store/appStore'
 import { FolderIcon } from '../../lib/icons'
 import { basename } from '../../lib/paths'
 import { FolderStatsTreemap } from './FolderStatsTreemap'
@@ -61,6 +62,7 @@ export function FolderStatsCard({
   onNotify,
   suppressHero = false
 }: FolderStatsCardProps): JSX.Element {
+  const openContextMenu = useAppStore((s) => s.openContextMenu)
   const name = basename(folderPath) || folderPath
   const mayBeStale = stats.folderMtimeMs > stats.calculatedAtMs
   const total = stats.totalSize
@@ -74,6 +76,16 @@ export function FolderStatsCard({
     } catch {
       onNotify?.('Item not found', true)
     }
+  }
+
+  const openSpaceUsageMenu = (absPath: string, clientX: number, clientY: number): void => {
+    openContextMenu({ x: clientX, y: clientY, paths: [absPath], spaceUsage: true })
+  }
+
+  const onListContextMenu = (e: MouseEvent, relativePath: string): void => {
+    e.preventDefault()
+    e.stopPropagation()
+    openSpaceUsageMenu(resolveLeaf(relativePath), e.clientX, e.clientY)
   }
 
   return (
@@ -181,6 +193,7 @@ export function FolderStatsCard({
                     className="folder-stats-link"
                     title={leaf.relativePath}
                     onClick={() => reveal(leaf.relativePath)}
+                    onContextMenu={(e) => onListContextMenu(e, leaf.relativePath)}
                   >
                     <span className="folder-stats-link-name">{leaf.name}</span>
                     <span className="folder-stats-link-size">
@@ -204,6 +217,7 @@ export function FolderStatsCard({
                     className="folder-stats-link"
                     title={entry.relativePath}
                     onClick={() => reveal(entry.relativePath)}
+                    onContextMenu={(e) => onListContextMenu(e, entry.relativePath)}
                   >
                     <span className="folder-stats-link-name">
                       {entry.name}
@@ -238,6 +252,9 @@ export function FolderStatsCard({
             leaves={stats.leaves}
             onLeafClick={(leaf) => reveal(leaf.relativePath)}
             onLeafDoubleClick={(leaf) => onOpenPath(resolveLeaf(leaf.relativePath))}
+            onLeafContextMenu={(leaf, x, y) =>
+              openSpaceUsageMenu(resolveLeaf(leaf.relativePath), x, y)
+            }
           />
         </section>
       ) : null}

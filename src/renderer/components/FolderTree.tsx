@@ -31,6 +31,7 @@ import {
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
+import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 import { ChevronDown, ChevronRight, RecycleBinIcon } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
 import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
@@ -273,6 +274,28 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         }
       }, tabId)
       try {
+        if (isVirtualFolderDocumentPath(path)) {
+          const res = await call(api.virtualFolder.list({ path }))
+          const { dirs, childHidden } = dirChildrenFromListing(
+            res.entries.map((r) => r.entry)
+          )
+          setNodes(
+            (n) => {
+              const prev = n[path]
+              return {
+                ...n,
+                [path]: {
+                  expanded: nextExpanded(prev?.expanded),
+                  children: dirs,
+                  loading: false,
+                  childHidden
+                }
+              }
+            },
+            tabId
+          )
+          return dirs
+        }
         const res = await call(api.fs.list({ path, includeHidden: true }))
         const { dirs, childHidden } = dirChildrenFromListing(res.entries)
         setNodes(
@@ -1075,7 +1098,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         </div>
         {expanded &&
           visibleChildren?.map((child) =>
-            renderNode(child, basename(child), depth + 1, section, path)
+            renderNode(
+              child,
+              isVirtualFolderDocumentPath(child) ? virtualFolderDisplayName(child) : basename(child),
+              depth + 1,
+              section,
+              path
+            )
           )}
       </div>
     )
@@ -1093,7 +1122,12 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         tabIndex={0}
         onKeyDown={onTreeKeyDown}
       >
-        {renderNode(rootPath, basename(rootPath), 0, 'scoped')}
+        {renderNode(
+          rootPath,
+          isVirtualFolderDocumentPath(rootPath) ? virtualFolderDisplayName(rootPath) : basename(rootPath),
+          0,
+          'scoped'
+        )}
       </div>
     )
   }

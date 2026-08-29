@@ -388,6 +388,8 @@ export function Dialogs(): JSX.Element | null {
           danger={dialog.danger}
         />
       )
+    case 'virtual-folder-conflict':
+      return <VirtualFolderConflictDialog title={dialog.title} message={dialog.message} />
     case 'file-op-plan':
       return <FileOpPlanDialog plan={dialog.plan} request={dialog.request} />
     case 'power-rename':
@@ -812,6 +814,37 @@ function ConfirmDialog({
             autoFocus
           >
             {confirmLabel ?? 'OK'}
+          </button>
+        </>
+      }
+    >
+      <div className="alert-message">{message}</div>
+    </Modal>
+  )
+}
+
+function VirtualFolderConflictDialog({
+  title,
+  message
+}: {
+  title: string
+  message: string
+}): JSX.Element {
+  const resolve = useAppStore((s) => s.resolveVirtualFolderConflict)
+  return (
+    <Modal
+      title={title}
+      onClose={() => resolve('cancel')}
+      actions={
+        <>
+          <button className="btn" onClick={() => resolve('cancel')}>
+            Cancel
+          </button>
+          <button className="btn" onClick={() => resolve('reload')}>
+            Reload
+          </button>
+          <button className="btn primary" onClick={() => resolve('overwrite')} autoFocus>
+            Overwrite
           </button>
         </>
       }

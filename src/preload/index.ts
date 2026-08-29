@@ -294,6 +294,18 @@ const api: MyFileExplorerApi = {
     showCommit: invoke(IPC.gitShowCommit),
     logFile: invoke(IPC.gitLogFile)
   },
+  virtualFolder: {
+    get: invoke(IPC.virtualFolderGet),
+    list: invoke(IPC.virtualFolderList),
+    create: invoke(IPC.virtualFolderCreate),
+    add: invoke(IPC.virtualFolderAdd),
+    remove: invoke(IPC.virtualFolderRemove),
+    reorder: invoke(IPC.virtualFolderReorder),
+    relink: invoke(IPC.virtualFolderRelink),
+    setLabel: invoke(IPC.virtualFolderSetLabel),
+    updatePaths: invoke(IPC.virtualFolderUpdatePaths),
+    previewStats: invoke(IPC.virtualFolderPreviewStats)
+  },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)
     ipcRenderer.on(EVENT_CHANNEL, listener)

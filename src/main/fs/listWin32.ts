@@ -6,6 +6,7 @@
 import path from 'node:path'
 import koffi from 'koffi'
 import type { DirEntry } from '@shared/schemas/fs'
+import { presentVirtualFolderAsDirEntry } from '@shared/virtualFolder'
 
 const FILE_ATTRIBUTE_HIDDEN = 0x2
 const FILE_ATTRIBUTE_SYSTEM = 0x4
@@ -110,16 +111,18 @@ export function listDirectoryWin32(dirPath: string, includeHidden: boolean): Dir
           const sizeHigh = readU32(buf, 28)
           const sizeLow = readU32(buf, 32)
           const size = isDir ? 0 : sizeHigh * 0x1_0000_0000 + sizeLow
-          entries.push({
-            name,
-            path: joinUnder(dirPath, name),
-            kind,
-            size,
-            mtimeMs: fileTimeToMs(buf, 20), // ftLastWriteTime
-            birthtimeMs: fileTimeToMs(buf, 4), // ftCreationTime
-            ext: kind === 'dir' ? '' : extOf(name),
-            isHidden
-          })
+          entries.push(
+            presentVirtualFolderAsDirEntry({
+              name,
+              path: joinUnder(dirPath, name),
+              kind,
+              size,
+              mtimeMs: fileTimeToMs(buf, 20), // ftLastWriteTime
+              birthtimeMs: fileTimeToMs(buf, 4), // ftCreationTime
+              ext: kind === 'dir' ? '' : extOf(name),
+              isHidden
+            })
+          )
         }
       }
       if (!apis.FindNextFileW(handle, buf)) break

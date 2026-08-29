@@ -107,8 +107,11 @@ export function parseOpenArgs(argv: string[] = process.argv): ExternalOpenReques
     }
     if (a.startsWith('-')) continue
     const abs = asAbsolute(a)
-    // Bare path defaults to reveal semantics (matches “Reveal in Explorer”).
-    if (abs) requests.push({ path: abs, reveal: true })
+    // Bare path: folders/files usually Reveal; Virtual Folders open as collections.
+    if (abs) {
+      const isVirtual = /\.mfevirtual$/i.test(abs.replace(/[\\/]+$/, ''))
+      requests.push({ path: abs, reveal: !isVirtual })
+    }
   }
 
   return requests

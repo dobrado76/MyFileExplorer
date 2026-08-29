@@ -364,7 +364,59 @@ export async function getPreview(
     }
 
     const mediaCacheKey = `${st.mtimeMs}-${st.size}`
-    if (IMAGE_EXTS.has(ext)) {
+    if (ext === 'mfevirtual') {
+      const { previewVirtualFolderStats } = await import('../virtualFolder')
+      const { virtualFolderDisplayName } = await import('@shared/virtualFolder')
+      try {
+        const stats = await previewVirtualFolderStats(file)
+        fields.push({
+          id: 'virtualFolder.items',
+          label: 'Items',
+          value: String(stats.entryCount),
+          group: 'file'
+        })
+        fields.push({
+          id: 'virtualFolder.breakdown',
+          label: 'Contents',
+          value: `${stats.fileCount} files · ${stats.folderCount} folders · ${stats.virtualFolderCount} virtual folders`,
+          group: 'file'
+        })
+        if (stats.missingCount > 0) {
+          fields.push({
+            id: 'virtualFolder.missing',
+            label: 'Missing',
+            value: String(stats.missingCount),
+            group: 'file'
+          })
+        }
+        if (stats.locationSamples.length > 0) {
+          fields.push({
+            id: 'virtualFolder.locations',
+            label: 'Locations',
+            value: stats.locationSamples.join('\n'),
+            group: 'file',
+            mono: true
+          })
+        }
+        model = {
+          path: file,
+          kind: 'virtualFolder',
+          subtitle: 'Virtual collection',
+          fields,
+          warnings,
+          virtualFolderStats: stats
+        }
+      } catch (e) {
+        warnings.push(e instanceof Error ? e.message : String(e))
+        model = {
+          path: file,
+          kind: 'virtualFolder',
+          subtitle: virtualFolderDisplayName(file),
+          fields,
+          warnings
+        }
+      }
+    } else if (IMAGE_EXTS.has(ext)) {
       model = await buildImagePreview(file, ext, fields, warnings, mediaCacheKey, ads)
     } else if (AUDIO_EXTS.has(ext)) {
       model = await buildAudioPreview(file, st.mtimeMs, st.size, mediaCacheKey, fields, warnings)

@@ -20,10 +20,14 @@ export function isThumbnailViewMode(mode: ViewMode): boolean {
 
 export const sortKeySchema = z.string().refine(
   (key): key is SortKey =>
-    key === 'name' || isBuiltinDetailsColumnId(key) || isAdsFieldColumnId(key),
+    key === 'name' ||
+    key === 'manual' ||
+    isBuiltinDetailsColumnId(key) ||
+    isAdsFieldColumnId(key),
   { message: 'Invalid sort key' }
 )
-export type SortKey = 'name' | DetailsColumnId
+/** `manual` = Virtual Folder document array order (D67). */
+export type SortKey = 'name' | 'manual' | DetailsColumnId
 
 export const sortSchema = z.object({
   key: sortKeySchema.catch('name'),

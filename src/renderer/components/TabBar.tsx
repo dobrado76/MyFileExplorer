@@ -11,6 +11,7 @@ import {
 } from '../lib/rightDrag'
 import { isCustomTabIcon, isIconOnlyTab, isLucideTabIcon } from '@shared/tabIcons'
 import { recycleBinShowsInToolbar } from '@shared/recycleBinTree'
+import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
@@ -19,9 +20,15 @@ type TabBarMenu =
   | { kind: 'bar'; x: number; y: number }
   | { kind: 'recycle'; x: number; y: number }
 
+/** Auto tab label from path (custom `tab.title` overrides this). */
+function defaultTabTitle(path: string): string {
+  if (isVirtualFolderDocumentPath(path)) return virtualFolderDisplayName(path)
+  return basename(path)
+}
+
 function closedTabLabel(entry: ClosedTabEntry): string {
   const title = entry.tab.title?.trim()
-  return title && title.length > 0 ? title : basename(entry.tab.path)
+  return title && title.length > 0 ? title : defaultTabTitle(entry.tab.path)
 }
 
 const EDGE_SCROLL_PX = 28
@@ -183,7 +190,7 @@ export function TabBar(): JSX.Element {
     const tab = tabs.find((t) => t.id === id)
     if (!tab) return
     setEditingId(id)
-    setEditText(tab.title ?? '')
+    setEditText(tab.title ?? defaultTabTitle(tab.path))
   }
 
   const onRecycleClick = (): void => {
@@ -325,7 +332,7 @@ export function TabBar(): JSX.Element {
         }}
       >
         {tabs.map((tab, index) => {
-          const title = tab.title ?? basename(tab.path)
+          const title = tab.title ?? defaultTabTitle(tab.path)
           const active = tab.id === activeTabId && !recycleBinActive
           const offline = active && listingOffline && samePath(tab.path, listingPath)
           const dropTarget = dropTabId === tab.id
@@ -434,7 +441,7 @@ export function TabBar(): JSX.Element {
                   className="tab-rename-input"
                   autoFocus
                   value={editText}
-                  placeholder={basename(tab.path)}
+                  placeholder={defaultTabTitle(tab.path)}
                   onChange={(e) => setEditText(e.target.value)}
                   onBlur={() => commitRename(tab.id)}
                   onKeyDown={(e) => {

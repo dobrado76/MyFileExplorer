@@ -20,11 +20,12 @@ export function normalizeHideNameExtensions(raw: unknown): string[] {
  * Does not hide the file — only the “.ext” suffix in the label.
  */
 export function displayFileName(name: string, hideExts: readonly string[]): string {
-  if (!name || hideExts.length === 0) return name
+  if (!name) return name
   const dot = name.lastIndexOf('.')
   if (dot <= 0) return name
   const ext = name.slice(dot + 1).toLowerCase()
-  if (!hideExts.includes(ext)) return name
+  // Virtual Folder is a first-class type — always hide `.mfevirtual` in labels.
+  if (ext !== 'mfevirtual' && (hideExts.length === 0 || !hideExts.includes(ext))) return name
   const stem = name.slice(0, dot)
   return stem.length > 0 ? stem : name
 }

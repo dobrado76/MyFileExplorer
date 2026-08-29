@@ -20,6 +20,7 @@ export function formatDate(ms: number): string {
 }
 
 export function typeLabel(ext: string, isDir: boolean): string {
+  if (ext.toLowerCase() === 'mfevirtual') return 'Virtual Folder'
   if (isDir) return 'Folder'
   return ext ? `${ext.toUpperCase()} file` : 'File'
 }

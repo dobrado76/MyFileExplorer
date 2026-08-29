@@ -5,6 +5,7 @@ import { useAppStore } from '../store/appStore'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { joinPath } from '../lib/paths'
 import { ChevronDown, PlusIcon } from '../lib/icons'
+import { isVirtualFolderDocumentPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
 import { ShellIcon } from './ShellIcon'
 
 /** Explorer-style “+ New” dropdown: folder, typed files, Other… */
@@ -12,7 +13,9 @@ export function NewItemMenu(): JSX.Element {
   const recycleBinActive = useAppStore((s) => s.recycleBin.active)
   const listingPath = useAppStore((s) => s.listing.path)
   const activePath = useAppStore((s) => s.activeTab().path)
+  const virtualFolderReadOnly = useAppStore((s) => s.listing.virtualFolder?.readOnly === true)
   const createFolder = useAppStore((s) => s.createFolder)
+  const createVirtualFolder = useAppStore((s) => s.createVirtualFolder)
   const createTypedFile = useAppStore((s) => s.createTypedFile)
   const createFromTemplate = useAppStore((s) => s.createFromTemplate)
   const templates = useAppStore((s) => s.settings.templates)
@@ -28,9 +31,17 @@ export function NewItemMenu(): JSX.Element {
   const closeSubTimer = useRef<number | null>(null)
 
   const parent = listingPath || activePath
-  const disabled = recycleBinActive || !parent
+  const inVirtualFolder = !!parent && isVirtualFolderDocumentPath(parent)
+  const disabled =
+    recycleBinActive || !parent || (inVirtualFolder && virtualFolderReadOnly)
   /** Absolute probe paths for shell type icons (files need not exist). */
   const folderProbe = parent ? joinPath(parent, '__mfe_new_folder') : ''
+  const vfProbe = parent
+    ? joinPath(
+        inVirtualFolder ? virtualFolderDocumentDir(parent) || parent : parent,
+        '__mfe_new.mfevirtual'
+      )
+    : ''
   const fileProbe = (ext: string): string => (parent ? joinPath(parent, `__mfe_new${ext}`) : '')
 
   const cancelCloseSub = (): void => {
@@ -129,7 +140,7 @@ export function NewItemMenu(): JSX.Element {
   }
 
   const templateFlyout =
-    open && subOpen && parent
+    open && subOpen && parent && !inVirtualFolder
       ? createPortal(
           <div
             ref={subPanelRef}
@@ -192,87 +203,118 @@ export function NewItemMenu(): JSX.Element {
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="new-item-menu-scroll">
-              <button
-                type="button"
-                className="menu-item"
-                role="menuitem"
-                onClick={() => {
-                  closeMenu()
-                  void createFolder(parent)
-                }}
-              >
-                <ShellIcon path={folderProbe} size={16} isDir />
-                Folder
-              </button>
-              <div className="menu-sep" />
-              {NEW_FILE_TYPES.map((t) => (
-                <button
-                  key={`${t.stem}${t.ext}`}
-                  type="button"
-                  className="menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    closeMenu()
-                    void createTypedFile(parent, t.stem, t.ext)
-                  }}
-                >
-                  <ShellIcon path={fileProbe(t.ext)} size={16} isDir={false} />
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="new-item-menu-foot">
-              <button
-                ref={subTriggerRef}
-                type="button"
-                className={`menu-item${subOpen ? ' focused' : ''}`}
-                role="menuitem"
-                aria-haspopup="menu"
-                aria-expanded={subOpen}
-                onMouseEnter={() => {
-                  cancelCloseSub()
-                  setSubOpen(true)
-                }}
-                onMouseLeave={scheduleCloseSub}
-                onClick={() => {
-                  cancelCloseSub()
-                  setSubOpen((v) => !v)
-                }}
-              >
-                From Template
-                <span className="menu-hint">▸</span>
-              </button>
-              {gitEnabled ? (
+              {inVirtualFolder ? (
                 <button
                   type="button"
                   className="menu-item"
                   role="menuitem"
                   onClick={() => {
                     closeMenu()
-                    openDialog({ kind: 'clone-git-repo', parent })
+                    void createVirtualFolder(parent)
                   }}
                 >
-                  GitHub Repository
+                  <ShellIcon path={vfProbe || folderProbe} size={16} isDir />
+                  Virtual Folder
                 </button>
-              ) : null}
-              <button
-                type="button"
-                className="menu-item"
-                role="menuitem"
-                onClick={() => {
-                  closeMenu()
-                  openDialog({ kind: 'new-file', parent })
-                }}
-              >
-                {createElement(FilePlus2, {
-                  size: 16,
-                  strokeWidth: 2,
-                  'aria-hidden': true,
-                  className: 'new-item-menu-glyph'
-                })}
-                Other…
-              </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenu()
+                      void createFolder(parent)
+                    }}
+                  >
+                    <ShellIcon path={folderProbe} size={16} isDir />
+                    Folder
+                  </button>
+                  <button
+                    type="button"
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenu()
+                      void createVirtualFolder(parent)
+                    }}
+                  >
+                    <ShellIcon path={folderProbe} size={16} isDir />
+                    Virtual Folder
+                  </button>
+                  <div className="menu-sep" />
+                  {NEW_FILE_TYPES.map((t) => (
+                    <button
+                      key={`${t.stem}${t.ext}`}
+                      type="button"
+                      className="menu-item"
+                      role="menuitem"
+                      onClick={() => {
+                        closeMenu()
+                        void createTypedFile(parent, t.stem, t.ext)
+                      }}
+                    >
+                      <ShellIcon path={fileProbe(t.ext)} size={16} isDir={false} />
+                      {t.label}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
+            {!inVirtualFolder ? (
+              <div className="new-item-menu-foot">
+                <button
+                  ref={subTriggerRef}
+                  type="button"
+                  className={`menu-item${subOpen ? ' focused' : ''}`}
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  aria-expanded={subOpen}
+                  onMouseEnter={() => {
+                    cancelCloseSub()
+                    setSubOpen(true)
+                  }}
+                  onMouseLeave={scheduleCloseSub}
+                  onClick={() => {
+                    cancelCloseSub()
+                    setSubOpen((v) => !v)
+                  }}
+                >
+                  From Template
+                  <span className="menu-hint">▸</span>
+                </button>
+                {gitEnabled ? (
+                  <button
+                    type="button"
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={() => {
+                      closeMenu()
+                      openDialog({ kind: 'clone-git-repo', parent })
+                    }}
+                  >
+                    GitHub Repository
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    closeMenu()
+                    openDialog({ kind: 'new-file', parent })
+                  }}
+                >
+                  {createElement(FilePlus2, {
+                    size: 16,
+                    strokeWidth: 2,
+                    'aria-hidden': true,
+                    className: 'new-item-menu-glyph'
+                  })}
+                  Other…
+                </button>
+              </div>
+            ) : null}
           </div>,
           document.body
         )
@@ -289,8 +331,12 @@ export function NewItemMenu(): JSX.Element {
         aria-expanded={open}
         title={
           disabled
-            ? 'New item unavailable'
-            : 'New folder or file in the current folder'
+            ? virtualFolderReadOnly
+              ? 'Virtual Folder is read-only'
+              : 'New item unavailable'
+            : inVirtualFolder
+              ? 'New Virtual Folder inside this collection'
+              : 'New folder or file in the current folder'
         }
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}

@@ -1,6 +1,6 @@
 # Preview pane — supported extensions
 
-**Version:** 0.13.0  
+**Version:** 0.14.0  
 **Source of truth:** extension sets in [`src/main/preview/index.ts`](../src/main/preview/index.ts) (plus CHM / video helpers). Behavior detail: [PREVIEW.md](PREVIEW.md).
 
 **Click-through fixtures:** [`samples/preview-extensions/`](../samples/preview-extensions/) — one small file per supported extension (`npm run samples:preview` to regenerate).
@@ -40,6 +40,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 | [UVW maps](#uvw-maps) | `uvw` | `binary` + metadata fields |
 | [3D meshes](#3d-meshes) | `obj` `fbx` `3ds` | `model3d` (WebGL; fills pane) |
 | [Folders](#folders) | *(directories)* | `directory` |
+| [Virtual Folders](#virtual-folders) | `mfevirtual` | `virtualFolder` |
 
 ---
 
@@ -343,6 +344,12 @@ Metadata (when present): Format, Preview (`Orbit WebGL view (drag to rotate, scr
 ## Folders
 
 Directories use `kind: 'directory'` (folder icon + file fields such as child counts when available). Not an “extension,” but part of the preview pane.
+
+## Virtual Folders
+
+| Ext | Notes |
+| --- | ----- |
+| `mfevirtual` | Intercepted **before** JSON/text. `kind: 'virtualFolder'` — item counts, files/folders/missing breakdown, sample locations. Selecting opens a dedicated card (not raw JSON). See [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md), D67. |
 
 ---
 

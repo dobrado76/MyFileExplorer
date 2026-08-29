@@ -16,6 +16,7 @@ import { isImageExt } from '../lib/icons'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { slideshowCurrentPath } from '../lib/slideshowTypes'
 import { isEditableImagePath } from '@shared/imageEdit'
+import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 import { api, call } from '../lib/ipc'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
 import { clipboardActionPaths, isFolderTreeEventTarget } from '../lib/clipboardActionPaths'
@@ -119,7 +120,11 @@ export function ExplorerShell(): JSX.Element {
       document.title = `${slideshowPath} — MyFileExplorer${ver}`
       return
     }
-    const folder = activeTab.title ?? basename(activeTab.path)
+    const folder =
+      activeTab.title ??
+      (isVirtualFolderDocumentPath(activeTab.path)
+        ? virtualFolderDisplayName(activeTab.path)
+        : basename(activeTab.path))
     document.title = `${folder} — MyFileExplorer${ver}`
   }, [
     activeTab,

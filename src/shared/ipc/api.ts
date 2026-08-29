@@ -951,5 +951,61 @@ export type MyFileExplorerApi = {
       skip?: number
     }): Promise<Result<import('../schemas/gitLog').GitFileLogResult>>
   }
+  virtualFolder: {
+    get(req: { path: string }): Promise<
+      Result<{
+        document: import('../virtualFolder').VirtualFolderDocument
+        mtimeMs: number
+        readOnly: boolean
+        warnings: string[]
+      }>
+    >
+    list(req: { path: string }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderListResponse>>
+    create(req: {
+      parentDir: string
+      name?: string
+    }): Promise<
+      Result<{
+        path: string
+        document: import('../virtualFolder').VirtualFolderDocument
+        mtimeMs: number
+      }>
+    >
+    add(req: {
+      documentPath: string
+      paths: string[]
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    remove(req: {
+      documentPath: string
+      entryIds: string[]
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    reorder(req: {
+      documentPath: string
+      entryIds: string[]
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    relink(req: {
+      documentPath: string
+      entryId: string
+      newPath: string
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    setLabel(req: {
+      documentPath: string
+      entryId: string
+      label: string | null
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    updatePaths(req: {
+      documentPath: string
+      renames: { from: string; to: string }[]
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    previewStats(req: {
+      path: string
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderPreviewStats>>
+  }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }

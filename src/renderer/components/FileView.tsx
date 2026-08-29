@@ -37,6 +37,7 @@ import {
 import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
+import { pathKey } from '@shared/paths'
 import {
   entryGitOverlay,
   gitStatusLabel,
@@ -106,6 +107,7 @@ const EMPTY_META_BY_PATH: Record<string, EntryColumnValues> = {}
 
 const SYNC_SORT_KEYS = new Set<SortKey>([
   'name',
+  'manual',
   'folder',
   'mtime',
   'ctime',
@@ -304,15 +306,24 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const hideNameExtensions = settings.hideNameExtensions
   const mediaLibrary = useAppStore((s) => s.mediaLibrary)
-  const labelFor = (entry: DirEntry): string =>
-    entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+  const labelFor = (entry: DirEntry): string => {
+    if (entry.ext.toLowerCase() === 'mfevirtual' || entry.name.toLowerCase().endsWith('.mfevirtual')) {
+      return displayFileName(entry.name, hideNameExtensions)
+    }
+    return entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+  }
 
   const showEpisodeIconLabels = settings.mediaMetadata.showEpisodeIconLabels !== false
   const gridNameFor = (
     entry: DirEntry
   ): { code: string | null; title: string | null; fallback: string } => {
     const flags = mediaLibrary.items[entry.path.toLowerCase()]
-    const fallback = entry.kind === 'dir' ? entry.name : displayFileName(entry.name, hideNameExtensions)
+    const fallback =
+      entry.ext.toLowerCase() === 'mfevirtual' || entry.name.toLowerCase().endsWith('.mfevirtual')
+        ? displayFileName(entry.name, hideNameExtensions)
+        : entry.kind === 'dir'
+          ? entry.name
+          : displayFileName(entry.name, hideNameExtensions)
     if (!showEpisodeIconLabels) return { code: null, title: null, fallback }
     return {
       code: episodeIconLabel(flags),
@@ -393,6 +404,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const gitShowIgnored = settings.git?.showIgnored === true
   const gitShowStatusColumn = gitEnabled && settings.git.showStatusColumn
   const gitByRoot = useAppStore((s) => s.gitByRoot)
+  const virtualFolderMode = Boolean(listing.virtualFolder)
   const detailsColumns = useMemo(() => {
     const base = detailsColumnsBase.filter((c) => {
       if (c.id === 'folder') return false
@@ -400,10 +412,13 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       if (c.id === 'gitStatus' && !gitShowStatusColumn) return false
       return true
     })
-    if (!searchMode) return base
-    return [{ id: 'folder' as const, width: searchFolderWidth }, ...base]
+    if (searchMode) return [{ id: 'folder' as const, width: searchFolderWidth }, ...base]
+    // Virtual Folder: Location = parent of each referenced target (D67).
+    if (virtualFolderMode) return [{ id: 'folder' as const, width: 280 }, ...base]
+    return base
   }, [
     searchMode,
+    virtualFolderMode,
     detailsColumnsBase,
     searchFolderWidth,
     showFolderStatistics,
@@ -1858,7 +1873,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const renameEditor = (entry: DirEntry): JSX.Element => (
     <RenameInput
-      name={entry.name}
+      name={
+        entry.ext.toLowerCase() === 'mfevirtual' || entry.name.toLowerCase().endsWith('.mfevirtual')
+          ? displayFileName(entry.name, hideNameExtensions)
+          : entry.name
+      }
       isDir={entry.kind === 'dir'}
       onSubmit={(v) => void submitRename(v)}
       onCancel={cancelRename}
@@ -1881,6 +1900,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     })
   const sortArrow = (key: SortKey): string =>
     effectiveSort.key === key ? (effectiveSort.dir === 'asc' ? ' ▲' : ' ▼') : ''
+  const virtualMembership = (entryPath: string) => {
+    const pf = listing.virtualFolder
+    if (!pf) return null
+    const eid = pf.entryIdByPathKey[pathKey(entryPath)]
+    return eid ? pf.byEntryId[eid] ?? null : null
+  }
 
   return (
     <div className="fileview-pane">
@@ -1991,7 +2016,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 }}
               >
                 <button className="hlabel" onClick={() => toggleSort(c.id)}>
-                  {meta.label}
+                  {c.id === 'folder' && virtualFolderMode ? 'Location' : meta.label}
                   {sortArrow(c.id)}
                 </button>
                 <div
@@ -2015,6 +2040,19 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           <button className="menu-item" disabled>
             <span className="menu-check">✓</span>Name
           </button>
+          {virtualFolderMode ? (
+            <button
+              className="menu-item"
+              role="menuitem"
+              onClick={() => {
+                setHeaderMenu(null)
+                setSort({ key: 'manual', dir: 'asc' })
+              }}
+            >
+              <span className="menu-check">{effectiveSort.key === 'manual' ? '✓' : ''}</span>
+              Manual order
+            </button>
+          ) : null}
           {COLUMN_GROUP_ORDER.map((group) => {
             if (group === 'folderStats' && !showFolderStatistics) return null
             if (group === 'adsFields') {
@@ -2178,7 +2216,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 return (
                   <div
                     key={entry.path}
-                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}${hideName ? ' no-filename' : ''}${hasContentPreview ? ' has-preview' : ' icon-only'}`}
+                    className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}${hideName ? ' no-filename' : ''}${hasContentPreview ? ' has-preview' : ' icon-only'}${virtualMembership(entry.path)?.state === 'missing' || virtualMembership(entry.path)?.state === 'inaccessible' ? ' virtual-missing' : ''}`}
                     style={{
                       top: vRow.start,
                       left: i * spec.cellW,
@@ -2285,7 +2323,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             return (
               <div
                 key={entry.path}
-                className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}`}
+                className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}${(() => {
+                  const st = virtualMembership(entry.path)?.state
+                  return st === 'missing' || st === 'inaccessible' ? ' virtual-missing' : ''
+                })()}`}
                 style={{ top: vRow.start, height: rowHeight }}
                 aria-label={`${entry.name}${gitAriaSuffix(entry)}`}
                 {...(entry.kind === 'dir' ? { 'data-drop-dir': entry.path } : {})}
@@ -2365,15 +2406,20 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 {viewMode === 'details' &&
                   !recycleMode &&
                   detailsColumns.map((c) => {
+                    const mem = virtualMembership(entry.path)
                     const text =
                       c.id === 'gitStatus'
                         ? gitStatusCellText(entry)
-                        : detailCellValue(
-                            c.id,
-                            entry,
-                            metaByPath[entry.path],
-                            showFolderStatistics
-                          )
+                        : c.id === 'type' && (mem?.state === 'missing' || mem?.state === 'inaccessible')
+                          ? mem.state === 'inaccessible'
+                            ? 'Inaccessible'
+                            : 'Missing'
+                          : detailCellValue(
+                              c.id,
+                              entry,
+                              metaByPath[entry.path],
+                              showFolderStatistics
+                            )
                     const raw = metaByPath[entry.path]?.[c.id] ?? ''
                     return (
                       <span

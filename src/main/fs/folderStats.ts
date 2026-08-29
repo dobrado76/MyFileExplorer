@@ -22,6 +22,7 @@ import {
   parseFolderStatsPreviewJson,
   previewMergeStateFromPayload,
   shrinkPreviewPayloadForAds,
+  subtractFileFromPreview,
   type PreviewMergeState
 } from '@shared/folderStatsPreview'
 import {
@@ -668,6 +669,70 @@ export async function readFolderStatsForPreview(
     ...existing.stats,
     folderMtimeMs
   }
+}
+
+export type RemovedFileForStatsPatch = {
+  path: string
+  size: number
+  /** Extension without leading dot. */
+  ext: string
+}
+
+/**
+ * After a file delete, subtract it from every tagged ancestor that has complete
+ * folder-stats ADS (quick live Space Usage update — no full Calculate).
+ */
+export async function patchFolderStatsAfterFileRemoval(
+  files: RemovedFileForStatsPatch[]
+): Promise<string[]> {
+  if (files.length === 0) return []
+  const patchedKeys = new Set<string>()
+  const patched: string[] = []
+
+  for (const file of files) {
+    let abs: string
+    try {
+      abs = requireAbsolute(file.path)
+    } catch {
+      continue
+    }
+    if (abs.toLowerCase().startsWith('mfe-remote://')) continue
+
+    let dir = path.dirname(abs)
+    while (dir) {
+      if (dir.toLowerCase().startsWith('mfe-remote://')) break
+      const existing = await readCompleteTaggedFolder(dir)
+      if (existing) {
+        const rel = path.relative(dir, abs)
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+          const next = subtractFileFromPreview(existing.stats, existing.preview, rel, {
+            size: file.size,
+            ext: file.ext
+          })
+          try {
+            await writeFolderStatStreams(dir, next.stats, next.preview)
+            dropColumnMetaMemoryPath(dir)
+            const key = pathKey(dir)
+            if (!patchedKeys.has(key)) {
+              patchedKeys.add(key)
+              patched.push(dir)
+            }
+          } catch {
+            // Unwritable / non-NTFS — keep walking ancestors.
+          }
+        }
+      }
+      const parent = statsPropagationParent(dir)
+      if (!parent) break
+      dir = parent
+    }
+  }
+
+  if (patched.length > 0) {
+    await invalidateColumnMetaPaths(patched)
+    invalidatePreviewCache(patched)
+  }
+  return patched
 }
 
 /** Walk a local folder tree and attach FileCount / FileTotCount / FolderCount / FolderTotCount / TotalSize / FolderStatsPreview ADS. */

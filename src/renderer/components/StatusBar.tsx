@@ -139,7 +139,7 @@ export function StatusBar(): JSX.Element {
       ? `${search.results.length} search result${search.results.length === 1 ? '' : 's'}`
       : listing.loading
         ? 'Loading…'
-        : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}`
+        : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}${listing.virtualFolder?.readOnly ? ' · Read-only' : ''}`
 
   return (
     <div className="statusbar">

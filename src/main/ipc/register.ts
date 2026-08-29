@@ -228,6 +228,28 @@ import { registerScriptIpc } from '../scripts/ipc'
 import { registerAiIpc } from '../ai/ipc'
 import { registerGitIpc } from '../git/ipc'
 import { listScriptsForExport, replaceScriptsFromExport } from '../scripts/library'
+import {
+  addVirtualFolderEntries,
+  createVirtualFolder,
+  getVirtualFolder,
+  listVirtualFolder,
+  previewVirtualFolderStats,
+  relinkVirtualFolderEntry,
+  removeVirtualFolderEntries,
+  reorderVirtualFolderEntries,
+  setVirtualFolderEntryLabel,
+  updateVirtualFolderTargetPaths
+} from '../virtualFolder'
+import {
+  virtualFolderAddRequestSchema,
+  virtualFolderCreateRequestSchema,
+  virtualFolderPathRequestSchema,
+  virtualFolderRelinkRequestSchema,
+  virtualFolderRemoveRequestSchema,
+  virtualFolderReorderRequestSchema,
+  virtualFolderSetLabelRequestSchema,
+  virtualFolderUpdatePathsRequestSchema
+} from '@shared/schemas/virtualFolder'
 
 function assertRemoteReposEnabled(): void {
   if (!getSettings().remoteRepos.enabled) {
@@ -1235,4 +1257,31 @@ export function registerIpcHandlers(): void {
   registerScriptIpc(handle)
   registerAiIpc(handle)
   registerGitIpc(handle)
+
+  handle(IPC.virtualFolderGet, virtualFolderPathRequestSchema, (req) => getVirtualFolder(req.path))
+  handle(IPC.virtualFolderList, virtualFolderPathRequestSchema, (req) => listVirtualFolder(req.path))
+  handle(IPC.virtualFolderPreviewStats, virtualFolderPathRequestSchema, (req) =>
+    previewVirtualFolderStats(req.path)
+  )
+  handle(IPC.virtualFolderCreate, virtualFolderCreateRequestSchema, (req) =>
+    createVirtualFolder(req.parentDir, req.name)
+  )
+  handle(IPC.virtualFolderAdd, virtualFolderAddRequestSchema, (req) =>
+    addVirtualFolderEntries(req.documentPath, req.paths, req.expectedMtimeMs)
+  )
+  handle(IPC.virtualFolderRemove, virtualFolderRemoveRequestSchema, (req) =>
+    removeVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs)
+  )
+  handle(IPC.virtualFolderReorder, virtualFolderReorderRequestSchema, (req) =>
+    reorderVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs)
+  )
+  handle(IPC.virtualFolderRelink, virtualFolderRelinkRequestSchema, (req) =>
+    relinkVirtualFolderEntry(req.documentPath, req.entryId, req.newPath, req.expectedMtimeMs)
+  )
+  handle(IPC.virtualFolderSetLabel, virtualFolderSetLabelRequestSchema, (req) =>
+    setVirtualFolderEntryLabel(req.documentPath, req.entryId, req.label, req.expectedMtimeMs)
+  )
+  handle(IPC.virtualFolderUpdatePaths, virtualFolderUpdatePathsRequestSchema, (req) =>
+    updateVirtualFolderTargetPaths(req.documentPath, req.renames, req.expectedMtimeMs)
+  )
 }

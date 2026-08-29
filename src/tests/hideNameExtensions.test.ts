@@ -14,7 +14,12 @@ describe('hideNameExtensions', () => {
     expect(displayFileName('.lnk', ['lnk'])).toBe('.lnk')
   })
 
+  it('always hides .mfevirtual even when not in the hide list', () => {
+    expect(displayFileName('New Virtual Folder.mfevirtual', [])).toBe('New Virtual Folder')
+    expect(displayFileName('Work.MFEVIRTUAL', ['lnk'])).toBe('Work')
+  })
+
   it('defaults settings to hide lnk', () => {
-    expect(settingsSchema.parse({}).hideNameExtensions).toEqual(['lnk'])
+    expect(settingsSchema.parse({}).hideNameExtensions).toEqual(['lnk', 'mfevirtual'])
   })
 })

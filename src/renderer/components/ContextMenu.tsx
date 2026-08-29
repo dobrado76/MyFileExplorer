@@ -13,6 +13,8 @@ import type { WindowsToolId } from '@shared/schemas/windowsTools'
 import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf, joinPath } from '../lib/paths'
+import { pathKey } from '@shared/paths'
+import { isVirtualFolderDocumentPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
 import { isImageExt, isVideoExt } from '../lib/icons'
@@ -140,23 +142,38 @@ function scriptsSubmenu(
   if (isRemoteLocation(ctx.folderPath) || ctx.selectedPaths.some((p) => isRemoteLocation(p))) {
     return null
   }
+  // Virtual Folder: scripts receive resolved target paths only (exclude missing).
+  let scriptPaths = ctx.selectedPaths
+  let scriptRoot = ctx.folderPath
+  const pf = s.listing.virtualFolder
+  if (pf && ctx.folderPath && samePath(s.listing.path, ctx.folderPath)) {
+    scriptPaths = ctx.selectedPaths
+      .map((p) => {
+        const id = pf.entryIdByPathKey[pathKey(p)]
+        const m = id ? pf.byEntryId[id] : null
+        return m?.state === 'resolved' && m.resolvedPath ? m.resolvedPath : null
+      })
+      .filter((p): p is string => !!p)
+    scriptRoot = virtualFolderDocumentDir(ctx.folderPath) || parentOf(ctx.folderPath) || ctx.folderPath
+  }
+  const scriptCtx = { ...ctx, selectedPaths: scriptPaths, folderPath: scriptRoot }
   const items = buildScriptsMenuItems({
     scripts: s.scriptLibrary,
-    ctx,
+    ctx: scriptCtx,
     aiEnabled: s.settings.ai.enabled,
     onRun(script: ScriptDefinition) {
       close()
       const selectionMode =
         Array.isArray(script.scopes) &&
         script.scopes.includes('selection') &&
-        ctx.selectedPaths.length > 0
+        scriptPaths.length > 0
       s.openDialog({
         kind: 'script-run',
         scriptId: script.id,
         name: script.name,
         mode: selectionMode ? 'selection' : 'folder',
-        root: ctx.folderPath ?? undefined,
-        paths: ctx.selectedPaths,
+        root: scriptRoot ?? undefined,
+        paths: scriptPaths,
         recursive: script.recursive
       })
     },
@@ -168,8 +185,8 @@ function scriptsSubmenu(
       close()
       s.openDialog({
         kind: 'script-generate',
-        mode: ctx.selectedPaths.length > 0 ? 'selection' : 'folder',
-        folderPath: ctx.folderPath ?? undefined
+        mode: scriptPaths.length > 0 ? 'selection' : 'folder',
+        folderPath: scriptRoot ?? undefined
       })
     }
   })
@@ -402,8 +419,27 @@ function newSubmenu(
   close: () => void,
   s: ReturnType<typeof useAppStore.getState>
 ): MenuItem {
-  const folderProbe = joinPath(parent, '__mfe_new_folder')
+  const inVirtualFolder = isVirtualFolderDocumentPath(parent)
+  const createDir = inVirtualFolder ? virtualFolderDocumentDir(parent) || parent : parent
+  const folderProbe = joinPath(createDir, '__mfe_new_folder')
   const fileProbe = (ext: string): string => joinPath(parent, `__mfe_new${ext}`)
+  if (inVirtualFolder) {
+    return {
+      type: 'submenu',
+      label: 'Add',
+      builtin: 'add',
+      items: [
+        {
+          label: 'Virtual Folder',
+          icon: <ShellIcon path={folderProbe} size={16} isDir />,
+          action: () => {
+            close()
+            void s.createVirtualFolder(parent)
+          }
+        }
+      ]
+    }
+  }
   return {
     type: 'submenu',
     label: 'Add',
@@ -415,6 +451,14 @@ function newSubmenu(
         action: () => {
           close()
           void s.createFolder(parent)
+        }
+      },
+      {
+        label: 'Virtual Folder',
+        icon: <ShellIcon path={folderProbe} size={16} isDir />,
+        action: () => {
+          close()
+          void s.createVirtualFolder(parent)
         }
       },
       { label: '', sep: true, action: () => undefined },
@@ -791,6 +835,150 @@ export function ContextMenu(): JSX.Element | null {
           }
         )
       }
+      return filterHiddenBuiltins(
+        out,
+        s.settings.contextMenu.hiddenBuiltins,
+        s.settings.contextMenu.builtinLayout
+      )
+    }
+
+    // Space usage map / Largest / Recent — focused file actions (path may be outside current listing).
+    if (menu.spaceUsage) {
+      const single = paths[0]
+      if (!single) return []
+      const out: MenuItem[] = [
+        {
+          type: 'item',
+          label: 'Reveal',
+          builtin: 'open-file-path',
+          action: () => {
+            close()
+            void s.openFileLocation(single)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Open',
+          builtin: 'open',
+          action: () => {
+            close()
+            void (async () => {
+              try {
+                const st = await call(api.fs.stat({ path: single }))
+                if (!st.exists) {
+                  s.notify('Item not found', true)
+                  return
+                }
+                if (st.kind === 'dir') {
+                  await s.navigate(single)
+                  return
+                }
+                const name = basename(single)
+                const extDot = fileExtension(single)
+                const ext = extDot ? extDot.slice(1).toLowerCase() : ''
+                await s.openEntry({
+                  name,
+                  path: single,
+                  kind: st.kind === 'symlink' ? 'symlink' : 'file',
+                  size: st.size,
+                  mtimeMs: st.mtimeMs,
+                  birthtimeMs: st.birthtimeMs,
+                  ext,
+                  isHidden: name.startsWith('.')
+                })
+              } catch (e) {
+                s.notify(e instanceof IpcError ? e.message : String(e), true)
+              }
+            })()
+          }
+        },
+        {
+          type: 'item',
+          label: 'Open in new tab',
+          builtin: 'open-in-new-tab',
+          action: () => {
+            close()
+            void (async () => {
+              try {
+                const st = await call(api.fs.stat({ path: single }))
+                if (!st.exists) {
+                  s.notify('Item not found', true)
+                  return
+                }
+                if (st.kind === 'dir') {
+                  await s.newTab(single)
+                  return
+                }
+                await s.openFileInNewTab(single)
+              } catch (e) {
+                s.notify(e instanceof IpcError ? e.message : String(e), true)
+              }
+            })()
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Cut',
+          hint: 'Ctrl+X',
+          builtin: 'cut',
+          action: () => {
+            close()
+            s.cutSelection([single])
+          }
+        },
+        {
+          type: 'item',
+          label: 'Copy',
+          hint: 'Ctrl+C',
+          builtin: 'copy',
+          action: () => {
+            close()
+            s.copySelection([single])
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Delete',
+          hint: 'Del · Ctrl+Del plan',
+          builtin: 'delete',
+          action: (ev) => {
+            close()
+            void s.deleteSelection(false, [single], !!ev?.ctrlKey)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Delete permanently',
+          hint: 'Shift+Del · Ctrl plan',
+          danger: true,
+          builtin: 'delete-permanently',
+          action: (ev) => {
+            close()
+            void s.deleteSelection(true, [single], !!ev?.ctrlKey)
+          }
+        },
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Copy path',
+          builtin: 'copy-path',
+          action: () => {
+            close()
+            void s.copyPathsToClipboard([single], false)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Properties',
+          builtin: 'properties',
+          action: () => {
+            close()
+            s.openDialog({ kind: 'properties', path: single })
+          }
+        }
+      ]
       return filterHiddenBuiltins(
         out,
         s.settings.contextMenu.hiddenBuiltins,
@@ -1669,7 +1857,7 @@ export function ContextMenu(): JSX.Element | null {
           }
         }
       ]
-      if (isDir && single) {
+      if (isDir && single && !isVirtualFolderDocumentPath(single)) {
         fileToolsItems.push({
           label: 'Change Icon…',
           action: () => {
@@ -1739,7 +1927,114 @@ export function ContextMenu(): JSX.Element | null {
       },
       ...(paths.length > 0 && paths.every((p) => isVolumeRootPath(p))
         ? []
-        : [
+        : s.listing.virtualFolder && !menu.inTree
+          ? [
+              ...((): MenuItem[] => {
+                const pf = s.listing.virtualFolder!
+                const owning = s.owningFolderView(s.listing.path)
+                const sort = owning?.sort ?? s.activeTab().sort
+                const manual = sort.key === 'manual'
+                const rows: MenuItem[] = []
+                if (manual && !pf.readOnly && paths.length > 0) {
+                  rows.push(
+                    {
+                      type: 'item',
+                      label: 'Move Up',
+                      action: () => {
+                        close()
+                        void s.moveVirtualFolderSelection(-1)
+                      }
+                    },
+                    {
+                      type: 'item',
+                      label: 'Move Down',
+                      action: () => {
+                        close()
+                        void s.moveVirtualFolderSelection(1)
+                      }
+                    },
+                    { type: 'sep' }
+                  )
+                }
+                if (!manual) {
+                  rows.push({
+                    type: 'item',
+                    label: 'Sort → Manual order',
+                    action: () => {
+                      close()
+                      s.setSort({ key: 'manual', dir: 'asc' })
+                    }
+                  })
+                }
+                rows.push({
+                  type: 'item',
+                  label: 'Remove from Virtual Folder',
+                  hint: 'Del',
+                  builtin: 'delete',
+                  disabled: pf.readOnly,
+                  action: () => {
+                    close()
+                    const ids = paths
+                      .map((p) => pf.entryIdByPathKey[pathKey(p)])
+                      .filter((id): id is string => !!id)
+                    void s.removeFromVirtualFolder(ids)
+                  }
+                })
+                if (single) {
+                  rows.push(
+                    {
+                      type: 'item',
+                      label: 'Locate Target…',
+                      disabled: pf.readOnly,
+                      action: () => {
+                        close()
+                        void (async () => {
+                          const cur = useAppStore.getState().listing.virtualFolder
+                          if (!cur || !single) return
+                          const entryId = cur.entryIdByPathKey[pathKey(single)]
+                          if (!entryId) return
+                          try {
+                            const picked = await call(
+                              api.slideshow.pickOpenFile({
+                                title: 'Locate Target',
+                                filters: [{ name: 'All files', extensions: ['*'] }]
+                              })
+                            )
+                            if (!picked.path) return
+                            await useAppStore.getState().relinkVirtualFolderEntry(entryId, picked.path)
+                          } catch (e) {
+                            useAppStore
+                              .getState()
+                              .notify(e instanceof IpcError ? e.message : String(e), true)
+                          }
+                        })()
+                      }
+                    },
+                    {
+                      type: 'item',
+                      label: 'Reveal in Real Folder',
+                      action: () => {
+                        close()
+                        void s.openFileLocation(single)
+                      }
+                    }
+                  )
+                }
+                rows.push({
+                  type: 'item',
+                  label: 'Delete from Disk…',
+                  hint: 'Shift+Del',
+                  danger: true,
+                  builtin: 'delete-permanently',
+                  action: (ev?: MenuActionEv) => {
+                    close()
+                    void s.deleteSelection(true, paths, !!ev?.ctrlKey)
+                  }
+                })
+                return rows
+              })()
+            ]
+          : [
             {
               type: 'item' as const,
               label: 'Delete',
@@ -2008,7 +2303,7 @@ export function ContextMenu(): JSX.Element | null {
           if (single) s.openDialog({ kind: 'ads-manager', path: single })
         }
       },
-      ...(isDir && single
+      ...(isDir && single && !isVirtualFolderDocumentPath(single)
         ? [
             {
               type: 'item' as const,

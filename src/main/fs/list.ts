@@ -14,6 +14,7 @@ import { listDirectoryWin32 } from './listWin32'
 import { rememberNetworkHost } from './networkRemembered'
 import { getDriveTypeWin32 } from './drives'
 import { dedupeDirEntries } from '@shared/dirEntries'
+import { presentVirtualFolderAsDirEntry } from '@shared/virtualFolder'
 
 function extOf(name: string): string {
   const e = path.extname(name)
@@ -82,7 +83,7 @@ async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<D
         } catch {
           // broken symlink or access denied: keep zeros, lstat kind
         }
-        return {
+        return presentVirtualFolderAsDirEntry({
           name: d.name,
           path: full,
           kind,
@@ -91,7 +92,7 @@ async function listDirectoryNode(dir: string, includeHidden: boolean): Promise<D
           birthtimeMs,
           ext: kind === 'dir' ? '' : extOf(d.name),
           isHidden
-        }
+        })
       })
     )
     for (const s of settled) {

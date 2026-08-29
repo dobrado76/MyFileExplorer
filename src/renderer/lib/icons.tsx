@@ -454,8 +454,21 @@ export const Model3dFileIcon = svg(
   </>
 )
 
+export const VirtualFolderIcon = svg(
+  <>
+    <path
+      d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+      fill="var(--folder-fill, #e8b64c)"
+      stroke="none"
+    />
+    <rect x="13.5" y="10" width="5.5" height="7" rx="0.6" fill="#f8fafc" stroke="#64748b" strokeWidth="1" />
+    <path d="M14.5 12.5h3.5M14.5 14.5h2.5" stroke="#64748b" strokeWidth="1" />
+  </>
+)
+
 export function iconForEntry(ext: string, isDir: boolean): (props: IconProps) => JSX.Element {
   if (isDir) return FolderIcon
+  if (ext === 'mfevirtual') return VirtualFolderIcon
   if (MODEL3D_EXTS.has(ext)) return Model3dFileIcon
   if (IMAGE_EXTS.has(ext)) return ImageFileIcon
   if (AUDIO_EXTS.has(ext)) return AudioFileIcon
@@ -466,6 +479,10 @@ export function iconForEntry(ext: string, isDir: boolean): (props: IconProps) =>
   if (ARCHIVE_EXTS.has(ext)) return ArchiveFileIcon
   if (EXE_EXTS.has(ext)) return ExeFileIcon
   return FileIcon
+}
+
+export function isVirtualFolderExt(ext: string): boolean {
+  return ext.toLowerCase() === 'mfevirtual'
 }
 
 export function isImageExt(ext: string): boolean {

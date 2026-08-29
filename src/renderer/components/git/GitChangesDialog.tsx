@@ -108,7 +108,9 @@ export function GitChangesDialog({
   const visiblePaths = useMemo(() => {
     const list = paths ?? []
     if (showIgnored) return list
-    return list.filter((p) => p.workingTree !== 'ignored' && p.staged !== 'ignored')
+    return list.filter(
+      (p: GitPathStatus) => p.workingTree !== 'ignored' && p.staged !== 'ignored'
+    )
   }, [paths, showIgnored])
 
   const tree = useMemo(() => {
@@ -118,7 +120,9 @@ export function GitChangesDialog({
   }, [visiblePaths, filter])
 
   const selectedRow = selected
-    ? (visiblePaths.find((p) => p.relativePath.replace(/\\/g, '/') === selected) ?? null)
+    ? (visiblePaths.find(
+        (p: GitPathStatus) => p.relativePath.replace(/\\/g, '/') === selected
+      ) ?? null)
     : null
 
   async function refresh(): Promise<void> {

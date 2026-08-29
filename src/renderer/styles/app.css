@@ -1571,6 +1571,13 @@ body.right-dragging * {
 .grid-cell.fs-hidden {
   opacity: 0.55;
 }
+.grid-cell.virtual-missing {
+  opacity: 0.72;
+}
+.grid-cell.virtual-missing .cell-name-primary,
+.row.virtual-missing .row-name-text {
+  font-style: italic;
+}
 .grid-cell.fs-hidden .cell-name {
   color: var(--text-dim);
 }
@@ -1752,6 +1759,9 @@ body.right-dragging * {
 .row.fs-hidden {
   opacity: 0.55;
   color: var(--text-dim);
+}
+.row.virtual-missing {
+  opacity: 0.72;
 }
 .row.fs-hidden.cut {
   opacity: 0.35;

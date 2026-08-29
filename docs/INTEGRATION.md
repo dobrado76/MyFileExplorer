@@ -1,8 +1,10 @@
 # Integrating with MyFileExplorer
 
-**Version:** 0.13.0
+**Version:** 0.14.0
 
 Other apps can “Reveal in Explorer” / open a folder **inside MyFileExplorer** instead of launching Windows File Explorer. A single running instance is reused; each request opens or focuses a **tab**.
+
+Installer file association: `.mfevirtual` → MyFileExplorer (Virtual Folder). Double-click opens the collection; `--reveal` still selects the document file in its parent.
 
 ---
 
@@ -18,9 +20,9 @@ MyFileExplorer.exe "D:\Projects\shot.png"
 
 | Form | Behavior |
 | ---- | -------- |
-| `--reveal <path>` / `-r` | Folder → new/focus tab on that folder. File → tab on parent folder **and select the file**. |
-| `--open <path>` / `-o` | Open path as a folder tab (files open their parent, no selection). |
-| Bare absolute path | Same as `--reveal`. |
+| `--reveal <path>` / `-r` | Folder → new/focus tab on that folder. File → tab on parent folder **and select the file**. `.mfevirtual` → reveal the document in its parent. |
+| `--open <path>` / `-o` | Open path as a folder tab (files open their parent, no selection). `.mfevirtual` → navigate into the Virtual Folder collection. |
+| Bare absolute path | Same as `--reveal`, except `.mfevirtual` opens the collection (same as `--open`). |
 
 If MyFileExplorer is already running, the second process exits immediately and the first window focuses and handles the path.
 
