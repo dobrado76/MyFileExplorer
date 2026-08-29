@@ -130,7 +130,7 @@ describe('folderStats streams', () => {
     })
   })
 
-  it('statsPropagationParent walks up to the volume root then stops', () => {
+  it.skipIf(process.platform !== 'win32')('statsPropagationParent walks up to the volume root then stops', () => {
     expect(statsPropagationParent('D:\\A\\B\\C')).toBe('D:\\A\\B')
     expect(statsPropagationParent('D:\\A')).toBe('D:\\')
     expect(statsPropagationParent('D:\\')).toBeNull()
