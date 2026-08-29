@@ -525,6 +525,9 @@ function newSubmenu(
 export function ContextMenu(): JSX.Element | null {
   const menu = useAppStore((s) => s.contextMenu)
   const closeContextMenu = useAppStore((s) => s.closeContextMenu)
+  // Git discovery can complete after the menu has opened. Subscribe so the
+  // menu is rebuilt when the selected path's repository is added to the cache.
+  const gitByRoot = useAppStore((s) => s.gitByRoot)
   const store = useAppStore
 
   const ref = useRef<HTMLDivElement>(null)
@@ -663,6 +666,19 @@ export function ContextMenu(): JSX.Element | null {
       cancelled = true
     }
   }, [menu])
+
+  useEffect(() => {
+    if (!menu || menu.dropTransfer || menu.slideshow || menu.paths.length === 0) return
+    const s = store.getState()
+    if (s.settings.git?.enabled !== true) return
+    const paths = menu.paths.filter((p) => p && !isRemoteLocation(p))
+    if (paths.length === 0) return
+
+    // The active pane may be the parent of a project. Discover the actual
+    // context-menu targets as well, so a child repository gets its Git menu
+    // without requiring the user to navigate into it first.
+    void Promise.all(paths.map((p) => s.refreshGitForPath(p)))
+  }, [menu, store])
 
   const items = useMemo<MenuItem[]>(() => {
     if (!menu) return []
@@ -2321,7 +2337,7 @@ export function ContextMenu(): JSX.Element | null {
       ...(() => {
         if (!s.settings.git?.enabled || paths.length < 1) return [] as MenuItem[]
         if (paths.some((p) => isRemoteLocation(p))) return [] as MenuItem[]
-        const lookups = paths.map((p) => lookupGitForPath(s.gitByRoot, p))
+        const lookups = paths.map((p) => lookupGitForPath(gitByRoot, p))
         if (lookups.some((l) => !l)) return [] as MenuItem[]
         const rootPath = lookups[0]!.rootPath
         if (!lookups.every((l) => l && samePath(l.rootPath, rootPath))) return [] as MenuItem[]
@@ -2528,7 +2544,7 @@ export function ContextMenu(): JSX.Element | null {
         s.settings.contextMenu.hiddenBuiltins,
         s.settings.contextMenu.builtinLayout
       )
-  }, [menu, closeContextMenu, store, imageVer, shiftHeld, clipPeek])
+  }, [menu, closeContextMenu, store, gitByRoot, imageVer, shiftHeld, clipPeek])
 
   // Clamp open submenu flyout (portaled to body; fixed coords).
   useLayoutEffect(() => {

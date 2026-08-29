@@ -143,7 +143,7 @@ File attributes             : 0x00000010: Directory
 })
 
 describe('USN recent CLI argv', () => {
-  it('requires --usn-recent, a drive letter, and an absolute json path', () => {
+  it.skipIf(process.platform !== 'win32')('requires --usn-recent, a drive letter, and an absolute json path', () => {
     expect(parseUsnRecentCli(['electron.exe', '--usn-recent', 'C:', 'C:\\temp\\usn-recent-C.json'])).toEqual({
       letter: 'C:',
       outFile: 'C:\\temp\\usn-recent-C.json'

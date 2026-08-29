@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { AppError } from '../shared/result'
 import { toRepoRelativePaths } from '../main/git/paths'
 
-describe('toRepoRelativePaths', () => {
+describe.skipIf(process.platform !== 'win32')('toRepoRelativePaths', () => {
   const root = 'C:\\repos\\demo'
 
   it('converts absolute paths under root', () => {
