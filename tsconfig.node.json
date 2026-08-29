@@ -48,6 +48,7 @@
     "src/renderer/lib/renameListing.ts",
     "src/renderer/lib/treeFromListing.ts",
     "src/renderer/lib/thumbMemory.ts",
-    "src/renderer/lib/clipboardActionPaths.ts"
+    "src/renderer/lib/clipboardActionPaths.ts",
+    "src/renderer/lib/gitUi.ts"
   ]
 }
