@@ -403,6 +403,52 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const gitShowFolderIndicators = settings.git?.showFolderIndicators !== false
   const gitShowIgnored = settings.git?.showIgnored === true
   const gitShowStatusColumn = gitEnabled && settings.git.showStatusColumn
+  const devGateActive = useAppStore((s) => s.devGateActive)
+  const projectedVirtualFolders = useAppStore((s) => s.projectedVirtualFolders)
+  const projectionEnabled =
+    platform === 'win32' &&
+    devGateActive &&
+    settings.virtualFolderOsProjectionEnabled === true
+  const refreshProjectedVirtualFolders = useAppStore((s) => s.refreshProjectedVirtualFolders)
+
+  useEffect(() => {
+    if (!projectionEnabled) return
+    void refreshProjectedVirtualFolders()
+    const id = window.setInterval(() => void refreshProjectedVirtualFolders(), 30_000)
+    return () => window.clearInterval(id)
+  }, [projectionEnabled, refreshProjectedVirtualFolders])
+
+  const isProjectedVf = useCallback(
+    (entryPath: string): boolean =>
+      projectionEnabled && pathKey(entryPath) in projectedVirtualFolders,
+    [projectionEnabled, projectedVirtualFolders]
+  )
+
+  const projectedMountPath = useCallback(
+    (entryPath: string): string | null =>
+      projectionEnabled ? (projectedVirtualFolders[pathKey(entryPath)] ?? null) : null,
+    [projectionEnabled, projectedVirtualFolders]
+  )
+
+  const projectionBadge = useCallback(
+    (entry: DirEntry): JSX.Element | null => {
+      const isVf =
+        entry.ext.toLowerCase() === 'mfevirtual' ||
+        entry.name.toLowerCase().endsWith('.mfevirtual')
+      if (!isVf || !isProjectedVf(entry.path)) return null
+      const mount = projectedMountPath(entry.path)
+      return (
+        <span
+          className="vf-projected-badge"
+          title={mount ? `Projected to Windows (${mount})` : 'Projected to Windows'}
+          aria-hidden
+        >
+          P
+        </span>
+      )
+    },
+    [isProjectedVf, projectedMountPath]
+  )
   const gitByRoot = useAppStore((s) => s.gitByRoot)
   const virtualFolderMode = Boolean(listing.virtualFolder)
   const detailsColumns = useMemo(() => {
@@ -2281,6 +2327,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                         />
                       )}
                       {gitBadge(entry)}
+                      {projectionBadge(entry)}
                     </div>
                     {renameSource === 'files' &&
                     renamingPath !== null &&
@@ -2371,6 +2418,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       }
                     />
                     {gitBadge(entry)}
+                    {projectionBadge(entry)}
                   </span>
                   {renameSource === 'files' &&
                   renamingPath !== null &&
@@ -2414,7 +2462,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           ? mem.state === 'inaccessible'
                             ? 'Inaccessible'
                             : 'Missing'
-                          : detailCellValue(
+                          : c.id === 'type' && isProjectedVf(entry.path)
+                            ? `${detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics)} · Projected`
+                            : detailCellValue(
                               c.id,
                               entry,
                               metaByPath[entry.path],

@@ -10,9 +10,21 @@ import {
   virtualFolderDisplayName,
   virtualFolderDocumentDir,
   virtualFolderEntryDuplicateKey,
+  virtualFolderProjectedMountPath,
+  virtualFolderStemFromFileName,
+  nextVirtualFolderFileName,
+  nextRealFolderName,
+  virtualFolderDocumentStemBlocked,
+  realFolderStemBlockedByVirtualFolder,
   resolveVirtualFolderEntryPath,
   serializeVirtualFolderDocument,
-  beginVirtualFolderVisit
+  beginVirtualFolderVisit,
+  filterOutNestedVirtualFolderPeers,
+  isEmbeddedVirtualFolderGroup,
+  virtualFolderGroupRowPath,
+  parseVirtualFolderGroupPath,
+  getEntriesAtGroup,
+  findEntryInTree
 } from '@shared/virtualFolder'
 import { parseVirtualFolderJson } from '@shared/schemas/virtualFolder'
 
@@ -137,5 +149,108 @@ describe('virtualFolder JSON', () => {
     expect(beginVirtualFolderVisit('D:\\A.mfevirtual', visited)).toBeTruthy()
     expect(beginVirtualFolderVisit('D:\\A.mfevirtual', visited)).toBeNull()
     expect(beginVirtualFolderVisit('D:\\B.mfevirtual', visited)).toBeTruthy()
+  })
+})
+
+describe('virtualFolder stem clash / projection paths', () => {
+  it('derives stem and projected mount path', () => {
+    expect(virtualFolderStemFromFileName('Work.mfevirtual')).toBe('Work')
+    expect(virtualFolderProjectedMountPath('D:\\Collections\\Work.mfevirtual')).toBe(
+      'D:\\Collections\\Work'
+    )
+  })
+
+  it('blocks Virtual Folder create when a sibling folder shares the stem', () => {
+    expect(virtualFolderDocumentStemBlocked('Work', ['Work', 'other.txt'])).toBe(true)
+    expect(virtualFolderDocumentStemBlocked('Work', ['Work.mfevirtual'])).toBe(true)
+    expect(virtualFolderDocumentStemBlocked('Work', ['other.txt'])).toBe(false)
+  })
+
+  it('blocks real folder create when a Virtual Folder shares the stem', () => {
+    expect(realFolderStemBlockedByVirtualFolder('Work', ['Work.mfevirtual'])).toBe(true)
+    expect(realFolderStemBlockedByVirtualFolder('Work', ['Work.txt'])).toBe(false)
+  })
+
+  it('suggests uniquified Virtual Folder and folder names', () => {
+    expect(nextVirtualFolderFileName('Work', ['Work'])).toBe('Work (2).mfevirtual')
+    expect(nextVirtualFolderFileName('Work', ['Work.mfevirtual'])).toBe('Work (2).mfevirtual')
+    expect(nextRealFolderName('Work', ['Work.mfevirtual'])).toBe('Work (2)')
+  })
+
+  it('hides legacy external nested Virtual Folder peers that are members of another sibling', () => {
+    const parent = 'E:\\Movies\\Watch List.mfevirtual'
+    const nested = 'E:\\Movies\\New Virtual Folder.mfevirtual'
+    const other = 'E:\\Movies\\Series.mfevirtual'
+    const docs: Record<string, { entries: { id: string; kind: string; path: string; relative: boolean }[] }> = {
+      [parent]: {
+        entries: [
+          {
+            id: '1',
+            kind: 'virtualFolder',
+            path: 'New Virtual Folder.mfevirtual',
+            relative: true
+          }
+        ]
+      },
+      [nested]: { entries: [] },
+      [other]: { entries: [] }
+    }
+    const listed = [{ path: parent }, { path: nested }, { path: other }, { path: 'E:\\Movies\\readme.txt' }]
+    const filtered = filterOutNestedVirtualFolderPeers(listed, (p) => docs[p] ?? null)
+    expect(filtered.map((e) => e.path)).toEqual([parent, other, 'E:\\Movies\\readme.txt'])
+  })
+
+  it('does not hide embedded groups (no sibling file)', () => {
+    const parent = 'E:\\Movies\\Watch List.mfevirtual'
+    const other = 'E:\\Movies\\Series.mfevirtual'
+    const docs: Record<string, { entries: { id: string; kind: string; label?: string; children?: unknown[] }[] }> = {
+      [parent]: {
+        entries: [{ id: '1', kind: 'virtualFolder', label: 'Nested', children: [] }]
+      },
+      [other]: { entries: [] }
+    }
+    const listed = [{ path: parent }, { path: other }]
+    const filtered = filterOutNestedVirtualFolderPeers(listed, (p) => docs[p] ?? null)
+    expect(filtered.map((e) => e.path)).toEqual([parent, other])
+  })
+
+  it('parses golden fixtures with embedded groups', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const empty = readFileSync(
+      join(__dirname, 'fixtures/virtualFolder/empty.mfevirtual.json'),
+      'utf8'
+    )
+    const mixed = readFileSync(
+      join(__dirname, 'fixtures/virtualFolder/mixed-entries.mfevirtual.json'),
+      'utf8'
+    )
+    const a = parseVirtualFolderJson(empty)
+    const b = parseVirtualFolderJson(mixed)
+    expect(a.ok).toBe(true)
+    expect(b.ok).toBe(true)
+    if (b.ok) {
+      expect(b.document.entries).toHaveLength(4)
+      expect(isEmbeddedVirtualFolderGroup(b.document.entries[2]!)).toBe(true)
+      expect(b.document.entries[2]!.children).toHaveLength(1)
+      expect(isEmbeddedVirtualFolderGroup(b.document.entries[3]!)).toBe(false)
+    }
+  })
+
+  it('encodes and finds embedded group rows', () => {
+    const doc = 'E:\\Movies\\Test.mfevirtual'
+    const row = virtualFolderGroupRowPath(doc, 'gid-1')
+    expect(parseVirtualFolderGroupPath(row)).toEqual({ documentPath: doc, groupId: 'gid-1' })
+    const entries = [
+      {
+        id: 'g1',
+        kind: 'virtualFolder' as const,
+        label: 'Inner',
+        children: [{ id: 'f1', kind: 'file' as const, path: 'a.txt', relative: true }]
+      }
+    ]
+    expect(findEntryInTree(entries, 'f1')?.kind).toBe('file')
+    expect(getEntriesAtGroup(entries, 'g1')?.map((e) => e.id)).toEqual(['f1'])
+    expect(getEntriesAtGroup(entries, null)?.map((e) => e.id)).toEqual(['g1'])
   })
 })

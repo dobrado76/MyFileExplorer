@@ -397,6 +397,15 @@ const settingsFieldsSchema = z.object({
    */
   showFolderStatistics: z.boolean().catch(true),
   /**
+   * Windows-only (D68): opt-in Virtual Folder OS projection (WinFsp sibling mount).
+   * Schema exists on all platforms for export round-trip; UI/IPC are win32-only.
+   */
+  /**
+   * DEV-gated (win32): enable Virtual Folder OS projection UI (D68).
+   * Project/Unproject and badges require Settings → Appearance DEV gate + this toggle.
+   */
+  virtualFolderOsProjectionEnabled: z.boolean().catch(false),
+  /**
    * Max file rectangles in the folder-stats space map (Calculate Statistics).
    * Remainder is clumped. Changing this does not rewrite ADS until recalculate.
    */
@@ -723,6 +732,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   viewFilterPatterns: [],
   folderStatsSkipPaths: [],
   showFolderStatistics: true,
+  virtualFolderOsProjectionEnabled: false,
   folderStatsTreemapMaxLeaves: 50_000,
   commandLineShell: 'cmd',
   hideNameExtensions: ['lnk', 'mfevirtual'],

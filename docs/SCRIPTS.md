@@ -4,7 +4,7 @@
 
 MyFileExplorer is not only a browser. It is a **universal script runner** attached to whatever you are looking at. A saved script is a first-class command on the current folder or selection — as reachable as Copy or Delete. Anything you can express in PowerShell, Python, cmd, or bash becomes a reusable verb. The app does not need a new feature for each job.
 
-Not File Automator ([FUTURE_IDEAS.md](FUTURE_IDEAS.md) item 1). Not D41 custom commands (`shell:exec` is detached, no captured stdout). Locked choice: [DECISIONS.md](DECISIONS.md) **D51**. On-disk layout: [PROJECT_FORMAT.md](PROJECT_FORMAT.md).
+Not a visual File Automator / pipeline composer (rejected; D51 supersedes that parking-lot idea). Not D41 custom commands (`shell:exec` is detached, no captured stdout). Locked choice: [DECISIONS.md](DECISIONS.md) **D51**. On-disk layout: [PROJECT_FORMAT.md](PROJECT_FORMAT.md).
 
 ---
 
@@ -37,7 +37,7 @@ That is the point of v0.9: the app ships a **stable place to run code against th
 | Folder (`--root`), selection (`--input-list`), or **global** (no path args) | “Run whatever is in PATH as a shell string” |
 | Optional AI that drafts / modifies / repairs **source** | An agent that browses your disk |
 | Dry-run flag + first-run risk ack | Silent `pip install` or auto-elevation |
-| Repeatable verbs you keep forever | File Automator / node-editor pipelines ([FUTURE_IDEAS.md](FUTURE_IDEAS.md)) |
+| Repeatable verbs you keep forever | File Automator / node-editor pipelines (rejected; use scripts) |
 
 **D41 custom commands** stay for “open this `.exe` with `{path}`” (Photoshop, VLC). Use D51 when you need **output, parameters, dry-run, cancel, or a script you will rerun in many folders**.
 
@@ -795,4 +795,3 @@ Scheduler, plugin SDK, marketplace, node editor, IntelliSense/debugger, auto `pi
 | [IPC_CONTRACT.md](IPC_CONTRACT.md) | `script:*` / `ai:*` |
 | [SECURITY.md](SECURITY.md) | Path validation; scripts still run as you |
 | [ADVANTAGES.md](ADVANTAGES.md) | Why this is not Explorer |
-| [FUTURE_IDEAS.md](FUTURE_IDEAS.md) | File Automator stays separate |

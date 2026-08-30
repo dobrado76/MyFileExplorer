@@ -2,7 +2,7 @@
 
 **Version:** 0.13.0 · Windows remains the primary product target.
 
-This project is **Windows-first**. Linux packaging and launch scripts are experimental helpers for contributors; they are not a supported product matrix yet. Windows features that depend on Win32 APIs (shell icons, Recycle Bin, ADS, NTFS search, **Network neighborhood**, mapped-drive dialogs, etc.) degrade or no-op on Linux — the Win32 network module is lazy-loaded and never initialized on Linux builds.
+This project is **Windows-first**. Linux packaging and launch scripts are experimental helpers for contributors; they are not a supported product matrix yet. Windows features that depend on Win32 APIs (shell icons, Recycle Bin, ADS, NTFS search, **Network neighborhood**, mapped-drive dialogs, **Virtual Folder OS projection (D68 / WinFsp)**, etc.) degrade or no-op on Linux — the Win32 network module is lazy-loaded and never initialized on Linux builds. **Virtual Folders (D67)** work in-app on Linux; there is no OS mount / Project UI on Linux (FUSE deferred).
 
 The notes below target a modern Wayland-only desktop session (e.g. Kubuntu/Plasma). Paths and configurations may need adjustment on other distros.
 

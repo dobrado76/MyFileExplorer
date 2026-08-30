@@ -298,6 +298,7 @@ const api: MyFileExplorerApi = {
     get: invoke(IPC.virtualFolderGet),
     list: invoke(IPC.virtualFolderList),
     create: invoke(IPC.virtualFolderCreate),
+    createGroup: invoke(IPC.virtualFolderCreateGroup),
     add: invoke(IPC.virtualFolderAdd),
     remove: invoke(IPC.virtualFolderRemove),
     reorder: invoke(IPC.virtualFolderReorder),
@@ -305,6 +306,12 @@ const api: MyFileExplorerApi = {
     setLabel: invoke(IPC.virtualFolderSetLabel),
     updatePaths: invoke(IPC.virtualFolderUpdatePaths),
     previewStats: invoke(IPC.virtualFolderPreviewStats)
+  },
+  virtualFolderProject: {
+    status: invokeVoid(IPC.virtualFolderProjectStatus),
+    mount: invoke(IPC.virtualFolderProjectMount),
+    unmount: invoke(IPC.virtualFolderProjectUnmount),
+    listMounts: invokeVoid(IPC.virtualFolderProjectListMounts)
   },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)

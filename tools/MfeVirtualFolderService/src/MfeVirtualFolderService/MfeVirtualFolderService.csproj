@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MfeVirtualFolderService</RootNamespace>
+    <AssemblyName>MfeVirtualFolderService</AssemblyName>
+    <OutputType>Exe</OutputType>
+    <UseWindowsService>true</UseWindowsService>
+    <WinFspMsil Condition="Exists('C:\Program Files (x86)\WinFsp\bin\winfsp-msil.dll')">C:\Program Files (x86)\WinFsp\bin\winfsp-msil.dll</WinFspMsil>
+    <WinFspMsil Condition="'$(WinFspMsil)'=='' and Exists('C:\Program Files\WinFsp\bin\winfsp-msil.dll')">C:\Program Files\WinFsp\bin\winfsp-msil.dll</WinFspMsil>
+    <DefineConstants Condition="'$(WinFspMsil)'!=''">$(DefineConstants);HAS_WINFSP</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MfeVirtualFolder.Protocol\MfeVirtualFolder.Protocol.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(WinFspMsil)'!=''">
+    <Reference Include="winfsp-msil">
+      <HintPath>$(WinFspMsil)</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

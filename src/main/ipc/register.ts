@@ -231,6 +231,7 @@ import { listScriptsForExport, replaceScriptsFromExport } from '../scripts/libra
 import {
   addVirtualFolderEntries,
   createVirtualFolder,
+  createVirtualFolderGroup,
   getVirtualFolder,
   listVirtualFolder,
   previewVirtualFolderStats,
@@ -242,6 +243,7 @@ import {
 } from '../virtualFolder'
 import {
   virtualFolderAddRequestSchema,
+  virtualFolderCreateGroupRequestSchema,
   virtualFolderCreateRequestSchema,
   virtualFolderPathRequestSchema,
   virtualFolderRelinkRequestSchema,
@@ -1262,21 +1264,30 @@ export function registerIpcHandlers(): void {
   registerGitIpc(handle)
 
   handle(IPC.virtualFolderGet, virtualFolderPathRequestSchema, (req) => getVirtualFolder(req.path))
-  handle(IPC.virtualFolderList, virtualFolderPathRequestSchema, (req) => listVirtualFolder(req.path))
+  handle(IPC.virtualFolderList, virtualFolderPathRequestSchema, (req) =>
+    listVirtualFolder(req.path, req.groupId)
+  )
   handle(IPC.virtualFolderPreviewStats, virtualFolderPathRequestSchema, (req) =>
     previewVirtualFolderStats(req.path)
   )
   handle(IPC.virtualFolderCreate, virtualFolderCreateRequestSchema, (req) =>
     createVirtualFolder(req.parentDir, req.name)
   )
+  handle(IPC.virtualFolderCreateGroup, virtualFolderCreateGroupRequestSchema, (req) =>
+    createVirtualFolderGroup(req.documentPath, {
+      parentGroupId: req.parentGroupId,
+      name: req.name,
+      expectedMtimeMs: req.expectedMtimeMs
+    })
+  )
   handle(IPC.virtualFolderAdd, virtualFolderAddRequestSchema, (req) =>
-    addVirtualFolderEntries(req.documentPath, req.paths, req.expectedMtimeMs)
+    addVirtualFolderEntries(req.documentPath, req.paths, req.expectedMtimeMs, req.groupId)
   )
   handle(IPC.virtualFolderRemove, virtualFolderRemoveRequestSchema, (req) =>
     removeVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs)
   )
   handle(IPC.virtualFolderReorder, virtualFolderReorderRequestSchema, (req) =>
-    reorderVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs)
+    reorderVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs, req.groupId)
   )
   handle(IPC.virtualFolderRelink, virtualFolderRelinkRequestSchema, (req) =>
     relinkVirtualFolderEntry(req.documentPath, req.entryId, req.newPath, req.expectedMtimeMs)
@@ -1287,4 +1298,25 @@ export function registerIpcHandlers(): void {
   handle(IPC.virtualFolderUpdatePaths, virtualFolderUpdatePathsRequestSchema, (req) =>
     updateVirtualFolderTargetPaths(req.documentPath, req.renames, req.expectedMtimeMs)
   )
+
+  if (process.platform === 'win32') {
+    const pathOnly = z.object({ path: z.string().min(1).max(32_768) })
+    handle(IPC.virtualFolderProjectStatus, emptySchema, async () => {
+      const client = await import('../virtualFolder/projectionClient')
+      return client.projectionStatus()
+    })
+    handle(IPC.virtualFolderProjectMount, pathOnly, async (req) => {
+      const client = await import('../virtualFolder/projectionClient')
+      return client.projectionMount(req.path)
+    })
+    handle(IPC.virtualFolderProjectUnmount, pathOnly, async (req) => {
+      const client = await import('../virtualFolder/projectionClient')
+      await client.projectionUnmount(req.path)
+      return { ok: true as const }
+    })
+    handle(IPC.virtualFolderProjectListMounts, emptySchema, async () => {
+      const client = await import('../virtualFolder/projectionClient')
+      return { mounts: await client.projectionListMounts() }
+    })
+  }
 }

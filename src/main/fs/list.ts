@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { AppError } from '@shared/result'
@@ -14,7 +15,12 @@ import { listDirectoryWin32 } from './listWin32'
 import { rememberNetworkHost } from './networkRemembered'
 import { getDriveTypeWin32 } from './drives'
 import { dedupeDirEntries } from '@shared/dirEntries'
-import { presentVirtualFolderAsDirEntry } from '@shared/virtualFolder'
+import {
+  filterOutNestedVirtualFolderPeers,
+  isVirtualFolderDocumentPath,
+  presentVirtualFolderAsDirEntry
+} from '@shared/virtualFolder'
+import { parseVirtualFolderJson } from '@shared/schemas/virtualFolder'
 
 function extOf(name: string): string {
   const e = path.extname(name)
@@ -140,15 +146,13 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
       // Reconnect may block briefly — better than FindFirstFileW hanging with no recovery.
       const { restoreMappedNetworkDrive } = await import('./drives')
       restoreMappedNetworkDrive(`${driveLetter[1]}:\\`)
-      const entries = dedupeDirEntries(await listDirectoryNode(dir, includeHidden))
-      protocolAllowlist.allowDir(dir)
+      const entries = await finalizeLocalListing(dir, await listDirectoryNode(dir, includeHidden))
       return { path: dir, entries }
     }
     if (dt === DRIVE_REMOTE) {
       // Async libuv listing — keeps Electron main free. Reconnect is Offline Retry /
       // explicit open (restoreMappedNetworkDrive), not every list.
-      const entries = dedupeDirEntries(await listDirectoryNode(dir, includeHidden))
-      protocolAllowlist.allowDir(dir)
+      const entries = await finalizeLocalListing(dir, await listDirectoryNode(dir, includeHidden))
       return { path: dir, entries }
     }
   }
@@ -164,9 +168,29 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
     }
   }
   if (!entries) entries = await listDirectoryNode(dir, includeHidden)
-  entries = dedupeDirEntries(entries)
-  protocolAllowlist.allowDir(dir)
+  entries = await finalizeLocalListing(dir, entries)
   return { path: dir, entries }
+}
+
+/** Dedupe, allowlist, and hide nested VF peers that are members of another VF in this folder. */
+async function finalizeLocalListing(dir: string, raw: DirEntry[]): Promise<DirEntry[]> {
+  let entries = dedupeDirEntries(raw)
+  protocolAllowlist.allowDir(dir)
+  const vfEntries = entries.filter((e) => isVirtualFolderDocumentPath(e.path))
+  if (vfEntries.length < 2) return entries
+
+  // Sync read is fine: only for the few .mfevirtual siblings in one folder.
+  const cache = new Map<string, { entries: import('@shared/virtualFolder').VirtualFolderEntry[] } | null>()
+  for (const vf of vfEntries) {
+    try {
+      const text = fs.readFileSync(vf.path, 'utf8')
+      const parsed = parseVirtualFolderJson(text)
+      cache.set(vf.path, parsed.ok ? { entries: parsed.document.entries } : null)
+    } catch {
+      cache.set(vf.path, null)
+    }
+  }
+  return filterOutNestedVirtualFolderPeers(entries, (documentPath) => cache.get(documentPath) ?? null)
 }
 
 export async function statPath(p: string): Promise<StatResult> {

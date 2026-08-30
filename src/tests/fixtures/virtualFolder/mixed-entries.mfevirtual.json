@@ -1,0 +1,43 @@
+{
+  "created": "2026-08-30T00:00:00.000Z",
+  "entries": [
+    {
+      "id": "e1",
+      "kind": "file",
+      "path": "docs/a.pdf",
+      "relative": true
+    },
+    {
+      "id": "e2",
+      "kind": "folder",
+      "path": "F:\\AI\\Training",
+      "relative": false
+    },
+    {
+      "id": "e3",
+      "kind": "virtualFolder",
+      "label": "Nested group",
+      "children": [
+        {
+          "id": "e3a",
+          "kind": "file",
+          "path": "docs/b.pdf",
+          "relative": true
+        }
+      ]
+    },
+    {
+      "id": "e4",
+      "kind": "virtualFolder",
+      "path": "LegacyExternal.mfevirtual",
+      "relative": true
+    }
+  ],
+  "format": "MyFileExplorer.VirtualFolder",
+  "id": "00000000-0000-4000-8000-000000000002",
+  "modified": "2026-08-30T00:00:00.000Z",
+  "settings": {
+    "manualOrder": true
+  },
+  "version": 1
+}

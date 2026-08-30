@@ -123,7 +123,12 @@ export const tabStateSchema = z.object({
     .catch([])
     .transform((arr) =>
       arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED)
-    )
+    ),
+  /**
+   * In-document Virtual Folder group stack (entry ids). Empty = document root.
+   * `Tab.path` stays the `.mfevirtual` file; this is only the nested group cwd.
+   */
+  virtualFolderGroupStack: z.array(z.string().min(1)).catch([])
 })
 export type TabState = z.infer<typeof tabStateSchema>
 

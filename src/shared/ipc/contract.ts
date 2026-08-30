@@ -240,7 +240,14 @@ export const IPC = {
   virtualFolderRelink: 'virtualFolder:relink',
   virtualFolderSetLabel: 'virtualFolder:setLabel',
   virtualFolderUpdatePaths: 'virtualFolder:updatePaths',
+  virtualFolderCreateGroup: 'virtualFolder:createGroup',
   virtualFolderPreviewStats: 'virtualFolder:previewStats',
+
+  /** Virtual Folder OS projection (D68) — registered on win32 only. */
+  virtualFolderProjectStatus: 'virtualFolderProject:status',
+  virtualFolderProjectMount: 'virtualFolderProject:mount',
+  virtualFolderProjectUnmount: 'virtualFolderProject:unmount',
+  virtualFolderProjectListMounts: 'virtualFolderProject:listMounts',
 
   scriptDetectRuntimes: 'script:detectRuntimes',
   scriptList: 'script:list',

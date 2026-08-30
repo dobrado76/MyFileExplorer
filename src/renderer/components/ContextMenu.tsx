@@ -1853,6 +1853,34 @@ export function ContextMenu(): JSX.Element | null {
       const special = pasteSpecialMenu(single, clipPeek, close, s)
       if (special) result.push(special)
     }
+    if (
+      s.platform === 'win32' &&
+      s.devGateActive &&
+      s.settings.virtualFolderOsProjectionEnabled &&
+      single &&
+      isVirtualFolderDocumentPath(single)
+    ) {
+      const projected = pathKey(single) in s.projectedVirtualFolders
+      result.push(
+        projected
+          ? {
+              type: 'item',
+              label: 'Unproject',
+              action: () => {
+                close()
+                void s.unprojectVirtualFolder(single)
+              }
+            }
+          : {
+              type: 'item',
+              label: 'Project to Windows',
+              action: () => {
+                close()
+                void s.projectVirtualFolder(single)
+              }
+            }
+      )
+    }
     {
       const toolPaths = menu.inTree && single ? [single] : paths
       const fileToolsItems: SubEntry[] = [

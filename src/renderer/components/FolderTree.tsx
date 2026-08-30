@@ -31,7 +31,7 @@ import {
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
-import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
+import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, parseVirtualFolderGroupPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 import { ChevronDown, ChevronRight, RecycleBinIcon } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
 import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
@@ -46,6 +46,8 @@ type NodeState = {
   loading: boolean
   /** child path (lower) → Windows Hidden / dotfile */
   childHidden?: Record<string, boolean>
+  /** child path (lower) → display label (needed for mfe-vfgroup rows) */
+  childLabels?: Record<string, string>
 }
 type NodesMap = Record<string, NodeState>
 
@@ -274,9 +276,12 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         }
       }, tabId)
       try {
-        if (isVirtualFolderDocumentPath(path)) {
-          const res = await call(api.virtualFolder.list({ path }))
-          const { dirs, childHidden } = dirChildrenFromListing(
+        if (isVirtualFolderDocumentPath(path) || isVirtualFolderGroupPath(path)) {
+          const groupRef = parseVirtualFolderGroupPath(path)
+          const docPath = groupRef?.documentPath ?? path
+          const groupId = groupRef?.groupId
+          const res = await call(api.virtualFolder.list({ path: docPath, groupId }))
+          const { dirs, childHidden, childLabels } = dirChildrenFromListing(
             res.entries.map((r) => r.entry)
           )
           setNodes(
@@ -288,7 +293,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
                   expanded: nextExpanded(prev?.expanded),
                   children: dirs,
                   loading: false,
-                  childHidden
+                  childHidden,
+                  childLabels
                 }
               }
             },
@@ -297,7 +303,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           return dirs
         }
         const res = await call(api.fs.list({ path, includeHidden: true }))
-        const { dirs, childHidden } = dirChildrenFromListing(res.entries)
+        const { dirs, childHidden, childLabels } = dirChildrenFromListing(res.entries)
         setNodes(
           (n) => {
             const prev = n[path]
@@ -307,7 +313,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
                 expanded: nextExpanded(prev?.expanded),
                 children: dirs,
                 loading: false,
-                childHidden
+                childHidden,
+                childLabels
               }
             }
           },
@@ -601,7 +608,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     const key = Object.keys(map).find((k) => samePath(k, listed)) ?? listed
     const prev = map[key]
     if (!prev || (prev.children === null && !prev.expanded)) return
-    const { dirs, childHidden } = dirChildrenFromListing(listingForTab.entries)
+    const { dirs, childHidden, childLabels } = dirChildrenFromListing(listingForTab.entries)
     if (sameDirChildList(prev.children, dirs)) return
     setNodes((n) => {
       const cur = n[key]
@@ -609,7 +616,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       if (sameDirChildList(cur.children, dirs)) return n
       return {
         ...n,
-        [key]: { ...cur, children: dirs, loading: false, childHidden }
+        [key]: { ...cur, children: dirs, loading: false, childHidden, childLabels }
       }
     })
   }, [listingForTab?.path, listingForTab?.entries, listingForTab?.loading, setNodes])
@@ -769,6 +776,22 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     if (paneIdx >= 0) focusPane(paneIdx)
     if (isRecycleBinTreePath(path)) {
       void openRecycleBinView()
+    } else if (isVirtualFolderGroupPath(path)) {
+      const ref = parseVirtualFolderGroupPath(path)
+      if (!ref) return
+      const map = nodesRef.current
+      const stack: string[] = []
+      let cur: string | null = path
+      while (cur && isVirtualFolderGroupPath(cur)) {
+        const g = parseVirtualFolderGroupPath(cur)
+        if (!g) break
+        stack.unshift(g.groupId)
+        const parentKey =
+          Object.keys(map).find((k) => map[k]?.children?.some((c) => samePath(c, cur!))) ?? null
+        if (!parentKey || isVirtualFolderDocumentPath(parentKey)) break
+        cur = parentKey
+      }
+      void useAppStore.getState().enterVirtualFolderGroup(ref.documentPath, stack)
     } else {
       void navigate(path, { tabId })
     }
@@ -1100,7 +1123,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           visibleChildren?.map((child) =>
             renderNode(
               child,
-              isVirtualFolderDocumentPath(child) ? virtualFolderDisplayName(child) : basename(child),
+              nodes[path]?.childLabels?.[child.toLowerCase()] ??
+                (isVirtualFolderDocumentPath(child)
+                  ? virtualFolderDisplayName(child)
+                  : basename(child)),
               depth + 1,
               section,
               path

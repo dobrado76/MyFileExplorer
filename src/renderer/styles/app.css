@@ -1246,6 +1246,32 @@ textarea:focus {
   background: var(--git-status-ignored);
 }
 
+.vf-projected-badge {
+  position: absolute;
+  right: 0;
+  top: 0;
+  min-width: 1.1em;
+  height: 1.1em;
+  padding: 0 2px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.1em;
+  text-align: center;
+  color: #fff;
+  background: var(--accent, #3b82f6);
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.row-glyph-wrap .vf-projected-badge {
+  right: -4px;
+  top: -2px;
+  font-size: 8px;
+  min-width: 1em;
+  height: 1em;
+  line-height: 1em;
+}
+
 .toolbar-media-label {
   display: flex;
   align-items: center;

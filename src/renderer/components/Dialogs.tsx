@@ -2801,6 +2801,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const updateLayout = useAppStore((s) => s.updateLayout)
   const removeLayoutAction = useAppStore((s) => s.removeLayout)
   const navigate = useAppStore((s) => s.navigate)
+  const platform = useAppStore((s) => s.platform)
   const startNetworkDiscovery = useAppStore((s) => s.startNetworkDiscovery)
   const openMapNetworkDrive = useAppStore((s) => s.openMapNetworkDrive)
   const openDisconnectNetworkDrive = useAppStore((s) => s.openDisconnectNetworkDrive)
@@ -3931,6 +3932,16 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showFolderStatistics !== false}
                 onChange={(v) => void applySettingsPatch({ showFolderStatistics: v })}
               />
+              {platform === 'win32' && devGateActive && (
+                <SettingsToggle
+                  id="set-vf-os-projection"
+                  label="Virtual Folder OS projection"
+                  hint="DEV-only. Show Project to Windows / Unproject on .mfevirtual. Requires the optional MfeVirtualFolderService and WinFsp (local disk only)."
+                  checked={settings.virtualFolderOsProjectionEnabled === true}
+                  searchTerms="winfsp project unproject mount virtual folder d68"
+                  onChange={(v) => void applySettingsPatch({ virtualFolderOsProjectionEnabled: v })}
+                />
+              )}
               <label
                 className="settings-field"
                 htmlFor="set-folder-stats-treemap-leaves"

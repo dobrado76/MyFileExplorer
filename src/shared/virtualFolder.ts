@@ -18,12 +18,19 @@ export type VirtualFolderSettings = {
 export type VirtualFolderEntry = {
   id: string
   kind: VirtualFolderEntryKind
-  /** Absolute (native) or relative (`/` separators when relative). */
-  path: string
+  /**
+   * Absolute (native) or relative (`/` separators when relative).
+   * Omitted for embedded groups (`kind: virtualFolder` with `label` / `children`).
+   * Present for legacy external Virtual Folder links.
+   */
+  path?: string
   /** true => path is relative to the `.mfevirtual` file's directory. */
   relative?: boolean
+  /** Display name — required for embedded groups; optional override for refs. */
   label?: string
   note?: string
+  /** Nested entries for an embedded Virtual Folder group. */
+  children?: VirtualFolderEntry[]
 }
 
 export type VirtualFolderDocument = {
@@ -48,6 +55,8 @@ export type VirtualFolderMembership = {
   label?: string
   note?: string
   relative?: boolean
+  /** True when this row is an embedded group (not a filesystem path). */
+  embeddedGroup?: boolean
 }
 
 function basenameOf(nameOrPath: string): string {
@@ -119,7 +128,7 @@ export function resolveVirtualFolderEntryPath(
   documentPath: string,
   entry: Pick<VirtualFolderEntry, 'path' | 'relative'>
 ): string {
-  const raw = entry.path.trim()
+  const raw = (entry.path ?? '').trim()
   if (!raw) return ''
   if (entry.relative) {
     const docDir = virtualFolderDocumentDir(documentPath)
@@ -151,15 +160,144 @@ export function virtualFolderEntryDuplicateKey(
   return pathKey(resolveVirtualFolderEntryPath(documentPath, entry))
 }
 
+/** Embedded group (in-document nested VF) — not an external `.mfevirtual` link. */
+export function isEmbeddedVirtualFolderGroup(
+  entry: Pick<VirtualFolderEntry, 'kind' | 'path' | 'children' | 'label'>
+): boolean {
+  if (normalizeVirtualFolderEntryKind(entry.kind) !== 'virtualFolder') return false
+  const hasPath = typeof entry.path === 'string' && entry.path.trim().length > 0
+  if (hasPath) return false
+  return true
+}
+
+/** Legacy external link to another `.mfevirtual` document. */
+export function isExternalVirtualFolderLink(
+  entry: Pick<VirtualFolderEntry, 'kind' | 'path'>
+): boolean {
+  if (normalizeVirtualFolderEntryKind(entry.kind) !== 'virtualFolder') return false
+  return typeof entry.path === 'string' && entry.path.trim().length > 0
+}
+
+export const VF_GROUP_PATH_PREFIX = 'mfe-vfgroup:'
+
+/** Opaque selection/tree path for an embedded group row (not a filesystem path). */
+export function virtualFolderGroupRowPath(documentPath: string, groupId: string): string {
+  return `${VF_GROUP_PATH_PREFIX}${encodeURIComponent(documentPath)}|${encodeURIComponent(groupId)}`
+}
+
+export function isVirtualFolderGroupPath(p: string): boolean {
+  return typeof p === 'string' && p.startsWith(VF_GROUP_PATH_PREFIX)
+}
+
+export function parseVirtualFolderGroupPath(
+  p: string
+): { documentPath: string; groupId: string } | null {
+  if (!isVirtualFolderGroupPath(p)) return null
+  const rest = p.slice(VF_GROUP_PATH_PREFIX.length)
+  const bar = rest.indexOf('|')
+  if (bar < 0) return null
+  try {
+    const documentPath = decodeURIComponent(rest.slice(0, bar))
+    const groupId = decodeURIComponent(rest.slice(bar + 1))
+    if (!documentPath || !groupId) return null
+    return { documentPath, groupId }
+  } catch {
+    return null
+  }
+}
+
 export function entryDisplayName(
-  entry: Pick<VirtualFolderEntry, 'path' | 'label' | 'relative'>,
+  entry: Pick<VirtualFolderEntry, 'path' | 'label' | 'relative' | 'kind'>,
   resolvedBasename?: string
 ): string {
   if (entry.label?.trim()) return entry.label.trim()
   if (resolvedBasename) return resolvedBasename
-  const p = entry.path.replace(/\\/g, '/')
+  const p = (entry.path ?? '').replace(/\\/g, '/')
+  if (!p) return isEmbeddedVirtualFolderGroup(entry) ? 'Virtual Folder' : ''
   const base = p.slice(p.lastIndexOf('/') + 1)
-  return base || entry.path
+  return base || entry.path || ''
+}
+
+/** Depth-first walk of all entries including embedded children. */
+export function walkVirtualFolderEntries(
+  entries: readonly VirtualFolderEntry[],
+  visit: (entry: VirtualFolderEntry, parentGroupId: string | null) => void,
+  parentGroupId: string | null = null
+): void {
+  for (const entry of entries) {
+    visit(entry, parentGroupId)
+    if (entry.children && entry.children.length > 0) {
+      walkVirtualFolderEntries(entry.children, visit, entry.id)
+    }
+  }
+}
+
+/** Find an entry by id anywhere in the tree. */
+export function findEntryInTree(
+  entries: readonly VirtualFolderEntry[],
+  entryId: string
+): VirtualFolderEntry | null {
+  for (const entry of entries) {
+    if (entry.id === entryId) return entry
+    if (entry.children) {
+      const found = findEntryInTree(entry.children, entryId)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/**
+ * Entries listed at a group level. `groupId` null = document root.
+ * Returns null if `groupId` is set but not found / not an embedded group.
+ */
+export function getEntriesAtGroup(
+  entries: readonly VirtualFolderEntry[],
+  groupId: string | null | undefined
+): VirtualFolderEntry[] | null {
+  if (groupId == null || groupId === '') return [...entries]
+  const group = findEntryInTree(entries, groupId)
+  if (!group || !isEmbeddedVirtualFolderGroup(group)) return null
+  return [...(group.children ?? [])]
+}
+
+/** Mutate the children array at `groupId` (null = root). Returns false if group missing. */
+export function mapEntriesAtGroup(
+  entries: VirtualFolderEntry[],
+  groupId: string | null | undefined,
+  mapper: (list: VirtualFolderEntry[]) => VirtualFolderEntry[]
+): boolean {
+  if (groupId == null || groupId === '') {
+    const next = mapper(entries)
+    entries.length = 0
+    entries.push(...next)
+    return true
+  }
+  const group = findEntryInTree(entries, groupId)
+  if (!group || !isEmbeddedVirtualFolderGroup(group)) return false
+  group.children = mapper([...(group.children ?? [])])
+  return true
+}
+
+/** Unique label among sibling entries at a group (for New Virtual Folder). */
+export function nextEmbeddedGroupLabel(
+  preferred: string,
+  siblings: readonly VirtualFolderEntry[]
+): string {
+  const base = preferred.trim() || 'New Virtual Folder'
+  const used = new Set(
+    siblings
+      .map((e) => entryDisplayName(e).toLowerCase())
+      .filter((n) => n.length > 0)
+  )
+  if (!used.has(base.toLowerCase())) return base
+  let n = 2
+  while (n < 10_000) {
+    const candidate = `${base} (${n})`
+    if (!used.has(candidate.toLowerCase())) return candidate
+    n++
+  }
+  return `${base} (${Date.now()})`
 }
 
 export function emptyVirtualFolderDocument(nowIso = new Date().toISOString()): VirtualFolderDocument {
@@ -265,4 +403,168 @@ export function beginVirtualFolderVisit(
   if (visited.has(key)) return null
   visited.add(key)
   return key
+}
+
+/**
+ * Stem used for in-place OS projection: `Name.mfevirtual` → `Name`.
+ * Also the display name of the Virtual Folder file.
+ */
+export function virtualFolderStemFromFileName(fileName: string): string {
+  const base = basenameOf(fileName)
+  const lower = base.toLowerCase()
+  if (lower.endsWith(VIRTUAL_FOLDER_EXT)) {
+    return base.slice(0, -VIRTUAL_FOLDER_EXT.length) || base
+  }
+  return base
+}
+
+/**
+ * Sibling path where OS projection would mount (`…\Name` next to `…\Name.mfevirtual`).
+ * Pure path helper — does not touch the filesystem.
+ */
+export function virtualFolderProjectedMountPath(documentPath: string): string {
+  const dir = virtualFolderDocumentDir(documentPath)
+  const stem = virtualFolderStemFromFileName(basenameOf(documentPath))
+  const root = stripTrailingSep(normalizeSlashes(dir))
+  if (/^[a-zA-Z]:$/i.test(root)) return `${root}\\${stem}`
+  return `${root}\\${stem}`
+}
+
+/**
+ * Names that would collide with stem `stem` in a parent directory listing.
+ * Pure helper for create/rename clash checks (no fs).
+ *
+ * - Creating/renaming a Virtual Folder to `Stem.mfevirtual` conflicts if `Stem` exists
+ *   (folder or file) or another `Stem.mfevirtual` exists.
+ * - Creating/renaming a real folder to `Stem` conflicts if `Stem.mfevirtual` exists.
+ */
+export function virtualFolderStemOccupants(
+  stem: string,
+  siblingNames: readonly string[],
+  opts?: { ignoreNames?: readonly string[] }
+): { conflictsWithFolderOrFile: boolean; conflictsWithVirtualFolder: boolean } {
+  const want = stem.trim()
+  if (!want) {
+    return { conflictsWithFolderOrFile: false, conflictsWithVirtualFolder: false }
+  }
+  const wantKey = want.toLowerCase()
+  const ignore = new Set(
+    (opts?.ignoreNames ?? []).map((n) => basenameOf(n).toLowerCase())
+  )
+  let conflictsWithFolderOrFile = false
+  let conflictsWithVirtualFolder = false
+  for (const raw of siblingNames) {
+    const name = basenameOf(raw)
+    if (!name || ignore.has(name.toLowerCase())) continue
+    if (isVirtualFolderExt(name)) {
+      if (virtualFolderStemFromFileName(name).toLowerCase() === wantKey) {
+        conflictsWithVirtualFolder = true
+      }
+      continue
+    }
+    if (name.toLowerCase() === wantKey) {
+      conflictsWithFolderOrFile = true
+    }
+  }
+  return { conflictsWithFolderOrFile, conflictsWithVirtualFolder }
+}
+
+/** True when creating `stem.mfevirtual` would clash with an existing sibling. */
+export function virtualFolderDocumentStemBlocked(
+  stem: string,
+  siblingNames: readonly string[],
+  opts?: { ignoreNames?: readonly string[] }
+): boolean {
+  const o = virtualFolderStemOccupants(stem, siblingNames, opts)
+  return o.conflictsWithFolderOrFile || o.conflictsWithVirtualFolder
+}
+
+/** True when creating/renaming a real folder `stem` would clash with `stem.mfevirtual`. */
+export function realFolderStemBlockedByVirtualFolder(
+  stem: string,
+  siblingNames: readonly string[],
+  opts?: { ignoreNames?: readonly string[] }
+): boolean {
+  return virtualFolderStemOccupants(stem, siblingNames, opts).conflictsWithVirtualFolder
+}
+
+/** Suggest next free Virtual Folder file name (`Stem.mfevirtual`, `Stem (2).mfevirtual`, …). */
+export function nextVirtualFolderFileName(
+  preferredStemOrFileName: string,
+  siblingNames: readonly string[],
+  opts?: { ignoreNames?: readonly string[] }
+): string {
+  const raw = preferredStemOrFileName.trim() || 'New Virtual Folder'
+  const stem0 = virtualFolderStemFromFileName(
+    raw.toLowerCase().endsWith(VIRTUAL_FOLDER_EXT) ? raw : `${raw}${VIRTUAL_FOLDER_EXT}`
+  )
+  let n = 0
+  while (true) {
+    const candidateStem = n === 0 ? stem0 : `${stem0} (${n + 1})`
+    if (!virtualFolderDocumentStemBlocked(candidateStem, siblingNames, opts)) {
+      return `${candidateStem}${VIRTUAL_FOLDER_EXT}`
+    }
+    n++
+    if (n > 10_000) return `${stem0} (${Date.now()})${VIRTUAL_FOLDER_EXT}`
+  }
+}
+
+/** Suggest next free real folder name that does not collide with a Virtual Folder stem. */
+export function nextRealFolderName(
+  preferredName: string,
+  siblingNames: readonly string[],
+  opts?: { ignoreNames?: readonly string[] }
+): string {
+  const base = preferredName.trim() || 'New Folder'
+  const ignore = new Set((opts?.ignoreNames ?? []).map((n) => basenameOf(n).toLowerCase()))
+  let n = 0
+  while (true) {
+    const candidate = n === 0 ? base : `${base} (${n + 1})`
+    const taken = siblingNames.some((s) => {
+      const b = basenameOf(s)
+      if (ignore.has(b.toLowerCase())) return false
+      return b.toLowerCase() === candidate.toLowerCase()
+    })
+    if (!taken && !realFolderStemBlockedByVirtualFolder(candidate, siblingNames, opts)) {
+      return candidate
+    }
+    n++
+    if (n > 10_000) return `${base} (${Date.now()})`
+  }
+}
+
+/**
+ * Legacy: external nested `.mfevirtual` path members may still sit as siblings on disk.
+ * Hide those peers from the parent *directory* listing/tree while they remain members.
+ * New nested Virtual Folders are embedded groups and never create sibling files.
+ */
+export function nestedVirtualFolderPeerKeysToHide(
+  siblingDocumentPaths: readonly string[],
+  resolveDoc: (documentPath: string) => { entries: VirtualFolderEntry[] } | null
+): Set<string> {
+  const hide = new Set<string>()
+  const present = new Set(siblingDocumentPaths.map((p) => pathKey(p)))
+  for (const docPath of siblingDocumentPaths) {
+    const doc = resolveDoc(docPath)
+    if (!doc) continue
+    for (const entry of doc.entries) {
+      if (!isExternalVirtualFolderLink(entry)) continue
+      const resolved = resolveVirtualFolderEntryPath(docPath, entry)
+      if (!isVirtualFolderDocumentPath(resolved)) continue
+      if (samePath(resolved, docPath)) continue
+      if (present.has(pathKey(resolved))) hide.add(pathKey(resolved))
+    }
+  }
+  return hide
+}
+
+export function filterOutNestedVirtualFolderPeers<T extends { path: string }>(
+  entries: T[],
+  resolveDoc: (documentPath: string) => { entries: VirtualFolderEntry[] } | null
+): T[] {
+  const vfPaths = entries.filter((e) => isVirtualFolderDocumentPath(e.path)).map((e) => e.path)
+  if (vfPaths.length < 2) return entries
+  const hide = nestedVirtualFolderPeerKeysToHide(vfPaths, resolveDoc)
+  if (hide.size === 0) return entries
+  return entries.filter((e) => !hide.has(pathKey(e.path)))
 }

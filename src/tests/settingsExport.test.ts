@@ -292,6 +292,16 @@ describe('settings export / import', () => {
     expect(parsed.settings.showFolderStatistics).toBe(false)
   })
 
+  it('round-trips virtualFolderOsProjectionEnabled via full settingsSchema (D68)', () => {
+    expect(defaultSettings.virtualFolderOsProjectionEnabled).toBe(false)
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, virtualFolderOsProjectionEnabled: true },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.virtualFolderOsProjectionEnabled).toBe(true)
+  })
+
   it('round-trips folderStatsSkipPaths via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: {

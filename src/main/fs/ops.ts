@@ -32,6 +32,14 @@ import {
   remoteParentPath
 } from '@shared/remotePaths'
 import { isVolumeRootPath, samePath } from '@shared/paths'
+import {
+  isVirtualFolderDocumentPath,
+  isVirtualFolderExt,
+  nextRealFolderName,
+  realFolderStemBlockedByVirtualFolder,
+  virtualFolderDocumentStemBlocked,
+  virtualFolderStemFromFileName
+} from '@shared/virtualFolder'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { deletePathWin32Permanent, recyclePathWin32Robust } from './trashWin32'
@@ -217,7 +225,19 @@ export async function makeDirectory(parent: string, name: string): Promise<{ pat
     const { remoteMkdir } = await import('../remote/sessionPool')
     return { path: await remoteMkdir(dir, name) }
   }
-  const target = path.join(dir, name)
+  let folderName = name
+  try {
+    const siblings = await fsp.readdir(dir)
+    if (
+      siblings.some((s) => s.toLowerCase() === name.toLowerCase()) ||
+      realFolderStemBlockedByVirtualFolder(name, siblings)
+    ) {
+      folderName = nextRealFolderName(name, siblings)
+    }
+  } catch {
+    /* mkdir will surface errors */
+  }
+  const target = path.join(dir, folderName)
   await fsp.mkdir(target)
   return { path: target }
 }
@@ -262,6 +282,56 @@ export async function renameEntry(
   if (target === source) return { path: source }
   // Allow case-only renames on Windows (target "exists" as the same file).
   const caseOnly = process.platform === 'win32' && target.toLowerCase() === source.toLowerCase()
+
+  // Keep Virtual Folder stems unique vs sibling folders/files (and vice versa).
+  if (!caseOnly) {
+    let siblings: string[]
+    try {
+      siblings = await fsp.readdir(parent)
+    } catch {
+      siblings = []
+    }
+    const ignore = [path.basename(source)]
+    if (isVirtualFolderDocumentPath(source) || isVirtualFolderExt(newName)) {
+      const stem = virtualFolderStemFromFileName(newName)
+      if (virtualFolderDocumentStemBlocked(stem, siblings, { ignoreNames: ignore })) {
+        if (policy === 'rename') {
+          const { nextVirtualFolderFileName } = await import('@shared/virtualFolder')
+          const free = nextVirtualFolderFileName(stem, siblings, { ignoreNames: ignore })
+          target = path.join(parent, free)
+        } else if (policy === 'skip') {
+          return { path: source }
+        } else {
+          throw new AppError(
+            'conflict',
+            `"${stem}" already exists as a folder or Virtual Folder`,
+            'Choose a different name.'
+          )
+        }
+      }
+    } else {
+      let isDirSrc = false
+      try {
+        isDirSrc = (await fsp.stat(source)).isDirectory()
+      } catch {
+        /* rename surfaces not-found */
+      }
+      if (isDirSrc && realFolderStemBlockedByVirtualFolder(newName, siblings, { ignoreNames: ignore })) {
+        if (policy === 'rename') {
+          target = path.join(parent, nextRealFolderName(newName, siblings, { ignoreNames: ignore }))
+        } else if (policy === 'skip') {
+          return { path: source }
+        } else {
+          throw new AppError(
+            'conflict',
+            `"${newName}" conflicts with an existing Virtual Folder`,
+            'Choose a different name.'
+          )
+        }
+      }
+    }
+  }
+
   if (!caseOnly && (await pathExists(target))) {
     if (policy === 'skip') return { path: source }
     if (policy === 'rename') {

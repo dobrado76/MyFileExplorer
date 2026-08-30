@@ -7,20 +7,30 @@ import {
   chooseVirtualFolderStoredPath,
   emptyVirtualFolderDocument,
   entryDisplayName,
+  findEntryInTree,
+  getEntriesAtGroup,
   inferVirtualFolderEntryKind,
+  isEmbeddedVirtualFolderGroup,
+  isExternalVirtualFolderLink,
   isVirtualFolderDocumentPath,
+  mapEntriesAtGroup,
   newVirtualFolderEntryId,
+  nextEmbeddedGroupLabel,
+  nextVirtualFolderFileName,
   virtualFolderDisplayName,
   virtualFolderDocumentDir,
   virtualFolderEntryDuplicateKey,
+  virtualFolderGroupRowPath,
   resolveVirtualFolderEntryPath,
   serializeVirtualFolderDocument,
+  walkVirtualFolderEntries,
   type VirtualFolderDocument,
   type VirtualFolderEntry,
   type VirtualFolderMembership
 } from '@shared/virtualFolder'
 import { parseVirtualFolderJson } from '@shared/schemas/virtualFolder'
 import type {
+  VirtualFolderCreateGroupResponse,
   VirtualFolderListItem,
   VirtualFolderListResponse,
   VirtualFolderMutateResponse,
@@ -40,6 +50,13 @@ export class VirtualFolderConflictError extends AppError {
       documentPath
     )
   }
+}
+
+function cloneEntries(entries: VirtualFolderEntry[]): VirtualFolderEntry[] {
+  return entries.map((e) => ({
+    ...e,
+    ...(e.children ? { children: cloneEntries(e.children) } : {})
+  }))
 }
 
 async function readDocumentFile(documentPath: string): Promise<{
@@ -109,7 +126,33 @@ async function resolveMembership(
   documentPath: string,
   entry: VirtualFolderEntry
 ): Promise<{ membership: VirtualFolderMembership; dirEntry: DirEntry }> {
-  const storedPath = entry.path
+  if (isEmbeddedVirtualFolderGroup(entry)) {
+    const name = entryDisplayName(entry)
+    const rowPath = virtualFolderGroupRowPath(documentPath, entry.id)
+    const membership: VirtualFolderMembership = {
+      entryId: entry.id,
+      virtualFolderPath: documentPath,
+      storedPath: '',
+      resolvedPath: null,
+      expectedKind: 'virtualFolder',
+      state: 'resolved',
+      label: name,
+      embeddedGroup: true
+    }
+    const dirEntry: DirEntry = {
+      name,
+      path: rowPath,
+      kind: 'dir',
+      size: 0,
+      mtimeMs: 0,
+      birthtimeMs: 0,
+      ext: VIRTUAL_FOLDER_EXT.slice(1),
+      isHidden: false
+    }
+    return { membership, dirEntry }
+  }
+
+  const storedPath = entry.path ?? ''
   const resolved = resolveVirtualFolderEntryPath(documentPath, entry)
   const baseName = entryDisplayName(entry, path.basename(resolved || storedPath))
 
@@ -140,8 +183,7 @@ async function resolveMembership(
     }
   }
 
-  // Nested Virtual Folder members should appear folder-like.
-  if (entry.kind === 'virtualFolder' || (state === 'resolved' && isVirtualFolderDocumentPath(resolved))) {
+  if (isExternalVirtualFolderLink(entry) || (state === 'resolved' && isVirtualFolderDocumentPath(resolved))) {
     kind = 'dir'
     ext = VIRTUAL_FOLDER_EXT.slice(1)
     size = 0
@@ -161,7 +203,6 @@ async function resolveMembership(
 
   const dirEntry: DirEntry = {
     name: baseName,
-    // Row path is the resolved target when known; for missing, keep stored absolute attempt.
     path: resolved || storedPath,
     kind,
     size,
@@ -190,13 +231,21 @@ export async function getVirtualFolder(documentPath: string): Promise<{
   }
 }
 
-export async function listVirtualFolder(documentPath: string): Promise<VirtualFolderListResponse> {
+export async function listVirtualFolder(
+  documentPath: string,
+  groupId?: string | null
+): Promise<VirtualFolderListResponse> {
   const abs = requireAbsolute(documentPath)
   const loaded = await readDocumentFile(abs)
+  const effectiveGroup = groupId && groupId.length > 0 ? groupId : null
+  const level = getEntriesAtGroup(loaded.document.entries, effectiveGroup)
+  if (level == null) {
+    throw new AppError('not-found', 'Virtual Folder group not found', undefined, abs)
+  }
   const items: VirtualFolderListItem[] = []
   const CONCURRENCY = 32
-  for (let i = 0; i < loaded.document.entries.length; i += CONCURRENCY) {
-    const batch = loaded.document.entries.slice(i, i + CONCURRENCY)
+  for (let i = 0; i < level.length; i += CONCURRENCY) {
+    const batch = level.slice(i, i + CONCURRENCY)
     const rows = await Promise.all(batch.map((e) => resolveMembership(abs, e)))
     items.push(...rows.map((r) => ({ entry: r.dirEntry, membership: r.membership })))
   }
@@ -206,7 +255,8 @@ export async function listVirtualFolder(documentPath: string): Promise<VirtualFo
     mtimeMs: loaded.mtimeMs,
     readOnly: !(await isWritableFile(abs)),
     entries: items,
-    warnings: loaded.warnings
+    warnings: loaded.warnings,
+    groupId: effectiveGroup
   }
 }
 
@@ -220,17 +270,26 @@ export async function previewVirtualFolderStats(
   let virtualFolderCount = 0
   let missingCount = 0
   let knownFileBytes = 0
+  let entryCount = 0
   const locationKeys = new Set<string>()
   const locationSamples: string[] = []
 
-  for (const entry of loaded.document.entries) {
-    if (entry.kind === 'virtualFolder') virtualFolderCount++
-    else if (entry.kind === 'folder') folderCount++
+  walkVirtualFolderEntries(loaded.document.entries, (entry) => {
+    entryCount++
+    if (entry.kind === 'virtualFolder') {
+      virtualFolderCount++
+      return
+    }
+    if (entry.kind === 'folder') folderCount++
     else fileCount++
 
     const resolved = resolveVirtualFolderEntryPath(abs, entry)
+    if (!resolved) {
+      missingCount++
+      return
+    }
     try {
-      const st = await fsp.stat(resolved)
+      const st = fs.statSync(resolved)
       if (st.isFile()) knownFileBytes += st.size
       const parent = path.dirname(resolved)
       const key = parent.toLowerCase()
@@ -241,10 +300,10 @@ export async function previewVirtualFolderStats(
     } catch {
       missingCount++
     }
-  }
+  })
 
   return {
-    entryCount: loaded.document.entries.length,
+    entryCount,
     fileCount,
     folderCount,
     virtualFolderCount,
@@ -268,22 +327,50 @@ export async function createVirtualFolder(
       })
       .join('')
       .trim() || 'New Virtual Folder'
-  const fileName = base.toLowerCase().endsWith(VIRTUAL_FOLDER_EXT) ? base : `${base}${VIRTUAL_FOLDER_EXT}`
-  let dest = path.join(dir, fileName)
-  let n = 2
-  while (true) {
-    try {
-      await fsp.access(dest)
-      const stem = fileName.slice(0, -VIRTUAL_FOLDER_EXT.length)
-      dest = path.join(dir, `${stem} (${n})${VIRTUAL_FOLDER_EXT}`)
-      n++
-    } catch {
-      break
-    }
+  let siblings: string[]
+  try {
+    siblings = await fsp.readdir(dir)
+  } catch (e) {
+    throw new AppError(
+      'io',
+      `Cannot read folder “${dir}”: ${e instanceof Error ? e.message : String(e)}`,
+      undefined,
+      dir
+    )
   }
+  const fileName = nextVirtualFolderFileName(base, siblings)
+  const dest = path.join(dir, fileName)
   const document = emptyVirtualFolderDocument()
   const mtimeMs = await atomicWriteDocument(dest, document)
   return { path: dest, document, mtimeMs }
+}
+
+export async function createVirtualFolderGroup(
+  documentPath: string,
+  opts?: { parentGroupId?: string; name?: string; expectedMtimeMs?: number }
+): Promise<VirtualFolderCreateGroupResponse> {
+  const abs = requireAbsolute(documentPath)
+  const parentGroupId = opts?.parentGroupId
+  let entryId = ''
+  let rowPath = ''
+  const result = await mutateDocument(abs, opts?.expectedMtimeMs, (doc) => {
+    const siblings = getEntriesAtGroup(doc.entries, parentGroupId ?? null)
+    if (siblings == null) {
+      throw new AppError('not-found', 'Virtual Folder group not found', undefined, abs)
+    }
+    const label = nextEmbeddedGroupLabel(opts?.name ?? 'New Virtual Folder', siblings)
+    entryId = newVirtualFolderEntryId()
+    const group: VirtualFolderEntry = {
+      id: entryId,
+      kind: 'virtualFolder',
+      label,
+      children: []
+    }
+    const ok = mapEntriesAtGroup(doc.entries, parentGroupId ?? null, (list) => [...list, group])
+    if (!ok) throw new AppError('not-found', 'Virtual Folder group not found', undefined, abs)
+    rowPath = virtualFolderGroupRowPath(abs, entryId)
+  })
+  return { ...result, entryId, rowPath }
 }
 
 async function mutateDocument(
@@ -306,7 +393,7 @@ async function mutateDocument(
   }
   const doc: VirtualFolderDocument = {
     ...loaded.document,
-    entries: [...loaded.document.entries],
+    entries: cloneEntries(loaded.document.entries),
     settings: loaded.document.settings ? { ...loaded.document.settings } : undefined
   }
   const extra = mutator(doc) ?? {}
@@ -322,55 +409,69 @@ async function mutateDocument(
 export async function addVirtualFolderEntries(
   documentPath: string,
   paths: string[],
-  expectedMtimeMs?: number
+  expectedMtimeMs?: number,
+  groupId?: string | null
 ): Promise<VirtualFolderMutateResponse> {
   const abs = requireAbsolute(documentPath)
-  const loaded = await readDocumentFile(abs)
-  try {
-    assertExpectedMtime(loaded.mtimeMs, expectedMtimeMs)
-  } catch (e) {
-    if (e instanceof VirtualFolderConflictError) throw new VirtualFolderConflictError(abs)
-    throw e
-  }
-  if (!(await isWritableFile(abs))) {
-    throw new AppError('not-allowed', 'Virtual Folder is read-only', undefined, abs)
-  }
+  return mutateDocument(abs, expectedMtimeMs, (doc) => {
+    const level = getEntriesAtGroup(doc.entries, groupId ?? null)
+    if (level == null) {
+      throw new AppError('not-found', 'Virtual Folder group not found', undefined, abs)
+    }
+    const existing = new Set(
+      level
+        .filter((e) => e.path)
+        .map((e) => virtualFolderEntryDuplicateKey(abs, e as { path: string; relative?: boolean }))
+    )
+    let added = 0
+    let skippedDuplicates = 0
+    const toAdd: VirtualFolderEntry[] = []
+    for (const raw of paths) {
+      const target = requireAbsolute(raw)
+      const stored = chooseVirtualFolderStoredPath(abs, target)
+      const key = virtualFolderEntryDuplicateKey(abs, stored)
+      if (existing.has(key)) {
+        skippedDuplicates++
+        continue
+      }
+      let kind = inferVirtualFolderEntryKind(null, target)
+      try {
+        const st = fs.statSync(target)
+        kind = inferVirtualFolderEntryKind(st.isDirectory() ? 'dir' : 'file', target)
+      } catch {
+        /* keep path-based inference */
+      }
+      // Adding a .mfevirtual as a member uses legacy external link shape.
+      toAdd.push({
+        id: newVirtualFolderEntryId(),
+        kind,
+        path: stored.path,
+        relative: stored.relative
+      })
+      existing.add(key)
+      added++
+    }
+    mapEntriesAtGroup(doc.entries, groupId ?? null, (list) => [...list, ...toAdd])
+    return { added, skippedDuplicates }
+  })
+}
 
-  const doc: VirtualFolderDocument = {
-    ...loaded.document,
-    entries: [...loaded.document.entries],
-    settings: loaded.document.settings ? { ...loaded.document.settings } : undefined
-  }
-  const existing = new Set(doc.entries.map((e) => virtualFolderEntryDuplicateKey(abs, e)))
-  let added = 0
-  let skippedDuplicates = 0
-  for (const raw of paths) {
-    const target = requireAbsolute(raw)
-    const stored = chooseVirtualFolderStoredPath(abs, target)
-    const key = virtualFolderEntryDuplicateKey(abs, stored)
-    if (existing.has(key)) {
-      skippedDuplicates++
+function removeIdsFromTree(entries: VirtualFolderEntry[], idSet: Set<string>): number {
+  let removed = 0
+  const next: VirtualFolderEntry[] = []
+  for (const e of entries) {
+    if (idSet.has(e.id)) {
+      removed++
       continue
     }
-    let kind = inferVirtualFolderEntryKind(null, target)
-    try {
-      const st = await fsp.stat(target)
-      kind = inferVirtualFolderEntryKind(st.isDirectory() ? 'dir' : 'file', target)
-    } catch {
-      /* keep path-based inference */
+    if (e.children) {
+      removed += removeIdsFromTree(e.children, idSet)
     }
-    doc.entries.push({
-      id: newVirtualFolderEntryId(),
-      kind,
-      path: stored.path,
-      relative: stored.relative
-    })
-    existing.add(key)
-    added++
+    next.push(e)
   }
-  doc.modified = new Date().toISOString()
-  const mtimeMs = await atomicWriteDocument(abs, doc)
-  return { document: doc, mtimeMs, added, skippedDuplicates }
+  entries.length = 0
+  entries.push(...next)
+  return removed
 }
 
 export async function removeVirtualFolderEntries(
@@ -380,29 +481,32 @@ export async function removeVirtualFolderEntries(
 ): Promise<VirtualFolderMutateResponse> {
   const idSet = new Set(entryIds)
   return mutateDocument(documentPath, expectedMtimeMs, (doc) => {
-    const before = doc.entries.length
-    doc.entries = doc.entries.filter((e) => !idSet.has(e.id))
-    return { removed: before - doc.entries.length } as VirtualFolderMutateResponse
+    const removed = removeIdsFromTree(doc.entries, idSet)
+    return { removed }
   })
 }
 
 export async function reorderVirtualFolderEntries(
   documentPath: string,
   entryIds: string[],
-  expectedMtimeMs?: number
+  expectedMtimeMs?: number,
+  groupId?: string | null
 ): Promise<VirtualFolderMutateResponse> {
   return mutateDocument(documentPath, expectedMtimeMs, (doc) => {
-    const byId = new Map(doc.entries.map((e) => [e.id, e]))
-    const next: VirtualFolderEntry[] = []
-    for (const id of entryIds) {
-      const e = byId.get(id)
-      if (e) {
-        next.push(e)
-        byId.delete(id)
+    const ok = mapEntriesAtGroup(doc.entries, groupId ?? null, (list) => {
+      const byId = new Map(list.map((e) => [e.id, e]))
+      const next: VirtualFolderEntry[] = []
+      for (const id of entryIds) {
+        const e = byId.get(id)
+        if (e) {
+          next.push(e)
+          byId.delete(id)
+        }
       }
-    }
-    for (const e of byId.values()) next.push(e)
-    doc.entries = next
+      for (const e of byId.values()) next.push(e)
+      return next
+    })
+    if (!ok) throw new AppError('not-found', 'Virtual Folder group not found', undefined, documentPath)
     doc.settings = { ...doc.settings, manualOrder: true }
   })
 }
@@ -416,8 +520,11 @@ export async function relinkVirtualFolderEntry(
   return mutateDocument(documentPath, expectedMtimeMs, (doc) => {
     const abs = requireAbsolute(documentPath)
     const target = requireAbsolute(newPath)
-    const entry = doc.entries.find((e) => e.id === entryId)
+    const entry = findEntryInTree(doc.entries, entryId)
     if (!entry) throw new AppError('not-found', 'Virtual Folder entry not found', undefined, abs)
+    if (isEmbeddedVirtualFolderGroup(entry)) {
+      throw new AppError('validation', 'Cannot relink an embedded Virtual Folder group', undefined, abs)
+    }
     const stored = chooseVirtualFolderStoredPath(abs, target)
     try {
       const st = fs.statSync(target)
@@ -437,9 +544,14 @@ export async function setVirtualFolderEntryLabel(
   expectedMtimeMs?: number
 ): Promise<VirtualFolderMutateResponse> {
   return mutateDocument(documentPath, expectedMtimeMs, (doc) => {
-    const entry = doc.entries.find((e) => e.id === entryId)
+    const entry = findEntryInTree(doc.entries, entryId)
     if (!entry) {
       throw new AppError('not-found', 'Virtual Folder entry not found', undefined, documentPath)
+    }
+    if (isEmbeddedVirtualFolderGroup(entry)) {
+      const next = (label ?? '').trim() || 'Virtual Folder'
+      entry.label = next
+      return
     }
     if (label == null || !label.trim()) delete entry.label
     else entry.label = label.trim()
@@ -455,7 +567,8 @@ export async function updateVirtualFolderTargetPaths(
   return mutateDocument(documentPath, expectedMtimeMs, (doc) => {
     const abs = requireAbsolute(documentPath)
     let changed = 0
-    for (const entry of doc.entries) {
+    walkVirtualFolderEntries(doc.entries, (entry) => {
+      if (!entry.path) return
       const resolved = resolveVirtualFolderEntryPath(abs, entry)
       for (const { from, to } of renames) {
         if (samePath(resolved, from)) {
@@ -466,7 +579,7 @@ export async function updateVirtualFolderTargetPaths(
           break
         }
       }
-    }
+    })
     return { added: changed } as VirtualFolderMutateResponse
   })
 }

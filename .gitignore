@@ -8,6 +8,10 @@ dist/
 *.log
 .DS_Store
 
+# .NET Virtual Folder projection service (tools/) — build outputs
+tools/**/bin/
+tools/**/obj/
+
 # Installers are CI / local build outputs (often >100MB — GitHub rejects git push).
 **/MyFileExplorer Setup*.exe
 **/*.exe.blockmap

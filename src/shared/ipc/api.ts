@@ -960,7 +960,10 @@ export type MyFileExplorerApi = {
         warnings: string[]
       }>
     >
-    list(req: { path: string }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderListResponse>>
+    list(req: {
+      path: string
+      groupId?: string
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderListResponse>>
     create(req: {
       parentDir: string
       name?: string
@@ -971,9 +974,16 @@ export type MyFileExplorerApi = {
         mtimeMs: number
       }>
     >
+    createGroup(req: {
+      documentPath: string
+      parentGroupId?: string
+      name?: string
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderCreateGroupResponse>>
     add(req: {
       documentPath: string
       paths: string[]
+      groupId?: string
       expectedMtimeMs?: number
     }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
     remove(req: {
@@ -984,6 +994,7 @@ export type MyFileExplorerApi = {
     reorder(req: {
       documentPath: string
       entryIds: string[]
+      groupId?: string
       expectedMtimeMs?: number
     }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
     relink(req: {
@@ -1006,6 +1017,24 @@ export type MyFileExplorerApi = {
     previewStats(req: {
       path: string
     }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderPreviewStats>>
+  }
+  /** D68 OS projection — channels exist in preload; handlers registered on win32 only. */
+  virtualFolderProject: {
+    status(): Promise<
+      Result<{
+        winFspAvailable: boolean
+        hostMode: string
+        mountCount: number
+        version: string
+      }>
+    >
+    mount(req: { path: string }): Promise<
+      Result<{ documentPath: string; mountPath: string; active: boolean }>
+    >
+    unmount(req: { path: string }): Promise<Result<{ ok: true }>>
+    listMounts(): Promise<
+      Result<{ mounts: { documentPath: string; mountPath: string; active: boolean }[] }>
+    >
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
 }
