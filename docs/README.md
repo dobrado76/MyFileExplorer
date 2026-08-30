@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.14.0 (unreleased)** — **D68** Virtual Folder OS projection (Windows / WinFsp); **D67** Virtual Folders (`.mfevirtual`); **D66** WinDirStat-style folder space map + **D65** lock owners; **D64** Git / **D63** Quick Launch remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D68**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.14.0** — **D68** Virtual Folder OS projection (Windows / WinFsp); **D67** Virtual Folders (`.mfevirtual`); **D66** WinDirStat-style folder space map + **D65** lock owners; **D64** Git / **D63** Quick Launch remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D68**). Experimental Linux: [LINUX.md](LINUX.md).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -48,11 +48,12 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 ---
 
-## Recent behavior (v0.14.0 unreleased)
+## Recent behavior (v0.14.0)
 
 | Area | Spec |
 | ---- | ---- |
-| Virtual Folders (D67) | `.mfevirtual` portable folder-like collections; Tab.path = document file; Del = remove ref; Manual sort + Location column — [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md) |
+| Virtual Folders (D67) | `.mfevirtual` portable folder-like collections; Tab.path = document file; Del = remove ref; extract/absorb; Manual sort + Location column — [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md) |
+| OS projection (D68) | Optional WinFsp sibling mount; Settings → Behavior; install WinFsp + release zip — [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md) |
 
 ## Recent behavior (v0.13.0)
 

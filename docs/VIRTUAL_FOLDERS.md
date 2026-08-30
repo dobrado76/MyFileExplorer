@@ -1,6 +1,6 @@
 # Virtual Folders (D67)
 
-**Version:** 0.14.0 (unreleased) · Decision **D67**
+**Version:** 0.14.0 · Decision **D67**
 
 A **Virtual Folder** is a portable `.mfevirtual` JSON file that MyFileExplorer presents as a **folder-like tree of path references** — not copies and not one physical directory. Works on any filesystem MFE supports (no NTFS ADS).
 

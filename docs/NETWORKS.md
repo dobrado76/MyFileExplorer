@@ -1,6 +1,6 @@
 # Network neighborhood & mapped drives (D44 / D3)
 
-**Version:** 0.13.0 · Decisions **D3**, **D44**, **D45**, **D49**
+**Version:** 0.14.0 · Decisions **D3**, **D44**, **D45**, **D49**
 
 MyFileExplorer aims to replace Windows File Explorer for day-to-day LAN and mapped-drive work: browse `\\server` / shares, keep disconnected mapped letters visible, reconnect without opening Explorer, and rediscover PCs without a permanent “discovering…” spinner.
 

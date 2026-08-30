@@ -1,6 +1,6 @@
 # Search & indexing
 
-**Version:** 0.13.0 · Decision **D34** (Everything-parity hybrid index) · **D52** (USN journal manager)
+**Version:** 0.14.0 · Decision **D34** (Everything-parity hybrid index) · **D52** (USN journal manager)
 
 Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 

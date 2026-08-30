@@ -1,6 +1,6 @@
 # Git-aware browsing (D64)
 
-**Version:** 0.13.0 · Decision **D64**
+**Version:** 0.14.0 · Decision **D64**
 
 Optional, **off by default**. When enabled in Settings → **Git**, MyFileExplorer discovers repositories via the system `git` CLI and shows lightweight status while browsing. This is a **Git-aware file manager first**, lightweight client second — not a full Git GUI.
 

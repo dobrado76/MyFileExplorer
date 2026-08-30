@@ -1,6 +1,6 @@
 # Preview & metadata
 
-**Version:** 0.13.0
+**Version:** 0.14.0
 
 The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params). Short File-tab values (duration, bitrate, channels, Yes/No, …) share a row; titles, comments, and other long values stay full-width boxed rows.
 

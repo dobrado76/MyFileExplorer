@@ -1,6 +1,6 @@
 # Building & releases
 
-**Version:** 0.13.0 (tag `v0.13.0`)
+**Version:** 0.14.0 (tag `v0.14.0`)
 
 The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
@@ -50,7 +50,7 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | Trigger | What runs |
 | ------- | --------- |
 | Pull request / push to `main` | `npm run check` + Virtual Folder projection service tests (WinFsp installed in CI) |
-| Tag `v*` (e.g. `v0.13.0`) | Check + build **Windows** installer **and** `MfeVirtualFolderService-win-x64.zip` → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.14.0`) | Check + build **Windows** installer **and** `MfeVirtualFolderService-win-x64.zip` → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (same as a main push) |
 
 CI does not build Linux installers yet. The projection zip is optional — users also install [WinFsp](https://winfsp.dev/) separately; see [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md).
@@ -58,9 +58,9 @@ CI does not build Linux installers yet. The projection zip is optional — users
 ### Ship a build for friends
 
 ```bash
-# package.json version should match the tag (e.g. 0.13.0)
-git tag v0.13.0
-git push origin v0.13.0
+# package.json version should match the tag (e.g. 0.14.0)
+git tag v0.14.0
+git push origin v0.14.0
 ```
 
 When the workflow finishes, download from:

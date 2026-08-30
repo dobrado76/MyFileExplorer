@@ -1,6 +1,6 @@
 # Remote repositories (FTP / FTPS / SFTP)
 
-**Version:** 0.13.0 · Decision **D46** · **Status:** shipped (opt-in; not local-drive parity)
+**Version:** 0.14.0 · Decision **D46** · **Status:** shipped (opt-in; not local-drive parity)
 
 Canonical product + engineering reference for the opt-in **Remote repositories** feature.
 
