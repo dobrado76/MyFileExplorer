@@ -399,11 +399,8 @@ const settingsFieldsSchema = z.object({
   /**
    * Windows-only (D68): opt-in Virtual Folder OS projection (WinFsp sibling mount).
    * Schema exists on all platforms for export round-trip; UI/IPC are win32-only.
-   */
-  /**
-   * DEV-gated (win32): enable Virtual Folder OS projection UI (D68).
-   * When on (win32 + DEV gate): auto-project Virtual Folders to sibling WinFsp mounts.
-   * Unproject is opt-out; Project remounts. Badges require the same gates.
+   * When on (win32): auto-project Virtual Folders to sibling WinFsp mounts.
+   * Unproject is opt-out; Project remounts. Requires MfeVirtualFolderService + WinFsp.
    */
   virtualFolderOsProjectionEnabled: z.boolean().catch(false),
   /**

@@ -45,7 +45,6 @@ import {
   virtualFolderDocumentDir,
   virtualFolderDocumentPathFromProjectedMount,
   virtualFolderEntryIdFromPath,
-  virtualFolderGroupRowPath,
   virtualFolderOpenCwdPath,
   virtualFolderTreeListPath
 } from '@shared/virtualFolder'
@@ -5757,9 +5756,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async projectVirtualFolder(documentPath) {
-      if (get().platform !== 'win32' || !get().devGateActive) return
+      if (get().platform !== 'win32') return
       if (!get().settings.virtualFolderOsProjectionEnabled) {
-        get().notify('Enable Virtual Folder OS projection in Settings → Behavior (DEV)', true)
+        get().notify('Enable Virtual Folder OS projection in Settings → Behavior', true)
         return
       }
       try {
@@ -5784,7 +5783,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async unprojectVirtualFolder(documentPath) {
-      if (get().platform !== 'win32' || !get().devGateActive) return
+      if (get().platform !== 'win32') return
       try {
         await call(api.virtualFolderProject.unmount({ path: documentPath }))
         const key = pathKey(documentPath)
@@ -5804,11 +5803,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async ensureVirtualFolderOsProjection(documentPaths) {
       const s = get()
-      if (
-        s.platform !== 'win32' ||
-        !s.devGateActive ||
-        !s.settings?.virtualFolderOsProjectionEnabled
-      ) {
+      if (s.platform !== 'win32' || !s.settings?.virtualFolderOsProjectionEnabled) {
         return
       }
       const want = [
@@ -5850,11 +5845,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async refreshProjectedVirtualFolders() {
       const s = get()
-      if (
-        s.platform !== 'win32' ||
-        !s.devGateActive ||
-        !s.settings?.virtualFolderOsProjectionEnabled
-      ) {
+      if (s.platform !== 'win32' || !s.settings?.virtualFolderOsProjectionEnabled) {
         if (
           Object.keys(s.projectedVirtualFolders).length > 0 ||
           Object.keys(s.projectedVirtualFolderOptOut).length > 0
@@ -8798,26 +8789,6 @@ function samePathSet(a: readonly string[], b: readonly string[]): boolean {
   if (a.length !== b.length) return false
   const keys = new Set(a.map((p) => pathKey(p)))
   return b.every((p) => keys.has(pathKey(p)))
-}
-
-async function moveVirtualFolderMembershipAfterAdd(
-  get: () => {
-    removeFromVirtualFolder: (entryIds: string[], documentPath?: string) => Promise<void>
-  },
-  destDocumentPath: string,
-  destGroupId: string | null,
-  clip: NonNullable<ClipboardState>
-): Promise<void> {
-  if (!clip.virtualFolderSource || !clip.virtualFolderEntryIds?.length) return
-  const srcGroup = clip.virtualFolderSourceGroupId ?? null
-  if (
-    samePath(clip.virtualFolderSource, destDocumentPath) &&
-    srcGroup === destGroupId
-  ) {
-    // Cut + paste back into the same group — keep the existing membership.
-    return
-  }
-  await get().removeFromVirtualFolder(clip.virtualFolderEntryIds, clip.virtualFolderSource)
 }
 
 /**

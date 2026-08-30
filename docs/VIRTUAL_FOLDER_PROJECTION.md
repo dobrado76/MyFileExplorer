@@ -4,6 +4,48 @@
 
 Optional in-place OS projection of `.mfevirtual` collections via **WinFsp**, so Explorer and other apps see members at a sibling folder path.
 
+## Install (end users)
+
+Projection is **optional**. MyFileExplorer Virtual Folders work without it; enable this when you want Explorer / other apps to browse the same collection at `Name\`.
+
+### 1. Install WinFsp
+
+Download and install **WinFsp** from the official site:
+
+**https://winfsp.dev/**
+
+Restart Windows if the installer asks you to. WinFsp has its own license — MyFileExplorer does **not** bundle or redistribute it.
+
+### 2. Install the projection service
+
+GitHub Releases attach **`MfeVirtualFolderService-win-x64.zip`** next to the app installer.
+
+1. Download the zip from the [latest release](https://github.com/dobrado76/MyFileExplorer/releases/latest).
+2. Unzip to a permanent folder (for example `%LOCALAPPDATA%\MyFileExplorer\VirtualFolderService\`).
+3. Run **`Install-ProjectionService.ps1`** (right-click → Run with PowerShell, or  
+   `powershell -ExecutionPolicy Bypass -File .\Install-ProjectionService.ps1`).
+4. Use an **unelevated** prompt as your normal user. **Do not** install this agent as a LocalSystem Windows Service — in-place mounts and the named pipe must run in your interactive logon session.
+
+The script registers a per-user logon task (Task Scheduler, or HKCU Run as fallback) so the agent starts at sign-in and remounts saved mounts.
+
+To remove: run **`Uninstall-ProjectionService.ps1`**, or  
+`MfeVirtualFolderService.exe --uninstall-autostart`.
+
+### 3. Enable in MyFileExplorer
+
+**Settings → Behavior → Virtual Folder OS projection**
+
+When on: create / rename / browse auto-mounts visible `.mfevirtual` docs on local disk. Context **Unproject** is a session opt-out; **Project to Windows** remounts.
+
+### Developers (build from source)
+
+See [`tools/MfeVirtualFolderService/README.md`](../tools/MfeVirtualFolderService/README.md) — requires .NET 8 SDK + WinFsp installed before build (`HAS_WINFSP`).
+
+```powershell
+cd tools\MfeVirtualFolderService
+powershell -ExecutionPolicy Bypass -File .\install-autostart.ps1
+```
+
 ## Mount shape
 
 | On disk | Role |
@@ -17,13 +59,13 @@ Linux / FUSE projection is **deferred**. D67 in-app Virtual Folders still work o
 
 Independent .NET process: [`tools/MfeVirtualFolderService/`](../tools/MfeVirtualFolderService/).
 
-- **Autostart (recommended):** `install-autostart.ps1` or `MfeVirtualFolderService.exe --install-autostart` — per-user logon task when allowed, otherwise HKCU Run. Survives reboot; runs in the interactive session (required for WinFsp directory mounts + the named pipe). **Not** LocalSystem.
+- **Autostart (recommended):** release zip `Install-ProjectionService.ps1`, or from source `install-autostart.ps1` / `MfeVirtualFolderService.exe --install-autostart`
 - `--console` for debug; optional SCM Windows Service host remains for advanced use but is not the default install path
 - Named pipe: `\\.\pipe\MyFileExplorer.VirtualFolderService` (camelCase JSON lines)
 - Commands: `Ping`, `Status`, `Mount`, `Unmount`, `ListMounts`
 - Mount registry under `%LOCALAPPDATA%\MyFileExplorer\VirtualFolderService\mounts.json` (remounted on agent start)
-- Requires [WinFsp](https://winfsp.dev/) installed (optional Windows feature / redistributable — respect WinFsp license)
-- Without WinFsp at build time, `HAS_WINFSP` is omitted; the host still builds and answers `Ping` / `Status`
+- Requires [WinFsp](https://winfsp.dev/) at runtime (loads `winfsp-msil.dll` from the WinFsp install directory)
+- CI builds the service **with** WinFsp present so `HAS_WINFSP` is defined; Release zips are self-contained `win-x64`
 
 ### Limits (v1)
 
@@ -47,9 +89,8 @@ Independent .NET process: [`tools/MfeVirtualFolderService/`](../tools/MfeVirtual
 
 ## MFE integration
 
-- **DEV-gated** until product-ready: requires `devGateActive` (otherwise Settings toggle, context verbs, and badges are omitted).
-- Setting `virtualFolderOsProjectionEnabled` (default `false`) — Settings → Behavior, **win32 + DEV only**
-- **Set-and-forget when enabled:** create / rename / browse auto-mounts visible `.mfevirtual` docs; trash/delete/rename unmount first in main. Context **Unproject** is a session opt-out (auto-ensure skips until **Project**); **Project** remains as a remount/retry.
+- Setting `virtualFolderOsProjectionEnabled` (default `false`) — Settings → Behavior, **win32 only**
+- **Set-and-forget when enabled:** create / rename / browse auto-mounts visible `.mfevirtual` docs; trash/delete/rename/absorb unmount first in main. Context **Unproject** is a session opt-out (auto-ensure skips until **Project**); **Project** remains as a remount/retry.
 - IPC `virtualFolderProject:status|mount|unmount|listMounts` — handlers registered **only on win32**; pipe client is dynamically imported
 - FileView **P** badge / Type “· Projected” when mounted
 - MFE listings **hide** the sibling mount directory when `Name.mfevirtual` is present; the definition file is **Hidden** on disk so Explorer (default) mainly shows the mount folder
@@ -62,4 +103,4 @@ dotnet build tools/MfeVirtualFolderService/MfeVirtualFolderService.sln
 dotnet test tools/MfeVirtualFolderService/tests/MfeVirtualFolder.Protocol.Tests
 ```
 
-**Not** part of `npm run check` / Electron scripts — no .NET or WinFsp dependency for the app build. Electron never links WinFsp.
+Tagged GitHub Releases also publish `MfeVirtualFolderService-win-x64.zip` (self-contained). Electron never links WinFsp; the app talks to the agent over the named pipe only.

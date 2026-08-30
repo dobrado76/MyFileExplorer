@@ -34,7 +34,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips, folder space map |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
 | [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md)         | Virtual Folders — `.mfevirtual` folder-like collections (D67) |
-| [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md) | Optional WinFsp OS projection (D68, Windows-only) |
+| [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md) | Optional WinFsp OS projection (D68, Windows) — install WinFsp + release zip |
 | [SEARCH.md](SEARCH.md)                           | Everything-parity indexing & search   |
 | [NETWORKS.md](NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |

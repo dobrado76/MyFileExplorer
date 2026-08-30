@@ -11,7 +11,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
-- **Virtual Folder OS projection (D68, Windows)** — optional WinFsp in-place sibling mount (`Name.mfevirtual` → `Name\`) via independent .NET service; Project UI win32-only. See [docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md).
+- **Virtual Folder OS projection (D68, Windows)** — optional WinFsp in-place sibling mount (`Name.mfevirtual` → `Name\`) via independent .NET service; Settings → Behavior (win32). GitHub Releases include `MfeVirtualFolderService-win-x64.zip`; install [WinFsp](https://winfsp.dev/) separately. See [docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md).
 - **Virtual Folders (`.mfevirtual`)** — portable JSON folder-like collections of path references (D67). Open as a first-class folder location (document path, not fake nested paths); New → Virtual Folder; drop/paste adds refs; Del removes membership; Manual sort + Location column; dedicated preview. See [docs/VIRTUAL_FOLDERS.md](docs/VIRTUAL_FOLDERS.md).
 
 ### Fixed
@@ -20,6 +20,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Changed
 
+- **Virtual Folder OS projection** — no longer DEV-gated; available on Windows when WinFsp + the projection service are installed and Settings → Behavior → Virtual Folder OS projection is on.
 - **Virtual Folder create/rename** — stems stay unique vs sibling real folders (and vice versa) so in-place OS mounts will not clash.
 - **Git repo-root preview** — header **Git | Folder** tabs (**Git** by default). **Folder** shows the normal directory / folder-statistics card (D66 space map) so repo roots are not limited to history only. See [docs/GIT.md](docs/GIT.md), [docs/PREVIEW.md](docs/PREVIEW.md).
 - **Drive statistics** — **Calculate Statistics** on a volume root compiles ADS from each root-level folder (reusing tagged folders; retagging only untagged ones) plus files on the drive root, then writes the same streams on the volume. Focused drive preview keeps the free-space pie (compact) and adds Contents / Space usage when stats exist. See [docs/ADS.md](docs/ADS.md), [docs/PREVIEW.md](docs/PREVIEW.md).

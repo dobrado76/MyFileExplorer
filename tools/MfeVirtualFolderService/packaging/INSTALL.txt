@@ -1,0 +1,36 @@
+MyFileExplorer — Virtual Folder OS projection (Windows)
+=======================================================
+
+Lets Explorer and other apps see Virtual Folder members at a sibling folder:
+  Name.mfevirtual  →  Name\
+
+Steps
+-----
+
+1. Install WinFsp (required)
+   Download and install from: https://winfsp.dev/
+   Restart Windows if the installer asks you to.
+
+2. Install this projection service
+   - Unzip this folder somewhere permanent (e.g. %LOCALAPPDATA%\MyFileExplorer\VirtualFolderService\).
+   - Right-click Install-ProjectionService.ps1 → Run with PowerShell
+     (or: powershell -ExecutionPolicy Bypass -File .\Install-ProjectionService.ps1)
+   - Do NOT install as a LocalSystem Windows Service — mounts need your interactive session.
+
+3. Enable in MyFileExplorer
+   Settings → Behavior → Virtual Folder OS projection
+
+4. Use
+   Create or browse a .mfevirtual — it auto-projects when the setting is on.
+   Context menu: Project to Windows / Unproject (opt-out until you Project again).
+
+Uninstall
+---------
+Run Uninstall-ProjectionService.ps1, or:
+  MfeVirtualFolderService.exe --uninstall-autostart
+
+Notes
+-----
+- Local disk only (not UNC / network paths) in v1.
+- WinFsp has its own license — we do not bundle it.
+- Full docs: https://github.com/dobrado76/MyFileExplorer/blob/main/docs/VIRTUAL_FOLDER_PROJECTION.md

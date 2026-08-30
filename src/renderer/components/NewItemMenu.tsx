@@ -5,7 +5,7 @@ import { useAppStore } from '../store/appStore'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { joinPath } from '../lib/paths'
 import { ChevronDown, PlusIcon } from '../lib/icons'
-import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, parseVirtualFolderGroupPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
+import { isVirtualFolderDocumentPath, parseVirtualFolderGroupPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
 import { ShellIcon } from './ShellIcon'
 
 /** Explorer-style “+ New” dropdown: folder, typed files, Other… */

@@ -411,12 +411,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const gitShowFolderIndicators = settings.git?.showFolderIndicators !== false
   const gitShowIgnored = settings.git?.showIgnored === true
   const gitShowStatusColumn = gitEnabled && settings.git.showStatusColumn
-  const devGateActive = useAppStore((s) => s.devGateActive)
   const projectedVirtualFolders = useAppStore((s) => s.projectedVirtualFolders)
   const projectionEnabled =
-    platform === 'win32' &&
-    devGateActive &&
-    settings.virtualFolderOsProjectionEnabled === true
+    platform === 'win32' && settings.virtualFolderOsProjectionEnabled === true
   const refreshProjectedVirtualFolders = useAppStore((s) => s.refreshProjectedVirtualFolders)
 
   useEffect(() => {
@@ -939,7 +936,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     viewMode,
     isExcluded,
     viewFilterOn,
-    viewPatterns.length,
     metaForSort,
     recycleMode,
     recycleSort,

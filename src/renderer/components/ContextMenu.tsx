@@ -2008,7 +2008,6 @@ export function ContextMenu(): JSX.Element | null {
     }
     if (
       s.platform === 'win32' &&
-      s.devGateActive &&
       s.settings.virtualFolderOsProjectionEnabled &&
       single &&
       isVirtualFolderDocumentPath(single)

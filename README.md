@@ -72,6 +72,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 **Run anything on the folder in front of you**
 - **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder, selection, or **global** (its own toolbar button when one exists, no folder needed). Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
 - Optional **AI** (same settings page) writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](docs/SCRIPTS.md)**
+- **Virtual Folders** — portable `.mfevirtual` collections of path references (not copies); optional **OS projection** on Windows so Explorer sees the same tree — **[docs/VIRTUAL_FOLDERS.md](docs/VIRTUAL_FOLDERS.md)** · **[docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md)**
 - **Git-aware browsing** (D64, **off by default**) — Settings → Git → Enable for status overlays, toolbar Commit/Pull/Push, and context Git actions. Uses your installed `git`; never stores credentials. Guide: **[docs/GIT.md](docs/GIT.md)**
 
 **Find things on purpose**
@@ -117,6 +118,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
 7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box. Start a search, switch tabs, then Back — the search is still there.
 8. Paste a large selection into a folder that already has some of those names — the rest copies; one review at the end.
+9. **Optional — Virtual Folder OS projection:** install [WinFsp](https://winfsp.dev/), unzip `MfeVirtualFolderService-win-x64.zip` from the same Release, run `Install-ProjectionService.ps1`, then Settings → Behavior → Virtual Folder OS projection. Guide: **[docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md)**.
 9. Select a `.pptx` — preview should show real slides, not a blank gray card.
 10. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
 11. Click the tree **Drives** header — pies and free-space % for every volume (including mapped letters).

@@ -31,11 +31,25 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Install dependencies
         run: npm ci
 
       - name: Check
         run: npm run check
+
+      - name: Install WinFsp (projection service build)
+        run: choco install winfsp -y --no-progress
+        continue-on-error: false
+
+      - name: Test Virtual Folder projection service
+        run: |
+          dotnet restore tools/MfeVirtualFolderService/MfeVirtualFolderService.sln
+          dotnet test tools/MfeVirtualFolderService/tests/MfeVirtualFolder.Protocol.Tests -c Release --no-restore
+          dotnet build tools/MfeVirtualFolderService/src/MfeVirtualFolderService/MfeVirtualFolderService.csproj -c Release --no-restore
 
   release:
     name: Windows installer → GitHub Release
@@ -53,8 +67,37 @@ jobs:
           node-version: '22'
           cache: npm
 
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Install WinFsp (HAS_WINFSP for Mount support)
+        run: choco install winfsp -y --no-progress
+
+      - name: Publish Virtual Folder projection service
+        run: |
+          $pub = "tools/MfeVirtualFolderService/publish"
+          dotnet publish tools/MfeVirtualFolderService/src/MfeVirtualFolderService/MfeVirtualFolderService.csproj `
+            -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o $pub
+          if (-not (Test-Path "$pub/MfeVirtualFolderService.exe")) {
+            throw "Publish output missing MfeVirtualFolderService.exe"
+          }
+
+      - name: Package projection service zip
+        shell: pwsh
+        run: |
+          $stage = "dist/MfeVirtualFolderService-win-x64"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "tools/MfeVirtualFolderService/publish/MfeVirtualFolderService.exe" $stage/
+          Copy-Item "tools/MfeVirtualFolderService/packaging/*" $stage/
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/MfeVirtualFolderService-win-x64.zip" -Force
+          Get-Item "dist/MfeVirtualFolderService-win-x64.zip" | Format-List Name, Length
 
       - name: Build NSIS installer
         env:
@@ -69,5 +112,6 @@ jobs:
             dist/MyFileExplorer-*.exe
             dist/*.exe.blockmap
             dist/latest.yml
+            dist/MfeVirtualFolderService-win-x64.zip
           generate_release_notes: true
           fail_on_unmatched_files: true

@@ -104,9 +104,9 @@ Stem = filename without `.mfevirtual`. In the same parent directory, MyFileExplo
 
 Wording is “name already used” / conflicts with a folder or Virtual Folder — not mount-specific (works on Linux too).
 
-## OS projection (D68, Windows-only, DEV-gated)
+## OS projection (D68, Windows-only)
 
-Optional **in-place** WinFsp mount: `Name.mfevirtual` → sibling directory `Name\`. Explorer and other apps browse members there. Independent .NET service; MFE Project UI is win32-only and **hidden unless the DEV gate is active**. Linux keeps in-app D67 only (FUSE deferred). Local disk only in v1 (UNC rejected). Embedded groups appear as directories inside the mount; legacy path-based nested documents use a visited-set for cycles.
+Optional **in-place** WinFsp mount: `Name.mfevirtual` → sibling directory `Name\`. Explorer and other apps browse members there. Independent .NET service; MFE Project UI is win32-only. Install: [WinFsp](https://winfsp.dev/) + `MfeVirtualFolderService-win-x64.zip` from GitHub Releases — see [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md). Linux keeps in-app D67 only (FUSE deferred). Local disk only in v1 (UNC rejected). Embedded groups appear as directories inside the mount; legacy path-based nested documents use a visited-set for cycles.
 
 See [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md).
 

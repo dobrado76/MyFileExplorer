@@ -157,6 +157,8 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [GIT.md](GIT.md) — optional Git-aware browsing (D64)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
+- [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md) — portable `.mfevirtual` collections (D67)  
+- [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md) — optional WinFsp OS projection (D68)  
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
 - [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  
 - [REMOTE_FTP.md](REMOTE_FTP.md) — opt-in FTP/FTPS/SFTP remotes  

@@ -976,7 +976,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     // Collapsed → select parent (not above scoped root / drive root).
     if (rootPath && samePath(cursor, rootPath)) return
     if (isVolumeRootPath(cursor)) return
-    let parent: string | null = null
+    let parent: string | null
     if (isVirtualFolderGroupPath(cursor)) {
       const map = nodesRef.current
       parent =

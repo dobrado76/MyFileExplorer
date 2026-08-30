@@ -3932,11 +3932,11 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.showFolderStatistics !== false}
                 onChange={(v) => void applySettingsPatch({ showFolderStatistics: v })}
               />
-              {platform === 'win32' && devGateActive && (
+              {platform === 'win32' && (
                 <SettingsToggle
                   id="set-vf-os-projection"
                   label="Virtual Folder OS projection"
-                  hint="DEV-only. When on, Virtual Folders auto-project to a sibling Windows folder (WinFsp) so Explorer and other apps see members. Requires MfeVirtualFolderService running (local disk only). Context Unproject is an opt-out; Project remounts."
+                  hint="When on, Virtual Folders auto-project to a sibling Windows folder (WinFsp) so Explorer and other apps see members. Requires WinFsp and MfeVirtualFolderService (see docs). Context Unproject is an opt-out; Project remounts. Local disk only."
                   checked={settings.virtualFolderOsProjectionEnabled === true}
                   searchTerms="winfsp project unproject mount virtual folder d68 auto"
                   onChange={(v) => void applySettingsPatch({ virtualFolderOsProjectionEnabled: v })}

@@ -49,11 +49,11 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 
 | Trigger | What runs |
 | ------- | --------- |
-| Pull request / push to `main` | `npm run check` only |
-| Tag `v*` (e.g. `v0.13.0`) | Check + build **Windows** installer → attach to a **GitHub Release** |
+| Pull request / push to `main` | `npm run check` + Virtual Folder projection service tests (WinFsp installed in CI) |
+| Tag `v*` (e.g. `v0.13.0`) | Check + build **Windows** installer **and** `MfeVirtualFolderService-win-x64.zip` → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (same as a main push) |
 
-CI does not build Linux installers yet.
+CI does not build Linux installers yet. The projection zip is optional — users also install [WinFsp](https://winfsp.dev/) separately; see [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md).
 
 ### Ship a build for friends
 

@@ -1,6 +1,8 @@
 # Build Release and register per-user logon autostart for the Virtual Folder projection agent.
 # Run once (unelevated is fine). Survives reboot via Task Scheduler — not a LocalSystem service.
-# Requires WinFsp installed: https://winfsp.dev/
+# Requires WinFsp installed first: https://winfsp.dev/
+# End users: prefer the GitHub Release zip + packaging\Install-ProjectionService.ps1
+#   (see docs/VIRTUAL_FOLDER_PROJECTION.md).
 
 $ErrorActionPreference = "Stop"
 $sln = Join-Path $PSScriptRoot "MfeVirtualFolderService.sln"
