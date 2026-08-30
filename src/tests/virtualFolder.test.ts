@@ -181,7 +181,7 @@ describe('virtualFolder stem clash / projection paths', () => {
     const parent = 'E:\\Movies\\Watch List.mfevirtual'
     const nested = 'E:\\Movies\\New Virtual Folder.mfevirtual'
     const other = 'E:\\Movies\\Series.mfevirtual'
-    const docs: Record<string, { entries: { id: string; kind: string; path: string; relative: boolean }[] }> = {
+    const docs: Record<string, { entries: import('@shared/virtualFolder').VirtualFolderEntry[] }> = {
       [parent]: {
         entries: [
           {
@@ -203,7 +203,7 @@ describe('virtualFolder stem clash / projection paths', () => {
   it('does not hide embedded groups (no sibling file)', () => {
     const parent = 'E:\\Movies\\Watch List.mfevirtual'
     const other = 'E:\\Movies\\Series.mfevirtual'
-    const docs: Record<string, { entries: { id: string; kind: string; label?: string; children?: unknown[] }[] }> = {
+    const docs: Record<string, { entries: import('@shared/virtualFolder').VirtualFolderEntry[] }> = {
       [parent]: {
         entries: [{ id: '1', kind: 'virtualFolder', label: 'Nested', children: [] }]
       },

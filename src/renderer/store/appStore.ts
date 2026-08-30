@@ -39,7 +39,6 @@ import type { Settings, SettingsPatch } from '@shared/schemas/settings'
 import type { VirtualFolderDocument, VirtualFolderMembership } from '@shared/virtualFolder'
 import {
   isVirtualFolderDocumentPath,
-  isVirtualFolderGroupPath,
   parseVirtualFolderGroupPath,
   virtualFolderDocumentDir
 } from '@shared/virtualFolder'
@@ -5473,12 +5472,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       const documentPath = listing.path
+      const groupId = listing.virtualFolder.groupId ?? undefined
       const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
         await call(
           api.virtualFolder.reorder({
             documentPath,
             entryIds,
-            groupId: listing.virtualFolder.groupId ?? undefined,
+            groupId,
             expectedMtimeMs
           })
         )

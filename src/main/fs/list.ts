@@ -174,7 +174,7 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
 
 /** Dedupe, allowlist, and hide nested VF peers that are members of another VF in this folder. */
 async function finalizeLocalListing(dir: string, raw: DirEntry[]): Promise<DirEntry[]> {
-  let entries = dedupeDirEntries(raw)
+  const entries = dedupeDirEntries(raw)
   protocolAllowlist.allowDir(dir)
   const vfEntries = entries.filter((e) => isVirtualFolderDocumentPath(e.path))
   if (vfEntries.length < 2) return entries

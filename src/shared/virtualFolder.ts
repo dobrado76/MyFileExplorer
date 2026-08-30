@@ -207,13 +207,14 @@ export function parseVirtualFolderGroupPath(
 }
 
 export function entryDisplayName(
-  entry: Pick<VirtualFolderEntry, 'path' | 'label' | 'relative' | 'kind'>,
+  entry: Pick<VirtualFolderEntry, 'path' | 'label' | 'relative'> &
+    Partial<Pick<VirtualFolderEntry, 'kind'>>,
   resolvedBasename?: string
 ): string {
   if (entry.label?.trim()) return entry.label.trim()
   if (resolvedBasename) return resolvedBasename
   const p = (entry.path ?? '').replace(/\\/g, '/')
-  if (!p) return isEmbeddedVirtualFolderGroup(entry) ? 'Virtual Folder' : ''
+  if (!p) return entry.kind === 'virtualFolder' ? 'Virtual Folder' : ''
   const base = p.slice(p.lastIndexOf('/') + 1)
   return base || entry.path || ''
 }

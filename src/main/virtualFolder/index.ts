@@ -376,7 +376,9 @@ export async function createVirtualFolderGroup(
 async function mutateDocument(
   documentPath: string,
   expectedMtimeMs: number | undefined,
-  mutator: (doc: VirtualFolderDocument) => VirtualFolderMutateResponse | void
+  mutator: (
+    doc: VirtualFolderDocument
+  ) => Partial<Pick<VirtualFolderMutateResponse, 'added' | 'skippedDuplicates' | 'removed'>> | void
 ): Promise<VirtualFolderMutateResponse> {
   const abs = requireAbsolute(documentPath)
   const loaded = await readDocumentFile(abs)
