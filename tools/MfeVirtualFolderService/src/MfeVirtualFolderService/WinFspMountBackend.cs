@@ -43,14 +43,16 @@ public sealed class WinFspMountBackend : IMountBackend
 
             var fs = new VirtualFolderFileSystem(documentPath);
             var host = new FileSystemHost(fs);
-            host.FileSystemName = "MFEVirtualFolder";
+            // Some apps (elevated / certain media stacks) expect the FS name "NTFS".
+            host.FileSystemName = "NTFS";
             host.SectorSize = 4096;
             host.SectorsPerAllocationUnit = 1;
             host.MaxComponentLength = 255;
             host.CaseSensitiveSearch = false;
             host.CasePreservedNames = true;
             host.UnicodeOnDisk = true;
-            host.PersistentAcls = false;
+            // Must be true when GetSecurity* returns real descriptors (media apps / VLC).
+            host.PersistentAcls = true;
             host.PostCleanupWhenModifiedOnly = true;
             host.VolumeCreationTime = (ulong)DateTime.UtcNow.ToFileTimeUtc();
             host.VolumeSerialNumber = unchecked((uint)documentPath.GetHashCode());
@@ -192,6 +194,36 @@ sealed class VirtualFolderFileSystem : FileSystemBase
         if (!TryStat(fileName, out var st))
             return STATUS_OBJECT_NAME_NOT_FOUND;
         fileAttributes = st.Attributes;
+        // Media players / Explorer need a real SD; empty → access denied for some apps.
+        try
+        {
+            var pathForSd = st.IsVirtualRoot || st.IsEmbedded || string.IsNullOrEmpty(st.FullPath)
+                ? _documentPath
+                : st.FullPath;
+            if (File.Exists(pathForSd) || Directory.Exists(pathForSd))
+            {
+                var sec = new System.Security.AccessControl.FileSecurity(
+                    pathForSd,
+                    System.Security.AccessControl.AccessControlSections.Access |
+                        System.Security.AccessControl.AccessControlSections.Owner |
+                        System.Security.AccessControl.AccessControlSections.Group);
+                securityDescriptor = sec.GetSecurityDescriptorBinaryForm();
+            }
+            else
+            {
+                // Missing target / embedded group: inherit document file SD.
+                var sec = new System.Security.AccessControl.FileSecurity(
+                    _documentPath,
+                    System.Security.AccessControl.AccessControlSections.Access |
+                        System.Security.AccessControl.AccessControlSections.Owner |
+                        System.Security.AccessControl.AccessControlSections.Group);
+                securityDescriptor = sec.GetSecurityDescriptorBinaryForm();
+            }
+        }
+        catch
+        {
+            // Leave descriptor as provided; attributes alone may still allow listing.
+        }
         return STATUS_SUCCESS;
     }
 
@@ -216,17 +248,26 @@ sealed class VirtualFolderFileSystem : FileSystemBase
         {
             try
             {
-                stream = new FileStream(st.FullPath, FileMode.Open, FileAccess.ReadWrite,
-                    FileShare.ReadWrite | FileShare.Delete);
+                stream = OpenPassThroughStream(st.FullPath, grantedAccess);
             }
             catch (FileNotFoundException)
             {
                 return STATUS_OBJECT_NAME_NOT_FOUND;
             }
-            catch
+            catch (UnauthorizedAccessException)
             {
                 return STATUS_ACCESS_DENIED;
             }
+            catch (IOException)
+            {
+                return STATUS_ACCESS_DENIED;
+            }
+        }
+
+        // Refresh size from the live stream when possible (VLC / seekers need accurate EOF).
+        if (stream != null)
+        {
+            st = st.WithSize((ulong)Math.Max(0, stream.Length));
         }
 
         var opened = new Opened(st, stream);
@@ -234,6 +275,75 @@ sealed class VirtualFolderFileSystem : FileSystemBase
         fileDesc = opened;
         fileInfo = st.ToFileInfo();
         return STATUS_SUCCESS;
+    }
+
+    public override int GetFileInfo(object fileNode, object fileDesc, out FsFileInfo fileInfo)
+    {
+        fileInfo = default;
+        if (fileDesc is not Opened opened)
+            return STATUS_INVALID_DEVICE_REQUEST;
+        var st = opened.Stat;
+        if (opened.Stream != null)
+        {
+            try
+            {
+                st = st.WithSize((ulong)Math.Max(0, opened.Stream.Length));
+            }
+            catch
+            {
+                /* keep prior */
+            }
+        }
+        fileInfo = st.ToFileInfo();
+        return STATUS_SUCCESS;
+    }
+
+    public override int GetSecurity(object fileNode, object fileDesc, ref byte[] securityDescriptor)
+    {
+        if (fileDesc is not Opened opened)
+            return STATUS_INVALID_DEVICE_REQUEST;
+        var pathForSd = string.IsNullOrEmpty(opened.Stat.FullPath) ? _documentPath : opened.Stat.FullPath;
+        try
+        {
+            if (!File.Exists(pathForSd) && !Directory.Exists(pathForSd))
+                pathForSd = _documentPath;
+            var sec = new System.Security.AccessControl.FileSecurity(
+                pathForSd,
+                System.Security.AccessControl.AccessControlSections.Access |
+                    System.Security.AccessControl.AccessControlSections.Owner |
+                    System.Security.AccessControl.AccessControlSections.Group);
+            securityDescriptor = sec.GetSecurityDescriptorBinaryForm();
+            return STATUS_SUCCESS;
+        }
+        catch
+        {
+            return STATUS_ACCESS_DENIED;
+        }
+    }
+
+    static FileStream OpenPassThroughStream(string fullPath, uint grantedAccess)
+    {
+        // FILE_WRITE_DATA=0x2, FILE_APPEND_DATA=0x4, GENERIC_WRITE=0x40000000
+        const uint WriteMask = 0x2 | 0x4 | 0x40000000;
+        var wantWrite = (grantedAccess & WriteMask) != 0;
+        var share = FileShare.ReadWrite | FileShare.Delete;
+        const int buf = 64 * 1024;
+        if (wantWrite)
+        {
+            try
+            {
+                return new FileStream(fullPath, FileMode.Open, FileAccess.ReadWrite, share, buf, FileOptions.RandomAccess);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Fall through to read-only (common for media / locked files).
+            }
+            catch (IOException)
+            {
+                /* fall through */
+            }
+        }
+        return new FileStream(fullPath, FileMode.Open, FileAccess.Read, share, buf, FileOptions.RandomAccess);
     }
 
     public override void Close(object fileNode, object fileDesc)
@@ -281,7 +391,7 @@ sealed class VirtualFolderFileSystem : FileSystemBase
         stream.Position = writeToEndOfFile ? stream.Length : (long)offset;
         stream.Write(buf, 0, (int)length);
         bytesTransferred = length;
-        fileInfo = opened.Stat.ToFileInfo();
+        fileInfo = opened.Stat.WithSize((ulong)stream.Length).ToFileInfo();
         return STATUS_SUCCESS;
     }
 
@@ -677,13 +787,19 @@ sealed class VirtualFolderFileSystem : FileSystemBase
         public ulong Mtime { get; }
         public bool IsVirtualRoot { get; }
         public List<VirtualFolderEntry>? EmbeddedChildren { get; }
+        public bool IsEmbedded => EmbeddedChildren != null;
+
+        public PathStat WithSize(ulong size) =>
+            new(FullPath, IsDirectory, Kind, Attributes, size, (Ctime, Atime, Mtime), EmbeddedChildren);
 
         public FsFileInfo ToFileInfo()
         {
             var fi = default(FsFileInfo);
             fi.FileAttributes = Attributes;
             fi.FileSize = Size;
-            fi.AllocationSize = Size;
+            // Round allocation up to 4K (matches host.SectorSize) — some readers reject size==alloc.
+            const ulong sector = 4096;
+            fi.AllocationSize = Size == 0 ? 0 : ((Size + sector - 1) / sector) * sector;
             fi.CreationTime = Ctime;
             fi.LastAccessTime = Atime;
             fi.LastWriteTime = Mtime;

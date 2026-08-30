@@ -7,10 +7,12 @@ import {
   entryDisplayName,
   isVirtualFolderDocumentPath,
   isVirtualFolderExt,
+  presentVirtualFolderAsDirEntry,
   virtualFolderDisplayName,
   virtualFolderDocumentDir,
   virtualFolderEntryDuplicateKey,
   virtualFolderProjectedMountPath,
+  virtualFolderDocumentPathFromProjectedMount,
   virtualFolderStemFromFileName,
   nextVirtualFolderFileName,
   nextRealFolderName,
@@ -20,11 +22,20 @@ import {
   serializeVirtualFolderDocument,
   beginVirtualFolderVisit,
   filterOutNestedVirtualFolderPeers,
+  filterOutProjectedMountPeers,
   isEmbeddedVirtualFolderGroup,
   virtualFolderGroupRowPath,
   parseVirtualFolderGroupPath,
   getEntriesAtGroup,
-  findEntryInTree
+  findEntryInTree,
+  findParentGroupId,
+  virtualFolderTreeListPath,
+  virtualFolderEntryIdFromPath,
+  takeEntriesFromTree,
+  isVirtualFolderGroupAncestor,
+  mapEntriesAtGroup,
+  rebaseVirtualFolderEntriesToDocument,
+  cloneVirtualFolderEntries
 } from '@shared/virtualFolder'
 import { parseVirtualFolderJson } from '@shared/schemas/virtualFolder'
 
@@ -35,6 +46,20 @@ describe('virtualFolder paths', () => {
     expect(isVirtualFolderExt('Work.json')).toBe(false)
     expect(isVirtualFolderDocumentPath('D:\\Collections\\AI.mfevirtual')).toBe(true)
     expect(isVirtualFolderDocumentPath('D:\\Collections')).toBe(false)
+  })
+
+  it('presents Hidden .mfevirtual as a visible folder in MFE listings', () => {
+    const presented = presentVirtualFolderAsDirEntry({
+      name: 'Watch.mfevirtual',
+      path: 'E:\\Movies\\Watch.mfevirtual',
+      kind: 'file',
+      size: 12,
+      ext: 'mfevirtual',
+      isHidden: true
+    })
+    expect(presented.kind).toBe('dir')
+    expect(presented.isHidden).toBe(false)
+    expect(presented.size).toBe(0)
   })
 
   it('derives display name and document dir', () => {
@@ -177,6 +202,21 @@ describe('virtualFolder stem clash / projection paths', () => {
     expect(nextRealFolderName('Work', ['Work.mfevirtual'])).toBe('Work (2)')
   })
 
+  it('hides projected OS mount sibling beside a Virtual Folder document', () => {
+    const listed = [
+      { path: 'E:\\Movies\\TestVF.mfevirtual', kind: 'file' },
+      { path: 'E:\\Movies\\TestVF', kind: 'dir' },
+      { path: 'E:\\Movies\\Anime', kind: 'dir' },
+      { path: 'E:\\Movies\\readme.txt', kind: 'file' }
+    ]
+    const filtered = filterOutProjectedMountPeers(listed)
+    expect(filtered.map((e) => e.path)).toEqual([
+      'E:\\Movies\\TestVF.mfevirtual',
+      'E:\\Movies\\Anime',
+      'E:\\Movies\\readme.txt'
+    ])
+  })
+
   it('hides legacy external nested Virtual Folder peers that are members of another sibling', () => {
     const parent = 'E:\\Movies\\Watch List.mfevirtual'
     const nested = 'E:\\Movies\\New Virtual Folder.mfevirtual'
@@ -252,5 +292,124 @@ describe('virtualFolder stem clash / projection paths', () => {
     expect(findEntryInTree(entries, 'f1')?.kind).toBe('file')
     expect(getEntriesAtGroup(entries, 'g1')?.map((e) => e.id)).toEqual(['f1'])
     expect(getEntriesAtGroup(entries, null)?.map((e) => e.id)).toEqual(['g1'])
+  })
+
+  it('lists and parents nested embedded groups at arbitrary depth', () => {
+    const entries = [
+      {
+        id: 'g1',
+        kind: 'virtualFolder' as const,
+        label: 'TT',
+        children: [
+          {
+            id: 'g2',
+            kind: 'virtualFolder' as const,
+            label: 'UU',
+            children: [
+              {
+                id: 'g3',
+                kind: 'virtualFolder' as const,
+                label: 'VV',
+                children: [{ id: 'f1', kind: 'file' as const, path: 'a.txt', relative: true }]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+    expect(getEntriesAtGroup(entries, 'g1')?.map((e) => e.id)).toEqual(['g2'])
+    expect(getEntriesAtGroup(entries, 'g2')?.map((e) => e.id)).toEqual(['g3'])
+    expect(getEntriesAtGroup(entries, 'g3')?.map((e) => e.id)).toEqual(['f1'])
+    expect(findParentGroupId(entries, 'g1')).toBe(null)
+    expect(findParentGroupId(entries, 'g2')).toBe('g1')
+    expect(findParentGroupId(entries, 'g3')).toBe('g2')
+    expect(findParentGroupId(entries, 'f1')).toBe('g3')
+    expect(findParentGroupId(entries, 'missing')).toBeUndefined()
+    expect(virtualFolderTreeListPath('E:\\T.mfevirtual', 'g2')).toBe(
+      virtualFolderGroupRowPath('E:\\T.mfevirtual', 'g2')
+    )
+    expect(virtualFolderTreeListPath('E:\\T.mfevirtual', null)).toBe('E:\\T.mfevirtual')
+  })
+
+  it('parses group paths with a doubled separator and resolves entry ids', () => {
+    const doc = 'E:\\Movies\\TestVF.mfevirtual'
+    const id = '5614dc97-226e-4ac5-863c-829b9ed4ed69'
+    const messy = `mfe-vfgroup:${encodeURIComponent(doc)}||${id}`
+    expect(parseVirtualFolderGroupPath(messy)).toEqual({ documentPath: doc, groupId: id })
+    expect(virtualFolderEntryIdFromPath(messy)).toBe(id)
+    expect(
+      virtualFolderEntryIdFromPath(virtualFolderGroupRowPath(doc, id), {
+        [virtualFolderGroupRowPath(doc, id).toLowerCase()]: id
+      })
+    ).toBe(id)
+  })
+
+  it('reparents entries with takeEntriesFromTree without dropping nested children', () => {
+    const entries = [
+      {
+        id: 'g1',
+        kind: 'virtualFolder' as const,
+        label: 'TT',
+        children: [
+          {
+            id: 'g2',
+            kind: 'virtualFolder' as const,
+            label: 'TSubF',
+            children: [{ id: 'f1', kind: 'file' as const, path: 'a.txt', relative: true }]
+          }
+        ]
+      },
+      { id: 'g3', kind: 'virtualFolder' as const, label: 'Other', children: [] }
+    ]
+    expect(isVirtualFolderGroupAncestor(entries, 'g1', 'g2')).toBe(true)
+    expect(isVirtualFolderGroupAncestor(entries, 'g2', 'g1')).toBe(false)
+    const taken = takeEntriesFromTree(entries, ['g2'])
+    expect(taken).toHaveLength(1)
+    expect(taken[0]!.id).toBe('g2')
+    expect(taken[0]!.children?.[0]?.id).toBe('f1')
+    expect(entries.map((e) => e.id)).toEqual(['g1', 'g3'])
+    expect(entries[0]!.children).toEqual([])
+    mapEntriesAtGroup(entries, 'g3', (list) => [...list, ...taken])
+    expect(getEntriesAtGroup(entries, 'g3')?.map((e) => e.id)).toEqual(['g2'])
+  })
+
+  it('rebases relative entry paths when extracting/absorbing across document dirs', () => {
+    const fromDoc = 'E:\\Movies\\TestVF.mfevirtual'
+    const toDoc = 'E:\\Other\\Extracted.mfevirtual'
+    const entries = cloneVirtualFolderEntries([
+      { id: 'f1', kind: 'file', path: 'clips/a.mp4', relative: true },
+      { id: 'f2', kind: 'folder', path: 'F:\\Absolute\\Keep', relative: false },
+      {
+        id: 'g1',
+        kind: 'virtualFolder',
+        label: 'Nested',
+        children: [{ id: 'f3', kind: 'file', path: 'nested/b.txt', relative: true }]
+      }
+    ])
+    const rebased = rebaseVirtualFolderEntriesToDocument(fromDoc, toDoc, entries)
+    expect(rebased[0]).toMatchObject({
+      path: 'E:\\Movies\\clips\\a.mp4',
+      relative: false
+    })
+    expect(rebased[1]).toMatchObject({
+      path: 'F:\\Absolute\\Keep',
+      relative: false
+    })
+    expect(rebased[2]!.children?.[0]).toMatchObject({
+      path: 'E:\\Movies\\nested\\b.txt',
+      relative: false
+    })
+    const back = rebaseVirtualFolderEntriesToDocument(toDoc, fromDoc, rebased)
+    expect(back[0]).toMatchObject({ path: 'clips/a.mp4', relative: true })
+    expect(back[2]!.children?.[0]).toMatchObject({ path: 'nested/b.txt', relative: true })
+  })
+
+  it('maps projected mount paths back to the sibling .mfevirtual', () => {
+    expect(virtualFolderDocumentPathFromProjectedMount('D:\\Collections\\Work')).toBe(
+      'D:\\Collections\\Work.mfevirtual'
+    )
+    expect(virtualFolderProjectedMountPath('D:\\Collections\\Work.mfevirtual')).toBe(
+      'D:\\Collections\\Work'
+    )
   })
 })

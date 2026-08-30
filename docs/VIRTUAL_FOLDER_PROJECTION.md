@@ -8,8 +8,8 @@ Optional in-place OS projection of `.mfevirtual` collections via **WinFsp**, so 
 
 | On disk | Role |
 | --- | --- |
-| `D:\root\Name.mfevirtual` | Portable JSON definition (D67) |
-| `D:\root\Name` | WinFsp **directory mount** (in-place sibling) |
+| `D:\root\Name.mfevirtual` | Portable JSON definition (D67) — **Hidden** on Windows so Explorer (default) does not show it |
+| `D:\root\Name` | WinFsp **directory mount** (in-place sibling) — visible in Explorer |
 
 Linux / FUSE projection is **deferred**. D67 in-app Virtual Folders still work on Linux; Project UI and the service are win32-only.
 
@@ -17,11 +17,11 @@ Linux / FUSE projection is **deferred**. D67 in-app Virtual Folders still work o
 
 Independent .NET process: [`tools/MfeVirtualFolderService/`](../tools/MfeVirtualFolderService/).
 
-- Console / Windows Service host (`--console` for debug)
-- Prefer **per-user** agent (directory mounts must be visible to the interactive session)
+- **Autostart (recommended):** `install-autostart.ps1` or `MfeVirtualFolderService.exe --install-autostart` — per-user logon task when allowed, otherwise HKCU Run. Survives reboot; runs in the interactive session (required for WinFsp directory mounts + the named pipe). **Not** LocalSystem.
+- `--console` for debug; optional SCM Windows Service host remains for advanced use but is not the default install path
 - Named pipe: `\\.\pipe\MyFileExplorer.VirtualFolderService` (camelCase JSON lines)
 - Commands: `Ping`, `Status`, `Mount`, `Unmount`, `ListMounts`
-- Mount registry under `%LOCALAPPDATA%\MyFileExplorer\VirtualFolderService\mounts.json`
+- Mount registry under `%LOCALAPPDATA%\MyFileExplorer\VirtualFolderService\mounts.json` (remounted on agent start)
 - Requires [WinFsp](https://winfsp.dev/) installed (optional Windows feature / redistributable — respect WinFsp license)
 - Without WinFsp at build time, `HAS_WINFSP` is omitted; the host still builds and answers `Ping` / `Status`
 
@@ -49,8 +49,10 @@ Independent .NET process: [`tools/MfeVirtualFolderService/`](../tools/MfeVirtual
 
 - **DEV-gated** until product-ready: requires `devGateActive` (otherwise Settings toggle, context verbs, and badges are omitted).
 - Setting `virtualFolderOsProjectionEnabled` (default `false`) — Settings → Behavior, **win32 + DEV only**
+- **Set-and-forget when enabled:** create / rename / browse auto-mounts visible `.mfevirtual` docs; trash/delete/rename unmount first in main. Context **Unproject** is a session opt-out (auto-ensure skips until **Project**); **Project** remains as a remount/retry.
 - IPC `virtualFolderProject:status|mount|unmount|listMounts` — handlers registered **only on win32**; pipe client is dynamically imported
-- Context **Project to Windows** / **Unproject** when setting is on; FileView **P** badge / Type “· Projected” when mounted
+- FileView **P** badge / Type “· Projected” when mounted
+- MFE listings **hide** the sibling mount directory when `Name.mfevirtual` is present; the definition file is **Hidden** on disk so Explorer (default) mainly shows the mount folder
 - Stem clash rules on create/rename (all platforms; wording does not mention mounts)
 
 ## Build

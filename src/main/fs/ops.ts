@@ -59,6 +59,17 @@ import { pathIsReadOnly } from './winAttrs'
 /** Keep listings from refreshing for the whole copy/move, not just the first 1.5s. */
 const OP_MUTE_MS = 3_600_000
 
+/** Drop a WinFsp projection before rename/delete so the sibling mount does not block the op. */
+async function unprojectVirtualFolderIfNeeded(documentPath: string): Promise<void> {
+  if (process.platform !== 'win32' || !isVirtualFolderDocumentPath(documentPath)) return
+  try {
+    const { projectionUnmountBestEffort } = await import('../virtualFolder/projectionClient')
+    await projectionUnmountBestEffort(documentPath)
+  } catch {
+    /* ignore */
+  }
+}
+
 type CopyTreeOpts = {
   notifyParentOnCreate?: boolean
   discover?: boolean
@@ -379,6 +390,10 @@ export async function renameEntry(
   // Drop our own directory watches on this tree — they hold the folder open.
   releaseWatchersAffecting([source])
   muteWatchers(400)
+
+  // In-place OS projection mounts a sibling folder; unmount before rename or the
+  // document move leaves a stale mount (and stem clash with the old mount name).
+  await unprojectVirtualFolderIfNeeded(source)
 
   const progress = beginOp('relocate', 1, 'Renaming…')
   progress.pulse(source)
@@ -1532,6 +1547,7 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
       progress.throwIfCancelled()
       progress.pulse(p)
       try {
+        await unprojectVirtualFolderIfNeeded(p)
         if (process.platform === 'win32') {
           try {
             await recyclePathWin32Robust(p)
@@ -1624,6 +1640,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
       releaseWatchersAffecting([p])
       muteWatchers(8000)
       try {
+        await unprojectVirtualFolderIfNeeded(p)
         if (process.platform === 'win32' && isNasRecyclePath(p)) {
           // QNAP's @Recycle is a server-side special folder. Windows Explorer
           // uses the shell delete operation here; raw SMB unlink can be

@@ -5,6 +5,7 @@ import { AppError } from '@shared/result'
 import {
   VIRTUAL_FOLDER_EXT,
   chooseVirtualFolderStoredPath,
+  cloneVirtualFolderEntries,
   emptyVirtualFolderDocument,
   entryDisplayName,
   findEntryInTree,
@@ -17,12 +18,16 @@ import {
   newVirtualFolderEntryId,
   nextEmbeddedGroupLabel,
   nextVirtualFolderFileName,
+  rebaseVirtualFolderEntriesToDocument,
   virtualFolderDisplayName,
   virtualFolderDocumentDir,
+  virtualFolderDocumentPathFromProjectedMount,
   virtualFolderEntryDuplicateKey,
   virtualFolderGroupRowPath,
   resolveVirtualFolderEntryPath,
   serializeVirtualFolderDocument,
+  takeEntriesFromTree,
+  isVirtualFolderGroupAncestor,
   walkVirtualFolderEntries,
   type VirtualFolderDocument,
   type VirtualFolderEntry,
@@ -40,6 +45,7 @@ import type { DirEntry } from '@shared/schemas/fs'
 import { samePath } from '@shared/paths'
 import { requireAbsolute } from '../fs/list'
 import { pathIsReadOnly } from '../fs/winAttrs'
+import { applyVirtualFolderDocumentHiddenAttribute } from './documentHiddenAttr'
 
 export class VirtualFolderConflictError extends AppError {
   constructor(documentPath: string) {
@@ -53,10 +59,7 @@ export class VirtualFolderConflictError extends AppError {
 }
 
 function cloneEntries(entries: VirtualFolderEntry[]): VirtualFolderEntry[] {
-  return entries.map((e) => ({
-    ...e,
-    ...(e.children ? { children: cloneEntries(e.children) } : {})
-  }))
+  return cloneVirtualFolderEntries(entries)
 }
 
 async function readDocumentFile(documentPath: string): Promise<{
@@ -111,6 +114,9 @@ async function atomicWriteDocument(abs: string, document: VirtualFolderDocument)
     await fsp.copyFile(tmp, abs)
     await fsp.unlink(tmp).catch(() => undefined)
   }
+  // Windows: keep the definition file Hidden so Explorer (default) shows only the
+  // projected sibling folder when OS projection is on (D67 / D68).
+  applyVirtualFolderDocumentHiddenAttribute(abs)
   const st = await fsp.stat(abs)
   return st.mtimeMs
 }
@@ -415,6 +421,39 @@ export async function addVirtualFolderEntries(
   groupId?: string | null
 ): Promise<VirtualFolderMutateResponse> {
   const abs = requireAbsolute(documentPath)
+  type Prepared =
+    | { kind: 'ref'; target: string }
+    | {
+        kind: 'absorb'
+        label: string
+        children: VirtualFolderEntry[]
+      }
+  const prepared: Prepared[] = []
+  for (const raw of paths) {
+    const target = await coerceVirtualFolderDocumentPath(raw)
+    if (isVirtualFolderDocumentPath(target)) {
+      if (samePath(target, abs)) {
+        throw new AppError(
+          'validation',
+          'Cannot absorb a Virtual Folder into itself',
+          undefined,
+          abs
+        )
+      }
+      const loaded = await readDocumentFile(target)
+      prepared.push({
+        kind: 'absorb',
+        label: virtualFolderDisplayName(target),
+        children: rebaseVirtualFolderEntriesToDocument(
+          target,
+          abs,
+          cloneEntries(loaded.document.entries)
+        )
+      })
+      continue
+    }
+    prepared.push({ kind: 'ref', target })
+  }
   return mutateDocument(abs, expectedMtimeMs, (doc) => {
     const level = getEntriesAtGroup(doc.entries, groupId ?? null)
     if (level == null) {
@@ -428,8 +467,20 @@ export async function addVirtualFolderEntries(
     let added = 0
     let skippedDuplicates = 0
     const toAdd: VirtualFolderEntry[] = []
-    for (const raw of paths) {
-      const target = requireAbsolute(raw)
+    const siblingLabels = [...level]
+    for (const item of prepared) {
+      if (item.kind === 'absorb') {
+        const label = nextEmbeddedGroupLabel(item.label, [...siblingLabels, ...toAdd])
+        toAdd.push({
+          id: newVirtualFolderEntryId(),
+          kind: 'virtualFolder',
+          label,
+          children: item.children
+        })
+        added++
+        continue
+      }
+      const target = item.target
       const stored = chooseVirtualFolderStoredPath(abs, target)
       const key = virtualFolderEntryDuplicateKey(abs, stored)
       if (existing.has(key)) {
@@ -443,7 +494,6 @@ export async function addVirtualFolderEntries(
       } catch {
         /* keep path-based inference */
       }
-      // Adding a .mfevirtual as a member uses legacy external link shape.
       toAdd.push({
         id: newVirtualFolderEntryId(),
         kind,
@@ -456,6 +506,141 @@ export async function addVirtualFolderEntries(
     mapEntriesAtGroup(doc.entries, groupId ?? null, (list) => [...list, ...toAdd])
     return { added, skippedDuplicates }
   })
+}
+
+async function unprojectDocument(documentPath: string): Promise<void> {
+  if (process.platform !== 'win32') return
+  const abs = requireAbsolute(documentPath)
+  const { projectionUnmount, projectionUnmountBestEffort } = await import('./projectionClient')
+  try {
+    await projectionUnmount(abs)
+  } catch {
+    await projectionUnmountBestEffort(abs)
+  }
+}
+
+async function unprojectAndDeleteDocument(documentPath: string): Promise<void> {
+  const abs = requireAbsolute(documentPath)
+  await unprojectDocument(abs)
+  // WinFsp can briefly keep the reparse point busy after unmount.
+  let lastErr: unknown
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (attempt > 0) {
+      await new Promise<void>((r) => setTimeout(r, 40 * attempt))
+      await unprojectDocument(abs)
+    } else {
+      await new Promise<void>((r) => setTimeout(r, 40))
+    }
+    try {
+      await fsp.unlink(abs)
+      return
+    } catch (e) {
+      lastErr = e
+      try {
+        await fsp.access(abs)
+      } catch {
+        // Already gone (unlinked by another path / race).
+        return
+      }
+    }
+  }
+  throw lastErr instanceof Error
+    ? lastErr
+    : new AppError('io', `Cannot delete Virtual Folder “${abs}”`, undefined, abs)
+}
+
+/**
+ * If `path` is a projected mount folder, return the sibling `.mfevirtual` when it exists.
+ */
+async function coerceVirtualFolderDocumentPath(pathLike: string): Promise<string> {
+  const abs = requireAbsolute(pathLike)
+  if (isVirtualFolderDocumentPath(abs)) return abs
+  const asDoc = requireAbsolute(virtualFolderDocumentPathFromProjectedMount(abs))
+  try {
+    await fsp.access(asDoc)
+    return asDoc
+  } catch {
+    return abs
+  }
+}
+
+/**
+ * Spawn a standalone `.mfevirtual` from an embedded group into a real folder.
+ * Move removes the group from the source document; copy leaves it.
+ */
+export async function extractVirtualFolderGroupToDocument(
+  sourceDocumentPath: string,
+  groupId: string,
+  destParentDir: string,
+  opts?: {
+    removeFromSource?: boolean
+    expectedMtimeMs?: number
+    name?: string
+  }
+): Promise<{
+  path: string
+  document: VirtualFolderDocument
+  mtimeMs: number
+  sourceMtimeMs?: number
+  sourceDocument?: VirtualFolderDocument
+}> {
+  const sourceAbs = requireAbsolute(sourceDocumentPath)
+  const destDir = requireAbsolute(destParentDir)
+  const loaded = await readDocumentFile(sourceAbs)
+  assertExpectedMtime(loaded.mtimeMs, opts?.expectedMtimeMs)
+  const group = findEntryInTree(loaded.document.entries, groupId)
+  if (!group || !isEmbeddedVirtualFolderGroup(group)) {
+    throw new AppError('not-found', 'Virtual Folder group not found', undefined, sourceAbs)
+  }
+  const baseName =
+    [...(opts?.name ?? entryDisplayName(group))]
+      .filter((ch) => {
+        const c = ch.charCodeAt(0)
+        if (c < 32) return false
+        return !'<>:"/\\|?*'.includes(ch)
+      })
+      .join('')
+      .trim() || 'New Virtual Folder'
+  let siblings: string[]
+  try {
+    siblings = await fsp.readdir(destDir)
+  } catch (e) {
+    throw new AppError(
+      'io',
+      `Cannot read folder “${destDir}”: ${e instanceof Error ? e.message : String(e)}`,
+      undefined,
+      destDir
+    )
+  }
+  const fileName = nextVirtualFolderFileName(baseName, siblings)
+  const destPath = path.join(destDir, fileName)
+  const now = new Date().toISOString()
+  const document: VirtualFolderDocument = {
+    ...emptyVirtualFolderDocument(now),
+    settings: loaded.document.settings ? { ...loaded.document.settings } : { manualOrder: true },
+    entries: rebaseVirtualFolderEntriesToDocument(
+      sourceAbs,
+      destPath,
+      cloneEntries(group.children ?? [])
+    )
+  }
+  const mtimeMs = await atomicWriteDocument(destPath, document)
+
+  let sourceMtimeMs: number | undefined
+  let sourceDocument: VirtualFolderDocument | undefined
+  if (opts?.removeFromSource === true) {
+    if (!(await isWritableFile(sourceAbs))) {
+      throw new AppError('not-allowed', 'Virtual Folder is read-only', undefined, sourceAbs)
+    }
+    const result = await mutateDocument(sourceAbs, opts?.expectedMtimeMs, (doc) => {
+      const removed = removeIdsFromTree(doc.entries, new Set([groupId]))
+      return { removed }
+    })
+    sourceMtimeMs = result.mtimeMs
+    sourceDocument = result.document
+  }
+
+  return { path: destPath, document, mtimeMs, sourceMtimeMs, sourceDocument }
 }
 
 function removeIdsFromTree(entries: VirtualFolderEntry[], idSet: Set<string>): number {
@@ -485,6 +670,208 @@ export async function removeVirtualFolderEntries(
   return mutateDocument(documentPath, expectedMtimeMs, (doc) => {
     const removed = removeIdsFromTree(doc.entries, idSet)
     return { removed }
+  })
+}
+
+/**
+ * Absorb a standalone `.mfevirtual` into another document as an embedded group.
+ * When `deleteSource` is true, the source is unprojected first (so the sibling
+ * mount does not linger), then absorbed, then the `.mfevirtual` file is deleted.
+ */
+export async function absorbVirtualFolderDocument(
+  sourceDocumentPath: string,
+  destDocumentPath: string,
+  destGroupId?: string | null,
+  opts?: { deleteSource?: boolean; expectedMtimeMs?: number }
+): Promise<
+  VirtualFolderMutateResponse & {
+    entryId: string
+    rowPath: string
+    deletedSourcePath?: string
+  }
+> {
+  const sourceAbs = await coerceVirtualFolderDocumentPath(sourceDocumentPath)
+  const destAbs = requireAbsolute(destDocumentPath)
+  if (!isVirtualFolderDocumentPath(sourceAbs)) {
+    throw new AppError(
+      'validation',
+      'Not a Virtual Folder document',
+      undefined,
+      requireAbsolute(sourceDocumentPath)
+    )
+  }
+  if (samePath(sourceAbs, destAbs)) {
+    throw new AppError(
+      'validation',
+      'Cannot absorb a Virtual Folder into itself',
+      undefined,
+      destAbs
+    )
+  }
+  const loaded = await readDocumentFile(sourceAbs)
+  const children = rebaseVirtualFolderEntriesToDocument(
+    sourceAbs,
+    destAbs,
+    cloneEntries(loaded.document.entries)
+  )
+  const preferredLabel = virtualFolderDisplayName(sourceAbs)
+
+  // Drop OS projection before rewriting membership so Movies\Name does not remain
+  // as a ghost mount after the definition file is gone.
+  if (opts?.deleteSource === true) {
+    await unprojectDocument(sourceAbs)
+  }
+
+  let entryId = ''
+  let rowPath = ''
+  const result = await mutateDocument(destAbs, opts?.expectedMtimeMs, (doc) => {
+    const siblings = getEntriesAtGroup(doc.entries, destGroupId ?? null)
+    if (siblings == null) {
+      throw new AppError('not-found', 'Virtual Folder group not found', undefined, destAbs)
+    }
+    entryId = newVirtualFolderEntryId()
+    const label = nextEmbeddedGroupLabel(preferredLabel, siblings)
+    const group: VirtualFolderEntry = {
+      id: entryId,
+      kind: 'virtualFolder',
+      label,
+      children
+    }
+    const ok = mapEntriesAtGroup(doc.entries, destGroupId ?? null, (list) => [...list, group])
+    if (!ok) throw new AppError('not-found', 'Virtual Folder group not found', undefined, destAbs)
+    rowPath = virtualFolderGroupRowPath(destAbs, entryId)
+    return { added: 1 }
+  })
+  let deletedSourcePath: string | undefined
+  if (opts?.deleteSource === true) {
+    await unprojectAndDeleteDocument(sourceAbs)
+    deletedSourcePath = sourceAbs
+  }
+  return { ...result, entryId, rowPath, deletedSourcePath }
+}
+
+/**
+ * Copy or move an embedded group into a different Virtual Folder document.
+ * Same-document moves should use `moveVirtualFolderEntries` instead.
+ */
+export async function transferVirtualFolderGroup(
+  sourceDocumentPath: string,
+  groupId: string,
+  destDocumentPath: string,
+  destGroupId?: string | null,
+  opts?: {
+    removeFromSource?: boolean
+    expectedSourceMtimeMs?: number
+    expectedDestMtimeMs?: number
+  }
+): Promise<{
+  entryId: string
+  rowPath: string
+  dest: VirtualFolderMutateResponse
+  source?: VirtualFolderMutateResponse
+}> {
+  const sourceAbs = requireAbsolute(sourceDocumentPath)
+  const destAbs = requireAbsolute(destDocumentPath)
+  const sameDoc = samePath(sourceAbs, destAbs)
+  if (sameDoc && opts?.removeFromSource === true) {
+    throw new AppError(
+      'validation',
+      'Use move within the same Virtual Folder document',
+      undefined,
+      destAbs
+    )
+  }
+  const loaded = await readDocumentFile(sourceAbs)
+  assertExpectedMtime(loaded.mtimeMs, opts?.expectedSourceMtimeMs)
+  const group = findEntryInTree(loaded.document.entries, groupId)
+  if (!group || !isEmbeddedVirtualFolderGroup(group)) {
+    throw new AppError('not-found', 'Virtual Folder group not found', undefined, sourceAbs)
+  }
+  if (sameDoc && opts?.removeFromSource !== true) {
+    // Duplicate within the same document (copy-drag).
+    if (destGroupId && isVirtualFolderGroupAncestor(loaded.document.entries, groupId, destGroupId)) {
+      throw new AppError(
+        'validation',
+        'Cannot copy a Virtual Folder into itself or a child of itself',
+        undefined,
+        destAbs
+      )
+    }
+  }
+  const children = rebaseVirtualFolderEntriesToDocument(
+    sourceAbs,
+    destAbs,
+    cloneEntries(group.children ?? [])
+  )
+  const preferredLabel = entryDisplayName(group)
+  let entryId = ''
+  let rowPath = ''
+  const dest = await mutateDocument(destAbs, opts?.expectedDestMtimeMs, (doc) => {
+    const siblings = getEntriesAtGroup(doc.entries, destGroupId ?? null)
+    if (siblings == null) {
+      throw new AppError('not-found', 'Virtual Folder group not found', undefined, destAbs)
+    }
+    entryId = newVirtualFolderEntryId()
+    const label = nextEmbeddedGroupLabel(preferredLabel, siblings)
+    const nextGroup: VirtualFolderEntry = {
+      id: entryId,
+      kind: 'virtualFolder',
+      label,
+      children
+    }
+    const ok = mapEntriesAtGroup(doc.entries, destGroupId ?? null, (list) => [...list, nextGroup])
+    if (!ok) throw new AppError('not-found', 'Virtual Folder group not found', undefined, destAbs)
+    rowPath = virtualFolderGroupRowPath(destAbs, entryId)
+    return { added: 1 }
+  })
+  let source: VirtualFolderMutateResponse | undefined
+  if (opts?.removeFromSource === true) {
+    source = await mutateDocument(sourceAbs, opts?.expectedSourceMtimeMs, (doc) => {
+      const removed = removeIdsFromTree(doc.entries, new Set([groupId]))
+      return { removed }
+    })
+  }
+  return { entryId, rowPath, dest, source }
+}
+
+/**
+ * Reparent entries (including whole embedded-group subtrees) within one document.
+ * Used for cut/drag of Virtual Folder rows — never treats opaque group paths as files.
+ */
+export async function moveVirtualFolderEntries(
+  documentPath: string,
+  entryIds: string[],
+  destGroupId: string | null | undefined,
+  expectedMtimeMs?: number
+): Promise<VirtualFolderMutateResponse> {
+  const abs = requireAbsolute(documentPath)
+  const dest = destGroupId && destGroupId.length > 0 ? destGroupId : null
+  return mutateDocument(abs, expectedMtimeMs, (doc) => {
+    for (const id of entryIds) {
+      if (dest && isVirtualFolderGroupAncestor(doc.entries, id, dest)) {
+        throw new AppError(
+          'validation',
+          'Cannot move a Virtual Folder into itself or a child of itself',
+          undefined,
+          abs
+        )
+      }
+    }
+    const destLevel = getEntriesAtGroup(doc.entries, dest)
+    if (destLevel == null) {
+      throw new AppError('not-found', 'Virtual Folder group not found', undefined, abs)
+    }
+    // Same-group no-op (already members of dest).
+    const destIds = new Set(destLevel.map((e) => e.id))
+    const toMove = entryIds.filter((id) => !destIds.has(id))
+    if (toMove.length === 0) return { added: 0, removed: 0 }
+
+    const taken = takeEntriesFromTree(doc.entries, toMove)
+    if (taken.length === 0) return { added: 0, removed: 0 }
+
+    const ok = mapEntriesAtGroup(doc.entries, dest, (list) => [...list, ...taken])
+    if (!ok) throw new AppError('not-found', 'Virtual Folder group not found', undefined, abs)
+    return { added: taken.length, removed: taken.length }
   })
 }
 

@@ -402,7 +402,8 @@ const settingsFieldsSchema = z.object({
    */
   /**
    * DEV-gated (win32): enable Virtual Folder OS projection UI (D68).
-   * Project/Unproject and badges require Settings → Appearance DEV gate + this toggle.
+   * When on (win32 + DEV gate): auto-project Virtual Folders to sibling WinFsp mounts.
+   * Unproject is opt-out; Project remounts. Badges require the same gates.
    */
   virtualFolderOsProjectionEnabled: z.boolean().catch(false),
   /**

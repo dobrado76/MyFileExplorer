@@ -1,32 +1,7 @@
-import { createElement, type JSX, type ReactNode } from 'react'
+import { createElement, type JSX } from 'react'
 import type { ItemAdsRecord } from '@shared/schemas/itemAds'
 import { resolveLucideIcon } from '../lib/lucideIcons'
-import { ShellIcon } from './ShellIcon'
-
-/** Tint only opaque shell-icon pixels (transparent areas stay clear). */
-export function ShellTint({ color, children }: { color: string; children: ReactNode }): JSX.Element {
-  const id = `mfe-shell-tint-${color.replace(/[^0-9a-fA-F]/g, '').toLowerCase()}`
-  return (
-    <span className="item-shell-tint">
-      <svg className="item-shell-tint-defs" width="0" height="0" aria-hidden>
-        <filter id={id} x="0" y="0" width="1" height="1" colorInterpolationFilters="sRGB">
-          <feColorMatrix
-            in="SourceGraphic"
-            type="saturate"
-            values="0"
-            result="gray"
-          />
-          <feFlood floodColor={color} result="flood" />
-          <feBlend in="flood" in2="gray" mode="color" result="tinted" />
-          <feComposite in="tinted" in2="SourceAlpha" operator="in" />
-        </filter>
-      </svg>
-      <span className="item-shell-tint-gfx" style={{ filter: `url(#${id})` }}>
-        {children}
-      </span>
-    </span>
-  )
-}
+import { ShellIcon, ShellTint } from './ShellIcon'
 
 type Props = {
   path: string

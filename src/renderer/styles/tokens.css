@@ -17,6 +17,7 @@
   --danger: #ef4444;
   --success: #22c55e;
   --folder-fill: #e8b64c;
+  --folder-fill-virtual: #fff6d0;
   --file-fill: #8b94a6;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   --git-status-modified: #eab308;
@@ -49,6 +50,7 @@
   --danger: #dc2626;
   --success: #16a34a;
   --folder-fill: #e8b64c;
+  --folder-fill-virtual: #fff6d0;
   --file-fill: #7a8294;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   --git-status-modified: #ca8a04;

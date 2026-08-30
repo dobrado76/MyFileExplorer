@@ -12,6 +12,7 @@ import {
   SpinnerIcon,
   WrapTextIcon
 } from '../../lib/icons'
+import { ShellIcon } from '../ShellIcon'
 import {
   AudioPreview,
   HtmlDocumentPreview,
@@ -532,7 +533,7 @@ function PreviewBody({
           ))}
         {model.kind === 'virtualFolder' && (
           <div className="preview-icon">
-            <FolderIcon size={56} />
+            <ShellIcon path={model.path} size={56} isDir />
           </div>
         )}
         {model.kind === 'archive' && (

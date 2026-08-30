@@ -5,13 +5,15 @@
  *
  * When enabled (browse / search without Show hidden):
  *   - items matching patterns are hidden
- *   - items with the Windows Hidden attribute are hidden (Explorer “don’t show hidden”)
+ *   - items with the Windows Hidden attribute are hidden (Explorer “don’t show hidden”),
+ *     except `.mfevirtual` documents (always shown in MFE; Hidden is for Explorer)
  * When disabled: everything shows; Windows-hidden items are greyed in the UI.
  *
  * Pattern language: see `src/shared/pathPatterns.ts`.
  */
 
 import { compilePathPatterns, type PathPatternPredicate } from '@shared/pathPatterns'
+import { isVirtualFolderDocumentPath } from '@shared/virtualFolder'
 
 export type ViewFilterPredicate = PathPatternPredicate
 
@@ -32,7 +34,11 @@ function predicateFor(patterns: string[]): ViewFilterPredicate {
   return cachedPredicate
 }
 
-/** True when the entry should be omitted from the view (patterns + Windows Hidden). */
+/**
+ * True when the entry should be omitted from the view (patterns + Windows Hidden).
+ * `.mfevirtual` documents stay visible even when Hidden on disk (Explorer-facing attr;
+ * MFE always surfaces Virtual Folders).
+ */
 export function isExcludedByViewFilter(
   entry: { path: string; isHidden: boolean },
   patterns: string[],
@@ -40,7 +46,13 @@ export function isExcludedByViewFilter(
   opts?: { ignoreHiddenAttr?: boolean }
 ): boolean {
   if (!enabled) return false
-  if (!opts?.ignoreHiddenAttr && entry.isHidden) return true
+  if (
+    !opts?.ignoreHiddenAttr &&
+    entry.isHidden &&
+    !isVirtualFolderDocumentPath(entry.path)
+  ) {
+    return true
+  }
   if (patterns.length === 0) return false
   return predicateFor(patterns)(entry.path)
 }

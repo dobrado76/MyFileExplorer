@@ -10,6 +10,19 @@ function invokeVoid<TRes>(channel: string): () => Promise<TRes> {
   return () => ipcRenderer.invoke(channel) as Promise<TRes>
 }
 
+/**
+ * Dev/HMR safety: allowlisted raw invoke when a typed method is missing from a
+ * stale contextBridge (preload rebuild without Electron restart).
+ */
+const ALLOWED_RAW_INVOKE = new Set<string>(Object.values(IPC))
+
+function invokeRaw(channel: string, req?: unknown): Promise<unknown> {
+  if (!ALLOWED_RAW_INVOKE.has(channel)) {
+    return Promise.reject(new Error(`IPC channel not allowlisted: ${channel}`))
+  }
+  return ipcRenderer.invoke(channel, req)
+}
+
 const api: MyFileExplorerApi = {
   fs: {
     list: invoke(IPC.fsList),
@@ -301,10 +314,14 @@ const api: MyFileExplorerApi = {
     createGroup: invoke(IPC.virtualFolderCreateGroup),
     add: invoke(IPC.virtualFolderAdd),
     remove: invoke(IPC.virtualFolderRemove),
+    move: invoke(IPC.virtualFolderMove),
     reorder: invoke(IPC.virtualFolderReorder),
     relink: invoke(IPC.virtualFolderRelink),
     setLabel: invoke(IPC.virtualFolderSetLabel),
     updatePaths: invoke(IPC.virtualFolderUpdatePaths),
+    extractGroup: invoke(IPC.virtualFolderExtractGroup),
+    absorbDocument: invoke(IPC.virtualFolderAbsorbDocument),
+    transferGroup: invoke(IPC.virtualFolderTransferGroup),
     previewStats: invoke(IPC.virtualFolderPreviewStats)
   },
   virtualFolderProject: {
@@ -319,7 +336,8 @@ const api: MyFileExplorerApi = {
     return () => {
       ipcRenderer.removeListener(EVENT_CHANNEL, listener)
     }
-  }
+  },
+  invokeRaw
 }
 
 contextBridge.exposeInMainWorld('myFileExplorer', api)

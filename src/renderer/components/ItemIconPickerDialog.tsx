@@ -6,7 +6,7 @@ import { api, call, IpcError } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { filterLucideIcons, humanizeIconName, resolveLucideIcon } from '../lib/lucideIcons'
 import { ShellIcon } from './ShellIcon'
-import { ShellTint } from './ItemGlyph'
+import { ShellTint } from './ShellIcon'
 
 const COLS = 10
 const CELL = 40

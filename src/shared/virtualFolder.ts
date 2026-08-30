@@ -198,12 +198,87 @@ export function parseVirtualFolderGroupPath(
   if (bar < 0) return null
   try {
     const documentPath = decodeURIComponent(rest.slice(0, bar))
-    const groupId = decodeURIComponent(rest.slice(bar + 1))
+    // Tolerate a accidental extra `|` (e.g. `doc||id`) from older path builders.
+    const groupId = decodeURIComponent(rest.slice(bar + 1).replace(/^\|+/, ''))
     if (!documentPath || !groupId) return null
     return { documentPath, groupId }
   } catch {
     return null
   }
+}
+
+/**
+ * Resolve a Virtual Folder entry id from a selection path.
+ * Prefers the listing side-map; falls back to parsing opaque group rows
+ * (needed when deleting/moving a group from the tree while that group is the cwd).
+ */
+export function virtualFolderEntryIdFromPath(
+  p: string,
+  entryIdByPathKey?: Record<string, string> | null
+): string | null {
+  if (entryIdByPathKey) {
+    const fromMap = entryIdByPathKey[pathKey(p)]
+    if (fromMap) return fromMap
+    // Opaque paths must not go through win-path normalization for lookup mismatch;
+    // try the raw key and a lowercased opaque key too.
+    if (isVirtualFolderGroupPath(p)) {
+      const raw = entryIdByPathKey[p] ?? entryIdByPathKey[p.toLowerCase()]
+      if (raw) return raw
+    }
+  }
+  return parseVirtualFolderGroupPath(p)?.groupId ?? null
+}
+
+/** True if `ancestorId` is `entryId` or an ancestor group of it. */
+export function isVirtualFolderGroupAncestor(
+  entries: readonly VirtualFolderEntry[],
+  ancestorId: string,
+  entryId: string
+): boolean {
+  if (ancestorId === entryId) return true
+  let cur: string | null | undefined = entryId
+  const guard = new Set<string>()
+  while (cur) {
+    if (guard.has(cur)) return false
+    guard.add(cur)
+    if (cur === ancestorId) return true
+    cur = findParentGroupId(entries, cur)
+    if (cur === null) return false
+  }
+  return false
+}
+
+/**
+ * Detach entries by id (keeping each subtree intact). Returns detached nodes in
+ * the order `entryIds` were requested (missing ids skipped).
+ */
+export function takeEntriesFromTree(
+  entries: VirtualFolderEntry[],
+  entryIds: readonly string[]
+): VirtualFolderEntry[] {
+  const idSet = new Set(entryIds)
+  const taken = new Map<string, VirtualFolderEntry>()
+  const strip = (list: VirtualFolderEntry[]): VirtualFolderEntry[] => {
+    const next: VirtualFolderEntry[] = []
+    for (const e of list) {
+      if (idSet.has(e.id)) {
+        taken.set(e.id, e)
+        continue
+      }
+      if (e.children) e.children = strip(e.children)
+      next.push(e)
+    }
+    return next
+  }
+  const remaining = strip(entries)
+  entries.length = 0
+  entries.push(...remaining)
+  const out: VirtualFolderEntry[] = []
+  for (const id of entryIds) {
+    const e = taken.get(id)
+    if (e) out.push(e)
+  }
+  return out
 }
 
 export function entryDisplayName(
@@ -233,6 +308,45 @@ export function walkVirtualFolderEntries(
   }
 }
 
+/** Deep clone of an entry list (new object graph; ids preserved). */
+export function cloneVirtualFolderEntries(
+  entries: readonly VirtualFolderEntry[]
+): VirtualFolderEntry[] {
+  return entries.map((e) => ({
+    ...e,
+    children: e.children ? cloneVirtualFolderEntries(e.children) : undefined
+  }))
+}
+
+/**
+ * Re-store entry paths for a different document directory (relative vs absolute).
+ * Embedded groups keep structure; only `path`/`relative` on leaf refs and legacy links change.
+ */
+export function rebaseVirtualFolderEntriesToDocument(
+  fromDocumentPath: string,
+  toDocumentPath: string,
+  entries: readonly VirtualFolderEntry[]
+): VirtualFolderEntry[] {
+  if (samePath(fromDocumentPath, toDocumentPath)) {
+    return cloneVirtualFolderEntries(entries)
+  }
+  const walk = (list: readonly VirtualFolderEntry[]): VirtualFolderEntry[] =>
+    list.map((e) => {
+      const next: VirtualFolderEntry = { ...e }
+      if (next.children) next.children = walk(next.children)
+      if (typeof next.path === 'string' && next.path.trim()) {
+        const resolved = resolveVirtualFolderEntryPath(fromDocumentPath, next)
+        if (resolved) {
+          const stored = chooseVirtualFolderStoredPath(toDocumentPath, resolved)
+          next.path = stored.path
+          next.relative = stored.relative
+        }
+      }
+      return next
+    })
+  return walk(entries)
+}
+
 /** Find an entry by id anywhere in the tree. */
 export function findEntryInTree(
   entries: readonly VirtualFolderEntry[],
@@ -246,6 +360,45 @@ export function findEntryInTree(
     }
   }
   return null
+}
+
+/**
+ * Parent embedded-group id for `entryId`, or `null` if it lives at document root.
+ * Returns `undefined` if the id is not in the tree.
+ */
+export function findParentGroupId(
+  entries: readonly VirtualFolderEntry[],
+  entryId: string,
+  parentGroupId: string | null = null
+): string | null | undefined {
+  for (const entry of entries) {
+    if (entry.id === entryId) return parentGroupId
+    if (entry.children) {
+      const found = findParentGroupId(entry.children, entryId, entry.id)
+      if (found !== undefined) return found
+    }
+  }
+  return undefined
+}
+
+/** Tree / list cache key for a Virtual Folder level (`groupId` null = document root). */
+export function virtualFolderTreeListPath(
+  documentPath: string,
+  groupId: string | null | undefined
+): string {
+  if (groupId) return virtualFolderGroupRowPath(documentPath, groupId)
+  return documentPath
+}
+
+/**
+ * Drop/paste target for the *currently open* Virtual Folder view.
+ * Document path alone always means root; pass the open group id when browsed into one.
+ */
+export function virtualFolderOpenCwdPath(
+  documentPath: string,
+  groupId: string | null | undefined
+): string {
+  return virtualFolderTreeListPath(documentPath, groupId)
 }
 
 /**
@@ -355,6 +508,7 @@ export function presentVirtualFolderAsDirEntry<
     kind: string
     size: number
     ext: string
+    isHidden?: boolean
   }
 >(entry: T): T {
   if (!isVirtualFolderExt(entry.name) && !isVirtualFolderDocumentPath(entry.path)) return entry
@@ -362,7 +516,10 @@ export function presentVirtualFolderAsDirEntry<
     ...entry,
     kind: 'dir',
     size: 0,
-    ext: VIRTUAL_FOLDER_EXT.slice(1)
+    ext: VIRTUAL_FOLDER_EXT.slice(1),
+    // FILE_ATTRIBUTE_HIDDEN on disk is for Explorer only (projected sibling).
+    // MFE always lists Virtual Folders as normal visible folders.
+    isHidden: false
   }
 }
 
@@ -429,6 +586,13 @@ export function virtualFolderProjectedMountPath(documentPath: string): string {
   const root = stripTrailingSep(normalizeSlashes(dir))
   if (/^[a-zA-Z]:$/i.test(root)) return `${root}\\${stem}`
   return `${root}\\${stem}`
+}
+
+/**
+ * Inverse of {@link virtualFolderProjectedMountPath}: projected `…\Name` → `…\Name.mfevirtual`.
+ */
+export function virtualFolderDocumentPathFromProjectedMount(mountPath: string): string {
+  return stripTrailingSep(normalizeSlashes(mountPath)) + VIRTUAL_FOLDER_EXT
 }
 
 /**
@@ -532,6 +696,28 @@ export function nextRealFolderName(
     n++
     if (n > 10_000) return `${base} (${Date.now()})`
   }
+}
+
+/**
+ * When `Name.mfevirtual` is present, hide a sibling directory named `Name`
+ * (WinFsp OS projection mount — otherwise MFE shows the document and the mount twice).
+ */
+export function filterOutProjectedMountPeers<T extends { path: string; kind?: string }>(
+  entries: T[]
+): T[] {
+  const vfStems = new Set<string>()
+  for (const e of entries) {
+    if (!isVirtualFolderDocumentPath(e.path)) continue
+    vfStems.add(virtualFolderStemFromFileName(basenameOf(e.path)).toLowerCase())
+  }
+  if (vfStems.size === 0) return entries
+  return entries.filter((e) => {
+    if (isVirtualFolderDocumentPath(e.path)) return true
+    if (e.kind != null && e.kind !== 'dir') return true
+    const base = basenameOf(e.path)
+    if (!base || isVirtualFolderExt(base)) return true
+    return !vfStems.has(base.toLowerCase())
+  })
 }
 
 /**

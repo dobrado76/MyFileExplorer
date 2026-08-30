@@ -3936,9 +3936,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <SettingsToggle
                   id="set-vf-os-projection"
                   label="Virtual Folder OS projection"
-                  hint="DEV-only. Show Project to Windows / Unproject on .mfevirtual. Requires the optional MfeVirtualFolderService and WinFsp (local disk only)."
+                  hint="DEV-only. When on, Virtual Folders auto-project to a sibling Windows folder (WinFsp) so Explorer and other apps see members. Requires MfeVirtualFolderService running (local disk only). Context Unproject is an opt-out; Project remounts."
                   checked={settings.virtualFolderOsProjectionEnabled === true}
-                  searchTerms="winfsp project unproject mount virtual folder d68"
+                  searchTerms="winfsp project unproject mount virtual folder d68 auto"
                   onChange={(v) => void applySettingsPatch({ virtualFolderOsProjectionEnabled: v })}
                 />
               )}

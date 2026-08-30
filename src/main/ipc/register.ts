@@ -229,27 +229,35 @@ import { registerAiIpc } from '../ai/ipc'
 import { registerGitIpc } from '../git/ipc'
 import { listScriptsForExport, replaceScriptsFromExport } from '../scripts/library'
 import {
+  absorbVirtualFolderDocument,
   addVirtualFolderEntries,
   createVirtualFolder,
   createVirtualFolderGroup,
+  extractVirtualFolderGroupToDocument,
   getVirtualFolder,
   listVirtualFolder,
+  moveVirtualFolderEntries,
   previewVirtualFolderStats,
   relinkVirtualFolderEntry,
   removeVirtualFolderEntries,
   reorderVirtualFolderEntries,
   setVirtualFolderEntryLabel,
+  transferVirtualFolderGroup,
   updateVirtualFolderTargetPaths
 } from '../virtualFolder'
 import {
+  virtualFolderAbsorbDocumentRequestSchema,
   virtualFolderAddRequestSchema,
   virtualFolderCreateGroupRequestSchema,
   virtualFolderCreateRequestSchema,
+  virtualFolderExtractGroupRequestSchema,
+  virtualFolderMoveRequestSchema,
   virtualFolderPathRequestSchema,
   virtualFolderRelinkRequestSchema,
   virtualFolderRemoveRequestSchema,
   virtualFolderReorderRequestSchema,
   virtualFolderSetLabelRequestSchema,
+  virtualFolderTransferGroupRequestSchema,
   virtualFolderUpdatePathsRequestSchema
 } from '@shared/schemas/virtualFolder'
 
@@ -1280,11 +1288,40 @@ export function registerIpcHandlers(): void {
       expectedMtimeMs: req.expectedMtimeMs
     })
   )
+  handle(IPC.virtualFolderExtractGroup, virtualFolderExtractGroupRequestSchema, (req) =>
+    extractVirtualFolderGroupToDocument(req.sourceDocumentPath, req.groupId, req.destParentDir, {
+      removeFromSource: req.removeFromSource,
+      name: req.name,
+      expectedMtimeMs: req.expectedMtimeMs
+    })
+  )
+  handle(IPC.virtualFolderAbsorbDocument, virtualFolderAbsorbDocumentRequestSchema, (req) =>
+    absorbVirtualFolderDocument(req.sourceDocumentPath, req.destDocumentPath, req.groupId, {
+      deleteSource: req.deleteSource,
+      expectedMtimeMs: req.expectedMtimeMs
+    })
+  )
+  handle(IPC.virtualFolderTransferGroup, virtualFolderTransferGroupRequestSchema, (req) =>
+    transferVirtualFolderGroup(
+      req.sourceDocumentPath,
+      req.groupId,
+      req.destDocumentPath,
+      req.destGroupId,
+      {
+        removeFromSource: req.removeFromSource,
+        expectedSourceMtimeMs: req.expectedSourceMtimeMs,
+        expectedDestMtimeMs: req.expectedDestMtimeMs
+      }
+    )
+  )
   handle(IPC.virtualFolderAdd, virtualFolderAddRequestSchema, (req) =>
     addVirtualFolderEntries(req.documentPath, req.paths, req.expectedMtimeMs, req.groupId)
   )
   handle(IPC.virtualFolderRemove, virtualFolderRemoveRequestSchema, (req) =>
     removeVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs)
+  )
+  handle(IPC.virtualFolderMove, virtualFolderMoveRequestSchema, (req) =>
+    moveVirtualFolderEntries(req.documentPath, req.entryIds, req.groupId, req.expectedMtimeMs)
   )
   handle(IPC.virtualFolderReorder, virtualFolderReorderRequestSchema, (req) =>
     reorderVirtualFolderEntries(req.documentPath, req.entryIds, req.expectedMtimeMs, req.groupId)

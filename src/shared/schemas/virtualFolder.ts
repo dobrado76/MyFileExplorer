@@ -194,6 +194,14 @@ export const virtualFolderRemoveRequestSchema = z.object({
   expectedMtimeMs: z.number().optional()
 })
 
+export const virtualFolderMoveRequestSchema = z.object({
+  documentPath: z.string().min(1),
+  entryIds: z.array(z.string().min(1)).min(1),
+  /** Destination embedded group; omit / null = document root. */
+  groupId: z.string().min(1).optional().nullable(),
+  expectedMtimeMs: z.number().optional()
+})
+
 export const virtualFolderReorderRequestSchema = z.object({
   documentPath: z.string().min(1),
   entryIds: z.array(z.string().min(1)),
@@ -225,6 +233,33 @@ export const virtualFolderCreateGroupRequestSchema = z.object({
   parentGroupId: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
   expectedMtimeMs: z.number().optional()
+})
+
+export const virtualFolderExtractGroupRequestSchema = z.object({
+  sourceDocumentPath: z.string().min(1),
+  groupId: z.string().min(1),
+  destParentDir: z.string().min(1),
+  removeFromSource: z.boolean().optional(),
+  name: z.string().min(1).optional(),
+  expectedMtimeMs: z.number().optional()
+})
+
+export const virtualFolderAbsorbDocumentRequestSchema = z.object({
+  sourceDocumentPath: z.string().min(1),
+  destDocumentPath: z.string().min(1),
+  groupId: z.string().min(1).optional().nullable(),
+  deleteSource: z.boolean().optional(),
+  expectedMtimeMs: z.number().optional()
+})
+
+export const virtualFolderTransferGroupRequestSchema = z.object({
+  sourceDocumentPath: z.string().min(1),
+  groupId: z.string().min(1),
+  destDocumentPath: z.string().min(1),
+  destGroupId: z.string().min(1).optional().nullable(),
+  removeFromSource: z.boolean().optional(),
+  expectedSourceMtimeMs: z.number().optional(),
+  expectedDestMtimeMs: z.number().optional()
 })
 
 export const virtualFolderUpdatePathsRequestSchema = z.object({
@@ -260,6 +295,27 @@ export type VirtualFolderMutateResponse = {
 export type VirtualFolderCreateGroupResponse = VirtualFolderMutateResponse & {
   entryId: string
   rowPath: string
+}
+
+export type VirtualFolderExtractGroupResponse = {
+  path: string
+  document: VirtualFolderDocument
+  mtimeMs: number
+  sourceMtimeMs?: number
+  sourceDocument?: VirtualFolderDocument
+}
+
+export type VirtualFolderAbsorbDocumentResponse = VirtualFolderMutateResponse & {
+  entryId: string
+  rowPath: string
+  deletedSourcePath?: string
+}
+
+export type VirtualFolderTransferGroupResponse = {
+  entryId: string
+  rowPath: string
+  dest: VirtualFolderMutateResponse
+  source?: VirtualFolderMutateResponse
 }
 
 export type VirtualFolderPreviewStats = {

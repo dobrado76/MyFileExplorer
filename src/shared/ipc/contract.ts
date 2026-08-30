@@ -236,11 +236,15 @@ export const IPC = {
   virtualFolderCreate: 'virtualFolder:create',
   virtualFolderAdd: 'virtualFolder:add',
   virtualFolderRemove: 'virtualFolder:remove',
+  virtualFolderMove: 'virtualFolder:move',
   virtualFolderReorder: 'virtualFolder:reorder',
   virtualFolderRelink: 'virtualFolder:relink',
   virtualFolderSetLabel: 'virtualFolder:setLabel',
   virtualFolderUpdatePaths: 'virtualFolder:updatePaths',
   virtualFolderCreateGroup: 'virtualFolder:createGroup',
+  virtualFolderExtractGroup: 'virtualFolder:extractGroup',
+  virtualFolderAbsorbDocument: 'virtualFolder:absorbDocument',
+  virtualFolderTransferGroup: 'virtualFolder:transferGroup',
   virtualFolderPreviewStats: 'virtualFolder:previewStats',
 
   /** Virtual Folder OS projection (D68) — registered on win32 only. */

@@ -36,6 +36,9 @@ export function isUnderPath(child: string, parent: string): boolean {
 }
 
 export function pathKey(p: string): string {
+  // Opaque Virtual Folder group rows are not filesystem paths — never run win
+  // slash collapsing on them (encoded `%5C` / `|` must stay intact).
+  if (typeof p === 'string' && p.startsWith('mfe-vfgroup:')) return p.toLowerCase()
   return winPathKey(p)
 }
 

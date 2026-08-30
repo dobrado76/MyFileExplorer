@@ -991,6 +991,12 @@ export type MyFileExplorerApi = {
       entryIds: string[]
       expectedMtimeMs?: number
     }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    move(req: {
+      documentPath: string
+      entryIds: string[]
+      groupId?: string | null
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
     reorder(req: {
       documentPath: string
       entryIds: string[]
@@ -1014,6 +1020,30 @@ export type MyFileExplorerApi = {
       renames: { from: string; to: string }[]
       expectedMtimeMs?: number
     }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderMutateResponse>>
+    extractGroup(req: {
+      sourceDocumentPath: string
+      groupId: string
+      destParentDir: string
+      removeFromSource?: boolean
+      name?: string
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderExtractGroupResponse>>
+    absorbDocument(req: {
+      sourceDocumentPath: string
+      destDocumentPath: string
+      groupId?: string | null
+      deleteSource?: boolean
+      expectedMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderAbsorbDocumentResponse>>
+    transferGroup(req: {
+      sourceDocumentPath: string
+      groupId: string
+      destDocumentPath: string
+      destGroupId?: string | null
+      removeFromSource?: boolean
+      expectedSourceMtimeMs?: number
+      expectedDestMtimeMs?: number
+    }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderTransferGroupResponse>>
     previewStats(req: {
       path: string
     }): Promise<Result<import('../schemas/virtualFolder').VirtualFolderPreviewStats>>
@@ -1037,4 +1067,9 @@ export type MyFileExplorerApi = {
     >
   }
   onEvent(handler: (event: MfeEvent) => void): () => void
+  /**
+   * Allowlisted raw IPC invoke (preload). Used when a typed method is missing from a
+   * stale contextBridge after a preload rebuild without a full Electron restart.
+   */
+  invokeRaw(channel: string, req?: unknown): Promise<unknown>
 }

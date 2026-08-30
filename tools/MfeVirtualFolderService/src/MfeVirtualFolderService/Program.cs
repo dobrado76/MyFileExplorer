@@ -7,7 +7,21 @@ using Microsoft.Extensions.Hosting;
 // (license). Resolve from the WinFsp bin directory at runtime.
 WinFspAssemblyResolve.Register();
 
+if (args.Any(a => string.Equals(a, "--install-autostart", StringComparison.OrdinalIgnoreCase)))
+{
+    Autostart.EnsureConsole();
+    Environment.Exit(Autostart.Install());
+}
+
+if (args.Any(a => string.Equals(a, "--uninstall-autostart", StringComparison.OrdinalIgnoreCase)))
+{
+    Autostart.EnsureConsole();
+    Environment.Exit(Autostart.Uninstall());
+}
+
 var console = args.Any(a => string.Equals(a, "--console", StringComparison.OrdinalIgnoreCase));
+if (console)
+    Autostart.EnsureConsole();
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton<MountRegistry>();
@@ -16,14 +30,17 @@ builder.Services.AddSingleton<MountCoordinator>();
 builder.Services.AddHostedService<PipeServerHost>();
 builder.Services.AddHostedService<RemountHostedService>();
 
+// SCM Windows Service is optional/advanced; default “setup once” is a per-user logon task
+// (--install-autostart). AddWindowsService still lets `sc create` work if someone prefers it.
 if (!console)
-{
     builder.Services.AddWindowsService(o => o.ServiceName = "MyFileExplorer Virtual Folder Projection");
-}
 
 var host = builder.Build();
-Console.WriteLine(
-    $"MfeVirtualFolderService starting (console={console}, WinFsp={host.Services.GetRequiredService<IMountBackend>().IsAvailable})");
+if (console)
+{
+    Console.WriteLine(
+        $"MfeVirtualFolderService starting (console={console}, WinFsp={host.Services.GetRequiredService<IMountBackend>().IsAvailable})");
+}
 await host.RunAsync();
 
 sealed class RemountHostedService : IHostedService

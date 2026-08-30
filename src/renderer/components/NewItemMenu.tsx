@@ -5,7 +5,7 @@ import { useAppStore } from '../store/appStore'
 import { NEW_FILE_TYPES } from '../lib/newItemTypes'
 import { joinPath } from '../lib/paths'
 import { ChevronDown, PlusIcon } from '../lib/icons'
-import { isVirtualFolderDocumentPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
+import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, parseVirtualFolderGroupPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
 import { ShellIcon } from './ShellIcon'
 
 /** Explorer-style “+ New” dropdown: folder, typed files, Other… */
@@ -31,14 +31,29 @@ export function NewItemMenu(): JSX.Element {
   const closeSubTimer = useRef<number | null>(null)
 
   const parent = listingPath || activePath
-  const inVirtualFolder = !!parent && isVirtualFolderDocumentPath(parent)
+  const groupRef = parent ? parseVirtualFolderGroupPath(parent) : null
+  const inVirtualFolder =
+    !!parent && (isVirtualFolderDocumentPath(parent) || !!groupRef)
   const disabled =
     recycleBinActive || !parent || (inVirtualFolder && virtualFolderReadOnly)
   /** Absolute probe paths for shell type icons (files need not exist). */
-  const folderProbe = parent ? joinPath(parent, '__mfe_new_folder') : ''
+  const folderProbe = parent
+    ? joinPath(
+        groupRef
+          ? virtualFolderDocumentDir(groupRef.documentPath) || groupRef.documentPath
+          : inVirtualFolder
+            ? virtualFolderDocumentDir(parent) || parent
+            : parent,
+        '__mfe_new_folder'
+      )
+    : ''
   const vfProbe = parent
     ? joinPath(
-        inVirtualFolder ? virtualFolderDocumentDir(parent) || parent : parent,
+        groupRef
+          ? virtualFolderDocumentDir(groupRef.documentPath) || groupRef.documentPath
+          : inVirtualFolder
+            ? virtualFolderDocumentDir(parent) || parent
+            : parent,
         '__mfe_new.mfevirtual'
       )
     : ''
@@ -210,7 +225,13 @@ export function NewItemMenu(): JSX.Element {
                   role="menuitem"
                   onClick={() => {
                     closeMenu()
-                    void createVirtualFolder(parent)
+                    if (groupRef) {
+                      void createVirtualFolder(groupRef.documentPath, {
+                        parentGroupId: groupRef.groupId
+                      })
+                    } else {
+                      void createVirtualFolder(parent)
+                    }
                   }}
                 >
                   <ShellIcon path={vfProbe || folderProbe} size={16} isDir />

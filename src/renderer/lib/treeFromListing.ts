@@ -1,6 +1,6 @@
 /** Dir children for the folder tree, matching the file list sort. */
 
-import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath } from '@shared/virtualFolder'
+import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 
 export function dirChildrenFromListing(
   entries: Array<{ path: string; name: string; kind: string; isHidden?: boolean; ext?: string }>
@@ -23,7 +23,10 @@ export function dirChildrenFromListing(
   const childLabels: Record<string, string> = {}
   for (const e of dirEntries) {
     if (e.isHidden) childHidden[e.path.toLowerCase()] = true
-    childLabels[e.path.toLowerCase()] = e.name
+    // Never surface `.mfevirtual` in tree labels (DirEntry.name still has the filename).
+    childLabels[e.path.toLowerCase()] = isVirtualFolderDocumentPath(e.path)
+      ? virtualFolderDisplayName(e.path)
+      : e.name
   }
   return { dirs, childHidden, childLabels }
 }

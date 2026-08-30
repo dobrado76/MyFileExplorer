@@ -17,6 +17,7 @@ import { getDriveTypeWin32 } from './drives'
 import { dedupeDirEntries } from '@shared/dirEntries'
 import {
   filterOutNestedVirtualFolderPeers,
+  filterOutProjectedMountPeers,
   isVirtualFolderDocumentPath,
   presentVirtualFolderAsDirEntry
 } from '@shared/virtualFolder'
@@ -172,10 +173,11 @@ export async function listDirectory(dirPath: string, includeHidden = true): Prom
   return { path: dir, entries }
 }
 
-/** Dedupe, allowlist, and hide nested VF peers that are members of another VF in this folder. */
+/** Dedupe, allowlist, hide projected mounts beside `.mfevirtual`, and legacy nested peers. */
 async function finalizeLocalListing(dir: string, raw: DirEntry[]): Promise<DirEntry[]> {
-  const entries = dedupeDirEntries(raw)
+  let entries = dedupeDirEntries(raw)
   protocolAllowlist.allowDir(dir)
+  entries = filterOutProjectedMountPeers(entries)
   const vfEntries = entries.filter((e) => isVirtualFolderDocumentPath(e.path))
   if (vfEntries.length < 2) return entries
 

@@ -454,16 +454,13 @@ export const Model3dFileIcon = svg(
   </>
 )
 
+/** Fallback flat glyph (shell+tint is preferred via ShellIcon). Pale vs --folder-fill. */
 export const VirtualFolderIcon = svg(
-  <>
-    <path
-      d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
-      fill="var(--folder-fill, #e8b64c)"
-      stroke="none"
-    />
-    <rect x="13.5" y="10" width="5.5" height="7" rx="0.6" fill="#f8fafc" stroke="#64748b" strokeWidth="1" />
-    <path d="M14.5 12.5h3.5M14.5 14.5h2.5" stroke="#64748b" strokeWidth="1" />
-  </>
+  <path
+    d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"
+    fill="var(--folder-fill-virtual, #fff6d0)"
+    stroke="none"
+  />
 )
 
 export function iconForEntry(ext: string, isDir: boolean): (props: IconProps) => JSX.Element {

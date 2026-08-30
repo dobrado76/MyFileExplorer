@@ -67,10 +67,12 @@ UTF-8 JSON, Git-friendly (2-space indent, stable key order, LF):
 
 In the UI the document is presented as a **folder**:
 
-- Listed and sorted with folders; Type = Virtual Folder; folder+paper icon
+- Listed and sorted with folders; Type = Virtual Folder; **same Windows shell folder glyph** as a normal folder, tinted to a clearly whiter yellow (`#fff6d0`)
 - Extension never shown in labels
-- Appears in the folder **tree**; expand shows groups and referenced folders; drop onto it adds references
+- Appears in the folder **tree**; expand shows groups and referenced folders at **any nesting depth**; drop onto it adds references
+- Navigating into nested groups auto-expands the document and each group on the stack so the current location stays visible in the tree
 - **Open as root in new tab** scopes the tree to the collection
+- **Windows:** the `.mfevirtual` file is created/kept with the **Hidden** attribute so Explorer (with “show hidden” off) typically only shows the projected sibling folder when OS projection is on. MFE always lists Virtual Folders regardless of the view-filter eye.
 
 Opening a referenced real folder navigates to that real path; opening an embedded group stays on the document and lists that group’s children. Back / Up pop the group stack, then leave the document (or return to the collection when tab-rooted).
 
@@ -78,8 +80,12 @@ Opening a referenced real folder navigates to that real path; opening an embedde
 
 - **New → Virtual Folder** (or context **Add → Virtual Folder**) in a real folder creates a `.mfevirtual` document on disk and starts inline rename.
 - Inside an open Virtual Folder, **New** / **Add** offers **only Virtual Folder** — inserts an **embedded group** into the current group (or root) and starts rename of its label. No second file on disk.
-- Drop or paste into an open Virtual Folder to add references into the **current group** (duplicates skipped). **Cut / move** from one Virtual Folder into another **moves the reference** (add to destination, remove from source). Copy leaves the source membership.
-- **Del** removes membership (or the whole embedded group); **Shift+Del** / **Delete from Disk…** uses normal delete confirms for real targets / document files.
+- **Context menu on an embedded group** is limited to open / new-tab / Add→Virtual Folder / cut-copy-paste-into / rename / remove-from-collection (no Explore, ZIP, search index, customize, video previews, Media Metadata, Project, etc.).
+- Drop or paste into an open Virtual Folder to add references into the **current group** (duplicates skipped). **Cut / move** from one Virtual Folder into another **moves the reference** (add to destination, remove from source). Copy leaves the source membership. **Cut / drag of embedded groups** reparents the JSON node (subtree intact) inside the same document.
+- **Extract:** drag / cut an **embedded group** onto a **real folder** writes a new `.mfevirtual` there (stem from the group label; name-clash rules apply). Member paths are rebased to the new document directory. **Move** removes the group from the source collection; **copy** leaves it.
+- **Absorb:** drag / cut a **`.mfevirtual` document** into another Virtual Folder (root or group) inserts an **embedded group** (label = document stem, children = that document’s tree, paths rebased). **Move** unprojects the source first (Windows), then deletes the `.mfevirtual` file so the sibling mount does not linger; **copy** leaves the file. Dropping a peer `.mfevirtual` (or its projected mount folder) no longer creates a legacy external link.
+- **Cross-document group transfer:** drag / cut an embedded group into a *different* Virtual Folder inserts the group there (paths rebased); move removes it from the source.
+- **Del** removes membership (or the whole embedded group); never treats `mfe-vfgroup:` rows as filesystem paths. **Shift+Del** / **Delete from Disk…** uses normal delete confirms for real targets / document files.
 
 ## UI wording
 
@@ -106,7 +112,7 @@ See [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md).
 
 ## Non-goals (v1 in-app)
 
-Smart/query folders, global Virtual Folder database, automatic link repair across disk, recursive expansion of member folders in the MFE UI, ADS, fake nested FS paths, volatile size/mtime in JSON, automatic migration of legacy sibling nested `.mfevirtual` files into embedded groups.
+Smart/query folders, global Virtual Folder database, automatic link repair across disk, recursive expansion of member folders in the MFE UI, ADS, fake nested FS paths, volatile size/mtime in JSON, automatic migration of every legacy sibling nested `.mfevirtual` on open (explicit absorb/extract via drag is supported).
 
 ## Related
 

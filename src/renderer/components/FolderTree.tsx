@@ -31,7 +31,13 @@ import {
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
-import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, parseVirtualFolderGroupPath, virtualFolderDisplayName } from '@shared/virtualFolder'
+import {
+  isVirtualFolderDocumentPath,
+  isVirtualFolderGroupPath,
+  parseVirtualFolderGroupPath,
+  virtualFolderDisplayName,
+  virtualFolderGroupRowPath
+} from '@shared/virtualFolder'
 import { ChevronDown, ChevronRight, RecycleBinIcon } from '../lib/icons'
 import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess'
 import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
@@ -51,6 +57,8 @@ type NodeState = {
 }
 type NodesMap = Record<string, NodeState>
 
+const EMPTY_GROUP_STACK: readonly string[] = []
+
 /** Explorer parity: hover a collapsed tree folder during drag to open it. */
 const DRAG_HOVER_EXPAND_MS = 2000
 
@@ -64,6 +72,36 @@ function pruneRemoved(map: NodesMap, removed: string[]): NodesMap {
     next[key] = children === node.children ? node : { ...node, children: children ?? null }
   }
   return next
+}
+
+/**
+ * When any reload parent is a Virtual Folder document/group, also reload every
+ * other loaded node for that document — otherwise a move can leave a ghost
+ * under an expanded source group that wasn't listed as the open cwd.
+ */
+function expandVirtualFolderReloadParents(map: NodesMap, parents: string[]): string[] {
+  const docs = new Set<string>()
+  for (const p of parents) {
+    if (isVirtualFolderDocumentPath(p)) docs.add(p.toLowerCase())
+    const g = parseVirtualFolderGroupPath(p)
+    if (g) docs.add(g.documentPath.toLowerCase())
+  }
+  if (docs.size === 0) return parents
+  const out: string[] = []
+  const seen = new Set<string>()
+  const add = (p: string): void => {
+    const k = p.toLowerCase()
+    if (seen.has(k)) return
+    seen.add(k)
+    out.push(p)
+  }
+  for (const p of parents) add(p)
+  for (const key of Object.keys(map)) {
+    if (isVirtualFolderDocumentPath(key) && docs.has(key.toLowerCase())) add(key)
+    const g = parseVirtualFolderGroupPath(key)
+    if (g && docs.has(g.documentPath.toLowerCase())) add(key)
+  }
+  return out
 }
 
 function rewriteRenamed(
@@ -128,6 +166,20 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const loadNetworkShares = useAppStore((s) => s.loadNetworkShares)
   const tabs = useAppStore((s) => s.tabs)
   const activePath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.path ?? '')
+  const groupStack = useAppStore(
+    (s) => s.tabs.find((t) => t.id === tabId)?.virtualFolderGroupStack ?? EMPTY_GROUP_STACK
+  )
+  /** Tree highlight: embedded group tip while browsing inside a Virtual Folder group. */
+  const activeTreePath = useMemo(() => {
+    if (
+      isVirtualFolderDocumentPath(activePath) &&
+      groupStack.length > 0 &&
+      groupStack[groupStack.length - 1]
+    ) {
+      return virtualFolderGroupRowPath(activePath, groupStack[groupStack.length - 1]!)
+    }
+    return activePath
+  }, [activePath, groupStack])
   const rootPath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.rootPath ?? null)
   const navigate = useAppStore((s) => s.navigate)
   const focusPane = useAppStore((s) => s.focusPane)
@@ -263,11 +315,15 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         if (lastCollapseRevRef.current !== collapseRevAtStart) return false
         return preserve ? (prevExpanded ?? false) : true
       }
+      /** Prefer the key already in the map so reloads hit the same node (opaque VF paths). */
+      const resolveTreeKey = (map: NodesMap, want: string): string =>
+        Object.keys(map).find((k) => samePath(k, want)) ?? want
       setNodes((n) => {
-        const prev = n[path]
+        const key = resolveTreeKey(n, path)
+        const prev = n[key]
         return {
           ...n,
-          [path]: {
+          [key]: {
             expanded: nextExpanded(prev?.expanded),
             children: prev?.children ?? null,
             loading: true,
@@ -286,10 +342,11 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           )
           setNodes(
             (n) => {
-              const prev = n[path]
+              const key = resolveTreeKey(n, path)
+              const prev = n[key]
               return {
                 ...n,
-                [path]: {
+                [key]: {
                   expanded: nextExpanded(prev?.expanded),
                   children: dirs,
                   loading: false,
@@ -306,10 +363,11 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         const { dirs, childHidden, childLabels } = dirChildrenFromListing(res.entries)
         setNodes(
           (n) => {
-            const prev = n[path]
+            const key = resolveTreeKey(n, path)
+            const prev = n[key]
             return {
               ...n,
-              [path]: {
+              [key]: {
                 expanded: nextExpanded(prev?.expanded),
                 children: dirs,
                 loading: false,
@@ -324,10 +382,11 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       } catch {
         setNodes(
           (n) => {
-            const prev = n[path]
+            const key = resolveTreeKey(n, path)
+            const prev = n[key]
             return {
               ...n,
-              [path]: {
+              [key]: {
                 expanded: nextExpanded(prev?.expanded),
                 children: [],
                 loading: false,
@@ -594,18 +653,27 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       })
     }
     const tabId = activeTabIdRef.current
-    for (const parent of treeMutation.reloadParents) {
+    const map = nodesRef.current
+    const parents = expandVirtualFolderReloadParents(map, treeMutation.reloadParents)
+    for (const parent of parents) {
       void loadChildren(parent, tabId, { preserveExpanded: true })
     }
   }, [treeMutation.rev, treeMutation.removed, treeMutation.reloadParents, treeMutation.renamed, loadChildren])
 
   // File list already re-listed this folder (e.g. dest mkdir mid-copy). Keep the
   // expanded tree row in lockstep so a new folder is not delayed until copy ends.
+  // Virtual Folder: listing.path is always the document; when groupId is set, sync
+  // the *group* tree node (not the document — that would wipe nested structure).
   useEffect(() => {
     const listed = listingForTab?.path
     if (!listed || listingForTab.loading) return
+    const vfGroupId = listingForTab.virtualFolder?.groupId
+    const treeKey =
+      isVirtualFolderDocumentPath(listed) && vfGroupId
+        ? virtualFolderGroupRowPath(listed, vfGroupId)
+        : listed
     const map = nodesRef.current
-    const key = Object.keys(map).find((k) => samePath(k, listed)) ?? listed
+    const key = Object.keys(map).find((k) => samePath(k, treeKey)) ?? treeKey
     const prev = map[key]
     if (!prev || (prev.children === null && !prev.expanded)) return
     const { dirs, childHidden, childLabels } = dirChildrenFromListing(listingForTab.entries)
@@ -619,7 +687,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         [key]: { ...cur, children: dirs, loading: false, childHidden, childLabels }
       }
     })
-  }, [listingForTab?.path, listingForTab?.entries, listingForTab?.loading, setNodes])
+  }, [
+    listingForTab?.path,
+    listingForTab?.entries,
+    listingForTab?.loading,
+    listingForTab?.virtualFolder?.groupId,
+    setNodes
+  ])
 
   // Refresh (F5): re-list every folder this tab has already loaded in the tree.
   useEffect(() => {
@@ -644,6 +718,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   // visible under Drives — but not when browsing via Quick access. Expanding
   // C:\Users\…\Downloads just because Downloads was clicked in Quick access
   // is noisy and collapses the useful shortcut UX.
+  // Virtual Folder: also expand the document + each embedded group on the stack
+  // (Tab.path stays the .mfevirtual file; nesting is not in the filesystem path).
   const inQuickAccess = useMemo(
     () =>
       !!activePath &&
@@ -653,31 +729,50 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     [activePath, quickAccess]
   )
 
+  const autoExpandKey = useMemo(() => {
+    if (!activePath) return ''
+    if (groupStack.length === 0) return activePath
+    return `${activePath}\0${groupStack.join('\0')}`
+  }, [activePath, groupStack])
+
   useEffect(() => {
     if (!activePath || inQuickAccess) return
-    if (skipAutoExpandPathRef.current === activePath) return
+    if (skipAutoExpandPathRef.current === autoExpandKey) return
     const tabId = activeTabId
     let cancelled = false
     const run = async (): Promise<void> => {
       const segs = segmentsOf(activePath).map((s) => s.path)
+      // When the active location is a Virtual Folder document, include it so we
+      // can expand into embedded groups below.
+      if (
+        isVirtualFolderDocumentPath(activePath) &&
+        (segs.length === 0 || !samePath(segs[segs.length - 1]!, activePath))
+      ) {
+        segs.push(activePath)
+      }
+      const groupSegs =
+        isVirtualFolderDocumentPath(activePath) && groupStack.length > 0
+          ? groupStack.map((gid) => virtualFolderGroupRowPath(activePath, gid))
+          : []
+      const chain = [...segs, ...groupSegs]
       // Expand all ancestors (the active folder itself only needs to be visible).
-      let key = segs[0]
-      for (let i = 0; i < segs.length - 1 && key; i++) {
+      let key = chain[0]
+      for (let i = 0; i < chain.length - 1 && key; i++) {
         if (cancelled || activeTabIdRef.current !== tabId) return
-        if (skipAutoExpandPathRef.current === activePath) return
+        if (skipAutoExpandPathRef.current === autoExpandKey) return
         const map = nodesRef.current
         const node = map[key]
         let children = node?.children
         if (!children) {
           children = await loadChildren(key, tabId)
           if (cancelled || activeTabIdRef.current !== tabId) return
-          if (skipAutoExpandPathRef.current === activePath) return
+          if (skipAutoExpandPathRef.current === autoExpandKey) return
         } else if (!node?.expanded) {
           const k = key
           setNodes((n) => (n[k] ? { ...n, [k]: { ...n[k]!, expanded: true } } : n), tabId)
         }
         // Use the exact child string as the next key so casing matches render keys.
-        const next = segs[i + 1]!
+        const next = chain[i + 1]!
         key = children.find((c) => samePath(c, next)) ?? next
       }
     }
@@ -685,7 +780,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     return () => {
       cancelled = true
     }
-  }, [activePath, activeTabId, inQuickAccess, loadChildren, setNodes])
+  }, [activePath, autoExpandKey, groupStack, activeTabId, inQuickAccess, loadChildren, setNodes])
 
   // Collapse all opened branches on this tab (toolbar). Leaves the file list as-is.
   useEffect(() => {
@@ -693,7 +788,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     if (treeCollapseRequest.tabId !== activeTabId) return
     if (treeCollapseRequest.rev === lastCollapseRevRef.current) return
     lastCollapseRevRef.current = treeCollapseRequest.rev
-    skipAutoExpandPathRef.current = activePath || null
+    skipAutoExpandPathRef.current = autoExpandKey || null
     setNodes((map) => {
       let changed = false
       const next: NodesMap = { ...map }
@@ -705,7 +800,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       }
       return changed ? next : map
     }, treeCollapseRequest.tabId)
-  }, [treeCollapseRequest, activeTabId, activePath, setNodes])
+  }, [treeCollapseRequest, activeTabId, autoExpandKey, setNodes])
 
   // Scroll the selected node into view once per navigation (per tab).
   const treeRef = useRef<HTMLDivElement>(null)
@@ -881,7 +976,18 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     // Collapsed → select parent (not above scoped root / drive root).
     if (rootPath && samePath(cursor, rootPath)) return
     if (isVolumeRootPath(cursor)) return
-    let parent = parentOf(cursor)
+    let parent: string | null = null
+    if (isVirtualFolderGroupPath(cursor)) {
+      const map = nodesRef.current
+      parent =
+        Object.keys(map).find((k) => map[k]?.children?.some((c) => samePath(c, cursor))) ?? null
+      if (!parent) {
+        const ref = parseVirtualFolderGroupPath(cursor)
+        parent = ref?.documentPath ?? null
+      }
+    } else {
+      parent = parentOf(cursor)
+    }
     if (!parent) return
     if (rootPath) {
       if (samePath(parent, rootPath) || isUnderPath(parent, rootPath)) {
@@ -905,7 +1011,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     // While browsing via Quick access, only highlight there — not the same
     // folder again under Drives (even if that branch was already expanded).
     const selected =
-      samePath(path, activePath) &&
+      samePath(path, activeTreePath) &&
       !(inQuickAccess && (section === 'drives' || section === 'network'))
     const treeFocused = treeFocusPath !== null && samePath(path, treeFocusPath)
     const fsHidden = isFsHidden(path, parentPath)
@@ -963,7 +1069,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
               return
             }
             noteItemClick(path)
-            void navigate(path, { tabId })
+            selectTreePath(path)
           }}
           onDoubleClick={(e) => {
             cancelDoubleSingleClick()
@@ -1123,10 +1229,9 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           visibleChildren?.map((child) =>
             renderNode(
               child,
-              nodes[path]?.childLabels?.[child.toLowerCase()] ??
-                (isVirtualFolderDocumentPath(child)
-                  ? virtualFolderDisplayName(child)
-                  : basename(child)),
+              isVirtualFolderDocumentPath(child)
+                ? virtualFolderDisplayName(child)
+                : (nodes[path]?.childLabels?.[child.toLowerCase()] ?? basename(child)),
               depth + 1,
               section,
               path

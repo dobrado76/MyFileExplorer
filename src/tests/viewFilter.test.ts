@@ -117,6 +117,16 @@ describe('isExcludedByViewFilter', () => {
     ).toBe(false)
   })
 
+  it('keeps Virtual Folder documents visible despite Hidden attribute', () => {
+    expect(
+      isExcludedByViewFilter(
+        { path: 'E:\\Movies\\Watch List.mfevirtual', isHidden: true },
+        [],
+        true
+      )
+    ).toBe(false)
+  })
+
   it('still applies patterns when enabled', () => {
     expect(
       isExcludedByViewFilter(

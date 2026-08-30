@@ -113,6 +113,15 @@ export async function projectionStatus(): Promise<ProjectionStatus> {
 }
 
 export async function projectionMount(documentPath: string): Promise<ProjectionMountInfo> {
+  // Hide legacy (pre-attr) documents when first projected so Explorer only shows the mount.
+  try {
+    const { applyVirtualFolderDocumentHiddenAttribute } = await import(
+      './documentHiddenAttr'
+    )
+    applyVirtualFolderDocumentHiddenAttribute(documentPath)
+  } catch {
+    /* ignore */
+  }
   const res = await call('mount', documentPath)
   if (!res.mount) throw new AppError('io', 'Mount succeeded but no mount info returned')
   return res.mount
@@ -120,6 +129,26 @@ export async function projectionMount(documentPath: string): Promise<ProjectionM
 
 export async function projectionUnmount(documentPath: string): Promise<void> {
   await call('unmount', documentPath)
+}
+
+/** Best-effort unmount — ignore missing service / not mounted (delete & rename paths). */
+export async function projectionUnmountBestEffort(documentPath: string): Promise<void> {
+  try {
+    await projectionUnmount(documentPath)
+  } catch {
+    /* service down or not projected */
+  }
+}
+
+/** Best-effort mount when Settings projection is on (create / ensure paths). */
+export async function projectionMountBestEffort(
+  documentPath: string
+): Promise<ProjectionMountInfo | null> {
+  try {
+    return await projectionMount(documentPath)
+  } catch {
+    return null
+  }
 }
 
 export async function projectionListMounts(): Promise<ProjectionMountInfo[]> {

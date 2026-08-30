@@ -38,6 +38,7 @@ import { resolveFolderView } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
 import { pathKey } from '@shared/paths'
+import { virtualFolderOpenCwdPath } from '@shared/virtualFolder'
 import {
   entryGitOverlay,
   gitStatusLabel,
@@ -63,7 +64,7 @@ import { FOLDER_STATS_STREAM_BY_COLUMN } from '@shared/folderStats'
 import { formatBytes, formatDate, typeLabel } from '../lib/format'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
-import { compileViewFilter } from '../lib/viewFilter'
+import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { detailsTableMinWidth } from '../lib/detailsTable'
 import { episodeIconLabel, episodeIconTitle, isEpisodeListEntry } from '@shared/mediaMetadata'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
@@ -351,11 +352,18 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const [width, setWidth] = useState(800)
   const [scrollBoxH, setScrollBoxH] = useState(0)
   // Whole-view outline is for multi-pane drop targeting only (single-pane: noise).
+  const cwdDropPath = useMemo(() => {
+    if (!listing.path) return ''
+    if (listing.virtualFolder) {
+      return virtualFolderOpenCwdPath(listing.path, listing.virtualFolder.groupId)
+    }
+    return listing.path
+  }, [listing.path, listing.virtualFolder])
   const bgDropActive = !!(
     viewLayout > 1 &&
     dropHighlightPath &&
-    listing.path &&
-    samePath(dropHighlightPath, listing.path)
+    cwdDropPath &&
+    samePath(dropHighlightPath, cwdDropPath)
   )
   const [marquee, setMarquee] = useState<{ l: number; t: number; w: number; h: number } | null>(
     null
@@ -734,17 +742,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const viewFilterOn = settings.viewFilterEnabled
   const viewPatterns = settings.viewFilterPatterns
-  const compiledFilter = useMemo(
-    () => compileViewFilter(viewPatterns, viewFilterOn),
-    [viewPatterns, viewFilterOn]
-  )
   const isExcluded = useMemo(
-    () => (e: { path: string; isHidden: boolean }) => {
-      if (!viewFilterOn) return false
-      if (e.isHidden) return true
-      return compiledFilter(e.path)
-    },
-    [viewFilterOn, compiledFilter]
+    () => (e: { path: string; isHidden: boolean }) =>
+      isExcludedByViewFilter(e, viewPatterns, viewFilterOn),
+    [viewFilterOn, viewPatterns]
   )
   const fileMetaColumns = useMemo(
     () =>
@@ -848,20 +849,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     let filtered = sourceEntries
     if (searchMode && !recycleMode) {
       if (!settings.searchShowHidden && viewFilterOn) {
-        if (viewPatterns.length === 0) {
-          const hasHidden = filtered.some((e) => e.isHidden)
-          if (hasHidden) filtered = filtered.filter((e) => !e.isHidden)
-        } else {
-          filtered = filtered.filter((e) => !isExcluded(e))
-        }
-      }
-    } else if (viewFilterOn && !recycleMode) {
-      if (viewPatterns.length === 0) {
-        const hasHidden = filtered.some((e) => e.isHidden)
-        if (hasHidden) filtered = filtered.filter((e) => !e.isHidden)
-      } else {
         filtered = filtered.filter((e) => !isExcluded(e))
       }
+    } else if (viewFilterOn && !recycleMode) {
+      filtered = filtered.filter((e) => !isExcluded(e))
     }
     const applyMedia =
       !recycleMode &&
@@ -1866,11 +1857,17 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     (e: React.DragEvent): void => {
       e.preventDefault()
       setDropHighlight(null)
-      const dest = listing.path
+      const dest = cwdDropPath
       const src = dragPaths[0]
       if (dragPaths.length === 0 || !src || !dest) return
-      // dropping into own folder is a no-op for move
-      if (dragPaths.every((p) => samePath(parentOf(p) ?? '', dest)) && !e.ctrlKey) return
+      // dropping into own folder is a no-op for move (real paths only; VF groups use membership)
+      if (
+        !listing.virtualFolder &&
+        dragPaths.every((p) => samePath(parentOf(p) ?? '', dest)) &&
+        !e.ctrlKey
+      ) {
+        return
+      }
       void performTransfer(
         dropOperation(src, dest, e.ctrlKey, e.shiftKey),
         dragPaths,
@@ -1880,7 +1877,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       )
       setDragPaths([])
     },
-    [dragPaths, listing.path, performTransfer, setDragPaths, setDropHighlight]
+    [
+      cwdDropPath,
+      dragPaths,
+      listing.virtualFolder,
+      performTransfer,
+      setDragPaths,
+      setDropHighlight
+    ]
   )
 
   if (!tab) return <div className="fileview" />
@@ -2197,23 +2201,23 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           }
         }}
         onDragOver={(e) => {
-          if (dragPaths.length > 0 && listing.path) {
+          if (dragPaths.length > 0 && cwdDropPath) {
             e.preventDefault()
-            setDropHighlight(listing.path)
+            setDropHighlight(cwdDropPath)
           }
         }}
         onDragLeave={(e) => {
           if (
             e.target === e.currentTarget &&
             dropHighlightPath &&
-            listing.path &&
-            samePath(dropHighlightPath, listing.path)
+            cwdDropPath &&
+            samePath(dropHighlightPath, cwdDropPath)
           ) {
             setDropHighlight(null)
           }
         }}
         onDrop={onBackgroundDrop}
-        data-drop-dir={listing.path}
+        data-drop-dir={cwdDropPath || listing.path}
       >
         {entries.length === 0 && !listing.loading && !search.running && !recycleBin.loading && (
           <div className="fileview-empty" data-bg="1">

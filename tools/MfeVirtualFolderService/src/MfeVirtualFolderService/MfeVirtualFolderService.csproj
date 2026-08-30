@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>MfeVirtualFolderService</RootNamespace>
     <AssemblyName>MfeVirtualFolderService</AssemblyName>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <UseWindowsService>true</UseWindowsService>
     <WinFspMsil Condition="Exists('C:\Program Files (x86)\WinFsp\bin\winfsp-msil.dll')">C:\Program Files (x86)\WinFsp\bin\winfsp-msil.dll</WinFspMsil>
     <WinFspMsil Condition="'$(WinFspMsil)'=='' and Exists('C:\Program Files\WinFsp\bin\winfsp-msil.dll')">C:\Program Files\WinFsp\bin\winfsp-msil.dll</WinFspMsil>

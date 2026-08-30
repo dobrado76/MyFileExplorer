@@ -14,7 +14,12 @@ import { FilePlus2 } from 'lucide-react'
 import { useAppStore, dropOperation } from '../store/appStore'
 import { samePath, basename, parentOf, joinPath } from '../lib/paths'
 import { pathKey } from '@shared/paths'
-import { isVirtualFolderDocumentPath, virtualFolderDocumentDir } from '@shared/virtualFolder'
+import {
+  isVirtualFolderDocumentPath,
+  isVirtualFolderGroupPath,
+  parseVirtualFolderGroupPath,
+  virtualFolderDocumentDir
+} from '@shared/virtualFolder'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
 import { isImageExt, isVideoExt } from '../lib/icons'
@@ -419,8 +424,13 @@ function newSubmenu(
   close: () => void,
   s: ReturnType<typeof useAppStore.getState>
 ): MenuItem {
-  const inVirtualFolder = isVirtualFolderDocumentPath(parent)
-  const createDir = inVirtualFolder ? virtualFolderDocumentDir(parent) || parent : parent
+  const groupRef = parseVirtualFolderGroupPath(parent)
+  const inVirtualFolder = isVirtualFolderDocumentPath(parent) || !!groupRef
+  const createDir = groupRef
+    ? virtualFolderDocumentDir(groupRef.documentPath) || groupRef.documentPath
+    : inVirtualFolder
+      ? virtualFolderDocumentDir(parent) || parent
+      : parent
   const folderProbe = joinPath(createDir, '__mfe_new_folder')
   const fileProbe = (ext: string): string => joinPath(parent, `__mfe_new${ext}`)
   if (inVirtualFolder) {
@@ -434,7 +444,13 @@ function newSubmenu(
           icon: <ShellIcon path={folderProbe} size={16} isDir />,
           action: () => {
             close()
-            void s.createVirtualFolder(parent)
+            if (groupRef) {
+              void s.createVirtualFolder(groupRef.documentPath, {
+                parentGroupId: groupRef.groupId
+              })
+            } else {
+              void s.createVirtualFolder(parent)
+            }
           }
         }
       ]
@@ -1206,6 +1222,7 @@ export function ContextMenu(): JSX.Element | null {
     if (isBackground) {
       const folderPath = s.activeTab().path
       const hasExact = !!findExactFolderView(folderPath, s.settings.folderViews)
+      const bgVfDoc = isVirtualFolderDocumentPath(folderPath)
       const undoLabel = s.undoLabel()
       const redoLabel = s.redoLabel()
       if (undoLabel || redoLabel) {
@@ -1249,45 +1266,50 @@ export function ContextMenu(): JSX.Element | null {
           }
         },
         ...((): MenuItem[] => {
+          if (bgVfDoc) return []
           const special = pasteSpecialMenu(folderPath, clipPeek, close, s)
           return special ? [special] : []
         })(),
         { type: 'sep' },
-        {
-          type: 'submenu',
-          label: 'Customize this folder',
-          builtin: 'customize-folder',
-          items: [
-            {
-              label: 'This folder only',
-              action: () => {
-                close()
-                void s.customizeFolderView(folderPath, false)
-              }
-            },
-            {
-              label: 'This folder and subfolders',
-              action: () => {
-                close()
-                void s.customizeFolderView(folderPath, true)
-              }
-            }
-          ]
-        },
-        ...(hasExact
-          ? [
+        ...(bgVfDoc
+          ? []
+          : ([
               {
-                type: 'item' as const,
-                label: 'Remove folder customization',
-                builtin: 'remove-folder-customization' as const,
-                action: () => {
-                  close()
-                  void s.removeFolderCustomization(folderPath)
-                }
-              }
-            ]
-          : []),
-        { type: 'sep' },
+                type: 'submenu' as const,
+                label: 'Customize this folder',
+                builtin: 'customize-folder' as const,
+                items: [
+                  {
+                    label: 'This folder only',
+                    action: () => {
+                      close()
+                      void s.customizeFolderView(folderPath, false)
+                    }
+                  },
+                  {
+                    label: 'This folder and subfolders',
+                    action: () => {
+                      close()
+                      void s.customizeFolderView(folderPath, true)
+                    }
+                  }
+                ]
+              },
+              ...(hasExact
+                ? [
+                    {
+                      type: 'item' as const,
+                      label: 'Remove folder customization',
+                      builtin: 'remove-folder-customization' as const,
+                      action: () => {
+                        close()
+                        void s.removeFolderCustomization(folderPath)
+                      }
+                    }
+                  ]
+                : []),
+              { type: 'sep' as const }
+            ] as MenuItem[])),
         {
           type: 'item',
           label: 'Copy path',
@@ -1306,38 +1328,42 @@ export function ContextMenu(): JSX.Element | null {
             void s.showInExplorer(folderPath)
           }
         },
-        ...(parseUnc(folderPath)?.kind === 'host'
+        ...(bgVfDoc || parseUnc(folderPath)?.kind === 'host'
           ? []
           : [openCommandLineMenuItem(folderPath, close, s, shiftHeld)]),
-        {
-          type: 'submenu',
-          label: 'Video previews',
-          builtin: 'video-previews',
-          items: [
-            {
-              label: 'Generate missing',
-              action: () => {
-                close()
-                void s.generateVideoThumbs([folderPath], 'missing')
-              }
-            },
-            {
-              label: 'Generate missing (all subfolders)',
-              action: () => {
-                close()
-                void s.generateVideoThumbs([folderPath], 'missing', { recursive: true })
-              }
-            },
-            {
-              label: 'Regenerate all',
-              action: () => {
-                close()
-                void s.generateVideoThumbs([folderPath], 'all')
-              }
-            }
-          ]
-        },
-        ...mediaMetadataMenu([folderPath], close, s, { treatAsFolders: true }),
+        ...(bgVfDoc
+          ? []
+          : ([
+              {
+                type: 'submenu' as const,
+                label: 'Video previews',
+                builtin: 'video-previews' as const,
+                items: [
+                  {
+                    label: 'Generate missing',
+                    action: () => {
+                      close()
+                      void s.generateVideoThumbs([folderPath], 'missing')
+                    }
+                  },
+                  {
+                    label: 'Generate missing (all subfolders)',
+                    action: () => {
+                      close()
+                      void s.generateVideoThumbs([folderPath], 'missing', { recursive: true })
+                    }
+                  },
+                  {
+                    label: 'Regenerate all',
+                    action: () => {
+                      close()
+                      void s.generateVideoThumbs([folderPath], 'all')
+                    }
+                  }
+                ]
+              },
+              ...mediaMetadataMenu([folderPath], close, s, { treatAsFolders: true })
+            ] as MenuItem[])),
         ...(itemAdsAvailable(s.platform, folderPath, s.recycleBin.active)
           ? [
               {
@@ -1369,17 +1395,21 @@ export function ContextMenu(): JSX.Element | null {
             s.openDialog({ kind: 'ads-manager', path: folderPath })
           }
         },
-        {
-          type: 'item',
-          label: 'Calculate Statistics',
-          hint: shiftHeld ? 'Skip tagged' : 'Shift = skip tagged',
-          builtin: 'calculate-folder-statistics',
-          disabled: folderPath.toLowerCase().startsWith('mfe-remote://'),
-          action: (ev) => {
-            close()
-            void s.calculateFolderStatistics(folderPath, { skipTagged: !!ev?.shiftKey })
-          }
-        },
+        ...(bgVfDoc
+          ? []
+          : [
+              {
+                type: 'item' as const,
+                label: 'Calculate Statistics',
+                hint: shiftHeld ? 'Skip tagged' : 'Shift = skip tagged',
+                builtin: 'calculate-folder-statistics' as const,
+                disabled: folderPath.toLowerCase().startsWith('mfe-remote://'),
+                action: (ev?: MenuActionEv) => {
+                  close()
+                  void s.calculateFolderStatistics(folderPath, { skipTagged: !!ev?.shiftKey })
+                }
+              }
+            ]),
         {
           type: 'item',
           label: 'Properties',
@@ -1411,8 +1441,11 @@ export function ContextMenu(): JSX.Element | null {
       action: () => {
         close()
         if (single) {
-          if (isDir) void s.navigate(single)
-          else {
+          if (isDir) {
+            const entry = entries.find((e) => samePath(e.path, single))
+            if (entry) void s.openEntry(entry)
+            else void s.navigate(single)
+          } else {
             const entry = entries.find((e) => samePath(e.path, single))
             if (entry) void s.openEntry(entry)
             else void s.openPath(single)
@@ -1436,6 +1469,121 @@ export function ContextMenu(): JSX.Element | null {
         }
       }
     })
+
+    // Embedded Virtual Folder groups are JSON nodes — not real directories.
+    // Offer only navigation / membership / nest-VF actions (no Explore, ZIP, index, ADS, …).
+    if (paths.length > 0 && paths.every((p) => isVirtualFolderGroupPath(p))) {
+      const vfReadOnly = s.listing.virtualFolder?.readOnly === true
+      if (single) {
+        result.push(
+          {
+            type: 'item',
+            label: 'Open in new tab',
+            builtin: 'open-in-new-tab',
+            action: () => {
+              close()
+              void s.newTab(single)
+            }
+          },
+          {
+            type: 'item',
+            label: 'Open as root in new tab',
+            builtin: 'open-as-root-in-new-tab',
+            action: () => {
+              close()
+              void s.newTab(single, single)
+            }
+          },
+          { type: 'sep' },
+          newSubmenu(single, close, s)
+        )
+      }
+      result.push(
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Cut',
+          hint: 'Ctrl+X',
+          builtin: 'cut',
+          action: () => {
+            close()
+            s.cutSelection(menu.inTree && single ? [single] : paths)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Copy',
+          hint: 'Ctrl+C',
+          builtin: 'copy',
+          action: () => {
+            close()
+            s.copySelection(menu.inTree && single ? [single] : paths)
+          }
+        }
+      )
+      if (single) {
+        result.push({
+          type: 'item',
+          label: 'Paste into folder',
+          hint: 'Ctrl+V · Ctrl plan',
+          builtin: 'paste-into-folder',
+          action: (ev) => {
+            close()
+            void s.pasteInto(single, { planMode: !!ev?.ctrlKey })
+          }
+        })
+      }
+      result.push(
+        { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Copy name',
+          builtin: 'copy-name',
+          action: () => {
+            close()
+            void s.copyPathsToClipboard(paths, true)
+          }
+        },
+        {
+          type: 'item',
+          label: 'Rename',
+          hint: 'F2',
+          disabled: paths.length !== 1,
+          builtin: 'rename',
+          action: () => {
+            close()
+            if (single) s.startRename(single, menu.inTree ? 'tree' : 'files')
+          }
+        },
+        {
+          type: 'item',
+          label: 'Remove from Virtual Folder',
+          hint: 'Del',
+          builtin: 'delete',
+          disabled: vfReadOnly,
+          action: () => {
+            close()
+            const byDoc = new Map<string, string[]>()
+            for (const p of paths) {
+              const ref = parseVirtualFolderGroupPath(p)
+              if (!ref) continue
+              const list = byDoc.get(ref.documentPath) ?? []
+              list.push(ref.groupId)
+              byDoc.set(ref.documentPath, list)
+            }
+            for (const [documentPath, entryIds] of byDoc) {
+              void s.removeFromVirtualFolder(entryIds, documentPath)
+            }
+          }
+        }
+      )
+      return filterHiddenBuiltins(
+        result,
+        s.settings.contextMenu.hiddenBuiltins,
+        s.settings.contextMenu.builtinLayout
+      )
+    }
+
     if (!isDir && single) {
       result.push({
         type: 'item',
@@ -1639,6 +1787,7 @@ export function ContextMenu(): JSX.Element | null {
       const unc = parseUnc(single)
       const isNetHost = unc?.kind === 'host'
       const isNetShare = unc?.kind === 'share'
+      const isVfDocument = isVirtualFolderDocumentPath(single)
       result.push({
         type: 'item',
         label: 'Open in new tab',
@@ -1716,71 +1865,73 @@ export function ContextMenu(): JSX.Element | null {
                 }
               }
         )
-        const hasExact = !!findExactFolderView(single, s.settings.folderViews)
-        result.push(
-          {
-            type: 'submenu',
-            label: 'Customize this folder',
-            builtin: 'customize-folder',
-            items: [
-              {
-                label: 'This folder only',
-                action: () => {
-                  close()
-                  void s.customizeFolderView(single, false)
-                }
-              },
-              {
-                label: 'This folder and subfolders',
-                action: () => {
-                  close()
-                  void s.customizeFolderView(single, true)
-                }
-              }
-            ]
-          },
-          {
-            type: 'submenu',
-            label: 'Video previews',
-            builtin: 'video-previews',
-            items: [
-              {
-                label: 'Generate missing',
-                action: () => {
-                  close()
-                  void s.generateVideoThumbs([single], 'missing')
-                }
-              },
-              {
-                label: 'Generate missing (all subfolders)',
-                action: () => {
-                  close()
-                  void s.generateVideoThumbs([single], 'missing', { recursive: true })
-                }
-              },
-              {
-                label: 'Regenerate all',
-                action: () => {
-                  close()
-                  void s.generateVideoThumbs([single], 'all')
-                }
-              }
-            ]
-          },
-          ...(hasExact
-            ? [
+        if (!isVfDocument) {
+          const hasExact = !!findExactFolderView(single, s.settings.folderViews)
+          result.push(
+            {
+              type: 'submenu',
+              label: 'Customize this folder',
+              builtin: 'customize-folder',
+              items: [
                 {
-                  type: 'item' as const,
-                  label: 'Remove folder customization',
-                  builtin: 'remove-folder-customization' as const,
+                  label: 'This folder only',
                   action: () => {
                     close()
-                    void s.removeFolderCustomization(single)
+                    void s.customizeFolderView(single, false)
+                  }
+                },
+                {
+                  label: 'This folder and subfolders',
+                  action: () => {
+                    close()
+                    void s.customizeFolderView(single, true)
                   }
                 }
               ]
-            : [])
-        )
+            },
+            {
+              type: 'submenu',
+              label: 'Video previews',
+              builtin: 'video-previews',
+              items: [
+                {
+                  label: 'Generate missing',
+                  action: () => {
+                    close()
+                    void s.generateVideoThumbs([single], 'missing')
+                  }
+                },
+                {
+                  label: 'Generate missing (all subfolders)',
+                  action: () => {
+                    close()
+                    void s.generateVideoThumbs([single], 'missing', { recursive: true })
+                  }
+                },
+                {
+                  label: 'Regenerate all',
+                  action: () => {
+                    close()
+                    void s.generateVideoThumbs([single], 'all')
+                  }
+                }
+              ]
+            },
+            ...(hasExact
+              ? [
+                  {
+                    type: 'item' as const,
+                    label: 'Remove folder customization',
+                    builtin: 'remove-folder-customization' as const,
+                    action: () => {
+                      close()
+                      void s.removeFolderCustomization(single)
+                    }
+                  }
+                ]
+              : [])
+          )
+        }
       }
     }
     {
@@ -1850,8 +2001,10 @@ export function ContextMenu(): JSX.Element | null {
           void s.pasteInto(single, { planMode: !!ev?.ctrlKey })
         }
       })
-      const special = pasteSpecialMenu(single, clipPeek, close, s)
-      if (special) result.push(special)
+      if (!isVirtualFolderDocumentPath(single)) {
+        const special = pasteSpecialMenu(single, clipPeek, close, s)
+        if (special) result.push(special)
+      }
     }
     if (
       s.platform === 'win32' &&
@@ -2110,7 +2263,8 @@ export function ContextMenu(): JSX.Element | null {
               }
             }
           ]),
-      ...(paths.length > 0
+      ...(paths.length > 0 &&
+      !paths.some((p) => isVirtualFolderDocumentPath(p) || isVirtualFolderGroupPath(p))
         ? [
             {
               type: 'item' as const,
@@ -2167,7 +2321,10 @@ export function ContextMenu(): JSX.Element | null {
           if (single) void s.showInExplorer(single)
         }
       },
-      ...(isDir && single && parseUnc(single)?.kind !== 'host'
+      ...(isDir &&
+      single &&
+      parseUnc(single)?.kind !== 'host' &&
+      !isVirtualFolderDocumentPath(single)
         ? [openCommandLineMenuItem(single, close, s, shiftHeld)]
         : []),
       { type: 'sep' },
@@ -2251,7 +2408,7 @@ export function ContextMenu(): JSX.Element | null {
             })()
       }
     )
-    if (isDir && single) {
+    if (isDir && single && !isVirtualFolderDocumentPath(single)) {
       result.push({ type: 'sep' })
       const isDriveRoot = /^[a-zA-Z]:\\?$/i.test(single.replace(/[\\/]+$/, ''))
       const uncKind = parseUnc(single)?.kind
@@ -2311,10 +2468,17 @@ export function ContextMenu(): JSX.Element | null {
     }
     result.push(
       { type: 'sep' },
-      ...mediaMetadataMenu(paths.length > 0 ? paths : single ? [single] : [], close, s, {
-        treatAsFolders: menu.inTree || (isDir && (paths.length <= 1)),
-        entries
-      }),
+      ...mediaMetadataMenu(
+        (paths.length > 0 ? paths : single ? [single] : []).filter(
+          (p) => !isVirtualFolderDocumentPath(p) && !isVirtualFolderGroupPath(p)
+        ),
+        close,
+        s,
+        {
+          treatAsFolders: menu.inTree || (isDir && (paths.length <= 1)),
+          entries
+        }
+      ),
       ...(single && itemAdsAvailable(s.platform, single, s.recycleBin.active)
         ? [
             {

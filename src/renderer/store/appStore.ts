@@ -38,9 +38,16 @@ import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
 import type { VirtualFolderDocument, VirtualFolderMembership } from '@shared/virtualFolder'
 import {
+  findParentGroupId,
   isVirtualFolderDocumentPath,
+  isVirtualFolderGroupPath,
   parseVirtualFolderGroupPath,
-  virtualFolderDocumentDir
+  virtualFolderDocumentDir,
+  virtualFolderDocumentPathFromProjectedMount,
+  virtualFolderEntryIdFromPath,
+  virtualFolderGroupRowPath,
+  virtualFolderOpenCwdPath,
+  virtualFolderTreeListPath
 } from '@shared/virtualFolder'
 import type { GitRepositoryStatus } from '@shared/schemas/git'
 import { gitRootKey } from '../lib/gitUi'
@@ -64,6 +71,7 @@ import {
   type WorkspaceLayout
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
+import { IPC } from '@shared/ipc/contract'
 import { formatBytes } from '../lib/format'
 import { clampFolderStatsTreemapMaxLeaves } from '@shared/folderStatsPreview'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
@@ -232,6 +240,8 @@ export type ClipboardState = {
   paths: string[]
   /** When cut/copy from a Virtual Folder listing — move pastes remove these memberships. */
   virtualFolderSource?: string
+  /** Embedded group id when the cut/copy was from a group (null = document root). */
+  virtualFolderSourceGroupId?: string | null
   virtualFolderEntryIds?: string[]
 } | null
 
@@ -673,6 +683,10 @@ type AppState = {
    * Populated only when win32 + virtualFolderOsProjectionEnabled.
    */
   projectedVirtualFolders: Record<string, string>
+  /**
+   * Documents the user explicitly Unprojected — auto-ensure skips them until Project.
+   */
+  projectedVirtualFolderOptOut: Record<string, true>
 
   // derived helpers
   activeTab(): Tab
@@ -836,13 +850,23 @@ type AppState = {
   showDrivesOverview(): void
   createFolder(parent?: string): Promise<void>
   /** Create an empty `.mfevirtual` collection and start inline rename (like New folder). */
-  createVirtualFolder(parent?: string): Promise<void>
+  createVirtualFolder(parent?: string, opts?: { parentGroupId?: string }): Promise<void>
   /** Open an embedded Virtual Folder group (absolute group stack from document root). */
   enterVirtualFolderGroup(documentPath: string, groupStack: string[]): Promise<void>
-  /** Add filesystem paths as references into an open Virtual Folder. */
-  addToVirtualFolder(documentPath: string, paths: string[]): Promise<void>
+  /** Add filesystem paths as references into a Virtual Folder (optional embedded group). */
+  addToVirtualFolder(
+    documentPath: string,
+    paths: string[],
+    opts?: { groupId?: string | null }
+  ): Promise<void>
   /** Remove membership rows (does not delete targets). Defaults to the open Virtual Folder. */
   removeFromVirtualFolder(entryIds: string[], documentPath?: string): Promise<void>
+  /** Reparent entries (incl. embedded groups) inside one Virtual Folder document. */
+  moveInVirtualFolder(
+    entryIds: string[],
+    destGroupId: string | null,
+    documentPath?: string
+  ): Promise<void>
   relinkVirtualFolderEntry(entryId: string, newPath: string): Promise<void>
   reorderVirtualFolder(entryIds: string[]): Promise<void>
   /** Nudge selection within Manual order (−1 = up, +1 = down). */
@@ -853,6 +877,11 @@ type AppState = {
   unprojectVirtualFolder(documentPath: string): Promise<void>
   /** Refresh `projectedVirtualFolders` from the projection service (no-op off win32 / when disabled). */
   refreshProjectedVirtualFolders(): Promise<void>
+  /**
+   * When OS projection is enabled: mount any of the given `.mfevirtual` docs that are not yet
+   * active (create / rename / listing ensure — silent, set-and-forget).
+   */
+  ensureVirtualFolderOsProjection(documentPaths: string[]): Promise<void>
   createNewFile(parent: string, name: string): Promise<void>
   /** Create “New …ext” with a unique name and start inline rename. */
   createTypedFile(parent: string, stem: string, ext: string): Promise<void>
@@ -3034,6 +3063,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     listing: { path: '', entries: [], loading: false, error: null, offline: false },
     gitByRoot: {},
     projectedVirtualFolders: {},
+    projectedVirtualFolderOptOut: {},
     selectionAnchor: null,
     focusedPath: null,
     fileListScrollRequest: null,
@@ -3594,6 +3624,26 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async navigate(path, opts) {
       const push = opts?.push ?? true
+      const groupRef = parseVirtualFolderGroupPath(path)
+      if (groupRef) {
+        // Opaque group rows are not filesystem paths — open via group stack on the document.
+        const tabId = opts?.tabId ?? get().activeTabId
+        const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
+        let stack: string[]
+        if (samePath(tab.path, groupRef.documentPath)) {
+          const cur = tab.virtualFolderGroupStack
+          const idx = cur.indexOf(groupRef.groupId)
+          stack = idx >= 0 ? cur.slice(0, idx + 1) : [...cur, groupRef.groupId]
+        } else {
+          stack = [groupRef.groupId]
+        }
+        // Switch active tab if navigate targeted another pane's tab.
+        if (tabId !== get().activeTabId) {
+          set({ activeTabId: tabId })
+        }
+        await get().enterVirtualFolderGroup(groupRef.documentPath, stack)
+        return
+      }
       if (get().drivesOverview) set({ drivesOverview: false })
       const s = get()
       const tabId = opts?.tabId ?? s.activeTabId
@@ -3625,7 +3675,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         historyListingCache.set(currentTab.path, currentListing.entries)
       }
       const leavingSearch = tab.search.active
-      if (push && (!samePath(old, path) || leavingSearch)) {
+      // Inside an embedded group, Tab.path is still the .mfevirtual document. Clicking the
+      // document in the tree must leave the group (like selecting a real parent folder).
+      const leavingVfGroup =
+        isVirtualFolderDocumentPath(path) &&
+        samePath(old, path) &&
+        tab.virtualFolderGroupStack.length > 0
+      if (push && (!samePath(old, path) || leavingSearch || leavingVfGroup)) {
         const here = currentLocation(tab)
         const last = tab.back[tab.back.length - 1]
         const back = last && sameHistoryEntry(last, here) ? tab.back : [...tab.back, here]
@@ -3642,7 +3698,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         updateTab(tabId, {
           path,
           selected: [],
-          virtualFolderGroupStack: samePath(old, path) ? tab.virtualFolderGroupStack : [],
+          // Navigating to a Virtual Folder document always opens its root, not a prior group.
+          virtualFolderGroupStack: isVirtualFolderDocumentPath(path)
+            ? []
+            : samePath(old, path)
+              ? tab.virtualFolderGroupStack
+              : [],
           search: leavingSearch ? emptyTabSearch(tab.search.indexedOnly) : tab.search
         })
       }
@@ -3668,7 +3729,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           void api.fs.unwatch({ path: oldParent })
         }
       }
-      await loadListing(path, { tabId })
+      await loadListing(path, { tabId, force: leavingVfGroup })
       if (tabId === get().activeTabId) {
         void get().ensureGitForActivePane()
       }
@@ -3997,7 +4058,19 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async newTab(path, rootPath) {
       const s = get()
-      const target = path ?? s.activeTab().path ?? s.settings.defaultNewTabPath ?? s.homePath
+      let target = path ?? s.activeTab().path ?? s.settings.defaultNewTabPath ?? s.homePath
+      let groupStack: string[] = []
+      const groupRef = parseVirtualFolderGroupPath(target)
+      if (groupRef) {
+        target = groupRef.documentPath
+        groupStack = [groupRef.groupId]
+      } else if (
+        path &&
+        isVirtualFolderDocumentPath(path) &&
+        samePath(path, s.activeTab().path)
+      ) {
+        groupStack = [...s.activeTab().virtualFolderGroupStack]
+      }
       const tab: Tab = {
         id: newTabId(),
         path: target,
@@ -4011,7 +4084,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         scrollOffset: 0,
         rootPath: rootPath ?? null,
         treeExpanded: [],
-        virtualFolderGroupStack: [],
+        virtualFolderGroupStack: groupStack,
         search: emptyTabSearch(s.settings.searchIndexedOnly)
       }
       const focusIdx = s.focusedPaneIndex
@@ -4934,7 +5007,15 @@ export const useAppStore = create<AppState>()((set, get) => {
           if (samePath(get().activeTab().path, groupRef.documentPath)) {
             await loadListing(groupRef.documentPath, { force: true, preserveSelection: true })
           }
-          notifyTreeReload([groupRef.documentPath])
+          const parentId = listing.virtualFolder?.document
+            ? findParentGroupId(listing.virtualFolder.document.entries, groupRef.groupId)
+            : null
+          notifyTreeReload([
+            virtualFolderTreeListPath(
+              groupRef.documentPath,
+              parentId === undefined ? null : parentId
+            )
+          ])
         } catch (e) {
           if (e instanceof IpcError && e.code === 'conflict') {
             const choice = await get().askVirtualFolderConflict()
@@ -4950,6 +5031,16 @@ export const useAppStore = create<AppState>()((set, get) => {
                   })
                 )
                 await loadListing(groupRef.documentPath, { force: true, preserveSelection: true })
+                const vfDoc = get().listing.virtualFolder?.document
+                const parentId = vfDoc
+                  ? findParentGroupId(vfDoc.entries, groupRef.groupId)
+                  : null
+                notifyTreeReload([
+                  virtualFolderTreeListPath(
+                    groupRef.documentPath,
+                    parentId === undefined ? null : parentId
+                  )
+                ])
               } catch (e2) {
                 reportOperationError('Rename failed', e2)
               }
@@ -5033,6 +5124,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         }
         await syncOpenVirtualFoldersAfterRenames([{ from: path, to: res.path }])
+        if (isVirtualFolderDocumentPath(res.path)) {
+          void get().ensureVirtualFolderOsProjection([res.path])
+        }
       } catch (e) {
         if (!destOccupied) {
           const stillAtSource = get().listing.entries.some((en) => samePath(en.path, path))
@@ -5210,7 +5304,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async createFolder(parent) {
       const dir = parent ?? get().activeTab().path
-      if (isVirtualFolderDocumentPath(dir)) {
+      if (isVirtualFolderDocumentPath(dir) || isVirtualFolderGroupPath(dir)) {
         get().notify('Cannot create a folder inside a Virtual Folder — add a real folder reference instead', true)
         return
       }
@@ -5239,7 +5333,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       await loadListing(documentPath, { force: true, tabId: id })
     },
 
-    async createVirtualFolder(parent) {
+    async createVirtualFolder(parent, opts) {
       const target = parent ?? get().activeTab().path
       if (!target || get().recycleBin.active) {
         get().notify('Open a folder to create a Virtual Folder', true)
@@ -5258,9 +5352,11 @@ export const useAppStore = create<AppState>()((set, get) => {
             return
           }
           const parentGroupId =
-            listing.virtualFolder && samePath(listing.path, nestInDoc)
-              ? listing.virtualFolder.groupId ?? undefined
-              : get().activeTab().virtualFolderGroupStack.at(-1)
+            opts?.parentGroupId !== undefined
+              ? opts.parentGroupId
+              : listing.virtualFolder && samePath(listing.path, nestInDoc)
+                ? listing.virtualFolder.groupId ?? undefined
+                : get().activeTab().virtualFolderGroupStack.at(-1)
           const expected =
             listing.virtualFolder && samePath(listing.path, nestInDoc)
               ? listing.virtualFolder.mtimeMs
@@ -5291,6 +5387,9 @@ export const useAppStore = create<AppState>()((set, get) => {
             }
           }
           await loadListing(nestInDoc, { force: true })
+          notifyTreeReload([
+            virtualFolderTreeListPath(nestInDoc, parentGroupId ?? null)
+          ])
           get().setSelection([res.rowPath], res.rowPath, res.rowPath)
           get().startRename(res.rowPath)
           return
@@ -5305,12 +5404,21 @@ export const useAppStore = create<AppState>()((set, get) => {
         await get().refresh()
         get().setSelection([res.path], res.path, res.path)
         get().startRename(res.path)
+        // Set-and-forget: when OS projection is enabled, mount immediately (no manual Project).
+        set((st) => {
+          const key = pathKey(res.path)
+          if (!st.projectedVirtualFolderOptOut[key]) return st
+          const optOut = { ...st.projectedVirtualFolderOptOut }
+          delete optOut[key]
+          return { projectedVirtualFolderOptOut: optOut }
+        })
+        void get().ensureVirtualFolderOsProjection([res.path])
       } catch (e) {
         reportOperationError('New Virtual Folder failed', e)
       }
     },
 
-    async addToVirtualFolder(documentPath, paths) {
+    async addToVirtualFolder(documentPath, paths, opts) {
       if (!isVirtualFolderDocumentPath(documentPath) || paths.length === 0) return
       const listing = get().listing
       if (listing.virtualFolder && samePath(listing.path, documentPath) && listing.virtualFolder.readOnly) {
@@ -5318,9 +5426,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       const groupId =
-        listing.virtualFolder && samePath(listing.path, documentPath)
-          ? listing.virtualFolder.groupId ?? undefined
-          : get().activeTab().virtualFolderGroupStack.at(-1)
+        opts && 'groupId' in opts
+          ? opts.groupId ?? undefined
+          : listing.virtualFolder && samePath(listing.path, documentPath)
+            ? listing.virtualFolder.groupId ?? undefined
+            : get().activeTab().virtualFolderGroupStack.at(-1)
       const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
         const res = await call(
           api.virtualFolder.add({
@@ -5344,6 +5454,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (samePath(get().activeTab().path, documentPath)) {
           await loadListing(documentPath, { force: true, preserveSelection: true })
         }
+        notifyTreeReload([virtualFolderTreeListPath(documentPath, groupId ?? null)])
       }
       const expected =
         listing.virtualFolder && samePath(listing.path, documentPath)
@@ -5404,6 +5515,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (samePath(get().activeTab().path, doc)) {
           await loadListing(doc, { force: true })
         }
+        const parentGroupId =
+          listing.virtualFolder && samePath(listing.path, doc)
+            ? listing.virtualFolder.groupId
+            : get().activeTab().virtualFolderGroupStack.at(-1) ?? null
+        notifyTreeReload([virtualFolderTreeListPath(doc, parentGroupId)])
       }
       try {
         await run(expectedFromOpen)
@@ -5422,6 +5538,99 @@ export const useAppStore = create<AppState>()((set, get) => {
           return
         }
         reportOperationError('Remove from Virtual Folder failed', e)
+      }
+    },
+
+    async moveInVirtualFolder(entryIds, destGroupId, documentPath) {
+      if (entryIds.length === 0) return
+      const listing = get().listing
+      const doc =
+        documentPath && isVirtualFolderDocumentPath(documentPath)
+          ? documentPath
+          : listing.virtualFolder
+            ? listing.path
+            : null
+      if (!doc) return
+      if (
+        listing.virtualFolder &&
+        samePath(listing.path, doc) &&
+        listing.virtualFolder.readOnly
+      ) {
+        get().notify('Virtual Folder is read-only', true)
+        return
+      }
+      // Capture real parents before mutate — open cwd alone misses "drag from
+      // expanded subtree onto another group / root".
+      const srcParentIds = new Set<string | null>()
+      const docEntries = listing.virtualFolder?.document?.entries
+      if (docEntries && samePath(listing.path, doc)) {
+        for (const id of entryIds) {
+          const parent = findParentGroupId(docEntries, id)
+          if (parent !== undefined) srcParentIds.add(parent)
+        }
+      }
+      if (srcParentIds.size === 0) {
+        srcParentIds.add(
+          listing.virtualFolder && samePath(listing.path, doc)
+            ? listing.virtualFolder.groupId
+            : get().activeTab().virtualFolderGroupStack.at(-1) ?? null
+        )
+      }
+      const expected =
+        listing.virtualFolder && samePath(listing.path, doc)
+          ? listing.virtualFolder.mtimeMs
+          : undefined
+      const run = async (expectedMtimeMs: number | undefined): Promise<void> => {
+        const req = {
+          documentPath: doc,
+          entryIds,
+          groupId: destGroupId,
+          expectedMtimeMs
+        }
+        const moveFn = api.virtualFolder.move
+        if (typeof moveFn === 'function') {
+          await call(moveFn(req))
+        } else if (typeof api.invokeRaw === 'function') {
+          await call(
+            api.invokeRaw(IPC.virtualFolderMove, req) as ReturnType<typeof api.virtualFolder.move>
+          )
+        } else {
+          throw new Error(
+            'Virtual Folder move is unavailable — fully quit and restart MyFileExplorer'
+          )
+        }
+        get().notify(
+          `Moved ${entryIds.length} item${entryIds.length === 1 ? '' : 's'} in Virtual Folder`
+        )
+        if (samePath(get().activeTab().path, doc)) {
+          await loadListing(doc, { force: true })
+        }
+        // Always include the document path so FolderTree can refresh every loaded
+        // group node under this VF (avoids ghosts under expanded source parents).
+        const reloadParents = [
+          doc,
+          virtualFolderTreeListPath(doc, destGroupId),
+          ...[...srcParentIds].map((pid) => virtualFolderTreeListPath(doc, pid))
+        ]
+        notifyTreeReload([...new Set(reloadParents)])
+      }
+      try {
+        await run(expected)
+      } catch (e) {
+        if (e instanceof IpcError && e.code === 'conflict') {
+          const choice = await get().askVirtualFolderConflict()
+          if (choice === 'reload') {
+            if (samePath(get().activeTab().path, doc)) await loadListing(doc, { force: true })
+          } else if (choice === 'overwrite') {
+            try {
+              await run(undefined)
+            } catch (e2) {
+              reportOperationError('Move in Virtual Folder failed', e2)
+            }
+          }
+          return
+        }
+        reportOperationError('Move in Virtual Folder failed', e)
       }
     },
 
@@ -5555,8 +5764,20 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       try {
         const info = await call(api.virtualFolderProject.mount({ path: documentPath }))
+        const key = pathKey(info.documentPath || documentPath)
+        set((st) => {
+          const optOut = { ...st.projectedVirtualFolderOptOut }
+          delete optOut[key]
+          return {
+            projectedVirtualFolders: {
+              ...st.projectedVirtualFolders,
+              [key]: info.mountPath
+            },
+            projectedVirtualFolderOptOut: optOut
+          }
+        })
         get().notify(`Projected to ${info.mountPath}`)
-        await get().refreshProjectedVirtualFolders()
+        await get().refresh()
       } catch (e) {
         reportOperationError('Project to Windows failed', e)
       }
@@ -5566,11 +5787,65 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (get().platform !== 'win32' || !get().devGateActive) return
       try {
         await call(api.virtualFolderProject.unmount({ path: documentPath }))
+        const key = pathKey(documentPath)
+        set((st) => {
+          const projected = { ...st.projectedVirtualFolders }
+          delete projected[key]
+          return {
+            projectedVirtualFolders: projected,
+            projectedVirtualFolderOptOut: { ...st.projectedVirtualFolderOptOut, [key]: true }
+          }
+        })
         get().notify('Unprojected')
-        await get().refreshProjectedVirtualFolders()
       } catch (e) {
         reportOperationError('Unproject failed', e)
       }
+    },
+
+    async ensureVirtualFolderOsProjection(documentPaths) {
+      const s = get()
+      if (
+        s.platform !== 'win32' ||
+        !s.devGateActive ||
+        !s.settings?.virtualFolderOsProjectionEnabled
+      ) {
+        return
+      }
+      const want = [
+        ...new Set(
+          documentPaths.filter((p) => isVirtualFolderDocumentPath(p)).map((p) => pathKey(p))
+        )
+      ]
+      if (want.length === 0) return
+      const already = s.projectedVirtualFolders
+      const optOut = s.projectedVirtualFolderOptOut
+      const missing = want.filter((k) => !already[k] && !optOut[k])
+      if (missing.length === 0) return
+      const byKey = new Map<string, string>()
+      for (const p of documentPaths) {
+        if (isVirtualFolderDocumentPath(p)) byKey.set(pathKey(p), p)
+      }
+      for (const e of s.listing.entries) {
+        if (isVirtualFolderDocumentPath(e.path)) byKey.set(pathKey(e.path), e.path)
+      }
+      let changed = false
+      for (const k of missing) {
+        const path = byKey.get(k)
+        if (!path) continue
+        try {
+          const info = await call(api.virtualFolderProject.mount({ path }))
+          set((st) => ({
+            projectedVirtualFolders: {
+              ...st.projectedVirtualFolders,
+              [pathKey(info.documentPath || path)]: info.mountPath
+            }
+          }))
+          changed = true
+        } catch {
+          /* service down / stem clash — leave unprojected; manual Project still available */
+        }
+      }
+      if (changed) void get().refresh()
     },
 
     async refreshProjectedVirtualFolders() {
@@ -5580,8 +5855,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         !s.devGateActive ||
         !s.settings?.virtualFolderOsProjectionEnabled
       ) {
-        if (Object.keys(s.projectedVirtualFolders).length > 0) {
-          set({ projectedVirtualFolders: {} })
+        if (
+          Object.keys(s.projectedVirtualFolders).length > 0 ||
+          Object.keys(s.projectedVirtualFolderOptOut).length > 0
+        ) {
+          set({ projectedVirtualFolders: {}, projectedVirtualFolderOptOut: {} })
         }
         return
       }
@@ -5593,8 +5871,14 @@ export const useAppStore = create<AppState>()((set, get) => {
           next[pathKey(m.documentPath)] = m.mountPath
         }
         set({ projectedVirtualFolders: next })
+        const docs: string[] = []
+        for (const e of get().listing.entries) {
+          if (isVirtualFolderDocumentPath(e.path)) docs.push(e.path)
+        }
+        const tabPath = get().activeTab().path
+        if (isVirtualFolderDocumentPath(tabPath)) docs.push(tabPath)
+        if (docs.length > 0) void get().ensureVirtualFolderOsProjection(docs)
       } catch {
-        // Service may be stopped — clear stale badges rather than keep lying.
         set({ projectedVirtualFolders: {} })
       }
     },
@@ -5630,6 +5914,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async createTypedFile(parent, stem, ext) {
+      if (isVirtualFolderDocumentPath(parent) || isVirtualFolderGroupPath(parent)) {
+        get().notify('Cannot create a file inside a Virtual Folder — paste or drop a real file to add a reference', true)
+        return
+      }
       const suffix = ext.startsWith('.') || ext === '' ? ext : `.${ext}`
       try {
         if (!samePath(parent, get().activeTab().path)) await get().navigate(parent)
@@ -5707,7 +5995,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
       set({ clipboard: clipboardFromSelection(get, 'copy', selected) })
-      void api.shell.clipboardWriteFiles({ paths: selected, effect: 'copy' })
+      const osPaths = selected.filter((p) => !isVirtualFolderGroupPath(p))
+      if (osPaths.length > 0) {
+        void api.shell.clipboardWriteFiles({ paths: osPaths, effect: 'copy' })
+      }
       get().notify(`Copied ${selected.length} item${selected.length > 1 ? 's' : ''}`)
     },
 
@@ -5715,7 +6006,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       const selected = paths ?? get().activeTab().selected
       if (selected.length === 0) return
       set({ clipboard: clipboardFromSelection(get, 'cut', selected) })
-      void api.shell.clipboardWriteFiles({ paths: selected, effect: 'move' })
+      const osPaths = selected.filter((p) => !isVirtualFolderGroupPath(p))
+      if (osPaths.length > 0) {
+        void api.shell.clipboardWriteFiles({ paths: osPaths, effect: 'move' })
+      }
       get().notify(`Cut ${selected.length} item${selected.length > 1 ? 's' : ''}`)
     },
 
@@ -5725,14 +6019,19 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async pasteInto(destDir, opts) {
       if (get().recycleBin.active) return
-      if (isVirtualFolderDocumentPath(destDir)) {
+      const resolvedDest = pasteDestinationPath(destDir, get)
+      const vfDest = resolveVirtualFolderDropTarget(resolvedDest)
+      if (vfDest) {
         const clip = await resolveClipboard(get)
         if (clip && clip.paths.length > 0) {
-          await get().addToVirtualFolder(destDir, clip.paths)
-          if (clip.mode === 'cut') {
-            await moveVirtualFolderMembershipAfterAdd(get, destDir, clip)
-            set({ clipboard: null })
-          }
+          const ok = await get().performTransfer(
+            clip.mode === 'cut' ? 'move' : 'copy',
+            clip.paths,
+            resolvedDest,
+            clip.mode === 'cut',
+            opts?.planMode === true
+          )
+          if (ok && clip.mode === 'cut') set({ clipboard: null })
           return
         }
         get().notify('Clipboard has no files to add', true)
@@ -5801,28 +6100,238 @@ export const useAppStore = create<AppState>()((set, get) => {
       planMode = false,
       planChoice: FileOpPlanChoice | null = null
     ) {
-      if (isVirtualFolderDocumentPath(destinationDir)) {
-        await get().addToVirtualFolder(destinationDir, sources)
-        if (op === 'move') {
+      const vfDest = resolveVirtualFolderDropTarget(destinationDir)
+      if (vfDest) {
+        try {
           const listing = get().listing
-          if (listing.virtualFolder && !samePath(listing.path, destinationDir)) {
-            const ids = sources
-              .map((p) => listing.virtualFolder!.entryIdByPathKey[pathKey(p)])
-              .filter((id): id is string => !!id)
+          const remove = op === 'move'
+          const projected = get().projectedVirtualFolders
+          const resolveAbsorbDoc = (p: string): string | null => {
+            if (isVirtualFolderDocumentPath(p)) return p
+            for (const mount of Object.values(projected)) {
+              if (samePath(mount, p)) return virtualFolderDocumentPathFromProjectedMount(mount)
+            }
+            const sibling = virtualFolderDocumentPathFromProjectedMount(p)
+            if (pathKey(sibling) in projected) return sibling
+            return null
+          }
+
+          const groupSources = sources.filter((p) => isVirtualFolderGroupPath(p))
+          const docSources: string[] = []
+          const refSources: string[] = []
+          for (const p of sources) {
+            if (isVirtualFolderGroupPath(p)) continue
+            const asDoc = resolveAbsorbDoc(p)
+            if (asDoc) docSources.push(asDoc)
+            else refSources.push(p)
+          }
+
+          // Same-document reparent on move; same-document group copy duplicates via transferGroup.
+          const sameDocGroupIds: string[] = []
+          const crossDocGroups: { documentPath: string; groupId: string }[] = []
+          for (const p of groupSources) {
+            const ref = parseVirtualFolderGroupPath(p)
+            if (!ref) continue
+            if (samePath(ref.documentPath, vfDest.documentPath)) sameDocGroupIds.push(ref.groupId)
+            else crossDocGroups.push(ref)
+          }
+          const memberIds = refSources
+            .map((p) => virtualFolderEntryIdFromPath(p, listing.virtualFolder?.entryIdByPathKey))
+            .filter((id): id is string => !!id)
+          const sameDocMemberMove =
+            remove &&
+            memberIds.length > 0 &&
+            listing.virtualFolder &&
+            samePath(listing.path, vfDest.documentPath) &&
+            memberIds.length === refSources.length
+
+          if (remove && (sameDocGroupIds.length > 0 || sameDocMemberMove)) {
+            const ids = [...sameDocGroupIds, ...(sameDocMemberMove ? memberIds : [])]
             if (ids.length > 0) {
-              await get().removeFromVirtualFolder(ids, listing.path)
+              await get().moveInVirtualFolder(ids, vfDest.groupId, vfDest.documentPath)
+            }
+          } else if (!remove && sameDocGroupIds.length > 0) {
+            for (const groupId of sameDocGroupIds) {
+              await call(
+                api.virtualFolder.transferGroup({
+                  sourceDocumentPath: vfDest.documentPath,
+                  groupId,
+                  destDocumentPath: vfDest.documentPath,
+                  destGroupId: vfDest.groupId,
+                  removeFromSource: false,
+                  expectedDestMtimeMs: listing.virtualFolder?.mtimeMs,
+                  expectedSourceMtimeMs: listing.virtualFolder?.mtimeMs
+                })
+              )
             }
           }
+
+          for (const g of crossDocGroups) {
+            await call(
+              api.virtualFolder.transferGroup({
+                sourceDocumentPath: g.documentPath,
+                groupId: g.groupId,
+                destDocumentPath: vfDest.documentPath,
+                destGroupId: vfDest.groupId,
+                removeFromSource: remove,
+                expectedDestMtimeMs:
+                  listing.virtualFolder && samePath(listing.path, vfDest.documentPath)
+                    ? listing.virtualFolder.mtimeMs
+                    : undefined,
+                expectedSourceMtimeMs:
+                  listing.virtualFolder && samePath(listing.path, g.documentPath)
+                    ? listing.virtualFolder.mtimeMs
+                    : undefined
+              })
+            )
+          }
+
+          const absorbDocs = docSources.filter((p) => !samePath(p, vfDest.documentPath))
+          const absorbedParents: string[] = []
+          for (const src of absorbDocs) {
+            const res = await call(
+              api.virtualFolder.absorbDocument({
+                sourceDocumentPath: src,
+                destDocumentPath: vfDest.documentPath,
+                groupId: vfDest.groupId,
+                deleteSource: remove,
+                expectedMtimeMs:
+                  listing.virtualFolder && samePath(listing.path, vfDest.documentPath)
+                    ? listing.virtualFolder.mtimeMs
+                    : undefined
+              })
+            )
+            if (res.deletedSourcePath) {
+              const key = pathKey(res.deletedSourcePath)
+              set((st) => {
+                if (!(key in st.projectedVirtualFolders)) return st
+                const next = { ...st.projectedVirtualFolders }
+                delete next[key]
+                return { projectedVirtualFolders: next }
+              })
+              const parent = parentOf(res.deletedSourcePath)
+              if (parent) absorbedParents.push(parent)
+              await afterPathsRemoved([res.deletedSourcePath])
+            }
+          }
+
+          const plainRefs = sameDocMemberMove ? [] : refSources
+          if (plainRefs.length > 0) {
+            await get().addToVirtualFolder(vfDest.documentPath, plainRefs, {
+              groupId: vfDest.groupId
+            })
+            if (remove && listing.virtualFolder) {
+              const ids = plainRefs
+                .map((p) =>
+                  virtualFolderEntryIdFromPath(p, listing.virtualFolder!.entryIdByPathKey)
+                )
+                .filter((id): id is string => !!id)
+              if (ids.length > 0) {
+                await get().removeFromVirtualFolder(ids, listing.path)
+              }
+            }
+          }
+
+          if (
+            sameDocGroupIds.length +
+              crossDocGroups.length +
+              absorbDocs.length +
+              (sameDocMemberMove ? memberIds.length : 0) +
+              plainRefs.length ===
+            0
+          ) {
+            get().notify('Nothing to add to Virtual Folder', true)
+            return false
+          }
+
+          if (samePath(get().activeTab().path, vfDest.documentPath)) {
+            await loadListing(vfDest.documentPath, { force: true })
+          }
+          notifyTreeReload([
+            vfDest.documentPath,
+            virtualFolderTreeListPath(vfDest.documentPath, vfDest.groupId),
+            ...crossDocGroups.map((g) => g.documentPath),
+            ...absorbDocs.map((p) => parentOf(p) ?? p),
+            ...absorbedParents
+          ])
+          void get().refreshProjectedVirtualFolders()
+          get().notify(
+            op === 'move' ? 'Moved into Virtual Folder' : 'Added to Virtual Folder'
+          )
+          if (clearCutAfter) set({ clipboard: null })
+          return true
+        } catch (e) {
+          reportOperationError(op === 'move' ? 'Move failed' : 'Copy failed', e)
+          return false
         }
-        if (clearCutAfter) set({ clipboard: null })
-        return true
       }
+
+      // Real folder destination — extract embedded groups to new `.mfevirtual` files.
+      const groupSources = sources.filter((p) => isVirtualFolderGroupPath(p))
+      const fsSources = sources.filter((p) => !isVirtualFolderGroupPath(p))
+      if (groupSources.length > 0) {
+        try {
+          const listing = get().listing
+          const created: string[] = []
+          const sourceDocs = new Set<string>()
+          for (const p of groupSources) {
+            const ref = parseVirtualFolderGroupPath(p)
+            if (!ref) continue
+            sourceDocs.add(ref.documentPath)
+            const res = await call(
+              api.virtualFolder.extractGroup({
+                sourceDocumentPath: ref.documentPath,
+                groupId: ref.groupId,
+                destParentDir: destinationDir,
+                removeFromSource: op === 'move',
+                expectedMtimeMs:
+                  listing.virtualFolder && samePath(listing.path, ref.documentPath)
+                    ? listing.virtualFolder.mtimeMs
+                    : undefined
+              })
+            )
+            created.push(res.path)
+          }
+          if (created.length > 0) {
+            recordUndo({
+              kind: 'create',
+              paths: created,
+              label: created.length === 1 ? basename(created[0]!) : `${created.length} Virtual Folders`
+            })
+            notifyTreeReload([destinationDir, ...sourceDocs])
+            if (
+              [...sourceDocs].some((d) => samePath(get().activeTab().path, d))
+            ) {
+              await loadListing(get().activeTab().path, { force: true })
+            } else if (samePath(get().activeTab().path, destinationDir)) {
+              await get().refresh()
+            }
+            void get().ensureVirtualFolderOsProjection(created)
+            get().notify(
+              op === 'move'
+                ? `Extracted ${created.length} Virtual Folder${created.length === 1 ? '' : 's'}`
+                : `Copied ${created.length} Virtual Folder${created.length === 1 ? '' : 's'}`
+            )
+          }
+        } catch (e) {
+          reportOperationError(op === 'move' ? 'Move failed' : 'Copy failed', e)
+          return false
+        }
+      }
+      if (fsSources.length === 0) {
+        if (clearCutAfter) set({ clipboard: null })
+        return groupSources.length > 0
+      }
+
       // Moving into the same folder is a no-op.
       const effective =
         op === 'move'
-          ? sources.filter((p) => !samePath(parentOf(p) ?? '', destinationDir))
-          : sources
-      if (effective.length === 0) return false
+          ? fsSources.filter((p) => !samePath(parentOf(p) ?? '', destinationDir))
+          : fsSources
+      if (effective.length === 0) {
+        if (clearCutAfter && groupSources.length > 0) set({ clipboard: null })
+        return groupSources.length > 0
+      }
       let choice = planChoice
       if (planMode && !choice) {
         choice = await runFileOpPlanGate({ op, sources: effective, destinationDir })
@@ -6206,18 +6715,35 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       const listing = s.listing
-      if (listing.virtualFolder && !permanent) {
-        const selected = paths ?? s.activeTab().selected
-        const ids = selected
-          .map((p) => listing.virtualFolder!.entryIdByPathKey[pathKey(p)])
-          .filter((id): id is string => !!id)
-        if (ids.length > 0) {
-          await get().removeFromVirtualFolder(ids)
+      const selected = paths ?? s.activeTab().selected
+      // Embedded groups / VF members: Del removes membership (never filesystem delete
+      // of opaque mfe-vfgroup: rows). Resolve ids from the listing map *or* the path.
+      const vfIds = selected
+        .map((p) => virtualFolderEntryIdFromPath(p, listing.virtualFolder?.entryIdByPathKey))
+        .filter((id): id is string => !!id)
+      const groupDocs = selected
+        .map((p) => parseVirtualFolderGroupPath(p)?.documentPath)
+        .filter((p): p is string => !!p)
+      if (!permanent && (vfIds.length > 0 || groupDocs.length > 0)) {
+        if (vfIds.length === 0) {
+          get().notify('Nothing to remove from Virtual Folder', true)
           return
         }
+        // Prefer document from opaque paths (tree delete while cwd is another group).
+        const docFromPath = groupDocs[0]
+        await get().removeFromVirtualFolder(vfIds, docFromPath)
+        return
       }
-      let target = (paths ?? s.activeTab().selected).filter((p) => !isVolumeRootPath(p))
-      if (target.length === 0) return
+      // Never send opaque group paths to trash/fs APIs.
+      let target = selected.filter(
+        (p) => !isVolumeRootPath(p) && !isVirtualFolderGroupPath(p)
+      )
+      if (target.length === 0) {
+        if (selected.some((p) => isVirtualFolderGroupPath(p))) {
+          get().notify('Use Delete (not Shift+Delete) to remove a Virtual Folder group', true)
+        }
+        return
+      }
       // NAS devices commonly expose their server-side recycle bin as an
       // `@Recycle` directory. Check path segments rather than Windows path
       // types so this also works for POSIX SMB mounts on Linux.
@@ -8246,15 +8772,24 @@ function clipboardFromSelection(
   selected: string[]
 ): NonNullable<ClipboardState> {
   const listing = get().listing
-  if (!listing.virtualFolder) return { mode, paths: selected }
   const ids = selected
-    .map((p) => listing.virtualFolder!.entryIdByPathKey[pathKey(p)])
+    .map((p) => virtualFolderEntryIdFromPath(p, listing.virtualFolder?.entryIdByPathKey))
     .filter((id): id is string => !!id)
+  // Opaque group rows always carry membership even if the listing map missed them.
+  const groupDoc = selected
+    .map((p) => parseVirtualFolderGroupPath(p)?.documentPath)
+    .find((p): p is string => !!p)
   if (ids.length === 0) return { mode, paths: selected }
+  const sourceDoc =
+    groupDoc ??
+    (listing.virtualFolder ? listing.path : null) ??
+    null
+  if (!sourceDoc) return { mode, paths: selected }
   return {
     mode,
     paths: selected,
-    virtualFolderSource: listing.path,
+    virtualFolderSource: sourceDoc,
+    virtualFolderSourceGroupId: listing.virtualFolder?.groupId ?? null,
     virtualFolderEntryIds: ids
   }
 }
@@ -8269,12 +8804,57 @@ async function moveVirtualFolderMembershipAfterAdd(
   get: () => {
     removeFromVirtualFolder: (entryIds: string[], documentPath?: string) => Promise<void>
   },
-  destDir: string,
+  destDocumentPath: string,
+  destGroupId: string | null,
   clip: NonNullable<ClipboardState>
 ): Promise<void> {
   if (!clip.virtualFolderSource || !clip.virtualFolderEntryIds?.length) return
-  if (samePath(clip.virtualFolderSource, destDir)) return
+  const srcGroup = clip.virtualFolderSourceGroupId ?? null
+  if (
+    samePath(clip.virtualFolderSource, destDocumentPath) &&
+    srcGroup === destGroupId
+  ) {
+    // Cut + paste back into the same group — keep the existing membership.
+    return
+  }
   await get().removeFromVirtualFolder(clip.virtualFolderEntryIds, clip.virtualFolderSource)
+}
+
+/**
+ * Resolve a drop/paste destination that is a Virtual Folder document or embedded group row.
+ *
+ * - `mfe-vfgroup:…` → that embedded group
+ * - `.mfevirtual` document path → **document root** (tree drop onto the collection)
+ *
+ * Callers that mean “current open group” (Ctrl+V in the file list) must pass the
+ * group row path, not the document path — see `pasteInto`.
+ */
+function resolveVirtualFolderDropTarget(
+  destDir: string,
+  _get?: () => {
+    listing: AppState['listing']
+    activeTab: () => Tab
+  }
+): { documentPath: string; groupId: string | null } | null {
+  const group = parseVirtualFolderGroupPath(destDir)
+  if (group) {
+    return { documentPath: group.documentPath, groupId: group.groupId }
+  }
+  if (!isVirtualFolderDocumentPath(destDir)) return null
+  return { documentPath: destDir, groupId: null }
+}
+
+/** When pasting into the open VF view, map document path → current embedded group row. */
+function pasteDestinationPath(destDir: string, get: () => AppState): string {
+  const tab = get().activeTab()
+  const listing = get().listing
+  if (!isVirtualFolderDocumentPath(destDir) || !samePath(destDir, tab.path)) return destDir
+  const groupId =
+    listing.virtualFolder && samePath(listing.path, destDir)
+      ? listing.virtualFolder.groupId
+      : tab.virtualFolderGroupStack.at(-1) ?? null
+  if (!groupId) return destDir
+  return virtualFolderOpenCwdPath(destDir, groupId)
 }
 
 /** Prefer OS CF_HDROP (Explorer ↔ MFE); fall back to in-app clipboard. */
@@ -8296,6 +8876,7 @@ async function resolveClipboard(get: () => { clipboard: ClipboardState }): Promi
           mode,
           paths: os.paths,
           virtualFolderSource: local.virtualFolderSource,
+          virtualFolderSourceGroupId: local.virtualFolderSourceGroupId,
           virtualFolderEntryIds: local.virtualFolderEntryIds
         }
       }
@@ -8317,6 +8898,14 @@ export function dropOperation(
 ): 'copy' | 'move' {
   if (ctrlKey) return 'copy'
   if (shiftKey) return 'move'
+  // Opaque group paths / VF destinations — extract, absorb, and reparent default to move.
+  if (
+    isVirtualFolderDocumentPath(destDir) ||
+    isVirtualFolderGroupPath(destDir) ||
+    isVirtualFolderGroupPath(sourcePath)
+  ) {
+    return 'move'
+  }
   const sameVolume = driveOf(sourcePath) !== null && driveOf(sourcePath) === driveOf(destDir)
   return sameVolume ? 'move' : 'copy'
 }
