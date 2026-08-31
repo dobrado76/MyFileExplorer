@@ -107,6 +107,9 @@ export type MyFileExplorerApi = {
       req: SetVolumeLabelRequest
     ): Promise<Result<{ path: string; volumeName: string }>>
     properties(req: PropertiesRequest): Promise<Result<PropertiesModel>>
+    propertiesCombined(req: import('../schemas/properties').PropertiesCombinedRequest): Promise<
+      Result<PropertiesModel>
+    >
     measureFolder(req: PropertiesRequest): Promise<Result<FolderMeasureResult>>
     calculateFolderStatistics(
       req: import('../schemas/fs').CalculateFolderStatisticsRequest
@@ -285,8 +288,17 @@ export type MyFileExplorerApi = {
     getTarget(): Promise<Result<PreviewWindowTarget>>
   }
   properties: {
-    /** One peer OS window per path (focus if already open). Cap applied in main. */
-    openWindows(req: PathsRequest): Promise<Result<{ opened: number; skipped: number }>>
+    /** One peer OS window (combined multi-select) or one per path when `separate`. */
+    openWindows(
+      req: import('../schemas/properties').OpenPropertiesWindowsRequest
+    ): Promise<Result<{ opened: number; skipped: number }>>
+    /** Payload for this Properties BrowserWindow (from main map). */
+    getWindowArgs(): Promise<
+      Result<
+        | { mode: 'single'; path: string }
+        | { mode: 'combined'; paths: string[] }
+      >
+    >
   }
   search: {
     query(req: SearchQueryRequest): Promise<Result<SearchQueryResponse>>

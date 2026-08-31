@@ -55,6 +55,7 @@ const api: MyFileExplorerApi = {
     listDrives: invokeVoid(IPC.fsListDrives),
     setVolumeLabel: invoke(IPC.fsSetVolumeLabel),
     properties: invoke(IPC.fsProperties),
+    propertiesCombined: invoke(IPC.fsPropertiesCombined),
     measureFolder: invoke(IPC.fsMeasureFolder),
     calculateFolderStatistics: invoke(IPC.fsCalculateFolderStatistics),
     setAttributes: invoke(IPC.fsSetAttributes),
@@ -137,7 +138,8 @@ const api: MyFileExplorerApi = {
     getTarget: invokeVoid(IPC.previewGetTarget)
   },
   properties: {
-    openWindows: invoke(IPC.propertiesOpenWindows)
+    openWindows: invoke(IPC.propertiesOpenWindows),
+    getWindowArgs: invokeVoid(IPC.propertiesGetWindowArgs)
   },
   search: {
     query: invoke(IPC.searchQuery),

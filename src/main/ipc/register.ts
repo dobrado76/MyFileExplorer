@@ -81,7 +81,7 @@ import {
   getRememberedNetworkHosts,
   replaceRememberedNetworkHosts
 } from '../fs/networkRemembered'
-import { getProperties, measureFolder, setPathAttributes } from '../fs/properties'
+import { getProperties, getCombinedProperties, measureFolder, setPathAttributes } from '../fs/properties'
 import { calculateFolderStatistics } from '../fs/folderStats'
 import { setFolderCustomIcon } from '../fs/folderIcon'
 import {
@@ -102,6 +102,8 @@ import { launchQuickLaunchItem, revealQuickLaunchItem } from '../quickLaunch/lau
 import { quickLaunchIdSchema, quickLaunchNameFromPath } from '@shared/schemas/quickLaunch'
 import {
   propertiesRequestSchema,
+  propertiesCombinedRequestSchema,
+  openPropertiesWindowsRequestSchema,
   setAttributesRequestSchema
 } from '@shared/schemas/properties'
 import {
@@ -275,7 +277,7 @@ import {
   openPreviewWindow,
   setPreviewTarget
 } from '../preview/previewWindow'
-import { openPropertiesWindows } from '../properties/propertiesWindow'
+import { openPropertiesWindows, getPropertiesWindowArgs } from '../properties/propertiesWindow'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
@@ -503,6 +505,9 @@ export function registerIpcHandlers(): void {
     setVolumeLabel(req.path, req.name)
   )
   handle(IPC.fsProperties, propertiesRequestSchema, (req) => getProperties(req.path))
+  handle(IPC.fsPropertiesCombined, propertiesCombinedRequestSchema, (req) =>
+    getCombinedProperties(req.paths)
+  )
   handle(IPC.fsMeasureFolder, propertiesRequestSchema, (req) => measureFolder(req.path))
   handle(IPC.fsCalculateFolderStatistics, calculateFolderStatisticsRequestSchema, (req) =>
     calculateFolderStatistics(req.path, {
@@ -763,7 +768,14 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewOpenWindow, emptySchema, () => openPreviewWindow())
   handle(IPC.previewSetTarget, previewWindowTargetSchema, (req) => setPreviewTarget(req))
   handle(IPC.previewGetTarget, emptySchema, () => getPreviewTarget())
-  handle(IPC.propertiesOpenWindows, pathsRequestSchema, (req) => openPropertiesWindows(req.paths))
+  handle(IPC.propertiesOpenWindows, openPropertiesWindowsRequestSchema, (req) =>
+    openPropertiesWindows(req.paths, { separate: req.separate === true })
+  )
+  handle(IPC.propertiesGetWindowArgs, emptySchema, (_req, event) => {
+    const args = getPropertiesWindowArgs(event.sender.id)
+    if (!args) return { mode: 'single' as const, path: '' }
+    return args
+  })
 
   // search
   handle(IPC.searchQuery, searchQueryRequestSchema, (req) => runSearchQuery(req))

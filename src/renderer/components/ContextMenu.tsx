@@ -2770,9 +2770,17 @@ export function ContextMenu(): JSX.Element | null {
         label: 'Properties',
         disabled: paths.length === 0,
         builtin: 'properties',
-        action: () => {
+        hint:
+          paths.length > 1
+            ? shiftHeld
+              ? 'Separate windows'
+              : 'Shift = separate windows'
+            : undefined,
+        action: (ev?: MenuActionEv) => {
           close()
-          void s.openPropertiesWindows(paths)
+          void s.openPropertiesWindows(paths, {
+            separate: !!(ev?.shiftKey || shiftHeld)
+          })
         }
       }
     )

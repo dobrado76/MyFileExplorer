@@ -36,47 +36,68 @@ function pathFromLocation(): string | null {
   }
 }
 
+function isCombinedQuery(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).get('combined') === '1'
+  } catch {
+    return false
+  }
+}
+
 /**
  * Detached Properties window. Do not call `app.ready()` (that drains CLI/protocol
  * opens meant for the main shell).
  */
 export function PropertiesWindowApp(): JSX.Element {
-  const [path] = useState(() => pathFromLocation())
+  const [path, setPath] = useState<string | null>(() => pathFromLocation())
+  const [paths, setPaths] = useState<string[] | null>(null)
   const [platform, setPlatform] = useState('win32')
   const [ready, setReady] = useState(false)
+  const [bootError, setBootError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    void call(api.settings.get())
-      .then((s) => {
+    void (async () => {
+      try {
+        const s = await call(api.settings.get())
         if (cancelled) return
         applyChromeSettings(s)
         useAppStore.setState({ settings: s })
-        setReady(true)
-      })
-      .catch(() => {
-        if (!cancelled) setReady(true)
-      })
-    // Platform without app.ready(): UA is enough for USN button visibility.
-    if (typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)) {
-      setPlatform('win32')
-    } else {
-      setPlatform(typeof navigator !== 'undefined' ? 'linux' : 'win32')
-    }
+      } catch {
+        /* theme defaults OK */
+      }
+      if (typeof navigator !== 'undefined' && /windows/i.test(navigator.userAgent)) {
+        setPlatform('win32')
+      } else {
+        setPlatform(typeof navigator !== 'undefined' ? 'linux' : 'win32')
+      }
+
+      try {
+        const args = await call(api.properties.getWindowArgs())
+        if (cancelled) return
+        if (args.mode === 'combined' && args.paths.length > 0) {
+          setPaths(args.paths)
+          setPath(null)
+        } else if (args.mode === 'single' && args.path) {
+          setPath(args.path)
+          setPaths(null)
+        } else if (isCombinedQuery()) {
+          setBootError('Missing combined selection.')
+        } else if (!pathFromLocation()) {
+          setBootError('Missing path.')
+        }
+      } catch {
+        // Fall back to ?path= from the URL (single-item windows).
+        if (!pathFromLocation() && !isCombinedQuery()) {
+          setBootError('Missing path.')
+        }
+      }
+      if (!cancelled) setReady(true)
+    })()
     return () => {
       cancelled = true
     }
   }, [])
-
-  if (!path) {
-    return (
-      <div className="properties-window-root">
-        <p className="dim" style={{ padding: 18 }}>
-          Missing path.
-        </p>
-      </div>
-    )
-  }
 
   if (!ready) {
     return (
@@ -88,11 +109,29 @@ export function PropertiesWindowApp(): JSX.Element {
     )
   }
 
+  if (bootError) {
+    return (
+      <div className="properties-window-root">
+        <p className="dim" style={{ padding: 18 }}>
+          {bootError}
+        </p>
+      </div>
+    )
+  }
+
+  if (paths && paths.length > 1) {
+    return <PropertiesPanel paths={paths} platform={platform} onClose={() => window.close()} />
+  }
+
+  if (path) {
+    return <PropertiesPanel path={path} platform={platform} onClose={() => window.close()} />
+  }
+
   return (
-    <PropertiesPanel
-      path={path}
-      platform={platform}
-      onClose={() => window.close()}
-    />
+    <div className="properties-window-root">
+      <p className="dim" style={{ padding: 18 }}>
+        Missing path.
+      </p>
+    </div>
   )
 }

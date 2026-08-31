@@ -23,7 +23,10 @@ function PropsValue({ value }: { value: string }): JSX.Element {
 }
 
 export type PropertiesPanelProps = {
-  path: string
+  /** Single-item sheet. */
+  path?: string
+  /** Multi-select combined sheet (Explorer-style). */
+  paths?: string[]
   /** win32 shows drive USN…; default true for this Windows app. */
   platform?: string
   onClose(): void
@@ -32,15 +35,18 @@ export type PropertiesPanelProps = {
 }
 
 /**
- * Properties card body — same chrome/classes as the former in-app dialog
- * (title, table, capacity, footer actions). Host fills the OS window.
+ * Properties card body — same chrome/classes as the former in-app dialog.
+ * Combined multi-select hides Attributes / Windows Properties / USN.
  */
 export function PropertiesPanel({
   path,
+  paths,
   platform = 'win32',
   onClose,
   onAttributesChanged
 }: PropertiesPanelProps): JSX.Element {
+  const combined = (paths?.length ?? 0) > 1
+  const pathsKey = combined && paths ? paths.join('\0') : ''
   const [model, setModel] = useState<PropertiesModel | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [measure, setMeasure] = useState<FolderMeasureResult | null>(null)
@@ -57,7 +63,10 @@ export function PropertiesPanel({
     setMeasure(null)
     setError(null)
     setAttrError(null)
-    void call(api.fs.properties({ path }))
+    const load = combined
+      ? call(api.fs.propertiesCombined({ paths: pathsKey.split('\0') }))
+      : call(api.fs.properties({ path: path! }))
+    void load
       .then((m) => {
         if (!cancelled) setModel(m)
       })
@@ -67,26 +76,57 @@ export function PropertiesPanel({
     return () => {
       cancelled = true
     }
-  }, [path])
+  }, [path, combined, pathsKey])
 
   useEffect(() => {
     if (!model?.canMeasure) return
     let cancelled = false
     setMeasuring(true)
-    void call(api.fs.measureFolder({ path: model.path }))
-      .then((m) => {
-        if (!cancelled) setMeasure(m)
-      })
-      .catch(() => {
+    const toMeasure =
+      model.kind === 'multi' && model.measurePaths && model.measurePaths.length > 0
+        ? model.measurePaths
+        : [model.path]
+    const fileBytes = model.kind === 'multi' ? (model.sizeBytes ?? 0) : 0
+    const selectedFileCount =
+      model.kind === 'multi'
+        ? Math.max(0, (model.paths?.length ?? 0) - (model.measurePaths?.length ?? 0))
+        : 0
+
+    void (async () => {
+      try {
+        const results = await Promise.all(
+          toMeasure.map((p) => call(api.fs.measureFolder({ path: p })))
+        )
+        if (cancelled) return
+        if (model.kind === 'multi') {
+          setMeasure({
+            path: model.path,
+            totalBytes: fileBytes + results.reduce((s, r) => s + r.totalBytes, 0),
+            fileCount: selectedFileCount + results.reduce((s, r) => s + r.fileCount, 0),
+            folderCount: results.reduce((s, r) => s + r.folderCount, 0),
+            truncated: results.some((r) => r.truncated)
+          })
+        } else {
+          setMeasure(results[0] ?? null)
+        }
+      } catch {
         if (!cancelled) setMeasure(null)
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setMeasuring(false)
-      })
+      }
+    })()
+
     return () => {
       cancelled = true
     }
-  }, [model?.path, model?.canMeasure])
+  }, [
+    model?.path,
+    model?.canMeasure,
+    model?.kind,
+    model?.measurePaths,
+    model?.paths,
+    model?.sizeBytes
+  ])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -102,16 +142,27 @@ export function PropertiesPanel({
 
   useEffect(() => {
     if (!model) return
+    if (model.kind === 'multi') {
+      document.title = `${model.name} — Properties`
+      return
+    }
     const kind =
       model.kind === 'drive' ? 'Drive' : model.kind === 'dir' ? 'Folder' : 'File'
     document.title = `${model.name} — ${kind} Properties`
   }, [model])
 
   const title = model
-    ? `${model.kind === 'drive' ? 'Drive' : model.kind === 'dir' ? 'Folder' : 'File'} Properties`
+    ? model.kind === 'multi'
+      ? 'Properties'
+      : `${model.kind === 'drive' ? 'Drive' : model.kind === 'dir' ? 'Folder' : 'File'} Properties`
     : 'Properties'
 
-  const showAttributes = model != null && model.kind !== 'drive' && model.kind !== 'missing'
+  const showAttributes =
+    model != null &&
+    model.kind !== 'drive' &&
+    model.kind !== 'missing' &&
+    model.kind !== 'multi'
+  const showSystemActions = model != null && model.kind !== 'missing' && model.kind !== 'multi'
   const attrsEditable = showAttributes
   const has = (label: string): boolean => !!model?.attributes.includes(label)
 
@@ -144,7 +195,7 @@ export function PropertiesPanel({
   }
 
   const sizeText =
-    model?.sizeBytes != null
+    model?.sizeBytes != null && !model.canMeasure
       ? `${formatBytes(model.sizeBytes)} (${model.sizeBytes.toLocaleString()} bytes)`
       : model?.canMeasure
         ? measuring && !measure
@@ -169,7 +220,7 @@ export function PropertiesPanel({
       : null
 
   const openWindowsProperties = async (): Promise<void> => {
-    if (!model || model.kind === 'missing' || sysPropsBusy) return
+    if (!model || model.kind === 'missing' || model.kind === 'multi' || sysPropsBusy) return
     setSysPropsBusy(true)
     setSysPropsError(null)
     try {
@@ -192,12 +243,14 @@ export function PropertiesPanel({
               <>
                 <table className="props-table">
                   <tbody>
-                    <tr>
-                      <td>Name</td>
-                      <td>
-                        <PropsValue value={model.name} />
-                      </td>
-                    </tr>
+                    {model.kind !== 'multi' && (
+                      <tr>
+                        <td>Name</td>
+                        <td>
+                          <PropsValue value={model.name} />
+                        </td>
+                      </tr>
+                    )}
                     {model.drive?.volumeLabel && (
                       <tr>
                         <td>Volume label</td>
@@ -212,6 +265,14 @@ export function PropertiesPanel({
                         <PropsValue value={model.typeLabel} />
                       </td>
                     </tr>
+                    {model.kind === 'multi' && (
+                      <tr>
+                        <td>Items</td>
+                        <td>
+                          <PropsValue value={model.name} />
+                        </td>
+                      </tr>
+                    )}
                     {model.location && (
                       <tr>
                         <td>Location</td>
@@ -220,12 +281,14 @@ export function PropertiesPanel({
                         </td>
                       </tr>
                     )}
-                    <tr>
-                      <td>Path</td>
-                      <td>
-                        <PropsValue value={model.path} />
-                      </td>
-                    </tr>
+                    {model.kind !== 'multi' && (
+                      <tr>
+                        <td>Path</td>
+                        <td>
+                          <PropsValue value={model.path} />
+                        </td>
+                      </tr>
+                    )}
                     {model.linkTarget && (
                       <tr>
                         <td>Link target</td>
@@ -399,7 +462,7 @@ export function PropertiesPanel({
             )}
           </div>
           <div className="modal-actions">
-            {model && model.kind !== 'missing' && (
+            {showSystemActions && model && (
               <div className="modal-action-start props-sys-actions">
                 <div className="props-sys-actions-row">
                   <button

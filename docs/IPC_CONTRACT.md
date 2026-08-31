@@ -65,7 +65,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `shell:openCommandLine`     | Open cmd or PowerShell (Settings `commandLineShell`) in folder; `elevated` = UAC |
 | `shell:showProperties`      | Open Explorer’s property sheet (`ShellExecute` “properties” verb) |
 | `shell:openWindowsTool`     | Allowlisted This PC tools: Computer Management, Device Manager, Control Panel, This PC Properties |
-| `properties:openWindows`    | `{ paths[] }` → `{ opened, skipped }` — one detached peer Properties window per path (focus if open; cap 32) |
+| `properties:openWindows`    | `{ paths[], separate? }` → `{ opened, skipped }` — default one combined sheet; `separate: true` (Shift) = one peer window per path (cap 32) |
 | `shell:openRecycleBin`      | Legacy: open Windows Recycle Bin in Explorer (prefer in-app view) |
 | `shell:clipboardWriteFiles` | Cut/copy file list for OS paste |
 | `shell:clipboardReadFiles`  | Read file list if present       |

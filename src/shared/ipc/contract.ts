@@ -39,6 +39,7 @@ export const IPC = {
   fsListDrives: 'fs:listDrives',
   fsSetVolumeLabel: 'fs:setVolumeLabel',
   fsProperties: 'fs:properties',
+  fsPropertiesCombined: 'fs:propertiesCombined',
   fsMeasureFolder: 'fs:measureFolder',
   fsCalculateFolderStatistics: 'fs:calculateFolderStatistics',
   fsSetAttributes: 'fs:setAttributes',
@@ -129,6 +130,8 @@ export const IPC = {
 
   /** Open one detached Properties window per path (peer of the shell). */
   propertiesOpenWindows: 'properties:openWindows',
+  /** Args for the calling Properties BrowserWindow (single path or combined). */
+  propertiesGetWindowArgs: 'properties:getWindowArgs',
 
   searchQuery: 'search:query',
   searchAddRoot: 'search:addRoot',

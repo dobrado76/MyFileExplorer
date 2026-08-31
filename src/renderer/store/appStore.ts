@@ -1003,8 +1003,8 @@ type AppState = {
   // dialogs / menus
   openDialog(dialog: DialogState): void
   closeDialog(): void
-  /** Open detached Properties windows (one per path; focus if already open). */
-  openPropertiesWindows(paths: string[]): Promise<void>
+  /** Open detached Properties windows (combined multi-select; Shift = one per path). */
+  openPropertiesWindows(paths: string[], opts?: { separate?: boolean }): Promise<void>
   openContextMenu(menu: ContextMenuState): void
   closeContextMenu(): void
   /** Launch a Settings → Context menu external command for the given paths. */
@@ -7541,11 +7541,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ dialog })
     },
 
-    async openPropertiesWindows(paths) {
+    async openPropertiesWindows(paths, opts) {
       const list = paths.filter((p) => typeof p === 'string' && p.trim().length > 0)
       if (list.length === 0) return
       try {
-        await call(api.properties.openWindows({ paths: list }))
+        await call(
+          api.properties.openWindows({ paths: list, separate: opts?.separate === true })
+        )
       } catch (e) {
         get().notify(e instanceof Error ? e.message : String(e), true)
       }

@@ -404,3 +404,28 @@ export async function measureFolder(inputPath: string): Promise<FolderMeasureRes
 
   return { path: root, totalBytes, fileCount, folderCount, truncated }
 }
+
+/** Multi-select Properties sheet (WFE-style aggregate; no attributes / USN). */
+export async function getCombinedProperties(rawPaths: string[]): Promise<PropertiesModel> {
+  const { combinePropertiesModels } = await import('@shared/propertiesCombine')
+  const seen = new Set<string>()
+  const unique: string[] = []
+  for (const raw of rawPaths) {
+    let abs: string
+    try {
+      abs = requireAbsolute(raw)
+    } catch {
+      continue
+    }
+    const key = abs.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    unique.push(abs)
+  }
+  if (unique.length === 0) {
+    throw new AppError('validation', 'No valid paths for Properties')
+  }
+  if (unique.length === 1) return getProperties(unique[0]!)
+  const models = await Promise.all(unique.map((p) => getProperties(p)))
+  return combinePropertiesModels(models)
+}

@@ -1,11 +1,12 @@
 /**
  * Detached Properties BrowserWindows — peers of the explorer (no parent).
- * One window per path; re-open focuses an existing window for that path.
+ * Default multi-select: one combined sheet. Shift: one window per path.
  */
 import path from 'node:path'
 import { BrowserWindow, screen } from 'electron'
 import appIcon from '../../../resources/icon.png?asset'
 import { pathKey } from '@shared/paths'
+import { combinedPropertiesWindowKey } from '@shared/propertiesCombine'
 import {
   PROPERTIES_WINDOW_CASCADE_PX,
   PROPERTIES_WINDOW_MAX_OPEN,
@@ -17,7 +18,12 @@ import { normalizeAbsolute } from '../security/paths'
 import { patchSettings, settingsStore } from '../settings/store'
 import { logMain } from '../logging'
 
+export type PropertiesWindowArgs =
+  | { mode: 'single'; path: string }
+  | { mode: 'combined'; paths: string[] }
+
 const openByKey = new Map<string, BrowserWindow>()
+const argsByContentsId = new Map<number, PropertiesWindowArgs>()
 
 let cascadeIndex = 0
 
@@ -108,18 +114,25 @@ function isPropertiesWindowPageUrl(url: string): boolean {
   return /propertiesWindow\.html(?:[?#]|$)/i.test(url)
 }
 
-function loadPropertiesWindowPage(win: BrowserWindow, targetPath: string): void {
+function loadPropertiesWindowPage(win: BrowserWindow, args: PropertiesWindowArgs): void {
+  const q =
+    args.mode === 'single'
+      ? `?path=${encodeURIComponent(args.path)}`
+      : `?combined=1`
   if (process.env['ELECTRON_RENDERER_URL']) {
-    const q = `?path=${encodeURIComponent(targetPath)}`
     void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/propertiesWindow.html${q}`)
+  } else if (args.mode === 'single') {
+    void win.loadFile(path.join(__dirname, '../renderer/propertiesWindow.html'), {
+      query: { path: args.path }
+    })
   } else {
     void win.loadFile(path.join(__dirname, '../renderer/propertiesWindow.html'), {
-      query: { path: targetPath }
+      query: { combined: '1' }
     })
   }
 }
 
-function attachPropertiesWindowGuards(win: BrowserWindow, targetPath: string): void {
+function attachPropertiesWindowGuards(win: BrowserWindow, args: PropertiesWindowArgs): void {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   win.webContents.on('will-navigate', (e, url) => {
     if (isPropertiesWindowPageUrl(url)) return
@@ -128,19 +141,22 @@ function attachPropertiesWindowGuards(win: BrowserWindow, targetPath: string): v
   win.webContents.on('did-navigate', (_e, url) => {
     if (win.isDestroyed() || isPropertiesWindowPageUrl(url)) return
     logMain('warn', `properties window navigated away (${url}); reloading`)
-    loadPropertiesWindowPage(win, targetPath)
+    loadPropertiesWindowPage(win, args)
   })
   win.webContents.on('render-process-gone', (_e, details) => {
     logMain('warn', `properties window renderer gone: ${details.reason}`)
-    if (!win.isDestroyed()) loadPropertiesWindowPage(win, targetPath)
+    if (!win.isDestroyed()) loadPropertiesWindowPage(win, args)
   })
 }
 
-function spawnPropertiesWindow(absPath: string, key: string): BrowserWindow {
+function spawnPropertiesWindow(key: string, args: PropertiesWindowArgs): BrowserWindow {
   const saved = savedBoundsFromSettings()
   const base = saved ? clampOntoDisplay(saved) : defaultBounds()
   const bounds = cascadeOffset(base, cascadeIndex++)
-  const titleStem = path.basename(absPath) || absPath
+  const title =
+    args.mode === 'combined'
+      ? `${args.paths.length} items — Properties`
+      : `${path.basename(args.path) || args.path} Properties`
 
   const win = new BrowserWindow({
     x: bounds.x,
@@ -153,7 +169,7 @@ function spawnPropertiesWindow(absPath: string, key: string): BrowserWindow {
     icon: appIcon,
     autoHideMenuBar: true,
     backgroundColor: '#12141a',
-    title: `${titleStem} Properties`,
+    title,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -163,6 +179,8 @@ function spawnPropertiesWindow(absPath: string, key: string): BrowserWindow {
   })
 
   openByKey.set(key, win)
+  const contentsId = win.webContents.id
+  argsByContentsId.set(contentsId, args)
 
   const save = (): void => persistBounds(win)
   win.on('resize', save)
@@ -170,57 +188,84 @@ function spawnPropertiesWindow(absPath: string, key: string): BrowserWindow {
   win.on('maximize', save)
   win.on('unmaximize', save)
   win.once('ready-to-show', () => {
+    if (win.isDestroyed()) return
     if (saved?.maximized) win.maximize()
-    win.show()
+    if (!win.isDestroyed()) win.show()
   })
-  win.on('close', () => persistBounds(win))
+  win.on('close', () => {
+    if (!win.isDestroyed()) persistBounds(win)
+  })
   win.on('closed', () => {
     if (openByKey.get(key) === win) openByKey.delete(key)
+    argsByContentsId.delete(contentsId)
   })
 
   void win.webContents.setVisualZoomLevelLimits(1, 1)
-  attachPropertiesWindowGuards(win, absPath)
-  loadPropertiesWindowPage(win, absPath)
+  attachPropertiesWindowGuards(win, args)
+  loadPropertiesWindowPage(win, args)
   return win
 }
 
-export function openPropertiesWindows(paths: string[]): { opened: number; skipped: number } {
+function focusOrSpawn(key: string, args: PropertiesWindowArgs): void {
+  const existing = openByKey.get(key)
+  if (existing && !existing.isDestroyed()) {
+    argsByContentsId.set(existing.webContents.id, args)
+    existing.focus()
+    return
+  }
+  spawnPropertiesWindow(key, args)
+}
+
+export function getPropertiesWindowArgs(webContentsId: number): PropertiesWindowArgs | null {
+  return argsByContentsId.get(webContentsId) ?? null
+}
+
+export function openPropertiesWindows(
+  paths: string[],
+  opts?: { separate?: boolean }
+): { opened: number; skipped: number } {
   const seen = new Set<string>()
-  const normalized: { abs: string; key: string }[] = []
+  const normalized: string[] = []
   for (const raw of paths) {
     const abs = normalizeAbsolute(raw)
     if (!abs) continue
     const key = pathKey(abs)
     if (seen.has(key)) continue
     seen.add(key)
-    normalized.push({ abs, key })
+    normalized.push(abs)
   }
 
-  let opened = 0
-  let skipped = 0
-  for (const { abs, key } of normalized) {
-    if (opened >= PROPERTIES_WINDOW_MAX_OPEN) {
-      skipped += 1
-      continue
-    }
-    const existing = openByKey.get(key)
-    if (existing && !existing.isDestroyed()) {
-      existing.focus()
+  if (normalized.length === 0) return { opened: 0, skipped: 0 }
+
+  const separate = opts?.separate === true
+
+  // Single item, or Shift+separate: one window per path.
+  if (normalized.length === 1 || separate) {
+    let opened = 0
+    let skipped = 0
+    for (const abs of normalized) {
+      if (opened >= PROPERTIES_WINDOW_MAX_OPEN) {
+        skipped += 1
+        continue
+      }
+      focusOrSpawn(pathKey(abs), { mode: 'single', path: abs })
       opened += 1
-      continue
     }
-    spawnPropertiesWindow(abs, key)
-    opened += 1
+    if (skipped > 0) {
+      logMain(
+        'info',
+        `properties windows: opened ${opened}, skipped ${skipped} (cap ${PROPERTIES_WINDOW_MAX_OPEN})`
+      )
+    }
+    return { opened, skipped }
   }
 
-  if (skipped > 0) {
-    logMain(
-      'info',
-      `properties windows: opened ${opened}, skipped ${skipped} (cap ${PROPERTIES_WINDOW_MAX_OPEN})`
-    )
-  }
-
-  return { opened, skipped }
+  // Default multi-select: one combined sheet (Explorer-style).
+  focusOrSpawn(combinedPropertiesWindowKey(normalized), {
+    mode: 'combined',
+    paths: normalized
+  })
+  return { opened: 1, skipped: 0 }
 }
 
 export function closeAllPropertiesWindows(): { closed: number } {
@@ -232,5 +277,6 @@ export function closeAllPropertiesWindows(): { closed: number } {
     }
   }
   openByKey.clear()
+  argsByContentsId.clear()
   return { closed }
 }
