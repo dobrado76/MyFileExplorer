@@ -22,7 +22,7 @@ npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a 
 
 Output: `dist/MyFileExplorer-<version>.exe` (plus `.blockmap` / `latest.yml`). Older docs may say `MyFileExplorer Setup x.y.z.exe` — both names are accepted by Check for update.
 
-In-app **Settings → About → Updates source** accepts a local installer folder **or** a GitHub Releases URL (new installs default to https://github.com/dobrado76/MyFileExplorer/releases).
+In-app **Settings → About → Updates source** accepts a local installer folder **or** a GitHub Releases URL (new installs default to https://github.com/dobrado76/MyFileExplorer/releases). When an update is available, **What's new** always downloads **`RELEASE_NOTES.md`** from the online GitHub repo (version tag, then `main`) — including when the updates source is a local folder.
 
 ### `EBUSY` / `app.asar` locked
 

@@ -170,7 +170,8 @@ const api: MyFileExplorerApi = {
     devGate: invokeVoid(IPC.appDevGate),
     setDevGateEnable: invoke(IPC.appDevGateSetEnable),
     checkUpdate: invoke(IPC.appCheckUpdate),
-    runUpdate: invoke(IPC.appRunUpdate)
+    runUpdate: invoke(IPC.appRunUpdate),
+    releaseNotes: invoke(IPC.appReleaseNotes)
   },
   mediaMetadata: {
     extractPlex: invoke(IPC.mediaMetadataExtractPlex),

@@ -389,6 +389,16 @@ export type MyFileExplorerApi = {
       downloadUrl?: string
       version?: string
     }): Promise<Result<{ launched: true }>>
+    /** Online RELEASE_NOTES.md from GitHub (also used when updates source is a local folder). */
+    releaseNotes(req: { source: string; version?: string }): Promise<
+      Result<{
+        tagName: string
+        name: string | null
+        bodyMarkdown: string
+        htmlUrl: string | null
+        version: string | null
+      }>
+    >
   }
   mediaMetadata: {
     extractPlex(req: {

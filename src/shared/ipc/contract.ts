@@ -171,6 +171,7 @@ export const IPC = {
   mediaMetadataProbePlex: 'mediaMetadata:probePlex',
   appCheckUpdate: 'app:checkUpdate',
   appRunUpdate: 'app:runUpdate',
+  appReleaseNotes: 'app:releaseNotes',
 
   /** Slideshow (gated by settings.slideshowFeaturesEnabled in renderer). */
   slideshowListImages: 'slideshow:listImages',

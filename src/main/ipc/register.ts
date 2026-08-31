@@ -144,7 +144,7 @@ import { watchDirectory, unwatchDirectory, muteWatchers } from '../fs/watch'
 import { requestCancelActiveOps } from '../fs/opProgress'
 import { broadcast } from './events'
 import { getMainWindow, markRendererReady } from '../externalOpen'
-import { findUpdateInstaller, runUpdateInstaller } from '../update/installers'
+import { findUpdateInstaller, fetchReleaseNotes, runUpdateInstaller } from '../update/installers'
 import { cancelSlideshowList, listSlideshowImages } from '../slideshow/listImages'
 import {
   updateCompiledLists,
@@ -939,6 +939,14 @@ export function registerIpcHandlers(): void {
     IPC.appCheckUpdate,
     z.object({ source: z.string() }),
     async (req) => ({ candidate: await findUpdateInstaller(req.source) })
+  )
+  handle(
+    IPC.appReleaseNotes,
+    z.object({
+      source: z.string(),
+      version: z.string().optional()
+    }),
+    (req) => fetchReleaseNotes(req.source, req.version)
   )
   handle(
     IPC.appRunUpdate,

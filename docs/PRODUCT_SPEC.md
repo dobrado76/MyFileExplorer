@@ -205,7 +205,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | Git | **Enable Git integration** (off by default). Executable / Test. Overlays, folder indicators, toolbar, status column, ahead/behind, ignored, refresh debounce, large-repo threshold, external diff tool. Guide: [GIT.md](GIT.md) (D64) |
 | Scripting and AI | **Enable scripting** (off by default — hides toolbar Scripts and context Scripts). Interpreter path overrides. Nested **Enable AI** (off = no outbound AI HTTP). OpenAI-compatible providers (base URL, model, key in `safeStorage`). Test / Refresh models; model fields are dropdowns from `GET /v1/models` (cached). Privacy: never send paths/listings/contents. Guide: [SCRIPTS.md](SCRIPTS.md) (D51) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
-| About        | App version; GitHub repository link; **Updates source** / Check / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
+| About        | App version; GitHub repository link; **Updates source** / Check / **What's new** (GitHub release notes) / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
 
 ---
 

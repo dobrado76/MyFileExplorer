@@ -19,7 +19,9 @@ import {
 import {
   isHttpUpdatesUrl,
   parseGithubReleasesUrl,
-  resolveUpdatesSource
+  resolveUpdatesSource,
+  githubRepoForReleaseNotes,
+  githubReleaseNotesFileUrls
 } from '@shared/updatesSource'
 import { requireAbsolute } from '../fs/list'
 import { broadcast } from '../ipc/events'
@@ -110,9 +112,22 @@ type GhReleaseAsset = {
 }
 type GhRelease = {
   tag_name?: string
+  name?: string
+  body?: string
+  html_url?: string
   published_at?: string
   assets?: GhReleaseAsset[]
 }
+
+export type ReleaseNotes = {
+  tagName: string
+  name: string | null
+  bodyMarkdown: string
+  htmlUrl: string | null
+  version: string | null
+}
+
+const RELEASE_NOTES_FILE = 'RELEASE_NOTES.md'
 
 async function githubFetchJson(url: string): Promise<unknown> {
   const res = await fetch(url, {
@@ -132,6 +147,72 @@ async function githubFetchJson(url: string): Promise<unknown> {
     )
   }
   return res.json()
+}
+
+/**
+ * Pull RELEASE_NOTES.md from the online GitHub repo (raw.githubusercontent.com).
+ * Works for both GitHub and local-folder update sources — never reads a local file.
+ */
+export async function fetchReleaseNotes(
+  rawSource: string,
+  version?: string | null
+): Promise<ReleaseNotes> {
+  const ref = githubRepoForReleaseNotes(rawSource)
+  if (!ref) {
+    throw new AppError(
+      'validation',
+      'Could not resolve the online repository for release notes',
+      'Expected the public MyFileExplorer GitHub repo.'
+    )
+  }
+  const candidates = githubReleaseNotesFileUrls(ref, version)
+  let lastErr: unknown = null
+  for (const c of candidates) {
+    try {
+      const res = await fetch(c.rawUrl, {
+        headers: { 'User-Agent': 'MyFileExplorer', Accept: 'text/plain' },
+        redirect: 'follow'
+      })
+      if (res.status === 404) {
+        lastErr = new AppError('io', `GitHub 404: ${RELEASE_NOTES_FILE} not at ${c.gitRef}`)
+        continue
+      }
+      if (!res.ok) {
+        throw new AppError(
+          'io',
+          `GitHub ${res.status}: could not download RELEASE_NOTES.md`,
+          res.status === 403
+            ? 'GitHub may be rate-limiting — try again later.'
+            : undefined
+        )
+      }
+      const body = (await res.text()).replace(/\r\n/g, '\n').trim()
+      if (!body) {
+        lastErr = new AppError('io', 'RELEASE_NOTES.md is empty')
+        continue
+      }
+      const ver =
+        tagToVersion(c.gitRef) ??
+        ((version ?? '').trim().replace(/^v/i, '') || null)
+      return {
+        tagName: c.gitRef,
+        name: 'Release notes',
+        bodyMarkdown: body,
+        htmlUrl: c.htmlUrl,
+        version: ver && /^\d+(\.\d+)*$/.test(ver) ? ver : null
+      }
+    } catch (e) {
+      lastErr = e
+      if (e instanceof AppError && /GitHub 404/.test(e.message)) continue
+      if (e instanceof AppError) throw e
+      throw new AppError('io', e instanceof Error ? e.message : String(e))
+    }
+  }
+  if (lastErr instanceof AppError) throw lastErr
+  throw new AppError(
+    'io',
+    lastErr instanceof Error ? lastErr.message : 'Could not load RELEASE_NOTES.md from GitHub'
+  )
 }
 
 async function findGithubUpdate(rawUrl: string): Promise<UpdateCandidate | null> {

@@ -64,6 +64,7 @@ import {
 import { basename, parentOf } from '../lib/paths'
 import { iconForEntry, isImageExt } from '../lib/icons'
 import { DEFAULT_UPDATES_SOURCE, GITHUB_REPO_URL, resolveUpdatesSource } from '@shared/updatesSource'
+import { ReleaseNotesBody } from './ReleaseNotesBody'
 import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
@@ -2425,6 +2426,16 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
     bytesTotal: number
     fileName?: string
   } | null>(null)
+  const [releaseNotesOpen, setReleaseNotesOpen] = useState(false)
+  const [releaseNotesBusy, setReleaseNotesBusy] = useState(false)
+  const [releaseNotesError, setReleaseNotesError] = useState<string | null>(null)
+  const [releaseNotes, setReleaseNotes] = useState<{
+    tagName: string
+    name: string | null
+    bodyMarkdown: string
+    htmlUrl: string | null
+    version: string | null
+  } | null>(null)
 
   useEffect(() => {
     return api.onEvent((event) => {
@@ -4599,6 +4610,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                             void applySettingsPatch({ updatesFolder: res.path })
                             setUpdateStatus(null)
                             setUpdateCandidate(null)
+                            setReleaseNotesOpen(false)
+                            setReleaseNotes(null)
+                            setReleaseNotesError(null)
                           }
                         })()
                       }}
@@ -4617,6 +4631,42 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                       <p className="settings-help settings-updates-status">{updateStatus}</p>
                     )
                   )}
+                  {releaseNotesOpen && (
+                    <div className="settings-release-notes" aria-live="polite">
+                      {releaseNotesBusy && (
+                        <p className="settings-help">Loading release notes…</p>
+                      )}
+                      {releaseNotesError && (
+                        <p className="settings-help settings-updates-status">{releaseNotesError}</p>
+                      )}
+                      {releaseNotes && !releaseNotesBusy && (
+                        <>
+                          <div className="settings-release-notes-head">
+                            <div className="settings-release-notes-title">
+                              {releaseNotes.name || releaseNotes.tagName}
+                              {releaseNotes.version ? (
+                                <span className="settings-muted"> · v{releaseNotes.version}</span>
+                              ) : null}
+                            </div>
+                            {releaseNotes.htmlUrl && (
+                              <a
+                                className="btn"
+                                href={releaseNotes.htmlUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Open this release on GitHub"
+                              >
+                              Open RELEASE_NOTES.md…
+                              </a>
+                            )}
+                          </div>
+                          <div className="settings-release-notes-scroll">
+                            <ReleaseNotesBody markdown={releaseNotes.bodyMarkdown} />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="settings-btn-stack">
                   <button
@@ -4630,6 +4680,9 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                         setUpdateStatus(null)
                         setUpdateCandidate(null)
                         setUpdateDownload(null)
+                        setReleaseNotesOpen(false)
+                        setReleaseNotes(null)
+                        setReleaseNotesError(null)
                         const source = resolveUpdatesSource(settings.updatesFolder)
                         try {
                           const res = await call(api.app.checkUpdate({ source }))
@@ -4659,6 +4712,42 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   >
                     Check for update
                   </button>
+                  {updateCandidate?.newer && (
+                    <button
+                      type="button"
+                      className="btn"
+                      title="Show what's new in this release before updating"
+                      disabled={updateBusy || releaseNotesBusy}
+                      onClick={() => {
+                        if (releaseNotesOpen) {
+                          setReleaseNotesOpen(false)
+                          return
+                        }
+                        void (async () => {
+                          setReleaseNotesOpen(true)
+                          setReleaseNotesBusy(true)
+                          setReleaseNotesError(null)
+                          const source = resolveUpdatesSource(settings.updatesFolder)
+                          try {
+                            const notes = await call(
+                              api.app.releaseNotes({
+                                source,
+                                version: updateCandidate.version ?? undefined
+                              })
+                            )
+                            setReleaseNotes(notes)
+                          } catch (e) {
+                            setReleaseNotes(null)
+                            setReleaseNotesError(e instanceof Error ? e.message : String(e))
+                          } finally {
+                            setReleaseNotesBusy(false)
+                          }
+                        })()
+                      }}
+                    >
+                      {releaseNotesOpen ? 'Hide notes' : "What's new"}
+                    </button>
+                  )}
                   {updateCandidate?.newer && (
                     <button
                       type="button"

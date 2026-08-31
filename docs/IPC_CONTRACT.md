@@ -251,6 +251,9 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `app:getPath`    | special paths (userData, home, desktop) |
 | `app:pickFolder` | native folder dialog                    |
 | `app:pickFiles`  | native open dialog if needed            |
+| `app:checkUpdate` | find newer installer (folder or GitHub) |
+| `app:releaseNotes` | Download online `RELEASE_NOTES.md` (raw GitHub; folder updates still use the public repo) |
+| `app:runUpdate`  | download/launch installer, then quit    |
 
 ---
 

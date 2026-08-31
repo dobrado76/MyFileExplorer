@@ -48,6 +48,39 @@ export function parseGithubReleasesUrl(raw: string): GithubRepoRef | null {
   return { owner, repo }
 }
 
+/**
+ * Repo used when fetching RELEASE_NOTES.md.
+ * Always the online GitHub repo — never a local updates folder.
+ * Custom GitHub updates URLs use that repo; folders use the public default.
+ */
+export function githubRepoForReleaseNotes(rawSource: string): GithubRepoRef | null {
+  const source = resolveUpdatesSource(rawSource)
+  if (isHttpUpdatesUrl(source)) {
+    return parseGithubReleasesUrl(source) ?? parseGithubReleasesUrl(DEFAULT_UPDATES_SOURCE)
+  }
+  return parseGithubReleasesUrl(DEFAULT_UPDATES_SOURCE)
+}
+
+const RELEASE_NOTES_FILE = 'RELEASE_NOTES.md'
+
+/** Raw + browse URLs for RELEASE_NOTES.md (version tags, then main/master). */
+export function githubReleaseNotesFileUrls(
+  ref: GithubRepoRef,
+  version?: string | null
+): Array<{ gitRef: string; rawUrl: string; htmlUrl: string }> {
+  const refs: string[] = []
+  const ver = (version ?? '').trim().replace(/^v/i, '')
+  if (ver && /^\d+(\.\d+)*$/.test(ver)) {
+    refs.push(`v${ver}`, ver)
+  }
+  refs.push('main', 'master')
+  return refs.map((gitRef) => ({
+    gitRef,
+    rawUrl: `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${gitRef}/${RELEASE_NOTES_FILE}`,
+    htmlUrl: `https://github.com/${ref.owner}/${ref.repo}/blob/${gitRef}/${RELEASE_NOTES_FILE}`
+  }))
+}
+
 /** True when the string is a usable updates source after empty→default resolution. */
 export function isValidUpdatesSource(raw: string): boolean {
   const s = resolveUpdatesSource(raw)
