@@ -140,6 +140,62 @@ export async function projectionUnmountBestEffort(documentPath: string): Promise
   }
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+/**
+ * Unmount before trash/delete/rename/absorb. Retries until the service no longer
+ * reports the document as active (WinFsp can lag briefly after Unmount).
+ * Returns the sibling mount path when known (for leftover cleanup / tree prune).
+ */
+export async function projectionUnmountRobust(
+  documentPath: string
+): Promise<{ documentPath: string; mountPath: string | null }> {
+  const { samePath } = await import('@shared/paths')
+  const { virtualFolderProjectedMountPath } = await import('@shared/virtualFolder')
+  let canonical = documentPath
+  let mountPath: string | null = null
+  try {
+    const mounts = await projectionListMounts()
+    const hit = mounts.find(
+      (m) =>
+        samePath(m.documentPath, documentPath) ||
+        samePath(m.mountPath, documentPath) ||
+        samePath(m.mountPath, virtualFolderProjectedMountPath(documentPath))
+    )
+    if (hit) {
+      canonical = hit.documentPath
+      mountPath = hit.mountPath
+    }
+  } catch {
+    /* service down */
+  }
+  if (!mountPath) {
+    try {
+      mountPath = virtualFolderProjectedMountPath(documentPath)
+    } catch {
+      mountPath = null
+    }
+  }
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      await projectionUnmount(canonical)
+    } catch {
+      await projectionUnmountBestEffort(canonical)
+    }
+    await delay(40 * (attempt + 1))
+    try {
+      const mounts = await projectionListMounts()
+      const still = mounts.some((m) => samePath(m.documentPath, canonical) && m.active)
+      if (!still) break
+    } catch {
+      break
+    }
+  }
+  return { documentPath: canonical, mountPath }
+}
+
 /** Best-effort mount when Settings projection is on (create / ensure paths). */
 export async function projectionMountBestEffort(
   documentPath: string

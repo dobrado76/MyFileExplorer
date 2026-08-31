@@ -6883,6 +6883,18 @@ html.idle-cursor-hidden * {
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
+.cmap-table th.cmap-check-col,
+.cmap-table td.cmap-check-col {
+  width: 2.25rem;
+  padding-left: 10px;
+  padding-right: 4px;
+  text-align: center;
+  vertical-align: middle;
+}
+.cmap-table th.cmap-check-col input,
+.cmap-table td.cmap-check-col input {
+  cursor: pointer;
+}
 .cmap-table th {
   position: sticky;
   top: 0;

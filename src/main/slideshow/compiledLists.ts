@@ -191,6 +191,11 @@ export async function compileDatIndex(
   return { count }
 }
 
+/** True when this path is (or is named) the resume/composites !!Lists folder. */
+function isCompiledListsDirName(name: string): boolean {
+  return name === COMPILED_LISTS_SUBDIR || name.toLowerCase() === '!!lists'
+}
+
 /** Recursively find `.dat` files; skip `!!Lists` directories entirely. */
 async function collectCompiledDatFiles(dir: string, out: string[]): Promise<void> {
   let entries
@@ -200,7 +205,7 @@ async function collectCompiledDatFiles(dir: string, out: string[]): Promise<void
     return
   }
   for (const ent of entries) {
-    if (ent.name === COMPILED_LISTS_SUBDIR || ent.name.toLowerCase() === '!!lists') continue
+    if (isCompiledListsDirName(ent.name)) continue
     const full = path.join(dir, ent.name)
     if (ent.isDirectory()) {
       await collectCompiledDatFiles(full, out)
@@ -222,7 +227,7 @@ async function collectCompiledListFiles(
     return
   }
   for (const ent of entries) {
-    if (ent.name === COMPILED_LISTS_SUBDIR || ent.name.toLowerCase() === '!!lists') continue
+    if (isCompiledListsDirName(ent.name)) continue
     const full = path.join(dir, ent.name)
     if (ent.isDirectory()) {
       await collectCompiledListFiles(full, out)
@@ -232,6 +237,34 @@ async function collectCompiledListFiles(
       else if (lower.endsWith('.txt')) out.txts.push(full)
     }
   }
+}
+
+/**
+ * Collect list files under selected category folders.
+ * Empty `entries` → whole compiled root (legacy). Skips `!!Lists` categories.
+ */
+async function collectUnderEntries(
+  compiledRoot: string,
+  entries: CompiledListEntry[] | undefined,
+  mode: 'dat' | 'all'
+): Promise<{ dats: string[]; txts: string[] }> {
+  const root = requireAbsolute(compiledRoot)
+  const out = { dats: [] as string[], txts: [] as string[] }
+  const folders =
+    entries && entries.length > 0
+      ? entries.map((e) => requireAbsolute(e.folder.trim())).filter(Boolean)
+      : [root]
+
+  const seen = new Set<string>()
+  for (const folder of folders) {
+    const key = folder.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (isCompiledListsDirName(path.basename(folder))) continue
+    if (mode === 'dat') await collectCompiledDatFiles(folder, out.dats)
+    else await collectCompiledListFiles(folder, out)
+  }
+  return out
 }
 
 function walkHookForOp(op: OpReporter, listLabel: string): WalkProgress {
@@ -244,13 +277,13 @@ function walkHookForOp(op: OpReporter, listLabel: string): WalkProgress {
 }
 
 /**
- * Update Lists: recompile ADS Index/Count on every `.dat` under the compiled
- * root (skip `!!Lists`), one file at a time (no in-memory folder cache).
+ * Update Lists: recompile ADS Index/Count on `.dat` files under the compiled
+ * root (or under `entries` category folders when provided). Skips `!!Lists`.
  * Body = folders to crawl; `|=>` ignored. Does **not** write Index on `.txt`.
  */
 export async function updateCompiledLists(
   compiledRoot: string,
-  _entries: CompiledListEntry[]
+  entries: CompiledListEntry[]
 ): Promise<{
   updated: number
   totalFiles: number
@@ -259,8 +292,7 @@ export async function updateCompiledLists(
 }> {
   const root = requireAbsolute(compiledRoot)
   await ensureListsDir(root)
-  const dats: string[] = []
-  await collectCompiledDatFiles(root, dats)
+  const { dats } = await collectUnderEntries(root, entries, 'dat')
   const progress = beginOp(
     'compile-lists',
     Math.max(dats.length, 1),
@@ -333,14 +365,15 @@ async function pathExistsAsFile(filePath: string): Promise<boolean> {
 
 /**
  * Validate compiled lists: missing source folders / nested list refs
- * (outside `!!Lists`). `.txt` never uses Index ADS — no Index check.
+ * (outside `!!Lists`). Optional `entries` limits to those category folders.
+ * `.txt` never uses Index ADS — no Index check.
  */
 export async function validateCompiledLists(
-  compiledRoot: string
+  compiledRoot: string,
+  entries?: CompiledListEntry[]
 ): Promise<ValidateCompiledListsResult> {
   const root = requireAbsolute(compiledRoot)
-  const collected = { dats: [] as string[], txts: [] as string[] }
-  await collectCompiledListFiles(root, collected)
+  const collected = await collectUnderEntries(root, entries, 'all')
   const queue = [
     ...collected.dats.map((p) => ({ path: p, kind: 'dat' as const })),
     ...collected.txts.map((p) => ({ path: p, kind: 'txt' as const }))

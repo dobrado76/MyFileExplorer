@@ -1007,7 +1007,7 @@ export function registerIpcHandlers(): void {
     updateCompiledLists(req.compiledRoot, req.entries)
   )
   handleDev(IPC.slideshowValidateCompiledLists, validateCompiledListsRequestSchema, async (req) =>
-    validateCompiledLists(req.compiledRoot)
+    validateCompiledLists(req.compiledRoot, req.entries)
   )
   handleDev(IPC.slideshowListCompiledDats, listCompiledDatsRequestSchema, async (req) => ({
     tabs: await listCompiledDats(req.compiledRoot, req.entries)

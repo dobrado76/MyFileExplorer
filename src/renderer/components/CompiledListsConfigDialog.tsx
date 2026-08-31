@@ -17,6 +17,22 @@ type Props = {
   returnSection?: string
 }
 
+function entryKey(e: Entry): string {
+  return e.folder.trim().toLowerCase()
+}
+
+/** `null` saved selection → all categories; otherwise intersect with current rows. */
+function checkedSetFromSaved(
+  entries: Entry[],
+  saved: string[] | null | undefined
+): Set<string> {
+  if (saved == null) {
+    return new Set(entries.map(entryKey).filter(Boolean))
+  }
+  const want = new Set(saved.map((s) => s.trim().toLowerCase()).filter(Boolean))
+  return new Set(entries.map(entryKey).filter((k) => k && want.has(k)))
+}
+
 function formatElapsed(ms: number): string {
   const sec = Math.floor(ms / 1000)
   const m = Math.floor(sec / 60)
@@ -27,7 +43,7 @@ function formatElapsed(ms: number): string {
 
 /**
  * Configure category tabs (name = subfolder under compiled root).
- * Update Lists recompiles ADS Index on every `.dat` under that root (skips !!Lists).
+ * Update Lists recompiles ADS Index on `.dat` under checked categories (skips !!Lists).
  * `.txt` lists always expand from body at play time — no Index.
  */
 export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element {
@@ -41,6 +57,10 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
 
   const [entries, setEntries] = useState<Entry[]>(() =>
     (settings.compiledListEntries ?? []).map((e) => ({ ...e }))
+  )
+  /** Category folders ticked for Update / Validate (persisted). */
+  const [checkedKeys, setCheckedKeys] = useState<Set<string>>(() =>
+    checkedSetFromSaved(settings.compiledListEntries ?? [], settings.compiledListUpdateFolders)
   )
   const [selected, setSelected] = useState<number | null>(null)
   const [draftName, setDraftName] = useState('')
@@ -58,6 +78,13 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
   const compiledRoot = settings.compiledFileListsFolder.trim()
 
   const compileOp = updating ? fileOp : null
+
+  const checkedEntries = useMemo(
+    () => entries.filter((e) => checkedKeys.has(entryKey(e))),
+    [entries, checkedKeys]
+  )
+  const allChecked = entries.length > 0 && checkedEntries.length === entries.length
+  const someChecked = checkedEntries.length > 0 && !allChecked
 
   useEffect(() => {
     if (!updating || updateStartedAt == null) {
@@ -79,6 +106,13 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
   const persistEntries = async (next: Entry[]): Promise<void> => {
     setEntries(next)
     await applySettingsPatch({ slideshow: { compiledListEntries: next } })
+  }
+
+  const persistChecked = async (next: Set<string>): Promise<void> => {
+    setCheckedKeys(next)
+    await applySettingsPatch({
+      slideshow: { compiledListUpdateFolders: [...next] }
+    })
   }
 
   useEffect(() => {
@@ -114,6 +148,12 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
         }))
         setSeededFromDisk(true)
         setEntries(seeded)
+        // First-time seed: leave selection null (all selected) unless user already saved one.
+        if (settings.compiledListUpdateFolders != null) {
+          setCheckedKeys(checkedSetFromSaved(seeded, settings.compiledListUpdateFolders))
+        } else {
+          setCheckedKeys(new Set(seeded.map(entryKey)))
+        }
         await applySettingsPatch({ slideshow: { compiledListEntries: seeded } })
       })
       .catch(() => {
@@ -170,15 +210,26 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
       next = [...entries]
       next[selected] = { name, folder }
     } else return
+    const old = mode === 'edit' && selected != null ? entries[selected] : null
     await persistEntries(next)
     setMode('idle')
     setSelected(mode === 'add' ? next.length - 1 : selected)
+    const nextKeys = new Set(checkedKeys)
+    if (old) nextKeys.delete(entryKey(old))
+    nextKeys.add(entryKey({ name, folder }))
+    await persistChecked(nextKeys)
   }
 
   const removeSelected = async (): Promise<void> => {
     if (selected == null) return
+    const removed = entries[selected]
     const next = entries.filter((_, i) => i !== selected)
     await persistEntries(next)
+    if (removed) {
+      const nextKeys = new Set(checkedKeys)
+      nextKeys.delete(entryKey(removed))
+      await persistChecked(nextKeys)
+    }
     setSelected(null)
     setMode('idle')
   }
@@ -198,9 +249,28 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
     setSelected(to)
   }
 
+  const toggleChecked = (e: Entry, on: boolean): void => {
+    const k = entryKey(e)
+    if (!k) return
+    const n = new Set(checkedKeys)
+    if (on) n.add(k)
+    else n.delete(k)
+    void persistChecked(n)
+  }
+
+  const toggleAllChecked = (on: boolean): void => {
+    void persistChecked(
+      on ? new Set(entries.map(entryKey).filter(Boolean)) : new Set()
+    )
+  }
+
   const updateLists = async (): Promise<void> => {
     if (!compiledRoot) {
       notify('Set Compiled file lists folder in Settings first', true)
+      return
+    }
+    if (checkedEntries.length === 0) {
+      notify('Tick at least one category to update', true)
       return
     }
     setBusy(true)
@@ -209,14 +279,20 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
     setValidationIssues(null)
     setValidationSummary(null)
     try {
+      // All ticked → whole compiled root (same as before). Subset → those folders only.
+      const scope =
+        checkedEntries.length === entries.length ? [] : checkedEntries
       const res = await call(
-        api.slideshow.updateCompiledLists({ compiledRoot, entries })
+        api.slideshow.updateCompiledLists({ compiledRoot, entries: scope })
       )
       if (res.updated === 0) {
-        notify('No .dat lists found to compile (outside !!Lists)')
+        notify('No .dat lists found to compile in the selected categories (outside !!Lists)')
       } else {
         notify(
-          `Updated ${res.datUpdated} .dat — ${res.totalFiles.toLocaleString()} images in Index`
+          `Updated ${res.datUpdated} .dat — ${res.totalFiles.toLocaleString()} images in Index` +
+            (checkedEntries.length < entries.length
+              ? ` (${checkedEntries.length}/${entries.length} categories)`
+              : '')
         )
       }
     } catch (e) {
@@ -239,14 +315,26 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
       notify('Set Compiled file lists folder in Settings first', true)
       return
     }
+    if (checkedEntries.length === 0) {
+      notify('Tick at least one category to validate', true)
+      return
+    }
     setBusy(true)
     setValidationIssues(null)
     setValidationSummary(null)
     try {
-      const res = await call(api.slideshow.validateCompiledLists({ compiledRoot }))
+      const scopeEntries =
+        checkedEntries.length === entries.length ? undefined : checkedEntries
+      const res = await call(
+        api.slideshow.validateCompiledLists({ compiledRoot, entries: scopeEntries })
+      )
       setValidationIssues(res.issues)
+      const scopeLabel =
+        checkedEntries.length < entries.length
+          ? ` (${checkedEntries.length}/${entries.length} categories)`
+          : ''
       if (res.ok) {
-        const summary = `Validate Lists: OK — checked ${res.checkedLists} list(s), no issues`
+        const summary = `Validate Lists: OK — checked ${res.checkedLists} list(s), no issues${scopeLabel}`
         setValidationSummary(summary)
         notify(summary)
       } else {
@@ -256,7 +344,7 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
           missingFolder ? `${missingFolder} missing folder(s)` : null,
           missingList ? `${missingList} missing list(s)` : null
         ].filter(Boolean)
-        const summary = `Validate Lists: ${res.issueCount} issue(s) in ${res.checkedLists} list(s) — ${bits.join(', ')}`
+        const summary = `Validate Lists: ${res.issueCount} issue(s) in ${res.checkedLists} list(s) — ${bits.join(', ')}${scopeLabel}`
         setValidationSummary(summary)
         notify(summary, true)
       }
@@ -311,12 +399,12 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
         <div className="modal-title">Compiled lists</div>
         <p className="dim" style={{ margin: '0 16px 8px', fontSize: 12 }}>
           Category folders under the compiled lists root are listed automatically (including{' '}
-          <code>!!Lists</code>). Drag to reorder tabs; Add/Edit only if you need extras.{' '}
-          <strong>Update Lists</strong> crawls folders listed in each <code>.dat</code> body and
-          writes ADS <code>Index</code>/<code>Count</code> on every <code>.dat</code>{' '}
-          <em>outside</em> <code>!!Lists</code> (<code>{'|=>'}</code> ignored; <code>.txt</code> is
-          not indexed — play expands from body). <strong>Validate Lists</strong> reports missing
-          folders / nested list refs.
+          <code>!!Lists</code>). Drag to reorder tabs; Add/Edit only if you need extras. Tick
+          categories, then <strong>Update Lists</strong> / <strong>Validate Lists</strong> run on
+          that subset only. Update crawls folders in each <code>.dat</code> body and writes ADS{' '}
+          <code>Index</code>/<code>Count</code> outside <code>!!Lists</code> (<code>{'|=>'}</code>{' '}
+          ignored; <code>.txt</code> is not indexed). Validate reports missing folders / nested list
+          refs.
           {listsHint ? (
             <>
               {' '}
@@ -345,11 +433,41 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
             >
               Remove
             </button>
-            <button type="button" className="btn primary" disabled={busy} onClick={() => void updateLists()}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={busy || checkedEntries.length === 0}
+              title={
+                checkedEntries.length === 0
+                  ? 'Tick at least one category'
+                  : checkedEntries.length < entries.length
+                    ? `Update ${checkedEntries.length} selected categor${checkedEntries.length === 1 ? 'y' : 'ies'}`
+                    : 'Update all categories'
+              }
+              onClick={() => void updateLists()}
+            >
               Update Lists
+              {checkedEntries.length > 0 && checkedEntries.length < entries.length
+                ? ` (${checkedEntries.length})`
+                : ''}
             </button>
-            <button type="button" className="btn" disabled={busy} onClick={() => void validateLists()}>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || checkedEntries.length === 0}
+              title={
+                checkedEntries.length === 0
+                  ? 'Tick at least one category'
+                  : checkedEntries.length < entries.length
+                    ? `Validate ${checkedEntries.length} selected categor${checkedEntries.length === 1 ? 'y' : 'ies'}`
+                    : 'Validate all categories'
+              }
+              onClick={() => void validateLists()}
+            >
               Validate Lists
+              {checkedEntries.length > 0 && checkedEntries.length < entries.length
+                ? ` (${checkedEntries.length})`
+                : ''}
             </button>
             <button type="button" className="btn" disabled={busy} onClick={() => void start()}>
               Start
@@ -415,34 +533,63 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
               <table className="cmap-table">
                 <thead>
                   <tr>
+                    <th className="cmap-check-col">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someChecked
+                        }}
+                        disabled={busy || entries.length === 0}
+                        aria-label="Select all categories"
+                        title="Select all for Update / Validate"
+                        onChange={(ev) => toggleAllChecked(ev.target.checked)}
+                      />
+                    </th>
                     <th>Name</th>
                     <th>Folder</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.map((e, i) => (
-                    <tr
-                      key={`${e.name}-${i}`}
-                      className={selected === i ? 'selected' : undefined}
-                      draggable
-                      onDragStart={() => setDragIndex(i)}
-                      onDragOver={(ev) => ev.preventDefault()}
-                      onDrop={() => {
-                        if (dragIndex != null) void onDropReorder(dragIndex, i)
-                        setDragIndex(null)
-                      }}
-                      onClick={() => setSelected(i)}
-                      onDoubleClick={() => startEdit(i)}
-                    >
-                      <td>{e.name}</td>
-                      <td className="dim" title={e.folder}>
-                        {e.folder}
-                      </td>
-                    </tr>
-                  ))}
+                  {entries.map((e, i) => {
+                    const checked = checkedKeys.has(entryKey(e))
+                    return (
+                      <tr
+                        key={`${e.name}-${i}`}
+                        className={selected === i ? 'selected' : undefined}
+                        draggable
+                        onDragStart={() => setDragIndex(i)}
+                        onDragOver={(ev) => ev.preventDefault()}
+                        onDrop={() => {
+                          if (dragIndex != null) void onDropReorder(dragIndex, i)
+                          setDragIndex(null)
+                        }}
+                        onClick={() => setSelected(i)}
+                        onDoubleClick={() => startEdit(i)}
+                      >
+                        <td
+                          className="cmap-check-col"
+                          onClick={(ev) => ev.stopPropagation()}
+                          onDoubleClick={(ev) => ev.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={busy}
+                            aria-label={`Include ${e.name} in Update / Validate`}
+                            onChange={(ev) => toggleChecked(e, ev.target.checked)}
+                          />
+                        </td>
+                        <td>{e.name}</td>
+                        <td className="dim" title={e.folder}>
+                          {e.folder}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   {entries.length === 0 ? (
                     <tr>
-                      <td colSpan={2} className="dim">
+                      <td colSpan={3} className="dim">
                         {compiledRoot
                           ? 'No category folders found under the compiled lists root yet.'
                           : 'Set Compiled file lists folder in Settings first.'}

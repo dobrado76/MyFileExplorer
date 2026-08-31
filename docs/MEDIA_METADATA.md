@@ -122,11 +122,12 @@ Season defaults to **1** when the stored episode has a number but no season (som
 
 When the selected file or folder has streams — or you are inside a show/movie folder with **no file selected** (the current folder is the preview target):
 
-1. **Hero** — poster + title, year / SxxExx / show name. Click the poster for a fullscreen view of the **stored** image (not a web URL).
-2. **Change cover** and **Mark as Watched** under the title.
-3. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
-4. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills.
-5. **Media / File tabs** — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs.
+1. **Show/movie folders — Media | Folder** — header tabs like Git | Folder (**Media** by default). **Media** = poster hero + cast/synopsis; **Folder** = directory / Calculate Statistics card (space map, largest files, …).
+2. **Hero** (Media tab / media files) — poster + title, year / SxxExx / show name. Click the poster for a fullscreen view of the **stored** image (not a web URL).
+3. **Change cover** and **Mark as Watched** under the title.
+4. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
+5. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills.
+6. **Media / File tabs** (episode and other media **files** only) — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs. Folders use the header Media | Folder split instead.
 
 Cover height is **Cover art size**.
 

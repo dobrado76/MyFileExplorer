@@ -113,4 +113,36 @@ describe('validateCompiledLists', () => {
       await fsp.rm(root, { recursive: true, force: true })
     }
   })
+
+  it('limits validation to selected category folders', async () => {
+    const os = await import('node:os')
+    const fsp = await import('node:fs/promises')
+    const path = await import('node:path')
+    const { validateCompiledLists } = await import('../main/slideshow/compiledLists')
+
+    const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-validate-subset-'))
+    const good = path.join(root, 'Good')
+    const bad = path.join(root, 'Bad')
+    await fsp.mkdir(good, { recursive: true })
+    await fsp.mkdir(bad, { recursive: true })
+    const photos = path.join(root, 'Photos')
+    await fsp.mkdir(photos, { recursive: true })
+    await fsp.writeFile(path.join(good, 'ok.dat'), `${photos}\n`, 'utf8')
+    await fsp.writeFile(path.join(bad, 'broken.dat'), `${path.join(root, 'Missing')}\n`, 'utf8')
+
+    try {
+      const onlyGood = await validateCompiledLists(root, [
+        { name: 'Good', folder: good }
+      ])
+      expect(onlyGood.ok).toBe(true)
+      expect(onlyGood.checkedLists).toBe(1)
+
+      const onlyBad = await validateCompiledLists(root, [{ name: 'Bad', folder: bad }])
+      expect(onlyBad.ok).toBe(false)
+      expect(onlyBad.checkedLists).toBe(1)
+      expect(onlyBad.issues.some((i) => i.kind === 'missing-folder')).toBe(true)
+    } finally {
+      await fsp.rm(root, { recursive: true, force: true })
+    }
+  })
 })

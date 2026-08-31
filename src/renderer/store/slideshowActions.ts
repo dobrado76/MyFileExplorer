@@ -69,6 +69,7 @@ export type SlideshowHost = {
       invalidImagesDir: string
       compiledFileListsFolder: string
       compiledListEntries: { name: string; folder: string }[]
+      compiledListUpdateFolders: string[] | null
       compiledPlaylistIndex: number
     }
   }

@@ -34,7 +34,7 @@ import {
   noteChecklistPlainText,
   parseNoteChecklistColumn
 } from '@shared/noteSearch'
-import { resolveFolderView } from '@shared/folderViews'
+import { resolveFolderViewForTab } from '@shared/folderViews'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
 import { pathKey } from '@shared/paths'
@@ -393,8 +393,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const folderPath = tab?.path ?? ''
   const owningView = useMemo(
-    () => (folderPath ? resolveFolderView(folderPath, folderViews) : null),
-    [folderPath, folderViews]
+    () => (tab ? resolveFolderViewForTab(tab, folderViews) : null),
+    [tab, folderViews]
   )
   const detailsColumnsBase = owningView?.detailsColumns ?? settings.detailsColumns
   /** Session-only width for the search Folder column (never written to settings). */
@@ -562,7 +562,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       e.stopPropagation()
       const startX = e.clientX
       const s = useAppStore.getState()
-      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const owning = s.owningFolderView()
       const cols = owning?.detailsColumns ?? s.settings.detailsColumns
       const nameW = owning?.detailsNameWidth ?? s.settings.detailsNameWidth
       const startW =
@@ -604,7 +604,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       // Search Folder column stays pinned first — not part of saved layout.
       if (dragId === 'folder' || target === 'folder') return
       const s = useAppStore.getState()
-      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const owning = s.owningFolderView()
       const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter(
         (c) => c.id !== 'folder'
       )
@@ -623,7 +623,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     (id: DetailsColumnId): void => {
       if (id === 'folder') return
       const s = useAppStore.getState()
-      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const owning = s.owningFolderView()
       const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter(
         (c) => c.id !== 'folder'
       )

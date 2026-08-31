@@ -511,11 +511,19 @@ export async function addVirtualFolderEntries(
 async function unprojectDocument(documentPath: string): Promise<void> {
   if (process.platform !== 'win32') return
   const abs = requireAbsolute(documentPath)
-  const { projectionUnmount, projectionUnmountBestEffort } = await import('./projectionClient')
-  try {
-    await projectionUnmount(abs)
-  } catch {
-    await projectionUnmountBestEffort(abs)
+  const { projectionUnmountRobust } = await import('./projectionClient')
+  const res = await projectionUnmountRobust(abs)
+  // Drop empty mount stub so it does not linger beside a deleted/absorbed document.
+  if (res.mountPath) {
+    try {
+      const st = await fsp.lstat(res.mountPath)
+      if (st.isDirectory()) {
+        const entries = await fsp.readdir(res.mountPath)
+        if (entries.length === 0) await fsp.rmdir(res.mountPath)
+      }
+    } catch {
+      /* ignore */
+    }
   }
 }
 

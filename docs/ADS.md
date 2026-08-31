@@ -117,7 +117,7 @@ Column visibility / order live with the rest of the Details layout in settings (
 
 ## Related uses
 
-**Folder statistics / space map (D66)** — integer streams + `FolderStatsPreview` JSON; preview UX in [PREVIEW.md](PREVIEW.md). Decision: [DECISIONS.md](DECISIONS.md) **D66**.
+**Folder statistics / space map (D66)** — user guide: [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md). Integer streams + `FolderStatsPreview` JSON; preview chrome also in [PREVIEW.md](PREVIEW.md). Decision: [DECISIONS.md](DECISIONS.md) **D66**.
 
 **Media metadata (D50)** writes `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes — not on episode files), and `media_metadata_container` (library + title folder flag). Same NTFS mechanism; not under `userData`. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 

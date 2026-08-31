@@ -64,6 +64,11 @@ export const slideshowSettingsSchema = z.object({
       })
     )
     .catch([]),
+  /**
+   * Category folder paths ticked for Update / Validate Lists.
+   * `null` = never customized (treat as all selected). Empty array = none selected.
+   */
+  compiledListUpdateFolders: z.array(z.string()).nullable().catch(null),
   /** Last image index within the expanded compiled playlist (resume). */
   compiledPlaylistIndex: z.number().int().min(0).catch(0)
 })
@@ -83,6 +88,7 @@ export const defaultSlideshowSettings: SlideshowSettings = {
   invalidImagesDir: '',
   compiledFileListsFolder: '',
   compiledListEntries: [],
+  compiledListUpdateFolders: null,
   compiledPlaylistIndex: 0
 }
 

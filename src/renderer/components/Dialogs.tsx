@@ -98,7 +98,6 @@ import {
 } from '@shared/settingsSearch'
 import { applySettingsPaneFilter } from '../lib/settingsSearchDom'
 import { isValidAdsStreamName } from '@shared/ads/paths'
-import { resolveFolderView } from '@shared/folderViews'
 import {
   ADS_FIELD_COLUMN_DEFAULT_WIDTH,
   adsFieldColumnId,
@@ -1158,7 +1157,7 @@ function ConflictDialog(): JSX.Element | null {
               </button>
               <button
                 className="btn"
-                title="Replace every conflicting file"
+                title="Replace files; merge folders into the existing destination (Explorer-style)"
                 onClick={() => void resolveConflict('replace')}
               >
                 Replace all
@@ -1171,7 +1170,12 @@ function ConflictDialog(): JSX.Element | null {
           <button className="btn" onClick={() => decideCurrent('rename')}>
             Keep both
           </button>
-          <button className="btn primary" autoFocus onClick={() => decideCurrent('replace')}>
+          <button
+            className="btn primary"
+            autoFocus
+            title="Replace files; merge folders into the existing destination (keeps folder ADS)"
+            onClick={() => decideCurrent('replace')}
+          >
             Replace
           </button>
         </>
@@ -1336,8 +1340,12 @@ function OpIssuesDialog(): JSX.Element | null {
     compare?.destination ??
     (focused?.dest ? sideFromPath(focused.dest, focused.destMtimeMs) : null)
   const renameOp = dialog?.kind === 'op-issues' && dialog.op === 'rename'
-  const folderMerge =
-    renameOp && incoming?.kind === 'dir' && existing?.kind === 'dir'
+  const folderMerge = incoming?.kind === 'dir' && existing?.kind === 'dir'
+  const folderMergeTitle = renameOp
+    ? 'Move contents into the existing folder, then remove the one you renamed (keeps destination ADS)'
+    : dialog.op === 'move'
+      ? 'Move contents into the existing folder (Explorer-style; keeps destination ADS)'
+      : 'Copy contents into the existing folder (Explorer-style; keeps destination ADS)'
 
   const patchIssueLockers = (source: string, dest: string | undefined, lockers: OpIssue['lockers']): void => {
     useAppStore.setState((s) => {
@@ -1426,7 +1434,7 @@ function OpIssuesDialog(): JSX.Element | null {
                       className={`btn${a.decision === 'replace' || a.decision === 'retry' ? ' primary' : ''}`}
                       title={
                         folderMerge && a.decision === 'replace'
-                          ? 'Move contents into the existing folder, then remove the one you renamed'
+                          ? folderMergeTitle
                           : `Apply “${label}” to all ${g.label.toLowerCase()}`
                       }
                       onClick={() => applyItems(g.items, a.decision)}
@@ -1475,7 +1483,7 @@ function OpIssuesDialog(): JSX.Element | null {
                               className="btn"
                               title={
                                 folderMerge && a.decision === 'replace'
-                                  ? 'Move contents into the existing folder, then remove the one you renamed'
+                                  ? folderMergeTitle
                                   : undefined
                               }
                               onClick={() => applyItems([it], a.decision)}
@@ -1584,7 +1592,7 @@ function AdsFieldColumnDialog(): JSX.Element {
     const catalog = mergeAdsFieldColumns(rest, [
       pretty ? { stream: trimmed, label: pretty } : { stream: trimmed }
     ])
-    const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+    const owning = s.owningFolderView()
     const cur = (owning?.detailsColumns ?? s.settings.detailsColumns).filter((c) => c.id !== 'folder')
     const next = cur.some((c) => c.id === id)
       ? cur

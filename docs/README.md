@@ -10,7 +10,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 **New agent / implementer**
 
-1. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (shareable vs Explorer)
+1. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (vs Explorer + workbench) · [BUSINESS_UVP.md](BUSINESS_UVP.md) (org UVP)
 2. [DECISIONS.md](DECISIONS.md)
 3. [ARCHITECTURE.md](ARCHITECTURE.md)
 4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
@@ -23,7 +23,8 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Doc                                              | Topic                                 |
 | ------------------------------------------------ | ------------------------------------- |
 | [PRODUCT_SPEC.md](PRODUCT_SPEC.md)               | Features & UX requirements            |
-| [ADVANTAGES.md](ADVANTAGES.md)                   | Advantages vs classic Windows Explorer |
+| [BUSINESS_UVP.md](BUSINESS_UVP.md)               | Business UVP — semantic file workbench for organizations |
+| [ADVANTAGES.md](ADVANTAGES.md)                   | Advantages vs Explorer + workbench / Virtual Folders framing |
 | [BUILD.md](BUILD.md)                             | Local build + tagged GitHub Releases   |
 | [LINUX.md](LINUX.md)                             | Experimental Linux AppImage / Wayland helpers |
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
@@ -31,7 +32,8 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
 | [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D68               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
-| [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips, folder space map |
+| [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
+| [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
 | [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md)         | Virtual Folders — `.mfevirtual` folder-like collections (D67) |
 | [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md) | Optional WinFsp OS projection (D68, Windows) — install WinFsp + release zip |
@@ -59,7 +61,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 
 | Area | Spec |
 | ---- | ---- |
-| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap (hover folder outlines); **Other N · size** on the Space usage heading. ADS `FolderStatsPreview`; max leaves default 50000 — [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md) |
+| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap; **Other N · size** on the Space usage heading. Plain vs **Shift+click** (skip tagged) — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) |
 | Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
 | File op plan | Hold **Ctrl** on copy/move/paste/delete → plan dialog with Dry run |
 | Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](GIT.md) |
@@ -139,7 +141,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Bulk file ops | Continue-then-review (D18) — no mid-pass prompts; Keep most recent; same-folder paste auto-renames; rename clashes use the same review |
 | PowerPoint preview | `.pptx` approximate slides (text + package images); `.ppt` text-only — [PREVIEW.md](PREVIEW.md) |
 | Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
-| Folder statistics | Depth-first **Calculate Statistics** on full subtrees; Shift+skip tagged trees; columns Files / Total Files / Folders / Total Folders — [ADS.md](ADS.md) |
+| Folder statistics | Depth-first **Calculate Statistics**; **Shift+click** skips already-tagged trees — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) · streams [ADS.md](ADS.md) |
 | Slideshow crop | Numpad edge trim during slideshow |
 | Draw caption | NTFS Caption ADS poster in slideshow / preview / viewer when enabled |
 | Nested custom context menus | `\` in custom command labels builds submenus |

@@ -72,7 +72,20 @@ public sealed class WinFspMountBackend : IMountBackend
         ActiveMount? m;
         lock (_gate)
         {
-            if (!_active.Remove(documentPath, out m) || m is null) return;
+            if (!_active.Remove(documentPath, out m) || m is null)
+            {
+                // Path may differ slightly from the key used at Mount (casing / full path).
+                var key = _active.Keys.FirstOrDefault(k =>
+                    string.Equals(k, documentPath, StringComparison.OrdinalIgnoreCase));
+                if (key is null)
+                {
+                    key = _active.FirstOrDefault(kv =>
+                        string.Equals(kv.Value.MountPath, documentPath, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(kv.Value.MountPath, VirtualFolderDocumentParser.ProjectedMountPath(documentPath),
+                            StringComparison.OrdinalIgnoreCase)).Key;
+                }
+                if (key is null || !_active.Remove(key, out m) || m is null) return;
+            }
         }
         try
         {

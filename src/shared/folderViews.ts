@@ -1,6 +1,10 @@
 import type { ViewMode, SortSpec } from './schemas/session'
 import type { DetailsColumnId } from './schemas/columns'
 import { isUnderPath, pathKey, pathSpecificity, samePath } from './paths'
+import {
+  isVirtualFolderDocumentPath,
+  virtualFolderOpenCwdPath
+} from './virtualFolder'
 
 export const MAX_FOLDER_VIEWS = 200
 
@@ -11,6 +15,30 @@ export type FolderView = {
   sort: SortSpec
   detailsColumns: { id: DetailsColumnId; width: number }[]
   detailsNameWidth: number
+}
+
+/** Path key for folder-view lookup: embedded VF group cwd when drilled in, else tab.path. */
+export function folderViewResolvePath(tab: {
+  path: string
+  virtualFolderGroupStack?: string[]
+}): string {
+  const stack = tab.virtualFolderGroupStack ?? []
+  if (isVirtualFolderDocumentPath(tab.path) && stack.length > 0) {
+    return virtualFolderOpenCwdPath(tab.path, stack[stack.length - 1]!)
+  }
+  return tab.path
+}
+
+/** Prefer group customization when browsing a VF group; fall back to the document entry. */
+export function resolveFolderViewForTab(
+  tab: { path: string; virtualFolderGroupStack?: string[] },
+  list: FolderView[]
+): FolderView | null {
+  const cwd = folderViewResolvePath(tab)
+  const hit = resolveFolderView(cwd, list)
+  if (hit) return hit
+  if (cwd !== tab.path) return resolveFolderView(tab.path, list)
+  return null
 }
 
 /** Exact match first; else longest recursive ancestor. */

@@ -540,7 +540,10 @@ export type MyFileExplorerApi = {
         txtUpdated: number
       }>
     >
-    validateCompiledLists(req: { compiledRoot: string }): Promise<
+    validateCompiledLists(req: {
+      compiledRoot: string
+      entries?: { name: string; folder: string }[]
+    }): Promise<
       Result<{
         ok: boolean
         checkedLists: number

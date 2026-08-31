@@ -90,7 +90,7 @@ Independent .NET process: [`tools/MfeVirtualFolderService/`](../tools/MfeVirtual
 ## MFE integration
 
 - Setting `virtualFolderOsProjectionEnabled` (default `false`) — Settings → Behavior, **win32 only**
-- **Set-and-forget when enabled:** create / rename / browse auto-mounts visible `.mfevirtual` docs; trash/delete/rename/absorb unmount first in main. Context **Unproject** is a session opt-out (auto-ensure skips until **Project**); **Project** remains as a remount/retry.
+- **Set-and-forget when enabled:** create / rename / browse auto-mounts visible `.mfevirtual` docs; trash/delete/rename/absorb unmount first in main. Opening a folder (or the document) retries mount if the agent was down at create time. After a successful mount, the agent’s `mounts.json` remounts at logon. Context **Unproject** is a session opt-out (auto-ensure skips until **Project**); **Project** remains as a remount/retry.
 - IPC `virtualFolderProject:status|mount|unmount|listMounts` — handlers registered **only on win32**; pipe client is dynamically imported
 - FileView **P** badge / Type “· Projected” when mounted
 - MFE listings **hide** the sibling mount directory when `Name.mfevirtual` is present; the definition file is **Hidden** on disk so Explorer (default) mainly shows the mount folder

@@ -1,5 +1,5 @@
 import { useCallback, type JSX } from 'react'
-import { resolveFolderView } from '@shared/folderViews'
+import { resolveFolderViewForTab } from '@shared/folderViews'
 import type { ViewMode } from '@shared/schemas/session'
 import { dropOperation, useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
@@ -134,7 +134,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
     )
   }
 
-  const owning = resolveFolderView(tab.path, folderViews)
+  const owning = resolveFolderViewForTab(tab, folderViews)
   const viewMode = owning?.viewMode ?? tab.viewMode
   const treeWidth = splitters.treeWidthPx
 

@@ -11,7 +11,9 @@ export const updateCompiledListsRequestSchema = z.object({
 })
 
 export const validateCompiledListsRequestSchema = z.object({
-  compiledRoot: z.string().min(1)
+  compiledRoot: z.string().min(1),
+  /** When non-empty, only validate list files under these category folders. */
+  entries: z.array(compiledListEntrySchema).optional()
 })
 
 export const compiledListValidationIssueSchema = z.object({

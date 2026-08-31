@@ -46,6 +46,7 @@ import {
   virtualFolderDocumentPathFromProjectedMount,
   virtualFolderEntryIdFromPath,
   virtualFolderOpenCwdPath,
+  virtualFolderProjectedMountPath,
   virtualFolderTreeListPath
 } from '@shared/virtualFolder'
 import type { GitRepositoryStatus } from '@shared/schemas/git'
@@ -59,6 +60,7 @@ import {
   patchFolderView,
   removeFolderView,
   resolveFolderView,
+  resolveFolderViewForTab,
   upsertFolderView,
   type FolderView
 } from '@shared/folderViews'
@@ -1974,7 +1976,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   function currentListingFoldersFirst(listingPath?: string): boolean {
     const s = get()
     const tab = s.activeTab()
-    const owning = resolveFolderView(tab.path, s.settings.folderViews)
+    const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
     return listingFoldersFirst({
       foldersFirst: s.settings.foldersFirst,
       mediaEnabled: s.settings.mediaMetadata.enabled,
@@ -1992,7 +1994,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!tab || tab.search.active || s.recycleBin.active) return
     const listing = s.listingsByTabId[tab.id] ?? s.listing
     if (!listing.path || listing.entries.length === 0) return
-    const owning = resolveFolderView(tab.path, s.settings.folderViews)
+    const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const sorted = sortEntries(
       listing.entries,
@@ -2018,7 +2020,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     }
   ): DirEntry[] {
     const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
-    const owning = resolveFolderView(tab.path, get().settings.folderViews)
+    const owning = resolveFolderViewForTab(tab, get().settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const sortedEntries = dedupeDirEntries(
       sortEntries(entries, sort, currentListingFoldersFirst(listedPath))
@@ -2075,6 +2077,16 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         })
       }
+    }
+    // Set-and-forget OS projection: mount any Virtual Folders visible in this listing
+    // (and the open document itself). Covers create-while-service-down and post-reboot
+    // browse — RemountRegistered only restores mounts already in mounts.json.
+    if (get().platform === 'win32' && get().settings.virtualFolderOsProjectionEnabled) {
+      const docs = sortedEntries
+        .map((e) => e.path)
+        .filter((p) => isVirtualFolderDocumentPath(p))
+      if (isVirtualFolderDocumentPath(path)) docs.push(path)
+      if (docs.length > 0) void get().ensureVirtualFolderOsProjection(docs)
     }
   }
 
@@ -2148,7 +2160,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         if (res.document.settings?.manualOrder === true) {
           const tab = get().tabs.find((t) => t.id === tabId)
           const owning = tab
-            ? resolveFolderView(tab.path, get().settings.folderViews)
+            ? resolveFolderViewForTab(tab, get().settings.folderViews)
             : null
           const cur = owning?.sort ?? tab?.sort
           if (cur && cur.key !== 'manual') {
@@ -2382,7 +2394,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const listingsByTabId: Record<string, Listing> = {}
       for (const [tid, L] of Object.entries(s.listingsByTabId)) {
         const t = s.tabs.find((x) => x.id === tid)
-        const owning = t ? resolveFolderView(t.path, s.settings.folderViews) : undefined
+        const owning = t ? resolveFolderViewForTab(t, s.settings.folderViews) : undefined
         const sort = owning?.sort ?? t?.sort ?? { key: 'name' as const, dir: 'asc' as const }
         listingsByTabId[tid] = {
           ...L,
@@ -2397,7 +2409,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         listingsByTabId[s.activeTabId] ??
         (() => {
           const tab = s.tabs.find((x) => x.id === s.activeTabId)
-          const owning = tab ? resolveFolderView(tab.path, s.settings.folderViews) : undefined
+          const owning = tab ? resolveFolderViewForTab(tab, s.settings.folderViews) : undefined
           const sort = owning?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const }
           return {
             ...s.listing,
@@ -2589,7 +2601,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       ? searchResultsToEntries(tab.search.results)
       : s.listing.entries
     const listingRef = tab.search.active ? tab.search.results : s.listing.entries
-    const owning = resolveFolderView(tab.path, s.settings.folderViews)
+    const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
     const sort = owning?.sort ?? tab.sort
     const filterKey = viewOrderFilterKey(s)
     if (
@@ -2770,7 +2782,35 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     }
     syncImageViewerAfterDelete(removed)
-    notifyTreeRemoved(removed)
+    // Deleting a projected `.mfevirtual` must also drop the sibling mount path from the
+    // tree — otherwise WinFsp's folder remains visible as a "ghost" under the parent.
+    const projected = get().projectedVirtualFolders
+    const mountGhosts: string[] = []
+    const vfDocs = removed.filter((p) => isVirtualFolderDocumentPath(p))
+    if (vfDocs.length > 0) {
+      const nextProjected = { ...projected }
+      let projectedChanged = false
+      for (const d of vfDocs) {
+        const key = pathKey(d)
+        const mount = projected[key] ?? virtualFolderProjectedMountPath(d)
+        if (mount) mountGhosts.push(mount)
+        if (key in nextProjected) {
+          delete nextProjected[key]
+          projectedChanged = true
+        }
+      }
+      if (projectedChanged) set({ projectedVirtualFolders: nextProjected })
+      void get().refreshProjectedVirtualFolders()
+    }
+    notifyTreeRemoved([...removed, ...mountGhosts])
+    const parents = [
+      ...new Set(
+        [...removed, ...mountGhosts]
+          .map((p) => parentOf(p))
+          .filter((p): p is string => !!p)
+      )
+    ]
+    if (parents.length > 0) notifyTreeReload(parents)
     const activeDoomed = tabsWhoseRootIsDeleted(get().tabs, removed).some(
       (t) => t.id === get().activeTabId
     )
@@ -4497,15 +4537,15 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     owningFolderView(path) {
       const s = get()
-      const p = path ?? s.activeTab().path
-      return resolveFolderView(p, s.settings.folderViews)
+      if (path != null) return resolveFolderView(path, s.settings.folderViews)
+      return resolveFolderViewForTab(s.activeTab(), s.settings.folderViews)
     },
 
     setViewMode(mode, tabId) {
       const s = get()
       const id = tabId ?? s.activeTabId
       const tab = s.tabs.find((t) => t.id === id) ?? s.activeTab()
-      const owning = resolveFolderView(tab.path, s.settings.folderViews)
+      const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       if (owning) {
         void get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, { viewMode: mode })
@@ -4521,7 +4561,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const s = get()
       const id = tabId ?? s.activeTabId
       const tab = s.tabs.find((t) => t.id === id) ?? s.activeTab()
-      const owning = resolveFolderView(tab.path, s.settings.folderViews)
+      const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       if (owning) {
         void get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, { sort })
@@ -4606,7 +4646,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       const tab = s.activeTab()
-      const owning = resolveFolderView(tab.path, s.settings.folderViews)
+      const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       const id = `vp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
       await get().applySettingsPatch({
         viewPresets: [
@@ -4631,7 +4671,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const preset = s.settings.viewPresets.find((p) => p.id === id)
       if (!preset) return
       const tab = s.activeTab()
-      const owning = resolveFolderView(tab.path, s.settings.folderViews)
+      const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       const detailsColumns = preset.detailsColumns.filter((c) => c.id !== 'folder') as Settings['detailsColumns']
       const extra = {
         detailsNameWidth: preset.detailsNameWidth,
@@ -4685,7 +4725,7 @@ export const useAppStore = create<AppState>()((set, get) => {
               detailsColumns: patch.detailsColumns.filter((c) => c.id !== 'folder')
             }
           : patch
-      const owning = resolveFolderView(s.activeTab().path, s.settings.folderViews)
+      const owning = resolveFolderViewForTab(s.activeTab(), s.settings.folderViews)
       if (owning) {
         await get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, clean)
@@ -5716,7 +5756,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const pf = listing.virtualFolder
       if (!pf || pf.readOnly) return
       const tab = get().activeTab()
-      const owning = resolveFolderView(tab.path, get().settings.folderViews)
+      const owning = resolveFolderViewForTab(tab, get().settings.folderViews)
       const sort = owning?.sort ?? tab.sort
       if (sort.key !== 'manual') {
         get().notify('Switch Sort to Manual to reorder', true)
@@ -5820,10 +5860,13 @@ export const useAppStore = create<AppState>()((set, get) => {
       for (const p of documentPaths) {
         if (isVirtualFolderDocumentPath(p)) byKey.set(pathKey(p), p)
       }
-      for (const e of s.listing.entries) {
-        if (isVirtualFolderDocumentPath(e.path)) byKey.set(pathKey(e.path), e.path)
+      for (const listing of Object.values(s.listingsByTabId)) {
+        for (const e of listing?.entries ?? []) {
+          if (isVirtualFolderDocumentPath(e.path)) byKey.set(pathKey(e.path), e.path)
+        }
       }
       let changed = false
+      let serviceDown = false
       for (const k of missing) {
         const path = byKey.get(k)
         if (!path) continue
@@ -5836,11 +5879,28 @@ export const useAppStore = create<AppState>()((set, get) => {
             }
           }))
           changed = true
-        } catch {
-          /* service down / stem clash — leave unprojected; manual Project still available */
+        } catch (e) {
+          // Service not running yet — retry shortly so create-before-agent and reboot
+          // races still auto-project without a manual Project click.
+          if (
+            e instanceof IpcError &&
+            (e.code === 'io' ||
+              /timed out|pipe|ECONNREFUSED|cannot connect|not found the path/i.test(e.message))
+          ) {
+            serviceDown = true
+          }
+          /* stem clash / validation — leave unprojected; manual Project still available */
         }
       }
       if (changed) void get().refresh()
+      if (serviceDown && missing.length > 0) {
+        window.setTimeout(() => {
+          const again = missing
+            .map((k) => byKey.get(k))
+            .filter((p): p is string => !!p)
+          if (again.length > 0) void get().ensureVirtualFolderOsProjection(again)
+        }, 2500)
+      }
     },
 
     async refreshProjectedVirtualFolders() {
@@ -5863,11 +5923,14 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
         set({ projectedVirtualFolders: next })
         const docs: string[] = []
-        for (const e of get().listing.entries) {
-          if (isVirtualFolderDocumentPath(e.path)) docs.push(e.path)
+        for (const listing of Object.values(get().listingsByTabId)) {
+          for (const e of listing?.entries ?? []) {
+            if (isVirtualFolderDocumentPath(e.path)) docs.push(e.path)
+          }
         }
-        const tabPath = get().activeTab().path
-        if (isVirtualFolderDocumentPath(tabPath)) docs.push(tabPath)
+        for (const tab of get().tabs) {
+          if (isVirtualFolderDocumentPath(tab.path)) docs.push(tab.path)
+        }
         if (docs.length > 0) void get().ensureVirtualFolderOsProjection(docs)
       } catch {
         set({ projectedVirtualFolders: {} })

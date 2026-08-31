@@ -161,7 +161,16 @@ export type PreviewViewProps = {
   onRevealPath?: (path: string) => void
 }
 
-export function PreviewView({
+export function PreviewView(props: PreviewViewProps): JSX.Element {
+  const pathForMeta = props.previewPath ?? props.model?.path ?? ''
+  return (
+    <MediaMetadataProvider path={pathForMeta}>
+      <PreviewViewInner {...props} />
+    </MediaMetadataProvider>
+  )
+}
+
+function PreviewViewInner({
   model,
   loading,
   previewPath,
@@ -184,20 +193,35 @@ export function PreviewView({
   extraBeforeFields = null,
   onRevealPath
 }: PreviewViewProps): JSX.Element {
+  const mediaMeta = useMediaMetadata()
   const [repoTab, setRepoTab] = useState<'git' | 'folder'>('git')
+  const [mediaFolderTab, setMediaFolderTab] = useState<'media' | 'folder'>('media')
   useEffect(() => {
     setRepoTab('git')
   }, [gitRepo?.repoRoot])
+  useEffect(() => {
+    setMediaFolderTab('media')
+  }, [previewPath])
 
   const showRepoTabs = !!gitRepo && !driveSpace && !zen
-  const onFolderTab = showRepoTabs && repoTab === 'folder'
+  const onGitFolderTab = showRepoTabs && repoTab === 'folder'
   const showGitHistory = !!gitRepo && !driveSpace && (zen || repoTab === 'git')
+
+  /** Show/movie (or other) folder with stored media metadata — Media | Folder like Git | Folder. */
+  const showMediaFolderTabs =
+    !!mediaMeta && model?.kind === 'directory' && !driveSpace && !gitRepo && !zen
+  const onMediaFolderTab = showMediaFolderTabs && mediaFolderTab === 'folder'
+  const showMediaFolderMedia = showMediaFolderTabs && mediaFolderTab === 'media'
+  /** Directory pane mode: split media vs folder stats, or combined (files / plain dirs). */
+  const folderPane: 'media' | 'folder' | 'combined' = showMediaFolderTabs
+    ? mediaFolderTab
+    : 'combined'
 
   const headerSub = driveSpace
     ? driveSpace.focusPath
       ? 'Local disk'
       : 'Drives'
-    : showRepoTabs
+    : showRepoTabs || showMediaFolderTabs
       ? null
       : model
         ? (model.subtitle ?? kindLabel(model.kind))
@@ -208,6 +232,12 @@ export function PreviewView({
     await navigator.clipboard.writeText(value)
     onNotify?.('Copied')
   }
+
+  const showFolderStatsCard =
+    model?.kind === 'directory' &&
+    !!model.folderStats &&
+    (!showRepoTabs || onGitFolderTab) &&
+    (!showMediaFolderTabs || onMediaFolderTab)
 
   const kindClass =
     model?.kind === 'image'
@@ -220,11 +250,13 @@ export function PreviewView({
             ? ' preview-kind-chm'
             : model?.kind === 'model3d'
               ? ' preview-kind-model3d'
-              : (onFolderTab || !gitRepo) && model?.kind === 'directory' && model.folderStats
+              : showFolderStatsCard
                 ? ' preview-kind-folder-stats'
                 : showGitHistory
                   ? ' preview-kind-git-repo'
-                  : ''
+                  : showMediaFolderMedia
+                    ? ' preview-kind-media-folder'
+                    : ''
 
   const showWrapToggle =
     !!onToggleTextWordWrap &&
@@ -240,7 +272,9 @@ export function PreviewView({
             {multiHint ? (
               <>
                 <span className="preview-multi-badge">{multiHint}</span>
-                {headerSub || showRepoTabs ? <span className="preview-multi-sep">·</span> : null}
+                {headerSub || showRepoTabs || showMediaFolderTabs ? (
+                  <span className="preview-multi-sep">·</span>
+                ) : null}
               </>
             ) : null}
             {showRepoTabs ? (
@@ -260,6 +294,27 @@ export function PreviewView({
                   aria-selected={repoTab === 'folder'}
                   className={`preview-source-tab${repoTab === 'folder' ? ' active' : ''}`}
                   onClick={() => setRepoTab('folder')}
+                >
+                  Folder
+                </button>
+              </div>
+            ) : showMediaFolderTabs ? (
+              <div className="preview-repo-tabs" role="tablist" aria-label="Media folder preview">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mediaFolderTab === 'media'}
+                  className={`preview-source-tab${mediaFolderTab === 'media' ? ' active' : ''}`}
+                  onClick={() => setMediaFolderTab('media')}
+                >
+                  Media
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mediaFolderTab === 'folder'}
+                  className={`preview-source-tab${mediaFolderTab === 'folder' ? ' active' : ''}`}
+                  onClick={() => setMediaFolderTab('folder')}
                 >
                   Folder
                 </button>
@@ -320,11 +375,7 @@ export function PreviewView({
         </div>
       ) : !model ? (
         <div className="preview-content">
-          {previewPath && !zen ? (
-            <MediaMetadataProvider path={previewPath}>
-              <MediaMetadataPreview />
-            </MediaMetadataProvider>
-          ) : null}
+          {!zen ? <MediaMetadataPreview /> : null}
           <div className="preview-empty">No preview available</div>
         </div>
       ) : (
@@ -336,6 +387,7 @@ export function PreviewView({
           previewVideoAutoplay={previewVideoAutoplay}
           captionPosterUrl={captionPosterUrl}
           zen={zen}
+          folderPane={folderPane}
           onOpenPath={onOpenPath}
           onExtractZip={onExtractZip}
           onCopy={copyValue}
@@ -351,12 +403,13 @@ export function PreviewView({
 
 function PreviewBody({
   model,
-  previewPath,
+  previewPath: _previewPath,
   mediaHold,
   previewWindowOpen,
   previewVideoAutoplay,
   captionPosterUrl,
   zen,
+  folderPane = 'combined',
   onOpenPath,
   onExtractZip,
   onCopy,
@@ -372,6 +425,8 @@ function PreviewBody({
   previewVideoAutoplay: boolean
   captionPosterUrl: string | null
   zen: boolean
+  /** Directory with media metadata: split Media vs Folder; else combined. */
+  folderPane?: 'media' | 'folder' | 'combined'
   onOpenPath: (path: string) => void
   onExtractZip?: (paths: string[]) => void
   onCopy: (value: string) => Promise<void>
@@ -380,16 +435,19 @@ function PreviewBody({
   onRevealPath?: (path: string) => void
   onNotify?: (text: string, isError?: boolean) => void
 }): JSX.Element {
+  void _previewPath
   const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
   const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
+  const showMediaHero = !zen && folderPane !== 'folder'
+  const showFolderStats = folderPane !== 'media'
 
   return (
-    <MediaMetadataProvider path={previewPath}>
+    <>
       <div className="preview-content">
         <div className="preview-viz">
-        {!zen ? <MediaMetadataHero /> : null}
+        {showMediaHero ? <MediaMetadataHero /> : null}
         {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
         {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
           <div className="preview-media preview-media-fill">
@@ -513,7 +571,8 @@ function PreviewBody({
             ) : null}
           </>
         )}
-        {model.kind === 'directory' &&
+        {showFolderStats &&
+          model.kind === 'directory' &&
           (model.folderStats && onRevealPath ? (
             <FolderStatsCard
               folderPath={model.path}
@@ -617,6 +676,9 @@ function PreviewBody({
         {!zen ? (
           <PreviewMetaTabs
             hasFile={hasRichFields}
+            metaMode={
+              folderPane === 'media' ? 'media-only' : folderPane === 'folder' ? 'file-only' : 'auto'
+            }
             before={extraBeforeFields}
             file={
               <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
@@ -652,7 +714,7 @@ function PreviewBody({
       </div>
 
       {!zen && fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
-    </MediaMetadataProvider>
+    </>
   )
 }
 
@@ -660,17 +722,48 @@ function PreviewMetaTabs({
   hasFile,
   before,
   file,
-  onCopy
+  onCopy,
+  metaMode = 'auto'
 }: {
   hasFile: boolean
   before?: ReactNode
   file: ReactNode
   onCopy: (value: string) => Promise<void>
+  /** media-only / file-only when directory Media|Folder header tabs are active. */
+  metaMode?: 'auto' | 'media-only' | 'file-only'
 }): JSX.Element | null {
   const media = useMediaMetadata()
-  const hasMedia = !!media && mediaMetadataHasDetails(media.meta)
+  const hasMedia =
+    metaMode === 'file-only' ? false : !!media && mediaMetadataHasDetails(media.meta)
   const [tab, setTab] = useState<'media' | 'file'>('media')
-  if (!hasMedia && !hasFile && !before) return null
+  if (!hasMedia && !hasFile && !before) {
+    if (metaMode === 'media-only' && media) {
+      return (
+        <div className="preview-meta">
+          {before}
+          <MediaMetadataDetails onCopy={onCopy} />
+        </div>
+      )
+    }
+    return null
+  }
+  if (metaMode === 'media-only') {
+    return (
+      <div className="preview-meta">
+        {before}
+        <MediaMetadataDetails onCopy={onCopy} />
+      </div>
+    )
+  }
+  if (metaMode === 'file-only') {
+    if (!hasFile && !before) return null
+    return (
+      <div className="preview-meta">
+        {before}
+        {hasFile ? file : null}
+      </div>
+    )
+  }
   const showTabs = hasMedia && hasFile
   const active = showTabs ? tab : hasMedia ? 'media' : 'file'
 

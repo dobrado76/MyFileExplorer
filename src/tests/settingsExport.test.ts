@@ -46,16 +46,20 @@ describe('settings export / import', () => {
     expect(parsed.networkHosts).toEqual([{ name: 'NEWONYX', unc: '\\\\NEWONYX' }])
   })
 
-  it('round-trips scripts.enabled via full settingsSchema', () => {
+  it('round-trips compiledListUpdateFolders via full settingsSchema', () => {
+    const folders = ['e:\\lists\\cat-a', 'e:\\lists\\cat-b']
     const doc = buildSettingsExportDocument({
       settings: {
         ...defaultSettings,
-        scripts: { ...defaultSettings.scripts, enabled: true }
+        slideshow: {
+          ...defaultSettings.slideshow,
+          compiledListUpdateFolders: folders
+        }
       },
       networkHosts: []
     })
     const parsed = parseSettingsImport(doc)
-    expect(parsed.settings.scripts.enabled).toBe(true)
+    expect(parsed.settings.slideshow.compiledListUpdateFolders).toEqual(folders)
   })
 
   it('round-trips new nested prefs (showLocalComputer) via full settingsSchema', () => {

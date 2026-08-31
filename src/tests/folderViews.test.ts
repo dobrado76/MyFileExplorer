@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   folderViewSummary,
   resolveFolderView,
+  resolveFolderViewForTab,
   upsertFolderView,
   type FolderView
 } from '@shared/folderViews'
+import { virtualFolderGroupRowPath } from '@shared/virtualFolder'
 
 const base = {
   viewMode: 'details' as const,
@@ -39,6 +41,29 @@ describe('resolveFolderView', () => {
     expect(list).toHaveLength(1)
     expect(list[0]!.recursive).toBe(true)
     expect(list[0]!.viewMode).toBe('list')
+  })
+})
+
+describe('resolveFolderViewForTab', () => {
+  const doc = 'E:\\Lib\\collection.mfevirtual'
+  const groupPath = virtualFolderGroupRowPath(doc, 'g1')
+
+  it('uses group customization when drilled into a VF group', () => {
+    const list = [fv(doc, false, 'details'), fv(groupPath, false, 'largeIcons')]
+    const hit = resolveFolderViewForTab(
+      { path: doc, virtualFolderGroupStack: ['g1'] },
+      list
+    )
+    expect(hit?.viewMode).toBe('largeIcons')
+  })
+
+  it('falls back to document customization inside a group', () => {
+    const list = [fv(doc, false, 'list')]
+    const hit = resolveFolderViewForTab(
+      { path: doc, virtualFolderGroupStack: ['g1'] },
+      list
+    )
+    expect(hit?.viewMode).toBe('list')
   })
 })
 

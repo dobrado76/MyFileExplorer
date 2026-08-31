@@ -2,7 +2,11 @@
 
 **App:** MyFileExplorer · **Version:** 0.14.0
 
-MyFileExplorer keeps Explorer muscle memory (tabs-like browsing intent, Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while adding workflows Explorer does poorly or not at all. This is not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
+MyFileExplorer is a **local file workbench**: it keeps Explorer muscle memory (Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while turning the filesystem into a semantic, searchable, automatable workspace — without moving your files into a proprietary database or cloud repository.
+
+> Keep the files where they already are, then make the workspace around them substantially more intelligent.
+
+That is the difference from classic Explorer (names, paths, sizes, dates) and from many enterprise content platforms (migrate everything into their store first). MFE layers richer meaning, preview, search, Git, analytics, metadata, scripts, and **Virtual Folders** on top of ordinary disks, NAS shares, and repositories. Full organizational framing: [BUSINESS_UVP.md](BUSINESS_UVP.md). This page is the concrete “why switch from Explorer” list. Not a claim of full shell parity — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) non-goals and [DECISIONS.md](DECISIONS.md).
 
 ## Inspiration
 
@@ -17,9 +21,10 @@ Features are deliberately patterned after tools people already trust — then fo
 | **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, regex, match-all, case options, apply to name/extension, live preview with checkboxes — without installing PowerToys. |
 | **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / **Python 3** (not 2.x) / cmd / bash on the folder or selection you are looking at. Saved scripts become context-menu verbs with live output, dry-run, and Stop. Optional AI drafts source and **never reads your files**. Explorer only opens a prompt. Guide: [SCRIPTS.md](SCRIPTS.md). |
 | **Git CLI + a file manager** | **Git-aware browsing** (D64, opt-in): overlays, toolbar Commit/Pull/Push, context Stage/Discard — without becoming a full Git GUI. Guide: [GIT.md](GIT.md). |
-| **[WinDirStat](https://windirstat.net/)** | Nested **space-usage treemap** for a folder — cushion tiles, extension colors — **inside** the preview pane after Calculate Statistics (ADS on the folder; “Other” summary in the heading, no separate app window). Guide: [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md) (D66). |
+| **[WinDirStat](https://windirstat.net/)** | Nested **space-usage treemap** for a folder — cushion tiles, extension colors — **inside** the preview pane after Calculate Statistics (ADS on the folder; “Other” summary in the heading, no separate app window). Guide: [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) (D66). |
+| **Logical collections vs physical trees** | **Virtual Folders** (`.mfevirtual`) assemble path references across drives and shares without copying; optional **WinFsp OS projection** so Explorer and other apps see the same tree. Guide: [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md), [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md). |
 
-Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md). Git: [GIT.md](GIT.md). Folder space map: [ADS.md](ADS.md) / [PREVIEW.md](PREVIEW.md) (D66).
+Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](SEARCH.md). Slideshow: [SLIDESHOW.md](SLIDESHOW.md). Image editor: [PREVIEW.md](PREVIEW.md) (D27). Scripts: [SCRIPTS.md](SCRIPTS.md). Git: [GIT.md](GIT.md). Folder statistics / space map: [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) (D66). Virtual Folders: [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md).
 
 ---
 
@@ -46,12 +51,24 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 
 ---
 
+## Virtual organization
+
+Explorer only answers “where is this stored?” Work often needs “what project, case, release, or collection does this belong to?” Virtual Folders separate those questions.
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Portable Virtual Folders (`.mfevirtual`)** | Curated collections of path **references** (not copies) across local disks, NAS, and other trees. Nested groups, Manual order, extract/absorb — one document you can move with the project. Explorer has no portable logical collection format. Guide: [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md). |
+| **Optional OS projection (WinFsp)** | Project a Virtual Folder as a normal Windows path so other apps open the same logical tree — still references underneath. Guide: [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md). |
+| **Same workspace semantics inside VFs** | Previews, scripts on resolved paths, search of underlying objects, Git where the target is a repo — composable with the rest of MFE, not a dead-end special folder. |
+
+---
+
 ## Preview & media
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
 | **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detached preview window** (Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
-| **WinDirStat-style folder space map (D66)** | After **Calculate Statistics**, the folder preview shows counts, categories, largest/recent, and a nested cushion **space-usage** treemap (extension colors, hover folder outlines). Remainder files are a right-aligned **Other N · size** on the Space usage heading — not a map tile. Click to reveal; double-click to open. Data stays in NTFS ADS — no sidecars, no separate WinDirStat window. Guide: [ADS.md](ADS.md), [PREVIEW.md](PREVIEW.md). |
+| **WinDirStat-style folder space map (D66)** | After **Calculate Statistics**, the folder preview shows counts, categories, largest/recent, and a nested cushion **space-usage** treemap. Plain click = full retag; **Shift+click** skips already-tagged subtrees. Guide: [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md). |
 | **Drive free space at a glance** | Status bar `N GB free of M GB (P%)`; click **Drives** for pies on every volume, including mapped letters. Offline / empty media do not hide the rest. |
 | **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |
 | **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
@@ -144,16 +161,34 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 
 ---
 
+## Beyond Explorer — workbench for teams
+
+For power users, the tables above are enough. For teams and organizations, the same architecture means existing storage can stay authoritative while the **workspace** gets smarter.
+
+| Advantage | Why it matters |
+| --------- | -------------- |
+| **Storage stays where it is** | Local disks, NAS, Git trees, and shares remain the source of truth — no mandatory migration into a DMS/DAM/SaaS vault. |
+| **Workflow topology ≠ storage topology** | Virtual Folders assemble project / case / release collections across physical locations without duplicating bytes. |
+| **Domain semantics in place** | Git roots, media folders, AI metadata, model files, space maps, and Virtual Folders already specialize the view; scripts and open source let you extend the pattern for your domain. |
+| **Repetitive work → local commands** | Validation, packaging, naming, checksums, media prep — saved scripts on the current folder or selection, optional AI to author, then local forever. |
+| **Open source adoption path** | Configure → extend → fork into an internal file workbench around *your* artifacts, instead of waiting for a generic product to grow every verb. |
+
+One-line UVP and deployment levels (standard → curated config → domain extensions → internal fork): [BUSINESS_UVP.md](BUSINESS_UVP.md).
+
+---
+
 ## What we deliberately do *not* chase
 
-Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) and [DECISIONS.md](DECISIONS.md).
+Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PRODUCT_SPEC.md](PRODUCT_SPEC.md) and [DECISIONS.md](DECISIONS.md). MFE is also **not** a replacement for every DMS, DAM, PLM, or cloud collaboration platform — it coexists with specialist systems by keeping ordinary files as ordinary files ([BUSINESS_UVP.md](BUSINESS_UVP.md)).
 
 ---
 
 ## Related docs
 
+- [BUSINESS_UVP.md](BUSINESS_UVP.md) — organizational value proposition & positioning  
+- [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) — Calculate Statistics + Space usage (plain vs Shift)  
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D66)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D68)  
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [GIT.md](GIT.md) — optional Git-aware browsing (D64)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  

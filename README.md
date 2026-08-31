@@ -3,9 +3,13 @@
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A modern, open-source Windows File Explorer alternative built for persistent workspaces, rich file inspection, powerful search, and user-extensible automation. And then you realize how many things you never knew you needed — and what a real file manager should feel like.
+MyFileExplorer is a local file workbench that turns the filesystem from passive storage into an active workspace. It keeps the familiarity of Windows File Explorer, then adds persistent multi-pane workspaces, deep previews, fast search, Git awareness, rich folder analytics, metadata, automation, and portable Virtual Folders — without requiring you to move your files into a proprietary database or cloud service.
 
-Built for people who live in folders all day: media libraries, project trees, AI image dumps, downloads that need sorting. Tabs that survive a reboot. Previews that actually tell you something. Search that doesn’t lie about being fast. Drag a file into Photoshop and it just works.
+The core idea is simple: files and folders should reveal more of what they are, where they belong, and what you can do with them. A folder can become a media library, a Git workspace, a storage map, or a reusable virtual collection. A file can expose generation metadata, notes, versions, previews, or domain-specific information. Scripts can turn recurring file work into first-class commands. Virtual Folders can bring related files together even when they physically live across different drives, projects, NAS shares, or repositories.
+
+For an individual power user, that means fewer context switches and far less friction. For a team or organization, the same architecture can become a domain-specific file workspace: engineering artifacts, research datasets, media assets, project deliverables, repositories, and internal workflows can be surfaced directly where the files already live. Because MyFileExplorer is open source, those semantics and workflows can be adapted rather than waiting for a general-purpose file manager to support them.
+
+It started as a replacement for Windows File Explorer. It has grown into something broader: a user-extensible semantic layer over the local filesystem. Organizational framing: **[docs/BUSINESS_UVP.md](docs/BUSINESS_UVP.md)**.
 
 | | |
 | --- | --- |
@@ -27,7 +31,7 @@ Built for people who live in folders all day: media libraries, project trees, AI
 
 Explorer is fine until it isn’t — one window per rabbit hole, a preview pane that shrugs, a context menu longer than your shopping list, and search that either indexes the universe or crawls like molasses.
 
-MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell icons, right-drag menus) and adds the stuff power users actually want. Full list: **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)**.
+MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell icons, right-drag menus) and adds the stuff power users actually want — plus Virtual Folders, scripts, and a workbench framing for teams. Full list: **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** · organizational UVP: **[docs/BUSINESS_UVP.md](docs/BUSINESS_UVP.md)**.
 
 ---
 
@@ -53,7 +57,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
-- **Folder space map** — after **Calculate Statistics**, WinDirStat-style usage treemap in the folder preview (NTFS ADS; no sidecars) — **[docs/ADS.md](docs/ADS.md)** · **[docs/PREVIEW.md](docs/PREVIEW.md)**
+- **Folder space map** — after **Calculate Statistics**, WinDirStat-style usage treemap in the folder preview (NTFS ADS; no sidecars) — **[docs/FOLDER_STATISTICS.md](docs/FOLDER_STATISTICS.md)** · **[docs/ADS.md](docs/ADS.md)**
 - **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
 - **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
 
@@ -143,7 +147,8 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | Doc | What it’s for |
 | --- | --- |
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
-| **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs classic Windows Explorer |
+| **[docs/BUSINESS_UVP.md](docs/BUSINESS_UVP.md)** | Business value proposition — local file workbench for organizations |
+| **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs Explorer + Virtual Folders / workbench framing |
 | **[docs/BUILD.md](docs/BUILD.md)** | Local build + tagged GitHub Releases |
 | **[docs/LINUX.md](docs/LINUX.md)** | Experimental Linux AppImage / Wayland helpers |
 | **[docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md)** | Features & UX requirements |
@@ -152,6 +157,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/REMOTE_FTP.md](docs/REMOTE_FTP.md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
+| **[docs/FOLDER_STATISTICS.md](docs/FOLDER_STATISTICS.md)** | Calculate Statistics + Space usage map (plain vs Shift) |
 | **[samples/preview-extensions/](samples/preview-extensions/)** | One small file per preview extension (`npm run samples:preview`) |
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |

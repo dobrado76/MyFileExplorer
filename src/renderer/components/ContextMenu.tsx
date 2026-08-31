@@ -18,7 +18,8 @@ import {
   isVirtualFolderDocumentPath,
   isVirtualFolderGroupPath,
   parseVirtualFolderGroupPath,
-  virtualFolderDocumentDir
+  virtualFolderDocumentDir,
+  virtualFolderOpenCwdPath
 } from '@shared/virtualFolder'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
@@ -1220,9 +1221,13 @@ export function ContextMenu(): JSX.Element | null {
     const result: MenuItem[] = []
 
     if (isBackground) {
-      const folderPath = s.activeTab().path
-      const hasExact = !!findExactFolderView(folderPath, s.settings.folderViews)
+      const tab = s.activeTab()
+      const folderPath = tab.path
       const bgVfDoc = isVirtualFolderDocumentPath(folderPath)
+      const customizePath = bgVfDoc
+        ? virtualFolderOpenCwdPath(folderPath, tab.virtualFolderGroupStack.at(-1))
+        : folderPath
+      const hasExact = !!findExactFolderView(customizePath, s.settings.folderViews)
       const undoLabel = s.undoLabel()
       const redoLabel = s.redoLabel()
       if (undoLabel || redoLabel) {
@@ -1271,45 +1276,41 @@ export function ContextMenu(): JSX.Element | null {
           return special ? [special] : []
         })(),
         { type: 'sep' },
-        ...(bgVfDoc
-          ? []
-          : ([
+        {
+          type: 'submenu',
+          label: 'Customize this folder',
+          builtin: 'customize-folder',
+          items: [
+            {
+              label: 'This folder only',
+              action: () => {
+                close()
+                void s.customizeFolderView(customizePath, false)
+              }
+            },
+            {
+              label: 'This folder and subfolders',
+              action: () => {
+                close()
+                void s.customizeFolderView(customizePath, true)
+              }
+            }
+          ]
+        },
+        ...(hasExact
+          ? [
               {
-                type: 'submenu' as const,
-                label: 'Customize this folder',
-                builtin: 'customize-folder' as const,
-                items: [
-                  {
-                    label: 'This folder only',
-                    action: () => {
-                      close()
-                      void s.customizeFolderView(folderPath, false)
-                    }
-                  },
-                  {
-                    label: 'This folder and subfolders',
-                    action: () => {
-                      close()
-                      void s.customizeFolderView(folderPath, true)
-                    }
-                  }
-                ]
-              },
-              ...(hasExact
-                ? [
-                    {
-                      type: 'item' as const,
-                      label: 'Remove folder customization',
-                      builtin: 'remove-folder-customization' as const,
-                      action: () => {
-                        close()
-                        void s.removeFolderCustomization(folderPath)
-                      }
-                    }
-                  ]
-                : []),
-              { type: 'sep' as const }
-            ] as MenuItem[])),
+                type: 'item' as const,
+                label: 'Remove folder customization',
+                builtin: 'remove-folder-customization' as const,
+                action: () => {
+                  close()
+                  void s.removeFolderCustomization(customizePath)
+                }
+              }
+            ]
+          : []),
+        { type: 'sep' },
         {
           type: 'item',
           label: 'Copy path',
@@ -1554,7 +1555,50 @@ export function ContextMenu(): JSX.Element | null {
             close()
             if (single) s.startRename(single, menu.inTree ? 'tree' : 'files')
           }
-        },
+        }
+      )
+      if (single) {
+        const hasExact = !!findExactFolderView(single, s.settings.folderViews)
+        result.push(
+          { type: 'sep' },
+          {
+            type: 'submenu',
+            label: 'Customize this folder',
+            builtin: 'customize-folder',
+            items: [
+              {
+                label: 'This folder only',
+                action: () => {
+                  close()
+                  void s.customizeFolderView(single, false)
+                }
+              },
+              {
+                label: 'This folder and subfolders',
+                action: () => {
+                  close()
+                  void s.customizeFolderView(single, true)
+                }
+              }
+            ]
+          },
+          ...(hasExact
+            ? [
+                {
+                  type: 'item' as const,
+                  label: 'Remove folder customization',
+                  builtin: 'remove-folder-customization' as const,
+                  action: () => {
+                    close()
+                    void s.removeFolderCustomization(single)
+                  }
+                }
+              ]
+            : [])
+        )
+      }
+      result.push(
+        { type: 'sep' },
         {
           type: 'item',
           label: 'Remove from Virtual Folder',
@@ -1865,7 +1909,7 @@ export function ContextMenu(): JSX.Element | null {
                 }
               }
         )
-        if (!isVfDocument) {
+        {
           const hasExact = !!findExactFolderView(single, s.settings.folderViews)
           result.push(
             {
@@ -1889,7 +1933,22 @@ export function ContextMenu(): JSX.Element | null {
                 }
               ]
             },
-            {
+            ...(hasExact
+              ? [
+                  {
+                    type: 'item' as const,
+                    label: 'Remove folder customization',
+                    builtin: 'remove-folder-customization' as const,
+                    action: () => {
+                      close()
+                      void s.removeFolderCustomization(single)
+                    }
+                  }
+                ]
+              : [])
+          )
+          if (!isVfDocument) {
+            result.push({
               type: 'submenu',
               label: 'Video previews',
               builtin: 'video-previews',
@@ -1916,21 +1975,8 @@ export function ContextMenu(): JSX.Element | null {
                   }
                 }
               ]
-            },
-            ...(hasExact
-              ? [
-                  {
-                    type: 'item' as const,
-                    label: 'Remove folder customization',
-                    builtin: 'remove-folder-customization' as const,
-                    action: () => {
-                      close()
-                      void s.removeFolderCustomization(single)
-                    }
-                  }
-                ]
-              : [])
-          )
+            })
+          }
         }
       }
     }
@@ -2127,7 +2173,7 @@ export function ContextMenu(): JSX.Element | null {
           ? [
               ...((): MenuItem[] => {
                 const pf = s.listing.virtualFolder!
-                const owning = s.owningFolderView(s.listing.path)
+                const owning = s.owningFolderView()
                 const sort = owning?.sort ?? s.activeTab().sort
                 const manual = sort.key === 'manual'
                 const rows: MenuItem[] = []

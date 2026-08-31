@@ -38,6 +38,7 @@ import {
   nextRealFolderName,
   realFolderStemBlockedByVirtualFolder,
   virtualFolderDocumentStemBlocked,
+  virtualFolderProjectedMountPath,
   virtualFolderStemFromFileName
 } from '@shared/virtualFolder'
 import { isSameOrUnder, isStrictlyInside } from '../security/paths'
@@ -62,11 +63,42 @@ const OP_MUTE_MS = 3_600_000
 /** Drop a WinFsp projection before rename/delete so the sibling mount does not block the op. */
 async function unprojectVirtualFolderIfNeeded(documentPath: string): Promise<void> {
   if (process.platform !== 'win32' || !isVirtualFolderDocumentPath(documentPath)) return
+  let mountPath: string | null = null
   try {
-    const { projectionUnmountBestEffort } = await import('../virtualFolder/projectionClient')
-    await projectionUnmountBestEffort(documentPath)
+    const { projectionUnmountRobust } = await import('../virtualFolder/projectionClient')
+    const res = await projectionUnmountRobust(documentPath)
+    mountPath = res.mountPath
   } catch {
-    /* ignore */
+    try {
+      const { projectionUnmountBestEffort } = await import('../virtualFolder/projectionClient')
+      await projectionUnmountBestEffort(documentPath)
+    } catch {
+      /* ignore */
+    }
+    mountPath = virtualFolderProjectedMountPath(documentPath)
+  }
+  // After a successful unmount WinFsp sometimes leaves an empty directory stub;
+  // without the .mfevirtual peer, MFE would list it as a normal folder with a mount glyph.
+  await removeEmptyProjectedMountStub(mountPath)
+}
+
+async function removeEmptyProjectedMountStub(mountPath: string | null): Promise<void> {
+  if (!mountPath) return
+  try {
+    const { projectionListMounts } = await import('../virtualFolder/projectionClient')
+    const mounts = await projectionListMounts()
+    if (mounts.some((m) => samePath(m.mountPath, mountPath) && m.active)) return
+  } catch {
+    /* service down — still try stub cleanup */
+  }
+  try {
+    const st = await fsp.lstat(mountPath)
+    if (!st.isDirectory()) return
+    const entries = await fsp.readdir(mountPath)
+    if (entries.length > 0) return
+    await fsp.rmdir(mountPath)
+  } catch {
+    /* still mounted, busy, or already gone */
   }
 }
 
@@ -492,6 +524,39 @@ export async function mergeDirectoryInto(source: string, target: string): Promis
   }
 }
 
+async function pathIsDirectory(p: string): Promise<boolean> {
+  try {
+    return (await fsp.lstat(p)).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Prepare destination for Replace: Explorer merges folder→folder (keeps dest identity + ADS);
+ * otherwise remove the existing target so the incoming item can take its place.
+ * Returns true when a dir→dir merge was applied (caller should not copy/move again for move;
+ * for copy, caller still runs copyTree into the kept dest).
+ */
+async function prepareReplaceTarget(
+  source: string,
+  target: string,
+  mode: 'copy' | 'move'
+): Promise<'merged-move' | 'merge-copy' | 'cleared' | 'absent'> {
+  if (!(await pathExists(target))) return 'absent'
+  const srcDir = await pathIsDirectory(source)
+  const dstDir = await pathIsDirectory(target)
+  if (srcDir && dstDir) {
+    if (mode === 'move') {
+      await mergeDirectoryInto(source, target)
+      return 'merged-move'
+    }
+    return 'merge-copy'
+  }
+  await fsp.rm(target, { recursive: true, force: true })
+  return 'cleared'
+}
+
 /** Generate "name (2).ext", "name (3).ext", … that does not exist in dir. */
 export async function uniqueTargetName(dir: string, name: string): Promise<string> {
   const ext = path.extname(name)
@@ -728,7 +793,7 @@ async function planTransfer(
       if (policy === 'rename') {
         target = path.join(dest, await uniqueTargetName(dest, name))
       }
-      // 'replace' keeps target as-is; fs.cp force overwrites, move removes first
+      // 'replace': folder→folder merges into the existing dest (Explorer); files still overwrite
     }
     items.push({ source, target })
   }
@@ -1218,8 +1283,8 @@ export async function copyEntries(
         /* ignore */
       }
       try {
-        if (policy === 'replace' && (await pathExists(item.target))) {
-          await fsp.rm(item.target, { recursive: true, force: true })
+        if (policy === 'replace') {
+          await prepareReplaceTarget(item.source, item.target, 'copy')
         }
         await copyTree(item.source, item.target, progress, {
           verify: transferOpts?.verify,
@@ -1442,8 +1507,14 @@ export async function moveEntries(
       if (i > 0 && i % 16 === 0) await yieldEventLoop()
       i++
       try {
-        if (policy === 'replace' && (await pathExists(item.target))) {
-          await fsp.rm(item.target, { recursive: true, force: true })
+        if (policy === 'replace') {
+          const prep = await prepareReplaceTarget(item.source, item.target, 'move')
+          if (prep === 'merged-move') {
+            progress.tick(item.target)
+            moved.push(item.target)
+            moves.push({ from: item.source, to: item.target })
+            continue
+          }
         }
         await relocateOne(item.source, item.target, progress, {
           destReady: true,
