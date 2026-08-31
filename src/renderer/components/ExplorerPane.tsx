@@ -7,6 +7,8 @@ import { Breadcrumb } from './Breadcrumb'
 import { ViewPresetsMenu } from './ViewPresetsMenu'
 import { FolderTree } from './FolderTree'
 import { FileView } from './FileView'
+import { PairCompareView } from '../pairCompare/PairCompareView'
+import { usePairCompareStore } from '../pairCompare/pairCompareStore'
 import { Splitter } from './Splitter'
 import { ArrowLeft, ArrowRight, ArrowUp, PinIcon, PinOffIcon, RefreshIcon, TreePanelIcon } from '../lib/icons'
 import { parentOf, samePath } from '../lib/paths'
@@ -54,6 +56,8 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
   const performTransfer = useAppStore((s) => s.performTransfer)
+  const pairActive = usePairCompareStore((s) => s.active)
+  const pairHover = usePairCompareStore((s) => s.hoverDirection)
 
   // Full-pane outline only matters when choosing among 2+ panes (D31).
   const paneDropActive = !!(
@@ -306,8 +310,14 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
             />
           </>
         )}
-        <div className="pane-files">
-          <FileView tabId={tabId} />
+        <div
+          className={`pane-files${pairActive && pairHover === 'ltr' && paneIndex === 0 ? ' pair-pane-source' : ''}${pairActive && pairHover === 'ltr' && paneIndex === 1 ? ' pair-pane-dest' : ''}${pairActive && pairHover === 'rtl' && paneIndex === 1 ? ' pair-pane-source' : ''}${pairActive && pairHover === 'rtl' && paneIndex === 0 ? ' pair-pane-dest' : ''}`}
+        >
+          {pairActive && viewLayout === 2 ? (
+            <PairCompareView side={paneIndex === 0 ? 'left' : 'right'} />
+          ) : (
+            <FileView tabId={tabId} />
+          )}
         </div>
       </div>
     </div>

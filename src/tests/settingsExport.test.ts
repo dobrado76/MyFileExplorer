@@ -86,6 +86,48 @@ describe('settings export / import', () => {
     })
   })
 
+  it('round-trips pairFolders prefs via full settingsSchema', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        pairFolders: {
+          ...defaultSettings.pairFolders,
+          includeSubfolders: false,
+          compareMethod: 'hash_all',
+          modifiedToleranceMs: 5000,
+          showIdenticalByDefault: false,
+          visibleStatuses: ['left_only', 'right_only', 'different']
+        }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.pairFolders.compareMethod).toBe('hash_all')
+    expect(parsed.settings.pairFolders.modifiedToleranceMs).toBe(5000)
+    expect(parsed.settings.pairFolders.showIdenticalByDefault).toBe(false)
+    expect(parsed.settings.pairFolders.includeSubfolders).toBe(false)
+    expect(parsed.settings.pairFolders.visibleStatuses).toEqual([
+      'left_only',
+      'right_only',
+      'different'
+    ])
+  })
+
+  it('migrates legacy pairFolders showIdenticalByDefault into visibleStatuses', () => {
+    const parsed = settingsSchema.parse({
+      pairFolders: {
+        includeSubfolders: true,
+        followLinks: false,
+        compareMethod: 'size_mtime',
+        modifiedToleranceMs: 2000,
+        ignoreEmptyFolders: false,
+        showIdenticalByDefault: false
+      }
+    })
+    expect(parsed.pairFolders.visibleStatuses.includes('identical')).toBe(false)
+    expect(parsed.pairFolders.visibleStatuses.includes('left_only')).toBe(true)
+  })
+
   it('round-trips adsFieldColumns via full settingsSchema', () => {
     const doc = buildSettingsExportDocument({
       settings: {

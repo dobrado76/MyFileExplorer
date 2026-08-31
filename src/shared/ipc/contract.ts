@@ -318,7 +318,15 @@ export const IPC = {
   gitPickDiffTool: 'git:pickDiffTool',
   gitLog: 'git:log',
   gitShowCommit: 'git:showCommit',
-  gitLogFile: 'git:logFile'
+  gitLogFile: 'git:logFile',
+
+  pairCompareStart: 'pairCompare:start',
+  pairCompareCancel: 'pairCompare:cancel',
+  pairCompareResult: 'pairCompare:result',
+  pairCompareBuildPlan: 'pairCompare:buildPlan',
+  pairCompareRevalidatePlan: 'pairCompare:revalidatePlan',
+  pairCompareExecutePlan: 'pairCompare:executePlan',
+  pairCompareDispose: 'pairCompare:dispose'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -484,4 +492,15 @@ export type MfeEvent =
   | {
       type: 'git-status'
       payload: { status: import('../schemas/git').GitRepositoryStatus }
+    }
+  | {
+      type: 'pair-compare-progress'
+      payload: {
+        sessionId: string
+        phase: 'discover' | 'hash' | 'done' | 'cancelled'
+        itemsScanned: number
+        currentRelativePath?: string
+        filesHashed?: number
+        bytesHashed?: number
+      }
     }

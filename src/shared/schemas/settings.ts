@@ -36,6 +36,11 @@ import {
   networkDiscoverySettingsSchema
 } from './networkDiscovery'
 import {
+  defaultPairFoldersSettings,
+  pairFoldersSettingsSchema,
+  visibleStatusesFromLegacy
+} from './pairFolders'
+import {
   defaultRemoteReposSettings,
   remoteReposSettingsSchema
 } from './remoteRepos'
@@ -519,6 +524,21 @@ const settingsFieldsSchema = z.object({
     if (!raw || typeof raw !== 'object') return defaultNetworkDiscoverySettings
     return { ...defaultNetworkDiscoverySettings, ...(raw as object) }
   }, networkDiscoverySettingsSchema),
+  /** Dual-pane paired folders compare options (D69). */
+  pairFolders: z.preprocess((raw) => {
+    if (!raw || typeof raw !== 'object') return defaultPairFoldersSettings
+    const o = raw as Record<string, unknown>
+    const merged = { ...defaultPairFoldersSettings, ...o }
+    // Older saves lacked visibleStatuses — migrate from showIdenticalByDefault before schema fill.
+    if (!('visibleStatuses' in o)) {
+      const showId =
+        typeof o.showIdenticalByDefault === 'boolean'
+          ? o.showIdenticalByDefault
+          : merged.showIdenticalByDefault
+      merged.visibleStatuses = visibleStatusesFromLegacy(showId)
+    }
+    return merged
+  }, pairFoldersSettingsSchema),
   /** Opt-in FTP/FTPS/SFTP remotes (D46). */
   remoteRepos: z.preprocess((raw) => {
     if (!raw || typeof raw !== 'object') return defaultRemoteReposSettings
@@ -761,6 +781,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   slideshowFeaturesEnabled: false,
   slideshow: defaultSlideshowSettings,
   networkDiscovery: defaultNetworkDiscoverySettings,
+  pairFolders: defaultPairFoldersSettings,
   remoteRepos: defaultRemoteReposSettings,
   mediaMetadata: defaultMediaMetadataSettings,
   propertiesBounds: null,
@@ -788,6 +809,7 @@ export const settingsPatchSchema = settingsFieldsSchema
   .extend({
     slideshow: slideshowSettingsSchema.partial().optional(),
     networkDiscovery: networkDiscoverySettingsSchema.partial().optional(),
+    pairFolders: pairFoldersSettingsSchema.partial().optional(),
     remoteRepos: remoteReposSettingsSchema.partial().optional(),
     mediaMetadata: mediaMetadataSettingsSchema.partial().optional(),
     scripts: scriptsSettingsSchema.partial().optional(),

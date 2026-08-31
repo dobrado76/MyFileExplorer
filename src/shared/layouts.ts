@@ -14,6 +14,11 @@ import {
   type ViewLayout,
   type ViewMode
 } from './schemas/session'
+import {
+  pairFoldersVisibleStatusSchema,
+  type PairFoldersVisibleStatus
+} from './schemas/pairFolders'
+
 
 export const MAX_LAYOUTS = 50
 export const MAX_LAYOUT_NAME_LEN = 80
@@ -39,6 +44,20 @@ function clampRatio(n: number): number {
   return Math.min(0.85, Math.max(0.15, n))
 }
 
+function sanitizeLayoutVisibleStatuses(raw: unknown): PairFoldersVisibleStatus[] | undefined {
+  if (raw == null) return undefined
+  if (!Array.isArray(raw)) return undefined
+  const out: PairFoldersVisibleStatus[] = []
+  const seen = new Set<string>()
+  for (const item of raw) {
+    const parsed = pairFoldersVisibleStatusSchema.safeParse(item)
+    if (!parsed.success || seen.has(parsed.data)) continue
+    seen.add(parsed.data)
+    out.push(parsed.data)
+  }
+  return out.length > 0 ? out : undefined
+}
+
 export const workspaceLayoutSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(MAX_LAYOUT_NAME_LEN),
@@ -57,6 +76,14 @@ export const workspaceLayoutSchema = z.object({
   paneTreeCollapsed: z.array(z.boolean()).catch([]),
   paneSplitCols: z.number().min(0.15).max(0.85).catch(0.5),
   paneSplitRows: z.number().min(0.15).max(0.85).catch(0.5),
+  /**
+   * Paired-folders compare filter snapshot (D69). Optional for older layouts;
+   * when set, applying the layout restores this filter.
+   */
+  pairCompareVisibleStatuses: z.preprocess(
+    sanitizeLayoutVisibleStatuses,
+    z.array(pairFoldersVisibleStatusSchema).optional()
+  ),
   tabs: z.array(layoutTabSchema).min(1)
 })
 export type WorkspaceLayout = z.infer<typeof workspaceLayoutSchema>
@@ -82,6 +109,8 @@ export type LayoutSnapshotSource = {
   paneSplitRows: number
   /** Live tab ids in the same order as `tabs` for index mapping. */
   tabIds: string[]
+  /** Current paired-folders filter (saved into backup/sync layouts). */
+  pairCompareVisibleStatuses?: PairFoldersVisibleStatus[]
 }
 
 export function newLayoutId(): string {
@@ -147,6 +176,7 @@ export function buildLayoutFromSnapshot(
     paneTreeCollapsed: sanitizePaneTreeCollapsed(source.paneTreeCollapsed, viewLayout),
     paneSplitCols: clampRatio(source.paneSplitCols),
     paneSplitRows: clampRatio(source.paneSplitRows),
+    pairCompareVisibleStatuses: source.pairCompareVisibleStatuses,
     tabs
   })
 }

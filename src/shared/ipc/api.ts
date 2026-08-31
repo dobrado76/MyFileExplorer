@@ -1085,6 +1085,44 @@ export type MyFileExplorerApi = {
       Result<{ mounts: { documentPath: string; mountPath: string; active: boolean }[] }>
     >
   }
+  pairCompare: {
+    start(req: {
+      leftRoot: string
+      rightRoot: string
+      options: import('../pairCompare/types').PairCompareOptions
+    }): Promise<Result<{ sessionId: string }>>
+    cancel(req: { sessionId: string }): Promise<Result<{ ok: true }>>
+    result(req: {
+      sessionId: string
+    }): Promise<Result<import('../pairCompare/types').PairComparisonResult>>
+    buildPlan(req: {
+      sessionId: string
+      direction: import('../pairCompare/types').PairSyncDirection
+      policy: import('../pairCompare/types').PairSyncPolicy
+      scope: import('../pairCompare/types').PairSyncScope
+      selectedRowIds?: string[]
+      visibleStatuses?: import('../pairCompare/types').PairCompareStatus[]
+    }): Promise<Result<import('../pairCompare/types').PairSyncPlan>>
+    revalidatePlan(req: {
+      planId: string
+    }): Promise<Result<import('../pairCompare/types').PairPlanValidation>>
+    executePlan(req: {
+      planId: string
+      approvedEntryIds?: string[]
+      decisions?: { entryId: string; decision: string }[]
+      mirrorAck?: boolean
+    }): Promise<
+      Result<{
+        copied: number
+        replaced: number
+        created: number
+        removed: number
+        skipped: number
+        failed: number
+      }>
+    >
+    dispose(req: { sessionId: string }): Promise<Result<{ ok: true }>>
+  }
   onEvent(handler: (event: MfeEvent) => void): () => void
   /**
    * Allowlisted raw IPC invoke (preload). Used when a typed method is missing from a

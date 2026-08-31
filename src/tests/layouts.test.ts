@@ -116,6 +116,33 @@ describe('layouts', () => {
     expect(workspaceLayoutSchema.safeParse({ id: 'x', name: 'x', tabs: [] }).success).toBe(false)
   })
 
+  it('captures paired-folders compare filter on layout snapshot', () => {
+    const layout = buildLayoutFromSnapshot('Backup pair', {
+      ...sampleSource,
+      viewLayout: 2,
+      paneTabIds: ['tab_a', 'tab_b'],
+      paneTreeCollapsed: [false, false],
+      pairCompareVisibleStatuses: ['left_only', 'right_only', 'different']
+    })
+    expect(layout.pairCompareVisibleStatuses).toEqual([
+      'left_only',
+      'right_only',
+      'different'
+    ])
+    const parsed = settingsSchema.parse({ layouts: [layout] })
+    expect(parsed.layouts[0]?.pairCompareVisibleStatuses).toEqual([
+      'left_only',
+      'right_only',
+      'different'
+    ])
+    const old = workspaceLayoutSchema.parse({
+      id: 'lay_old',
+      name: 'Old',
+      tabs: [{ path: 'D:\\x' }]
+    })
+    expect(old.pairCompareVisibleStatuses).toBeUndefined()
+  })
+
   it('keeps a custom tab icon on a layout tab', () => {
     const parsed = workspaceLayoutSchema.parse({
       id: 'lay_1',

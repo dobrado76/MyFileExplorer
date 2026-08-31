@@ -35,6 +35,7 @@ import {
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { FileOpPlanDialog } from './FileOpPlanDialog'
+import { SyncPlanDialog } from '../pairCompare/SyncPlanDialog'
 import { FileLockersPanel } from './FileLockersPanel'
 import { formatBytes, formatDate } from '../lib/format'
 import { folderViewSummary } from '@shared/folderViews'
@@ -376,6 +377,8 @@ export function Dialogs(): JSX.Element | null {
       return <VirtualFolderConflictDialog title={dialog.title} message={dialog.message} />
     case 'file-op-plan':
       return <FileOpPlanDialog plan={dialog.plan} request={dialog.request} />
+    case 'pair-sync-plan':
+      return <SyncPlanDialog />
     case 'power-rename':
       return <PowerRenameDialog paths={dialog.paths} />
     case 'copy-move-to':

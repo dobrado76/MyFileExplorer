@@ -2,6 +2,7 @@ import { useCallback, useRef, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { ExplorerPane } from './ExplorerPane'
 import { Splitter } from './Splitter'
+import { PairActionRail } from '../pairCompare/PairActionRail'
 import { SearchBanner } from './SearchBanner'
 import { RecycleBinBanner } from './RecycleBinBanner'
 
@@ -40,6 +41,10 @@ export function ViewGrid(): JSX.Element {
     [setPaneSplitRows]
   )
 
+  const equalizeCols = useCallback((): void => {
+    setPaneSplitCols(0.5)
+  }, [setPaneSplitCols])
+
   if (viewLayout === 1) {
     return (
       <div className="view-grid layout-1" ref={gridRef}>
@@ -61,7 +66,7 @@ export function ViewGrid(): JSX.Element {
           <SearchBanner paneIndex={0} />
           <ExplorerPane paneIndex={0} />
         </div>
-        <Splitter onDrag={onColDrag} />
+        <PairActionRail onColDrag={onColDrag} onEqualize={equalizeCols} />
         <div className="view-grid-cell" style={{ flex: '1 1 0', minWidth: 0 }}>
           {focusedPaneIndex === 1 && <RecycleBinBanner />}
           <SearchBanner paneIndex={1} />

@@ -58,6 +58,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
 - **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
 - **Folder space map** — after **Calculate Statistics**, WinDirStat-style usage treemap in the folder preview (NTFS ADS; no sidecars) — **[docs/FOLDER_STATISTICS.md](docs/FOLDER_STATISTICS.md)** · **[docs/ADS.md](docs/ADS.md)**
+- **Paired folders** (2-pane layout) — centre action rail to copy, compare, and review sync plans between the two folders — **[docs/PAIRED_FOLDERS.md](docs/PAIRED_FOLDERS.md)**
 - **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
 - **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
 
@@ -158,6 +159,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/SEARCH.md](docs/SEARCH.md)** | Everything-parity search |
 | **[docs/PREVIEW_EXTENSIONS.md](docs/PREVIEW_EXTENSIONS.md)** | Every extension the preview pane handles |
 | **[docs/FOLDER_STATISTICS.md](docs/FOLDER_STATISTICS.md)** | Calculate Statistics + Space usage map (plain vs Shift) |
+| **[docs/PAIRED_FOLDERS.md](docs/PAIRED_FOLDERS.md)** | Dual-pane paired folders — compare & sync (D69) |
 | **[samples/preview-extensions/](samples/preview-extensions/)** | One small file per preview extension (`npm run samples:preview`) |
 | **[docs/SLIDESHOW.md](docs/SLIDESHOW.md)** | Slideshow / categorizer |
 | **[docs/ADS.md](docs/ADS.md)** | NTFS Alternate Data Streams |

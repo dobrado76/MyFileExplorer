@@ -61,7 +61,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 
 Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable Lucide `{ name, color }` or custom `{ kind: 'custom', id, showLabel, sizePx }`), `treeExpanded` (folder-tree expand/collapse paths).
 
-**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, and **pane split ratios**) under a name (“AI training”, “Book editing”, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
+**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant) under a name (“AI training”, “Book editing”, backup/sync pairs, …), apply it later (replaces open tabs), update, rename, or remove. Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 

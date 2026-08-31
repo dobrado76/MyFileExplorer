@@ -36,6 +36,12 @@ import {
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
+import {
+  defaultPairFoldersSettings,
+  pairFoldersVisibleStatuses,
+  type PairFoldersVisibleStatus
+} from '@shared/schemas/pairFolders'
+import type { PairCompareStatus } from '@shared/pairCompare/types'
 import type { VirtualFolderDocument, VirtualFolderMembership } from '@shared/virtualFolder'
 import {
   findParentGroupId,
@@ -315,6 +321,7 @@ export type DialogState =
       message: string
     }
   | { kind: 'file-op-plan'; plan: FileOpPlanResponse; request: FileOpPlanRequest }
+  | { kind: 'pair-sync-plan' }
   | { kind: 'power-rename'; paths: string[] }
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | { kind: 'power-search' }
@@ -779,6 +786,8 @@ type AppState = {
   ): Promise<void>
   setPaneSplitCols(ratio: number): void
   setPaneSplitRows(ratio: number): void
+  /** Swap the two pane tab assignments (layout 2). Does not move files. */
+  swapPanes(): void
   togglePaneTree(paneIndex: number): void
   /** Listing for a tab (pane); falls back to empty. */
   listingForTab(tabId: string): Listing
@@ -3378,12 +3387,33 @@ export const useAppStore = create<AppState>()((set, get) => {
           categorizerMap: [...(settings.slideshow.categorizerMap ?? [])]
         }
       })
+      void import('../pairCompare/pairCompareStore').then(({ usePairCompareStore }) => {
+        const pf = settings.pairFolders ?? defaultPairFoldersSettings
+        usePairCompareStore
+          .getState()
+          .applyVisibleStatuses(pairFoldersVisibleStatuses(pf) as PairCompareStatus[])
+      })
       void get().refreshScriptLibrary()
       void get().refreshProjectedVirtualFolders()
 
       api.onEvent((event: MfeEvent) => {
         const s = get()
+        if (event.type === 'pair-compare-progress') {
+          void import('../pairCompare/pairCompareStore').then(({ usePairCompareStore }) => {
+            usePairCompareStore.getState().applyProgress(event.payload)
+          })
+          return
+        }
         if (event.type === 'fs-changed') {
+          void import('../pairCompare/pairCompareStore').then(({ usePairCompareStore }) => {
+            const pair = usePairCompareStore.getState()
+            if (!pair.active || !pair.result) return
+            const changed = event.payload.path
+            const under =
+              changed.toLowerCase().startsWith(pair.result.leftRoot.toLowerCase()) ||
+              changed.toLowerCase().startsWith(pair.result.rightRoot.toLowerCase())
+            if (under) pair.markStale()
+          })
           const changed = event.payload.path
           dropRemoteListingCaches([changed])
           // Soft-reload any visible pane whose folder matches.
@@ -3699,6 +3729,18 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async navigate(path, opts) {
       const push = opts?.push ?? true
+      void import('../pairCompare/pairCompareStore').then(({ usePairCompareStore }) => {
+        const pair = usePairCompareStore.getState()
+        if (!pair.active || !pair.result) return
+        const tabId = opts?.tabId ?? get().activeTabId
+        const isLeft = tabId === pair.leftTabId
+        const isRight = tabId === pair.rightTabId
+        if (!isLeft && !isRight) return
+        const root = isLeft ? pair.result.leftRoot : pair.result.rightRoot
+        const next = path.replace(/[/\\]+$/, '').toLowerCase()
+        const rootNorm = root.replace(/[/\\]+$/, '').toLowerCase()
+        if (next !== rootNorm) void pair.exitComparison()
+      })
       const groupRef = parseVirtualFolderGroupPath(path)
       if (groupRef) {
         // Opaque group rows are not filesystem paths — open via group stack on the document.
@@ -4354,6 +4396,13 @@ export const useAppStore = create<AppState>()((set, get) => {
     async setViewLayout(mode) {
       const s = get()
       if (mode === s.viewLayout) return
+      if (mode !== 2) {
+        void import('../pairCompare/pairCompareStore').then(({ usePairCompareStore }) => {
+          if (usePairCompareStore.getState().active) {
+            void usePairCompareStore.getState().exitComparison()
+          }
+        })
+      }
       const tabIds = s.tabs.map((t) => t.id)
       const { paneTabIds, focusedPaneIndex } = remapPanesOnLayoutChange(
         mode,
@@ -4509,6 +4558,22 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setPaneSplitRows(ratio) {
       set({ paneSplitRows: clampPaneRatio(ratio) })
+      scheduleSessionSave()
+    },
+
+    swapPanes() {
+      const s = get()
+      if (s.viewLayout !== 2) return
+      const a = s.paneTabIds[0] ?? null
+      const b = s.paneTabIds[1] ?? null
+      const next = [b, a]
+      const focused = s.focusedPaneIndex === 0 ? 1 : s.focusedPaneIndex === 1 ? 0 : s.focusedPaneIndex
+      const activeTabId = next[focused] ?? s.activeTabId
+      set({
+        paneTabIds: next,
+        focusedPaneIndex: focused,
+        activeTabId
+      })
       scheduleSessionSave()
     },
 
@@ -4778,6 +4843,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           0,
           s.tabs.findIndex((t) => t.id === s.activeTabId)
         )
+        const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
+        const pairCompareVisibleStatuses = [
+          ...usePairCompareStore.getState().visibleStatuses
+        ] as PairFoldersVisibleStatus[]
         const layout = buildLayoutFromSnapshot(name, {
           tabs: s.tabs,
           activeTabIndex: activeIdx,
@@ -4787,7 +4856,8 @@ export const useAppStore = create<AppState>()((set, get) => {
           paneTreeCollapsed: s.paneTreeCollapsed,
           tabIds: s.tabs.map((t) => t.id),
           paneSplitCols: s.paneSplitCols,
-          paneSplitRows: s.paneSplitRows
+          paneSplitRows: s.paneSplitRows,
+          pairCompareVisibleStatuses
         })
         await get().applySettingsPatch({
           layouts: upsertLayout(s.settings.layouts, layout)
@@ -4812,6 +4882,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           0,
           s.tabs.findIndex((t) => t.id === s.activeTabId)
         )
+        const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
+        const pairCompareVisibleStatuses = [
+          ...usePairCompareStore.getState().visibleStatuses
+        ] as PairFoldersVisibleStatus[]
         const layout = buildLayoutFromSnapshot(
           existing.name,
           {
@@ -4823,7 +4897,8 @@ export const useAppStore = create<AppState>()((set, get) => {
             paneTreeCollapsed: s.paneTreeCollapsed,
             tabIds: s.tabs.map((t) => t.id),
             paneSplitCols: s.paneSplitCols,
-            paneSplitRows: s.paneSplitRows
+            paneSplitRows: s.paneSplitRows,
+            pairCompareVisibleStatuses
           },
           existing.id
         )
@@ -4927,6 +5002,17 @@ export const useAppStore = create<AppState>()((set, get) => {
       })
       scheduleSessionSave()
       await loadVisiblePaneListings()
+      if (layout.pairCompareVisibleStatuses && layout.pairCompareVisibleStatuses.length > 0) {
+        const statuses = layout.pairCompareVisibleStatuses
+        await get().applySettingsPatch({
+          pairFolders: {
+            visibleStatuses: statuses,
+            showIdenticalByDefault: statuses.includes('identical')
+          }
+        })
+        const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
+        usePairCompareStore.getState().applyVisibleStatuses(statuses as PairCompareStatus[])
+      }
       get().notify(`Applied layout “${layout.name}”`)
     },
 
@@ -7639,6 +7725,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.networkDiscovery
         }
       }
+      if (patch.pairFolders) {
+        mergedPatch.pairFolders = {
+          ...(prev.pairFolders ?? defaultPairFoldersSettings),
+          ...patch.pairFolders
+        }
+      }
       if (patch.remoteRepos) {
         mergedPatch.remoteRepos = {
           ...prev.remoteRepos,
@@ -7717,6 +7809,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           networkDiscovery: mergedPatch.networkDiscovery
             ? { ...s.settings.networkDiscovery, ...mergedPatch.networkDiscovery }
             : s.settings.networkDiscovery,
+          pairFolders: mergedPatch.pairFolders
+            ? {
+                ...(s.settings.pairFolders ?? defaultPairFoldersSettings),
+                ...mergedPatch.pairFolders
+              }
+            : s.settings.pairFolders,
           remoteRepos: mergedPatch.remoteRepos
             ? { ...s.settings.remoteRepos, ...mergedPatch.remoteRepos }
             : s.settings.remoteRepos,

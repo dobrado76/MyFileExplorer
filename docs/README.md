@@ -34,6 +34,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
+| [PAIRED_FOLDERS.md](PAIRED_FOLDERS.md)           | Dual-pane paired folders — compare / sync rail (D69) |
 | [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md)   | All preview-supported file extensions ([samples/preview-extensions/](../samples/preview-extensions/)) |
 | [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md)         | Virtual Folders — `.mfevirtual` folder-like collections (D67) |
 | [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md) | Optional WinFsp OS projection (D68, Windows) — install WinFsp + release zip |
@@ -62,6 +63,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap; **Other N · size** on the Space usage heading. Plain vs **Shift+click** (skip tagged) — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) |
+| Paired folders (D69) | Side-by-side layout centre rail: directional copy, compare projection, reviewed sync plans — [PAIRED_FOLDERS.md](PAIRED_FOLDERS.md) |
 | Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
 | File op plan | Hold **Ctrl** on copy/move/paste/delete → plan dialog with Dry run |
 | Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](GIT.md) |

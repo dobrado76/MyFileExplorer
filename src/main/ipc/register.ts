@@ -229,6 +229,7 @@ import {
 import { registerScriptIpc } from '../scripts/ipc'
 import { registerAiIpc } from '../ai/ipc'
 import { registerGitIpc } from '../git/ipc'
+import { registerPairCompareIpc } from '../pairCompare/ipc'
 import { listScriptsForExport, replaceScriptsFromExport } from '../scripts/library'
 import {
   absorbVirtualFolderDocument,
@@ -1284,6 +1285,7 @@ export function registerIpcHandlers(): void {
   registerScriptIpc(handle)
   registerAiIpc(handle)
   registerGitIpc(handle)
+  registerPairCompareIpc(handle)
 
   handle(IPC.virtualFolderGet, virtualFolderPathRequestSchema, (req) => getVirtualFolder(req.path))
   handle(IPC.virtualFolderList, virtualFolderPathRequestSchema, (req) =>

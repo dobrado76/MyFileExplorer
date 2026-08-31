@@ -335,6 +335,15 @@ const api: MyFileExplorerApi = {
     unmount: invoke(IPC.virtualFolderProjectUnmount),
     listMounts: invokeVoid(IPC.virtualFolderProjectListMounts)
   },
+  pairCompare: {
+    start: invoke(IPC.pairCompareStart),
+    cancel: invoke(IPC.pairCompareCancel),
+    result: invoke(IPC.pairCompareResult),
+    buildPlan: invoke(IPC.pairCompareBuildPlan),
+    revalidatePlan: invoke(IPC.pairCompareRevalidatePlan),
+    executePlan: invoke(IPC.pairCompareExecutePlan),
+    dispose: invoke(IPC.pairCompareDispose)
+  },
   onEvent: (handler: (event: MfeEvent) => void) => {
     const listener = (_e: IpcRendererEvent, event: MfeEvent): void => handler(event)
     ipcRenderer.on(EVENT_CHANNEL, listener)
