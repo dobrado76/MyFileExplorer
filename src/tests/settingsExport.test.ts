@@ -14,6 +14,7 @@ describe('settings export / import', () => {
       ...defaultSettings,
       theme: 'light' as const,
       propertiesBounds: { x: 20, y: 24, width: 520, height: 560 },
+      propertiesWindowBounds: { x: 21, y: 25, width: 520, height: 560, maximized: false },
       usnManagerBounds: { x: 0, y: 1, width: 860, height: 640 },
       adsManagerBounds: { x: 1, y: 2, width: 800, height: 600 },
       powerRenameBounds: { x: 3, y: 4, width: 900, height: 700, maximized: true },

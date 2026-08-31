@@ -284,6 +284,10 @@ export type MyFileExplorerApi = {
     setTarget(req: PreviewWindowTarget): Promise<Result<{ ok: true }>>
     getTarget(): Promise<Result<PreviewWindowTarget>>
   }
+  properties: {
+    /** One peer OS window per path (focus if already open). Cap applied in main. */
+    openWindows(req: PathsRequest): Promise<Result<{ opened: number; skipped: number }>>
+  }
   search: {
     query(req: SearchQueryRequest): Promise<Result<SearchQueryResponse>>
     addRoot(req: PathRequest): Promise<Result<{ roots: IndexRootInfo[] }>>

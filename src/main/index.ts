@@ -30,6 +30,7 @@ import { logMain } from './logging'
 import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen'
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
 import { closePreviewWindow } from './preview/previewWindow'
+import { closeAllPropertiesWindows } from './properties/propertiesWindow'
 import { configureUserData } from './userData'
 import { parseUsnRecentCli, runUsnRecentCli } from './fs/usnRecentCli'
 
@@ -107,6 +108,7 @@ if (!gotLock) {
     win.on('close', () => {
       closeCompiledListsWindow()
       closePreviewWindow()
+      closeAllPropertiesWindows()
     })
 
     // Font size is app-controlled (Ctrl+wheel / Settings); block Chromium page zoom.

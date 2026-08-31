@@ -24,10 +24,9 @@ describe('script dialog stack', () => {
     expect(isScriptDialogKind('confirm')).toBe(false)
   })
 
-  it('stacks USN manager over Drive Properties', () => {
-    expect(shouldPushDialog('properties', 'usn-manager')).toBe(true)
-    expect(shouldPushDialog('usn-manager', 'properties')).toBe(false)
-    expect(shouldPopStackedDialog('usn-manager')).toBe(true)
-    expect(shouldPopStackedDialog('properties')).toBe(false)
+  it('does not stack Properties (detached windows) with USN', () => {
+    expect(shouldPushDialog('properties', 'usn-manager')).toBe(false)
+    expect(shouldPopStackedDialog('usn-manager')).toBe(false)
+    expect(shouldPopStackedDialog('script-run')).toBe(true)
   })
 })

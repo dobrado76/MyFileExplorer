@@ -36,6 +36,7 @@ export function replaceSettings(raw: unknown): Settings {
     remoteConnectionBounds: null,
     compiledListsWindowBounds: null,
     previewWindowBounds: null,
+    propertiesWindowBounds: null,
     scriptManagerBounds: null,
     scriptGenerateBounds: null,
     scriptRunnerBounds: null

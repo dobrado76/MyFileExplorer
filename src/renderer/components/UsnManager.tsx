@@ -101,8 +101,16 @@ function isElevationError(e: unknown): boolean {
   return /administrator|elevat|cancelled|windows error/i.test(msg)
 }
 
-export function UsnManager({ path }: { path: string }): JSX.Element {
+export function UsnManager({
+  path,
+  onClose
+}: {
+  path: string
+  /** When set (e.g. detached Properties window), used instead of the shell dialog stack. */
+  onClose?: () => void
+}): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
+  const close = onClose ?? closeDialog
   const notify = useAppStore((s) => s.notify)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const settings = useAppStore((s) => s.settings)
@@ -217,12 +225,12 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
       if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
-        closeDialog()
+        close()
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [closeDialog])
+  }, [close])
 
   const runMutate = async (
     fn: (elevate: boolean) => Promise<void>,
@@ -404,7 +412,7 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
   const title = `USN journal — ${letter}`
 
   return (
-    <div className="modal-backdrop" onMouseDown={() => closeDialog()}>
+    <div className="modal-backdrop" onMouseDown={() => close()}>
       <div
         className="modal modal-usn-manager"
         role="dialog"
@@ -427,7 +435,7 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
             aria-label="Close"
             title="Close"
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={closeDialog}
+            onClick={close}
           >
             <CloseIcon size={18} />
           </button>
@@ -632,7 +640,7 @@ export function UsnManager({ path }: { path: string }): JSX.Element {
           )}
         </div>
         <div className="modal-actions">
-          <button type="button" className="btn primary" onClick={closeDialog}>
+          <button type="button" className="btn primary" onClick={close}>
             Close
           </button>
         </div>

@@ -136,6 +136,9 @@ const api: MyFileExplorerApi = {
     setTarget: invoke(IPC.previewSetTarget),
     getTarget: invokeVoid(IPC.previewGetTarget)
   },
+  properties: {
+    openWindows: invoke(IPC.propertiesOpenWindows)
+  },
   search: {
     query: invoke(IPC.searchQuery),
     addRoot: invoke(IPC.searchAddRoot),

@@ -273,7 +273,6 @@ export type DialogState =
   | { kind: 'manage-templates' }
   | { kind: 'create-link'; source: string }
   | { kind: 'view-preset-name' }
-  | { kind: 'properties'; path: string }
   | { kind: 'usn-manager'; path: string }
   | { kind: 'settings'; section?: string }
   | { kind: 'categorizer-map'; returnSection?: string }
@@ -1004,6 +1003,8 @@ type AppState = {
   // dialogs / menus
   openDialog(dialog: DialogState): void
   closeDialog(): void
+  /** Open detached Properties windows (one per path; focus if already open). */
+  openPropertiesWindows(paths: string[]): Promise<void>
   openContextMenu(menu: ContextMenuState): void
   closeContextMenu(): void
   /** Launch a Settings → Context menu external command for the given paths. */
@@ -7503,6 +7504,16 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       set({ dialog })
+    },
+
+    async openPropertiesWindows(paths) {
+      const list = paths.filter((p) => typeof p === 'string' && p.trim().length > 0)
+      if (list.length === 0) return
+      try {
+        await call(api.properties.openWindows({ paths: list }))
+      } catch (e) {
+        get().notify(e instanceof Error ? e.message : String(e), true)
+      }
     },
 
     closeDialog() {

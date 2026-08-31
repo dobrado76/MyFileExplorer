@@ -14,12 +14,11 @@ export function shouldPushScriptDialog(currentKind: string | undefined, nextKind
   )
 }
 
-/** Drive Properties → USN manager (Close returns to Properties). */
+/** Stack Manager ↔ Generate ↔ Run so Close returns to the previous script window. */
 export function shouldPushDialog(currentKind: string | undefined, nextKind: string): boolean {
-  if (shouldPushScriptDialog(currentKind, nextKind)) return true
-  return currentKind === 'properties' && nextKind === 'usn-manager'
+  return shouldPushScriptDialog(currentKind, nextKind)
 }
 
 export function shouldPopStackedDialog(kind: string): boolean {
-  return isScriptDialogKind(kind) || kind === 'usn-manager'
+  return isScriptDialogKind(kind)
 }

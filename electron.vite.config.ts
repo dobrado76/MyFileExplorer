@@ -48,7 +48,8 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'src/renderer/index.html'),
           compiledLists: resolve(__dirname, 'src/renderer/compiledLists.html'),
-          previewWindow: resolve(__dirname, 'src/renderer/previewWindow.html')
+          previewWindow: resolve(__dirname, 'src/renderer/previewWindow.html'),
+          propertiesWindow: resolve(__dirname, 'src/renderer/propertiesWindow.html')
         },
         output: {
           manualChunks(id) {

@@ -275,6 +275,7 @@ import {
   openPreviewWindow,
   setPreviewTarget
 } from '../preview/previewWindow'
+import { openPropertiesWindows } from '../properties/propertiesWindow'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
 import { getShellIconUrl } from '../icons/shell'
@@ -762,6 +763,7 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewOpenWindow, emptySchema, () => openPreviewWindow())
   handle(IPC.previewSetTarget, previewWindowTargetSchema, (req) => setPreviewTarget(req))
   handle(IPC.previewGetTarget, emptySchema, () => getPreviewTarget())
+  handle(IPC.propertiesOpenWindows, pathsRequestSchema, (req) => openPropertiesWindows(req.paths))
 
   // search
   handle(IPC.searchQuery, searchQueryRequestSchema, (req) => runSearchQuery(req))

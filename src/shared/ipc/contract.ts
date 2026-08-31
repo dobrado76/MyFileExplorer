@@ -127,6 +127,9 @@ export const IPC = {
   previewSetTarget: 'preview:setTarget',
   previewGetTarget: 'preview:getTarget',
 
+  /** Open one detached Properties window per path (peer of the shell). */
+  propertiesOpenWindows: 'properties:openWindows',
+
   searchQuery: 'search:query',
   searchAddRoot: 'search:addRoot',
   /** Index a drive root (NTFS USN when available). */

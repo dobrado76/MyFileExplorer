@@ -100,7 +100,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | NTFS USN journal (D52) | Drive Properties **USN…** — status, enable/resize (UAC), recent records, probe file on first Enable. **Delete journal…** is a full-volume MFT scan (cannot cancel). — [SEARCH.md](SEARCH.md) |
 | Settings search | Filter Settings pages from the Settings window |
 | Preview word wrap | Text / Markdown / HTML source wrap toggle (off by default) — [PREVIEW.md](PREVIEW.md) |
-| Properties | Moveable/resizable; drive capacity columns; Attributes hidden on drives |
+| Properties | Detached peer OS windows (one per selected path); drive capacity; Attributes hidden on drives |
 | Copy/move progress | File counts + left-ellipsis current path |
 | Details ADS | On-screen rows fill without a dummy scroll |
 | Slideshow | Faster start on large folders; crop steps 5% / 2.5% / 1% / 0.5% |
@@ -165,7 +165,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Tab icons | D32 — Lucide icon + color; tab context menu |
 | In-pane video | D33 — byte-range media; MKV remux; AVI strip-only |
 | Richer previews | HTML/Markdown Preview·Raw; Unity; PE; ZIP/7z/RAR/TAR/APK/MSI/ISO; `.chm` (D35); `.ttf` (D36) — [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
-| Windows Properties | Shell property sheet from in-app Properties dialog |
+| Windows Properties | Shell property sheet from detached Properties window |
 | OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll; tree hover-expand |
 | Search results | D29 — normal `FileView` (banner + path under names) |
 | Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate |

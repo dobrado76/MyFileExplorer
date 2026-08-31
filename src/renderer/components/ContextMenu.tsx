@@ -1008,7 +1008,7 @@ export function ContextMenu(): JSX.Element | null {
           builtin: 'properties',
           action: () => {
             close()
-            s.openDialog({ kind: 'properties', path: single })
+            void s.openPropertiesWindows([single])
           }
         }
       ]
@@ -1417,7 +1417,7 @@ export function ContextMenu(): JSX.Element | null {
           builtin: 'properties',
           action: () => {
             close()
-            s.openDialog({ kind: 'properties', path: folderPath })
+            void s.openPropertiesWindows([folderPath])
           }
         }
       )
@@ -2768,11 +2768,11 @@ export function ContextMenu(): JSX.Element | null {
       {
         type: 'item',
         label: 'Properties',
-        disabled: paths.length !== 1,
+        disabled: paths.length === 0,
         builtin: 'properties',
         action: () => {
           close()
-          if (single) s.openDialog({ kind: 'properties', path: single })
+          void s.openPropertiesWindows(paths)
         }
       }
     )

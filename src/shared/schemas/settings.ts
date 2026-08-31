@@ -561,13 +561,24 @@ const settingsFieldsSchema = z.object({
     .min(USN_JOURNAL_DELTA_BYTES_MIN)
     .max(USN_JOURNAL_DELTA_BYTES_MAX)
     .catch(DEFAULT_USN_JOURNAL_DELTA_BYTES),
-  /** Last in-app Properties dialog geometry (null = centered defaults). */
+  /** Last in-app Properties dialog geometry (legacy; prefer propertiesWindowBounds). */
   propertiesBounds: z
     .object({
       x: z.number(),
       y: z.number(),
       width: z.number().min(380).max(10000),
       height: z.number().min(280).max(10000)
+    })
+    .nullable()
+    .catch(null),
+  /** Detached Properties window geometry (not auto-reopened on launch). */
+  propertiesWindowBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(320).max(10000),
+      height: z.number().min(240).max(10000),
+      maximized: z.boolean().catch(false)
     })
     .nullable()
     .catch(null),
@@ -753,6 +764,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   remoteRepos: defaultRemoteReposSettings,
   mediaMetadata: defaultMediaMetadataSettings,
   propertiesBounds: null,
+  propertiesWindowBounds: null,
   usnJournalMaxBytes: DEFAULT_USN_JOURNAL_MAX_BYTES,
   usnJournalDeltaBytes: DEFAULT_USN_JOURNAL_DELTA_BYTES,
   usnManagerBounds: null,
