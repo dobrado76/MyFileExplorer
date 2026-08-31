@@ -228,7 +228,8 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | Shift+Home/End  | Select from cursor to first / last |
 | Shift+arrows    | Extend selection      |
 | PageUp / PageDown | Page through file view |
-| Ctrl+F          | Focus search          |
+| Ctrl+F          | Power Search          |
+| Ctrl+Shift+F    | Focus toolbar search  |
 | Ctrl+E          | Edit image (single editable image selected; otherwise ignored) |
 | Ctrl+Shift+P    | Toggle preview        |
 | F5 / Ctrl+R | Refresh current folder(s), drives, tree, and Network discovery |

@@ -243,10 +243,10 @@ export function ExplorerShell(): JSX.Element {
       })()
     } else if (ctrl && shift && !alt && key.toLowerCase() === 'f') {
       e.preventDefault()
-      s.openDialog({ kind: 'power-search' })
+      document.querySelector<HTMLInputElement>('[data-search-input]')?.focus()
     } else if (ctrl && !shift && !alt && key.toLowerCase() === 'f') {
       e.preventDefault()
-      document.querySelector<HTMLInputElement>('[data-search-input]')?.focus()
+      s.openDialog({ kind: 'power-search' })
     } else if (ctrl && shift && key.toLowerCase() === 'p') {
       e.preventDefault()
       const sp = useAppStore.getState().splitters

@@ -274,6 +274,7 @@ export function Toolbar(): JSX.Element {
               ref={searchInputRef}
               data-search-input
               placeholder="Search…"
+              title="Quick search (Ctrl+Shift+F to focus)"
               value={search.query}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -302,7 +303,7 @@ export function Toolbar(): JSX.Element {
             type="button"
             className="icon-btn"
             aria-label="Power search"
-            title="Power search (Ctrl+Shift+F)"
+            title="Power search (Ctrl+F)"
             onClick={() => openDialog({ kind: 'power-search' })}
           >
             <SlidersIcon />
