@@ -63,7 +63,7 @@ const OP_MUTE_MS = 3_600_000
 /** Drop a WinFsp projection before rename/delete so the sibling mount does not block the op. */
 async function unprojectVirtualFolderIfNeeded(documentPath: string): Promise<void> {
   if (process.platform !== 'win32' || !isVirtualFolderDocumentPath(documentPath)) return
-  let mountPath: string | null = null
+  let mountPath: string | null
   try {
     const { projectionUnmountRobust } = await import('../virtualFolder/projectionClient')
     const res = await projectionUnmountRobust(documentPath)
