@@ -27,4 +27,8 @@ describe('nextSelectionAfterDelete', () => {
   it('is case-insensitive for Windows paths', () => {
     expect(nextSelectionAfterDelete(['C:\\A', 'C:\\B', 'C:\\C'], ['c:\\b'])).toBe('C:\\C')
   })
+
+  it('treats slash variants as the same path', () => {
+    expect(nextSelectionAfterDelete(['C:\\A', 'C:\\B', 'C:\\C'], ['C:/B'])).toBe('C:\\C')
+  })
 })

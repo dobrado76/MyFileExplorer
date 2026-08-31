@@ -2724,9 +2724,14 @@ export const useAppStore = create<AppState>()((set, get) => {
       return null
     }
     const ordered = pathsInViewOrder()
-    const gone = new Set(removed.map((p) => p.toLowerCase()))
-    const removedInView = ordered.some((p) => gone.has(p.toLowerCase()))
+    const gone = new Set(removed.map((p) => pathKey(p)))
+    const removedInView = ordered.some((p) => gone.has(pathKey(p)))
     pruneListingRemoved(removed)
+
+    const treeFocus = get().treeFocusPath
+    const treeFocusGone =
+      treeFocus != null &&
+      removed.some((r) => samePath(treeFocus, r) || isUnderPath(treeFocus, r))
 
     // Space Usage / preview delete of a deep file: path is not in the current listing.
     // Keep the current selection (e.g. the folder whose stats map is open).
@@ -2743,19 +2748,31 @@ export const useAppStore = create<AppState>()((set, get) => {
         updateActiveTab({ selected: stillSelected })
         set({
           selectionAnchor: stillSelected[0] ?? null,
-          focusedPath: focus
+          focusedPath: focus,
+          ...(treeFocusGone ? { treeFocusPath: focus } : {})
         })
+      } else if (treeFocusGone) {
+        set({ treeFocusPath: stillSelected[stillSelected.length - 1] ?? null })
       }
-      return stillSelected[0] ?? get().focusedPath
+      return stillSelected[0] ?? null
     }
 
     const nextPath = nextSelectionAfterDelete(ordered, removed)
     if (nextPath) {
       updateActiveTab({ selected: [nextPath] })
-      set({ selectionAnchor: nextPath, focusedPath: nextPath })
+      set({
+        selectionAnchor: nextPath,
+        focusedPath: nextPath,
+        ...(treeFocusGone ? { treeFocusPath: nextPath } : {})
+      })
+      get().requestFileListScrollTo(nextPath)
     } else {
       updateActiveTab({ selected: [] })
-      set({ selectionAnchor: null, focusedPath: null })
+      set({
+        selectionAnchor: null,
+        focusedPath: null,
+        ...(treeFocusGone ? { treeFocusPath: null } : {})
+      })
     }
     return nextPath
   }
@@ -2830,43 +2847,59 @@ export const useAppStore = create<AppState>()((set, get) => {
       // Stay in-folder: listing was already pruned + selection updated before trash.
       // Do NOT full-refresh — readdir+stat of large folders is multi-second.
       pruneListingRemoved(removed)
-      const currentSelection = get().activeTab().selected
       const expectedSelection = opts?.expectedSelection
-      const selectionChangedDuringRemoval =
-        expectedSelection !== undefined &&
-        (currentSelection.length !== expectedSelection.length ||
-          currentSelection.some(
-            (path, index) => !expectedSelection[index] || !samePath(path, expectedSelection[index]!)
-          ))
-      if (selectionChangedDuringRemoval) {
+      const treeFocus = get().treeFocusPath
+      const treeFocusGone =
+        treeFocus != null &&
+        removed.some((r) => samePath(treeFocus, r) || isUnderPath(treeFocus, r))
+      const listingHas = (p: string): boolean =>
+        get().listing.entries.some((e) => samePath(e.path, p))
+
+      if (expectedSelection !== undefined) {
+        // Trust selectAfterDelete’s pick; never re-apply a stale focusedPath that may
+        // still point at a deleted item briefly still present in a soft-reloaded listing.
+        const wanted = expectedSelection.filter(
+          (path) => !removed.some((r) => samePath(path, r) || isUnderPath(path, r))
+        )
+        if (wanted.length > 0) {
+          const focus = wanted[wanted.length - 1]!
+          updateActiveTab({ selected: wanted })
+          set({
+            selectionAnchor: wanted[0]!,
+            focusedPath: focus,
+            ...(treeFocusGone ? { treeFocusPath: focus } : {})
+          })
+        } else {
+          updateActiveTab({ selected: [] })
+          set({
+            selectionAnchor: null,
+            focusedPath: null,
+            ...(treeFocusGone ? { treeFocusPath: null } : {})
+          })
+        }
+      } else {
+        const currentSelection = get().activeTab().selected
         const stillSelected = currentSelection.filter(
           (path) =>
             !removed.some(
               (removedPath) => samePath(path, removedPath) || isUnderPath(path, removedPath)
-            )
+            ) && listingHas(path)
         )
-        const currentAnchor = get().selectionAnchor
-        const currentFocus = get().focusedPath
-        const anchor =
-          currentAnchor && stillSelected.some((path) => samePath(path, currentAnchor))
-            ? currentAnchor
-            : stillSelected[0] ?? null
-        const focused =
-          currentFocus && stillSelected.some((path) => samePath(path, currentFocus))
-            ? currentFocus
-            : stillSelected[stillSelected.length - 1] ?? null
-        updateActiveTab({ selected: stillSelected })
-        set({ selectionAnchor: anchor, focusedPath: focused })
-      } else {
-        const focused = get().focusedPath
-        const nextPath =
-          focused && get().listing.entries.some((e) => samePath(e.path, focused)) ? focused : null
-        if (nextPath) {
-          updateActiveTab({ selected: [nextPath] })
-          set({ selectionAnchor: nextPath, focusedPath: nextPath })
+        if (stillSelected.length > 0) {
+          const focus = stillSelected[stillSelected.length - 1]!
+          updateActiveTab({ selected: stillSelected })
+          set({
+            selectionAnchor: stillSelected[0]!,
+            focusedPath: focus,
+            ...(treeFocusGone ? { treeFocusPath: focus } : {})
+          })
         } else {
           updateActiveTab({ selected: [] })
-          set({ selectionAnchor: null, focusedPath: null })
+          set({
+            selectionAnchor: null,
+            focusedPath: null,
+            ...(treeFocusGone ? { treeFocusPath: null } : {})
+          })
         }
       }
       clearMediaHold()
@@ -2914,6 +2947,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       forward: t.forward.filter((e) => !gone(historyLocationPath(e))),
       selected: []
     })
+    // Tree Del on the open folder: move keyboard focus to the folder we navigated to.
+    set({ treeFocusPath: nextPath, focusedPath: null, selectionAnchor: null })
     clearMediaHold()
     await closeTabsWhoseRootWasDeleted(removed)
   }
