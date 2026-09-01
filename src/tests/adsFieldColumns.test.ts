@@ -11,7 +11,9 @@ import {
   mergeAdsFieldColumnNames,
   mergeAdsFieldColumns,
   parseAdsFieldColumnName,
-  sanitizeAdsFieldColumns
+  sanitizeAdsFieldColumns,
+  isCloudSyncAdsStreamName,
+  streamValueMenuCandidateNames
 } from '../shared/schemas/columns'
 import { defaultSettings, settingsSchema } from '../shared/schemas/settings'
 
@@ -62,6 +64,24 @@ describe('adsField column ids', () => {
     ).toEqual([{ stream: 'AUTOV2', label: 'Hash' }, { stream: 'Caption' }])
   })
 
+  it('hides Windows Cloud Files / Dropbox sync streams from Stream values menu', () => {
+    const cloud =
+      '${3D0CE612-FDEE-43f7-8ACA-957BEC0CCBA0}.Metadata'
+    expect(isCloudSyncAdsStreamName(cloud)).toBe(true)
+    expect(isCloudSyncAdsStreamName('com.dropbox.attrs')).toBe(true)
+    expect(isCloudSyncAdsStreamName('com.dropbox.ignored')).toBe(true)
+    expect(isCloudSyncAdsStreamName('Zone.Identifier')).toBe(false)
+    expect(isCloudSyncAdsStreamName('FileTotCount')).toBe(false)
+    expect(
+      streamValueMenuCandidateNames(
+        [cloud, 'com.dropbox.attrs', 'FileTotCount', 'Zone.Identifier'],
+        []
+      )
+    ).toEqual(['FileTotCount', 'Zone.Identifier'])
+    // Already-visible noise stays so the user can untick it
+    expect(streamValueMenuCandidateNames([cloud], [cloud])).toEqual([cloud])
+  })
+
   it('uses stream name when display label is empty', () => {
     expect(adsFieldDisplayLabel([{ stream: 'AUTOV2' }], 'AUTOV2')).toBe('AUTOV2')
     expect(adsFieldDisplayLabel([{ stream: 'AUTOV2', label: 'Hash' }], 'autov2')).toBe('Hash')
@@ -78,6 +98,19 @@ describe('adsField column ids', () => {
     })
     expect(parsed.detailsColumns.map((c) => c.id)).toEqual(['mtime', 'adsField:AUTOV2'])
     expect(parsed.adsFieldColumns).toEqual([])
+  })
+
+  it('keeps user metadata meta: columns in the layout (D70)', () => {
+    const parsed = settingsSchema.parse({
+      ...defaultSettings,
+      detailsColumns: [
+        { id: 'mtime', width: 150 },
+        { id: 'meta:mf_a83f71c2xy', width: 140 },
+        { id: 'meta:not-valid', width: 100 },
+        { id: 'not-a-column', width: 80 }
+      ]
+    })
+    expect(parsed.detailsColumns.map((c) => c.id)).toEqual(['mtime', 'meta:mf_a83f71c2xy'])
   })
 
   it('does not invent catalog entries from folder stream names', () => {

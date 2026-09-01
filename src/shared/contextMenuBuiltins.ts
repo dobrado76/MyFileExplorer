@@ -16,6 +16,8 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'pin-quick-access',
   'customize-folder',
   'remove-folder-customization',
+  'metadata-set',
+  'remove-metadata-assignment',
   'video-previews',
   'cut',
   'copy',
@@ -43,6 +45,7 @@ export const CONTEXT_MENU_BUILTIN_IDS = [
   'disconnect-network-drive',
   'network-refresh',
   'item-note',
+  'user-metadata',
   'item-icon',
   'git',
   'alternate-streams',
@@ -77,6 +80,12 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   { id: 'pin-quick-access', label: 'Pin / Unpin Quick access', hint: 'Folders' },
   { id: 'customize-folder', label: 'Customize this folder' },
   { id: 'remove-folder-customization', label: 'Remove folder customization' },
+  { id: 'metadata-set', label: 'Metadata set…', hint: 'Assign set / No metadata to folder' },
+  {
+    id: 'remove-metadata-assignment',
+    label: 'Remove explicit metadata assignment',
+    hint: 'Return to inherited / default'
+  },
   { id: 'video-previews', label: 'Video previews', hint: 'Folder / empty pane submenu' },
   { id: 'cut', label: 'Cut' },
   { id: 'copy', label: 'Copy' },
@@ -128,6 +137,11 @@ export const CONTEXT_MENU_BUILTINS: ContextMenuBuiltinDef[] = [
   { id: 'disconnect-network-drive', label: 'Disconnect network drive', hint: 'Mapped letter or system dialog' },
   { id: 'network-refresh', label: 'Refresh Network', hint: 'Re-run LAN discovery' },
   { id: 'item-note', label: 'Note…', hint: 'NTFS note on the file or folder' },
+  {
+    id: 'user-metadata',
+    label: 'Metadata…',
+    hint: 'User-defined structured fields (D70)'
+  },
   { id: 'item-icon', label: 'Set icon…', hint: 'Lucide, custom image, or tint the Windows icon' },
   {
     id: 'git',
@@ -217,6 +231,8 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'pin-quick-access' },
   { type: 'item', id: 'customize-folder' },
   { type: 'item', id: 'remove-folder-customization' },
+  { type: 'item', id: 'metadata-set' },
+  { type: 'item', id: 'remove-metadata-assignment' },
   { type: 'item', id: 'video-previews' },
   { type: 'sep', id: 'sep-default-4' },
   { type: 'item', id: 'cut' },
@@ -251,6 +267,7 @@ export const DEFAULT_CONTEXT_MENU_BUILTIN_LAYOUT: ContextMenuBuiltinLayoutEntry[
   { type: 'item', id: 'network-refresh' },
   { type: 'sep', id: 'sep-default-9' },
   { type: 'item', id: 'item-note' },
+  { type: 'item', id: 'user-metadata' },
   { type: 'item', id: 'item-icon' },
   { type: 'item', id: 'git' },
   { type: 'item', id: 'alternate-streams' },

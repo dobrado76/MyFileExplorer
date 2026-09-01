@@ -3,6 +3,7 @@ import {
   DETAILS_COLUMN_IDS,
   detailsColumnIdSchema,
   isAdsFieldColumnId,
+  isMetaFieldColumnId,
   adsFieldColumnDefSchema,
   sanitizeAdsFieldColumns,
   type DetailsColumnId
@@ -40,6 +41,12 @@ import {
   pairFoldersSettingsSchema,
   visibleStatusesFromLegacy
 } from './pairFolders'
+import {
+  defaultUserMetadataSettings,
+  migrateUserMetadataSettings,
+  userMetadataSettingsSchema,
+  userMetadataSettingsObjectSchema
+} from './userMetadata'
 import {
   defaultRemoteReposSettings,
   remoteReposSettingsSchema
@@ -248,7 +255,7 @@ function sanitizeDetailsColumns(raw: unknown): { id: string; width: number }[] {
     // `folder` is search-results-only — never persist in folder/global column layout.
     if (id === 'folder') continue
     if (typeof id !== 'string' || seen.has(id)) continue
-    if (!allowedColumnIds.has(id) && !isAdsFieldColumnId(id)) continue
+    if (!allowedColumnIds.has(id) && !isAdsFieldColumnId(id) && !isMetaFieldColumnId(id)) continue
     seen.add(id)
     out.push({
       id,
@@ -539,6 +546,10 @@ const settingsFieldsSchema = z.object({
     }
     return merged
   }, pairFoldersSettingsSchema),
+  /** User-defined structured metadata sets + folder bindings (D70). */
+  userMetadata: z.preprocess((raw) => {
+    return migrateUserMetadataSettings(raw)
+  }, userMetadataSettingsSchema),
   /** Opt-in FTP/FTPS/SFTP remotes (D46). */
   remoteRepos: z.preprocess((raw) => {
     if (!raw || typeof raw !== 'object') return defaultRemoteReposSettings
@@ -782,6 +793,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   slideshow: defaultSlideshowSettings,
   networkDiscovery: defaultNetworkDiscoverySettings,
   pairFolders: defaultPairFoldersSettings,
+  userMetadata: defaultUserMetadataSettings,
   remoteRepos: defaultRemoteReposSettings,
   mediaMetadata: defaultMediaMetadataSettings,
   propertiesBounds: null,
@@ -810,6 +822,7 @@ export const settingsPatchSchema = settingsFieldsSchema
     slideshow: slideshowSettingsSchema.partial().optional(),
     networkDiscovery: networkDiscoverySettingsSchema.partial().optional(),
     pairFolders: pairFoldersSettingsSchema.partial().optional(),
+    userMetadata: userMetadataSettingsObjectSchema.partial().optional(),
     remoteRepos: remoteReposSettingsSchema.partial().optional(),
     mediaMetadata: mediaMetadataSettingsSchema.partial().optional(),
     scripts: scriptsSettingsSchema.partial().optional(),

@@ -173,6 +173,14 @@ export const IPC = {
   appRunUpdate: 'app:runUpdate',
   appReleaseNotes: 'app:releaseNotes',
 
+  userMetadataGetMany: 'userMetadata:getMany',
+  userMetadataSet: 'userMetadata:set',
+  userMetadataSetMany: 'userMetadata:setMany',
+  userMetadataValidateText: 'userMetadata:validateText',
+  userMetadataTestPattern: 'userMetadata:testPattern',
+  userMetadataExportPack: 'userMetadata:exportPack',
+  userMetadataImportPack: 'userMetadata:importPack',
+
   /** Slideshow (gated by settings.slideshowFeaturesEnabled in renderer). */
   slideshowListImages: 'slideshow:listImages',
   slideshowCancelList: 'slideshow:cancelList',

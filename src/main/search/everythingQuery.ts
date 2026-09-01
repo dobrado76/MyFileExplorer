@@ -3,6 +3,12 @@
  * Produces a StructuredQuery used by SQL and live-walk filters.
  */
 import { isBasicNameQuery } from '@shared/searchQuery'
+import {
+  buildMetaClauseFromCompatibleFields,
+  resolveFieldKeys,
+  type MetaSearchClause
+} from '@shared/metaSearch'
+import type { UserMetadataField } from '@shared/schemas/userMetadata'
 import { queryTokens, tokenHasWildcards } from './queryBuilder'
 export { isBasicNameQuery } from '@shared/searchQuery'
 
@@ -60,6 +66,14 @@ export type StructuredQuery = {
   noteStatus: string | null
   openTodo: boolean
   openTodoNeedle: string | null
+  /** User metadata (D70) — ADS `mfe_meta`. */
+  hasMeta: boolean
+  excludeHasMeta: boolean
+  metaFieldPresent: string[]
+  excludeMetaFieldPresent: string[]
+  metaClauses: MetaSearchClause[]
+  /** Catalog snapshot used when resolving / matching meta keys. */
+  userMetadataFields: UserMetadataField[]
   countLimit: number | null
   /** True when query used Everything operators beyond plain tokens. */
   advanced: boolean
@@ -119,6 +133,7 @@ const QUERY_FN_KEYS = new Set([
   'hasnote',
   'notestatus',
   'todo',
+  'hasmeta',
   'path',
   'nopath',
   'regex',
@@ -165,12 +180,25 @@ export function queryHasPositiveConstraint(q: StructuredQuery): boolean {
     q.hasNote ||
     q.noteText != null ||
     q.noteStatus != null ||
-    q.openTodo
+    q.openTodo ||
+    q.hasMeta ||
+    q.metaFieldPresent.length > 0 ||
+    q.metaClauses.length > 0
   )
 }
 
 export function queryHasNoteFilter(q: StructuredQuery): boolean {
   return q.hasNote || q.excludeHasNote || q.noteText != null || q.noteStatus != null || q.openTodo
+}
+
+export function queryHasMetaFilter(q: StructuredQuery): boolean {
+  return (
+    q.hasMeta ||
+    q.excludeHasMeta ||
+    q.metaFieldPresent.length > 0 ||
+    q.excludeMetaFieldPresent.length > 0 ||
+    q.metaClauses.length > 0
+  )
 }
 
 /** Name / size / date / path filters the SQLite index can apply without reading ADS. */
@@ -232,6 +260,11 @@ function queryHasStructuredFilters(q: StructuredQuery): boolean {
     q.noteText != null ||
     q.noteStatus != null ||
     q.openTodo ||
+    q.hasMeta ||
+    q.excludeHasMeta ||
+    q.metaFieldPresent.length > 0 ||
+    q.excludeMetaFieldPresent.length > 0 ||
+    q.metaClauses.length > 0 ||
     q.countLimit != null ||
     q.notText.length > 0
   )
@@ -266,6 +299,8 @@ export type ParseOptions = {
   regex?: boolean
   /** User-defined macro → ext list (from saved filters). */
   customMacros?: Record<string, string[]>
+  /** Field catalog for resolving meta.<key>: (D70). */
+  userMetadataFields?: UserMetadataField[]
 }
 
 function parseBasicNameQuery(raw: string, opts: ParseOptions): StructuredQuery {
@@ -324,9 +359,41 @@ function emptyQuery(opts: ParseOptions): StructuredQuery {
     noteStatus: null,
     openTodo: false,
     openTodoNeedle: null,
+    hasMeta: false,
+    excludeHasMeta: false,
+    metaFieldPresent: [],
+    excludeMetaFieldPresent: [],
+    metaClauses: [],
+    userMetadataFields: opts.userMetadataFields ?? [],
     countLimit: null,
     advanced: false
   }
+}
+
+function applyMetaDotted(
+  q: StructuredQuery,
+  fieldKey: string,
+  val: string,
+  exclude: boolean
+): boolean {
+  const catalog = q.userMetadataFields
+  const fields = resolveFieldKeys(catalog, fieldKey)
+  q.advanced = true
+  if (fields.length === 0) {
+    // Unknown key → force no match (present on a never-used id)
+    if (!exclude) q.metaFieldPresent.push(`mf_unknown_${fieldKey}`)
+    return true
+  }
+  if (exclude) {
+    if (!val.trim()) {
+      for (const f of fields) q.excludeMetaFieldPresent.push(f.id)
+    }
+    return true
+  }
+  const clause = buildMetaClauseFromCompatibleFields(fields, val)
+  if (clause) q.metaClauses.push(clause)
+  else q.metaFieldPresent.push(`mf_unknown_${fieldKey}`)
+  return true
 }
 
 function parseSizeBytes(raw: string): number | null {
@@ -625,6 +692,10 @@ function applyFunction(q: StructuredQuery, key: string, val: string, macros: Rec
     q.openTodoNeedle = t || null
     return
   }
+  if (k === 'hasmeta') {
+    q.hasMeta = true
+    return
+  }
   if (k === 'path') {
     q.pathContains.push(v)
     q.matchPath = true
@@ -658,6 +729,10 @@ function applyExcludeFunction(q: StructuredQuery, key: string, val: string, macr
   }
   if (k === 'hasnote' || (k === 'note' && !val.trim())) {
     q.excludeHasNote = true
+    return
+  }
+  if (k === 'hasmeta') {
+    q.excludeHasMeta = true
     return
   }
   const macroExts = macros[k] ?? MACROS[k]
@@ -778,6 +853,22 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
       continue
     }
 
+    // D70 meta.<key>:value / hasmeta.<key>: (dots rejected by ordinary fn regex)
+    const metaFn = /^(meta|hasmeta)\.([a-z][a-z0-9_]*):(.*)$/i.exec(t)
+    if (metaFn) {
+      const kind = metaFn[1]!.toLowerCase()
+      const fieldKey = metaFn[2]!
+      const val = metaFn[3] ?? ''
+      if (kind === 'hasmeta') {
+        applyMetaDotted(q, fieldKey, '', false)
+      } else {
+        applyMetaDotted(q, fieldKey, val, false)
+      }
+      i++
+      if (tokens[i] !== '|') flushOr()
+      continue
+    }
+
     // function: key:value — only known Everything operators (not arbitrary name.ext tokens)
     const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(t)
     if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase()) && isKnownQueryFn(fn[1]!, macros)) {
@@ -801,13 +892,22 @@ export function parseEverythingQuery(input: string, opts: ParseOptions = {}): St
     if (t.startsWith('!') && t.length > 1) {
       q.advanced = true
       const rest = t.slice(1)
-      const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(rest)
-      if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase()) && isKnownQueryFn(fn[1]!, macros)) {
-        applyExcludeFunction(q, fn[1]!, fn[2] ?? '', macros)
-      } else if (hasNotOperatorAnchor(q, orGroup)) {
-        q.notText.push(toTextPred(rest, q))
+      const metaFnEx = /^(meta|hasmeta)\.([a-z][a-z0-9_]*):(.*)$/i.exec(rest)
+      if (metaFnEx) {
+        const kind = metaFnEx[1]!.toLowerCase()
+        const fieldKey = metaFnEx[2]!
+        if (kind === 'hasmeta' || (kind === 'meta' && !(metaFnEx[3] ?? '').trim())) {
+          applyMetaDotted(q, fieldKey, '', true)
+        }
       } else {
-        orGroup.push(toTextPred(t, q))
+        const fn = /^([a-zA-Z][a-zA-Z0-9_]*):(.*)$/.exec(rest)
+        if (fn && !['http', 'https', 'file'].includes(fn[1]!.toLowerCase()) && isKnownQueryFn(fn[1]!, macros)) {
+          applyExcludeFunction(q, fn[1]!, fn[2] ?? '', macros)
+        } else if (hasNotOperatorAnchor(q, orGroup)) {
+          q.notText.push(toTextPred(rest, q))
+        } else {
+          orGroup.push(toTextPred(t, q))
+        }
       }
       i++
       flushOr()

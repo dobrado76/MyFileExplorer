@@ -186,6 +186,24 @@ Win32/NTFS only; remotes rejected. Writes restore host Creation / Access / Write
 | `itemAds:setIcon` | `{ path, icon \| null, imageBase64? }` | `{ ok: true }` — `mfe_icon` / `mfe_icon_img` |
 | `itemAds:importCustomIcon` | `{ path }` | picker + Sharp cover-crop; returns PNG base64 (does not write) |
 
+### `userMetadata.*` (structured metadata — D70, opt-in)
+
+Requires `settings.userMetadata.enabled === true` (else validation error).
+
+Requires `isDevGateActive()`. Unpublished product surface.
+
+| Channel | Request | Notes |
+| --- | --- | --- |
+| `userMetadata:getMany` | `{ paths[] }` | `Record<path, UserMetadataDoc \| null>` |
+| `userMetadata:set` | `{ path, values \| null }` | writes `mfe_meta`; null clears |
+| `userMetadata:setMany` | `{ paths[], values }` | merges patch into each path |
+| `userMetadata:validateText` | `{ value, fieldId }` | protected whole-value regex |
+| `userMetadata:testPattern` | `{ pattern, flags?, value, message? }` | Settings Test strip |
+| `userMetadata:exportPack` | `{ folderPath?, zipPath? }` | Metadata pack ZIP (values + all sets) |
+| `userMetadata:importPack` | `{ zipPath?, destFolder?, mergeDefinitions? }` | apply pack + optional set merge (bindings not auto-created) |
+
+Sets and folder bindings live in settings (`userMetadata.sets` / `bindings`); renderer resolves which set applies to a path.
+
 ### `usn.*` (NTFS USN journal — D52)
 
 Drive-root paths only (`C:\` / `C:`). Soft-fail `unsupported` off win32. Native `DeviceIoControl`; `elevate: true` runs `fsutil usn` via UAC.

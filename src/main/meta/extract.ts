@@ -8,8 +8,16 @@ import {
   formatAdsColumnValue,
   formatAdsValuePreview
 } from '@shared/ads/paths'
-import { parseAdsFieldColumnName } from '@shared/schemas/columns'
+import { parseAdsFieldColumnName, isMetaFieldColumnId } from '@shared/schemas/columns'
 import { ITEM_NOTE_STREAM, parseItemNote } from '@shared/schemas/itemAds'
+import {
+  USER_METADATA_STREAM,
+  allUserMetadataFields,
+  fieldById,
+  optionById,
+  parseMetaColumnFieldId,
+  parseUserMetadataDoc
+} from '@shared/schemas/userMetadata'
 import { encodeNoteChecklistColumn, itemNoteChecklistItems } from '@shared/noteSearch'
 import { listStreamNames, readStreamText, streamExists } from '../fs/adsWin32'
 import { settingsStore } from '../settings/store'
@@ -399,6 +407,50 @@ async function extractAdsFieldColumns(
   return out
 }
 
+async function extractUserMetaColumns(
+  file: string,
+  wanted: Set<DetailsColumnId>
+): Promise<EntryColumnValues> {
+  const out: EntryColumnValues = {}
+  const metaIds = [...wanted].filter(isMetaFieldColumnId)
+  if (metaIds.length === 0) return out
+  if (settingsStore().get().userMetadata?.enabled !== true) return out
+  try {
+    if (!streamExists(file, USER_METADATA_STREAM)) return out
+    const doc = parseUserMetadataDoc(await readStreamText(file, USER_METADATA_STREAM))
+    if (!doc) return out
+    const fields = allUserMetadataFields(
+      settingsStore().get().userMetadata ?? { enabled: false, sets: [], bindings: [] }
+    )
+    for (const colId of metaIds) {
+      const fid = parseMetaColumnFieldId(colId)
+      if (!fid) continue
+      const raw = doc.values[fid]
+      if (raw == null || raw === '') continue
+      const field = fieldById(fields, fid)
+      if (!field) {
+        out[colId] = String(raw)
+        continue
+      }
+      if (field.type === 'choice' && typeof raw === 'string') {
+        out[colId] = optionById(field, raw)?.label ?? raw
+      } else if (field.type === 'multiChoice' && Array.isArray(raw)) {
+        out[colId] = raw
+          .map((id) => (typeof id === 'string' ? optionById(field, id)?.label ?? id : ''))
+          .filter(Boolean)
+          .join('; ')
+      } else if (field.type === 'boolean') {
+        out[colId] = raw === true ? 'Yes' : raw === false ? 'No' : String(raw)
+      } else {
+        out[colId] = truncate(String(raw), 200)
+      }
+    }
+  } catch {
+    /* soft-fail */
+  }
+  return out
+}
+
 export async function extractColumnValues(
   file: string,
   columns: DetailsColumnId[]
@@ -426,6 +478,7 @@ export async function extractColumnValues(
   if (st.isFile() || st.isDirectory()) {
     Object.assign(out, await extractAdsFieldColumns(file, wanted))
     Object.assign(out, await extractItemNoteColumns(file, wanted))
+    Object.assign(out, await extractUserMetaColumns(file, wanted))
   }
 
   if (st.isDirectory()) {

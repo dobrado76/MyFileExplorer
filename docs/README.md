@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.14.0** — **D68** Virtual Folder OS projection (Windows / WinFsp); **D67** Virtual Folders (`.mfevirtual`); **D66** WinDirStat-style folder space map + **D65** lock owners; **D64** Git / **D63** Quick Launch remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D68**). Experimental Linux: [LINUX.md](LINUX.md).
+**Status:** **v0.14.0** — **D68** Virtual Folder OS projection (Windows / WinFsp); **D67** Virtual Folders (`.mfevirtual`); **D66** WinDirStat-style folder space map + **D65** lock owners; **D64** Git / **D63** Quick Launch remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D71**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0-only**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -13,7 +13,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 1. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (vs Explorer + workbench) · [BUSINESS_UVP.md](BUSINESS_UVP.md) (org UVP)
 2. [DECISIONS.md](DECISIONS.md)
 3. [ARCHITECTURE.md](ARCHITECTURE.md)
-4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 5. Remaining open deferrals live under [DECISIONS.md](DECISIONS.md) **Deferred** (the old `FUTURE_IDEAS.md` parking lot was cleared — those candidates shipped as D51 / D55–D62)
 
 ---
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D68               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D71               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
@@ -45,9 +45,12 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
+| [USER_METADATA.md](USER_METADATA.md)             | Opt-in user-defined structured metadata (D70, off by default) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
 | [GIT.md](GIT.md)                                 | Optional Git-aware browsing / lightweight client (D64) |
+| [../LICENSING.md](../LICENSING.md)               | GPL-3.0-only |
+| [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
 
@@ -91,6 +94,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Create link (D59) | File Tools → **Create link…** — symlink / hard link / junction. |
 | View presets (D60) | Pane view-presets control saves mode / sort / Details columns. Apply patches an existing folder override; never creates one. |
 | Attached notes (D61) | Context **Note…** → `mfe_note` ADS. Preview + Details Note / Status / Has note / Checklist. Power Search `note:` / `notestatus:` / `hasnote:` / `todo:`. Writes restore host times — [ADS.md](ADS.md). |
+| Media metadata (D50) | Opt-in Plex / TMDB / OMDb; covers and watched — [MEDIA_METADATA.md](MEDIA_METADATA.md). |
 | Item icons (D62) | Context **Set icon…** — Lucide / custom PNG / shell+tint. Distinct from File Tools **Change Icon…**. Host times unchanged. |
 | Copy timestamps (D53) | Copy / cross-volume move keeps source Created and Modified. |
 | Custom tab icons (D54) | Cover-crop PNG/JPG/ICO; icon-only tabs hug the image. |

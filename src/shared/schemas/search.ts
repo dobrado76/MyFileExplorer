@@ -116,6 +116,17 @@ export const powerSearchStateSchema = z.object({
   noteStatus: z.string().catch(''),
   hasNote: z.boolean().catch(false),
   openTodos: z.boolean().catch(false),
+  hasMeta: z.boolean().catch(false),
+  /** Opaque field/option ids; emit regenerates current keys (D70). */
+  metaFilters: z
+    .array(
+      z.object({
+        fieldId: z.string().min(1),
+        optionId: z.string().optional(),
+        value: z.string().optional()
+      })
+    )
+    .catch([]),
   dupe: z.enum(['', 'name', 'size', 'namepart']).catch(''),
   childName: z.string().catch(''),
   depth: z.string().catch('')

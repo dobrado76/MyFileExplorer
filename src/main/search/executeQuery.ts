@@ -11,11 +11,13 @@ import {
   parseEverythingQuery,
   queryHasIndexableConstraint,
   queryHasNoteFilter,
+  queryHasMetaFilter,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
 import { filterItemsByNote } from './noteFilter'
+import { filterItemsByMeta } from './metaFilter'
 import { noteIndexReady } from './noteIndex'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit, normalizeSearchPathKey } from '@shared/searchHidden'
@@ -140,12 +142,12 @@ export async function queryIndexStructured(
   const pull = Math.min(
     20000,
     effectiveLimit *
-      (q.dupe || q.content || queryHasNoteFilter(q) || q.regex || q.textGroups.some((g) => g.length > 1)
+      (q.dupe || q.content || queryHasNoteFilter(q) || queryHasMetaFilter(q) || q.regex || q.textGroups.some((g) => g.length > 1)
         ? 8
         : 2)
   )
 
-  const noteOnly = queryHasNoteFilter(q) && !queryHasIndexableConstraint(q)
+  const noteOnly = queryHasNoteFilter(q) && !queryHasIndexableConstraint(q) && !queryHasMetaFilter(q)
   if (noteOnly) noteIndexReady()
   const { sql, params } = noteOnly
     ? buildNoteIndexSql(q, pathPrefix)
@@ -208,6 +210,10 @@ export async function queryIndexStructured(
 
   if (queryHasNoteFilter(q)) {
     items = await filterItemsByNote(items, q)
+  }
+
+  if (queryHasMetaFilter(q)) {
+    items = await filterItemsByMeta(items, q)
   }
 
   const partial = items.length > effectiveLimit

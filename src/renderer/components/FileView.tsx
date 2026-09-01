@@ -25,7 +25,8 @@ import {
   filterFileMetaFetchColumns,
   isAdsFieldColumnId,
   isFolderStatsColumnId,
-  mergeAdsFieldColumnNames,
+  streamValueMenuCandidateNames,
+  metaColumnId,
   parseAdsFieldColumnName,
   type EntryColumnValues
 } from '@shared/schemas/columns'
@@ -35,6 +36,11 @@ import {
   parseNoteChecklistColumn
 } from '@shared/noteSearch'
 import { resolveFolderViewForTab } from '@shared/folderViews'
+import {
+  allUserMetadataFields,
+  parseMetaColumnFieldId
+} from '@shared/schemas/userMetadata'
+import { resolveMetadataSet } from '@shared/userMetadataBindings'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
 import { pathKey } from '@shared/paths'
@@ -247,6 +253,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const isFocusedSurface = tabId === activeTabIdStore
   const listing = useAppStore((s) => s.listingsByTabId[tabId] ?? s.listing)
   const settings = useAppStore((s) => s.settings)
+  const userMetadataEnabled = settings.userMetadata?.enabled === true
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
   const setSelectionRaw = useAppStore((s) => s.setSelection)
   const setSelection = useCallback(
@@ -397,6 +404,20 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [tab, folderViews]
   )
   const detailsColumnsBase = owningView?.detailsColumns ?? settings.detailsColumns
+  const umSettings = useMemo(
+    () => settings.userMetadata ?? { enabled: false, sets: [], bindings: [] },
+    [settings.userMetadata]
+  )
+  const cwdMetadataSet = useMemo(() => {
+    if (!userMetadataEnabled || !folderPath) return null
+    return resolveMetadataSet(folderPath, umSettings)
+  }, [userMetadataEnabled, folderPath, umSettings])
+  const userMetaFields = cwdMetadataSet?.fields ?? []
+  const userMetaFieldsCatalog = useMemo(
+    () => allUserMetadataFields(umSettings),
+    [umSettings]
+  )
+  const adsFieldCatalog = settings.adsFieldColumns
   /** Session-only width for the search Folder column (never written to settings). */
   const [searchFolderWidth, setSearchFolderWidth] = useState(
     columnMeta('folder').defaultWidth
@@ -457,23 +478,43 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const gitByRoot = useAppStore((s) => s.gitByRoot)
   const virtualFolderMode = Boolean(listing.virtualFolder)
   const detailsColumns = useMemo(() => {
+    const setFieldIds = new Set(cwdMetadataSet?.fields.map((f) => f.id) ?? [])
     const base = detailsColumnsBase.filter((c) => {
       if (c.id === 'folder') return false
       if (!showFolderStatistics && isFolderStatsColumnId(c.id)) return false
       if (c.id === 'gitStatus' && !gitShowStatusColumn) return false
+      const metaFid = parseMetaColumnFieldId(c.id)
+      if (metaFid && !setFieldIds.has(metaFid)) return false
       return true
     })
-    if (searchMode) return [{ id: 'folder' as const, width: searchFolderWidth }, ...base]
-    // Virtual Folder: Location = parent of each referenced target (D67).
-    if (virtualFolderMode) return [{ id: 'folder' as const, width: 280 }, ...base]
-    return base
+    const have = new Set(base.map((c) => c.id))
+    const autoMeta =
+      cwdMetadataSet && !searchMode
+        ? cwdMetadataSet.fields
+            .filter((f) => f.showAsColumn)
+            .map((f) => {
+              const id = metaColumnId(f.id) as DetailsColumnId
+              return {
+                id,
+                width: columnMeta(id, adsFieldCatalog, userMetaFieldsCatalog).defaultWidth
+              }
+            })
+            .filter((c) => !have.has(c.id))
+        : []
+    const withMeta = [...base, ...autoMeta]
+    if (searchMode) return [{ id: 'folder' as const, width: searchFolderWidth }, ...withMeta]
+    if (virtualFolderMode) return [{ id: 'folder' as const, width: 280 }, ...withMeta]
+    return withMeta
   }, [
     searchMode,
     virtualFolderMode,
     detailsColumnsBase,
     searchFolderWidth,
     showFolderStatistics,
-    gitShowStatusColumn
+    gitShowStatusColumn,
+    cwdMetadataSet,
+    adsFieldCatalog,
+    userMetaFieldsCatalog
   ])
 
   const gitLookupForEntry = useCallback(
@@ -648,8 +689,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     [applySettingsPatch, patchDetailsLayout]
   )
 
-  const adsFieldCatalog = settings.adsFieldColumns
-
   const clearAdsFieldColumns = useCallback((): void => {
     const s = useAppStore.getState()
     void applySettingsPatch({
@@ -696,7 +735,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
   const streamValueMenuNames = useMemo(
     () =>
-      mergeAdsFieldColumnNames(
+      streamValueMenuCandidateNames(
         listingAdsNames,
         adsFieldNamesFromColumnIds(detailsColumns.map((c) => c.id))
       ),
@@ -2024,7 +2063,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             />
           </div>
           {detailsColumns.map((c) => {
-            const meta = columnMeta(c.id, adsFieldCatalog)
+            const meta = columnMeta(c.id, adsFieldCatalog, userMetaFieldsCatalog)
             const pinnedSearchFolder = c.id === 'folder'
             return (
               <div
@@ -2150,8 +2189,32 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 </div>
               )
             }
+            if (group === 'userMeta') {
+              if (!userMetadataEnabled || userMetaFields.length === 0) return null
+              return (
+                <div key={group}>
+                  <div className="menu-hint">{COLUMN_GROUP_LABELS[group]}</div>
+                  {userMetaFields.map((f) => {
+                    const id = metaColumnId(f.id) as DetailsColumnId
+                    return (
+                      <button
+                        key={id}
+                        className="menu-item"
+                        onClick={() => toggleColumn(id)}
+                        role="menuitem"
+                      >
+                        <span className="menu-check">
+                          {detailsColumns.some((c) => c.id === id) ? '✓' : ''}
+                        </span>
+                        {f.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            }
             const ids = DETAILS_COLUMN_IDS.filter(
-              (id) => id !== 'folder' && columnMeta(id).group === group
+              (id) => id !== 'folder' && columnMeta(id, adsFieldCatalog, userMetaFieldsCatalog).group === group
             )
             return (
               <div key={group}>
@@ -2166,7 +2229,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     <span className="menu-check">
                       {detailsColumns.some((c) => c.id === id) ? '✓' : ''}
                     </span>
-                    {columnMeta(id).label}
+                    {columnMeta(id, adsFieldCatalog, userMetaFieldsCatalog).label}
                   </button>
                 ))}
               </div>
@@ -2465,22 +2528,20 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           : c.id === 'type' && isProjectedVf(entry.path)
                             ? `${detailCellValue(c.id, entry, metaByPath[entry.path], showFolderStatistics)} · Projected`
                             : detailCellValue(
-                              c.id,
-                              entry,
-                              metaByPath[entry.path],
-                              showFolderStatistics
-                            )
+                                c.id,
+                                entry,
+                                metaByPath[entry.path],
+                                showFolderStatistics
+                              )
                     const raw = metaByPath[entry.path]?.[c.id] ?? ''
                     return (
                       <span
                         key={c.id}
-                        className={`col${columnMeta(c.id).numeric ? ' col-num' : ''}`}
+                        className={`col${columnMeta(c.id, adsFieldCatalog, userMetaFieldsCatalog).numeric ? ' col-num' : ''}`}
                         style={{ width: colWidth(c.id) }}
                         title={text || undefined}
                       >
-                        {c.id === 'itemNoteTodos' && raw
-                          ? renderChecklistCell(raw)
-                          : text}
+                        {c.id === 'itemNoteTodos' && raw ? renderChecklistCell(raw) : text}
                       </span>
                     )
                   })}

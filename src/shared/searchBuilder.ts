@@ -36,6 +36,8 @@ export type PowerSearchState = {
   noteStatus: string
   hasNote: boolean
   openTodos: boolean
+  hasMeta: boolean
+  metaFilters: Array<{ fieldId: string; optionId?: string; value?: string }>
   dupe: PowerSearchDupe
   childName: string
   depth: string
@@ -114,6 +116,8 @@ export function defaultPowerSearchState(): PowerSearchState {
     noteStatus: '',
     hasNote: false,
     openTodos: false,
+    hasMeta: false,
+    metaFilters: [],
     dupe: '',
     childName: '',
     depth: ''
@@ -133,8 +137,12 @@ function pushParts(out: string[], part: string | undefined): void {
 }
 
 /** Build an Everything-style query from visual builder state. */
-export function buildSearchQuery(state: PowerSearchState): string {
+export function buildSearchQuery(
+  state: PowerSearchState,
+  opts?: { userMetadataFields?: import('./schemas/userMetadata').UserMetadataField[] }
+): string {
   const out: string[] = []
+  const catalog = opts?.userMetadataFields ?? []
 
   if (state.itemKind === 'file') out.push('file:')
   else if (state.itemKind === 'folder') out.push('folder:')
@@ -216,6 +224,23 @@ export function buildSearchQuery(state: PowerSearchState): string {
   }
   if (state.openTodos) {
     out.push('todo:')
+  }
+
+  if (state.hasMeta && state.metaFilters.length === 0) {
+    out.push('hasmeta:')
+  }
+  for (const mf of state.metaFilters) {
+    const field = catalog.find((f) => f.id === mf.fieldId)
+    if (!field) continue
+    if (mf.optionId) {
+      const opt = field.choices?.find((o) => o.id === mf.optionId)
+      if (opt) out.push(`meta.${field.key}:${opt.key}`)
+      else out.push(`hasmeta.${field.key}:`)
+    } else if (mf.value?.trim()) {
+      out.push(`meta.${field.key}:${quoteToken(mf.value)}`)
+    } else {
+      out.push(`hasmeta.${field.key}:`)
+    }
   }
 
   if (state.dupe) {

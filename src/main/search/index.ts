@@ -8,6 +8,7 @@ import type {
 } from '@shared/schemas/search'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit } from '@shared/searchHidden'
+import { allUserMetadataFields } from '@shared/schemas/userMetadata'
 import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
 import { normalizeAbsolute, isSameOrUnder } from '../security/paths'
 import { broadcast } from '../ipc/events'
@@ -71,7 +72,11 @@ function parseOptsFromReq(req: SearchQueryRequest) {
     matchCase: req.matchCase ?? s.searchMatchCase,
     wholeWord: req.wholeWord ?? s.searchWholeWord,
     regex: basic ? false : (req.regex ?? s.searchRegex),
-    customMacros
+    customMacros,
+    userMetadataFields:
+      s.userMetadata?.enabled === true
+        ? allUserMetadataFields(s.userMetadata ?? { enabled: false, sets: [], bindings: [] })
+        : []
   }
 }
 

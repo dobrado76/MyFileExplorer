@@ -1,6 +1,11 @@
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { findExactFolderView } from '@shared/folderViews'
+import {
+  findExactMetadataBinding,
+  resolveMetadataSet,
+  metadataScopePath
+} from '@shared/userMetadataBindings'
 import { buildCommandMenuRows, commandMatches, type CommandMenuSubRow } from '@shared/contextMenuCommands'
 import {
   applyBuiltinLayoutToMenu,
@@ -206,6 +211,106 @@ function scriptsSubmenu(
         : { label: row.label, action: row.action, sep: row.label === '—' }
     )
   }
+}
+
+/** Assign / No metadata / Remove explicit assignment for a folder path. */
+function metadataSetFolderMenu(
+  folderPath: string,
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>
+): MenuItem[] {
+  if (s.settings.userMetadata?.enabled !== true) return []
+  if (s.platform !== 'win32') return []
+  if (isRemoteLocation(folderPath) || isVirtualFolderDocumentPath(folderPath)) return []
+  const um = s.settings.userMetadata ?? { enabled: false, sets: [], bindings: [] }
+  const hasExact = !!findExactMetadataBinding(folderPath, um.bindings)
+  const setPicks = (recursive: boolean): SubEntry[] => {
+    if (um.sets.length === 0) {
+      return [
+        {
+          label: 'No sets defined…',
+          action: () => {
+            close()
+            s.openDialog({ kind: 'settings', section: 'metadata' })
+          }
+        }
+      ]
+    }
+    return um.sets.map((set) => ({
+      label: set.name,
+      action: () => {
+        close()
+        void s.assignMetadataBinding(folderPath, set.id, recursive)
+      }
+    }))
+  }
+  return [
+    {
+      type: 'submenu',
+      label: 'Metadata set…',
+      builtin: 'metadata-set',
+      items: [
+        {
+          label: 'Assign set',
+          items: [
+            { label: 'This folder only', items: setPicks(false) },
+            { label: 'This folder and subfolders', items: setPicks(true) }
+          ]
+        },
+        {
+          label: 'No metadata',
+          items: [
+            {
+              label: 'This folder only',
+              action: () => {
+                close()
+                void s.assignMetadataBinding(folderPath, null, false)
+              }
+            },
+            {
+              label: 'This folder and subfolders',
+              action: () => {
+                close()
+                void s.assignMetadataBinding(folderPath, null, true)
+              }
+            }
+          ]
+        },
+        ...(hasExact
+          ? [
+              {
+                label: 'Remove explicit assignment',
+                action: () => {
+                  close()
+                  void s.removeMetadataAssignment(folderPath)
+                }
+              } satisfies SubEntry
+            ]
+          : [])
+      ]
+    }
+  ]
+}
+
+/** True when every path resolves to the same non-null metadata set (edit values). */
+function selectionSharesMetadataSet(
+  paths: string[],
+  entries: { path: string; kind: string }[] | undefined,
+  s: ReturnType<typeof useAppStore.getState>
+): boolean {
+  const um = s.settings.userMetadata ?? { enabled: false, sets: [], bindings: [] }
+  if (um.sets.length === 0 || paths.length === 0) return false
+  let setId: string | null | undefined
+  for (const p of paths) {
+    const e = entries?.find((en) => samePath(en.path, p))
+    const isDir = e?.kind === 'dir' || e?.kind === 'directory'
+    const scope = metadataScopePath(p, !!isDir)
+    const set = resolveMetadataSet(scope, um)
+    if (!set) return false
+    if (setId === undefined) setId = set.id
+    else if (setId !== set.id) return false
+  }
+  return setId != null
 }
 
 function mediaMetadataMenu(
@@ -1310,6 +1415,7 @@ export function ContextMenu(): JSX.Element | null {
               }
             ]
           : []),
+        ...metadataSetFolderMenu(customizePath, close, s),
         { type: 'sep' },
         {
           type: 'item',
@@ -1376,6 +1482,24 @@ export function ContextMenu(): JSX.Element | null {
                   s.openDialog({ kind: 'item-note', path: folderPath })
                 }
               },
+              ...(s.settings.userMetadata?.enabled === true
+                ? [
+                    {
+                      type: 'item' as const,
+                      label: 'Metadata…',
+                      builtin: 'user-metadata' as const,
+                      disabled: !selectionSharesMetadataSet(
+                        [folderPath],
+                        [{ path: folderPath, kind: 'dir' }],
+                        s
+                      ),
+                      action: () => {
+                        close()
+                        s.openDialog({ kind: 'user-metadata', paths: [folderPath] })
+                      }
+                    }
+                  ]
+                : []),
               {
                 type: 'item' as const,
                 label: 'Set icon…',
@@ -1594,7 +1718,8 @@ export function ContextMenu(): JSX.Element | null {
                   }
                 }
               ]
-            : [])
+            : []),
+          ...metadataSetFolderMenu(single, close, s)
         )
       }
       result.push(
@@ -1945,7 +2070,8 @@ export function ContextMenu(): JSX.Element | null {
                     }
                   }
                 ]
-              : [])
+              : []),
+            ...metadataSetFolderMenu(single, close, s)
           )
           if (!isVfDocument) {
             result.push({
@@ -2535,6 +2661,32 @@ export function ContextMenu(): JSX.Element | null {
                 s.openDialog({ kind: 'item-note', path: single })
               }
             },
+            ...(s.settings.userMetadata?.enabled === true
+              ? [
+                  {
+                    type: 'item' as const,
+                    label: 'Metadata…',
+                    builtin: 'user-metadata' as const,
+                    disabled: !selectionSharesMetadataSet(
+                      paths.length > 0 &&
+                        paths.every((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
+                        ? paths
+                        : [single],
+                      entries,
+                      s
+                    ),
+                    action: () => {
+                      close()
+                      const sel =
+                        paths.length > 0 &&
+                        paths.every((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
+                          ? paths
+                          : [single]
+                      s.openDialog({ kind: 'user-metadata', paths: sel })
+                    }
+                  }
+                ]
+              : []),
             {
               type: 'item' as const,
               label: 'Set icon…',

@@ -7,6 +7,7 @@ import { CompressIcon, ExpandIcon } from '../lib/icons'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
 import { PreviewView } from './preview/PreviewView'
 import { ItemNotePreview } from './ItemNotePreview'
+import { UserMetadataPreview } from './UserMetadataPreview'
 import type { ItemNote } from '@shared/schemas/itemAds'
 
 class PreviewErrorBoundary extends Component<
@@ -69,18 +70,26 @@ export function PreviewWindowApp(): JSX.Element {
   const [zen, setZen] = useState(false)
   const [textWordWrap, setTextWordWrap] = useState(false)
   const [itemNote, setItemNote] = useState<ItemNote | null>(null)
+  const [userMetadataEnabled, setUserMetadataEnabled] = useState(false)
 
   useEffect(() => {
-    void call(api.settings.get())
-      .then((s) => {
-        applyChromeSettings(s)
-        setAutoplay(s.previewVideoAutoplay)
-        setZen(s.previewWindowZen === true)
-        setTextWordWrap(s.previewTextWordWrap === true)
-      })
-      .catch(() => {
-        document.documentElement.dataset['theme'] = 'dark'
-      })
+    const load = (): void => {
+      void call(api.settings.get())
+        .then((s) => {
+          applyChromeSettings(s)
+          setAutoplay(s.previewVideoAutoplay)
+          setZen(s.previewWindowZen === true)
+          setTextWordWrap(s.previewTextWordWrap === true)
+          setUserMetadataEnabled(s.userMetadata?.enabled === true)
+        })
+        .catch(() => {
+          document.documentElement.dataset['theme'] = 'dark'
+        })
+    }
+    load()
+    const onFocus = (): void => load()
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [])
 
   const toggleZen = (): void => {
@@ -163,7 +172,12 @@ export function PreviewWindowApp(): JSX.Element {
         onRevealPath={(path) => void api.shell.showItemInFolder({ path })}
         onExtractZip={(paths) => void api.fs.extractZip({ paths })}
         onRetryPlayableForce={retryPlayableForce}
-        extraBeforeFields={itemNote ? <ItemNotePreview note={itemNote} /> : null}
+        extraBeforeFields={
+          <>
+            {itemNote ? <ItemNotePreview note={itemNote} /> : null}
+            {userMetadataEnabled ? <UserMetadataPreview path={target.path} /> : null}
+          </>
+        }
       />
     </PreviewErrorBoundary>
   )

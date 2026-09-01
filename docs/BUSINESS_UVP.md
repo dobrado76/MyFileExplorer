@@ -29,6 +29,7 @@ The product already demonstrates this model through:
 - WinDirStat-style folder and drive analytics;
 - media and AI-generation metadata;
 - attached notes and metadata through NTFS ADS;
+- **user-defined structured metadata** (project-local field sets on folders);
 - user-defined local scripts and optional AI-assisted script authoring;
 - portable Virtual Folders that organize files independently of physical storage topology;
 - optional WinFsp projection so Virtual Folders can also be consumed by ordinary Windows applications.
@@ -77,6 +78,8 @@ MFE already treats different filesystem objects differently when richer semantic
 - Git repository roots expose history and repository actions;
 - media folders expose movie/TV metadata;
 - AI-generated images expose generation parameters;
+- attached notes let labs, media teams, and researchers attach meaning without another vertical product;
+
 - model files expose model-specific metadata;
 - ordinary folders can expose recursive composition and space maps;
 - Virtual Folders expose curated logical collections.

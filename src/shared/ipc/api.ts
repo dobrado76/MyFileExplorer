@@ -236,6 +236,38 @@ export type MyFileExplorerApi = {
       >
     >
   }
+  userMetadata: {
+    getMany(req: { paths: string[] }): Promise<
+      Result<Record<string, import('../schemas/userMetadata').UserMetadataDoc | null>>
+    >
+    set(req: {
+      path: string
+      values: Record<string, unknown> | null
+    }): Promise<Result<{ ok: true }>>
+    setMany(req: {
+      paths: string[]
+      values: Record<string, unknown>
+    }): Promise<Result<{ ok: true; done: number }>>
+    validateText(req: {
+      value: string
+      fieldId: string
+    }): Promise<Result<{ ok: true } | { ok: false; message: string }>>
+    testPattern(req: {
+      pattern: string
+      flags?: '' | 'i'
+      value: string
+      message?: string
+    }): Promise<Result<{ ok: true } | { ok: false; message: string }>>
+    exportPack(req?: {
+      folderPath?: string
+      zipPath?: string
+    }): Promise<Result<{ path: string; count: number }>>
+    importPack(req?: {
+      zipPath?: string
+      destFolder?: string
+      mergeDefinitions?: boolean
+    }): Promise<Result<{ written: number; definitionsMerged: boolean }>>
+  }
   tabs: {
     /** Open-file dialog; Sharp cover-crops to a square PNG under userData. */
     importCustomIcon(): Promise<

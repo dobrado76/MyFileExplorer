@@ -8,6 +8,7 @@ import { usePreviewFetch } from '../lib/usePreviewFetch'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
 import { PreviewView } from './preview/PreviewView'
 import { ItemNotePreview } from './ItemNotePreview'
+import { UserMetadataPreview } from './UserMetadataPreview'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import type { ItemNote } from '@shared/schemas/itemAds'
 import { lookupGitForPath } from '../lib/gitUi'
@@ -27,6 +28,7 @@ export function PreviewPane(): JSX.Element {
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
   const dropImageVersion = useAppStore((s) => s.dropImageVersion)
   const drawCaption = useAppStore((s) => s.devGateActive && s.settings.slideshow.drawCaption)
+  const userMetadataEnabled = useAppStore((s) => s.settings.userMetadata?.enabled === true)
   const gitEnabled = useAppStore((s) => s.settings.git?.enabled === true)
   const gitByRoot = useAppStore((s) => s.gitByRoot)
   const mergeGitStatus = useAppStore((s) => s.mergeGitStatus)
@@ -217,7 +219,17 @@ export function PreviewPane(): JSX.Element {
       onExtractZip={(paths) => void extractZip(paths)}
       onNotify={notify}
       onRetryPlayableForce={retryPlayableForce}
-      extraBeforeFields={itemNote ? <ItemNotePreview note={itemNote} /> : null}
+      extraBeforeFields={
+        <>
+          {itemNote ? <ItemNotePreview note={itemNote} /> : null}
+          {userMetadataEnabled ? (
+            <UserMetadataPreview
+              path={previewPath}
+              isDirectory={model?.kind === 'directory'}
+            />
+          ) : null}
+        </>
+      }
       headerActions={
         <>
           {model?.kind === 'image' &&

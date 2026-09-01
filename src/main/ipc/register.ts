@@ -192,6 +192,14 @@ import {
   itemAdsSetNoteSchema
 } from '@shared/schemas/itemAds'
 import {
+  getUserMetadataMany,
+  setUserMetadata,
+  setUserMetadataMany
+} from '../userMetadata/store'
+import { assertPatternSafeForSettings, testWholeValueProtected } from '../userMetadata/safeRegex'
+import { exportMetadataPack, importMetadataPack } from '../userMetadata/pack'
+import { fieldByIdInSettings } from '@shared/schemas/userMetadata'
+import {
   deleteFileTemplate,
   duplicateFileTemplate,
   importFileTemplate,
@@ -321,6 +329,12 @@ import {
 
 function assertDevGate(): void {
   if (!isDevGateActive()) throw new AppError('validation', 'Unavailable')
+}
+
+function assertUserMetadataEnabled(): void {
+  if (getSettings().userMetadata?.enabled !== true) {
+    throw new AppError('validation', 'User metadata is disabled')
+  }
 }
 
 function assertMediaMetadataEnabled(): void {
@@ -813,6 +827,99 @@ export function registerIpcHandlers(): void {
   )
   handle(IPC.itemAdsImportCustomIcon, z.object({ path: z.string().min(1) }), (_req, event) =>
     importItemCustomIcon(event.sender, _req.path)
+  )
+  handle(
+    IPC.userMetadataGetMany,
+    z.object({ paths: z.array(z.string().min(1)).max(250) }),
+    (req) => {
+      assertUserMetadataEnabled()
+      return getUserMetadataMany(req.paths)
+    }
+  )
+  handle(
+    IPC.userMetadataSet,
+    z.object({
+      path: z.string().min(1),
+      values: z.record(z.string(), z.unknown()).nullable()
+    }),
+    (req) => {
+      assertUserMetadataEnabled()
+      return setUserMetadata(req.path, req.values)
+    }
+  )
+  handle(
+    IPC.userMetadataSetMany,
+    z.object({
+      paths: z.array(z.string().min(1)).max(500),
+      values: z.record(z.string(), z.unknown())
+    }),
+    (req) => {
+      assertUserMetadataEnabled()
+      return setUserMetadataMany(req.paths, req.values)
+    }
+  )
+  handle(
+    IPC.userMetadataValidateText,
+    z.object({ value: z.string(), fieldId: z.string().min(1) }),
+    async (req) => {
+      assertUserMetadataEnabled()
+      const field = fieldByIdInSettings(
+        getSettings().userMetadata ?? { enabled: false, sets: [], bindings: [] },
+        req.fieldId
+      )
+      if (!field || field.type !== 'text') return { ok: true as const }
+      return testWholeValueProtected(req.value, field.text?.validation, {
+        minLength: field.text?.minLength,
+        maxLength: field.text?.maxLength
+      })
+    }
+  )
+  handle(
+    IPC.userMetadataTestPattern,
+    z.object({
+      pattern: z.string(),
+      flags: z.enum(['', 'i']).optional(),
+      value: z.string(),
+      message: z.string().optional()
+    }),
+    async (req) => {
+      assertUserMetadataEnabled()
+      const validation = {
+        pattern: req.pattern,
+        flags: (req.flags ?? '') as '' | 'i',
+        message: req.message
+      }
+      const safe = assertPatternSafeForSettings(validation)
+      if (!safe.ok) return safe
+      return testWholeValueProtected(req.value, validation)
+    }
+  )
+  handle(
+    IPC.userMetadataExportPack,
+    z
+      .object({
+        folderPath: z.string().min(1).optional(),
+        zipPath: z.string().min(1).optional()
+      })
+      .optional(),
+    (req) => {
+      assertUserMetadataEnabled()
+      return exportMetadataPack(req ?? {})
+    }
+  )
+  handle(
+    IPC.userMetadataImportPack,
+    z
+      .object({
+        zipPath: z.string().min(1).optional(),
+        destFolder: z.string().min(1).optional(),
+        mergeDefinitions: z.boolean().optional()
+      })
+      .optional(),
+    (req) => {
+      assertUserMetadataEnabled()
+      return importMetadataPack(req ?? {})
+    }
   )
   handle(IPC.tabsImportCustomIcon, emptySchema, async (_req, event) => {
     const picked = await pickCustomTabIconSource(event.sender)

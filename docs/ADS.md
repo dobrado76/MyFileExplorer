@@ -20,6 +20,7 @@ Decision lock: [DECISIONS.md](DECISIONS.md) **D38**. IPC: [IPC_CONTRACT.md](IPC_
 **Stream-value columns** (header menu group **Stream values**):
 
 - When the column menu opens, lists unique stream names found on **all entries in the current listing**, plus stream-value columns that are already visible. Tick/untick like other columns. The saved catalog is **not** listed here and is **not** filled from folder scans.
+- **Cloud / sync noise is omitted from this picker** (still listed in Alternate streams… / the names column): Windows Cloud Files `${GUID}.*` (e.g. `${3D0CE612-…}.Metadata` from Dropbox/OneDrive via `cldflt`), and `com.dropbox.*`. Use **...** if you really want one as a column.
 - **...** is the only way to add a catalog entry (optional **Display name** plus **Stream name**). Empty display name uses the stream name.
 - **Clear** drops the catalog and hides every stream-value column (all folder views).
 - Each enabled stream is catalog id `adsField:<name>`. Settings `adsFieldColumns` only stores streams the user added via **...**.
@@ -122,6 +123,8 @@ Column visibility / order live with the rest of the Details layout in settings (
 **Media metadata (D50)** writes `media_metadata` (JSON), `media_metadata_thumbnail` (cover bytes — not on episode files), and `media_metadata_container` (library + title folder flag). Same NTFS mechanism; not under `userData`. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 **Attached notes (D61)** use `mfe_note` (UTF-8 JSON: `text`, optional `status` / `checklist`, `updatedAt`). **Item icons (D62)** use `mfe_icon` (JSON: `lucide` / `shell` / `custom`) and `mfe_icon_img` (PNG bytes when custom). Both go through `withPreservedHostTimes` so only the stream changes — host Created / Access / Write / Change stay as they were. Search (`note:` / `todo:` / …) **reads** `mfe_note` only. No sidecars; verbs hidden off NTFS / remotes.
+
+**User-defined metadata (D70)** — opt-in (`settings.userMetadata.enabled`, off by default). Sets + folder bindings in settings; values in ADS `mfe_meta`. Spec: [USER_METADATA.md](USER_METADATA.md).
 
 Image-edit history uses `VER_*` / `VER_COUNT` — see below.
 

@@ -13,6 +13,7 @@ export type SettingsSection =
   | 'remoterepos'
   | 'slideshow'
   | 'mediametadata'
+  | 'metadata'
   | 'git'
   | 'ai'
   | 'advanced'
@@ -105,6 +106,12 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     label: 'Media Metadata',
     keywords:
       'media metadata plex tmdb omdb imdb cover poster season episode watched genre movie tv show'
+  },
+  {
+    id: 'metadata',
+    label: 'Metadata',
+    keywords:
+      'user metadata enable sets folder bindings recursive no metadata custom fields structured mfe_meta choice regex validation column pack export import semantic'
   },
   {
     id: 'git',

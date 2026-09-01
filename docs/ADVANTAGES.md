@@ -145,6 +145,7 @@ Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local
 | **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
 | **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column (names) plus per-stream **value** columns, and a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. **Calculate Statistics** tags folders with counts, size, and a rich preview payload (D66 space map). |
 | **Attached notes & item icons** | Right-click **Note…** / **Set icon…** on the file or folder (NTFS streams `mfe_note` / `mfe_icon`). Preview + Details Checklist; Power Search `note:` / `todo:`. Host Created / Modified / Change stay put. Explorer has no per-item note or icon overlay. |
+| **User-defined metadata (opt-in)** | Settings → Metadata → Enable (off by default). Named **sets** of typed fields + folder bindings (or No metadata). Values in ADS `mfe_meta`; context edit / preview / Details columns / Power Search `meta.<key>:`. Project-local schemas without a proprietary DB. Guide: [USER_METADATA.md](USER_METADATA.md). |
 | **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
 | **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
 | **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |
@@ -188,7 +189,7 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 - [BUSINESS_UVP.md](BUSINESS_UVP.md) — organizational value proposition & positioning  
 - [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) — Calculate Statistics + Space usage (plain vs Shift)  
 - [PRODUCT_SPEC.md](PRODUCT_SPEC.md) — full requirements  
-- [DECISIONS.md](DECISIONS.md) — locked choices (through D68)  
+- [DECISIONS.md](DECISIONS.md) — locked choices (through D70)  
 - [SCRIPTS.md](SCRIPTS.md) — universal script runner, use cases, and examples (D51)  
 - [GIT.md](GIT.md) — optional Git-aware browsing (D64)  
 - [PREVIEW.md](PREVIEW.md) — preview & generation metadata  
@@ -197,7 +198,8 @@ Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell exten
 - [SEARCH.md](SEARCH.md) — indexing / Everything-inspired search  
 - [NETWORKS.md](NETWORKS.md) — Network neighborhood & mapped drives  
 - [REMOTE_FTP.md](REMOTE_FTP.md) — opt-in FTP/FTPS/SFTP remotes  
-- [MEDIA_METADATA.md](MEDIA_METADATA.md) — opt-in movie/TV metadata (D50)  
-- [SLIDESHOW.md](SLIDESHOW.md) — ACDSee-inspired slideshow / categorizer  
-- [ADS.md](ADS.md) — NTFS Alternate Data Streams  
-- [../README.md](../README.md) — product overview  
+- [MEDIA_METADATA.md](MEDIA_METADATA.md) — opt-in movie/TV metadata (D50)
+- [USER_METADATA.md](USER_METADATA.md) — opt-in user-defined structured metadata (D70)
+- [SLIDESHOW.md](SLIDESHOW.md) — ACDSee-inspired slideshow / categorizer
+- [ADS.md](ADS.md) — NTFS Alternate Data Streams
+- [../README.md](../README.md) — product overview 

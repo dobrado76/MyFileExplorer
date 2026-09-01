@@ -78,6 +78,7 @@ Versioned subset; grows over releases. Parser: `everythingQuery.ts`.
 | Advanced | `attrib:h`, `dupe:`, `sizedupe:`, `child:`, `childcount:`, `depth:` |
 | Content (slow) | `content:`, `utf8content:` — unindexed scan of name/path hits only; hard size/time caps; banner (D15) |
 | Notes (D61) | `note:`, `hasnote:`, `notestatus:`, `todo:` / `todo:buy` — read-only ADS `mfe_note` (does not change host times). Current-folder walk is complete; indexed uses notes saved in this app. `!hasnote:` excludes items that have a note. |
+| User metadata (D70) | Opt-in (`settings.userMetadata.enabled`). `meta.<key>:`, `hasmeta:`, … when enabled and a set applies. Spec: [USER_METADATA.md](USER_METADATA.md). |
 
 Toolbar toggles (persisted): **Match path**, **Match case**, **Whole word**, **Regex**. Type chips map to macros.
 

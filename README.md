@@ -1,7 +1,7 @@
 # MyFileExplorer
 
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPL-3.0-only](https://img.shields.io/badge/License-GPL--3.0--only-blue.svg)](LICENSE)
 
 MyFileExplorer is a local file workbench that turns the filesystem from passive storage into an active workspace. It keeps the familiarity of Windows File Explorer, then adds persistent multi-pane workspaces, deep previews, fast search, Git awareness, rich folder analytics, metadata, automation, and portable Virtual Folders — without requiring you to move your files into a proprietary database or cloud service.
 
@@ -15,7 +15,7 @@ It started as a replacement for Windows File Explorer. It has grown into somethi
 | --- | --- |
 | **Platform** | Windows 10 / 11 (primary) · Linux packaging experimental |
 | **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
-| **License** | MIT |
+| **License** | **GPL-3.0-only** — [LICENSING.md](LICENSING.md) · [TRADEMARK.md](TRADEMARK.md) |
 
 ![Tabs, details, video thumbs, and a live preview](docs/image/screenshot-workspace.jpg)
 
@@ -61,6 +61,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - **Paired folders** (2-pane layout) — centre action rail to copy, compare, and review sync plans between the two folders — **[docs/PAIRED_FOLDERS.md](docs/PAIRED_FOLDERS.md)**
 - **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)**
 - **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
+- **User-defined metadata** (D70, **off by default**) — Settings → Metadata → Enable; define sets, assign folders, edit values on NTFS `mfe_meta`; Details columns + Power Search `meta.<key>:` — **[docs/USER_METADATA.md](docs/USER_METADATA.md)**
 
 **Move files without the drama**
 - Status-bar progress + **Cancel** on long copy/move/trash/delete
@@ -209,3 +210,7 @@ Open **this folder** as the workspace. Everything needed to build and ship lives
 ## Acknowledgements
 
 Thank you **[ghiscoding](https://github.com/ghiscoding)** — for Linux support, icon-size settings, back-navigation polish, and a stream of ideas that made the app better (plus the bug reports, and the patience — yes, really).
+
+## Licensing
+
+MyFileExplorer is free software under the **GNU General Public License v3.0 only** ([LICENSE](LICENSE)). Commercial use and redistribution are allowed; distributed modifications must remain under GPLv3 with corresponding source. The **MyFileExplorer** name and logo are trademarks — see [TRADEMARK.md](TRADEMARK.md). Details: [LICENSING.md](LICENSING.md) · [NOTICE](NOTICE) · [AUTHORS](AUTHORS) · [CONTRIBUTING.md](CONTRIBUTING.md).

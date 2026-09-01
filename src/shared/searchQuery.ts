@@ -57,10 +57,14 @@ export function isBasicNameQuery(raw: string): boolean {
   if (/[<|"]/.test(t)) return false
   if (/^[a-zA-Z]:[\\/]?/i.test(t)) return false
   if (
-    /(?:^|\s)(!?)(size|ext|dm|dc|datemodified|datecreated|path|nopath|file|folder|pic|video|audio|doc|exe|zip|content|utf8content|note|hasnote|notestatus|todo|attrib|attributes|depth|parent|infolder|startwith|endwith|len|empty|count|dupe|sizedupe|namepartdupe|child|childcount|regex|case|nocase|ww|wholeword|noww):/i.test(
+    /(?:^|\s)(!?)(size|ext|dm|dc|datemodified|datecreated|path|nopath|file|folder|pic|video|audio|doc|exe|zip|content|utf8content|note|hasnote|notestatus|todo|hasmeta|attrib|attributes|depth|parent|infolder|startwith|endwith|len|empty|count|dupe|sizedupe|namepartdupe|child|childcount|regex|case|nocase|ww|wholeword|noww):/i.test(
       t
     )
   ) {
+    return false
+  }
+  // D70 dotted operators: meta.<key>:… / hasmeta.<key>:
+  if (/(?:^|\s)!?(?:meta|hasmeta)\.[a-z][a-z0-9_]*:/i.test(t)) {
     return false
   }
   if (/\s![^\s]+/.test(t)) return false

@@ -1,6 +1,13 @@
 import { z } from 'zod'
 import { isValidAdsStreamName } from '../ads/paths'
 import { FOLDER_STATS_COLUMN_IDS } from '../folderStats'
+import {
+  META_COLUMN_PREFIX,
+  parseMetaColumnFieldId,
+  type UserMetadataField
+} from './userMetadata'
+
+export { META_COLUMN_PREFIX, parseMetaColumnFieldId, metaColumnId } from './userMetadata'
 
 export const ADS_FIELD_COLUMN_PREFIX = 'adsField:'
 export const ADS_FIELD_COLUMN_DEFAULT_WIDTH = 140
@@ -86,7 +93,8 @@ export const DETAILS_COLUMN_IDS = [
 
 export type BuiltinDetailsColumnId = (typeof DETAILS_COLUMN_IDS)[number]
 export type AdsFieldColumnId = `${typeof ADS_FIELD_COLUMN_PREFIX}${string}`
-export type DetailsColumnId = BuiltinDetailsColumnId | AdsFieldColumnId
+export type MetaFieldColumnId = `${typeof META_COLUMN_PREFIX}${string}`
+export type DetailsColumnId = BuiltinDetailsColumnId | AdsFieldColumnId | MetaFieldColumnId
 
 export function isBuiltinDetailsColumnId(id: string): id is BuiltinDetailsColumnId {
   return (DETAILS_COLUMN_IDS as readonly string[]).includes(id)
@@ -100,6 +108,10 @@ export function parseAdsFieldColumnName(id: string): string | null {
 
 export function isAdsFieldColumnId(id: string): id is AdsFieldColumnId {
   return parseAdsFieldColumnName(id) != null
+}
+
+export function isMetaFieldColumnId(id: string): id is MetaFieldColumnId {
+  return parseMetaColumnFieldId(id) != null
 }
 
 export function adsFieldColumnId(name: string): AdsFieldColumnId {
@@ -208,6 +220,33 @@ export function mergeAdsFieldColumnNames(...lists: readonly (readonly string[])[
   return out
 }
 
+/**
+ * Cloud / sync provider ADS that clutter the Details → Stream values picker.
+ * Still visible in Alternate streams… / the names column — just not offered as value columns.
+ * Pattern `${GUID}.*` is Windows Cloud Files (cldflt); `com.dropbox.*` is Dropbox.
+ */
+const CLOUD_FILES_ADS_RE =
+  /^\$\{[0-9A-Fa-f]{8}-(?:[0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}\}(?:\.|$)/i
+
+export function isCloudSyncAdsStreamName(name: string): boolean {
+  const n = name.trim()
+  if (!n) return false
+  if (CLOUD_FILES_ADS_RE.test(n)) return true
+  const lower = n.toLowerCase()
+  return lower.startsWith('com.dropbox.')
+}
+
+/** Listing scan for Stream values menu — omit cloud/sync noise; keep already-visible columns. */
+export function streamValueMenuCandidateNames(
+  listingNames: readonly string[],
+  visibleColumnStreamNames: readonly string[]
+): string[] {
+  return mergeAdsFieldColumnNames(
+    listingNames.filter((n) => !isCloudSyncAdsStreamName(n)),
+    visibleColumnStreamNames
+  )
+}
+
 export function adsFieldNamesFromColumnIds(ids: readonly string[]): string[] {
   const names: string[] = []
   for (const id of ids) {
@@ -218,13 +257,15 @@ export function adsFieldNamesFromColumnIds(ids: readonly string[]): string[] {
 }
 
 export const detailsColumnIdSchema = z.string().refine(
-  (id): id is DetailsColumnId => isBuiltinDetailsColumnId(id) || isAdsFieldColumnId(id),
+  (id): id is DetailsColumnId =>
+    isBuiltinDetailsColumnId(id) || isAdsFieldColumnId(id) || isMetaFieldColumnId(id),
   { message: 'Invalid column id' }
 )
 
 export type ColumnGroup =
   | 'file'
   | 'adsFields'
+  | 'userMeta'
   | 'folderStats'
   | 'image'
   | 'media'
@@ -528,6 +569,7 @@ export const DETAILS_COLUMN_META: Record<BuiltinDetailsColumnId, DetailsColumnMe
 export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
   file: 'File',
   adsFields: 'Stream values',
+  userMeta: 'Metadata',
   folderStats: 'Folder statistics',
   image: 'Image',
   media: 'Audio / video',
@@ -537,6 +579,7 @@ export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
 
 export const COLUMN_GROUP_ORDER: ColumnGroup[] = [
   'file',
+  'userMeta',
   'adsFields',
   'folderStats',
   'image',
@@ -547,7 +590,8 @@ export const COLUMN_GROUP_ORDER: ColumnGroup[] = [
 
 export function columnMeta(
   id: DetailsColumnId,
-  adsFields: readonly AdsFieldColumnDef[] = []
+  adsFields: readonly AdsFieldColumnDef[] = [],
+  userFields: readonly UserMetadataField[] = []
 ): DetailsColumnMeta {
   if (isAdsFieldColumnId(id)) {
     const name = parseAdsFieldColumnName(id) ?? id.slice(ADS_FIELD_COLUMN_PREFIX.length)
@@ -556,6 +600,17 @@ export function columnMeta(
       label: adsFieldDisplayLabel(adsFields, name),
       group: 'adsFields',
       defaultWidth: ADS_FIELD_COLUMN_DEFAULT_WIDTH,
+      async: true
+    }
+  }
+  if (isMetaFieldColumnId(id)) {
+    const fid = parseMetaColumnFieldId(id) ?? id.slice(META_COLUMN_PREFIX.length)
+    const field = userFields.find((f) => f.id === fid)
+    return {
+      id,
+      label: field?.name ?? fid,
+      group: 'userMeta',
+      defaultWidth: 140,
       async: true
     }
   }
@@ -576,7 +631,8 @@ export function isDirectoryMetaColumn(
   id: DetailsColumnId,
   opts?: MetaFetchOptions
 ): boolean {
-  if (id === 'ads' || isItemNoteColumnId(id) || isAdsFieldColumnId(id)) return true
+  if (id === 'ads' || isItemNoteColumnId(id) || isAdsFieldColumnId(id) || isMetaFieldColumnId(id))
+    return true
   if (opts?.showFolderStatistics === false) return false
   return columnNeedsDirectoryMeta(id) || id === 'size'
 }
@@ -627,6 +683,7 @@ export function columnNeedsDirectoryMeta(id: DetailsColumnId): boolean {
     id === 'ads' ||
     isItemNoteColumnId(id) ||
     isAdsFieldColumnId(id) ||
+    isMetaFieldColumnId(id) ||
     isFolderStatsColumnId(id)
   )
 }

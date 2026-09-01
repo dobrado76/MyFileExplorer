@@ -41,6 +41,7 @@ import {
   pairFoldersVisibleStatuses,
   type PairFoldersVisibleStatus
 } from '@shared/schemas/pairFolders'
+import { defaultUserMetadataSettings } from '@shared/schemas/userMetadata'
 import type { PairCompareStatus } from '@shared/pairCompare/types'
 import type { VirtualFolderDocument, VirtualFolderMembership } from '@shared/virtualFolder'
 import {
@@ -70,6 +71,11 @@ import {
   upsertFolderView,
   type FolderView
 } from '@shared/folderViews'
+import {
+  findExactMetadataBinding,
+  removeMetadataBinding,
+  upsertMetadataBinding
+} from '@shared/userMetadataBindings'
 import {
   buildLayoutFromSnapshot,
   removeLayout as removeLayoutFromList,
@@ -296,6 +302,7 @@ export type DialogState =
   | { kind: 'tab-icon'; tabId: string }
   | { kind: 'tab-custom-icon'; tabId: string }
   | { kind: 'item-note'; path: string }
+  | { kind: 'user-metadata'; paths: string[] }
   | { kind: 'item-icon'; path: string }
   | {
       kind: 'alert'
@@ -806,6 +813,9 @@ type AppState = {
   customizeFolderView(path: string, recursive: boolean): Promise<void>
   removeFolderCustomization(path: string): Promise<void>
   setFolderViewRecursive(path: string, recursive: boolean): Promise<void>
+  /** Assign a metadata set (or null = No metadata) to a folder. */
+  assignMetadataBinding(path: string, setId: string | null, recursive: boolean): Promise<void>
+  removeMetadataAssignment(path: string): Promise<void>
   saveViewPreset(name: string): Promise<void>
   applyViewPreset(id: string): Promise<void>
   renameViewPreset(id: string, name: string): Promise<void>
@@ -4730,6 +4740,41 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().notify(`Removed folder customization: ${basename(path)}`)
     },
 
+    async assignMetadataBinding(path, setId, recursive) {
+      const s = get()
+      const um = s.settings.userMetadata ?? defaultUserMetadataSettings
+      if (setId != null && !um.sets.some((x) => x.id === setId)) {
+        get().notify('Unknown metadata set', true)
+        return
+      }
+      await get().applySettingsPatch({
+        userMetadata: {
+          ...um,
+          bindings: upsertMetadataBinding(um.bindings, { path, recursive, setId })
+        }
+      })
+      const setName =
+        setId == null ? 'No metadata' : (um.sets.find((x) => x.id === setId)?.name ?? setId)
+      get().notify(
+        recursive
+          ? `${setName} → ${basename(path)} and subfolders`
+          : `${setName} → ${basename(path)}`
+      )
+    },
+
+    async removeMetadataAssignment(path) {
+      const s = get()
+      const um = s.settings.userMetadata ?? defaultUserMetadataSettings
+      if (!findExactMetadataBinding(path, um.bindings)) return
+      await get().applySettingsPatch({
+        userMetadata: {
+          ...um,
+          bindings: removeMetadataBinding(um.bindings, path)
+        }
+      })
+      get().notify(`Removed metadata assignment: ${basename(path)}`)
+    },
+
     async setFolderViewRecursive(path, recursive) {
       const s = get()
       if (!findExactFolderView(path, s.settings.folderViews)) return
@@ -7731,6 +7776,12 @@ export const useAppStore = create<AppState>()((set, get) => {
           ...patch.pairFolders
         }
       }
+      if (patch.userMetadata) {
+        mergedPatch.userMetadata = {
+          ...(prev.userMetadata ?? defaultUserMetadataSettings),
+          ...patch.userMetadata
+        }
+      }
       if (patch.remoteRepos) {
         mergedPatch.remoteRepos = {
           ...prev.remoteRepos,
@@ -7815,6 +7866,12 @@ export const useAppStore = create<AppState>()((set, get) => {
                 ...mergedPatch.pairFolders
               }
             : s.settings.pairFolders,
+          userMetadata: mergedPatch.userMetadata
+            ? {
+                ...(s.settings.userMetadata ?? defaultUserMetadataSettings),
+                ...mergedPatch.userMetadata
+              }
+            : s.settings.userMetadata,
           remoteRepos: mergedPatch.remoteRepos
             ? { ...s.settings.remoteRepos, ...mergedPatch.remoteRepos }
             : s.settings.remoteRepos,

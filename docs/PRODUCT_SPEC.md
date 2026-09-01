@@ -139,6 +139,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
 - Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- Metadata set… / Metadata… (only when Settings → Metadata → Enable user metadata). Guide: [USER_METADATA.md](USER_METADATA.md).
 - **Calculate Statistics** (local NTFS folders and volume roots) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). On a **drive root**, compiles from each root folder’s ADS (retagging only untagged children) plus root files. After tagging, **propagates** into ancestors that already have stats (child + sibling ADS, no deep re-walk). **Shift+click** skips already-complete tags. Guide: [ADS.md](ADS.md).
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
 - Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
@@ -166,6 +167,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
 - 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
 - **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- **User-defined metadata** (D70, opt-in): when enabled and the cwd resolves to a metadata set, preview shows a pinned Metadata editor; Details may show `showAsColumn` fields. See [USER_METADATA.md](USER_METADATA.md).
 - **Folder statistics + space map** (D66): when Calculate Statistics has tagged a folder (or volume root), preview shows the rich card and WinDirStat-style space map (ADS read-only). Volume roots keep the free-space pie and add the map below. See [PREVIEW.md](PREVIEW.md), [ADS.md](ADS.md).
 - **Virtual Folders** (D67): selecting a `.mfevirtual` file shows a Virtual Folder preview (counts / sample locations), not raw JSON. Opening navigates into the collection. See [VIRTUAL_FOLDERS.md](VIRTUAL_FOLDERS.md).
 - **Virtual Folder OS projection** (D68, Windows, opt-in): Settings → Behavior; requires [WinFsp](https://winfsp.dev/) + projection service from GitHub Releases. See [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md).
@@ -174,7 +176,7 @@ See [PREVIEW.md](PREVIEW.md).
 See [SEARCH.md](SEARCH.md).
 
 - Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
-- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators, including note / status / open checklist). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
+- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators, including note / status / open checklist / user metadata). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
 - **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
 - Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
@@ -202,6 +204,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
 | Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (off by default — Folders first; on = one A–Z list in icon/thumbnail views of a container folder; List/Details follow Behavior → Folders first). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
+| Metadata | **Enable user metadata** (off by default). Sets / fields / folder bindings / Metadata pack. Context **Metadata set…** / **Metadata…**, preview editor, Details columns, and Power Search `meta.<key>:` stay hidden until enabled (D70). Guide: [USER_METADATA.md](USER_METADATA.md) |
 | Git | **Enable Git integration** (off by default). Executable / Test. Overlays, folder indicators, toolbar, status column, ahead/behind, ignored, refresh debounce, large-repo threshold, external diff tool. Guide: [GIT.md](GIT.md) (D64) |
 | Scripting and AI | **Enable scripting** (off by default — hides toolbar Scripts and context Scripts). Interpreter path overrides. Nested **Enable AI** (off = no outbound AI HTTP). OpenAI-compatible providers (base URL, model, key in `safeStorage`). Test / Refresh models; model fields are dropdowns from `GET /v1/models` (cached). Privacy: never send paths/listings/contents. Guide: [SCRIPTS.md](SCRIPTS.md) (D51) |
 | Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |

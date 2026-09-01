@@ -6,11 +6,13 @@ import {
   isBasicNameQuery,
   parseEverythingQuery,
   queryHasNoteFilter,
+  queryHasMetaFilter,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
 import { pathMatchesNoteFilter } from './noteFilter'
+import { pathMatchesMetaFilter } from './metaFilter'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit } from '@shared/searchHidden'
 import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
@@ -128,6 +130,8 @@ export async function liveWalkSearch(
       if (hit) {
         if (q && queryHasNoteFilter(q) && !(await pathMatchesNoteFilter(full, q))) {
           /* ADS read-only; host $DATA times unchanged */
+        } else if (q && queryHasMetaFilter(q) && !(await pathMatchesMetaFilter(full, q))) {
+          /* ADS read-only */
         } else {
           items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
         }

@@ -155,7 +155,7 @@ export type PreviewViewProps = {
     status: import('@shared/schemas/git').GitRepositoryStatus | null
     onRefreshStatus?(): void
   } | null
-  /** Attached item note (D61) shown above file metadata. */
+  /** Item note + user-metadata editor (D61/D70), pinned above the Details strip. */
   extraBeforeFields?: ReactNode
   /** Reveal a path in the file list (folder stats treemap / lists). */
   onRevealPath?: (path: string) => void
@@ -679,7 +679,6 @@ function PreviewBody({
             metaMode={
               folderPane === 'media' ? 'media-only' : folderPane === 'folder' ? 'file-only' : 'auto'
             }
-            before={extraBeforeFields}
             file={
               <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
                 {CONTENT_GROUPS.map(({ key, label }) => {
@@ -713,6 +712,10 @@ function PreviewBody({
         ) : null}
       </div>
 
+      {/* Notes + user metadata: pinned above Details (not inside scrollable preview-content). */}
+      {!zen && extraBeforeFields ? (
+        <div className="preview-footer-extras">{extraBeforeFields}</div>
+      ) : null}
       {!zen && fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
     </>
   )
@@ -720,13 +723,11 @@ function PreviewBody({
 
 function PreviewMetaTabs({
   hasFile,
-  before,
   file,
   onCopy,
   metaMode = 'auto'
 }: {
   hasFile: boolean
-  before?: ReactNode
   file: ReactNode
   onCopy: (value: string) => Promise<void>
   /** media-only / file-only when directory Media|Folder header tabs are active. */
@@ -736,11 +737,10 @@ function PreviewMetaTabs({
   const hasMedia =
     metaMode === 'file-only' ? false : !!media && mediaMetadataHasDetails(media.meta)
   const [tab, setTab] = useState<'media' | 'file'>('media')
-  if (!hasMedia && !hasFile && !before) {
+  if (!hasMedia && !hasFile) {
     if (metaMode === 'media-only' && media) {
       return (
         <div className="preview-meta">
-          {before}
           <MediaMetadataDetails onCopy={onCopy} />
         </div>
       )
@@ -750,26 +750,19 @@ function PreviewMetaTabs({
   if (metaMode === 'media-only') {
     return (
       <div className="preview-meta">
-        {before}
         <MediaMetadataDetails onCopy={onCopy} />
       </div>
     )
   }
   if (metaMode === 'file-only') {
-    if (!hasFile && !before) return null
-    return (
-      <div className="preview-meta">
-        {before}
-        {hasFile ? file : null}
-      </div>
-    )
+    if (!hasFile) return null
+    return <div className="preview-meta">{file}</div>
   }
   const showTabs = hasMedia && hasFile
   const active = showTabs ? tab : hasMedia ? 'media' : 'file'
 
   return (
     <div className="preview-meta">
-      {before}
       {showTabs ? (
         <div className="preview-meta-tabs" role="tablist" aria-label="Preview metadata">
           <button

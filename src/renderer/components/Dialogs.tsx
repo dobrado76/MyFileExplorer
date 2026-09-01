@@ -70,6 +70,8 @@ import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
 import { TabCustomIconDialog } from './TabCustomIconDialog'
 import { ItemNoteDialog } from './ItemNoteDialog'
+import { UserMetadataDialog } from './UserMetadataDialog'
+import { UserMetadataSettingsPanel } from './UserMetadataSettingsPanel'
 import { ItemIconPickerDialog } from './ItemIconPickerDialog'
 import { CategorizerMapManager } from './CategorizerMapManager'
 import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
@@ -352,6 +354,10 @@ export function Dialogs(): JSX.Element | null {
       return <TabCustomIconDialog tabId={dialog.tabId} />
     case 'item-note':
       return <ItemNoteDialog path={dialog.path} />
+    case 'user-metadata':
+      return useAppStore.getState().settings.userMetadata?.enabled === true ? (
+        <UserMetadataDialog paths={dialog.paths} />
+      ) : null
     case 'item-icon':
       return <ItemIconPickerDialog path={dialog.path} />
     case 'alert':
@@ -3122,6 +3128,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
           )}
 
           {section === 'mediametadata' && <MediaMetadataSettingsPanel />}
+          {section === 'metadata' && <UserMetadataSettingsPanel />}
           {section === 'git' && (
             <div className="settings-stack">
               <p className="settings-help">

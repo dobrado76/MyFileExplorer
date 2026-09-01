@@ -173,6 +173,15 @@ const api: MyFileExplorerApi = {
     runUpdate: invoke(IPC.appRunUpdate),
     releaseNotes: invoke(IPC.appReleaseNotes)
   },
+  userMetadata: {
+    getMany: invoke(IPC.userMetadataGetMany),
+    set: invoke(IPC.userMetadataSet),
+    setMany: invoke(IPC.userMetadataSetMany),
+    validateText: invoke(IPC.userMetadataValidateText),
+    testPattern: invoke(IPC.userMetadataTestPattern),
+    exportPack: invoke(IPC.userMetadataExportPack),
+    importPack: invoke(IPC.userMetadataImportPack)
+  },
   mediaMetadata: {
     extractPlex: invoke(IPC.mediaMetadataExtractPlex),
     download: invoke(IPC.mediaMetadataDownload),

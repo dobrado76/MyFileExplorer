@@ -7,7 +7,8 @@ const isWin32Build = process.platform === 'win32'
 
 const mainInputs: Record<string, string> = {
   index: resolve(__dirname, 'src/main/index.ts'),
-  shellIconWorker: resolve(__dirname, 'src/main/icons/shellIconWorker.ts')
+  shellIconWorker: resolve(__dirname, 'src/main/icons/shellIconWorker.ts'),
+  regexMatchWorker: resolve(__dirname, 'src/main/userMetadata/regexMatchWorker.ts')
 }
 if (isWin32Build) {
   mainInputs.networkDiscoverWorker = resolve(__dirname, 'src/main/fs/networkDiscoverWorker.ts')

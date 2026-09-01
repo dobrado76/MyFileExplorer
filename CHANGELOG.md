@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
+## [Unreleased]
+
+### Added
+
+- **User-defined structured metadata (D70, off by default)** — Settings → Metadata → Enable. Define metadata sets, assign them to folders (or mark No metadata), edit values in context/preview (`mfe_meta` ADS), optional Details columns, Power Search `meta.<key>:`. Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
+
+### Changed
+
+- **Licence (D71)** — **GPL-3.0-only**, plus trademark policy for the product name/logo. See [LICENSING.md](LICENSING.md), [TRADEMARK.md](TRADEMARK.md), [NOTICE](NOTICE).
+
 ## [0.14.0] - 2026-08-30
 
 Fourteenth product release: **Virtual Folders** (`.mfevirtual`, **D67**) and optional **WinFsp OS projection** (**D68**). See [RELEASE_NOTES.md](RELEASE_NOTES.md).

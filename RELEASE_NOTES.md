@@ -51,5 +51,5 @@ Guide: [docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md). L
 
 - Fully quit and relaunch (IPC / preload changes need a cold start).
 - Virtual Folder OS projection stays **off** until you enable it and install WinFsp + the service.
-- **Git**, Scripts, and Media Metadata stay **off** until you enable them.
+- **Git**, Scripts, Media Metadata, and **User Metadata** stay **off** until you enable them.
 - Notes, item icons, and folder statistics streams need **local NTFS**.

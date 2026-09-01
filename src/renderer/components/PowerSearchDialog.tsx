@@ -20,6 +20,7 @@ import {
   type PowerSearchScope,
   type PowerSearchState
 } from '@shared/searchBuilder'
+import { allUserMetadataFields } from '@shared/schemas/userMetadata'
 
 function ModalShell({
   title,
@@ -82,6 +83,12 @@ export function PowerSearchDialog(): JSX.Element {
   const runSearch = useAppStore((s) => s.runSearch)
   const openDialog = useAppStore((s) => s.openDialog)
   const activePath = useAppStore((s) => s.activeTab().path)
+  const userMetadataFields = useMemo(() => {
+    if (settings.userMetadata?.enabled !== true) return []
+    return allUserMetadataFields(
+      settings.userMetadata ?? { enabled: false, sets: [], bindings: [] }
+    )
+  }, [settings.userMetadata])
 
   const [scope, setScope] = useState<PowerSearchScope>(() =>
     search.indexedOnly ? 'indexed' : 'folder'
@@ -99,7 +106,10 @@ export function PowerSearchDialog(): JSX.Element {
   const [saveName, setSaveName] = useState('')
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
 
-  const builtQuery = useMemo(() => buildSearchQuery(builder), [builder])
+  const builtQuery = useMemo(
+    () => buildSearchQuery(builder, { userMetadataFields }),
+    [builder, userMetadataFields]
+  )
 
   useEffect(() => {
     if (!manualQuery) setQueryText(builtQuery)
@@ -715,7 +725,86 @@ export function PowerSearchDialog(): JSX.Element {
               />
               Open checklist items
             </label>
+            <label className="power-search-check-inline">
+              <input
+                type="checkbox"
+                checked={builder.hasMeta}
+                onChange={(e) => patchBuilder({ hasMeta: e.target.checked })}
+              />
+              Has user metadata
+            </label>
           </div>
+          {userMetadataFields.length > 0 && (
+            <div className="power-search-fields power-search-fields-3" style={{ marginTop: 8 }}>
+              <label className="power-search-field">
+                <span>Metadata field</span>
+                <select
+                  value={builder.metaFilters[0]?.fieldId ?? ''}
+                  onChange={(e) => {
+                    const fieldId = e.target.value
+                    if (!fieldId) {
+                      patchBuilder({ metaFilters: [] })
+                      return
+                    }
+                    patchBuilder({
+                      metaFilters: [{ fieldId, optionId: undefined, value: undefined }]
+                    })
+                  }}
+                >
+                  <option value="">—</option>
+                  {userMetadataFields.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {(() => {
+                const mf = builder.metaFilters[0]
+                const field = userMetadataFields.find((f) => f.id === mf?.fieldId)
+                if (!field || !mf) return null
+                if (field.type === 'choice' || field.type === 'multiChoice') {
+                  return (
+                    <label className="power-search-field">
+                      <span>Option</span>
+                      <select
+                        value={mf.optionId ?? ''}
+                        onChange={(e) =>
+                          patchBuilder({
+                            metaFilters: [
+                              { fieldId: field.id, optionId: e.target.value || undefined }
+                            ]
+                          })
+                        }
+                      >
+                        <option value="">(any / present)</option>
+                        {(field.choices ?? []).map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )
+                }
+                return (
+                  <label className="power-search-field">
+                    <span>Value</span>
+                    <input
+                      type="text"
+                      value={mf.value ?? ''}
+                      onChange={(e) =>
+                        patchBuilder({
+                          metaFilters: [{ fieldId: field.id, value: e.target.value }]
+                        })
+                      }
+                      placeholder={field.type === 'number' ? '>=4' : 'match…'}
+                    />
+                  </label>
+                )
+              })()}
+            </div>
+          )}
           {builder.content.trim() ? (
             <p className="power-search-warn">Content search can be slow on large folders.</p>
           ) : null}

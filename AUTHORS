@@ -1,0 +1,17 @@
+# Authors
+
+Primary copyright holder and project steward:
+
+- Meaningfulness Media Group / dobrado76
+  <info@meaningfulness.com.au>
+  https://github.com/MeaningfulnessMediaGroup
+  https://github.com/dobrado76
+
+Contributors (git history; incomplete list):
+
+- ghiscoding <gbeaulac@gmail.com>
+  https://github.com/ghiscoding
+  — Linux packaging / Wayland helpers, icon-size settings, navigation polish,
+    and many bug reports and ideas.
+
+See also the Acknowledgements section in README.md and `git shortlog -sn`.
