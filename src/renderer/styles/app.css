@@ -1893,6 +1893,36 @@ body.right-dragging * {
   justify-content: center;
   color: var(--text-dim);
 }
+.fileview-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  color: var(--text-dim);
+  animation: fileview-loading-enter 120ms ease-out both;
+  will-change: opacity;
+}
+.fileview-loading-overlay.is-exiting {
+  animation: none;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  pointer-events: none;
+}
+@keyframes fileview-loading-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fileview-loading-overlay {
+    animation: none;
+  }
+  .fileview-loading-overlay.is-exiting {
+    transition: none;
+  }
+}
 
 .fileview-offline {
   position: absolute;

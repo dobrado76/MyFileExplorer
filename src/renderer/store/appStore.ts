@@ -231,6 +231,8 @@ export type Listing = {
   path: string
   entries: DirEntry[]
   loading: boolean
+  /** Foreground load surface is shown over provisional rows without remounting them. */
+  loadingOverlay?: boolean
   error: string | null
   /** Path is unreachable (unmounted / encrypted / network) — keep tab, poll until back. */
   offline: boolean
@@ -2049,6 +2051,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       path: listedPath,
       entries: sortedEntries,
       loading: false,
+      loadingOverlay: false,
       error: null,
       offline: false,
       virtualFolder: opts?.virtualFolder ?? null
@@ -2124,9 +2127,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!tabId) return
     const seq = nextListSeq(tabId)
     const cached =
-      !opts?.soft && !opts?.force && !isVirtualFolderDocumentPath(path)
+      opts?.history && !opts?.soft && !opts?.force && !isVirtualFolderDocumentPath(path)
         ? (listingCacheOk(path, get().drives) ? remoteListingCache.get(path) : undefined) ??
-          (opts?.history ? historyListingCache.get(path) : undefined)
+          historyListingCache.get(path)
         : undefined
     const paintFromCache = cached != null
     const showRemoteBusy =
@@ -2138,6 +2141,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       return remoteBasename(loc.remotePath) || 'folder'
     })()
     if (paintFromCache) {
+      // Back/Forward gets the cached snapshot immediately while the live
+      // request revalidates it. Ordinary folder clicks never paint cache.
       const painted = commitListing(tabId, path, cached, {
         preserveSelection: opts?.preserveSelection
       })
@@ -2148,7 +2153,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         const nextListing: Listing = {
           ...prev,
           path,
+          // Keep provisional rows mounted behind the loading surface. The
+          // response replaces them atomically without a virtualizer remount.
+          entries: prev.entries,
           loading: true,
+          loadingOverlay: true,
           error: null,
           offline: false
         }
@@ -2243,7 +2252,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     } catch (e) {
       if (seq !== listRequestSeqByTab.get(tabId)) return
       if (paintFromCache) {
-        // Keep the snapshot; a brief NAS blip should not blank the pane.
+        // Keep the history snapshot; a brief NAS blip should not blank the pane.
         return
       }
       const offline = isOfflineFailure(e)

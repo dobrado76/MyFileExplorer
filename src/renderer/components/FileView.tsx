@@ -984,6 +984,26 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     mediaLibrary,
     folderPath
   ])
+  const shouldShowLoadingOverlay =
+    listing.loading && listing.loadingOverlay === true && entries.length > 0
+  const [loadingSurfaceVisible, setLoadingSurfaceVisible] = useState(false)
+  const [loadingSurfaceExiting, setLoadingSurfaceExiting] = useState(false)
+
+  useEffect(() => {
+    if (shouldShowLoadingOverlay) {
+      setLoadingSurfaceVisible(true)
+      setLoadingSurfaceExiting(false)
+      return
+    }
+    if (!loadingSurfaceVisible) return
+    setLoadingSurfaceExiting(true)
+    const timer = setTimeout(() => {
+      setLoadingSurfaceVisible(false)
+      setLoadingSurfaceExiting(false)
+    }, 120)
+    return () => clearTimeout(timer)
+  }, [shouldShowLoadingOverlay, loadingSurfaceVisible])
+
   const selected = useMemo(
     () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
     [tab?.selected]
@@ -2298,6 +2318,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             {recycleBin.loading ? 'Loading Recycle Bin…' : 'Searching…'}
           </div>
         )}
+        {listing.loading && entries.length === 0 && !search.running && !recycleBin.loading && (
+          <div className="fileview-empty fileview-empty-progress" data-bg="1">
+            Loading folder…
+          </div>
+        )}
         <div
           style={{
             height: virtualizer.getTotalSize(),
@@ -2554,6 +2579,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
             className="marquee"
             style={{ left: marquee.l, top: marquee.t, width: marquee.w, height: marquee.h }}
           />
+        )}
+        {loadingSurfaceVisible && (
+          <div
+            className={`fileview-loading-overlay${loadingSurfaceExiting ? ' is-exiting' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
+            Loading folder…
+          </div>
         )}
       </div>
     </div>
