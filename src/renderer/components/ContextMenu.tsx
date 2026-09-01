@@ -30,6 +30,7 @@ import { isVolumeRootPath } from '../lib/rightDrag'
 import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
+import { isSlideshowImagePath } from '@shared/slideshow/constants'
 import { parseUnc } from '@shared/networkPaths'
 import { isDeleteMapRow } from '@shared/slideshow/categorizerMap'
 import { buildQuickAccess, materializeQuickAccessTokens } from '../lib/quickAccess'
@@ -1124,7 +1125,7 @@ export function ContextMenu(): JSX.Element | null {
       )
     }
 
-    // Slideshow player — categorize / delete / undo / edit / reveal / exit.
+    // Slideshow player — categorize / delete / undo / copy / edit / reveal / exit.
     if (menu.slideshow) {
       const cur =
         paths[0] ??
@@ -1186,6 +1187,23 @@ export function ContextMenu(): JSX.Element | null {
           }
         },
         { type: 'sep' },
+        {
+          type: 'item',
+          label: 'Copy image',
+          disabled: !cur || !isSlideshowImagePath(cur),
+          action: () => {
+            close()
+            if (!cur) return
+            void (async () => {
+              try {
+                await call(api.shell.clipboardWriteImage({ path: cur }))
+                s.notify('Image copied')
+              } catch (e) {
+                s.notify(e instanceof IpcError ? e.message : String(e), true)
+              }
+            })()
+          }
+        },
         {
           type: 'item',
           label: 'Edit image…',

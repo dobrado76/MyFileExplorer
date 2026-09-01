@@ -76,6 +76,8 @@ export const IPC = {
   shellClipboardPeek: 'shell:clipboardPeek',
   /** Write non-file clipboard as a new file (D56). */
   shellClipboardWriteFile: 'shell:clipboardWriteFile',
+  /** Put an image file on the OS clipboard as a bitmap (slideshow / paste into other apps). */
+  shellClipboardWriteImage: 'shell:clipboardWriteImage',
   /** Sync: webContents.startDrag — must run during an active drag gesture. */
   shellStartDrag: 'shell:startDrag',
 

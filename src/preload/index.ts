@@ -84,6 +84,7 @@ const api: MyFileExplorerApi = {
     clipboardReadFiles: invokeVoid(IPC.shellClipboardReadFiles),
     clipboardPeek: invokeVoid(IPC.shellClipboardPeek),
     clipboardWriteFile: invoke(IPC.shellClipboardWriteFile),
+    clipboardWriteImage: invoke(IPC.shellClipboardWriteImage),
     /**
      * Sync: main runs webContents.startDrag during this call (blocks until the
      * OS drag ends). Used when a left-drag leaves the BrowserWindow — not from

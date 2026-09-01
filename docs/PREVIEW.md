@@ -229,6 +229,7 @@ v1: show pretty-printed JSON in monospace (with size cap + “open full in viewe
 
 - Sibling hidden folder next to the video: `{videoName}.thumb_1.jpg` … `thumb_20.jpg`
 - Icon / thumbnail views loop frames (`vidThumbFrameMs` in Settings → Behavior)
+- **Rename** (F2 / Power Rename) and **same-volume move** of a video also rename/relocate matching strip frames under `!VIDTHUMB_CACHE` (best-effort) so strips stay with the file
 - Context menu **Video previews**:
   - **Generate missing** — this folder only
   - **Generate missing (all subfolders)** — recursive walk (skips cache dirs)

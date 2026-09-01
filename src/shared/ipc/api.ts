@@ -187,6 +187,8 @@ export type MyFileExplorerApi = {
     clipboardWriteFile(
       req: import('../schemas/clipboardPaste').ClipboardWriteFileRequest
     ): Promise<Result<{ path: string }>>
+    /** Copy an image file onto the OS clipboard as a bitmap (not CF_HDROP). */
+    clipboardWriteImage(req: PathRequest): Promise<Result<{ written: true }>>
     /**
      * Hand file paths to the OS drag (Explorer / Photoshop / mail / etc.).
      * Synchronous — blocks until the drag ends. Call when a left-drag leaves

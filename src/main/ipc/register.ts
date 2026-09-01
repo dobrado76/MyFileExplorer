@@ -182,6 +182,7 @@ import {
 } from '../shell'
 import { clipboardPeek, clipboardWriteFile } from '../shell/clipboardPaste'
 import { clipboardWriteFileRequestSchema } from '@shared/schemas/clipboardPaste'
+import { clipboardWriteImage } from '../shell/clipboardWriteImage'
 import {
   templatesDeleteRequestSchema,
   templatesInstantiateRequestSchema
@@ -676,6 +677,7 @@ export function registerIpcHandlers(): void {
   handle(IPC.shellClipboardWriteFile, clipboardWriteFileRequestSchema, (req) =>
     clipboardWriteFile(req)
   )
+  handle(IPC.shellClipboardWriteImage, pathRequestSchema, (req) => clipboardWriteImage(req.path))
   // Sync + blocking: startDrag runs DoDragDrop until the OS gesture ends.
   // Called when a left-drag leaves the window (not from HTML5 dragstart).
   ipcMain.on(IPC.shellStartDrag, (event, raw) => {

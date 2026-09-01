@@ -2,7 +2,7 @@
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
   "desktopName": "MyFileExplorer",
-  "version": "0.14.13",
+  "version": "0.14.14",
   "description": "Windows-first Electron + React file manager: tabs, rich previews, Everything-inspired search, and a universal local script runner (PowerShell / Python / cmd / bash) with optional AI that never reads your files.",
   "main": "./out/main/index.js",
   "author": "MyFileExplorer",

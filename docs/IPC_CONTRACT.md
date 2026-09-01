@@ -71,6 +71,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `shell:clipboardReadFiles`  | Read file list if present       |
 | `shell:clipboardPeek`       | Classify clipboard (files / image / url / html / text / empty) — no bytes (D56) |
 | `shell:clipboardWriteFile`  | Write non-file clipboard as a unique-named file in `destDir` (D56) |
+| `shell:clipboardWriteImage` | Put an image file on the OS clipboard as a bitmap (slideshow **Copy image**) |
 | `shell:startDrag`           | Sync: `webContents.startDrag` with absolute paths (OS export while a drag is active) |
 | `shell:openExternal`        | http(s) only if ever needed     |
 

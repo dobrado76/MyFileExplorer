@@ -42,6 +42,7 @@ Exact line shape (blank lines allowed):
 | Categorize | Submenu of folder mappings from the categorizer map (virtual move; commit on stop) |
 | Delete | Virtual delete (O(1) skip in the in-memory list; commit on stop) |
 | Undo | Undo last buffer action |
+| Copy image | Current slide as a bitmap on the OS clipboard (paste into other apps); uses latest in-app edit tip when present |
 | Edit image… | Same in-app editor as Tab / context **Edit image…** |
 | Reveal in Explorer | Exit slideshow (commit), open parent folder in a **new tab**, select the file |
 | Exit slideshow | Stop and commit buffer |

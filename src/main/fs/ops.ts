@@ -56,6 +56,7 @@ import { beginOp, type OpReporter } from './opProgress'
 import { copyHostFileTimes } from './adsWin32'
 import { pathIsNtfs } from './drives'
 import { pathIsReadOnly } from './winAttrs'
+import { relocateVidThumbCacheFrames } from '../thumbs/vidCache'
 
 /** Keep listings from refreshing for the whole copy/move, not just the first 1.5s. */
 const OP_MUTE_MS = 3_600_000
@@ -432,6 +433,9 @@ export async function renameEntry(
   const heartbeat = setInterval(() => progress.pulse(source), 500)
   try {
     await fsp.rename(source, target)
+    if (!isDir) {
+      await relocateVidThumbCacheFrames(source, target)
+    }
     progress.tick(target)
     progress.finish()
     return { path: target }
@@ -1337,6 +1341,7 @@ async function relocateOne(
 
   try {
     await fsp.rename(source, target)
+    await relocateVidThumbCacheFrames(source, target)
     progress?.tick(target)
     return
   } catch (e) {
