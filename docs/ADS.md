@@ -174,4 +174,6 @@ flowchart TB
 
 **Copy / move NTFS → non-ADS volume:** Destination gets the **tip** bytes as the file body (keep the latest edit; original + `VER_*` history cannot travel). NTFS→NTFS relies on normal Win32 copy preserving streams.
 
+**Backup / sync:** Most backup products copy the file body only and drop ADS. For folder trees that use MyFileExplorer streams (or any other ADS), prefer an ADS-aware tool such as **[MyFileSync](https://github.com/dobrado76/MyFileSync)** — see the README section *Backing up NTFS metadata (ADS)*.
+
 **Version Control** (context submenu when `VER_COUNT ≥ 1`): Commit tip into the default stream (preserve other ADS), Revert (drop `VER_*` only), then **Original** / **Version k** items that only switch the preview override. While an override is active, the preview banner offers **Show current** and (for a version, not original) **Drop** with tooltips.

@@ -187,6 +187,16 @@ Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linu
 
 ---
 
+## Backing up NTFS metadata (ADS)
+
+MyFileExplorer stores a lot of meaning **on the file itself** as NTFS **Alternate Data Streams**: notes, item icons, folder statistics / space maps, media metadata, user-defined metadata (`mfe_meta`), image-edit versions, and more. None of that lives in a proprietary database under `%APPDATA%` for the browsed folder — it travels with the path on NTFS. See [docs/ADS.md](docs/ADS.md).
+
+Most backup and sync tools copy only the main file body. They silently drop ADS. After a “successful” restore you still have the bytes, but notes, covers, stats, and custom metadata are gone.
+
+**[MyFileSync](https://github.com/dobrado76/MyFileSync)** is a separate Windows sync/backup tool built for that gap: it compares and copies alternate streams on NTFS→NTFS (and surfaces stream diffs in the compare grid). If you use MyFileExplorer features that write ADS — or any other ADS-based metadata — prefer MyFileSync (or another ADS-aware tool) when backing up those drives or folder trees.
+
+---
+
 ## Scripts
 
 | Script | Purpose |
@@ -206,6 +216,16 @@ Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linu
 Open **this folder** as the workspace. Everything needed to build and ship lives here.
 
 ---
+
+## Contributing
+
+Contributions are welcome. Bug reports, feature ideas, documentation fixes, and pull requests all help.
+
+- Open an [issue](https://github.com/dobrado76/MyFileExplorer/issues) to report a problem or propose a change
+- Prefer a focused pull request with a clear description of what changed and why
+- Run `npm run check` before opening a PR (same checks as CI)
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for licence terms and development notes. Product decisions live in [docs/DECISIONS.md](docs/DECISIONS.md).
 
 ## Acknowledgements
 
