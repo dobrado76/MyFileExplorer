@@ -138,7 +138,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Copy path / Copy name
 - Show in system Explorer
 - Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
-- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / **Edit metadata…** / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
 - Metadata set… / Metadata… (only when Settings → Metadata → Enable user metadata). Guide: [USER_METADATA.md](USER_METADATA.md).
 - **Calculate Statistics** (local NTFS folders and volume roots) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). On a **drive root**, compiles from each root folder’s ADS (retagging only untagged children) plus root files. After tagging, **propagates** into ancestors that already have stats (child + sibling ADS, no deep re-walk). **Shift+click** skips already-complete tags. Guide: [ADS.md](ADS.md).
 - Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
@@ -203,7 +203,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | Preview      | Show preview by default; max preview bytes for text                                |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
 | Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
-| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (off by default — Folders first; on = one A–Z list in icon/thumbnail views of a container folder; List/Details follow Behavior → Folders first). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
+| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (off by default — Folders first; on = one A–Z list in icon/thumbnail views of a container folder; List/Details follow Behavior → Folders first). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. **Edit metadata…** plus card/preview icon actions; Watched/Genre filters persist per library folder. Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 | Metadata | **Enable user metadata** (off by default). Sets / fields / folder bindings / Metadata pack. Context **Metadata set…** / **Metadata…**, preview editor, Details columns, and Power Search `meta.<key>:` stay hidden until enabled (D70). Guide: [USER_METADATA.md](USER_METADATA.md) |
 | Git | **Enable Git integration** (off by default). Executable / Test. Overlays, folder indicators, toolbar, status column, ahead/behind, ignored, refresh debounce, large-repo threshold, external diff tool. Guide: [GIT.md](GIT.md) (D64) |
 | Scripting and AI | **Enable scripting** (off by default — hides toolbar Scripts and context Scripts). Interpreter path overrides. Nested **Enable AI** (off = no outbound AI HTTP). OpenAI-compatible providers (base URL, model, key in `safeStorage`). Test / Refresh models; model fields are dropdowns from `GET /v1/models` (cached). Privacy: never send paths/listings/contents. Guide: [SCRIPTS.md](SCRIPTS.md) (D51) |
@@ -251,4 +251,6 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 - [ ] Indexed folder search returns results without full-tree walk
 - [ ] Theme + font changes apply live and persist
 - [ ] CLI `--reveal` / `mfe://` opens the path in a tab
-- [ ] Experimental shell redirect (D72): Settings → Windows integration enables per-user Directory verb redirect with backup/restore
+- [x] Experimental shell redirect (D72): Settings → Windows integration enables per-user Directory verb redirect with backup/restore
+- [x] Edit media metadata (D50): dialog from context / preview / card hover; manual source when no card yet
+- [x] Media library Watched/Genre filters persist per folder (`mediaMetadata.libraryFilters`)

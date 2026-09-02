@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.15.0** — **D72** experimental Windows shell redirect; **D71** GPL-3.0-only; **D70** user-defined metadata; **D68** / **D67** Virtual Folders remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0-only**).
+**Status:** **v0.15.0** — **D72** experimental Windows shell redirect; **D71** GPL-3.0-only; **D70** user-defined metadata; media metadata edit + per-library filters; **D68** / **D67** Virtual Folders remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0-only**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D71               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D72               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
@@ -62,7 +62,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Windows shell redirect (D72) | Experimental HKCU `Directory` open/explore → `MfeShellLauncher`; Settings → Windows integration — [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md) |
 | User metadata (D70) | Opt-in sets + folder bindings; `mfe_meta` ADS; Details / Power Search — [USER_METADATA.md](USER_METADATA.md) |
 | Licence (D71) | GPL-3.0-only + trademark policy — [../LICENSING.md](../LICENSING.md), [../TRADEMARK.md](../TRADEMARK.md) |
-| Media card hover | Download metadata / change cover / watched on media-container icon tiles |
+| Media metadata (D50) | Edit metadata dialog; card/preview icon actions; Watched/Genre filters persist per library — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 
 ## Recent behavior (v0.14.0)
 

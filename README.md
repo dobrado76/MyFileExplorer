@@ -131,7 +131,7 @@ The installer is too large to keep in git (>100 MB). Get it from a **GitHub Re
 12. Select a `.ics` or `.eml` — agenda / email preview. Optional: **Open preview window** and try Zen.
 13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
 14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
-15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try Change cover, Mark as Watched, and the Watched / Genre toolbar.
+15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try **Edit metadata…**, Change cover, Mark as Watched, and the Watched / Genre toolbar (filters stick per library).
 16. Close a tab, then `Ctrl+Shift+T` (or tab-bar **Recently closed**) — it comes back.
 17. Copy a screenshot, then Paste in a folder — you should get a `.png`. Paste a URL for a `.url` shortcut (the page is not downloaded).
 18. Right-click a file → **Note…** — add a line and a checklist item. Confirm the preview and Details **Checklist** column. Power Search → tick **Has a note** or type `todo:`.

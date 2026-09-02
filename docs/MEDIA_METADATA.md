@@ -1,6 +1,6 @@
 # Media metadata (D50)
 
-**Status:** shipped in **v0.9.0** · Decision **D50** · **Windows / NTFS only**
+**Status:** shipped in **v0.9.0**; **v0.15.0** adds Edit metadata, icon actions, and per-library Watched/Genre filter persistence · Decision **D50** · **Windows / NTFS only**
 
 Opt-in movie and TV cards for a local library. Title, year, genres, cast, ratings, a watched flag, and a **portrait** poster live on the **file or folder** as NTFS alternate data streams — not as `.nfo` / `folder.jpg`, and not under `%APPDATA%`.
 
