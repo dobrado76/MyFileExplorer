@@ -241,11 +241,16 @@ export function parseMediaFileName(rawName: string): ParsedMediaName {
   if (year != null && !Number.isFinite(year)) year = undefined
 
   if (ep) {
-    season = Number(ep[1] || ep[3])
-    episode = Number(ep[2] || ep[4])
     const before = s.slice(0, ep.index).trim()
     const after = s.slice(ep.index + ep[0].length).trim()
-    s = before || after
+    // `10x10` / `9x9` movie titles match the loose NxNN form. Require a show
+    // name before NxNN (`Show 1x09`); bare SxxExx (`S01E07`) still counts.
+    const isNxNn = ep[3] != null && ep[4] != null
+    if (!(isNxNn && !before)) {
+      season = Number(ep[1] || ep[3])
+      episode = Number(ep[2] || ep[4])
+      s = before || after
+    }
   }
 
   if (year != null) {

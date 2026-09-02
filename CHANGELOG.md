@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Fixed
+
+- **XL icons only + media posters** — tile labels no longer stay visible just because the filename looks like `NxNN` (e.g. movie *10x10*). Episode `SxxExx` labels on icons come only from **stored** media metadata; bare `NxNN` titles are not treated as episodes when parsing names.
+
 ## [0.15.0] - 2026-09-02
 
 Fifteenth product release: **user-defined metadata** (**D70**), **GPL-3.0-only** (**D71**), experimental **Windows shell redirect** (**D72**), richer **media metadata** editing and per-library filters, plus video-thumb / slideshow polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

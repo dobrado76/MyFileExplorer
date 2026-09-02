@@ -72,7 +72,7 @@ import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { detailsTableMinWidth } from '../lib/detailsTable'
-import { episodeIconLabel, episodeIconTitle, isEpisodeListEntry } from '@shared/mediaMetadata'
+import { episodeIconLabel, episodeIconTitle } from '@shared/mediaMetadata'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
@@ -2344,10 +2344,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                 const gridName = gridNameFor(entry)
                 const hasContentPreview =
                   contentThumbPaths.current.get(entry.path.toLowerCase()) === true
+                // XL icons only: hide the label when a poster/strip is shown, unless
+                // we have a real stored episode code to display (SxxExx).
                 const hideName =
                   noFilenameView &&
                   hasContentPreview &&
-                  !(showEpisodeIconLabels && isEpisodeListEntry(entry.name, flags))
+                  !(showEpisodeIconLabels && Boolean(episodeIconLabel(flags)))
                 return (
                   <div
                     key={entry.path}

@@ -33,7 +33,7 @@ Episode **files** keep `!VIDTHUMB_CACHE` strip thumbs — never the show poster.
 | Setting | Purpose |
 | ------- | ------- |
 | **Cover art size** | Preview poster height, 56–240 px (default **120**). Width follows 2:3. |
-| **Show season/episode and title on icon tiles** | On (default): icon views show `S02E01` and the episode title. Off: the filename. Details / List always use the filename. |
+| **Show season/episode and title on icon tiles** | On (default): when an episode has **stored** `season`/`episode` metadata, icon views show `S02E01` and the episode title (not guessed from the filename). Off: the filename. Details / List always use the filename. |
 | **Mix folders and files in media libraries** | Off by default. On: in **icon/thumbnail** views only, a `media_metadata_container` folder is one A–Z tile list (covers sit next to movie files). List and Details follow Settings → Behavior → Folders first. |
 | **Plex URL** | Local server, default `http://127.0.0.1:32400`. `localhost` is mapped to `127.0.0.1`. |
 | **Plex token** | Optional override. If empty, the app reads it from Plex `Preferences.xml`. |
@@ -111,7 +111,7 @@ A **Search as** (no match, or **Search as…** on **Which title?**) sends the ty
 
 | View | Episode with metadata | Movie / show folder with a cover |
 | ---- | --------------------- | -------------------------------- |
-| Icon / thumbnail | `S01E07` centered, episode title under it (not the show name / not `Untitled`). Off via **Show season/episode and title on icon tiles** → filename | Poster as the folder thumb. XL icons only hide the folder name |
+| Icon / thumbnail | `S01E07` + episode title **only when stored** on the file’s media metadata (not guessed from the filename). Off via **Show season/episode and title on icon tiles** → filename | Poster as the thumb. **XL icons only** hides the name when a poster/strip is shown (same for movie files and folders) |
 | Details / List | Always the filename | Always the folder name |
 | Tooltip | Always the filename | Always the folder name |
 

@@ -91,6 +91,15 @@ describe('parseMediaFileName', () => {
     expect(p.kind).toBe('episode')
   })
 
+  it('does not treat a bare NxNN movie title as an episode', () => {
+    const p = parseMediaFileName('10x10 (2018).mp4')
+    expect(p.kind).toBe('movie')
+    expect(p.year).toBe(2018)
+    expect(p.season).toBeUndefined()
+    expect(p.episode).toBeUndefined()
+    expect(p.title.toLowerCase()).toContain('10x10')
+  })
+
   it('parses 01x03 in a spaced title', () => {
     const p = parseMediaFileName('3 Body Problem 01x03 - Release by Wentworth_Miller.mkv')
     expect(p.title).toBe('3 Body Problem')
