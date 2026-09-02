@@ -15,6 +15,18 @@ Honor --dry-run by printing what would change and exiting 0 without writing/dele
 Do not prompt for GUI input. Write progress to stdout; errors to stderr.
 `.trim()
 
+/** Rules for AI-generated scripts that read/write user paths (CJK, spaces, #, etc.). */
+export const SCRIPT_UNICODE_PATH_RULES = `
+Unicode and international paths (filenames may include Chinese, emoji, spaces, #, !, …):
+- --root and every line of --input-list are UTF-8 absolute paths. Read the manifest with encoding='utf-8' (Python), Get-Content -LiteralPath … -Encoding utf8 (PowerShell), or an equivalent — never the system default ANSI code page.
+- Non-ASCII characters are part of the filename, never path separators. Example basename: krea2_v2範例_00031_.jpg — the 範例 characters belong in the name.
+- Use pathlib.Path (Python) or -LiteralPath (PowerShell/cmd where applicable). Do not split manifest lines on backslash or guess path structure.
+- Never build paths with unicode_escape, codecs.decode(..., 'unicode_escape'), json.loads on path text, or by embedding literal \\uXXXX escape sequences — those are not real on-disk names.
+- When deriving an output path, preserve the source basename (Path.stem / suffix or [IO.Path]::GetFileName); only change the extension or parent directory the user asked for.
+- Existence checks and overwrite guards must use the exact decoded path from argv/manifest. If stderr shows \\u7bc4\\u4f8b instead of real characters, the script is mishandling encoding — fix that.
+- Python on Windows: prefer pathlib throughout; if printing paths, ensure stdout/stderr accept UTF-8 (e.g. reconfigure or PYTHONUTF8=1).
+`.trim()
+
 export const SCRIPT_CLI_CONTRACT_GLOBAL = `
 CLI contract the script MUST implement (argv, not a shell string):
 - Global target: the script is invoked with optional [--dry-run] [--param value…] only.
@@ -54,6 +66,7 @@ export function buildScriptSystemPrompt(input: {
       ? 'Pick the best language for this OS and the available runtimes.'
       : `Write the script in ${input.language}.`,
     scriptCliContract(input.target),
+    SCRIPT_UNICODE_PATH_RULES,
     'Keep the script self-contained. Parse argv yourself. Treat unknown flags as errors.'
   ].join('\n')
 }

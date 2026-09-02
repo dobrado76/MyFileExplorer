@@ -42,6 +42,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [NETWORKS.md](NETWORKS.md)                       | Network neighborhood & mapped drives (D44) |
 | [SECURITY.md](SECURITY.md)                       | Path guards & destructive ops         |
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
+| [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md) | Experimental Directory shell redirect (D72) |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |

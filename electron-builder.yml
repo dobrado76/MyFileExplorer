@@ -48,9 +48,13 @@ fileAssociations:
     description: MyFileExplorer Virtual Folder
     role: Editor
     mimeType: application/x-myfileexplorer-virtualfolder
+extraFiles:
+  - from: tools/MfeShellLauncher/publish/MfeShellLauncher.exe
+    to: MfeShellLauncher.exe
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  include: build/nsis-shell-redirect-uninstall.nsh
   # Hyphens survive GitHub asset upload (spaces become dots and older Check-for-update
   # builds could not read a version from MyFileExplorer.Setup.0.x.y.exe).
   artifactName: ${productName}-${version}.${ext}

@@ -11,6 +11,7 @@ dist/
 # .NET Virtual Folder projection service (tools/) — build outputs
 tools/**/bin/
 tools/**/obj/
+tools/MfeShellLauncher/publish/
 
 # Installers are CI / local build outputs (often >100MB — GitHub rejects git push).
 **/MyFileExplorer Setup*.exe

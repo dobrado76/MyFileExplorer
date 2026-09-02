@@ -24,6 +24,7 @@ import {
   isMediaMetadataVideoName,
   matchesMediaLibraryFilter,
   mediaContainerIgnoresFoldersFirst,
+  preferredMediaDownloadSource,
   MEDIA_METADATA_ADS,
   MEDIA_METADATA_CONTAINER_ADS,
   MEDIA_METADATA_THUMB_ADS
@@ -723,5 +724,34 @@ describe('decideNamedMatches', () => {
         fetchedAt: '2026-01-01T00:00:00.000Z'
       })
     ).toBe('omdb:tt1160419')
+  })
+
+  it('preferredMediaDownloadSource prefers internet then plex', () => {
+    expect(
+      preferredMediaDownloadSource({
+        ...defaultMediaMetadataSettings,
+        internetSource: 'tmdb',
+        tmdbApiKey: 'k',
+        plexToken: 'p'
+      })
+    ).toBe('internet')
+    expect(
+      preferredMediaDownloadSource({
+        ...defaultMediaMetadataSettings,
+        internetSource: 'omdb',
+        omdbApiKey: '',
+        tmdbApiKey: '',
+        plexToken: 'p'
+      })
+    ).toBe('plex')
+    expect(
+      preferredMediaDownloadSource({
+        ...defaultMediaMetadataSettings,
+        internetSource: 'tmdb',
+        tmdbApiKey: '',
+        omdbApiKey: '',
+        plexToken: ''
+      })
+    ).toBeNull()
   })
 })

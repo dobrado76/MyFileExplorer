@@ -51,6 +51,17 @@ jobs:
           dotnet test tools/MfeVirtualFolderService/tests/MfeVirtualFolder.Protocol.Tests -c Release --no-restore
           dotnet build tools/MfeVirtualFolderService/src/MfeVirtualFolderService/MfeVirtualFolderService.csproj -c Release --no-restore
 
+      - name: Build shell redirect launcher
+        run: |
+          $pub = "tools/MfeShellLauncher/publish"
+          dotnet publish tools/MfeShellLauncher/src/MfeShellLauncher/MfeShellLauncher.csproj `
+            -c Release -r win-x64 `
+            -p:PublishSingleFile=true `
+            -o $pub
+          if (-not (Test-Path "$pub/MfeShellLauncher.exe")) {
+            throw "Publish output missing MfeShellLauncher.exe"
+          }
+
   release:
     name: Windows installer → GitHub Release
     needs: check
@@ -99,11 +110,31 @@ jobs:
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/MfeVirtualFolderService-win-x64.zip" -Force
           Get-Item "dist/MfeVirtualFolderService-win-x64.zip" | Format-List Name, Length
 
+      - name: Publish shell redirect launcher
+        run: |
+          $pub = "tools/MfeShellLauncher/publish"
+          dotnet publish tools/MfeShellLauncher/src/MfeShellLauncher/MfeShellLauncher.csproj `
+            -c Release -r win-x64 `
+            -p:PublishSingleFile=true `
+            -o $pub
+          if (-not (Test-Path "$pub/MfeShellLauncher.exe")) {
+            throw "Publish output missing MfeShellLauncher.exe"
+          }
+
       - name: Build NSIS installer
         env:
           # No code-signing cert in CI — skip discovery so the build does not hang.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npm run build:win
+
+      - name: Verify shell redirect launcher in installer payload
+        run: |
+          if (-not (Test-Path "dist/win-unpacked/MfeShellLauncher.exe")) {
+            throw "MfeShellLauncher.exe missing from dist/win-unpacked (extraFiles)"
+          }
+          if (-not (Test-Path "dist/win-unpacked/MyFileExplorer.exe")) {
+            throw "MyFileExplorer.exe missing from dist/win-unpacked"
+          }
 
       - name: Attach installer to GitHub Release
         uses: softprops/action-gh-release@v2

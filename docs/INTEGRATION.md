@@ -82,3 +82,9 @@ npm run dev -- --reveal "D:\some\file.txt"
 ```
 
 Protocol registration in dev points at the Electron binary + app entry; prefer CLI args while developing.
+
+---
+
+## Automatic redirect (experimental, D72)
+
+Settings → **Windows integration** can redirect per-user `Directory\shell\open` and `explore` through `MfeShellLauncher.exe` into the running app. See [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md) for scope, limitations, and restore/uninstall behaviour.

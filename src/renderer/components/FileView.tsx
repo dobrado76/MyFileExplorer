@@ -80,6 +80,7 @@ import { visibleIndexRange } from '@shared/visibleIndexRange'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
 import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
+import { MediaCardHoverActions } from './MediaCardHoverActions'
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
@@ -2416,6 +2417,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       )}
                       {gitBadge(entry)}
                       {projectionBadge(entry)}
+                      {mediaLibrary.isContainer &&
+                      !recycleMode &&
+                      !searchMode &&
+                      mediaMetadataEnabled ? (
+                        <MediaCardHoverActions entry={entry} watched={flags?.watched} />
+                      ) : null}
                     </div>
                     {renameSource === 'files' &&
                     renamingPath !== null &&

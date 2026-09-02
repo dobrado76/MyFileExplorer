@@ -2081,6 +2081,55 @@ body.right-dragging * {
   object-position: center;
   border-radius: 3px;
 }
+.media-card-hover-actions {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #111 78%, transparent);
+  box-shadow: 0 1px 6px color-mix(in srgb, #000 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease-out;
+  z-index: 3;
+}
+.grid-cell:hover .media-card-hover-actions,
+.grid-cell:focus-within .media-card-hover-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.media-card-hover-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: #f5f5f5;
+  background: color-mix(in srgb, #fff 12%, transparent);
+  cursor: pointer;
+}
+.media-card-hover-btn:hover {
+  background: color-mix(in srgb, var(--accent) 70%, #fff);
+  color: #fff;
+}
+.media-card-hover-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .media-card-hover-actions {
+    transition: none;
+  }
+}
 .grid-cell .cell-name {
   font-size: 0.92em;
   text-align: center;

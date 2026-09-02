@@ -669,6 +669,45 @@ export function registerIpcHandlers(): void {
     const { discoverShellVerbs } = await import('../shell/discoverShellVerbs')
     return discoverShellVerbs()
   })
+  if (process.platform === 'win32') {
+    handle(IPC.shellRedirectGetStatus, emptySchema, async () => {
+      const { getShellRedirectStatus } = await import('../shell/folderRedirect')
+      return getShellRedirectStatus()
+    })
+    handle(IPC.shellRedirectEnable, emptySchema, async () => {
+      const { enableShellRedirect } = await import('../shell/folderRedirect')
+      return enableShellRedirect()
+    })
+    handle(IPC.shellRedirectDisable, emptySchema, async () => {
+      const { disableShellRedirect } = await import('../shell/folderRedirect')
+      return disableShellRedirect()
+    })
+    handle(IPC.shellRedirectRestore, emptySchema, async () => {
+      const { disableShellRedirect } = await import('../shell/folderRedirect')
+      return disableShellRedirect()
+    })
+    handle(IPC.shellRedirectRepair, emptySchema, async () => {
+      const { repairShellRedirect } = await import('../shell/folderRedirect')
+      return repairShellRedirect()
+    })
+    handle(IPC.shellRedirectTest, emptySchema, async () => {
+      const { testShellRedirect } = await import('../shell/folderRedirect/test')
+      return testShellRedirect()
+    })
+    handle(
+      IPC.shellRedirectReadInvocations,
+      z.object({ limit: z.number().int().positive().max(100).optional() }),
+      async (req) => {
+        const { readShellRedirectInvocations } = await import('../shell/folderRedirect')
+        return { invocations: readShellRedirectInvocations(req.limit ?? 20) }
+      }
+    )
+    handle(IPC.shellRedirectClearInvocations, emptySchema, async () => {
+      const { clearShellRedirectInvocations } = await import('../shell/folderRedirect')
+      clearShellRedirectInvocations()
+      return { cleared: true as const }
+    })
+  }
   handle(IPC.shellClipboardWriteFiles, clipboardWriteFilesRequestSchema, (req) =>
     clipboardWriteFiles(req.paths, req.effect)
   )

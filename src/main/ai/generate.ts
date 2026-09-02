@@ -5,7 +5,8 @@ import { redactPathsInText } from '@shared/scriptDestructive'
 import {
   buildScriptSystemPrompt,
   extractGeneratedScript,
-  scriptCliContract
+  scriptCliContract,
+  SCRIPT_UNICODE_PATH_RULES
 } from '@shared/scriptGenerate'
 import { detectRuntimes } from '../scripts/runtimes'
 import { completeChat } from './provider'
@@ -60,7 +61,8 @@ export async function modifyScript(input: {
       : 'Keep the argv contract: --root / --input-list / --recursive / --dry-run / named --params.',
     'Do not add network calls that upload user files. Do not ask for paths.',
     'Always include the full revised source. Do not return an empty source field.',
-    scriptCliContract(target)
+    scriptCliContract(target),
+    SCRIPT_UNICODE_PATH_RULES
   ].join('\n')
   const user = [
     input.language ? `Language: ${input.language}` : '',
@@ -99,7 +101,9 @@ export async function fixScript(input: {
     target === 'global'
       ? 'Keep the global argv contract (no --root / --input-list). Do not request user files or paths.'
       : 'Keep the argv contract. Do not request user files or paths.',
-    scriptCliContract(target)
+    scriptCliContract(target),
+    SCRIPT_UNICODE_PATH_RULES,
+    'If stderr shows \\uXXXX in paths, the script mishandled UTF-8 — decode manifest lines as UTF-8 and use pathlib/-LiteralPath.'
   ].join('\n')
   const user = [
     `OS: ${input.os || `${os.platform()} ${os.release()}`}`,

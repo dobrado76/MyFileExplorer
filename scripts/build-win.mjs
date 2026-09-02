@@ -24,6 +24,25 @@ delete process.env.CSC_KEY_PASSWORD
 delete process.env.WIN_CSC_KEY_PASSWORD
 
 process.chdir(root)
+
+const launcherDir = path.join(root, 'tools', 'MfeShellLauncher', 'src', 'MfeShellLauncher')
+const launcherPublish = path.join(root, 'tools', 'MfeShellLauncher', 'publish')
+try {
+  execSync(
+    `dotnet publish "${launcherDir}" -c Release -r win-x64 -p:PublishSingleFile=true -o "${launcherPublish}"`,
+    { stdio: 'inherit', env: process.env }
+  )
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e)
+  if (process.env.CI === 'true') {
+    throw new Error(`MfeShellLauncher publish failed in CI: ${msg}`, { cause: e })
+  }
+  console.warn(
+    'MfeShellLauncher publish failed (dotnet missing?). Pack will continue without launcher:',
+    msg
+  )
+}
+
 execSync('electron-vite build && electron-builder --win --config electron-builder.yml --publish never', {
   stdio: 'inherit',
   env: process.env

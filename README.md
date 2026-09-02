@@ -229,7 +229,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for licence terms and development notes. 
 
 ## Acknowledgements
 
-Thank you **[ghiscoding](https://github.com/ghiscoding)** — for Linux support, icon-size settings, back-navigation polish, and a stream of ideas that made the app better (plus the bug reports, and the patience — yes, really).
+**[ghiscoding](https://github.com/ghiscoding)** is MyFileExplorer’s primary external user and contributor, helping identify bugs and improve Linux compatibility.
 
 ## Licensing
 

@@ -83,6 +83,7 @@ import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { CreateLinkDialog } from './CreateLinkDialog'
 import { CloneGitRepoDialog } from './git/CloneGitRepoDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
+import { WindowsIntegrationSettingsPanel } from './WindowsIntegrationSettingsPanel'
 import { QuickLaunchSettingsPanel } from './QuickLaunchSettingsPanel'
 import { CloseIcon } from '../lib/icons'
 import { CoverPickerDialog } from './CoverPickerDialog'
@@ -2396,7 +2397,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const devGatePresent = useAppStore((s) => s.devGatePresent)
   const devGateEnable = useAppStore((s) => s.devGateEnable)
   const setDevGateEnable = useAppStore((s) => s.setDevGateEnable)
-  const navItems = SETTINGS_NAV
+  const navItems = useMemo(
+    () =>
+      SETTINGS_NAV.filter(
+        (item) => item.id !== 'windowsintegration' || platform === 'win32'
+      ),
+    [platform]
+  )
   const startSection = navItems.some((s) => s.id === initialSection)
     ? (initialSection as SettingsSection)
     : 'appearance'
@@ -2888,6 +2895,8 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               </div>
             </div>
           )}
+
+          {section === 'windowsintegration' && <WindowsIntegrationSettingsPanel />}
 
           {section === 'remoterepos' && (
             <div className="settings-stack">

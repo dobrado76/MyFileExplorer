@@ -179,6 +179,17 @@ export type MyFileExplorerApi = {
      * Never loads COM shell extensions.
      */
     discoverVerbs(): Promise<Result<import('../schemas/shellVerbs').DiscoverShellVerbsResponse>>
+    /** Experimental Directory shell redirect (D72, Windows only). */
+    redirectGetStatus(): Promise<Result<import('../schemas/shellRedirect').ShellRedirectGetStatusResponse>>
+    redirectEnable(): Promise<Result<import('../schemas/shellRedirect').ShellRedirectMutateResponse>>
+    redirectDisable(): Promise<Result<import('../schemas/shellRedirect').ShellRedirectMutateResponse>>
+    redirectRestore(): Promise<Result<import('../schemas/shellRedirect').ShellRedirectMutateResponse>>
+    redirectRepair(): Promise<Result<import('../schemas/shellRedirect').ShellRedirectMutateResponse>>
+    redirectTest(): Promise<Result<import('../schemas/shellRedirect').ShellRedirectTestResponse>>
+    redirectReadInvocations(
+      req?: import('../schemas/shellRedirect').ShellRedirectReadInvocationsRequest
+    ): Promise<Result<import('../schemas/shellRedirect').ShellRedirectReadInvocationsResponse>>
+    redirectClearInvocations(): Promise<Result<{ cleared: true }>>
     clipboardWriteFiles(
       req: import('../schemas/fs').ClipboardWriteFilesRequest
     ): Promise<Result<{ written: boolean }>>

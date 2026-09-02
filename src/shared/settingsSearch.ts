@@ -10,6 +10,7 @@ export type SettingsSection =
   | 'preview'
   | 'search'
   | 'network'
+  | 'windowsintegration'
   | 'remoterepos'
   | 'slideshow'
   | 'mediametadata'
@@ -90,6 +91,12 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'network',
     label: 'Network',
     keywords: 'network lan smb unc discovery map drive disconnect refresh neighborhood local computer'
+  },
+  {
+    id: 'windowsintegration',
+    label: 'Windows integration',
+    keywords:
+      'windows integration experimental shell redirect folder open explore directory registry launcher default file manager explorer'
   },
   {
     id: 'remoterepos',

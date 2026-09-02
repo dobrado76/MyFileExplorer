@@ -251,3 +251,4 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 - [ ] Indexed folder search returns results without full-tree walk
 - [ ] Theme + font changes apply live and persist
 - [ ] CLI `--reveal` / `mfe://` opens the path in a tab
+- [ ] Experimental shell redirect (D72): Settings → Windows integration enables per-user Directory verb redirect with backup/restore

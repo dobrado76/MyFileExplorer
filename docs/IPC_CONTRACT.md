@@ -73,6 +73,15 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `shell:clipboardWriteFile`  | Write non-file clipboard as a unique-named file in `destDir` (D56) |
 | `shell:clipboardWriteImage` | Put an image file on the OS clipboard as a bitmap (slideshow **Copy image**) |
 | `shell:startDrag`           | Sync: `webContents.startDrag` with absolute paths (OS export while a drag is active) |
+| `shell:discoverVerbs`       | Scan static HKCR shell verbs (Settings → Context menu → Discover, D41) |
+| `shellRedirect:getStatus`   | Experimental Directory shell redirect status (D72, machine-local) |
+| `shellRedirect:enable`    | Backup + apply HKCU `Directory\shell\open` + `explore` redirect |
+| `shellRedirect:disable`   | Alias for restore |
+| `shellRedirect:restore`   | Restore previous folder-opening configuration from backup |
+| `shellRedirect:repair`    | Regenerate launcher command paths after reinstall |
+| `shellRedirect:test`      | ShellExecute temp folder; check invocation log |
+| `shellRedirect:readInvocations` | Last N local redirect log lines |
+| `shellRedirect:clearInvocations` | Truncate local redirect log |
 | `shell:openExternal`        | http(s) only if ever needed     |
 
 ### `session.*`

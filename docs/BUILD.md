@@ -50,10 +50,10 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 | Trigger | What runs |
 | ------- | --------- |
 | Pull request / push to `main` | `npm run check` + Virtual Folder projection service tests (WinFsp installed in CI) |
-| Tag `v*` (e.g. `v0.14.0`) | Check + build **Windows** installer **and** `MfeVirtualFolderService-win-x64.zip` → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.14.0`) | Check + build **three** Windows executables: `MyFileExplorer.exe` + `MfeShellLauncher.exe` (bundled in the NSIS installer) and `MfeVirtualFolderService.exe` (separate zip) → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (same as a main push) |
 
-CI does not build Linux installers yet. The projection zip is optional — users also install [WinFsp](https://winfsp.dev/) separately; see [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md).
+CI does not build Linux installers yet. The projection zip is optional — users also install [WinFsp](https://winfsp.dev/) separately; see [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md). `MfeShellLauncher.exe` is built in CI and shipped inside the main installer (shell redirect, D72); see [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md).
 
 ### Ship a build for friends
 

@@ -81,6 +81,9 @@ describe('system prompt privacy', () => {
     expect(prompt).toMatch(/--input-list/)
     expect(prompt).toMatch(/--root/)
     expect(prompt).toMatch(/Title Case/)
+    expect(prompt).toMatch(/UTF-8/)
+    expect(prompt).toMatch(/Unicode|Chinese|CJK|範例/i)
+    expect(prompt).toMatch(/unicode_escape/)
   })
 
   it('tells the model a global script has no folder or selection', () => {

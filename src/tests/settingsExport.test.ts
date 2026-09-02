@@ -640,4 +640,14 @@ describe('settings export / import', () => {
     expect(ids).toContain('open')
     expect(ids).toContain('copy')
   })
+
+  it('export document does not include shell redirect machine-local state', () => {
+    const doc = buildSettingsExportDocument({
+      settings: defaultSettings,
+      networkHosts: [],
+      appVersion: '0.14.14'
+    })
+    const json = JSON.stringify(doc)
+    expect(json).not.toMatch(/windowsShellRedirect|shell-redirect|userRequestedEnabled/i)
+  })
 })

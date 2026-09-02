@@ -486,3 +486,23 @@ export function pickIdFromStored(meta: MediaMetadata): string | undefined {
   if (meta.source === 'omdb' && meta.sourceId) return `omdb:${meta.sourceId}`
   return undefined
 }
+
+export type MediaDownloadSource = 'internet' | 'plex'
+
+/**
+ * Preferred source for a one-click "Download metadata" action.
+ * Internet (TMDB/OMDb key for the selected provider) first; else Plex token; else null.
+ */
+export function preferredMediaDownloadSource(settings: {
+  internetSource: 'tmdb' | 'omdb'
+  tmdbApiKey: string
+  omdbApiKey: string
+  plexToken: string
+}): MediaDownloadSource | null {
+  if (settings.internetSource === 'tmdb' && settings.tmdbApiKey.trim()) return 'internet'
+  if (settings.internetSource === 'omdb' && settings.omdbApiKey.trim()) return 'internet'
+  // Other provider key still counts as internet configured.
+  if (settings.tmdbApiKey.trim() || settings.omdbApiKey.trim()) return 'internet'
+  if (settings.plexToken.trim()) return 'plex'
+  return null
+}

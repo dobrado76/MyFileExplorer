@@ -70,6 +70,15 @@ export const IPC = {
   shellExec: 'shell:exec',
   /** Scan static HKCR shell verbs for Discover → custom commands (D41). */
   shellDiscoverVerbs: 'shell:discoverVerbs',
+  /** Experimental Directory shell redirect status (D72, machine-local). */
+  shellRedirectGetStatus: 'shellRedirect:getStatus',
+  shellRedirectEnable: 'shellRedirect:enable',
+  shellRedirectDisable: 'shellRedirect:disable',
+  shellRedirectRestore: 'shellRedirect:restore',
+  shellRedirectRepair: 'shellRedirect:repair',
+  shellRedirectTest: 'shellRedirect:test',
+  shellRedirectReadInvocations: 'shellRedirect:readInvocations',
+  shellRedirectClearInvocations: 'shellRedirect:clearInvocations',
   shellClipboardWriteFiles: 'shell:clipboardWriteFiles',
   shellClipboardReadFiles: 'shell:clipboardReadFiles',
   /** Classify OS clipboard without sending file/image bytes (D56). */

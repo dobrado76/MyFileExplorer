@@ -11,6 +11,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
+- **Windows shell redirect (experimental, D72)** — Settings → Windows integration: per-user `Directory\shell\open` + `explore` redirect via `MfeShellLauncher.exe`; backup/restore/repair; invocation log. Not included in settings export. See [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
+
 - **User-defined structured metadata (D70, off by default)** — Settings → Metadata → Enable. Define metadata sets, assign them to folders (or mark No metadata), edit values in context/preview (`mfe_meta` ADS), optional Details columns, Power Search `meta.<key>:`. Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
 
 ### Changed

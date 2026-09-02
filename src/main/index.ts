@@ -225,6 +225,10 @@ if (!gotLock) {
 
     logMain('info', `MyFileExplorer started (userData: ${app.getPath('userData')})`)
 
+    if (process.platform === 'win32') {
+      void import('./shell/folderRedirect').then((m) => m.maybeAutoRepairShellRedirect())
+    }
+
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
     })
