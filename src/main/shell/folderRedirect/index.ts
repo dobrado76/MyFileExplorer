@@ -22,7 +22,8 @@ import {
   shellRedirectInvocationsPath,
   shellRedirectRegFragmentPath,
   resolveLauncherPath,
-  resolveMfeExePath
+  resolveMfeExePath,
+  writeShellRedirectTargetExe
 } from './paths'
 import { parseRegValues, regDeleteTree, regExport, regImport, regKeyExists, regQuery, regSetDefault } from './reg'
 import { readShellRedirectState, setUserRequestedEnabled } from './state'
@@ -195,6 +196,7 @@ export async function enableShellRedirect(): Promise<ShellRedirectMutateResponse
     }
 
     setUserRequestedEnabled(true)
+    writeShellRedirectTargetExe()
     logMain('info', 'shell-redirect: enabled')
     return toMutateResponse(await getShellRedirectStatus())
   } catch (e) {
@@ -238,6 +240,7 @@ export async function repairShellRedirect(): Promise<ShellRedirectMutateResponse
   }
 
   setUserRequestedEnabled(true)
+  writeShellRedirectTargetExe()
   logMain('info', 'shell-redirect: repaired')
   return toMutateResponse(await getShellRedirectStatus())
 }
@@ -314,6 +317,7 @@ export async function getShellRedirectStatus(): Promise<ShellRedirectGetStatusRe
     status,
     active: status === 'enabled',
     userRequested: state.userRequestedEnabled,
+    launcherExists,
     activeKeys,
     launcherPath,
     installPath,

@@ -30,6 +30,8 @@ export const shellRedirectGetStatusResponseSchema = z.object({
   status: shellRedirectStatusSchema,
   active: z.boolean(),
   userRequested: z.boolean(),
+  /** False when MfeShellLauncher.exe is not on disk at launcherPath. */
+  launcherExists: z.boolean(),
   activeKeys: z.array(z.string()),
   launcherPath: z.string(),
   installPath: z.string(),

@@ -23,18 +23,18 @@ internal static class Program
         try
         {
             var baseDir = AppContext.BaseDirectory.TrimEnd('\\', '/');
-            var mfeExe = Path.Combine(baseDir, "MyFileExplorer.exe");
+            var launch = ResolveMfeLaunch(baseDir);
 
             var kind = TargetClassifier.Classify(target);
             switch (kind)
             {
                 case TargetKind.Directory:
                     action = "mfe-open";
-                    exitCode = SpawnDetached(mfeExe, ["--open", target]) ? 0 : 1;
+                    exitCode = SpawnDetached(launch.Exe, [.. launch.PrefixArgs, "--open", target]) ? 0 : 1;
                     break;
                 case TargetKind.File:
                     action = "mfe-reveal";
-                    exitCode = SpawnDetached(mfeExe, ["--reveal", target]) ? 0 : 1;
+                    exitCode = SpawnDetached(launch.Exe, [.. launch.PrefixArgs, "--reveal", target]) ? 0 : 1;
                     break;
                 default:
                     action = "explorer-fallback";
@@ -53,6 +53,53 @@ internal static class Program
         }
 
         return exitCode;
+    }
+
+    private readonly record struct MfeLaunch(string Exe, string[] PrefixArgs);
+
+    /// <summary>
+    /// Prefer MyFileExplorer.exe beside the launcher (install layout).
+    /// Fall back to %APPDATA%\MyFileExplorer\shell-redirect\target-exe.txt
+    /// (line 1 = exe; further lines = argv before --open/--reveal — Electron + app path in dev).
+    /// </summary>
+    private static MfeLaunch ResolveMfeLaunch(string baseDir)
+    {
+        var beside = Path.Combine(baseDir, "MyFileExplorer.exe");
+        if (File.Exists(beside)) return new MfeLaunch(beside, []);
+
+        var env = Environment.GetEnvironmentVariable("MFE_EXE");
+        if (!string.IsNullOrWhiteSpace(env) && File.Exists(env.Trim()))
+            return new MfeLaunch(env.Trim(), []);
+
+        try
+        {
+            var pointer = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "MyFileExplorer",
+                "shell-redirect",
+                "target-exe.txt");
+            if (File.Exists(pointer))
+            {
+                var lines = File.ReadAllLines(pointer)
+                    .Select(l => l.Trim())
+                    .Where(l => l.Length > 0)
+                    .ToArray();
+                if (lines.Length > 0 && File.Exists(lines[0]!))
+                {
+                    // Prefix may be a directory (`electron .`) or a file (`out/main/index.js`).
+                    var prefix = lines.Skip(1)
+                        .Where(p => File.Exists(p) || Directory.Exists(p))
+                        .ToArray();
+                    return new MfeLaunch(lines[0]!, prefix);
+                }
+            }
+        }
+        catch
+        {
+            /* ignore */
+        }
+
+        return new MfeLaunch(beside, []);
     }
 
     private static bool SpawnDetached(string exe, IReadOnlyList<string> argList)

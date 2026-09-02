@@ -3,7 +3,8 @@ import type { ShellRedirectGetStatusResponse, ShellRedirectInvocation } from '@s
 import { api, call, IpcError } from '../lib/ipc'
 import { useAppStore } from '../store/appStore'
 
-function statusLabel(status: ShellRedirectGetStatusResponse['status']): string {
+function statusLabel(status: ShellRedirectGetStatusResponse['status'], launcherExists: boolean): string {
+  if (!launcherExists && status === 'disabled') return 'Launcher missing'
   switch (status) {
     case 'enabled':
       return 'Enabled'
@@ -79,6 +80,7 @@ export function WindowsIntegrationSettingsPanel(): JSX.Element | null {
       await refresh()
     } catch (e) {
       notify(e instanceof IpcError ? e.message : e instanceof Error ? e.message : 'Operation failed', true)
+      await refresh()
     } finally {
       setBusy(false)
     }
@@ -86,6 +88,13 @@ export function WindowsIntegrationSettingsPanel(): JSX.Element | null {
 
   const onToggle = (want: boolean) => {
     if (want) {
+      if (status && status.launcherExists === false) {
+        notify(
+          'MfeShellLauncher.exe not found. Run: dotnet publish tools/MfeShellLauncher/src/MfeShellLauncher -c Release -r win-x64 -o tools/MfeShellLauncher/publish',
+          true
+        )
+        return
+      }
       void run(() => call(api.shell.redirectEnable()))
       return
     }
@@ -101,6 +110,7 @@ export function WindowsIntegrationSettingsPanel(): JSX.Element | null {
   }
 
   const active = status?.active === true
+  const launcherMissing = status != null && status.launcherExists === false
 
   return (
     <div className="settings-stack">
@@ -112,17 +122,39 @@ export function WindowsIntegrationSettingsPanel(): JSX.Element | null {
       </p>
 
       <div className="settings-inline">
-        <span className={`context-menu-discover-badge${status?.status === 'enabled' ? '' : ' warn'}`}>
-          {status ? statusLabel(status.status) : '…'}
+        <span
+          className={`context-menu-discover-badge${
+            status?.status === 'enabled' && !launcherMissing ? '' : ' warn'
+          }`}
+        >
+          {status ? statusLabel(status.status, status.launcherExists) : '…'}
         </span>
       </div>
+
+      {launcherMissing ? (
+        <p className="settings-help settings-callout-warn">
+          Launcher not found at <code>{status.launcherPath}</code>. For{' '}
+          <code>npm run dev</code>, publish it first:
+          <br />
+          <code>
+            dotnet publish tools/MfeShellLauncher/src/MfeShellLauncher -c Release -r win-x64 -o
+            tools/MfeShellLauncher/publish
+          </code>
+          <br />
+          Installed builds ship <code>MfeShellLauncher.exe</code> next to MyFileExplorer.exe.
+        </p>
+      ) : null}
 
       <SettingsToggle
         id="set-shell-redirect"
         label="Redirect folder openings to MyFileExplorer"
-        hint="Per-user registry integration. Machine-local — not included in settings export/import."
+        hint={
+          launcherMissing
+            ? 'Build MfeShellLauncher.exe first (see message above).'
+            : 'Per-user registry integration. Machine-local — not included in settings export/import.'
+        }
         checked={active}
-        disabled={busy}
+        disabled={busy || (launcherMissing && !active)}
         onChange={onToggle}
       />
 
@@ -146,7 +178,7 @@ export function WindowsIntegrationSettingsPanel(): JSX.Element | null {
         <button
           type="button"
           className="btn"
-          disabled={busy}
+          disabled={busy || launcherMissing}
           onClick={() => void run(() => call(api.shell.redirectRepair()))}
         >
           Repair
@@ -172,6 +204,7 @@ export function WindowsIntegrationSettingsPanel(): JSX.Element | null {
       {status ? (
         <p className="settings-help">
           Launcher: <code>{status.launcherPath}</code>
+          {status.launcherExists ? '' : ' (missing)'}
           <br />
           Active keys: {status.activeKeys.length ? status.activeKeys.join(', ') : 'none'}
           <br />
