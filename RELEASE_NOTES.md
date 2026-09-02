@@ -4,7 +4,7 @@
 **Tag:** `v0.15.0` (package **0.15.0**)  
 **Previous product baseline:** [v0.14.0](CHANGELOG.md#0140---2026-08-30)
 
-Fifteenth product release (**v0.15**): **user-defined metadata** (**D70**), **GPL-3.0-only** licensing (**D71**), experimental **Windows shell redirect** (**D72**), richer **media metadata** editing and library filters, plus polish on video thumbs / slideshow.
+Fifteenth product release (**v0.15**): **user-defined metadata** (**D70**), **GPL-3.0** licensing (**D71**), experimental **Windows shell redirect** (**D72**), richer **media metadata** editing and library filters, plus polish on video thumbs / slideshow.
 
 Full detail: [CHANGELOG.md](CHANGELOG.md). User metadata: [docs/USER_METADATA.md](docs/USER_METADATA.md) · media cards: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · shell redirect: [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md) · licensing: [LICENSING.md](LICENSING.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
@@ -28,9 +28,9 @@ Optional per-user redirect of ordinary `Directory` open/explore shell verbs to M
 
 Guide: [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
 
-### Licence: GPL-3.0-only (D71)
+### Licence: GPL-3.0 (D71)
 
-The project is **GPL-3.0-only**, with a separate trademark policy for the MyFileExplorer name and logo. See [LICENSING.md](LICENSING.md) and [TRADEMARK.md](TRADEMARK.md).
+The project is **GPL-3.0**, with a separate trademark policy for the MyFileExplorer name and logo. See [LICENSING.md](LICENSING.md) and [TRADEMARK.md](TRADEMARK.md).
 
 ### Media metadata polish (D50)
 
@@ -61,5 +61,5 @@ Guide: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md).
 
 - Fully quit and relaunch (IPC / preload / launcher changes need a cold start).
 - **User Metadata**, shell redirect, Git, Scripts, and Media Metadata stay **off** until you enable them.
-- Licence text and notices are GPL-3.0-only going forward; see [LICENSING.md](LICENSING.md).
+- Licence text and notices are GPL-3.0 going forward; see [LICENSING.md](LICENSING.md).
 - Notes, item icons, folder statistics, and user metadata streams need **local NTFS**.

@@ -15,7 +15,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [0.15.0] - 2026-09-02
 
-Fifteenth product release: **user-defined metadata** (**D70**), **GPL-3.0-only** (**D71**), experimental **Windows shell redirect** (**D72**), richer **media metadata** editing and per-library filters, plus video-thumb / slideshow polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+Fifteenth product release: **user-defined metadata** (**D70**), **GPL-3.0** (**D71**), experimental **Windows shell redirect** (**D72**), richer **media metadata** editing and per-library filters, plus video-thumb / slideshow polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ### Added
 
@@ -28,7 +28,7 @@ Fifteenth product release: **user-defined metadata** (**D70**), **GPL-3.0-only**
 
 ### Changed
 
-- **Licence (D71)** — **GPL-3.0-only**, plus trademark policy for the product name/logo. See [LICENSING.md](LICENSING.md), [TRADEMARK.md](TRADEMARK.md), [NOTICE](NOTICE).
+- **Licence (D71)** — **GPL-3.0**, plus trademark policy for the product name/logo. See [LICENSING.md](LICENSING.md), [TRADEMARK.md](TRADEMARK.md), [NOTICE](NOTICE).
 - **Video preview strips** — rename / same-volume move of a video also renames matching `!VIDTHUMB_CACHE` frames (best-effort) so strips stay with the file.
 - **AI script generation** — system prompt requires UTF-8 manifest reads and correct handling of non-ASCII (e.g. CJK) filenames; never treat `\uXXXX` escapes as real path segments.
 

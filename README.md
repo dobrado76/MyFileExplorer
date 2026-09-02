@@ -1,7 +1,7 @@
 # MyFileExplorer
 
 [![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
-[![License: GPL-3.0-only](https://img.shields.io/badge/License-GPL--3.0--only-blue.svg)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
 MyFileExplorer is a local file workbench that turns the filesystem from passive storage into an active workspace. It keeps the familiarity of Windows File Explorer, then adds persistent multi-pane workspaces, deep previews, fast search, Git awareness, rich folder analytics, metadata, automation, and portable Virtual Folders — without requiring you to move your files into a proprietary database or cloud service.
 
@@ -15,7 +15,7 @@ It started as a replacement for Windows File Explorer. It has grown into somethi
 | --- | --- |
 | **Platform** | Windows 10 / 11 (primary) · Linux packaging experimental |
 | **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
-| **License** | **GPL-3.0-only** — [LICENSING.md](LICENSING.md) · [TRADEMARK.md](TRADEMARK.md) |
+| **License** | **GPL-3.0** — [LICENSING.md](LICENSING.md) · [TRADEMARK.md](TRADEMARK.md) |
 
 ![Tabs, details, video thumbs, and a live preview](docs/image/screenshot-workspace.jpg)
 
@@ -233,4 +233,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for licence terms and development notes. 
 
 ## Licensing
 
-MyFileExplorer is free software under the **GNU General Public License v3.0 only** ([LICENSE](LICENSE)). Commercial use and redistribution are allowed; distributed modifications must remain under GPLv3 with corresponding source. The **MyFileExplorer** name and logo are trademarks — see [TRADEMARK.md](TRADEMARK.md). Details: [LICENSING.md](LICENSING.md) · [NOTICE](NOTICE) · [AUTHORS](AUTHORS) · [CONTRIBUTING.md](CONTRIBUTING.md).
+MyFileExplorer is free software under the **GNU General Public License v3.0** ([LICENSE](LICENSE)). Commercial use and redistribution are allowed; distributed modifications must remain under GPLv3 with corresponding source. The **MyFileExplorer** name and logo are trademarks — see [TRADEMARK.md](TRADEMARK.md). Details: [LICENSING.md](LICENSING.md) · [NOTICE](NOTICE) · [AUTHORS](AUTHORS) · [CONTRIBUTING.md](CONTRIBUTING.md).

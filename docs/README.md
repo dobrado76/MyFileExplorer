@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.15.0** — **D72** experimental Windows shell redirect; **D71** GPL-3.0-only; **D70** user-defined metadata; media metadata edit + per-library filters; **D68** / **D67** Virtual Folders remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0-only**).
+**Status:** **v0.15.0** — **D72** experimental Windows shell redirect; **D71** GPL-3.0; **D70** user-defined metadata; media metadata edit + per-library filters; **D68** / **D67** Virtual Folders remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -50,7 +50,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
 | [GIT.md](GIT.md)                                 | Optional Git-aware browsing / lightweight client (D64) |
-| [../LICENSING.md](../LICENSING.md)               | GPL-3.0-only |
+| [../LICENSING.md](../LICENSING.md)               | GPL-3.0 |
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
@@ -61,7 +61,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | ---- | ---- |
 | Windows shell redirect (D72) | Experimental HKCU `Directory` open/explore → `MfeShellLauncher`; Settings → Windows integration — [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md) |
 | User metadata (D70) | Opt-in sets + folder bindings; `mfe_meta` ADS; Details / Power Search — [USER_METADATA.md](USER_METADATA.md) |
-| Licence (D71) | GPL-3.0-only + trademark policy — [../LICENSING.md](../LICENSING.md), [../TRADEMARK.md](../TRADEMARK.md) |
+| Licence (D71) | GPL-3.0 + trademark policy — [../LICENSING.md](../LICENSING.md), [../TRADEMARK.md](../TRADEMARK.md) |
 | Media metadata (D50) | Edit metadata dialog; card/preview icon actions; Watched/Genre filters persist per library — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
 
 ## Recent behavior (v0.14.0)

@@ -1,9 +1,9 @@
 # Licensing
 
-**SPDX-License-Identifier:** `GPL-3.0-only`
+**SPDX-License-Identifier:** `GPL-3.0`
 
 MyFileExplorer is licensed under the
-[GNU General Public License version 3](LICENSE) **only** (not “or later”).
+[GNU General Public License version 3](LICENSE).
 
 ## What that means
 
@@ -23,11 +23,7 @@ sharing revenue. The product name and branding are separate — see
 
 ## Contributors
 
-See [AUTHORS](AUTHORS) and [NOTICE](NOTICE). For a clean project-wide licence
-record, obtain a short written agreement from prior contributors (notably
-[ghiscoding](https://github.com/ghiscoding)) that their contributions are
-licensed under **GPL-3.0-only**. A draft message is in
-[docs/RELICENSE_REQUEST_ghiscoding.md](docs/RELICENSE_REQUEST_ghiscoding.md).
+See [AUTHORS](AUTHORS) and [NOTICE](NOTICE).
 
 ## Dependencies
 
@@ -40,5 +36,5 @@ projection) has its own terms and is not bundled — see
 ## New contributions
 
 By contributing to this repository, you agree that your contributions are
-licensed under **GPL-3.0-only**, unless a prior written agreement says otherwise.
+licensed under **GPL-3.0**, unless a prior written agreement says otherwise.
 See [CONTRIBUTING.md](CONTRIBUTING.md).

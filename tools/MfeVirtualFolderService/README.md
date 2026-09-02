@@ -79,7 +79,7 @@ Host mode is **per-user** (logon task or `--console`). Mount registry: `%LOCALAP
 ## License
 
 This service is part of MyFileExplorer and follows the same project licence
-(**GPL-3.0-only** going forward; see [LICENSING.md](../../LICENSING.md)).
+(**GPL-3.0** going forward; see [LICENSING.md](../../LICENSING.md)).
 
 WinFsp has its own license — do not bundle/redistribute without reviewing
 https://winfsp.dev/ and complying with its terms. This service is an optional

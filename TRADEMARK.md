@@ -2,7 +2,7 @@
 
 The **MyFileExplorer** name, logo, and official branding are trademarks of
 **Meaningfulness Media Group** (and/or its principal). The code licence
-([GPL-3.0-only](LICENSE)) does **not** grant permission to use those marks.
+([GPL-3.0](LICENSE)) does **not** grant permission to use those marks.
 
 ## Allowed
 
