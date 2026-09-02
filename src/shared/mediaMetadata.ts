@@ -1,4 +1,5 @@
 import { isThumbnailViewMode, type ViewMode } from './schemas/session'
+import { samePath } from './paths'
 
 /** NTFS ADS names for experimental media metadata (DEV-gated). */
 export const MEDIA_METADATA_ADS = 'media_metadata'
@@ -8,7 +9,7 @@ export const MEDIA_METADATA_CONTAINER_ADS = 'media_metadata_container'
 
 export const MEDIA_METADATA_VERSION = 1 as const
 
-export type MediaMetadataSource = 'plex' | 'tmdb' | 'omdb'
+export type MediaMetadataSource = 'plex' | 'tmdb' | 'omdb' | 'manual'
 
 export type MediaMetadataKind = 'movie' | 'show' | 'episode'
 
@@ -81,6 +82,50 @@ export function matchesMediaLibraryFilter(
     if (!(flags?.genres ?? []).some((g) => g.toLowerCase() === want)) return false
   }
   return true
+}
+
+export const MAX_MEDIA_LIBRARY_FILTERS = 200
+
+export type MediaLibraryFilterPref = {
+  path: string
+  watched: MediaWatchedFilter
+  genre: string | null
+}
+
+export function isDefaultMediaLibraryFilter(
+  watched: MediaWatchedFilter,
+  genre: string | null
+): boolean {
+  return watched === 'all' && (genre == null || genre === '')
+}
+
+/** Find saved Watched/Genre prefs for a media-library folder. */
+export function resolveMediaLibraryFilter(
+  folderPath: string,
+  list: MediaLibraryFilterPref[] | undefined
+): MediaLibraryFilterPref | null {
+  if (!folderPath || !list?.length) return null
+  return list.find((e) => samePath(e.path, folderPath)) ?? null
+}
+
+/**
+ * Upsert or remove (when default) a per-library filter entry.
+ * Newest path wins; capped at MAX_MEDIA_LIBRARY_FILTERS.
+ */
+export function upsertMediaLibraryFilter(
+  list: MediaLibraryFilterPref[] | undefined,
+  folderPath: string,
+  watched: MediaWatchedFilter,
+  genre: string | null
+): MediaLibraryFilterPref[] {
+  const cleaned = (list ?? []).filter((e) => !samePath(e.path, folderPath))
+  if (isDefaultMediaLibraryFilter(watched, genre)) {
+    return cleaned
+  }
+  return [
+    { path: folderPath, watched, genre: genre?.trim() || null },
+    ...cleaned
+  ].slice(0, MAX_MEDIA_LIBRARY_FILTERS)
 }
 
 export type ParsedMediaName = {
@@ -220,11 +265,139 @@ export function isMediaMetadata(value: unknown): value is MediaMetadata {
   const o = value as Record<string, unknown>
   return (
     o.version === MEDIA_METADATA_VERSION &&
-    (o.source === 'plex' || o.source === 'tmdb' || o.source === 'omdb') &&
+    (o.source === 'plex' || o.source === 'tmdb' || o.source === 'omdb' || o.source === 'manual') &&
     (o.kind === 'movie' || o.kind === 'show' || o.kind === 'episode') &&
     typeof o.title === 'string' &&
     o.title.trim().length > 0
   )
+}
+
+/** Editable card fields (Edit metadata dialog). Does not include source / ratings / cover. */
+export type MediaMetadataEditFields = {
+  title: string
+  year?: number | null
+  originalLanguage?: string | null
+  country?: string[] | null
+  genres?: string[] | null
+  directors?: string[] | null
+  actors?: string[] | null
+  synopsis?: string | null
+  watched?: boolean
+  season?: number | null
+  episode?: number | null
+  showTitle?: string | null
+}
+
+/** Split a comma/semicolon list from the edit form into trimmed unique-ish tokens. */
+export function splitMediaMetadataList(raw: string): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const part of raw.split(/[,;]/)) {
+    const t = part.trim()
+    if (!t) continue
+    const key = t.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(t)
+  }
+  return out
+}
+
+function applyOptionalString(
+  next: MediaMetadata,
+  key: 'originalLanguage' | 'synopsis' | 'showTitle',
+  value: string | null | undefined
+): void {
+  if (value === undefined) return
+  if (value === null || !value.trim()) delete next[key]
+  else next[key] = value.trim()
+}
+
+function applyOptionalStringList(
+  next: MediaMetadata,
+  key: 'country' | 'genres' | 'directors' | 'actors',
+  value: string[] | null | undefined
+): void {
+  if (value === undefined) return
+  if (value === null || value.length === 0) delete next[key]
+  else next[key] = value.map((s) => s.trim()).filter(Boolean)
+}
+
+function applyOptionalNumber(
+  next: MediaMetadata,
+  key: 'year' | 'season' | 'episode',
+  value: number | null | undefined
+): void {
+  if (value === undefined) return
+  if (value === null || !Number.isFinite(value)) delete next[key]
+  else next[key] = Math.trunc(value)
+}
+
+/**
+ * Merge user edit fields into existing metadata.
+ * Preserves `source`, `sourceId`, `kind`, `ratings`, and `fetchedAt`.
+ */
+export function mergeMediaMetadataEdit(
+  existing: MediaMetadata,
+  patch: MediaMetadataEditFields
+): MediaMetadata {
+  const title = patch.title.trim()
+  if (!title) {
+    throw new Error('Title is required')
+  }
+  const next: MediaMetadata = { ...existing, title }
+  if (patch.watched !== undefined) next.watched = patch.watched
+  applyOptionalNumber(next, 'year', patch.year)
+  applyOptionalString(next, 'originalLanguage', patch.originalLanguage)
+  applyOptionalStringList(next, 'country', patch.country)
+  applyOptionalStringList(next, 'genres', patch.genres)
+  applyOptionalStringList(next, 'directors', patch.directors)
+  applyOptionalStringList(next, 'actors', patch.actors)
+  applyOptionalString(next, 'synopsis', patch.synopsis)
+
+  if (existing.kind === 'episode') {
+    applyOptionalNumber(next, 'season', patch.season)
+    applyOptionalNumber(next, 'episode', patch.episode)
+    applyOptionalString(next, 'showTitle', patch.showTitle)
+    if (next.episode != null && next.season == null) next.season = 1
+  } else {
+    delete next.season
+    delete next.episode
+    delete next.showTitle
+  }
+  return next
+}
+
+/** Seed a hand-built card when no `media_metadata` stream exists yet. */
+export function seedManualMediaMetadata(opts: {
+  name: string
+  isDirectory: boolean
+  childNames?: string[]
+}): MediaMetadata {
+  const parsed = parseMediaFileName(opts.name)
+  const classified = classifyMediaFromNames({
+    name: opts.name,
+    isDirectory: opts.isDirectory,
+    childNames: opts.childNames
+  })
+  const kind: MediaMetadataKind =
+    classified === 'ambiguous' ? (opts.isDirectory ? 'show' : 'movie') : classified
+  const title = (parsed.title || opts.name).trim() || opts.name
+  const meta: MediaMetadata = {
+    version: MEDIA_METADATA_VERSION,
+    source: 'manual',
+    kind,
+    title,
+    fetchedAt: new Date().toISOString(),
+    watched: false
+  }
+  if (parsed.year != null) meta.year = parsed.year
+  if (kind === 'episode') {
+    if (parsed.season != null) meta.season = parsed.season
+    if (parsed.episode != null) meta.episode = parsed.episode
+    if (meta.episode != null && meta.season == null) meta.season = 1
+  }
+  return meta
 }
 
 export function formatMediaRating(value: number): string {

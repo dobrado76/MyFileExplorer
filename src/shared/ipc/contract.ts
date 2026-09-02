@@ -177,6 +177,7 @@ export const IPC = {
   mediaMetadataSetCover: 'mediaMetadata:setCover',
   mediaMetadataLoadCustomCover: 'mediaMetadata:loadCustomCover',
   mediaMetadataSetWatched: 'mediaMetadata:setWatched',
+  mediaMetadataSave: 'mediaMetadata:save',
   mediaMetadataFolderLibrary: 'mediaMetadata:folderLibrary',
   mediaMetadataConsolidateSubtitles: 'mediaMetadata:consolidateSubtitles',
   mediaMetadataProbePlex: 'mediaMetadata:probePlex',

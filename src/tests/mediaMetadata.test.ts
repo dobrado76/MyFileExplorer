@@ -25,6 +25,12 @@ import {
   matchesMediaLibraryFilter,
   mediaContainerIgnoresFoldersFirst,
   preferredMediaDownloadSource,
+  mergeMediaMetadataEdit,
+  seedManualMediaMetadata,
+  splitMediaMetadataList,
+  resolveMediaLibraryFilter,
+  upsertMediaLibraryFilter,
+  MAX_MEDIA_LIBRARY_FILTERS,
   MEDIA_METADATA_ADS,
   MEDIA_METADATA_CONTAINER_ADS,
   MEDIA_METADATA_THUMB_ADS
@@ -34,7 +40,10 @@ import {
   formatMediaRatingCopyLine,
   formatMediaRatingScore
 } from '../shared/mediaRatings'
-import { defaultMediaMetadataSettings } from '../shared/schemas/mediaMetadata'
+import {
+  defaultMediaMetadataSettings,
+  mediaMetadataSaveSchema
+} from '../shared/schemas/mediaMetadata'
 import { isMediaApiLimitPayload, mediaApiLimitMessage } from '../shared/mediaApiLimit'
 import {
   appendPlexToken,
@@ -218,6 +227,170 @@ describe('parseMediaMetadataJson', () => {
   it('rejects junk', () => {
     expect(parseMediaMetadataJson('{}')).toBeNull()
     expect(parseMediaMetadataJson('not json')).toBeNull()
+  })
+
+  it('accepts manual source', () => {
+    const m = parseMediaMetadataJson(
+      JSON.stringify({
+        version: 1,
+        source: 'manual',
+        kind: 'movie',
+        title: 'Hand built',
+        fetchedAt: '2026-01-01T00:00:00.000Z'
+      })
+    )
+    expect(m?.source).toBe('manual')
+  })
+})
+
+describe('mergeMediaMetadataEdit', () => {
+  const base = {
+    version: 1 as const,
+    source: 'tmdb' as const,
+    sourceId: '123',
+    kind: 'movie' as const,
+    title: 'Old',
+    year: 1999,
+    genres: ['Drama'],
+    ratings: [{ source: 'TMDB', value: 8, max: 10 }],
+    fetchedAt: '2026-01-01T00:00:00.000Z',
+    watched: false
+  }
+
+  it('updates display fields and preserves source / ratings / fetchedAt', () => {
+    const next = mergeMediaMetadataEdit(base, {
+      title: 'New Title',
+      year: 2001,
+      genres: ['Comedy', 'Drama'],
+      country: ['India'],
+      actors: ['A', 'B'],
+      directors: [],
+      synopsis: 'Hello',
+      originalLanguage: 'hi',
+      watched: true
+    })
+    expect(next.title).toBe('New Title')
+    expect(next.year).toBe(2001)
+    expect(next.genres).toEqual(['Comedy', 'Drama'])
+    expect(next.country).toEqual(['India'])
+    expect(next.actors).toEqual(['A', 'B'])
+    expect(next.directors).toBeUndefined()
+    expect(next.synopsis).toBe('Hello')
+    expect(next.originalLanguage).toBe('hi')
+    expect(next.watched).toBe(true)
+    expect(next.source).toBe('tmdb')
+    expect(next.sourceId).toBe('123')
+    expect(next.ratings).toEqual(base.ratings)
+    expect(next.fetchedAt).toBe(base.fetchedAt)
+  })
+
+  it('clears optional fields with null', () => {
+    const next = mergeMediaMetadataEdit(
+      { ...base, synopsis: 'x', country: ['US'] },
+      { title: 'Keep', year: null, synopsis: null, country: null }
+    )
+    expect(next.year).toBeUndefined()
+    expect(next.synopsis).toBeUndefined()
+    expect(next.country).toBeUndefined()
+  })
+
+  it('applies episode fields only for episode kind', () => {
+    const ep = mergeMediaMetadataEdit(
+      { ...base, kind: 'episode', season: 1, episode: 2, showTitle: 'Show' },
+      { title: 'Ep', season: 3, episode: 4, showTitle: 'Other' }
+    )
+    expect(ep.season).toBe(3)
+    expect(ep.episode).toBe(4)
+    expect(ep.showTitle).toBe('Other')
+
+    const movie = mergeMediaMetadataEdit(
+      { ...base, season: 1, episode: 2, showTitle: 'leak' },
+      { title: 'Movie', season: 9, episode: 9, showTitle: 'nope' }
+    )
+    expect(movie.season).toBeUndefined()
+    expect(movie.episode).toBeUndefined()
+    expect(movie.showTitle).toBeUndefined()
+  })
+
+  it('rejects empty title', () => {
+    expect(() => mergeMediaMetadataEdit(base, { title: '   ' })).toThrow(/Title/)
+  })
+})
+
+describe('splitMediaMetadataList / seedManualMediaMetadata', () => {
+  it('splits and dedupes list input', () => {
+    expect(splitMediaMetadataList(' Comedy, drama; Comedy , ')).toEqual(['Comedy', 'drama'])
+  })
+
+  it('seeds a manual movie from a year-tagged name', () => {
+    const m = seedManualMediaMetadata({
+      name: 'The.Matrix.1999.mkv',
+      isDirectory: false
+    })
+    expect(m.source).toBe('manual')
+    expect(m.kind).toBe('movie')
+    expect(m.title).toBe('The Matrix')
+    expect(m.year).toBe(1999)
+    expect(m.watched).toBe(false)
+  })
+
+  it('seeds an episode from SxxExx', () => {
+    const m = seedManualMediaMetadata({
+      name: 'Show.S02E05.mkv',
+      isDirectory: false
+    })
+    expect(m.kind).toBe('episode')
+    expect(m.season).toBe(2)
+    expect(m.episode).toBe(5)
+  })
+})
+
+describe('media library filter prefs', () => {
+  it('upserts per folder and drops defaults', () => {
+    let list = upsertMediaLibraryFilter([], 'C:\\Movies', 'unwatched', 'Drama')
+    expect(list).toEqual([{ path: 'C:\\Movies', watched: 'unwatched', genre: 'Drama' }])
+    list = upsertMediaLibraryFilter(list, 'C:\\TV', 'watched', null)
+    expect(list[0]?.path).toBe('C:\\TV')
+    expect(resolveMediaLibraryFilter('c:/movies', list)?.watched).toBe('unwatched')
+    list = upsertMediaLibraryFilter(list, 'C:\\Movies', 'all', null)
+    expect(resolveMediaLibraryFilter('C:\\Movies', list)).toBeNull()
+    expect(list).toHaveLength(1)
+  })
+
+  it('caps stored library filters', () => {
+    let list: { path: string; watched: 'all' | 'watched' | 'unwatched'; genre: string | null }[] =
+      []
+    for (let i = 0; i < MAX_MEDIA_LIBRARY_FILTERS + 5; i++) {
+      list = upsertMediaLibraryFilter(list, `C:\\Lib${i}`, 'watched', null)
+    }
+    expect(list).toHaveLength(MAX_MEDIA_LIBRARY_FILTERS)
+    expect(list[0]?.path).toBe(`C:\\Lib${MAX_MEDIA_LIBRARY_FILTERS + 4}`)
+  })
+})
+
+describe('mediaMetadataSaveSchema', () => {
+  it('accepts a save request', () => {
+    const parsed = mediaMetadataSaveSchema.parse({
+      path: 'C:\\Movies\\Heat.mkv',
+      fields: {
+        title: 'Heat',
+        year: 1995,
+        genres: ['Crime'],
+        synopsis: null,
+        watched: true
+      }
+    })
+    expect(parsed.fields.title).toBe('Heat')
+    expect(parsed.fields.synopsis).toBeNull()
+  })
+
+  it('rejects empty title', () => {
+    expect(() =>
+      mediaMetadataSaveSchema.parse({
+        path: 'C:\\a.mkv',
+        fields: { title: '' }
+      })
+    ).toThrow()
   })
 })
 

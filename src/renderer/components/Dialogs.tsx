@@ -70,6 +70,7 @@ import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
 import { TabCustomIconDialog } from './TabCustomIconDialog'
 import { ItemNoteDialog } from './ItemNoteDialog'
+import { EditMediaMetadataDialog } from './EditMediaMetadataDialog'
 import { UserMetadataDialog } from './UserMetadataDialog'
 import { UserMetadataSettingsPanel } from './UserMetadataSettingsPanel'
 import { ItemIconPickerDialog } from './ItemIconPickerDialog'
@@ -395,6 +396,8 @@ export function Dialogs(): JSX.Element | null {
       return <PowerSearchDialog />
     case 'change-cover':
       return <CoverPickerDialog path={dialog.path} />
+    case 'edit-media-metadata':
+      return <EditMediaMetadataDialog path={dialog.path} />
     case 'media-kind':
       return <MediaKindDialog title={dialog.title} message={dialog.message} />
     case 'media-pick':

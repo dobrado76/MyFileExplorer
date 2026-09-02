@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.14.0** — **D68** Virtual Folder OS projection (Windows / WinFsp); **D67** Virtual Folders (`.mfevirtual`); **D66** WinDirStat-style folder space map + **D65** lock owners; **D64** Git / **D63** Quick Launch remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D71**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0-only**).
+**Status:** **v0.15.0** — **D72** experimental Windows shell redirect; **D71** GPL-3.0-only; **D70** user-defined metadata; **D68** / **D67** Virtual Folders remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0-only**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -54,6 +54,15 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.15.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Windows shell redirect (D72) | Experimental HKCU `Directory` open/explore → `MfeShellLauncher`; Settings → Windows integration — [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md) |
+| User metadata (D70) | Opt-in sets + folder bindings; `mfe_meta` ADS; Details / Power Search — [USER_METADATA.md](USER_METADATA.md) |
+| Licence (D71) | GPL-3.0-only + trademark policy — [../LICENSING.md](../LICENSING.md), [../TRADEMARK.md](../TRADEMARK.md) |
+| Media card hover | Download metadata / change cover / watched on media-container icon tiles |
 
 ## Recent behavior (v0.14.0)
 

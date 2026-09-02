@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.14.0
+**Version:** 0.15.0
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 
@@ -266,6 +266,7 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `mediaMetadata:loadCustomCover` | `{ path, imagePath }` | `{ cover }` — register a user-picked image file for the picker / `setCover` |
 | `mediaMetadata:setCover` | `{ path, coverId, previewBase64? }` | `{ ok: true }` — preview is a fallback if the cover session is gone |
 | `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
+| `mediaMetadata:save` | `{ path, fields }` | `{ path }` — merge editable card fields; creates `source: 'manual'` when no stream yet |
 | `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode?, title?, showTitle? }[] }` |
 | `mediaMetadata:consolidateSubtitles` | `{ paths[] }` | `{ copied, skipped, recycled, failed[] }` — flatten Subs / Subtitles next to videos; Recycle Bin |
 | `mediaMetadata:probePlex` | — | `{ installed, running, dataDir, tokenFound, url }` |
@@ -315,7 +316,7 @@ window.myFileExplorer = {
   thumbs: { get, generateVidCache },
   meta: { getMany, invalidate },
   ads: { list, listNamesMany, exists, readText, writeText, delete, readBytes, writeBytes, copy },
-  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, loadCustomCover, setCover, setWatched, folderLibrary, consolidateSubtitles, probePlex },
+  mediaMetadata: { extractPlex, download, refresh, clear, get, listCovers, loadCustomCover, setCover, setWatched, save, folderLibrary, consolidateSubtitles, probePlex },
   slideshow: { listImages, pickOpenFile, … },
   git: { detect, test, discover, getStatus, refresh, stage, unstage, discard, commit, fetch, pull, push, listBranches, switchBranch, createBranch, stash, stashPop, showDiff, openTerminal, … },
   app: { getPath, pickFolder, ready, … },

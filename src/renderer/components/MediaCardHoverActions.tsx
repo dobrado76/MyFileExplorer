@@ -1,5 +1,5 @@
 import type { JSX, MouseEvent } from 'react'
-import { Download, Eye, EyeOff, ImageIcon } from 'lucide-react'
+import { Download, Eye, EyeOff, ImageIcon, Pencil } from 'lucide-react'
 import type { DirEntry } from '@shared/schemas/fs'
 import { isMediaMetadataVideoName, preferredMediaDownloadSource } from '@shared/mediaMetadata'
 import { useAppStore } from '../store/appStore'
@@ -14,7 +14,7 @@ function stop(e: MouseEvent): void {
   e.stopPropagation()
 }
 
-/** Hover toolbar on media-container icon tiles (download / cover / watched). */
+/** Hover toolbar on media-container icon tiles (edit / download / cover / watched). */
 export function MediaCardHoverActions({ entry, watched }: Props): JSX.Element | null {
   const mm = useAppStore((s) => s.settings.mediaMetadata)
   const openDialog = useAppStore((s) => s.openDialog)
@@ -52,6 +52,20 @@ export function MediaCardHoverActions({ entry, watched }: Props): JSX.Element | 
           <Download size={16} strokeWidth={2} aria-hidden />
         </button>
       ) : null}
+      <button
+        type="button"
+        className="media-card-hover-btn"
+        title="Edit metadata…"
+        aria-label="Edit metadata"
+        onPointerDown={stop}
+        onMouseDown={stop}
+        onClick={(e) => {
+          stop(e)
+          openDialog({ kind: 'edit-media-metadata', path: entry.path })
+        }}
+      >
+        <Pencil size={16} strokeWidth={2} aria-hidden />
+      </button>
       <button
         type="button"
         className="media-card-hover-btn"

@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.14.0
+**App:** MyFileExplorer · **Version:** 0.15.0
 
 MyFileExplorer is a **local file workbench**: it keeps Explorer muscle memory (Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while turning the filesystem into a semantic, searchable, automatable workspace — without moving your files into a proprietary database or cloud repository.
 

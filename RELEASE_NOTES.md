@@ -1,55 +1,57 @@
-# MyFileExplorer v0.14.0 — release notes
+# MyFileExplorer v0.15.0 — release notes
 
-**Date:** 2026-08-30  
-**Tag:** `v0.14.0` (package **0.14.0**)  
-**Previous product baseline:** [v0.13.0](CHANGELOG.md#0130---2026-08-28)
+**Date:** 2026-09-02  
+**Tag:** `v0.15.0` (package **0.15.0**)  
+**Previous product baseline:** [v0.14.0](CHANGELOG.md#0140---2026-08-30)
 
-Fourteenth product release (**v0.14**): **Virtual Folders** (`.mfevirtual`, **D67**) and optional **OS projection** on Windows (**D68** / WinFsp), plus folder-stats and Git preview polish carried from the unreleased line.
+Fifteenth product release (**v0.15**): **user-defined metadata** (**D70**), **GPL-3.0-only** licensing (**D71**), and experimental **Windows shell redirect** (**D72**), plus media-library hover actions and polish on video thumbs / slideshow.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Virtual Folders: [docs/VIRTUAL_FOLDERS.md](docs/VIRTUAL_FOLDERS.md) · projection: [docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). User metadata: [docs/USER_METADATA.md](docs/USER_METADATA.md) · shell redirect: [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md) · licensing: [LICENSING.md](LICENSING.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Virtual Folders (D67)
+### User-defined structured metadata (D70, off by default)
 
-Portable **`.mfevirtual`** JSON collections of path references — not copies, not one physical directory.
+Define metadata **sets**, bind them to folders, edit values on files/folders (`mfe_meta` ADS), optional Details columns, and Power Search `meta.<key>:`.
 
-- Open as a first-class folder location (`Tab.path` = the document file)
-- Nested Virtual Folders are **embedded groups** inside the same JSON
-- New → Virtual Folder; drop/paste adds references; Del removes membership
-- Extract an embedded group to a real folder (spawns a new `.mfevirtual`); absorb a document back into another collection (move deletes the source file after unproject)
-- Manual sort + Location column; dedicated preview
+Enable under **Settings → Metadata**. Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
 
-### OS projection (D68, Windows, optional)
+### Windows shell redirect (D72, experimental)
 
-When enabled, Explorer and other apps see the same collection at a sibling folder: `Name.mfevirtual` → `Name\`.
+Optional per-user redirect of ordinary `Directory` open/explore shell verbs to MyFileExplorer via a small `MfeShellLauncher.exe` (bundled in the installer).
 
-1. Install **[WinFsp](https://winfsp.dev/)** (required; not bundled).
-2. Download **`MfeVirtualFolderService-win-x64.zip`** from this GitHub Release, unzip somewhere permanent, run **`Install-ProjectionService.ps1`**.
-3. In MyFileExplorer: **Settings → Behavior → Virtual Folder OS projection**.
+- **Settings → Windows integration** — Enable, Test, Repair, Restore previous folder-opening configuration
+- Machine-local registry state (not settings export/import)
+- Win+E / taskbar Explorer / direct `explorer.exe` launches stay untouched
 
-Guide: [docs/VIRTUAL_FOLDER_PROJECTION.md](docs/VIRTUAL_FOLDER_PROJECTION.md). Local disk only in v1.
+Guide: [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
+
+### Licence: GPL-3.0-only (D71)
+
+The project is **GPL-3.0-only**, with a separate trademark policy for the MyFileExplorer name and logo. See [LICENSING.md](LICENSING.md) and [TRADEMARK.md](TRADEMARK.md).
 
 ### Also in this release
 
-- Calculate Statistics **Skip folder** no longer stalls the walk
-- Drive / parent folder statistics rollup; Git repo-root preview **Git | Folder** tabs
-- `.asf` treated as video across preview, search, and media metadata
+- Media-container icon tiles: hover actions for download metadata, change cover, watched/unwatched
+- Slideshow context menu **Copy image** (clipboard bitmap)
+- Renaming / same-volume moving a video also renames matching `!VIDTHUMB_CACHE` strip frames
+- AI script generation: stronger UTF-8 / CJK path handling guidance
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.14.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.15.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
-3. Before a PC swap: **Settings → About → Export…** (includes the script library and templates catalog; AI keys stay on the machine).
-4. **Optional OS projection:** install [WinFsp](https://winfsp.dev/), then the `MfeVirtualFolderService-win-x64.zip` from the same Release (see Highlights above).
+3. Before a PC swap: **Settings → About → Export…** (script library and templates catalog included; AI keys and shell-redirect state stay on the machine).
+4. **Optional OS projection:** install [WinFsp](https://winfsp.dev/), then `MfeVirtualFolderService-win-x64.zip` from the same Release.
+5. **Shell redirect:** after install, **Settings → Windows integration** (experimental). The installer ships `MfeShellLauncher.exe` beside the main app.
 
 ## Upgrade notes
 
-- Fully quit and relaunch (IPC / preload changes need a cold start).
-- Virtual Folder OS projection stays **off** until you enable it and install WinFsp + the service.
-- **Git**, Scripts, Media Metadata, and **User Metadata** stay **off** until you enable them.
-- Notes, item icons, and folder statistics streams need **local NTFS**.
+- Fully quit and relaunch (IPC / preload / launcher changes need a cold start).
+- **User Metadata**, shell redirect, Git, Scripts, and Media Metadata stay **off** until you enable them.
+- Licence text and notices are GPL-3.0-only going forward; see [LICENSING.md](LICENSING.md).
+- Notes, item icons, folder statistics, and user metadata streams need **local NTFS**.

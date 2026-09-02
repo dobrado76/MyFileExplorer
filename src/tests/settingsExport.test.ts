@@ -475,7 +475,14 @@ describe('settings export / import', () => {
           plexUrl: 'http://127.0.0.1:32400',
           coverHeightPx: 160,
           showEpisodeIconLabels: false,
-          mixFilesAndFolders: false
+          mixFilesAndFolders: false,
+          libraryFilters: [
+            {
+              path: 'C:\\Movies',
+              watched: 'unwatched',
+              genre: 'Drama'
+            }
+          ]
         }
       },
       networkHosts: []
@@ -488,8 +495,12 @@ describe('settings export / import', () => {
     expect(parsed.settings.mediaMetadata.coverHeightPx).toBe(160)
     expect(parsed.settings.mediaMetadata.showEpisodeIconLabels).toBe(false)
     expect(parsed.settings.mediaMetadata.mixFilesAndFolders).toBe(false)
+    expect(parsed.settings.mediaMetadata.libraryFilters).toEqual([
+      { path: 'C:\\Movies', watched: 'unwatched', genre: 'Drama' }
+    ])
     expect(defaultSettings.mediaMetadata.showEpisodeIconLabels).toBe(true)
     expect(defaultSettings.mediaMetadata.mixFilesAndFolders).toBe(false)
+    expect(defaultSettings.mediaMetadata.libraryFilters).toEqual([])
   })
 
   it('round-trips remote connection metadata and strips hasPassword', () => {

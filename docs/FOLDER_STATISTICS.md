@@ -1,6 +1,6 @@
 # Folder statistics & space usage
 
-**Version:** 0.14.0 · Decision: [DECISIONS.md](DECISIONS.md) **D66**
+**Version:** 0.15.0 · Decision: [DECISIONS.md](DECISIONS.md) **D66**
 
 **Calculate Statistics** walks a local NTFS folder (or volume root), writes summary streams on that folder and its subfolders, and unlocks a rich **preview card** with a WinDirStat-style **Space usage** map. No sidecars in the browsed tree — data lives in NTFS Alternate Data Streams on each folder. Stream names and write rules: [ADS.md](ADS.md). Preview chrome (Git / Media tabs): [PREVIEW.md](PREVIEW.md).
 

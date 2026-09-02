@@ -8,6 +8,7 @@ import {
   type ReactNode
 } from 'react'
 import { createPortal } from 'react-dom'
+import { Eye, EyeOff, ImageIcon, Pencil } from 'lucide-react'
 import { formatEpisodeCode, formatMediaRating, type MediaMetadata } from '@shared/mediaMetadata'
 import {
   classifyMediaRatingSource,
@@ -155,20 +156,37 @@ export function MediaMetadataHero(): JSX.Element | null {
           {meta.title}
         </div>
         {sub ? <div className="media-metadata-hero-sub">{sub}</div> : null}
-        <div className="media-metadata-hero-actions">
+        <div className="media-metadata-hero-actions" role="toolbar" aria-label="Media actions">
           <button
             type="button"
-            className="media-metadata-change-cover"
-            onClick={() => openDialog({ kind: 'change-cover', path: view.path })}
+            className="media-metadata-hero-action"
+            title="Edit metadata…"
+            aria-label="Edit metadata"
+            onClick={() => openDialog({ kind: 'edit-media-metadata', path: view.path })}
           >
-            Change cover
+            <Pencil size={16} strokeWidth={2} aria-hidden />
           </button>
           <button
             type="button"
-            className="media-metadata-change-cover"
+            className="media-metadata-hero-action"
+            title="Change cover…"
+            aria-label="Change cover"
+            onClick={() => openDialog({ kind: 'change-cover', path: view.path })}
+          >
+            <ImageIcon size={16} strokeWidth={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="media-metadata-hero-action"
+            title={view.meta.watched ? 'Mark as Unwatched' : 'Mark as Watched'}
+            aria-label={view.meta.watched ? 'Mark as Unwatched' : 'Mark as Watched'}
             onClick={() => void mediaMetadataSetWatched([view.path], !view.meta.watched)}
           >
-            {view.meta.watched ? 'Mark as Unwatched' : 'Mark as Watched'}
+            {view.meta.watched ? (
+              <EyeOff size={16} strokeWidth={2} aria-hidden />
+            ) : (
+              <Eye size={16} strokeWidth={2} aria-hidden />
+            )}
           </button>
         </div>
       </div>

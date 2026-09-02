@@ -317,6 +317,7 @@ import {
   loadCustomCover,
   probePlex,
   refreshMany,
+  saveMediaMetadataFields,
   setMediaCover,
   setWatchedMany
 } from '../mediaMetadata'
@@ -324,6 +325,7 @@ import {
   mediaMetadataLoadCustomCoverSchema,
   mediaMetadataPathSchema,
   mediaMetadataPathsSchema,
+  mediaMetadataSaveSchema,
   mediaMetadataSetCoverSchema,
   mediaMetadataSetWatchedSchema
 } from '@shared/schemas/mediaMetadata'
@@ -1073,6 +1075,10 @@ export function registerIpcHandlers(): void {
   handle(IPC.mediaMetadataSetWatched, mediaMetadataSetWatchedSchema, (req) => {
     assertMediaMetadataEnabled()
     return setWatchedMany(req.paths, req.watched)
+  })
+  handle(IPC.mediaMetadataSave, mediaMetadataSaveSchema, (req) => {
+    assertMediaMetadataEnabled()
+    return saveMediaMetadataFields(req.path, req.fields)
   })
   handle(IPC.mediaMetadataFolderLibrary, mediaMetadataPathSchema, (req) => {
     assertMediaMetadataEnabled()

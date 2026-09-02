@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.14.0
+**Version:** 0.15.0
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).

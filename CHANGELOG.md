@@ -11,13 +11,25 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Added
 
-- **Windows shell redirect (experimental, D72)** — Settings → Windows integration: per-user `Directory\shell\open` + `explore` redirect via `MfeShellLauncher.exe`; backup/restore/repair; invocation log. Not included in settings export. See [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
+- **Edit media metadata** — dialog to fix inaccurate downloaded cards (title, year, language, country, genres, directors, actors, synopsis, watched; episodes also season / episode / show title). Entry points: Media Metadata → **Edit metadata…**, preview hero, and media-card hover pencil. Saving with no card yet creates a `manual` source entry. Ratings / cover stay on Change cover; Update from Plex/Internet may still overwrite display fields (watched is kept).
+- **Media library filters persist per folder** — Watched / Genre toolbar choices are saved per `media_metadata_container` library path and restored on revisit (settings export includes them).
 
+## [0.15.0] - 2026-09-02
+
+Fifteenth product release: **user-defined metadata** (**D70**), **GPL-3.0-only** (**D71**), experimental **Windows shell redirect** (**D72**), plus media-library hover actions and video-thumb / slideshow polish. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+### Added
+
+- **Windows shell redirect (experimental, D72)** — Settings → Windows integration: per-user `Directory\shell\open` + `explore` redirect via `MfeShellLauncher.exe` (bundled in the NSIS installer); backup / restore / repair; local invocation log. Not included in settings export. See [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
 - **User-defined structured metadata (D70, off by default)** — Settings → Metadata → Enable. Define metadata sets, assign them to folders (or mark No metadata), edit values in context/preview (`mfe_meta` ADS), optional Details columns, Power Search `meta.<key>:`. Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
+- **Media card hover actions** — in a media-container folder (icon/thumbnail views): download metadata (Internet if configured, else Plex; hidden if neither), change cover, mark watched/unwatched.
+- **Slideshow Copy image** — right-click during slideshow copies the current slide to the OS clipboard as a bitmap (uses latest in-app edit tip when present).
 
 ### Changed
 
 - **Licence (D71)** — **GPL-3.0-only**, plus trademark policy for the product name/logo. See [LICENSING.md](LICENSING.md), [TRADEMARK.md](TRADEMARK.md), [NOTICE](NOTICE).
+- **Video preview strips** — rename / same-volume move of a video also renames matching `!VIDTHUMB_CACHE` frames (best-effort) so strips stay with the file.
+- **AI script generation** — system prompt requires UTF-8 manifest reads and correct handling of non-ASCII (e.g. CJK) filenames; never treat `\uXXXX` escapes as real path segments.
 
 ## [0.14.0] - 2026-08-30
 

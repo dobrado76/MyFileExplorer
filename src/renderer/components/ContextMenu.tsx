@@ -380,6 +380,14 @@ function mediaMetadataMenu(
         ...(targets.length === 1
           ? [
               {
+                label: 'Edit metadata…',
+                title: 'Fix title, genres, cast, synopsis, and other card fields',
+                action: () => {
+                  close()
+                  s.openDialog({ kind: 'edit-media-metadata', path: targets[0]! })
+                }
+              },
+              {
                 label: 'Change cover…',
                 title: 'Pick from Plex and TMDB posters for this title',
                 action: () => {

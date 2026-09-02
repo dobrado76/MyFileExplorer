@@ -18,7 +18,10 @@ import {
   parseMediaSearchAs,
   parseMediaSourceInput,
   pickIdFromStored,
+  mergeMediaMetadataEdit,
+  seedManualMediaMetadata,
   type MediaMetadata,
+  type MediaMetadataEditFields,
   type MediaPickCandidate,
   type MediaQueryKind
 } from '@shared/mediaMetadata'
@@ -626,6 +629,51 @@ export async function setWatchedMany(rawPaths: string[], watched: boolean): Prom
     throw new AppError('validation', 'No media metadata on the selection to mark')
   }
   return { updated }
+}
+
+export async function saveMediaMetadataFields(
+  rawPath: string,
+  fields: MediaMetadataEditFields
+): Promise<{ path: string }> {
+  const p = requireAbsolute(rawPath)
+  if (p.toLowerCase().startsWith('mfe-remote://')) {
+    throw new AppError('validation', 'Media metadata is not available on remote paths')
+  }
+  let existing = await readMediaMetadata(p)
+  if (!existing) {
+    let childNames: string[] | undefined
+    let isDirectory: boolean
+    try {
+      const st = await fsp.stat(p)
+      isDirectory = st.isDirectory()
+      if (isDirectory) {
+        const ents = await fsp.readdir(p)
+        childNames = ents.slice(0, 500)
+      }
+    } catch {
+      throw new AppError('not-found', 'Path not found')
+    }
+    if (!isDirectory && !isMediaMetadataVideoName(path.basename(p))) {
+      throw new AppError('validation', 'Media metadata can only be saved on folders or video files')
+    }
+    existing = seedManualMediaMetadata({
+      name: path.basename(p),
+      isDirectory,
+      childNames
+    })
+  }
+  let merged: MediaMetadata
+  try {
+    merged = mergeMediaMetadataEdit(existing, fields)
+  } catch (e) {
+    throw new AppError('validation', e instanceof Error ? e.message : String(e))
+  }
+  if (merged.kind === 'episode') {
+    merged = normalizeEpisodeFields(merged, path.basename(p))
+  }
+  await writeMediaMetadata(p, merged, null)
+  await invalidateColumnMetaPaths([p])
+  return { path: p }
 }
 
 export async function getFolderMediaLibrary(rawPath: string): Promise<{

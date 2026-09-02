@@ -2,7 +2,7 @@
 
 > **Opt-in, off by default.** Settings → **Metadata** → **Enable user metadata**. When off, context / preview / columns / Power Search meta UI stay hidden and `userMetadata:*` IPC rejects. Distinct from Media Metadata (D50) and notes (D61).
 
-**Version:** D70 · Decision **D70**
+**Version:** 0.15.0 · Decision **D70**
 
 MyFileExplorer is a **local file workbench**: richer meaning on ordinary files without relocating them into a proprietary database. User-defined metadata is a **project-local semantic schema** — not a global app feature:
 

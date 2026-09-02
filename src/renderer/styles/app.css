@@ -4082,8 +4082,31 @@ button.media-metadata-hero-poster.is-clickable:hover {
 .media-metadata-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 14px;
+  align-items: center;
+  gap: 6px;
   margin-top: 6px;
+}
+.media-metadata-hero-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--fg);
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+  cursor: pointer;
+}
+.media-metadata-hero-action:hover {
+  background: color-mix(in srgb, var(--accent) 70%, #fff);
+  color: #fff;
+}
+.media-metadata-hero-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .media-metadata-change-cover {
   margin-top: 0;
@@ -5899,6 +5922,36 @@ html.idle-cursor-hidden * {
 }
 .modal.modal-item-note {
   width: min(480px, 96vw);
+}
+.modal.modal-edit-media-metadata {
+  width: min(520px, 96vw);
+  max-height: min(90vh, 760px);
+  display: flex;
+  flex-direction: column;
+}
+.modal.modal-edit-media-metadata .modal-body {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.media-edit-hint {
+  margin: 0 0 10px;
+  font-size: 0.9em;
+}
+.media-edit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.media-edit-watched {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 10px;
+}
+.media-edit-source {
+  margin: 0;
+  font-size: 0.85em;
 }
 .modal.modal-user-metadata {
   width: min(520px, 96vw);

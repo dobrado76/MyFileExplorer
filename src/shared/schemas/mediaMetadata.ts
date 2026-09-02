@@ -29,7 +29,21 @@ export const mediaMetadataSettingsSchema = z.object({
   mixFilesAndFolders: z.boolean().catch(false),
   plexUrl: z.string().catch('http://127.0.0.1:32400'),
   plexToken: z.string().catch(''),
-  plexDataDir: z.string().catch('')
+  plexDataDir: z.string().catch(''),
+  /**
+   * Last Watched / Genre toolbar filters per media-library folder
+   * (`media_metadata_container` path). Cap enforced in helpers.
+   */
+  libraryFilters: z
+    .array(
+      z.object({
+        path: z.string().min(1),
+        watched: z.enum(['all', 'watched', 'unwatched']).catch('all'),
+        genre: z.string().max(200).nullable().catch(null)
+      })
+    )
+    .max(200)
+    .catch([])
 })
 
 export type MediaMetadataSettings = z.infer<typeof mediaMetadataSettingsSchema>
@@ -66,3 +80,32 @@ export const mediaMetadataSetWatchedSchema = z.object({
   paths: z.array(z.string().min(1)).min(1).max(200),
   watched: z.boolean()
 })
+
+const optionalStringList = z
+  .array(z.string().max(200))
+  .max(80)
+  .nullable()
+  .optional()
+
+/** Editable fields for `mediaMetadata:save` (null clears an optional field). */
+export const mediaMetadataEditFieldsSchema = z.object({
+  title: z.string().min(1).max(500),
+  year: z.number().int().min(1870).max(2100).nullable().optional(),
+  originalLanguage: z.string().max(80).nullable().optional(),
+  country: optionalStringList,
+  genres: optionalStringList,
+  directors: optionalStringList,
+  actors: optionalStringList,
+  synopsis: z.string().max(20_000).nullable().optional(),
+  watched: z.boolean().optional(),
+  season: z.number().int().min(0).max(999).nullable().optional(),
+  episode: z.number().int().min(0).max(9999).nullable().optional(),
+  showTitle: z.string().max(500).nullable().optional()
+})
+
+export const mediaMetadataSaveSchema = z.object({
+  path: z.string().min(1),
+  fields: mediaMetadataEditFieldsSchema
+})
+
+export type MediaMetadataSaveRequest = z.infer<typeof mediaMetadataSaveSchema>

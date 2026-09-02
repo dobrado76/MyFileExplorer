@@ -129,7 +129,12 @@ import {
 } from '@shared/schemas/quickAccess'
 import { isMediaApiLimitError } from '@shared/mediaApiLimit'
 import { isMediaNameMissError } from '@shared/mediaMetadata'
-import { type MediaLibraryItemFlags, type MediaWatchedFilter } from '@shared/mediaMetadata'
+import {
+  resolveMediaLibraryFilter,
+  upsertMediaLibraryFilter,
+  type MediaLibraryItemFlags,
+  type MediaWatchedFilter
+} from '@shared/mediaMetadata'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { isExcludedByViewFilter, listingHasAllSelected } from '../lib/viewFilter'
 import {
@@ -335,6 +340,7 @@ export type DialogState =
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | { kind: 'power-search' }
   | { kind: 'change-cover'; path: string }
+  | { kind: 'edit-media-metadata'; path: string }
   | { kind: 'media-kind'; title: string; message: string }
   | {
       kind: 'media-pick'
@@ -1065,6 +1071,10 @@ type AppState = {
   mediaMetadataClear(paths: string[]): Promise<void>
   mediaMetadataConsolidateSubtitles(paths: string[]): Promise<void>
   mediaMetadataSetWatched(paths: string[], watched: boolean): Promise<void>
+  mediaMetadataSave(
+    path: string,
+    fields: import('@shared/mediaMetadata').MediaMetadataEditFields
+  ): Promise<void>
   setMediaLibraryWatchedFilter(value: MediaWatchedFilter): void
   setMediaLibraryGenreFilter(genre: string | null): void
 
@@ -1430,19 +1440,26 @@ export const useAppStore = create<AppState>()((set, get) => {
           if (g.trim()) genreSet.add(g)
         }
       }
-      const genreStill =
-        same &&
-        prev.genreFilter &&
-        [...genreSet].some((g) => g.toLowerCase() === prev.genreFilter!.toLowerCase())
-          ? prev.genreFilter
+      const saved = resolveMediaLibraryFilter(
+        folderPath,
+        get().settings.mediaMetadata.libraryFilters
+      )
+      const watchedFilter: MediaWatchedFilter = same
+        ? prev.watchedFilter
+        : (saved?.watched ?? 'all')
+      const preferredGenre = same ? prev.genreFilter : (saved?.genre ?? null)
+      const genreFilter =
+        preferredGenre &&
+        [...genreSet].some((g) => g.toLowerCase() === preferredGenre.toLowerCase())
+          ? preferredGenre
           : null
       set({
         mediaLibrary: {
           folderPath,
           isContainer: res.isContainer,
           items,
-          watchedFilter: same ? prev.watchedFilter : 'all',
-          genreFilter: genreStill
+          watchedFilter,
+          genreFilter
         }
       })
       resortCurrentListing()
@@ -8517,14 +8534,43 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
+    async mediaMetadataSave(path, fields) {
+      if (!get().settings.mediaMetadata.enabled) return
+      const res = await call(api.mediaMetadata.save({ path, fields }))
+      const folder = get().listing.path
+      get().invalidateContentThumbs([res.path, path, ...(folder ? [folder] : [])])
+      get().bumpColumnMeta(res.path)
+      if (folder) void refreshMediaLibraryFolder(folder)
+    },
+
     setMediaLibraryWatchedFilter(value) {
       set((s) => ({ mediaLibrary: { ...s.mediaLibrary, watchedFilter: value } }))
       viewOrderCache = null
+      const folder = get().mediaLibrary.folderPath
+      if (!folder || !get().mediaLibrary.isContainer) return
+      const genre = get().mediaLibrary.genreFilter
+      const libraryFilters = upsertMediaLibraryFilter(
+        get().settings.mediaMetadata.libraryFilters,
+        folder,
+        value,
+        genre
+      )
+      void get().applySettingsPatch({ mediaMetadata: { libraryFilters } })
     },
 
     setMediaLibraryGenreFilter(genre) {
       set((s) => ({ mediaLibrary: { ...s.mediaLibrary, genreFilter: genre } }))
       viewOrderCache = null
+      const folder = get().mediaLibrary.folderPath
+      if (!folder || !get().mediaLibrary.isContainer) return
+      const watched = get().mediaLibrary.watchedFilter
+      const libraryFilters = upsertMediaLibraryFilter(
+        get().settings.mediaMetadata.libraryFilters,
+        folder,
+        watched,
+        genre
+      )
+      void get().applySettingsPatch({ mediaMetadata: { libraryFilters } })
     },
 
     async calculateFolderStatistics(folderPath, opts) {

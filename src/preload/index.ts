@@ -201,6 +201,7 @@ const api: MyFileExplorerApi = {
     loadCustomCover: invoke(IPC.mediaMetadataLoadCustomCover),
     setCover: invoke(IPC.mediaMetadataSetCover),
     setWatched: invoke(IPC.mediaMetadataSetWatched),
+    save: invoke(IPC.mediaMetadataSave),
     folderLibrary: invoke(IPC.mediaMetadataFolderLibrary),
     consolidateSubtitles: invoke(IPC.mediaMetadataConsolidateSubtitles),
     probePlex: invokeVoid(IPC.mediaMetadataProbePlex)

@@ -167,7 +167,7 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 | **[docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md)** | Opt-in movie/TV metadata (D50) |
 | **[docs/SCRIPTS.md](docs/SCRIPTS.md)** | Universal script runner — use cases and copy-paste examples (D51) |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.14.0 product-release summary |
+| **[RELEASE_NOTES.md](RELEASE_NOTES.md)** | v0.15.0 product-release summary |
 
 ---
 

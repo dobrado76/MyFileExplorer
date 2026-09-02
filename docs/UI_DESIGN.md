@@ -1,6 +1,6 @@
 # UI design
 
-**Version:** 0.14.0
+**Version:** 0.15.0
 
 Dark-first workbench aesthetic; light and custom themes via CSS variables. This is a **tool**, not a marketing site.
 

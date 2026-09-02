@@ -57,6 +57,7 @@ Shown only on **folders** and **video files**. Remotes (`mfe-remote://`) are ski
 | **Update** | Refresh items that already have metadata from their stored source (Plex vs internet). Missing items are extracted from Plex. Internet items reuse the stored id (no second title ask). |
 | **Clear** | Remove this app’s metadata + cover streams. Folders walk every video inside. |
 | **Consolidate subtitles** | Copy the first English subtitle next to each video, then Recycle the `Subs` / `Subtitles` tree. Confirms first. |
+| **Edit metadata…** | Single item only. Dialog to fix title, year, language, country, genres, directors, actors, synopsis, watched, and (episodes) season / episode / show title. Does not edit ratings or cover (use **Change cover…**). Preserves source id / kind / ratings. With no card yet, saves a **manual** entry. Also on the preview hero and media-card hover pencil. |
 | **Change cover…** | Single item only. Pick a poster from Plex / TMDB, **browse for your own image**, or keep the current cover. Does **not** change Plex’s own selected poster. |
 | **Mark as Watched** | Toggles to **Mark as Unwatched** when the selection is already watched. Needs stored metadata. |
 
@@ -124,9 +125,9 @@ When the selected file or folder has streams — or you are inside a show/movie 
 
 1. **Show/movie folders — Media | Folder** — header tabs like Git | Folder (**Media** by default). **Media** = poster hero + cast/synopsis; **Folder** = directory / Calculate Statistics card (space map, largest files, …).
 2. **Hero** (Media tab / media files) — poster + title, year / SxxExx / show name. Click the poster for a fullscreen view of the **stored** image (not a web URL).
-3. **Change cover** and **Mark as Watched** under the title.
+3. Icon actions under the title (same glyphs as media-card hover): **Edit metadata…**, **Change cover**, **Mark as Watched** — labels are tooltips.
 4. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
-5. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills.
+5. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills. Details are read-only — use **Edit metadata…** to change them.
 6. **Media / File tabs** (episode and other media **files** only) — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs. Folders use the header Media | Folder split instead.
 
 Cover height is **Cover art size**.
@@ -160,7 +161,7 @@ When metadata is written, `media_metadata_container` is set on the library folde
 | **Watched** | All / Unwatched / Watched |
 | **Genre** | All genres, plus every genre found on items in **this** folder |
 
-Filters are session-only (they reset when you leave the folder). Items without metadata count as unwatched and have no genre.
+Filters are remembered **per media-library folder** in Settings (`mediaMetadata.libraryFilters`) and restored when you return to that folder. Items without metadata count as unwatched and have no genre. If a saved genre is no longer present in the folder, the genre filter clears for that visit.
 
 Folders you tagged **before** this container flag existed will not show the toolbar until you **Update** the folder once (or add metadata to one new title).
 
@@ -235,6 +236,8 @@ You can inspect or delete the streams in **Alternate streams…** ([ADS.md](ADS.
   "watched": false
 }
 ```
+
+`source` is `plex` | `tmdb` | `omdb` | `manual` (hand-built via **Edit metadata…** with no prior card).
 
 `kind` is `movie` | `show` | `episode`. Episodes may include `season`, `episode`, `showTitle`. `source` is `plex` | `tmdb` | `omdb`.
 

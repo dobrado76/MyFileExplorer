@@ -552,6 +552,10 @@ export type MyFileExplorerApi = {
       previewBase64?: string
     }): Promise<Result<{ ok: true }>>
     setWatched(req: { paths: string[]; watched: boolean }): Promise<Result<{ updated: string[] }>>
+    save(req: {
+      path: string
+      fields: import('../mediaMetadata').MediaMetadataEditFields
+    }): Promise<Result<{ path: string }>>
     consolidateSubtitles(req: { paths: string[] }): Promise<
       Result<{
         copied: number

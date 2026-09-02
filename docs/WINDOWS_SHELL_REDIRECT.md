@@ -1,6 +1,6 @@
 # Windows shell redirect (experimental)
 
-**Version:** 0.14.x  
+**Version:** 0.15.0  
 **Decision:** D72
 
 Attempt to redirect physical-directory opens that resolve through per-user HKCU `Directory/shell/open` and `Directory/shell/explore` to MyFileExplorer. This is **experimental** - actual coverage is measured locally via the invocation log.
