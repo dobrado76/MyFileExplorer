@@ -101,7 +101,7 @@ Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `
 | New folder         | Inline rename or dialog                                                                                                                          |
 | New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists. **From Template** copies a user template; the catalog pretty name is the menu label and default filename stem (D57). **GitHub Repository** (menu item below From Template, not inside it) clones into a new folder (name + URL dialog; no rename mode) |
 | Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits**. A name that already exists opens the same D18 review as copy/move (Skip / Keep both `name (2).ext` / Replace / Keep most recent) |
-| Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex, match-all, case sensitivity, apply to filename and/or extension; live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40) |
+| Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex or DOS `*`/`?` wildcards, match-all, case sensitivity, apply to filename and/or extension; collapsible **Advanced options** (case, remove, add, numbering, dates, filters, …); live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40). Guide: [POWER_RENAME.md](POWER_RENAME.md) |
 | Scripts            | **Opt-in** (off by default). Settings → Scripting and AI → Enable scripting. Then: universal runner (PowerShell / **Python 3 only — not 2.x** / cmd / bash) on the current folder, selection, or **global** (no folder/selection; each global script is a toolbar button, hidden when none exist), live output, Stop. Saved library under `userData` becomes context **Scripts >** verbs. Optional AI generate/modify (never sends files). [SCRIPTS.md](SCRIPTS.md) (D51) |
 | Git                | **Opt-in** (off by default). Settings → Git. Status overlays / toolbar / context Stage·Commit·Pull·Push. System `git` only; no credential storage. [GIT.md](GIT.md) (D64) |
 | Cut / Copy / Paste | Internal clipboard + OS file paths. Non-file clipboard creates a file (D56; Settings → Behavior). **Paste Special** for format/name. Never auto-download a URL. |
@@ -128,7 +128,7 @@ Copy / move / trash / delete **continue** through every item that does not need 
 - Pin to Quick access / Unpin from Quick access (folders)
 - Cut / Copy / Paste
 - Rename
-- Power Rename… (search/replace with preview; files and folders in selection only)
+- Power Rename… (search/replace + advanced panels with preview; files and folders in selection only)
 - Scripts (only when Settings → Scripting and AI → Enable scripting; saved local scripts + Generate / Manage; each global script is a toolbar button; D51)
 - User-defined commands (Settings → Context menu — separate lists for files vs folders; e.g. Edit in Photoshop, Play in VLC)
 - Delete / Delete permanently

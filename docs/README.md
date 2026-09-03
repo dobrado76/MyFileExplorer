@@ -13,7 +13,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 1. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (vs Explorer + workbench) · [BUSINESS_UVP.md](BUSINESS_UVP.md) (org UVP)
 2. [DECISIONS.md](DECISIONS.md)
 3. [ARCHITECTURE.md](ARCHITECTURE.md)
-4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, POWER_RENAME, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 5. Remaining open deferrals live under [DECISIONS.md](DECISIONS.md) **Deferred** (the old `FUTURE_IDEAS.md` parking lot was cleared — those candidates shipped as D51 / D55–D62)
 
 ---
@@ -48,6 +48,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
 | [USER_METADATA.md](USER_METADATA.md)             | Opt-in user-defined structured metadata (D70, off by default) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
+| [POWER_RENAME.md](POWER_RENAME.md)               | Power Rename — search/replace, DOS wildcards, Advanced options (D40) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
 | [GIT.md](GIT.md)                                 | Optional Git-aware browsing / lightweight client (D64) |
 | [../LICENSING.md](../LICENSING.md)               | GPL-3.0 |

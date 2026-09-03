@@ -9,14 +9,28 @@ import {
   type ReactNode
 } from 'react'
 import {
+  countActiveAdvanced,
+  defaultPowerRenameAdvanced,
   previewPowerRename,
+  type PowerRenameAdvanced,
   type PowerRenameApplyTo,
-  type PowerRenameOptions
+  type PowerRenameCaseMode,
+  type PowerRenameCropMode,
+  type PowerRenameDateFmt,
+  type PowerRenameDateMode,
+  type PowerRenameDateType,
+  type PowerRenameExtMode,
+  type PowerRenameLeadDots,
+  type PowerRenameMoveMode,
+  type PowerRenameNameMode,
+  type PowerRenameNumberType,
+  type PowerRenameOptions,
+  type PowerRenamePlaceMode
 } from '@shared/powerRename'
 import type { Settings } from '@shared/schemas/settings'
 import { CloseIcon } from '../lib/icons'
 import { useAppStore } from '../store/appStore'
-import { basename } from '../lib/paths'
+import { basename, samePath } from '../lib/paths'
 import type { UndoPathPair } from '../lib/undoHistory'
 
 type Bounds = { x: number; y: number; width: number; height: number }
@@ -32,7 +46,9 @@ let powerRenameFlagsDraft = {
   regex: false,
   matchAll: false,
   caseSensitive: false,
-  applyTo: 'name' as PowerRenameApplyTo
+  applyTo: 'name' as PowerRenameApplyTo,
+  advancedOpen: false,
+  advanced: defaultPowerRenameAdvanced()
 }
 
 function clampBounds(b: Bounds): Bounds {
@@ -320,11 +336,22 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
   const applyPowerRename = useAppStore((s) => s.applyPowerRename)
   const undoPowerRenameApply = useAppStore((s) => s.undoPowerRenameApply)
   const notify = useAppStore((s) => s.notify)
+  const listingEntries = useAppStore((s) => s.listing.entries)
 
   const [workingPaths, setWorkingPaths] = useState(paths)
   const items = useMemo(
-    () => workingPaths.map((path) => ({ path, name: basename(path) })),
-    [workingPaths]
+    () =>
+      workingPaths.map((path) => {
+        const e = listingEntries.find((en) => samePath(en.path, path))
+        return {
+          path,
+          name: basename(path),
+          kind: e?.kind,
+          mtimeMs: e?.mtimeMs,
+          birthtimeMs: e?.birthtimeMs
+        }
+      }),
+    [workingPaths, listingEntries]
   )
 
   const [search, setSearch] = useState('')
@@ -335,42 +362,77 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
     () => powerRenameFlagsDraft.caseSensitive
   )
   const [applyTo, setApplyTo] = useState<PowerRenameApplyTo>(() => powerRenameFlagsDraft.applyTo)
+  const [advancedOpen, setAdvancedOpen] = useState(() => powerRenameFlagsDraft.advancedOpen)
+  const [advanced, setAdvanced] = useState<PowerRenameAdvanced>(
+    () => structuredClone(powerRenameFlagsDraft.advanced)
+  )
   const [checked, setChecked] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(paths.map((p) => [p, true]))
   )
   const [lastApply, setLastApply] = useState<UndoPathPair[] | null>(null)
   const [busy, setBusy] = useState(false)
 
+  const patchAdvanced = useCallback((patch: Partial<PowerRenameAdvanced>): void => {
+    setAdvanced((a) => ({ ...a, ...patch }))
+  }, [])
+
   const opts: PowerRenameOptions = useMemo(
-    () => ({ search, replace, regex, matchAll, caseSensitive, applyTo }),
-    [search, replace, regex, matchAll, caseSensitive, applyTo]
+    () => ({ search, replace, regex, matchAll, caseSensitive, applyTo, advanced }),
+    [search, replace, regex, matchAll, caseSensitive, applyTo, advanced]
   )
 
   useEffect(() => {
-    powerRenameFlagsDraft = { regex, matchAll, caseSensitive, applyTo }
-  }, [regex, matchAll, caseSensitive, applyTo])
+    powerRenameFlagsDraft = {
+      regex,
+      matchAll,
+      caseSensitive,
+      applyTo,
+      advancedOpen,
+      advanced: structuredClone(advanced)
+    }
+  }, [regex, matchAll, caseSensitive, applyTo, advancedOpen, advanced])
 
   const rows = useMemo(() => previewPowerRename(items, opts), [items, opts])
+  const activeAdv = countActiveAdvanced(advanced)
+
+  // Dim + auto-uncheck rows excluded by selection filter; re-check when included again.
+  useEffect(() => {
+    setChecked((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const row of rows) {
+        if (row.excluded) {
+          if (next[row.path] !== false) {
+            next[row.path] = false
+            changed = true
+          }
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [rows])
 
   const toggle = (path: string): void => {
     setChecked((c) => ({ ...c, [path]: !c[path] }))
   }
 
   const toggleAll = (on: boolean): void => {
-    setChecked(Object.fromEntries(workingPaths.map((p) => [p, on])))
+    setChecked(
+      Object.fromEntries(
+        rows.map((r) => [r.path, on && !r.excluded])
+      )
+    )
   }
 
   const canApply =
-    search.length > 0 &&
-    !busy &&
-    rows.some((r) => checked[r.path] && r.willRename && !r.error)
+    !busy && rows.some((r) => !r.excluded && checked[r.path] && r.willRename && !r.error)
 
   const onApply = async (): Promise<void> => {
     if (!canApply) return
     setBusy(true)
     try {
       const toRename = rows
-        .filter((r) => checked[r.path] && r.willRename && !r.error)
+        .filter((r) => !r.excluded && checked[r.path] && r.willRename && !r.error)
         .map((r) => ({ path: r.path, newName: r.newName }))
       const { pairs, skipped } = await applyPowerRename(toRename)
       if (pairs.length > 0) {
@@ -408,6 +470,9 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
     }
   }
 
+  const move1 = advanced.move1
+  const move2 = advanced.move2
+
   return (
     <Modal
       title="Power Rename"
@@ -436,6 +501,7 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
               onChange={(e) => setSearch(e.target.value)}
               autoFocus
               spellCheck={false}
+              placeholder={regex ? 'Regular expression' : 'Text or * ? wildcards'}
             />
           </label>
           <label className="power-rename-field">
@@ -479,8 +545,656 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
             </select>
           </label>
           <p className="power-rename-hint">
-            Renames selected items only (files and folders). Does not recurse into folders.
+            {regex
+              ? 'Search uses JavaScript regular expressions. Capture groups: $1, $2…'
+              : 'Use * and ? as DOS wildcards (any run / one character), or turn on regular expressions.'}{' '}
+            Renames the selection only — does not recurse into folders.
           </p>
+
+          <div className="power-rename-advanced">
+            <button
+              type="button"
+              className="power-rename-advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              <span className="power-rename-advanced-chevron" aria-hidden>
+                {advancedOpen ? '▾' : '▸'}
+              </span>
+              Advanced options
+              {activeAdv > 0 ? (
+                <span className="power-rename-advanced-badge">{activeAdv} active</span>
+              ) : null}
+            </button>
+            {advancedOpen ? (
+              <div className="power-rename-advanced-body">
+                <div className="power-rename-advanced-toolbar">
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => setAdvanced(defaultPowerRenameAdvanced())}
+                  >
+                    Reset advanced
+                  </button>
+                </div>
+                <div className="power-rename-panels">
+                  <fieldset className="power-rename-panel">
+                    <legend>2 · Name</legend>
+                    <label className="power-rename-field">
+                      <span>Mode</span>
+                      <select
+                        value={advanced.nameMode}
+                        onChange={(e) =>
+                          patchAdvanced({ nameMode: e.target.value as PowerRenameNameMode })
+                        }
+                      >
+                        <option value="keep">Keep</option>
+                        <option value="remove">Remove</option>
+                        <option value="fixed">Fixed</option>
+                      </select>
+                    </label>
+                    <label className="power-rename-field">
+                      <span>Fixed text</span>
+                      <input
+                        type="text"
+                        value={advanced.nameFixed}
+                        disabled={advanced.nameMode !== 'fixed'}
+                        onChange={(e) => patchAdvanced({ nameFixed: e.target.value })}
+                        spellCheck={false}
+                      />
+                    </label>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel">
+                    <legend>4 · Case</legend>
+                    <label className="power-rename-field">
+                      <span>Mode</span>
+                      <select
+                        value={advanced.caseMode}
+                        onChange={(e) =>
+                          patchAdvanced({ caseMode: e.target.value as PowerRenameCaseMode })
+                        }
+                      >
+                        <option value="same">Same</option>
+                        <option value="lower">Lower</option>
+                        <option value="upper">Upper</option>
+                        <option value="title">Title</option>
+                        <option value="sentence">Sentence</option>
+                      </select>
+                    </label>
+                    <label className="power-rename-field">
+                      <span>Except</span>
+                      <input
+                        type="text"
+                        value={advanced.caseExcept}
+                        onChange={(e) => patchAdvanced({ caseExcept: e.target.value })}
+                        spellCheck={false}
+                        placeholder="words to keep"
+                      />
+                    </label>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel power-rename-panel-wide">
+                    <legend>5 · Remove</legend>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>First n</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.removeFirst}
+                          onChange={(e) =>
+                            patchAdvanced({ removeFirst: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Last n</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.removeLast}
+                          onChange={(e) =>
+                            patchAdvanced({ removeLast: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>From</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.removeFrom}
+                          onChange={(e) =>
+                            patchAdvanced({ removeFrom: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>To</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.removeTo}
+                          onChange={(e) =>
+                            patchAdvanced({ removeTo: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <label className="power-rename-field">
+                      <span>Chars</span>
+                      <input
+                        type="text"
+                        value={advanced.removeChars}
+                        onChange={(e) => patchAdvanced({ removeChars: e.target.value })}
+                        spellCheck={false}
+                      />
+                    </label>
+                    <label className="power-rename-field">
+                      <span>Words</span>
+                      <input
+                        type="text"
+                        value={advanced.removeWords}
+                        onChange={(e) => patchAdvanced({ removeWords: e.target.value })}
+                        spellCheck={false}
+                      />
+                    </label>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Crop</span>
+                        <select
+                          value={advanced.cropMode}
+                          onChange={(e) =>
+                            patchAdvanced({ cropMode: e.target.value as PowerRenameCropMode })
+                          }
+                        >
+                          <option value="none">None</option>
+                          <option value="before">Before</option>
+                          <option value="after">After</option>
+                        </select>
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Crop text</span>
+                        <input
+                          type="text"
+                          value={advanced.cropText}
+                          onChange={(e) => patchAdvanced({ cropText: e.target.value })}
+                          spellCheck={false}
+                        />
+                      </label>
+                    </div>
+                    <div className="power-rename-checks">
+                      {(
+                        [
+                          ['removeDigits', 'Digits'],
+                          ['removeHighAscii', 'High'],
+                          ['removeTrim', 'Trim'],
+                          ['removeDs', 'D/S'],
+                          ['removeAccents', 'Accents'],
+                          ['removeLetters', 'Chars'],
+                          ['removeSymbols', 'Sym.']
+                        ] as const
+                      ).map(([key, label]) => (
+                        <label key={key} className="power-rename-check">
+                          <input
+                            type="checkbox"
+                            checked={advanced[key]}
+                            onChange={(e) => patchAdvanced({ [key]: e.target.checked })}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    <label className="power-rename-field">
+                      <span>Lead dots</span>
+                      <select
+                        value={advanced.leadDots}
+                        onChange={(e) =>
+                          patchAdvanced({ leadDots: e.target.value as PowerRenameLeadDots })
+                        }
+                      >
+                        <option value="same">Same</option>
+                        <option value="remove">Remove</option>
+                        <option value="keep-one">Keep one</option>
+                      </select>
+                    </label>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel power-rename-panel-wide">
+                    <legend>6 · Move / Copy</legend>
+                    {(
+                      [
+                        [move1, 'move1', '1'] as const,
+                        [move2, 'move2', '2'] as const
+                      ] as const
+                    ).map(([seg, key, label]) => (
+                      <div key={key} className="power-rename-inline">
+                        <label className="power-rename-field">
+                          <span>Seg {label}</span>
+                          <select
+                            value={seg.mode}
+                            onChange={(e) =>
+                              patchAdvanced({
+                                [key]: {
+                                  ...seg,
+                                  mode: e.target.value as PowerRenameMoveMode
+                                }
+                              })
+                            }
+                          >
+                            <option value="none">None</option>
+                            <option value="move">Move</option>
+                            <option value="copy">Copy</option>
+                          </select>
+                        </label>
+                        <label className="power-rename-field">
+                          <span>From</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={seg.from}
+                            onChange={(e) =>
+                              patchAdvanced({
+                                [key]: { ...seg, from: Number(e.target.value) || 0 }
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="power-rename-field">
+                          <span>To</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={seg.to}
+                            onChange={(e) =>
+                              patchAdvanced({
+                                [key]: { ...seg, to: Number(e.target.value) || 0 }
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="power-rename-field">
+                          <span>Sep.</span>
+                          <input
+                            type="text"
+                            value={seg.sep}
+                            onChange={(e) =>
+                              patchAdvanced({ [key]: { ...seg, sep: e.target.value } })
+                            }
+                            spellCheck={false}
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel">
+                    <legend>7 · Add</legend>
+                    <label className="power-rename-field">
+                      <span>Prefix</span>
+                      <input
+                        type="text"
+                        value={advanced.addPrefix}
+                        onChange={(e) => patchAdvanced({ addPrefix: e.target.value })}
+                        spellCheck={false}
+                      />
+                    </label>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Insert</span>
+                        <input
+                          type="text"
+                          value={advanced.addInsert}
+                          onChange={(e) => patchAdvanced({ addInsert: e.target.value })}
+                          spellCheck={false}
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>At pos.</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.addInsertAt}
+                          onChange={(e) =>
+                            patchAdvanced({ addInsertAt: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <label className="power-rename-field">
+                      <span>Suffix</span>
+                      <input
+                        type="text"
+                        value={advanced.addSuffix}
+                        onChange={(e) => patchAdvanced({ addSuffix: e.target.value })}
+                        spellCheck={false}
+                      />
+                    </label>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel">
+                    <legend>8 · Auto date</legend>
+                    <label className="power-rename-field">
+                      <span>Mode</span>
+                      <select
+                        value={advanced.dateMode}
+                        onChange={(e) =>
+                          patchAdvanced({ dateMode: e.target.value as PowerRenameDateMode })
+                        }
+                      >
+                        <option value="none">None</option>
+                        <option value="prefix">Prefix</option>
+                        <option value="suffix">Suffix</option>
+                      </select>
+                    </label>
+                    <label className="power-rename-field">
+                      <span>Type</span>
+                      <select
+                        value={advanced.dateType}
+                        onChange={(e) =>
+                          patchAdvanced({ dateType: e.target.value as PowerRenameDateType })
+                        }
+                      >
+                        <option value="modified">Modified</option>
+                        <option value="created">Created</option>
+                        <option value="current">Current</option>
+                      </select>
+                    </label>
+                    <label className="power-rename-field">
+                      <span>Fmt</span>
+                      <select
+                        value={advanced.dateFmt}
+                        onChange={(e) =>
+                          patchAdvanced({ dateFmt: e.target.value as PowerRenameDateFmt })
+                        }
+                      >
+                        <option value="ymd">YMD</option>
+                        <option value="ydm">YDM</option>
+                        <option value="dmy">DMY</option>
+                        <option value="mdy">MDY</option>
+                        <option value="ymd-hms">YMD HMS</option>
+                        <option value="unix">Unix</option>
+                      </select>
+                    </label>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Sep.</span>
+                        <input
+                          type="text"
+                          value={advanced.dateSep}
+                          onChange={(e) => patchAdvanced({ dateSep: e.target.value })}
+                          spellCheck={false}
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Seg.</span>
+                        <input
+                          type="text"
+                          value={advanced.dateSeg}
+                          onChange={(e) => patchAdvanced({ dateSeg: e.target.value })}
+                          spellCheck={false}
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Off. days</span>
+                        <input
+                          type="number"
+                          value={advanced.dateOffsetDays}
+                          onChange={(e) =>
+                            patchAdvanced({ dateOffsetDays: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel">
+                    <legend>9 · Append folder</legend>
+                    <label className="power-rename-field">
+                      <span>Mode</span>
+                      <select
+                        value={advanced.folderMode}
+                        onChange={(e) =>
+                          patchAdvanced({
+                            folderMode: e.target.value as PowerRenamePlaceMode
+                          })
+                        }
+                      >
+                        <option value="none">None</option>
+                        <option value="prefix">Prefix</option>
+                        <option value="suffix">Suffix</option>
+                      </select>
+                    </label>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Sep.</span>
+                        <input
+                          type="text"
+                          value={advanced.folderSep}
+                          onChange={(e) => patchAdvanced({ folderSep: e.target.value })}
+                          spellCheck={false}
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Levels</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={advanced.folderLevels}
+                          onChange={(e) =>
+                            patchAdvanced({ folderLevels: Math.max(1, Number(e.target.value) || 1) })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel">
+                    <legend>10 · Numbering</legend>
+                    <label className="power-rename-field">
+                      <span>Mode</span>
+                      <select
+                        value={advanced.numberMode}
+                        onChange={(e) =>
+                          patchAdvanced({
+                            numberMode: e.target.value as PowerRenamePlaceMode
+                          })
+                        }
+                      >
+                        <option value="none">None</option>
+                        <option value="prefix">Prefix</option>
+                        <option value="suffix">Suffix</option>
+                        <option value="insert">Insert</option>
+                      </select>
+                    </label>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Start</span>
+                        <input
+                          type="number"
+                          value={advanced.numberStart}
+                          onChange={(e) =>
+                            patchAdvanced({ numberStart: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Incr.</span>
+                        <input
+                          type="number"
+                          value={advanced.numberIncr}
+                          onChange={(e) =>
+                            patchAdvanced({ numberIncr: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Pad</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.numberPad}
+                          onChange={(e) =>
+                            patchAdvanced({ numberPad: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                    </div>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Type</span>
+                        <select
+                          value={advanced.numberType}
+                          onChange={(e) =>
+                            patchAdvanced({
+                              numberType: e.target.value as PowerRenameNumberType
+                            })
+                          }
+                        >
+                          <option value="decimal">Decimal</option>
+                          <option value="hex">Hex</option>
+                          <option value="roman">Roman</option>
+                        </select>
+                      </label>
+                      <label className="power-rename-field">
+                        <span>At</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.numberAt}
+                          onChange={(e) =>
+                            patchAdvanced({ numberAt: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Sep.</span>
+                        <input
+                          type="text"
+                          value={advanced.numberSep}
+                          onChange={(e) => patchAdvanced({ numberSep: e.target.value })}
+                          spellCheck={false}
+                        />
+                      </label>
+                    </div>
+                    <label className="power-rename-check">
+                      <input
+                        type="checkbox"
+                        checked={advanced.numberResetPerFolder}
+                        onChange={(e) =>
+                          patchAdvanced({ numberResetPerFolder: e.target.checked })
+                        }
+                      />
+                      Reset per folder
+                    </label>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel">
+                    <legend>11 · Extension</legend>
+                    <label className="power-rename-field">
+                      <span>Mode</span>
+                      <select
+                        value={advanced.extMode}
+                        onChange={(e) =>
+                          patchAdvanced({ extMode: e.target.value as PowerRenameExtMode })
+                        }
+                      >
+                        <option value="same">Same</option>
+                        <option value="lower">Lower</option>
+                        <option value="upper">Upper</option>
+                        <option value="fixed">Fixed</option>
+                        <option value="remove">Remove</option>
+                      </select>
+                    </label>
+                    <label className="power-rename-field">
+                      <span>Fixed ext</span>
+                      <input
+                        type="text"
+                        value={advanced.extFixed}
+                        disabled={advanced.extMode !== 'fixed'}
+                        onChange={(e) => patchAdvanced({ extFixed: e.target.value })}
+                        spellCheck={false}
+                        placeholder="jpg"
+                      />
+                    </label>
+                  </fieldset>
+
+                  <fieldset className="power-rename-panel power-rename-panel-wide">
+                    <legend>12 · Selection filter</legend>
+                    <label className="power-rename-field">
+                      <span>Filter</span>
+                      <input
+                        type="text"
+                        value={advanced.filter}
+                        onChange={(e) => patchAdvanced({ filter: e.target.value })}
+                        spellCheck={false}
+                        placeholder="*.jpg or regex"
+                      />
+                    </label>
+                    <div className="power-rename-checks">
+                      <label className="power-rename-check">
+                        <input
+                          type="checkbox"
+                          checked={advanced.filterRegex}
+                          onChange={(e) => patchAdvanced({ filterRegex: e.target.checked })}
+                        />
+                        Regex
+                      </label>
+                      <label className="power-rename-check">
+                        <input
+                          type="checkbox"
+                          checked={advanced.filterMatchCase}
+                          onChange={(e) => patchAdvanced({ filterMatchCase: e.target.checked })}
+                        />
+                        Match case
+                      </label>
+                      <label className="power-rename-check">
+                        <input
+                          type="checkbox"
+                          checked={advanced.filterFiles}
+                          onChange={(e) => patchAdvanced({ filterFiles: e.target.checked })}
+                        />
+                        Files
+                      </label>
+                      <label className="power-rename-check">
+                        <input
+                          type="checkbox"
+                          checked={advanced.filterFolders}
+                          onChange={(e) => patchAdvanced({ filterFolders: e.target.checked })}
+                        />
+                        Folders
+                      </label>
+                    </div>
+                    <div className="power-rename-inline">
+                      <label className="power-rename-field">
+                        <span>Min name len</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.filterMinNameLen}
+                          onChange={(e) =>
+                            patchAdvanced({ filterMinNameLen: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                      <label className="power-rename-field">
+                        <span>Max name len</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={advanced.filterMaxNameLen}
+                          onChange={(e) =>
+                            patchAdvanced({ filterMaxNameLen: Number(e.target.value) || 0 })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
         <div className="power-rename-preview">
           <div className="power-rename-preview-toolbar">
@@ -491,7 +1205,7 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
               Uncheck all
             </button>
             <span className="power-rename-preview-count">
-              {rows.filter((r) => checked[r.path]).length} / {rows.length}
+              {rows.filter((r) => checked[r.path] && !r.excluded).length} / {rows.length}
             </span>
           </div>
           <div className="power-rename-rows" role="list">
@@ -504,6 +1218,7 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
                     'power-rename-row',
                     changed ? 'is-changed' : '',
                     row.error ? 'is-error' : '',
+                    row.excluded ? 'is-excluded' : '',
                     checked[row.path] === false ? 'is-unchecked' : ''
                   ]
                     .filter(Boolean)
@@ -513,7 +1228,8 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
                   <input
                     type="checkbox"
                     aria-label={`Select ${row.originalName}`}
-                    checked={checked[row.path] !== false}
+                    checked={!row.excluded && checked[row.path] !== false}
+                    disabled={!!row.excluded}
                     onChange={() => toggle(row.path)}
                   />
                   <span className="power-rename-orig" title={row.originalName}>
@@ -524,9 +1240,13 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
                   </span>
                   <span
                     className={['power-rename-new', changed ? 'is-changed' : ''].join(' ')}
-                    title={row.error ?? row.newName}
+                    title={row.excluded ? 'Excluded by filter' : (row.error ?? row.newName)}
                   >
-                    {row.error ? `(${row.error})` : row.newName}
+                    {row.excluded
+                      ? '(excluded)'
+                      : row.error
+                        ? `(${row.error})`
+                        : row.newName}
                   </span>
                 </div>
               )
@@ -537,3 +1257,4 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
     </Modal>
   )
 }
+

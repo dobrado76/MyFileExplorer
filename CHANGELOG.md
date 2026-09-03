@@ -9,6 +9,11 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Added
+
+- **Power Rename Advanced options** — collapsible BRU-style panels (Name, Case, Remove, Move/Copy, Add, Auto date, Append folder, Numbering, Extension, Selection filter) behind the simple search/replace UI. Apply works with advanced-only transforms (empty Search). Guide: [docs/POWER_RENAME.md](docs/POWER_RENAME.md).
+- **Power Rename DOS wildcards** — when regex is off, Search treats `*` and `?` like the DOS shell.
+
 ### Changed
 
 - **Media Metadata → Clear…** — confirms before deleting streams; dialog states scope explicitly (selected files only vs recursive under folders). No undo.
