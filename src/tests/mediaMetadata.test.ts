@@ -576,6 +576,18 @@ describe('classifyMediaFromNames', () => {
     ).toBe('movie')
   })
 
+  it('does not treat normal movies as parts just because a dump also has CD splits', () => {
+    const kids = [
+      'Heat CD1.mkv',
+      'Heat CD2.mkv',
+      'The Aviator (2004).mp4',
+      'The Animal (2001).m4v'
+    ]
+    expect(isMultipartMovieFolder(kids)).toBe(true)
+    expect(isMoviePartVideoName('The Aviator (2004).mp4')).toBe(false)
+    expect(isMoviePartVideoName('The Animal (2001).m4v')).toBe(false)
+  })
+
   it('does not treat TV episode folders as multipart movies', () => {
     expect(
       isMultipartMovieFolder(['Dexter.S01E01.mkv', 'Dexter.S01E02.mkv'])

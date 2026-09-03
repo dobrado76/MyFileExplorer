@@ -55,7 +55,7 @@ Shown only on **folders** and **video files**. Remotes (`mfe-remote://`) are ski
 | **Extract from Plex Media Server** | Fill items that do **not** already have metadata **and a cover** (episodes: metadata only). Plex maps each file to one library item and copies the library poster. |
 | **Download from Internet** | Same skip-if-present rule (retry if the cover is missing). Uses TMDB or OMDb (and the preferred source). |
 | **Update** | Refresh items that already have metadata from their stored source (Plex vs internet). Missing items are extracted from Plex. Internet items reuse the stored id (no second title ask). |
-| **Clear** | Remove this app’s metadata + cover streams. Folders walk every video inside. |
+| **Clear…** | Remove this app’s metadata + cover streams. Confirms first (no undo). Files: that selection only. Folders: **recursive** — every video under the selection. |
 | **Consolidate subtitles** | Copy the first English subtitle next to each video, then Recycle the `Subs` / `Subtitles` tree. Confirms first. |
 | **Edit metadata…** | Single item only. Dialog to fix title, year, language, country, genres, directors, actors, synopsis, watched, and (episodes) season / episode / show title. Does not edit ratings or cover (use **Change cover…**). Preserves source id / kind / ratings. With no card yet, saves a **manual** entry. Also on the preview hero and media-card hover pencil. |
 | **Change cover…** | Single item only. Pick a poster from Plex / TMDB, **browse for your own image**, or keep the current cover. Does **not** change Plex’s own selected poster. |
@@ -211,7 +211,7 @@ No `.nfo`, no `folder.jpg` written by this app, nothing under `userData` for the
 
 Streams ride with the file on NTFS copy/move. They do **not** survive a copy to FAT/exFAT/network shares that strip ADS. Explorer still opens the video as usual — it ignores these names. Writing or clearing these streams restores the host file/folder NTFS times (including ChangeTime) so a sync tool should not treat the video as newly modified. Files already written before that restore cannot be rolled back.
 
-Clear removes the two item streams. The container flag is left in place if siblings still have metadata.
+Clear… confirms first (no undo). On files it removes only the selected streams; on folders it walks recursively. The container flag is left in place if siblings still have metadata.
 
 You can inspect or delete the streams in **Alternate streams…** ([ADS.md](ADS.md)).
 

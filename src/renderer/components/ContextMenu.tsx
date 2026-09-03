@@ -361,8 +361,9 @@ function mediaMetadataMenu(
           }
         },
         {
-          label: 'Clear',
-          title: 'Folders include every video inside',
+          label: 'Clear…',
+          title:
+            'Delete metadata + cover streams (no undo). Confirms first; folders clear every video inside (recursive).',
           action: () => {
             close()
             void s.mediaMetadataClear(targets)

@@ -130,6 +130,7 @@ import {
 import { isMediaApiLimitError } from '@shared/mediaApiLimit'
 import { isMediaNameMissError } from '@shared/mediaMetadata'
 import {
+  isMediaMetadataVideoName,
   resolveMediaLibraryFilter,
   upsertMediaLibraryFilter,
   type MediaLibraryItemFlags,
@@ -1662,9 +1663,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         )
       } else if (res.done === 0) {
         get().notify(
-          label.startsWith('Extract') || label.startsWith('Download')
-            ? 'All items already have media metadata'
-            : 'No media metadata to update'
+          label.startsWith('Clear')
+            ? 'No media metadata streams found to clear'
+            : label.startsWith('Extract') || label.startsWith('Download')
+              ? 'Nothing new downloaded (already present, skipped, or no match)'
+              : 'No media metadata to update'
         )
       } else {
         get().notify(
@@ -8477,6 +8480,28 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async mediaMetadataClear(paths) {
+      if (!get().settings.mediaMetadata.enabled) return
+      if (paths.length === 0) return
+      const entries = get().listing?.entries
+      const recursive = paths.some((p) => {
+        const e = entries?.find((en) => samePath(en.path, p))
+        if (e?.kind === 'dir') return true
+        // Tree / off-listing targets: no video extension ⇒ folder (menu already filters).
+        if (!e) return !isMediaMetadataVideoName(basename(p))
+        return false
+      })
+      const n = paths.length
+      const ok = await get().askConfirm({
+        title: 'Clear media metadata?',
+        message: recursive
+          ? `Permanently delete this app’s media_metadata and media_metadata_thumbnail streams on the selected item${n === 1 ? '' : 's'}.\n\nScope: recursive — every video under selected folders (and streams on those folders). There is no undo.`
+          : n === 1
+            ? `Permanently delete this app’s media_metadata and media_metadata_thumbnail streams on this video.\n\nScope: this file only (not recursive). There is no undo.`
+            : `Permanently delete this app’s media_metadata and media_metadata_thumbnail streams on ${n} selected videos.\n\nScope: selected files only (not recursive). There is no undo.`,
+        confirmLabel: 'Clear',
+        danger: true
+      })
+      if (!ok) return
       await runMediaMetadataOp('Clearing media metadata…', paths, () =>
         call(api.mediaMetadata.clear({ paths }))
       )

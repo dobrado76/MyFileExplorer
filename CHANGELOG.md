@@ -9,8 +9,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+### Changed
+
+- **Media Metadata → Clear…** — confirms before deleting streams; dialog states scope explicitly (selected files only vs recursive under folders). No undo.
+
 ### Fixed
 
+- **Media Clear / Download in mixed dump folders** — if a folder also contains a CD/part-split title (`Foo CD1` / `Foo CD2`), Clear and Download no longer skip or redirect ordinary movies in that same folder (e.g. `The Aviator (2004).mp4`, `The Animal (2001).m4v` under `Movies\All`).
 - **XL icons only + media posters** — tile labels no longer stay visible just because the filename looks like `NxNN` (e.g. movie *10x10*). Episode `SxxExx` labels on icons come only from **stored** media metadata; bare `NxNN` titles are not treated as episodes when parsing names.
 
 ## [0.15.0] - 2026-09-02

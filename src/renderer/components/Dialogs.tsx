@@ -2147,7 +2147,7 @@ function MediaMetadataSettingsPanel(): JSX.Element {
         Store movie / TV metadata and a cover on the file or folder as NTFS streams{' '}
         <code>media_metadata</code> and <code>media_metadata_thumbnail</code>. Right-click → Media
         Metadata. On a folder, Extract / Download / Update / Clear walk every video inside.
-        Extract and Download skip items that already have metadata; Update refreshes all and
+        Clear asks for confirmation and states whether the scope is recursive. Extract and Download skip items that already have metadata; Update refreshes all and
         extracts missing ones from Plex.
       </p>
       <div className="settings-field">

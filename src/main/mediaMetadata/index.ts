@@ -93,7 +93,9 @@ async function walkMediaTree(
     const full = path.join(dir, e.name)
     if (e.isFile() && isVideoName(e.name)) {
       hasVideoHere = true
-      if (!skipParts) {
+      // Only skip CD/part splits — not every video in a dump that happens to
+      // contain one multipart title (e.g. Movies\All with Foo CD1/CD2 + normals).
+      if (!(skipParts && isMoviePartVideoName(e.name))) {
         videos.push(full)
         if (videos.length >= MAX_WALK) return
       }
@@ -141,7 +143,9 @@ async function expandTargets(rawPaths: string[]): Promise<{ videos: string[]; fo
       if (isVideoName(p)) {
         try {
           const siblings = await fsp.readdir(path.dirname(p))
-          if (isMultipartMovieFolder(siblings)) {
+          // Redirect CD/part files onto the title folder — never redirect a
+          // normal movie just because the parent dump also has some CD splits.
+          if (isMultipartMovieFolder(siblings) && isMoviePartVideoName(path.basename(p))) {
             folderSet.add(path.dirname(p))
             continue
           }
