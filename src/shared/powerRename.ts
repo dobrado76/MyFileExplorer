@@ -367,26 +367,19 @@ function formatDateStamp(
   const mi = String(d.getMinutes()).padStart(2, '0')
   const s = String(d.getSeconds()).padStart(2, '0')
   const sp = sep || '-'
-  let core = ''
   switch (fmt) {
     case 'ydm':
-      core = `${y}${sp}${day}${sp}${mo}`
-      break
+      return `${y}${sp}${day}${sp}${mo}`
     case 'dmy':
-      core = `${day}${sp}${mo}${sp}${y}`
-      break
+      return `${day}${sp}${mo}${sp}${y}`
     case 'mdy':
-      core = `${mo}${sp}${day}${sp}${y}`
-      break
+      return `${mo}${sp}${day}${sp}${y}`
     case 'ymd-hms':
-      core = `${y}${sp}${mo}${sp}${day}${seg || '_'}${h}${sp}${mi}${sp}${s}`
-      break
+      return `${y}${sp}${mo}${sp}${day}${seg || '_'}${h}${sp}${mi}${sp}${s}`
     case 'ymd':
     default:
-      core = `${y}${sp}${mo}${sp}${day}`
-      break
+      return `${y}${sp}${mo}${sp}${day}`
   }
-  return core
 }
 
 function stripAccents(s: string): string {
@@ -420,7 +413,7 @@ function applyCase(stem: string, mode: PowerRenameCaseMode, exceptRaw: string): 
   // sentence: first letter of stem upper, rest lower (except listed words kept)
   const lower = stem.toLowerCase()
   if (!lower) return stem
-  let out = lower.charAt(0).toUpperCase() + lower.slice(1)
+  const out = lower.charAt(0).toUpperCase() + lower.slice(1)
   if (except.size === 0) return out
   return out.replace(/[^\s._-]+/g, (w, i) => {
     if (i === 0) return w
