@@ -7,6 +7,7 @@ dist/
 .tmp/
 *.log
 .DS_Store
+*.code-workspace
 
 # .NET Virtual Folder projection service (tools/) — build outputs
 tools/**/bin/
