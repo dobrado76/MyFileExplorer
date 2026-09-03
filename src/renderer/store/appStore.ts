@@ -3076,7 +3076,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         notifyTreeReload(parentsOfPaths(res.restored))
         if (res.missing.length > 0) {
           get().notify(
-            `Restored ${res.restored.length}; ${res.missing.length} not found in Recycle Bin`,
+            `Restored ${res.restored.length}; ${res.missing.length} failed (still in Recycle Bin)`,
             true
           )
         }
@@ -8880,6 +8880,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       // with a $Recycle.Bin path that isn't in the current listing.
       updateActiveTab({ selected: [] })
       set({ selectionAnchor: null, focusedPath: null })
+      // Restores land in the underlying folder while the bin overlay is up;
+      // refresh so they appear without a manual F5.
+      void get().refresh()
     },
 
     async refreshRecycleBinView() {
@@ -8916,11 +8919,23 @@ export const useAppStore = create<AppState>()((set, get) => {
             : `${target.length} items`,
           () => call(api.fs.restoreFromTrash({ paths: target }))
         )
-        const msg =
-          res.missing.length > 0
-            ? `Restored ${res.restored.length}; ${res.missing.length} not found in Recycle Bin`
-            : `Restored ${res.restored.length} item${res.restored.length === 1 ? '' : 's'}`
-        get().notify(msg, res.missing.length > 0)
+        if (res.restored.length === 0) {
+          get().notify(
+            'Restore failed — nothing was put back. The item should still be in the Recycle Bin; do not Empty until Restore succeeds.',
+            true
+          )
+        } else if (res.missing.length > 0) {
+          get().notify(
+            `Restored ${res.restored.length}; ${res.missing.length} failed (still in Recycle Bin)`,
+            true
+          )
+        } else {
+          get().notify(
+            res.restored.length === 1
+              ? 'Restored 1 item'
+              : `Restored ${res.restored.length} items`
+          )
+        }
         await get().refreshRecycleBinView()
         updateActiveTab({ selected: [] })
         set({ selectionAnchor: null, focusedPath: null })

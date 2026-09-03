@@ -924,7 +924,10 @@ function ConfirmEmptyRecycleBin(): JSX.Element {
       }
     >
       <p>{body}</p>
-      <p className="dim">This cannot be undone.</p>
+      <p className="dim">
+        This cannot be undone. If you just used Restore, confirm the file is back at its original
+        location before emptying.
+      </p>
     </Modal>
   )
 }

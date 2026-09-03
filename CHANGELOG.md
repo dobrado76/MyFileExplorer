@@ -20,6 +20,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Recycle Bin Restore** — Restore no longer trusts a no-op Shell verb. It uses the Recycle Bin namespace first, then falls back to moving `$R…` back to the original path and deleting `$I…`. Success requires the file to exist again; failure warns not to Empty until Restore works.
 - **Media Clear / Download in mixed dump folders** — if a folder also contains a CD/part-split title (`Foo CD1` / `Foo CD2`), Clear and Download no longer skip or redirect ordinary movies in that same folder (e.g. `The Aviator (2004).mp4`, `The Animal (2001).m4v` under `Movies\All`).
 - **XL icons only + media posters** — tile labels no longer stay visible just because the filename looks like `NxNN` (e.g. movie *10x10*). Episode `SxxExx` labels on icons come only from **stored** media metadata; bare `NxNN` titles are not treated as episodes when parsing names.
 
