@@ -10,6 +10,7 @@ import {
 import { useAppStore, dropOperation } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { samePath, isUnderPath, basename, segmentsOf, parentOf } from '../lib/paths'
+import { pathKey } from '@shared/paths'
 import { rewritePathAfterRename } from '../lib/renameListing'
 import { isNetworkHostUnc, normalizeServerName } from '@shared/networkPaths'
 import { formatRemoteLocation } from '@shared/remotePaths'
@@ -54,6 +55,8 @@ type NodeState = {
   childHidden?: Record<string, boolean>
   /** child path (lower) → display label (needed for mfe-vfgroup rows) */
   childLabels?: Record<string, string>
+  /** child path (lower) → Virtual Folder entry id (membership under this node) */
+  childEntryIds?: Record<string, string>
 }
 type NodesMap = Record<string, NodeState>
 
@@ -208,6 +211,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const cancelRename = useAppStore((s) => s.cancelRename)
   const setTreeFocusPath = useAppStore((s) => s.setTreeFocusPath)
   const treeFocusPath = useAppStore((s) => s.treeFocusPath)
+  const treeFocusVirtualFolder = useAppStore((s) => s.treeFocusVirtualFolder)
   const treeExpanded = useAppStore((s) => s.activeTab().treeExpanded)
   const setTreeExpanded = useAppStore((s) => s.setTreeExpanded)
   const knownFolders = useAppStore((s) => s.knownFolders)
@@ -340,6 +344,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           const { dirs, childHidden, childLabels } = dirChildrenFromListing(
             res.entries.map((r) => r.entry)
           )
+          const childEntryIds: Record<string, string> = {}
+          for (const row of res.entries) {
+            childEntryIds[row.entry.path.toLowerCase()] = row.membership.entryId
+          }
           setNodes(
             (n) => {
               const key = resolveTreeKey(n, path)
@@ -351,7 +359,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
                   children: dirs,
                   loading: false,
                   childHidden,
-                  childLabels
+                  childLabels,
+                  childEntryIds
                 }
               }
             },
@@ -678,13 +687,28 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     if (!prev || (prev.children === null && !prev.expanded)) return
     const { dirs, childHidden, childLabels } = dirChildrenFromListing(listingForTab.entries)
     if (sameDirChildList(prev.children, dirs)) return
+    const childEntryIds: Record<string, string> = {}
+    const idMap = listingForTab.virtualFolder?.entryIdByPathKey
+    if (idMap) {
+      for (const e of listingForTab.entries) {
+        const id = idMap[e.path.toLowerCase()] ?? idMap[e.path]
+        if (id) childEntryIds[e.path.toLowerCase()] = id
+      }
+    }
     setNodes((n) => {
       const cur = n[key]
       if (!cur || (cur.children === null && !cur.expanded)) return n
       if (sameDirChildList(cur.children, dirs)) return n
       return {
         ...n,
-        [key]: { ...cur, children: dirs, loading: false, childHidden, childLabels }
+        [key]: {
+          ...cur,
+          children: dirs,
+          loading: false,
+          childHidden,
+          childLabels,
+          ...(Object.keys(childEntryIds).length > 0 ? { childEntryIds } : {})
+        }
       }
     })
   }, [
@@ -692,6 +716,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     listingForTab?.entries,
     listingForTab?.loading,
     listingForTab?.virtualFolder?.groupId,
+    listingForTab?.virtualFolder?.entryIdByPathKey,
     setNodes
   ])
 
@@ -737,6 +762,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
 
   useEffect(() => {
     if (!activePath || inQuickAccess) return
+    // Followed a VF membership like a symlink — do not expand/scroll to the real folder.
+    if (treeFocusVirtualFolder) return
     if (skipAutoExpandPathRef.current === autoExpandKey) return
     const tabId = activeTabId
     let cancelled = false
@@ -780,7 +807,16 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     return () => {
       cancelled = true
     }
-  }, [activePath, autoExpandKey, groupStack, activeTabId, inQuickAccess, loadChildren, setNodes])
+  }, [
+    activePath,
+    autoExpandKey,
+    groupStack,
+    activeTabId,
+    inQuickAccess,
+    treeFocusVirtualFolder,
+    loadChildren,
+    setNodes
+  ])
 
   // Collapse all opened branches on this tab (toolbar). Leaves the file list as-is.
   useEffect(() => {
@@ -810,12 +846,16 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   }, [activeTabId])
   useEffect(() => {
     if (!activePath || scrolledFor.current === activePath) return
+    if (treeFocusVirtualFolder) {
+      scrolledFor.current = activePath
+      return
+    }
     const el = treeRef.current?.querySelector('.tree-node.selected')
     if (el) {
       el.scrollIntoView({ block: 'nearest' })
       scrolledFor.current = activePath
     }
-  }, [activePath, activeTabId, nodes])
+  }, [activePath, activeTabId, nodes, treeFocusVirtualFolder])
 
   function isFsHidden(childPath: string, parentPath: string | null): boolean {
     if (!parentPath) return false
@@ -836,15 +876,16 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     })
   }
 
-  function scrollTreePathIntoView(path: string): void {
+  function scrollTreePathIntoView(path: string, parentPath: string | null = null): void {
     const root = treeRef.current
     if (!root) return
-    for (const el of root.querySelectorAll<HTMLElement>('[data-tree-path]')) {
-      if (samePath(el.dataset.treePath ?? '', path)) {
-        el.scrollIntoView({ block: 'nearest' })
-        break
-      }
-    }
+    const rows = [...root.querySelectorAll<HTMLElement>('[data-tree-path]')]
+    const match = rows.find((el) => {
+      if (!samePath(el.dataset.treePath ?? '', path)) return false
+      if (parentPath) return samePath(el.dataset.treeParent ?? '', parentPath)
+      return true
+    })
+    match?.scrollIntoView({ block: 'nearest' })
   }
 
   const wasTreeRenameRef = useRef(false)
@@ -865,8 +906,47 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     return [...root.querySelectorAll<HTMLElement>('[data-tree-path]')]
   }
 
-  function selectTreePath(path: string): void {
-    setTreeFocusPath(path)
+  function vfMembershipForTreeNode(
+    path: string,
+    parentPath: string | null
+  ): { documentPath: string; entryId: string } | null {
+    if (
+      !parentPath ||
+      !(isVirtualFolderDocumentPath(parentPath) || isVirtualFolderGroupPath(parentPath))
+    ) {
+      return null
+    }
+    const doc =
+      parseVirtualFolderGroupPath(parentPath)?.documentPath ??
+      (isVirtualFolderDocumentPath(parentPath) ? parentPath : null)
+    if (!doc) return null
+    const fromNode = nodesRef.current[parentPath]?.childEntryIds?.[path.toLowerCase()]
+    const listing = useAppStore.getState().listing
+    const fromListing = listing.virtualFolder?.entryIdByPathKey[pathKey(path)]
+    const entryId = fromNode ?? fromListing
+    if (!entryId) return null
+    return { documentPath: doc, entryId }
+  }
+
+  function virtualFolderGroupStackTo(parentPath: string): string[] {
+    const map = nodesRef.current
+    const stack: string[] = []
+    let cur: string | null = parentPath
+    while (cur && isVirtualFolderGroupPath(cur)) {
+      const g = parseVirtualFolderGroupPath(cur)
+      if (!g) break
+      stack.unshift(g.groupId)
+      const parentKey =
+        Object.keys(map).find((k) => map[k]?.children?.some((c) => samePath(c, cur!))) ?? null
+      if (!parentKey || isVirtualFolderDocumentPath(parentKey)) break
+      cur = parentKey
+    }
+    return stack
+  }
+
+  function selectTreePath(path: string, parentPath: string | null = null): void {
+    const membership = vfMembershipForTreeNode(path, parentPath)
+    setTreeFocusPath(path, membership)
     const paneIdx = paneTabIds.indexOf(tabId)
     if (paneIdx >= 0) focusPane(paneIdx)
     if (isRecycleBinTreePath(path)) {
@@ -874,23 +954,17 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     } else if (isVirtualFolderGroupPath(path)) {
       const ref = parseVirtualFolderGroupPath(path)
       if (!ref) return
-      const map = nodesRef.current
-      const stack: string[] = []
-      let cur: string | null = path
-      while (cur && isVirtualFolderGroupPath(cur)) {
-        const g = parseVirtualFolderGroupPath(cur)
-        if (!g) break
-        stack.unshift(g.groupId)
-        const parentKey =
-          Object.keys(map).find((k) => map[k]?.children?.some((c) => samePath(c, cur!))) ?? null
-        if (!parentKey || isVirtualFolderDocumentPath(parentKey)) break
-        cur = parentKey
-      }
-      void useAppStore.getState().enterVirtualFolderGroup(ref.documentPath, stack)
+      void useAppStore.getState().enterVirtualFolderGroup(
+        ref.documentPath,
+        virtualFolderGroupStackTo(path)
+      )
     } else {
-      void navigate(path, { tabId })
+      void (async () => {
+        await navigate(path, { tabId })
+        if (membership) useAppStore.getState().setTreeFocusPath(path, membership)
+      })()
     }
-    requestAnimationFrame(() => scrollTreePathIntoView(path))
+    requestAnimationFrame(() => scrollTreePathIntoView(path, parentPath))
   }
 
   /** Explorer nav-pane arrows: ↑↓ move selection; ←/→ collapse·parent / expand·child. */
@@ -935,7 +1009,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             ? rows.length - 1
             : Math.max(0, idx - 1)
       const path = rows[next]?.dataset.treePath
-      if (path) selectTreePath(path)
+      const parent = rows[next]?.dataset.treeParent || null
+      if (path) selectTreePath(path, parent)
       return
     }
 
@@ -963,7 +1038,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       }
       // Expanded → select first visible child (Explorer).
       const first = kids?.[0]
-      if (first) selectTreePath(first)
+      if (first) selectTreePath(first, cursor)
       return
     }
 
@@ -977,7 +1052,15 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     if (rootPath && samePath(cursor, rootPath)) return
     if (isVolumeRootPath(cursor)) return
     let parent: string | null
-    if (isVirtualFolderGroupPath(cursor)) {
+    if (treeFocusVirtualFolder && treeFocusPath && samePath(cursor, treeFocusPath)) {
+      const map = nodesRef.current
+      parent =
+        Object.keys(map).find(
+          (k) =>
+            (isVirtualFolderDocumentPath(k) || isVirtualFolderGroupPath(k)) &&
+            map[k]?.children?.some((c) => samePath(c, cursor))
+        ) ?? null
+    } else if (isVirtualFolderGroupPath(cursor)) {
       const map = nodesRef.current
       parent =
         Object.keys(map).find((k) => map[k]?.children?.some((c) => samePath(c, cursor))) ?? null
@@ -1008,12 +1091,20 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   ): JSX.Element {
     const node = nodes[path]
     const expanded = node?.expanded ?? false
-    // While browsing via Quick access, only highlight there — not the same
-    // folder again under Drives (even if that branch was already expanded).
-    const selected =
-      samePath(path, activeTreePath) &&
-      !(inQuickAccess && (section === 'drives' || section === 'network'))
-    const treeFocused = treeFocusPath !== null && samePath(path, treeFocusPath)
+    const parentIsVf =
+      !!parentPath &&
+      (isVirtualFolderDocumentPath(parentPath) || isVirtualFolderGroupPath(parentPath))
+    // Symlink-like VF membership: blue bar only on the row under the Virtual
+    // Folder — not the real folder (same path, possibly another drive).
+    const selected = treeFocusVirtualFolder
+      ? parentIsVf && treeFocusPath != null && samePath(path, treeFocusPath)
+      : samePath(path, activeTreePath) &&
+        !(inQuickAccess && (section === 'drives' || section === 'network'))
+    const treeFocused =
+      !selected &&
+      treeFocusPath != null &&
+      samePath(path, treeFocusPath) &&
+      !treeFocusVirtualFolder
     const fsHidden = isFsHidden(path, parentPath)
     const renaming =
       renameSource === 'tree' &&
@@ -1043,23 +1134,25 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
         : 'Disconnected network drive'
       : driveMeta?.remotePath
     return (
-      <div key={`${section}:${path}`}>
+      <div key={`${section}:${parentPath ?? ''}:${path}`}>
         <div
           className={`tree-node${selected ? ' selected' : ''}${treeFocused && !selected ? ' tree-focused' : ''}${fsHidden ? ' fs-hidden' : ''}${driveOffline ? ' drive-offline' : ''}${dropHighlightPath && samePath(dropHighlightPath, path) ? ' drop-target' : ''}`}
           style={{ paddingLeft: 6 + depth * 14 }}
           title={driveTitle}
           data-drop-dir={path}
           data-tree-path={path}
+          data-tree-parent={parentPath ?? ''}
           draggable={false}
           onClick={(e) => {
             if (shouldSuppressClickAfterLeftDrag()) return
             if ((e.target as HTMLElement).closest('.twisty')) return
-            setTreeFocusPath(path)
             treeRef.current?.focus()
             const paneIdx = paneTabIds.indexOf(tabId)
             if (paneIdx >= 0) focusPane(paneIdx)
-            // Explorer: select, pause, click label again, hover ~500ms → rename.
-            if (selected && isNameLabelTarget(e.target)) {
+            // Rename only when this folder is already the cwd. Do not treat a
+            // VF membership highlight (set on pointerdown) as “already open”.
+            const alreadyOpen = samePath(activePath, path)
+            if (alreadyOpen && isNameLabelTarget(e.target)) {
               handleLabelClickForRename(
                 path,
                 () => startRename(path, 'tree'),
@@ -1069,7 +1162,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
               return
             }
             noteItemClick(path)
-            selectTreePath(path)
+            selectTreePath(path, parentPath)
           }}
           onDoubleClick={(e) => {
             cancelDoubleSingleClick()
@@ -1081,7 +1174,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             if (e.button === 2) {
               e.preventDefault()
               e.stopPropagation()
-              setTreeFocusPath(path)
+              setTreeFocusPath(path, vfMembershipForTreeNode(path, parentPath))
               beginRightDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
                 ghostLabel: label,
                 onActivated: (paths) => {
@@ -1118,7 +1211,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
               return
             }
             if (e.button !== 0) return
-            setTreeFocusPath(path)
+            setTreeFocusPath(path, vfMembershipForTreeNode(path, parentPath))
             beginLeftFileDragGesture([path], e.clientX, e.clientY, e.currentTarget, e.pointerId, {
               ghostLabel: label,
               onActivated: (paths) => {
@@ -1150,7 +1243,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
             cancelDoubleSingleClick()
             // Right-drag owns the menu (opened from pointerup).
             if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
-            setTreeFocusPath(path)
+            setTreeFocusPath(path, vfMembershipForTreeNode(path, parentPath))
             openContextMenu({ x: e.clientX, y: e.clientY, paths: [path], inTree: true })
           }}
           onDragEnd={() => {

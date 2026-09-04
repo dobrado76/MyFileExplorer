@@ -613,6 +613,11 @@ type AppState = {
   renameSource: 'tree' | 'files' | null
   /** Last folder clicked/focused in the tree (for F2 rename). */
   treeFocusPath: string | null
+  /**
+   * When tree focus is a membership row under a Virtual Folder, Del removes this
+   * reference instead of deleting the real path (which is shared with Drives).
+   */
+  treeFocusVirtualFolder: { documentPath: string; entryId: string } | null
   /** Tree **Drives** header selected — status bar + preview show every volume. */
   drivesOverview: boolean
   clipboard: ClipboardState
@@ -873,7 +878,10 @@ type AppState = {
   ): Promise<{ pairs: UndoPathPair[]; skipped: string[] }>
   /** Dialog Undo: relocate pairs back; pop matching power-rename undo if still on top. */
   undoPowerRenameApply(pairs: UndoPathPair[]): Promise<void>
-  setTreeFocusPath(path: string | null): void
+  setTreeFocusPath(
+    path: string | null,
+    vfMembership?: { documentPath: string; entryId: string } | null
+  ): void
   /** Select the tree Drives header (all-volumes status + preview pies). */
   showDrivesOverview(): void
   createFolder(parent?: string): Promise<void>
@@ -3193,6 +3201,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     renamingPath: null,
     renameSource: null,
     treeFocusPath: null,
+    treeFocusVirtualFolder: null,
     drivesOverview: false,
     clipboard: null,
     dragPaths: [],
@@ -5182,8 +5191,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({ renamingPath: null, renameSource: null })
     },
 
-    setTreeFocusPath(path) {
-      set({ treeFocusPath: path, ...(path ? { drivesOverview: false } : {}) })
+    setTreeFocusPath(path, vfMembership) {
+      set({
+        treeFocusPath: path,
+        treeFocusVirtualFolder: path ? (vfMembership ?? null) : null,
+        ...(path ? { drivesOverview: false } : {})
+      })
     },
 
     showDrivesOverview() {
@@ -5191,6 +5204,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set((s) => ({
         drivesOverview: true,
         treeFocusPath: null,
+        treeFocusVirtualFolder: null,
         selectionAnchor: null,
         focusedPath: null,
         tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, selected: [] } : t))
@@ -6523,7 +6537,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       }
 
-      // Real folder destination — extract embedded groups to new `.mfevirtual` files.
+      // Real folder destination ΓÇö extract embedded groups to new `.mfevirtual` files.
       const groupSources = sources.filter((p) => isVirtualFolderGroupPath(p))
       const fsSources = sources.filter((p) => !isVirtualFolderGroupPath(p))
       if (groupSources.length > 0) {
@@ -6603,7 +6617,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         : undefined
       try {
-        // Same-folder copy (Ctrl+C / Ctrl+V in place): Explorer-style Keep both —
+        // Same-folder copy (Ctrl+C / Ctrl+V in place): Explorer-style Keep both ΓÇö
         // auto-number (`name (2).ext`) with no dual-compare dialog; select the new copies.
         const sameFolderCopy =
           op === 'copy' &&
@@ -6973,6 +6987,20 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       const listing = s.listing
       const selected = paths ?? s.activeTab().selected
+      // Tree focus under a Virtual Folder: Del removes the membership only — never
+      // the real folder that shares the same path under Drives.
+      const treeVf = s.treeFocusVirtualFolder
+      const treeFocus = s.treeFocusPath
+      if (
+        !permanent &&
+        treeVf &&
+        treeFocus &&
+        selected.some((p) => samePath(p, treeFocus))
+      ) {
+        await get().removeFromVirtualFolder([treeVf.entryId], treeVf.documentPath)
+        set({ treeFocusVirtualFolder: null })
+        return
+      }
       // Embedded groups / VF members: Del removes membership (never filesystem delete
       // of opaque mfe-vfgroup: rows). Resolve ids from the listing map *or* the path.
       const vfIds = selected
@@ -7093,7 +7121,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           await releaseMediaLocks()
           const res = await withBusyFeedback(
             'trash',
-            'Moving to Recycle Bin…',
+            'Moving to Recycle BinΓÇª',
             target.length === 1 ? basename(target[0]!) : `${target.length} items`,
             () => call(api.fs.trash({ paths: target }))
           )
@@ -7110,7 +7138,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
           if (res.issues.length > 0) {
             get().notify(
-              `Moved ${res.trashed.length.toLocaleString()} · ${res.issues.length.toLocaleString()} need review`
+              `Moved ${res.trashed.length.toLocaleString()} ┬╖ ${res.issues.length.toLocaleString()} need review`
             )
             openOpIssuesReview({
               op: 'trash',

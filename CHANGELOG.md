@@ -21,6 +21,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Virtual Folder tree selection** — a referenced folder in the tree acts like a symlink: the file list shows the real folder’s contents, the tree highlight stays on the **membership row only** (no jump/scroll to the real folder), and Del removes the reference.
 - **Virtual Folder preview** — Name omits `.mfevirtual`; Type shows **Virtual Folder** instead of “MFEVIRTUAL file”. Contents lists only non-zero kinds (e.g. `2 folders`, not `0 files · 2 folders · 0 virtual folders`).
 - **Search vs folder view** — starting a search no longer permanently switches the folder to Details. Results still always *display* as Details; Clear / exit search restores thumbnails, list, etc.
 - **Recycle Bin Restore** — Restore no longer trusts a no-op Shell verb. It uses the Recycle Bin namespace first, then falls back to moving `$R…` back to the original path and deleting `$I…`. Success requires the file to exist again; failure warns not to Empty until Restore succeeds.
