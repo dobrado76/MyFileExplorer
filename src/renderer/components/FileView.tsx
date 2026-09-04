@@ -580,7 +580,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
     [owningView, tab?.sort]
   )
-  const viewMode = owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons'
+  // Search is a separate overlay (D29): always Details for results. Never read as
+  // mutating the folder/tab viewMode — that stays whatever was set before search.
+  const viewMode = searchMode
+    ? 'details'
+    : (owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons')
   const noFilenameView = viewMode === 'extraLargeIconsNoName'
   const mediaMetadataEnabled = useAppStore((s) => s.settings.mediaMetadata.enabled)
 

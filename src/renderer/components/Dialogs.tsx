@@ -3498,13 +3498,6 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 </span>
               </label>
               <SettingsToggle
-                id="set-preview-autoplay"
-                label="Autoplay media in preview"
-                hint="Start video/audio when a file is selected (off by default)"
-                checked={settings.previewVideoAutoplay === true}
-                onChange={(v) => void applySettingsPatch({ previewVideoAutoplay: v })}
-              />
-              <SettingsToggle
                 id="set-confirmdel"
                 label="Always confirm permanent delete"
                 hint="Ask even for a single file (Shift+Del)"
@@ -4050,6 +4043,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 hint="New sessions open with the preview pane visible"
                 checked={settings.previewVisibleDefault}
                 onChange={(v) => void applySettingsPatch({ previewVisibleDefault: v })}
+              />
+              <SettingsToggle
+                id="set-preview-autoplay"
+                label="Autoplay media in preview"
+                hint="Start video/audio when a file is selected (off by default)"
+                checked={settings.previewVideoAutoplay === true}
+                searchTerms="autoplay video audio movie episode play"
+                onChange={(v) => void applySettingsPatch({ previewVideoAutoplay: v })}
               />
               <label
                 className="settings-field settings-field-narrow"

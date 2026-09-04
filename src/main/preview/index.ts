@@ -176,7 +176,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 24
+const PREVIEW_CACHE_REV = 26
 
 /** Drop cached previews for paths (Calculate Statistics preserves host mtime/size). */
 export function invalidatePreviewCache(paths?: readonly string[]): void {
@@ -367,6 +367,26 @@ export async function getPreview(
     if (ext === 'mfevirtual') {
       const { previewVirtualFolderStats } = await import('../virtualFolder')
       const { virtualFolderDisplayName } = await import('@shared/virtualFolder')
+      const displayName = virtualFolderDisplayName(file)
+      const nameIdx = fields.findIndex((f) => f.id === 'file.name')
+      if (nameIdx >= 0) {
+        fields[nameIdx] = {
+          id: 'file.name',
+          label: 'Name',
+          value: displayName,
+          group: 'file',
+          copyable: true
+        }
+      }
+      const typeIdx = fields.findIndex((f) => f.id === 'file.type')
+      if (typeIdx >= 0) {
+        fields[typeIdx] = {
+          id: 'file.type',
+          label: 'Type',
+          value: 'Virtual Folder',
+          group: 'file'
+        }
+      }
       try {
         const stats = await previewVirtualFolderStats(file)
         fields.push({
@@ -375,10 +395,22 @@ export async function getPreview(
           value: String(stats.entryCount),
           group: 'file'
         })
+        const contentsParts: string[] = []
+        if (stats.fileCount > 0) {
+          contentsParts.push(`${stats.fileCount} ${stats.fileCount === 1 ? 'file' : 'files'}`)
+        }
+        if (stats.folderCount > 0) {
+          contentsParts.push(`${stats.folderCount} ${stats.folderCount === 1 ? 'folder' : 'folders'}`)
+        }
+        if (stats.virtualFolderCount > 0) {
+          contentsParts.push(
+            `${stats.virtualFolderCount} ${stats.virtualFolderCount === 1 ? 'virtual folder' : 'virtual folders'}`
+          )
+        }
         fields.push({
           id: 'virtualFolder.breakdown',
           label: 'Contents',
-          value: `${stats.fileCount} files · ${stats.folderCount} folders · ${stats.virtualFolderCount} virtual folders`,
+          value: contentsParts.length > 0 ? contentsParts.join(' · ') : 'Empty',
           group: 'file'
         })
         if (stats.missingCount > 0) {
@@ -411,7 +443,7 @@ export async function getPreview(
         model = {
           path: file,
           kind: 'virtualFolder',
-          subtitle: virtualFolderDisplayName(file),
+          subtitle: displayName,
           fields,
           warnings
         }

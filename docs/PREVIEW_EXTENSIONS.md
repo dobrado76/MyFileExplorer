@@ -74,7 +74,7 @@ Unknown extensions are **not** ignored: main sniffs for text (UTF-8 / UTF-16 LE)
 
 ## Audio
 
-Inline `<audio>` via byte-range `mfe-media://`. Optional autoplay: Settings → Behavior → **Autoplay media in preview**.
+Inline `<audio>` via byte-range `mfe-media://`. Optional autoplay: Settings → Preview → **Autoplay media in preview**.
 
 Also shows **parsed metadata** (ID3 / Vorbis / etc. via `music-metadata`): duration, bitrate, sample rate, channels, codec/container, title/artist/album, track/disc, genre, year, composers & credits, BPM/key, copyright, ISRC, MusicBrainz IDs, comments/lyrics (truncated), and **embedded cover art** when present. Empty fields omitted.
 

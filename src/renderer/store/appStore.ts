@@ -4685,6 +4685,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       const s = get()
       const id = tabId ?? s.activeTabId
       const tab = s.tabs.find((t) => t.id === id) ?? s.activeTab()
+      // Search uses a Details overlay only — changing view here would still write
+      // folder prefs while the list looks like Details until Clear.
+      if (tab.search.active) return
       const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       if (owning) {
         void get().applySettingsPatch({
@@ -4846,6 +4849,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       const preset = s.settings.viewPresets.find((p) => p.id === id)
       if (!preset) return
       const tab = s.activeTab()
+      if (tab.search.active) {
+        get().notify('Clear search before applying a view preset', true)
+        return
+      }
       const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       const detailsColumns = preset.detailsColumns.filter((c) => c.id !== 'folder') as Settings['detailsColumns']
       const extra = {
@@ -8729,7 +8736,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       const seq = ++searchSeq
       const indexedOnly = tab.search.indexedOnly
       const settings = get().settings
-      get().setViewMode('details', id)
+      // Search results always *display* as Details (FileView overlay). Never mutate
+      // tab/folder viewMode — clearing search must restore the prior folder view.
       const entering = !tab.search.active
       const last = tab.back[tab.back.length - 1]
       const folderHere = folderHistory(tab.path, liveFileViewScroll(tab.id) ?? tab.scrollOffset)
