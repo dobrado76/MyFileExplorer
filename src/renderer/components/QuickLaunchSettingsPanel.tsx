@@ -42,7 +42,13 @@ export function QuickLaunchSettingsPanel(): JSX.Element {
         }
         if (patch.iconId) next.iconId = patch.iconId
         else delete next.iconId
-        if (patch.iconKind !== 'lucide') delete next.lucideName
+        if (patch.iconKind === 'lucide') {
+          if (patch.lucidePack && patch.lucidePack !== 'lucide') next.lucidePack = patch.lucidePack
+          else delete next.lucidePack
+        } else {
+          delete next.lucideName
+          delete next.lucidePack
+        }
         return next
       })
     )

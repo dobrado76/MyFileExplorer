@@ -164,4 +164,25 @@ describe('layouts', () => {
       sizePx: 32
     })
   })
+
+  it('keeps a multi-pack glyph tab icon on a layout tab', () => {
+    const parsed = workspaceLayoutSchema.parse({
+      id: 'lay_2',
+      name: 'Pack',
+      updatedAt: 1,
+      activeTabIndex: 0,
+      splitters: {},
+      tabs: [
+        {
+          path: 'D:\\Pack',
+          icon: { name: 'Folder', color: '#34d399', pack: 'phosphor' }
+        }
+      ]
+    })
+    expect(parsed.tabs[0]!.icon).toEqual({
+      name: 'Folder',
+      color: '#34d399',
+      pack: 'phosphor'
+    })
+  })
 })

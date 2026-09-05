@@ -289,6 +289,9 @@ textarea:focus {
 .tab-context-menu {
   z-index: 10000;
   min-width: 168px;
+  /* Allow room for portaled flyouts; parent .context-menu scrolls by default. */
+  overflow: visible;
+  max-height: none;
 }
 .tab-offline-badge {
   flex-shrink: 0;
@@ -6011,6 +6014,15 @@ html.idle-cursor-hidden * {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+.icon-pack-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.icon-pack-tabs .btn-small {
+  padding: 2px 10px;
+  font-size: 0.85em;
 }
 .modal.modal-item-note {
   width: min(480px, 96vw);

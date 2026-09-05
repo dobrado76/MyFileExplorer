@@ -1,35 +1,12 @@
-import { createElement, useEffect, useMemo, useRef, useState, type JSX } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
-import { isLucideTabIcon } from '@shared/tabIcons'
+import { useEffect, useState, type JSX } from 'react'
+import { isLucideTabIcon, tabIconPack } from '@shared/tabIcons'
 import { useAppStore } from '../store/appStore'
 import {
-  filterLucideIcons,
-  humanizeIconName,
-  resolveLucideIcon
-} from '../lib/lucideIcons'
-
-const COLS = 10
-const CELL = 40
-const DEFAULT_COLOR = '#60a5fa'
-const PRESET_COLORS = [
-  '#60a5fa',
-  '#34d399',
-  '#fbbf24',
-  '#f87171',
-  '#a78bfa',
-  '#fb7185',
-  '#38bdf8',
-  '#94a3b8',
-  '#e2e8f0',
-  '#f8fafc'
-]
-
-function normalizeHex(raw: string): string | null {
-  const s = raw.trim()
-  if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s.toLowerCase()
-  if (/^[0-9A-Fa-f]{6}$/.test(s)) return `#${s.toLowerCase()}`
-  return null
-}
+  glyphIsResolvable,
+  IconPicker,
+  ICON_PICKER_DEFAULT_COLOR,
+  type IconPickerGlyph
+} from './IconPicker'
 
 export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element | null {
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
@@ -38,21 +15,11 @@ export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element |
   const openDialog = useAppStore((s) => s.openDialog)
 
   const lucide = tab && isLucideTabIcon(tab.icon) ? tab.icon : null
-  const [query, setQuery] = useState('')
-  const [name, setName] = useState(lucide?.name ?? 'FolderOpen')
-  const [color, setColor] = useState(lucide?.color ?? DEFAULT_COLOR)
-  const [colorText, setColorText] = useState(lucide?.color ?? DEFAULT_COLOR)
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const filtered = useMemo(() => filterLucideIcons(query), [query])
-  const rowCount = Math.max(1, Math.ceil(filtered.length / COLS))
-
-  const virtualizer = useVirtualizer({
-    count: rowCount,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => CELL,
-    overscan: 6
-  })
+  const [glyph, setGlyph] = useState<IconPickerGlyph>(() => ({
+    pack: lucide ? tabIconPack(lucide) : 'lucide',
+    name: lucide?.name ?? 'FolderOpen',
+    color: lucide?.color ?? ICON_PICKER_DEFAULT_COLOR
+  }))
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -67,27 +34,15 @@ export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element |
     if (!tab) closeDialog()
   }, [tab, closeDialog])
 
-  // Scroll selected icon into view when opening / filtering.
-  useEffect(() => {
-    const idx = filtered.indexOf(name)
-    if (idx < 0) return
-    virtualizer.scrollToIndex(Math.floor(idx / COLS), { align: 'center' })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when filter list changes
-  }, [filtered])
-
   if (!tab) return null
 
-  const Preview = resolveLucideIcon(name)
-  const applyColor = (hex: string): void => {
-    const n = normalizeHex(hex)
-    if (!n) return
-    setColor(n)
-    setColorText(n)
-  }
-
-  const apply = (): void => {
-    if (!resolveLucideIcon(name)) return
-    setTabIcon(tabId, { name, color })
+  const applyGlyph = (g: IconPickerGlyph): void => {
+    if (!glyphIsResolvable(g)) return
+    setTabIcon(tabId, {
+      name: g.name,
+      color: g.color,
+      ...(g.pack !== 'lucide' ? { pack: g.pack } : {})
+    })
     closeDialog()
   }
 
@@ -104,115 +59,14 @@ export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element |
       <div className="modal modal-wide modal-tab-icon" role="dialog" aria-label="Set tab icon">
         <div className="modal-title">Set tab icon</div>
         <div className="modal-body modal-body-tab-icon">
-          <div className="tab-icon-picker-toolbar">
-            <div className="tab-icon-picker-preview" aria-hidden>
-              {Preview
-                ? createElement(Preview, { size: 28, color, strokeWidth: 2 })
-                : (
-                    <span className="dim">?</span>
-                  )}
-            </div>
-            <div className="tab-icon-picker-meta">
-              <div className="tab-icon-picker-name">{humanizeIconName(name)}</div>
-              <div className="dim tab-icon-picker-pascal">{name}</div>
-            </div>
-            <label className="tab-icon-color-field">
-              <span className="dim">Color</span>
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => applyColor(e.target.value)}
-                aria-label="Icon color"
-              />
-              <input
-                className="tab-icon-color-hex"
-                value={colorText}
-                spellCheck={false}
-                onChange={(e) => {
-                  setColorText(e.target.value)
-                  const n = normalizeHex(e.target.value)
-                  if (n) setColor(n)
-                }}
-                onBlur={() => setColorText(color)}
-                aria-label="Icon color hex"
-              />
-            </label>
-          </div>
-          <div className="tab-icon-presets" role="group" aria-label="Color presets">
-            {PRESET_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`tab-icon-preset${c.toLowerCase() === color ? ' active' : ''}`}
-                style={{ background: c }}
-                title={c}
-                aria-label={`Color ${c}`}
-                onClick={() => applyColor(c)}
-              />
-            ))}
-          </div>
-          <input
-            className="tab-icon-search"
-            type="search"
-            placeholder="Search Lucide icons…"
-            value={query}
-            autoFocus
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search icons"
+          <IconPicker
+            modes={['glyph']}
+            mode="glyph"
+            onModeChange={() => {}}
+            glyph={glyph}
+            onGlyphChange={setGlyph}
+            onGlyphActivate={applyGlyph}
           />
-          <div className="tab-icon-grid-wrap" ref={scrollRef}>
-            <div
-              className="tab-icon-grid-inner"
-              style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
-            >
-              {virtualizer.getVirtualItems().map((row) => {
-                const start = row.index * COLS
-                const slice = filtered.slice(start, start + COLS)
-                return (
-                  <div
-                    key={row.key}
-                    className="tab-icon-grid-row"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      height: CELL,
-                      transform: `translateY(${row.start}px)`
-                    }}
-                  >
-                    {slice.map((iconName) => {
-                      const Icon = resolveLucideIcon(iconName)
-                      if (!Icon) return null
-                      const selected = iconName === name
-                      return (
-                        <button
-                          key={iconName}
-                          type="button"
-                          className={`tab-icon-cell${selected ? ' selected' : ''}`}
-                          title={humanizeIconName(iconName)}
-                          aria-label={humanizeIconName(iconName)}
-                          aria-pressed={selected}
-                          onClick={() => setName(iconName)}
-                          onDoubleClick={() => {
-                            setName(iconName)
-                            setTabIcon(tabId, { name: iconName, color })
-                            closeDialog()
-                          }}
-                        >
-                          {createElement(Icon, { size: 18, color, strokeWidth: 2 })}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-          <div className="dim tab-icon-count">
-            {filtered.length.toLocaleString()} icon{filtered.length === 1 ? '' : 's'}
-            {query.trim() ? ' matching' : ' in Lucide'}
-          </div>
         </div>
         <div className="modal-actions">
           <div className="modal-action-start-group">
@@ -230,7 +84,12 @@ export function TabIconPickerDialog({ tabId }: { tabId: string }): JSX.Element |
           <button type="button" className="btn" onClick={closeDialog}>
             Cancel
           </button>
-          <button type="button" className="btn primary" onClick={apply} disabled={!Preview}>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => applyGlyph(glyph)}
+            disabled={!glyphIsResolvable(glyph)}
+          >
             Apply
           </button>
         </div>

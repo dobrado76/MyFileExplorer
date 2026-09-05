@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { isAdsFieldColumnId, isBuiltinDetailsColumnId, type DetailsColumnId } from './columns'
 import { coerceHistoryList, persistHistoryEntry } from '../tabHistory'
+import { iconPackIdSchema } from './iconPack'
 
 export const viewModeSchema = z.enum([
   'extraLargeIconsNoName',
@@ -42,13 +43,14 @@ export const MAX_TREE_EXPANDED = 400
 export const TAB_CUSTOM_ICON_SIZES = [16, 20, 24, 28, 32, 40, 48, 56, 64, 72] as const
 export type TabCustomIconSize = (typeof TAB_CUSTOM_ICON_SIZES)[number]
 
-/** Optional Lucide React icon on a tab (PascalCase name from `lucide-react` `icons`). */
+/** Optional glyph tab icon (Lucide / Phosphor / Tabler). Missing `pack` ⇒ lucide. */
 export const lucideTabIconSchema = z.object({
   name: z.string().min(1).max(80),
   color: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
-    .catch('#60a5fa')
+    .catch('#60a5fa'),
+  pack: iconPackIdSchema
 })
 export type LucideTabIcon = z.infer<typeof lucideTabIconSchema>
 

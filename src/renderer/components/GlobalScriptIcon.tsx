@@ -1,12 +1,13 @@
-import { createElement, useEffect, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import {
   SCRIPT_TOOLBAR_LUCIDE_COLOR,
   SCRIPT_TOOLBAR_LUCIDE_DEFAULT,
   type ScriptDefinition,
   type ScriptLanguage
 } from '@shared/schemas/scripts'
+import { normalizeIconPack } from '@shared/schemas/iconPack'
 import { api, call } from '../lib/ipc'
-import { resolveLucideIcon } from '../lib/lucideIcons'
+import { packIconElement } from '../lib/iconPacks'
 import { cacheQuickLaunchIconUrl } from './QuickLaunchIcon'
 import { ShellIcon } from './ShellIcon'
 
@@ -23,7 +24,7 @@ function languageLucideName(language: ScriptLanguage): string {
   }
 }
 
-/** Toolbar glyph for a Global script (Lucide / custom / file icon). */
+/** Toolbar glyph for a Global script (Lucide / Phosphor / Tabler / custom / file icon). */
 export function GlobalScriptIcon({
   script,
   size = 16
@@ -37,6 +38,8 @@ export function GlobalScriptIcon({
     script.sourceKind === 'external' && script.externalPath?.trim()
       ? script.externalPath.trim()
       : ''
+  const pack = normalizeIconPack(script.lucidePack)
+  const color = script.lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR
 
   useEffect(() => {
     if (!customId) {
@@ -63,17 +66,15 @@ export function GlobalScriptIcon({
   }, [customId])
 
   if (script.iconKind === 'lucide') {
-    const Lucide = resolveLucideIcon(script.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
-    if (Lucide) {
-      return createElement(Lucide, {
-        size,
-        color: script.lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR,
-        strokeWidth: 2,
-        className: 'quick-launch-lucide-icon',
-        style: { width: size, height: size, flexShrink: 0 },
-        'aria-hidden': true
-      })
-    }
+    const el = packIconElement(pack, script.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT, {
+      size,
+      color,
+      strokeWidth: 2,
+      className: 'quick-launch-lucide-icon',
+      style: { width: size, height: size, flexShrink: 0 },
+      'aria-hidden': true
+    })
+    if (el) return el
   }
 
   if (customId && url) {
@@ -93,28 +94,24 @@ export function GlobalScriptIcon({
     return <ShellIcon path={shellPath} size={size} />
   }
 
-  const Fallback = resolveLucideIcon(languageLucideName(script.language))
-  if (Fallback) {
-    return createElement(Fallback, {
-      size,
-      color: script.lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR,
-      strokeWidth: 2,
-      className: 'quick-launch-lucide-icon',
-      style: { width: size, height: size, flexShrink: 0 },
-      'aria-hidden': true
-    })
-  }
+  const fallback = packIconElement('lucide', languageLucideName(script.language), {
+    size,
+    color,
+    strokeWidth: 2,
+    className: 'quick-launch-lucide-icon',
+    style: { width: size, height: size, flexShrink: 0 },
+    'aria-hidden': true
+  })
+  if (fallback) return fallback
 
-  const Scroll = resolveLucideIcon(SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
-  if (Scroll) {
-    return createElement(Scroll, {
-      size,
-      color: SCRIPT_TOOLBAR_LUCIDE_COLOR,
-      strokeWidth: 2,
-      className: 'quick-launch-lucide-icon',
-      style: { width: size, height: size, flexShrink: 0 },
-      'aria-hidden': true
-    })
-  }
+  const scroll = packIconElement('lucide', SCRIPT_TOOLBAR_LUCIDE_DEFAULT, {
+    size,
+    color: SCRIPT_TOOLBAR_LUCIDE_COLOR,
+    strokeWidth: 2,
+    className: 'quick-launch-lucide-icon',
+    style: { width: size, height: size, flexShrink: 0 },
+    'aria-hidden': true
+  })
+  if (scroll) return scroll
   return <span className="global-script-icon-fallback" aria-hidden style={{ width: size, height: size }} />
 }

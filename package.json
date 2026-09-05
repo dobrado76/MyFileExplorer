@@ -2,7 +2,7 @@
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
   "desktopName": "MyFileExplorer",
-  "version": "0.15.9",
+  "version": "0.15.11",
   "description": "Windows-first Electron + React file manager: tabs, rich previews, Everything-inspired search, and a universal local script runner (PowerShell / Python / cmd / bash) with optional AI that never reads your files.",
   "main": "./out/main/index.js",
   "author": "MyFileExplorer",
@@ -33,6 +33,8 @@
     "dist:linux": "npm run build:linux"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@tabler/icons-react": "^3.46.0",
     "7zip-bin": "^5.2.0",
     "7zip-min": "^3.0.1",
     "ag-psd": "^31.0.2",

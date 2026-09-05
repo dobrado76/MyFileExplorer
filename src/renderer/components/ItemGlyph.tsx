@@ -1,6 +1,7 @@
-import { createElement, type JSX } from 'react'
+import { type JSX } from 'react'
 import type { ItemAdsRecord } from '@shared/schemas/itemAds'
-import { resolveLucideIcon } from '../lib/lucideIcons'
+import { normalizeIconPack } from '@shared/schemas/iconPack'
+import { packIconElement } from '../lib/iconPacks'
 import { ShellIcon, ShellTint } from './ShellIcon'
 
 type Props = {
@@ -18,20 +19,18 @@ export function lookupItemAds(
   return byPath[path] ?? null
 }
 
-/** File/folder glyph: Lucide or custom image replace the shell icon; shell+tint wraps it. */
+/** File/folder glyph: Lucide/Phosphor/Tabler or custom image replace the shell icon; shell+tint wraps it. */
 export function ItemGlyph({ path, size, isDir, renaming, overlay }: Props): JSX.Element {
   const icon = overlay?.icon ?? null
   if (icon?.kind === 'lucide') {
-    const Lucide = resolveLucideIcon(icon.name)
-    if (Lucide) {
-      return createElement(Lucide, {
-        size,
-        color: icon.color,
-        strokeWidth: 2,
-        className: 'item-lucide-icon',
-        style: { width: size, height: size, flexShrink: 0 }
-      })
-    }
+    const el = packIconElement(normalizeIconPack(icon.pack), icon.name, {
+      size,
+      color: icon.color,
+      strokeWidth: 2,
+      className: 'item-lucide-icon',
+      style: { width: size, height: size, flexShrink: 0 }
+    })
+    if (el) return el
   }
   if (icon?.kind === 'custom' && overlay?.iconPngBase64) {
     return (

@@ -656,6 +656,75 @@ function TabReopenMenuItems(props: {
   onClear: () => void
 }): JSX.Element {
   const empty = props.closedTabs.length === 0
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const subRef = useRef<HTMLDivElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [open, setOpen] = useState(false)
+  const [place, setPlace] = useState<{
+    left: number
+    top: number
+    maxHeight: number | null
+    flipX: boolean
+    ready: boolean
+  }>({ left: 0, top: 0, maxHeight: null, flipX: false, ready: false })
+
+  const clearCloseTimer = (): void => {
+    if (closeTimer.current != null) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+
+  const openSub = (): void => {
+    clearCloseTimer()
+    setOpen(true)
+  }
+
+  const scheduleCloseSub = (): void => {
+    clearCloseTimer()
+    closeTimer.current = setTimeout(() => {
+      setOpen(false)
+      closeTimer.current = null
+    }, 200)
+  }
+
+  useEffect(() => () => clearCloseTimer(), [])
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPlace({ left: 0, top: 0, maxHeight: null, flipX: false, ready: false })
+      return
+    }
+    const wrap = wrapRef.current
+    const sub = subRef.current
+    if (!wrap || !sub) return
+
+    const margin = 8
+    const vw = window.innerWidth
+    const vh = window.visualViewport?.height ?? window.innerHeight
+    const vTop = window.visualViewport?.offsetTop ?? 0
+    const wrapRect = wrap.getBoundingClientRect()
+    const raw = sub.getBoundingClientRect()
+    const maxHeight = Math.max(80, vh - margin * 2)
+    const height = Math.min(raw.height, maxHeight)
+    const subW = raw.width
+
+    const fitsRight = wrapRect.right + 2 + subW <= vw - margin
+    const fitsLeft = wrapRect.left - 2 - subW >= margin
+    const flipX = !fitsRight && fitsLeft
+
+    const left = flipX ? wrapRect.left - subW - 2 : wrapRect.right + 2
+    let top = wrapRect.top - 5
+    if (top + height > vTop + vh - margin) {
+      top = vTop + vh - margin - height
+    }
+    if (top < vTop + margin) {
+      top = vTop + margin
+    }
+
+    setPlace({ left, top, maxHeight, flipX, ready: true })
+  }, [open, props.closedTabs])
+
   return (
     <>
       <button
@@ -672,29 +741,66 @@ function TabReopenMenuItems(props: {
         <span className="menu-hint">Ctrl+Shift+T</span>
       </button>
       {!empty ? (
-        <div className="menu-sub-wrap">
-          <button type="button" className="menu-item" role="menuitem" aria-haspopup="menu">
+        <div
+          ref={wrapRef}
+          className="menu-sub-wrap"
+          onMouseEnter={openSub}
+          onMouseLeave={scheduleCloseSub}
+        >
+          <button
+            type="button"
+            className={`menu-item has-sub${open ? ' focused' : ''}`}
+            role="menuitem"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            onClick={() => (open ? scheduleCloseSub() : openSub())}
+          >
             Recently closed
             <span className="menu-hint">▸</span>
           </button>
-          <div className="context-menu context-submenu" role="menu">
-            {props.closedTabs.map((entry, i) => (
-              <button
-                key={`${entry.tab.id}-${i}`}
-                type="button"
-                className="menu-item"
-                role="menuitem"
-                title={entry.tab.path}
-                onClick={() => props.onReopen(i)}
-              >
-                {closedTabLabel(entry)}
-              </button>
-            ))}
-            <div className="menu-sep" />
-            <button type="button" className="menu-item" role="menuitem" onClick={props.onClear}>
-              Clear recently closed
-            </button>
-          </div>
+          {open
+            ? createPortal(
+                <div
+                  ref={subRef}
+                  className={`context-menu context-submenu tab-recent-submenu${place.flipX ? ' flip' : ''}`}
+                  role="menu"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseEnter={openSub}
+                  onMouseLeave={scheduleCloseSub}
+                  style={{
+                    position: 'fixed',
+                    left: place.left,
+                    top: place.top,
+                    maxHeight: place.maxHeight ?? undefined,
+                    zIndex: 10001,
+                    visibility: place.ready ? 'visible' : 'hidden'
+                  }}
+                >
+                  {props.closedTabs.map((entry, i) => (
+                    <button
+                      key={`${entry.tab.id}-${i}`}
+                      type="button"
+                      className="menu-item"
+                      role="menuitem"
+                      title={entry.tab.path}
+                      onClick={() => props.onReopen(i)}
+                    >
+                      {closedTabLabel(entry)}
+                    </button>
+                  ))}
+                  <div className="menu-sep" />
+                  <button
+                    type="button"
+                    className="menu-item"
+                    role="menuitem"
+                    onClick={props.onClear}
+                  >
+                    Clear recently closed
+                  </button>
+                </div>,
+                document.body
+              )
+            : null}
         </div>
       ) : null}
     </>

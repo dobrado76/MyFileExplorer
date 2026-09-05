@@ -220,6 +220,36 @@ describe('settings export / import', () => {
     })
   })
 
+  it('round-trips Quick Launch Tabler pack (multi-pack / D45)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        quickLaunch: [
+          {
+            id: 'ql_tabler_ab',
+            name: 'Notes',
+            path: 'C:\\Tools\\notes.exe',
+            args: '',
+            show: 'icon',
+            iconSizePx: 24,
+            iconKind: 'lucide',
+            lucideName: 'Folder',
+            lucidePack: 'tabler',
+            lucideColor: '#a78bfa'
+          }
+        ]
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.quickLaunch[0]).toMatchObject({
+      iconKind: 'lucide',
+      lucideName: 'Folder',
+      lucidePack: 'tabler',
+      lucideColor: '#a78bfa'
+    })
+  })
+
   it('round-trips viewPresets via full settingsSchema (D60)', () => {
     const doc = buildSettingsExportDocument({
       settings: {

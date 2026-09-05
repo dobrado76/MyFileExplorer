@@ -140,6 +140,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
   const [iconId, setIconId] = useState<string | undefined>(undefined)
   const [lucideName, setLucideName] = useState(SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
   const [lucideColor, setLucideColor] = useState(SCRIPT_TOOLBAR_LUCIDE_COLOR)
+  const [lucidePack, setLucidePack] = useState<ScriptDefinition['lucidePack']>(undefined)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   const filtered = useMemo(() => {
@@ -186,6 +187,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
     setIconId(s.iconId)
     setLucideName(s.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
     setLucideColor(s.lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR)
+    setLucidePack(s.lucidePack)
     setIconPickerOpen(false)
   }
 
@@ -257,7 +259,8 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             iconKind,
             iconId: iconKind === 'custom' ? iconId : undefined,
             lucideName: lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT,
-            lucideColor: lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR
+            lucideColor: lucideColor || SCRIPT_TOOLBAR_LUCIDE_COLOR,
+            lucidePack: iconKind === 'lucide' && lucidePack && lucidePack !== 'lucide' ? lucidePack : undefined
           },
           source
         })
@@ -666,7 +669,8 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
                         iconKind,
                         iconId,
                         lucideName,
-                        lucideColor
+                        lucideColor,
+                        lucidePack
                       }}
                       size={iconSizePx}
                     />
@@ -899,7 +903,8 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
               iconKind,
               iconId,
               lucideName,
-              lucideColor
+              lucideColor,
+              lucidePack
             } satisfies QuickLaunchItem
           }
           titlePrefix="Script icon"
@@ -907,7 +912,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
           shellHelp={
             sourceKind === 'external' && externalPath.trim()
               ? 'Uses the Windows glyph for the external script file.'
-              : 'No external file — Save with External file, or pick Lucide / Custom image.'
+              : 'No external file — Save with External file, or pick Glyph / Custom image.'
           }
           onClose={() => setIconPickerOpen(false)}
           onApply={(patch: QuickLaunchIconPatch) => {
@@ -920,6 +925,11 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
             }
             if (patch.iconKind === 'lucide') {
               setLucideName(patch.lucideName || SCRIPT_TOOLBAR_LUCIDE_DEFAULT)
+              setLucidePack(
+                patch.lucidePack && patch.lucidePack !== 'lucide' ? patch.lucidePack : undefined
+              )
+            } else {
+              setLucidePack(undefined)
             }
             setIconPickerOpen(false)
             setDirty(true)

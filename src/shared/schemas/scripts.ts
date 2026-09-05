@@ -7,6 +7,7 @@ import {
   quickLaunchIconKindSchema,
   quickLaunchShowSchema
 } from './quickLaunch'
+import { iconPackIdSchema } from './iconPack'
 
 export const SCRIPT_LANGUAGES = ['powershell', 'python', 'cmd', 'bash'] as const
 export type ScriptLanguage = (typeof SCRIPT_LANGUAGES)[number]
@@ -96,6 +97,8 @@ export const scriptDefinitionSchema = z.object({
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
     .catch(SCRIPT_TOOLBAR_LUCIDE_COLOR),
+  /** Glyph library when iconKind is lucide; missing ⇒ lucide. */
+  lucidePack: iconPackIdSchema,
   createdAt: z.string().catch(''),
   updatedAt: z.string().catch('')
 })

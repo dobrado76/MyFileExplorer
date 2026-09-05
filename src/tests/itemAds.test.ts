@@ -40,6 +40,14 @@ describe('item note / icon schemas', () => {
     expect(parseItemIcon(JSON.stringify({ kind: 'nope' }))).toBeNull()
     expect(() => itemIconSchema.parse({ kind: 'both' })).toThrow()
   })
+
+  it('accepts optional pack on lucide item icons (multi-pack)', () => {
+    expect(
+      parseItemIcon(
+        JSON.stringify({ kind: 'lucide', name: 'Star', color: '#60a5fa', pack: 'tabler' })
+      )
+    ).toEqual({ kind: 'lucide', name: 'Star', color: '#60a5fa', pack: 'tabler' })
+  })
 })
 
 describe('note search match', () => {

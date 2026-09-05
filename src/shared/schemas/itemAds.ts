@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { iconPackIdSchema } from './iconPack'
 
 export const ITEM_NOTE_STREAM = 'mfe_note'
 export const ITEM_ICON_STREAM = 'mfe_icon'
@@ -26,7 +27,9 @@ export const itemIconLucideSchema = z.object({
   color: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
-    .catch('#60a5fa')
+    .catch('#60a5fa'),
+  /** Glyph library; missing ⇒ lucide. Kind stays `'lucide'` for ADS compatibility. */
+  pack: iconPackIdSchema
 })
 
 export const itemIconShellSchema = z.object({

@@ -50,6 +50,8 @@
     "src/renderer/lib/treeFromListing.ts",
     "src/renderer/lib/thumbMemory.ts",
     "src/renderer/lib/clipboardActionPaths.ts",
-    "src/renderer/lib/gitUi.ts"
+    "src/renderer/lib/gitUi.ts",
+    "src/renderer/lib/lucideIcons.ts",
+    "src/renderer/lib/iconPacks.ts"
   ]
 }

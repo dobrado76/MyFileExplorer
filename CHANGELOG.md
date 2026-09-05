@@ -13,6 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Power Rename Advanced options** — collapsible BRU-style panels (Name, Case, Remove, Move/Copy, Add, Auto date, Append folder, Numbering, Extension, Selection filter) behind the simple search/replace UI. Apply works with advanced-only transforms (empty Search). Guide: [docs/POWER_RENAME.md](docs/POWER_RENAME.md).
 - **Power Rename DOS wildcards** — when regex is off, Search treats `*` and `?` like the DOS shell.
+- **Multi-pack icon picker** — Tabs, per-item icons, Quick Launch, and Scripts share one Glyph picker with **Lucide**, **Phosphor** (Regular), and **Tabler**. Existing Lucide-only data (no `pack` / `lucidePack`) keeps working; item ADS `kind` stays `'lucide'`.
 
 ### Changed
 
@@ -21,6 +22,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Tab context menu “Recently closed”** — flyout is portaled beside the menu (not scrolled inside it).
 - **Back after rename (NAS)** — renaming files inside a folder no longer runs a full Refresh (which dropped listing caches and broke Back). Back again restores the parent’s scroll position and focuses the folder you came from. Late listing completion no longer re-selects that folder if you already moved with Arrow keys (so F2 renames the folder you focused, not the previous one). Covered by `historyFocus` / `tabHistory` / `renameListing` unit tests.
 - **Lazy delete selection (d8f2741 regression)** — while trash/delete is still running, changing selection is kept when the op finishes (no snap-back to the auto-picked survivor).
 - **Shell redirect restore safety (D72)** — uninstall restores via install-dir or userData sidecar launcher and Aborts if redirect cannot be restored; restore never deletes `open`/`explore` without a valid backup; delete-then-import exact restore; backup cleared after verified restore; `DelegateExecute` cleared on enable and required absent for “Enabled”; repair is transactional; launcher logs failed spawns as `error` and trims the invocation log. See [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).

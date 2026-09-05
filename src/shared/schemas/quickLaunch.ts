@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { iconPackIdSchema } from './iconPack'
 
 export const MAX_QUICK_LAUNCH = 24
 
@@ -39,12 +40,14 @@ export const quickLaunchItemSchema = z.object({
     .string()
     .regex(/^[a-zA-Z0-9_-]{4,80}$/)
     .optional(),
-  /** PascalCase Lucide name when iconKind is lucide. */
+  /** PascalCase glyph name when iconKind is lucide (any pack). */
   lucideName: z.string().min(1).max(80).optional(),
   lucideColor: z
     .string()
     .regex(/^#[0-9A-Fa-f]{6}$/)
-    .catch(QUICK_LAUNCH_LUCIDE_COLOR)
+    .catch(QUICK_LAUNCH_LUCIDE_COLOR),
+  /** Glyph library when iconKind is lucide; missing ⇒ lucide. */
+  lucidePack: iconPackIdSchema
 })
 
 export type QuickLaunchItem = z.infer<typeof quickLaunchItemSchema>

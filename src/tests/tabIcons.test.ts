@@ -6,7 +6,8 @@ import {
   isCustomTabIcon,
   isIconOnlyTab,
   isWindowsDriveRoot,
-  tabCustomIconSizePx
+  tabCustomIconSizePx,
+  tabIconPack
 } from '../shared/tabIcons'
 
 describe('isWindowsDriveRoot', () => {
@@ -65,5 +66,10 @@ describe('custom tab icon helpers', () => {
   it('does not treat Lucide tabs as icon-only', () => {
     expect(isIconOnlyTab({ name: 'Folder', color: '#fbbf24' })).toBe(false)
     expect(isIconOnlyTab(null)).toBe(false)
+  })
+
+  it('treats missing pack as lucide', () => {
+    expect(tabIconPack({ name: 'Folder', color: '#fbbf24' })).toBe('lucide')
+    expect(tabIconPack({ name: 'Folder', color: '#fbbf24', pack: 'phosphor' })).toBe('phosphor')
   })
 })

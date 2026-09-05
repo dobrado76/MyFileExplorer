@@ -1,5 +1,6 @@
 import type { CustomTabIcon, LucideTabIcon, TabIcon } from './schemas/session'
 import { TAB_CUSTOM_ICON_SIZES } from './schemas/session'
+import { normalizeIconPack, type IconPackId } from './schemas/iconPack'
 
 /** Stored PNG edge — display size is CSS (`sizePx`). */
 export const CUSTOM_TAB_ICON_STORE_PX = 128
@@ -12,6 +13,11 @@ export function isCustomTabIcon(icon: TabIcon): icon is CustomTabIcon {
 
 export function isLucideTabIcon(icon: TabIcon): icon is LucideTabIcon {
   return icon != null && !isCustomTabIcon(icon)
+}
+
+/** Pack for a glyph tab icon; missing ⇒ lucide. */
+export function tabIconPack(icon: LucideTabIcon): IconPackId {
+  return normalizeIconPack(icon.pack)
 }
 
 /** Icon-only chrome: custom image with the label hidden. */
