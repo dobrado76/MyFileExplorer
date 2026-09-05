@@ -2374,13 +2374,19 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().clearFileListScrollRequest()
     }
     await loadListing(path, { tabId, history: true })
-    // After the listing paints (cache and/or live), re-assert focus and bring
-    // that row into view. Rename/NAS remounts can leave scroll at the top even
-    // when scrollOffset was restored on the tab.
+    // Reveal the history focus row only if the user has not already moved
+    // (Arrow Down / click). Never force setSelection here — that was fixed
+    // before and regresses: Back → ↓ → F2 renamed the previous folder.
     if (tabId === get().activeTabId && focusPath) {
       const cur = get().tabs.find((t) => t.id === tabId)
-      if (cur && samePath(cur.path, path)) {
-        get().setSelection([focusPath], focusPath, focusPath)
+      const focused = get().focusedPath
+      if (
+        cur &&
+        samePath(cur.path, path) &&
+        cur.selected.length === 1 &&
+        samePath(cur.selected[0]!, focusPath) &&
+        (!focused || samePath(focused, focusPath))
+      ) {
         get().requestFileListScrollTo(focusPath)
       }
     }
