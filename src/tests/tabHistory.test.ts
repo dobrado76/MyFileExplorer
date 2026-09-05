@@ -54,6 +54,22 @@ describe('tabHistory', () => {
     )
   })
 
+  it('file rename inside a focused child does not clear parent scroll/focus', () => {
+    const parent = '\\\\nas\\share\\Series'
+    const child = '\\\\nas\\share\\Series\\Album'
+    const e = folderHistory(parent, 2400, child)
+    const from = `${child}\\a.mp4`
+    const to = `${child}\\b.mp4`
+    const rewrite = (p: string): string => {
+      if (p.toLowerCase() === from.toLowerCase()) return to
+      if (p.toLowerCase().startsWith(from.toLowerCase() + '\\')) {
+        return to + p.slice(from.length)
+      }
+      return p
+    }
+    expect(rewriteHistoryEntry(e, rewrite)).toEqual(e)
+  })
+
   it('persistHistoryEntry is a plain clone', () => {
     const e = searchHistory('q', 'C:\\', false)
     expect(persistHistoryEntry(e)).toEqual(e)

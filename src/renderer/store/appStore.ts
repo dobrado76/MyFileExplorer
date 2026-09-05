@@ -95,6 +95,7 @@ import {
   renameShouldFollow,
   rewritePathAfterRename
 } from '../lib/renameListing'
+import { historyLateListingAction, resolveBackFocusPath } from '../lib/historyFocus'
 import { clearFileViewScroll, liveFileViewScroll } from '../lib/fileViewScroll'
 import { tabRootDeletePrompt, tabsWhoseRootIsDeleted } from '../lib/tabRootDelete'
 import { isRemoteLocation, parseRemoteLocation, remoteBasename } from '@shared/remotePaths'
@@ -2379,13 +2380,15 @@ export const useAppStore = create<AppState>()((set, get) => {
     // before and regresses: Back → ↓ → F2 renamed the previous folder.
     if (tabId === get().activeTabId && focusPath) {
       const cur = get().tabs.find((t) => t.id === tabId)
-      const focused = get().focusedPath
       if (
         cur &&
-        samePath(cur.path, path) &&
-        cur.selected.length === 1 &&
-        samePath(cur.selected[0]!, focusPath) &&
-        (!focused || samePath(focused, focusPath))
+        historyLateListingAction({
+          listingPath: path,
+          tabPath: cur.path,
+          focusPath,
+          selected: cur.selected,
+          focusedPath: get().focusedPath
+        }) === 'scrollOnly'
       ) {
         get().requestFileListScrollTo(focusPath)
       }
@@ -3953,12 +3956,10 @@ export const useAppStore = create<AppState>()((set, get) => {
       // Older sessions and locations opened from the tree have no stored
       // focus. In the common parent/child case, Explorer focuses the child
       // folder when Back returns to its parent.
-      const parent = parentOf(tab.path)
-      const fallbackFocus =
-        prev.kind === 'folder' && parent && samePath(parent, prev.path) ? tab.path : undefined
+      const focusPath = resolveBackFocusPath(prev, tab.path, parentOf(tab.path))
       const target =
-        prev.kind === 'folder' && !prev.focusPath && fallbackFocus
-          ? { ...prev, focusPath: fallbackFocus }
+        prev.kind === 'folder' && focusPath && !prev.focusPath
+          ? { ...prev, focusPath }
           : prev
       await applyTabHistoryEntry(tab.id, target, {
         back: tab.back.slice(0, -1),

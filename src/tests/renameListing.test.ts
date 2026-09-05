@@ -100,6 +100,29 @@ describe('renameShouldFollow', () => {
       })
     ).toBe(false)
   })
+
+  it('does not follow after Back→Arrow Down moved off the renamed file', () => {
+    // Same contract as historyLateListingAction: late NAS work must not jump.
+    expect(
+      renameShouldFollow({
+        renamingPath: null,
+        focusedPath: 'C:\\lib\\next.avi',
+        selected: ['C:\\lib\\next.avi'],
+        paths
+      })
+    ).toBe(false)
+  })
+
+  it('follows when selection is empty but focus is still ours', () => {
+    expect(
+      renameShouldFollow({
+        renamingPath: null,
+        focusedPath: 'C:\\lib\\new.avi',
+        selected: [],
+        paths
+      })
+    ).toBe(true)
+  })
 })
 
 describe('rename then sort', () => {
