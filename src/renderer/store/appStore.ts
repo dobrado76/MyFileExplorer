@@ -150,7 +150,10 @@ import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { isImageExt } from '../lib/icons'
 import { defaultPasteFormat, type ClipboardPasteFormat } from '@shared/schemas/clipboardPaste'
 import { invalidateThumbMemory, invalidateThumbMemoryMany, thumbPathKey } from '../lib/thumbMemory'
-import { nextSelectionAfterDelete } from '../lib/nextSelection'
+import {
+  nextSelectionAfterDelete,
+  resolveSelectionAfterLazyDelete
+} from '../lib/nextSelection'
 import { dedupeDirEntries } from '@shared/dirEntries'
 import {
   pushCapped,
@@ -2927,56 +2930,22 @@ export const useAppStore = create<AppState>()((set, get) => {
       const treeFocusGone =
         treeFocus != null &&
         removed.some((r) => samePath(treeFocus, r) || isUnderPath(treeFocus, r))
-      const listingHas = (p: string): boolean =>
-        get().listing.entries.some((e) => samePath(e.path, p))
-
-      if (expectedSelection !== undefined) {
-        // Trust selectAfterDelete’s pick; never re-apply a stale focusedPath that may
-        // still point at a deleted item briefly still present in a soft-reloaded listing.
-        const wanted = expectedSelection.filter(
-          (path) => !removed.some((r) => samePath(path, r) || isUnderPath(path, r))
-        )
-        if (wanted.length > 0) {
-          const focus = wanted[wanted.length - 1]!
-          updateActiveTab({ selected: wanted })
-          set({
-            selectionAnchor: wanted[0]!,
-            focusedPath: focus,
-            ...(treeFocusGone ? { treeFocusPath: focus } : {})
-          })
-        } else {
-          updateActiveTab({ selected: [] })
-          set({
-            selectionAnchor: null,
-            focusedPath: null,
-            ...(treeFocusGone ? { treeFocusPath: null } : {})
-          })
-        }
-      } else {
-        const currentSelection = get().activeTab().selected
-        const stillSelected = currentSelection.filter(
-          (path) =>
-            !removed.some(
-              (removedPath) => samePath(path, removedPath) || isUnderPath(path, removedPath)
-            ) && listingHas(path)
-        )
-        if (stillSelected.length > 0) {
-          const focus = stillSelected[stillSelected.length - 1]!
-          updateActiveTab({ selected: stillSelected })
-          set({
-            selectionAnchor: stillSelected[0]!,
-            focusedPath: focus,
-            ...(treeFocusGone ? { treeFocusPath: focus } : {})
-          })
-        } else {
-          updateActiveTab({ selected: [] })
-          set({
-            selectionAnchor: null,
-            focusedPath: null,
-            ...(treeFocusGone ? { treeFocusPath: null } : {})
-          })
-        }
-      }
+      // d8f2741: if the user changed selection while trash/delete ran, keep it.
+      // Never force expectedSelection over a live change (slow NAS deletes).
+      const resolved = resolveSelectionAfterLazyDelete({
+        currentSelection: get().activeTab().selected,
+        expectedSelection,
+        removed,
+        listingPaths: get().listing.entries.map((e) => e.path),
+        selectionAnchor: get().selectionAnchor,
+        focusedPath: get().focusedPath
+      })
+      updateActiveTab({ selected: resolved.selected })
+      set({
+        selectionAnchor: resolved.selectionAnchor,
+        focusedPath: resolved.focusedPath,
+        ...(treeFocusGone ? { treeFocusPath: resolved.focusedPath } : {})
+      })
       clearMediaHold()
       // Trash/move suspend closes ReadDirectoryChanges handles — re-arm without re-list.
       armWatchesForVisiblePanes()
