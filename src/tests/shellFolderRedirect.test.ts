@@ -3,9 +3,11 @@ import {
   SHELL_REDIRECT_V1_SUBTREES,
   buildLauncherRegistryCommand,
   classifyShellTarget,
+  commandReferencesMfeLauncher,
   commandsMatch,
   deriveShellRedirectStatus,
   hkcuCommandKey,
+  isCompleteShellRedirectBackup,
   verbFromSubtree
 } from '../shared/shellFolderRedirect'
 
@@ -65,5 +67,41 @@ describe('shellFolderRedirect', () => {
     expect(hkcuCommandKey('Directory\\shell\\open')).toBe(
       'HKCU\\Software\\Classes\\Directory\\shell\\open\\command'
     )
+  })
+
+  it('detects launcher references in command strings', () => {
+    expect(commandReferencesMfeLauncher('"C:\\Apps\\MfeShellLauncher.exe" open "%1"')).toBe(true)
+    expect(commandReferencesMfeLauncher('explorer.exe "%1"')).toBe(false)
+    expect(commandReferencesMfeLauncher(null)).toBe(false)
+  })
+
+  it('requires a complete backup before restore', () => {
+    expect(isCompleteShellRedirectBackup(null)).toBe(false)
+    expect(
+      isCompleteShellRedirectBackup({
+        version: 1,
+        subtrees: {
+          'Directory\\shell\\open': { existedBefore: false, regFile: '' }
+        }
+      })
+    ).toBe(false)
+    expect(
+      isCompleteShellRedirectBackup({
+        version: 1,
+        subtrees: {
+          'Directory\\shell\\open': { existedBefore: true, regFile: 'C:\\a.reg' },
+          'Directory\\shell\\explore': { existedBefore: false, regFile: '' }
+        }
+      })
+    ).toBe(true)
+    expect(
+      isCompleteShellRedirectBackup({
+        version: 1,
+        subtrees: {
+          'Directory\\shell\\open': { existedBefore: true, regFile: '' },
+          'Directory\\shell\\explore': { existedBefore: false, regFile: '' }
+        }
+      })
+    ).toBe(false)
   })
 })

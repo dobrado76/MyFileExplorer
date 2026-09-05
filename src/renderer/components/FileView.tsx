@@ -1046,10 +1046,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }, [rowHeight, columns, overlayMode, viewMode, virtualizer, rowCount, width, scrollBoxH, scrollEl])
 
   const ensureRowVisible = useCallback(
-    (rowIdx: number): void => {
+    (rowIdx: number, opts?: { programmatic?: boolean }): void => {
       const el = scrollRef.current
       if (!el) return
-      userScrolledRef.current = true
+      // Programmatic scrolls (history Back focus, rename follow) must not mark
+      // the user as having scrolled — that would skip later history restore.
+      if (!opts?.programmatic) userScrolledRef.current = true
       const top = rowIdx * rowHeight
       const bottom = top + rowHeight
       const viewTop = el.scrollTop
@@ -1197,7 +1199,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (!renamingPath) return
     const idx = entries.findIndex((en) => samePath(en.path, renamingPath))
     if (idx < 0) return
-    ensureRowVisible(spec ? Math.floor(idx / columns) : idx)
+    ensureRowVisible(spec ? Math.floor(idx / columns) : idx, { programmatic: true })
   }, [renamingPath, entries, spec, columns, ensureRowVisible])
 
   // Reveal / open-location / any finished rename: follow the item after it re-sorts.
@@ -1205,7 +1207,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (!fileListScrollRequest) return
     const idx = entries.findIndex((en) => samePath(en.path, fileListScrollRequest.path))
     if (idx < 0) return
-    ensureRowVisible(spec ? Math.floor(idx / columns) : idx)
+    ensureRowVisible(spec ? Math.floor(idx / columns) : idx, { programmatic: true })
     clearFileListScrollRequest()
   }, [fileListScrollRequest, entries, spec, columns, ensureRowVisible, clearFileListScrollRequest])
 
@@ -1508,7 +1510,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (tabScrollOffset == null || !folderPath) return
     if (userScrolledRef.current) return
     if (!samePath(listingPath, folderPath)) return
-    if (listing.loading && entries.length === 0) return
+    // Wait for a real listing of this folder — provisional child rows under a
+    // parent path (loading overlay) must not consume the history scroll offset.
+    if (listing.loading) return
     const el = scrollRef.current
     if (!el) return
     applyingRestoreRef.current = true

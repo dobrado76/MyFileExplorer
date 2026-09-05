@@ -2374,6 +2374,16 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().clearFileListScrollRequest()
     }
     await loadListing(path, { tabId, history: true })
+    // After the listing paints (cache and/or live), re-assert focus and bring
+    // that row into view. Rename/NAS remounts can leave scroll at the top even
+    // when scrollOffset was restored on the tab.
+    if (tabId === get().activeTabId && focusPath) {
+      const cur = get().tabs.find((t) => t.id === tabId)
+      if (cur && samePath(cur.path, path)) {
+        get().setSelection([focusPath], focusPath, focusPath)
+        get().requestFileListScrollTo(focusPath)
+      }
+    }
     if (tabId === get().activeTabId) {
       void get().ensureGitForActivePane()
     }
@@ -5371,9 +5381,14 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
         }
         // A late NAS save must not remount the list (or jump selection) while
-        // another inline rename is already open.
+        // another inline rename is already open. Prefer a soft re-list of this
+        // folder only — full refresh() drops caches / restarts discovery and
+        // was wiping Back scroll + parent-folder focus on NAS.
         if (stillOnRenamedItem()) {
-          await get().refresh()
+          const cwd = get().activeTab().path
+          if (cwd) {
+            await loadListing(cwd, { preserveSelection: true, soft: true, tabId: get().activeTabId })
+          }
           if (stillOnRenamedItem()) {
             get().setSelection([res.path], res.path, res.path)
             get().requestFileListScrollTo(res.path)

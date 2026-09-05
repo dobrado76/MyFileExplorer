@@ -30,6 +30,14 @@ export function shellRedirectRegFragmentPath(subtree: string): string {
   return path.join(shellRedirectDir(), `${safe}.reg`)
 }
 
+/**
+ * Sidecar copy used by the NSIS uninstaller when `$INSTDIR\MfeShellLauncher.exe`
+ * is already gone. Written on Enable / Repair.
+ */
+export function shellRedirectSidecarLauncherPath(): string {
+  return path.join(shellRedirectDir(), 'MfeShellLauncher.exe')
+}
+
 function candidateDevLauncherPaths(): string[] {
   const roots = new Set<string>()
   try {
@@ -110,4 +118,15 @@ export function writeShellRedirectTargetExe(exePath: string = resolveMfeExePath(
     if (preferred) lines.push(preferred)
   }
   fs.writeFileSync(shellRedirectTargetExePath(), lines.join('\n') + '\n', 'utf8')
+}
+
+/** Keep a restorer copy under userData so uninstall can run without $INSTDIR. */
+export function ensureShellRedirectSidecarLauncher(sourcePath: string = resolveLauncherPath()): void {
+  if (!fs.existsSync(sourcePath)) return
+  const dest = shellRedirectSidecarLauncherPath()
+  try {
+    fs.copyFileSync(sourcePath, dest)
+  } catch {
+    /* best-effort — uninstall still tries $INSTDIR first */
+  }
 }

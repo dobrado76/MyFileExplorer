@@ -5,7 +5,8 @@ namespace MfeShellLauncher;
 
 internal static class Program
 {
-    private const string LauncherVersion = "1.0.0";
+    private const string LauncherVersion = "1.0.1";
+    private const int InvocationsMaxLines = 500;
 
     public static int Main(string[] args)
     {
@@ -29,17 +30,26 @@ internal static class Program
             switch (kind)
             {
                 case TargetKind.Directory:
-                    action = "mfe-open";
-                    exitCode = SpawnDetached(launch.Exe, [.. launch.PrefixArgs, "--open", target]) ? 0 : 1;
-                    break;
+                    {
+                        var ok = SpawnDetached(launch.Exe, [.. launch.PrefixArgs, "--open", target]);
+                        action = ok ? "mfe-open" : "error";
+                        exitCode = ok ? 0 : 1;
+                        break;
+                    }
                 case TargetKind.File:
-                    action = "mfe-reveal";
-                    exitCode = SpawnDetached(launch.Exe, [.. launch.PrefixArgs, "--reveal", target]) ? 0 : 1;
-                    break;
+                    {
+                        var ok = SpawnDetached(launch.Exe, [.. launch.PrefixArgs, "--reveal", target]);
+                        action = ok ? "mfe-reveal" : "error";
+                        exitCode = ok ? 0 : 1;
+                        break;
+                    }
                 default:
-                    action = "explorer-fallback";
-                    exitCode = SpawnExplorer(target) ? 0 : 1;
-                    break;
+                    {
+                        var ok = SpawnExplorer(target);
+                        action = ok ? "explorer-fallback" : "error";
+                        exitCode = ok ? 0 : 1;
+                        break;
+                    }
             }
         }
         catch
@@ -128,6 +138,50 @@ internal static class Program
         using var p = Process.Start(psi);
         return p != null;
     }
+
+    internal static class InvocationLog
+    {
+        public static void Append(string verb, string target, string action, string launcherVersion)
+        {
+            try
+            {
+                var dir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "MyFileExplorer",
+                    "shell-redirect");
+                Directory.CreateDirectory(dir);
+                var path = Path.Combine(dir, "invocations.jsonl");
+                var line = JsonSerializer.Serialize(new
+                {
+                    timestamp = DateTime.UtcNow.ToString("o"),
+                    verb,
+                    target,
+                    action,
+                    launcherVersion
+                });
+                File.AppendAllText(path, line + Environment.NewLine);
+                TrimInvocations(path);
+            }
+            catch
+            {
+                // never block shell
+            }
+        }
+
+        private static void TrimInvocations(string path)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(path);
+                if (lines.Length <= InvocationsMaxLines) return;
+                File.WriteAllLines(path, lines.AsSpan(lines.Length - InvocationsMaxLines).ToArray());
+            }
+            catch
+            {
+                /* ignore */
+            }
+        }
+    }
 }
 
 internal enum TargetKind
@@ -166,33 +220,5 @@ internal static class TargetClassifier
         if (target.Length >= 2 && char.IsLetter(target[0]) && target[1] == ':') return true;
         if (target.StartsWith(@"\\", StringComparison.Ordinal)) return true;
         return false;
-    }
-}
-
-internal static class InvocationLog
-{
-    public static void Append(string verb, string target, string action, string launcherVersion)
-    {
-        try
-        {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "MyFileExplorer",
-                "shell-redirect");
-            Directory.CreateDirectory(dir);
-            var line = JsonSerializer.Serialize(new
-            {
-                timestamp = DateTime.UtcNow.ToString("o"),
-                verb,
-                target,
-                action,
-                launcherVersion
-            });
-            File.AppendAllText(Path.Combine(dir, "invocations.jsonl"), line + Environment.NewLine);
-        }
-        catch
-        {
-            // never block shell
-        }
     }
 }

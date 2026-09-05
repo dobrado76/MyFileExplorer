@@ -3,17 +3,55 @@ import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
 
-export async function regQuery(key: string, args: string[] = []): Promise<string> {
+type ExecErr = {
+  code?: number | string
+  stdout?: string
+  stderr?: string
+  message?: string
+}
+
+function execText(e: unknown): string {
+  const err = e as ExecErr
+  return `${err.stderr ?? ''} ${err.stdout ?? ''} ${err.message ?? ''}`
+}
+
+/** reg.exe "key/value not found" — safe to treat as already gone. */
+export function isRegNotFoundError(e: unknown): boolean {
+  const text = execText(e)
+  return (
+    /unable to find the specified registry key or value/i.test(text) ||
+    /The system was unable to find the specified registry key/i.test(text) ||
+    /ERROR:\s*The system cannot find the file specified/i.test(text)
+  )
+}
+
+async function runReg(args: string[], timeout = 15_000): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('reg.exe', ['query', key, ...args], {
+    const { stdout } = await execFileAsync('reg.exe', args, {
       windowsHide: true,
       encoding: 'utf8',
-      timeout: 12_000,
+      timeout,
       maxBuffer: 8 * 1024 * 1024
     })
     return typeof stdout === 'string' ? stdout : ''
   } catch (e: unknown) {
-    const err = e as { stdout?: string }
+    const err = e as ExecErr
+    const out = typeof err.stdout === 'string' ? err.stdout : ''
+    // Soft-query callers use empty string; throw for mutating ops via wrappers.
+    throw Object.assign(e instanceof Error ? e : new Error(execText(e) || 'reg.exe failed'), {
+      stdout: out,
+      stderr: typeof err.stderr === 'string' ? err.stderr : '',
+      code: err.code
+    })
+  }
+}
+
+export async function regQuery(key: string, args: string[] = []): Promise<string> {
+  try {
+    return await runReg(['query', key, ...args], 12_000)
+  } catch (e: unknown) {
+    if (isRegNotFoundError(e)) return ''
+    const err = e as ExecErr
     return typeof err.stdout === 'string' ? err.stdout : ''
   }
 }
@@ -34,38 +72,48 @@ export async function regKeyExists(key: string): Promise<boolean> {
   return /HKEY_|HKCU\\|HKCR\\/i.test(out)
 }
 
+export async function regValueExists(key: string, valueName: string): Promise<boolean> {
+  try {
+    const out = await runReg(['query', key, '/v', valueName], 12_000)
+    return new RegExp(`^\\s*${escapeRegExp(valueName)}\\s+REG_`, 'im').test(out)
+  } catch (e: unknown) {
+    if (isRegNotFoundError(e)) return false
+    // Soft-fail existence probes — treat unknown as present so verify stays strict.
+    return true
+  }
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 export async function regExport(key: string, outFile: string): Promise<void> {
-  await execFileAsync('reg.exe', ['export', key, outFile, '/y'], {
-    windowsHide: true,
-    encoding: 'utf8',
-    timeout: 15_000
-  })
+  await runReg(['export', key, outFile, '/y'], 15_000)
 }
 
 export async function regImport(regFile: string): Promise<void> {
-  await execFileAsync('reg.exe', ['import', regFile], {
-    windowsHide: true,
-    encoding: 'utf8',
-    timeout: 15_000
-  })
+  await runReg(['import', regFile], 15_000)
 }
 
 export async function regDeleteTree(key: string): Promise<void> {
   try {
-    await execFileAsync('reg.exe', ['delete', key, '/f'], {
-      windowsHide: true,
-      encoding: 'utf8',
-      timeout: 12_000
-    })
-  } catch {
-    // already gone
+    await runReg(['delete', key, '/f'], 12_000)
+  } catch (e: unknown) {
+    if (isRegNotFoundError(e)) return
+    throw e instanceof Error ? e : new Error(execText(e) || `reg delete failed: ${key}`)
+  }
+}
+
+/** Delete a named value; ignore only "not found". */
+export async function regDeleteValue(key: string, valueName: string): Promise<void> {
+  try {
+    await runReg(['delete', key, '/v', valueName, '/f'], 12_000)
+  } catch (e: unknown) {
+    if (isRegNotFoundError(e)) return
+    throw e instanceof Error ? e : new Error(execText(e) || `reg delete value failed: ${key}\\${valueName}`)
   }
 }
 
 export async function regSetDefault(key: string, value: string): Promise<void> {
-  await execFileAsync('reg.exe', ['add', key, '/ve', '/d', value, '/f'], {
-    windowsHide: true,
-    encoding: 'utf8',
-    timeout: 12_000
-  })
+  await runReg(['add', key, '/ve', '/d', value, '/f'], 12_000)
 }

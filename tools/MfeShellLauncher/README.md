@@ -18,7 +18,7 @@ MfeShellLauncher.exe --restore-shell-redirect
 dotnet publish src/MfeShellLauncher -c Release -r win-x64 -o publish
 ```
 
-Shipped via `electron-builder` `extraFiles` as `MfeShellLauncher.exe` next to the main app.
+Shipped via `electron-builder` `extraFiles` as `MfeShellLauncher.exe` next to the main app. Enable also copies it to `%APPDATA%\MyFileExplorer\shell-redirect\` for uninstall restore.
 
 ## Dev override
 

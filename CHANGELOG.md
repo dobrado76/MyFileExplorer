@@ -21,6 +21,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ### Fixed
 
+- **Back after rename (NAS)** — renaming files inside a folder no longer runs a full Refresh (which dropped listing caches and broke Back). Back again restores the parent’s scroll position and focuses the folder you came from.
+- **Shell redirect restore safety (D72)** — uninstall restores via install-dir or userData sidecar launcher and Aborts if redirect cannot be restored; restore never deletes `open`/`explore` without a valid backup; delete-then-import exact restore; backup cleared after verified restore; `DelegateExecute` cleared on enable and required absent for “Enabled”; repair is transactional; launcher logs failed spawns as `error` and trims the invocation log. See [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
 - **Virtual Folder tree selection** — a referenced folder in the tree acts like a symlink: the file list shows the real folder’s contents, the tree highlight stays on the **membership row only** (no jump/scroll to the real folder), and Del removes the reference.
 - **Virtual Folder preview** — Name omits `.mfevirtual`; Type shows **Virtual Folder** instead of “MFEVIRTUAL file”. Contents lists only non-zero kinds (e.g. `2 folders`, not `0 files · 2 folders · 0 virtual folders`).
 - **Search vs folder view** — starting a search no longer permanently switches the folder to Details. Results still always *display* as Details; Clear / exit search restores thumbnails, list, etc.

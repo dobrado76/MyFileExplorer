@@ -43,6 +43,26 @@ export function commandsMatch(a: string, b: string): boolean {
   return normalizeRegistryCommand(a) === normalizeRegistryCommand(b)
 }
 
+/** True when a registry command string still points at our launcher. */
+export function commandReferencesMfeLauncher(cmd: string | null | undefined): boolean {
+  if (!cmd) return false
+  return /MfeShellLauncher\.exe/i.test(cmd)
+}
+
+/** Backup is usable for restore only when every managed subtree is recorded. */
+export function isCompleteShellRedirectBackup(manifest: {
+  version: number
+  subtrees: Record<string, { existedBefore: boolean; regFile: string } | undefined>
+} | null): boolean {
+  if (!manifest || manifest.version !== 1) return false
+  for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+    const entry = manifest.subtrees[subtree]
+    if (!entry || typeof entry.existedBefore !== 'boolean') return false
+    if (entry.existedBefore && !entry.regFile.trim()) return false
+  }
+  return true
+}
+
 /**
  * Classify a shell %1 target. Launcher mirrors this logic in C#.
  * Only ordinary drive/UNC filesystem paths are forwarded to MFE.

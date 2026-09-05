@@ -2,9 +2,12 @@ import fs from 'node:fs'
 import {
   SHELL_REDIRECT_V1_SUBTREES,
   buildLauncherRegistryCommand,
+  commandReferencesMfeLauncher,
   commandsMatch,
+  deriveShellRedirectStatus,
   hkcuCommandKey,
   hkcuSubtreeKey,
+  isCompleteShellRedirectBackup,
   verbFromSubtree
 } from '@shared/shellFolderRedirect'
 import { AppError } from '@shared/result'
@@ -14,9 +17,9 @@ import type {
   ShellRedirectMutateResponse,
   ShellRedirectStatus
 } from '@shared/schemas/shellRedirect'
-import { deriveShellRedirectStatus } from '@shared/shellFolderRedirect'
 import { logMain } from '../../logging'
 import {
+  ensureShellRedirectSidecarLauncher,
   shellRedirectBackupManifestPath,
   shellRedirectDir,
   shellRedirectInvocationsPath,
@@ -25,7 +28,17 @@ import {
   resolveMfeExePath,
   writeShellRedirectTargetExe
 } from './paths'
-import { parseRegValues, regDeleteTree, regExport, regImport, regKeyExists, regQuery, regSetDefault } from './reg'
+import {
+  parseRegValues,
+  regDeleteTree,
+  regDeleteValue,
+  regExport,
+  regImport,
+  regKeyExists,
+  regQuery,
+  regSetDefault,
+  regValueExists
+} from './reg'
 import { readShellRedirectState, setUserRequestedEnabled } from './state'
 
 export const BACKUP_FORMAT_VERSION = 1
@@ -56,6 +69,7 @@ export function readBackupManifest(): ShellRedirectBackupManifest | null {
     const raw = fs.readFileSync(shellRedirectBackupManifestPath(), 'utf8')
     const parsed = JSON.parse(raw) as ShellRedirectBackupManifest
     if (!parsed || typeof parsed !== 'object' || parsed.version !== BACKUP_FORMAT_VERSION) return null
+    if (!isCompleteShellRedirectBackup(parsed)) return null
     return parsed
   } catch {
     return null
@@ -67,6 +81,25 @@ function writeBackupManifest(manifest: ShellRedirectBackupManifest): void {
   fs.writeFileSync(shellRedirectBackupManifestPath(), JSON.stringify(manifest, null, 2), 'utf8')
 }
 
+/** After a verified restore, drop the baseline so the next Enable captures a fresh one. */
+export function clearShellRedirectBackupArtifacts(): void {
+  for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+    const regFile = shellRedirectRegFragmentPath(subtree)
+    try {
+      if (fs.existsSync(regFile)) fs.unlinkSync(regFile)
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    if (fs.existsSync(shellRedirectBackupManifestPath())) {
+      fs.unlinkSync(shellRedirectBackupManifestPath())
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 async function readCommandValue(subtree: string): Promise<string | null> {
   const key = hkcuCommandKey(subtree)
   const out = await regQuery(key)
@@ -74,6 +107,19 @@ async function readCommandValue(subtree: string): Promise<string | null> {
   const values = parseRegValues(out)
   const cmd = (values[''] ?? values['(Default)'] ?? '').trim()
   return cmd || null
+}
+
+async function subtreeHasDelegateExecute(subtree: string): Promise<boolean> {
+  const root = hkcuSubtreeKey(subtree)
+  const cmd = hkcuCommandKey(subtree)
+  if (await regValueExists(root, 'DelegateExecute')) return true
+  if (await regValueExists(cmd, 'DelegateExecute')) return true
+  return false
+}
+
+async function clearDelegateExecute(subtree: string): Promise<void> {
+  await regDeleteValue(hkcuSubtreeKey(subtree), 'DelegateExecute')
+  await regDeleteValue(hkcuCommandKey(subtree), 'DelegateExecute')
 }
 
 function expectedCommands(launcherPath: string): Record<string, string> {
@@ -109,6 +155,7 @@ async function applyRedirectCommands(launcherPath: string, applied: Record<strin
     const cmdKey = hkcuCommandKey(subtree)
     const cmd = buildLauncherRegistryCommand(launcherPath, verb)
     await regSetDefault(cmdKey, cmd)
+    await clearDelegateExecute(subtree)
     applied[cmdKey] = cmd
   }
 }
@@ -119,13 +166,35 @@ async function verifyCommands(expected: Record<string, string>): Promise<boolean
     if (!subtree) continue
     const live = await readCommandValue(subtree)
     if (!live || !commandsMatch(live, want)) return false
+    if (await subtreeHasDelegateExecute(subtree)) return false
   }
   return true
 }
 
+async function verifyRestoredNoLauncher(): Promise<boolean> {
+  for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+    const live = await readCommandValue(subtree)
+    if (commandReferencesMfeLauncher(live)) return false
+  }
+  return true
+}
+
+/**
+ * Exact subtree restore: delete managed key, then import the snapshot (if any).
+ * Never deletes when the backup said the key existed but the .reg is missing.
+ */
 async function rollbackSubtree(subtree: string, entry: SubtreeBackupEntry): Promise<void> {
   const key = hkcuSubtreeKey(subtree)
-  if (entry.existedBefore && entry.regFile && fs.existsSync(entry.regFile)) {
+  if (entry.existedBefore) {
+    if (!entry.regFile || !fs.existsSync(entry.regFile)) {
+      throw new AppError(
+        'validation',
+        `Shell redirect backup fragment missing for ${subtree} — restore aborted`,
+        undefined,
+        entry.regFile || key
+      )
+    }
+    await regDeleteTree(key)
     await regImport(entry.regFile)
     return
   }
@@ -135,8 +204,14 @@ async function rollbackSubtree(subtree: string, entry: SubtreeBackupEntry): Prom
 export async function restoreShellRedirectFromBackup(): Promise<void> {
   const manifest = readBackupManifest()
   if (!manifest) {
-    for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
-      await regDeleteTree(hkcuSubtreeKey(subtree))
+    // Fail closed: never wipe open/explore without a valid baseline.
+    const stillOurs = !(await verifyRestoredNoLauncher())
+    if (stillOurs) {
+      throw new AppError(
+        'validation',
+        'Shell redirect backup is missing or corrupt — restore aborted. Registry was not modified.',
+        'restoreRequired'
+      )
     }
     setUserRequestedEnabled(false)
     return
@@ -144,15 +219,25 @@ export async function restoreShellRedirectFromBackup(): Promise<void> {
 
   for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
     const entry = manifest.subtrees[subtree]
-    if (entry) {
-      await rollbackSubtree(subtree, entry)
-    } else {
-      await regDeleteTree(hkcuSubtreeKey(subtree))
+    if (!entry) {
+      throw new AppError(
+        'validation',
+        `Shell redirect backup incomplete (missing ${subtree}) — restore aborted`,
+        'restoreRequired'
+      )
     }
+    await rollbackSubtree(subtree, entry)
   }
 
-  manifest.applied = {}
-  writeBackupManifest(manifest)
+  if (!(await verifyRestoredNoLauncher())) {
+    throw new AppError(
+      'unknown',
+      'Shell redirect restore finished but registry still references MfeShellLauncher.exe',
+      'restoreRequired'
+    )
+  }
+
+  clearShellRedirectBackupArtifacts()
   setUserRequestedEnabled(false)
 }
 
@@ -167,12 +252,19 @@ export async function enableShellRedirect(): Promise<ShellRedirectMutateResponse
   }
 
   const existing = readBackupManifest()
-  const manifest = existing ?? emptyManifest()
+  // Keep the original pre-enable baseline while redirect is still applied;
+  // after a successful restore the artifacts are deleted so Enable always re-snapshots.
+  const reuseBaseline =
+    existing != null &&
+    Object.keys(existing.applied).length > 0 &&
+    isCompleteShellRedirectBackup(existing)
+
+  const manifest = reuseBaseline ? { ...existing, subtrees: { ...existing.subtrees } } : emptyManifest()
   const rollbackEntries: Array<{ subtree: string; entry: SubtreeBackupEntry }> = []
 
   try {
     for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
-      if (!manifest.subtrees[subtree]) {
+      if (!reuseBaseline || !manifest.subtrees[subtree]) {
         await exportSubtreeBackup(manifest, subtree)
       }
       rollbackEntries.push({
@@ -197,6 +289,7 @@ export async function enableShellRedirect(): Promise<ShellRedirectMutateResponse
 
     setUserRequestedEnabled(true)
     writeShellRedirectTargetExe()
+    ensureShellRedirectSidecarLauncher(launcherPath)
     logMain('info', 'shell-redirect: enabled')
     return toMutateResponse(await getShellRedirectStatus())
   } catch (e) {
@@ -227,22 +320,47 @@ export async function repairShellRedirect(): Promise<ShellRedirectMutateResponse
     throw new AppError('validation', 'No backup manifest — enable redirect first or restore manually')
   }
 
-  const applied: Record<string, string> = {}
-  await applyRedirectCommands(launcherPath, applied)
-  manifest.applied = applied
-  manifest.savedAt = new Date().toISOString()
-  writeBackupManifest(manifest)
-
-  const expected = expectedCommands(launcherPath)
-  const ok = await verifyCommands(expected)
-  if (!ok) {
-    throw new AppError('unknown', 'Registry verification failed after repair')
+  // Snapshot live commands so a partial repair can roll back.
+  const prior: Record<string, string | null> = {}
+  for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+    prior[subtree] = await readCommandValue(subtree)
   }
 
-  setUserRequestedEnabled(true)
-  writeShellRedirectTargetExe()
-  logMain('info', 'shell-redirect: repaired')
-  return toMutateResponse(await getShellRedirectStatus())
+  try {
+    const applied: Record<string, string> = {}
+    await applyRedirectCommands(launcherPath, applied)
+    manifest.applied = applied
+    manifest.savedAt = new Date().toISOString()
+    writeBackupManifest(manifest)
+
+    const expected = expectedCommands(launcherPath)
+    const ok = await verifyCommands(expected)
+    if (!ok) {
+      throw new AppError('unknown', 'Registry verification failed after repair')
+    }
+
+    setUserRequestedEnabled(true)
+    writeShellRedirectTargetExe()
+    ensureShellRedirectSidecarLauncher(launcherPath)
+    logMain('info', 'shell-redirect: repaired')
+    return toMutateResponse(await getShellRedirectStatus())
+  } catch (e) {
+    for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+      const cmd = prior[subtree]
+      const cmdKey = hkcuCommandKey(subtree)
+      try {
+        if (cmd) await regSetDefault(cmdKey, cmd)
+      } catch (rollbackErr) {
+        logMain(
+          'error',
+          `shell-redirect repair rollback failed for ${subtree}: ${
+            rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
+          }`
+        )
+      }
+    }
+    throw e
+  }
 }
 
 function readInvocations(limit = 20): ShellRedirectInvocation[] {
@@ -282,7 +400,7 @@ export async function getShellRedirectStatus(): Promise<ShellRedirectGetStatusRe
   const installPath = resolveMfeExePath()
   const launcherExists = fs.existsSync(launcherPath)
   const manifest = readBackupManifest()
-  const hasBackup = manifest != null && Object.keys(manifest.subtrees).length > 0
+  const hasBackup = manifest != null
 
   const expected = launcherExists ? expectedCommands(launcherPath) : {}
   let allKeysMatch = true
@@ -292,9 +410,10 @@ export async function getShellRedirectStatus(): Promise<ShellRedirectGetStatusRe
   for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
     const live = await readCommandValue(subtree)
     const want = expected[hkcuCommandKey(subtree)]
+    const hasDelegate = await subtreeHasDelegateExecute(subtree)
     if (live) {
       anyKeyPresent = true
-      if (want && commandsMatch(live, want)) {
+      if (want && commandsMatch(live, want) && !hasDelegate) {
         activeKeys.push(subtree)
       } else {
         allKeysMatch = false
@@ -302,6 +421,7 @@ export async function getShellRedirectStatus(): Promise<ShellRedirectGetStatusRe
     } else if (want) {
       allKeysMatch = false
     }
+    if (hasDelegate && want) allKeysMatch = false
   }
 
   const status: ShellRedirectStatus = deriveShellRedirectStatus({
