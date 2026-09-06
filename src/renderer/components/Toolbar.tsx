@@ -7,6 +7,7 @@ import {
   PanelIcon,
   SettingsIcon,
   ScriptIcon,
+  MetadataIcon,
   EyeIcon,
   EyeOffIcon,
   UndoIcon,
@@ -330,6 +331,16 @@ export function Toolbar(): JSX.Element {
           <PanelIcon />
         </button>
         <LayoutsMenu />
+        {settings.userMetadata?.showToolbarButton === true && (
+          <button
+            className="icon-btn"
+            aria-label="Metadata"
+            title="Metadata manager"
+            onClick={() => openDialog({ kind: 'user-metadata-manager' })}
+          >
+            <MetadataIcon />
+          </button>
+        )}
         {settings.scripts?.enabled && (
           <button
             className="icon-btn"

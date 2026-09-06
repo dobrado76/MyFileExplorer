@@ -262,6 +262,10 @@ function PreviewViewInner({
     !!onToggleTextWordWrap &&
     (model?.kind === 'text' || model?.kind === 'markdown' || model?.kind === 'html')
 
+  const fileDetailFields = model
+    ? model.fields.filter((f) => (f.group ?? 'other') === 'file')
+    : []
+
   return (
     <div
       className={`preview${kindClass}${zen ? ' preview-zen' : ''}${textWordWrap ? ' preview-text-wrap' : ''}`}
@@ -370,8 +374,10 @@ function PreviewViewInner({
       ) : !previewPath ? (
         <div className="preview-empty">Select a file to preview</div>
       ) : loading && !model ? (
-        <div className="preview-empty">
-          <SpinnerIcon size={20} className="spin" />
+        <div className="preview-content">
+          <div className="preview-empty">
+            <SpinnerIcon size={20} className="spin" />
+          </div>
         </div>
       ) : !model ? (
         <div className="preview-content">
@@ -392,11 +398,22 @@ function PreviewViewInner({
           onExtractZip={onExtractZip}
           onCopy={copyValue}
           onRetryPlayableForce={onRetryPlayableForce}
-          extraBeforeFields={extraBeforeFields}
           onRevealPath={onRevealPath}
           onNotify={onNotify}
         />
       )}
+
+      {/* Notes + user metadata: pinned outside PreviewBody so selection changes don’t remount them. */}
+      {!zen &&
+      previewPath &&
+      !driveSpace &&
+      !showGitHistory &&
+      extraBeforeFields ? (
+        <div className="preview-footer-extras">{extraBeforeFields}</div>
+      ) : null}
+      {!zen && model && fileDetailFields.length > 0 ? (
+        <DetailsStrip fields={fileDetailFields} onCopy={copyValue} />
+      ) : null}
     </div>
   )
 }
@@ -414,7 +431,6 @@ function PreviewBody({
   onExtractZip,
   onCopy,
   onRetryPlayableForce,
-  extraBeforeFields,
   onRevealPath,
   onNotify
 }: {
@@ -431,12 +447,10 @@ function PreviewBody({
   onExtractZip?: (paths: string[]) => void
   onCopy: (value: string) => Promise<void>
   onRetryPlayableForce: () => void
-  extraBeforeFields?: ReactNode
   onRevealPath?: (path: string) => void
   onNotify?: (text: string, isError?: boolean) => void
 }): JSX.Element {
   void _previewPath
-  const fileFields = model.fields.filter((f) => (f.group ?? 'other') === 'file')
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
   const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
@@ -711,12 +725,6 @@ function PreviewBody({
           />
         ) : null}
       </div>
-
-      {/* Notes + user metadata: pinned above Details (not inside scrollable preview-content). */}
-      {!zen && extraBeforeFields ? (
-        <div className="preview-footer-extras">{extraBeforeFields}</div>
-      ) : null}
-      {!zen && fileFields.length > 0 && <DetailsStrip fields={fileFields} onCopy={onCopy} />}
     </>
   )
 }

@@ -26,8 +26,12 @@ export function parentPath(p: string): string {
 }
 
 /**
- * Path used to resolve which metadata set applies.
- * Files → parent folder; folders → themselves.
+ * Path used when resolving which metadata set applies to a **folder as cwd**
+ * (Details columns, Assign set target): the folder itself.
+ *
+ * For **item** editors (preview / Metadata…), use {@link resolveMetadataSetForItem}
+ * — files always use the parent; child folders inherit a parent’s exact (“this folder
+ * only”) binding as list rows, without applying that set inside the child.
  */
 export function metadataScopePath(itemPath: string, isDirectory: boolean): string {
   return isDirectory ? itemPath : parentPath(itemPath)
@@ -73,6 +77,33 @@ export function resolveMetadataSet(
   const hit = resolveMetadataBinding(path, settings.bindings)
   if (!hit || hit.setId == null) return null
   return setById(settings, hit.setId) ?? null
+}
+
+/**
+ * Set that applies when editing metadata **on a selected item** (preview, dialog, context).
+ *
+ * - **Files** → parent folder’s binding (unchanged).
+ * - **Folders** → binding on the folder itself first (including explicit No metadata).
+ *   If none, fall back to the **parent** folder’s binding so a non-recursive
+ *   (“this folder only”) assignment still covers direct child folders as list rows,
+ *   without applying inside that child’s own listing.
+ */
+export function resolveMetadataSetForItem(
+  itemPath: string,
+  isDirectory: boolean,
+  settings: UserMetadataSettings
+): UserMetadataSet | null {
+  if (!isDirectory) {
+    return resolveMetadataSet(parentPath(itemPath), settings)
+  }
+  const ownHit = resolveMetadataBinding(itemPath, settings.bindings)
+  if (ownHit) {
+    if (ownHit.setId == null) return null
+    return setById(settings, ownHit.setId) ?? null
+  }
+  const parent = parentPath(itemPath)
+  if (samePath(parent, itemPath)) return null
+  return resolveMetadataSet(parent, settings)
 }
 
 export function fieldsForPath(

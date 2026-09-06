@@ -118,7 +118,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'metadata',
     label: 'Metadata',
     keywords:
-      'user metadata enable sets folder bindings recursive no metadata custom fields structured mfe_meta choice regex validation column pack export import semantic'
+      'user metadata enable manage sets manager toolbar button folder bindings recursive no metadata custom fields structured mfe_meta choice regex validation column pack export import semantic'
   },
   {
     id: 'git',

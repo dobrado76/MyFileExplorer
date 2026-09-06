@@ -225,7 +225,7 @@ export function PreviewPane(): JSX.Element {
           {userMetadataEnabled ? (
             <UserMetadataPreview
               path={previewPath}
-              isDirectory={model?.kind === 'directory'}
+              isDirectory={model ? model.kind === 'directory' : undefined}
             />
           ) : null}
         </>

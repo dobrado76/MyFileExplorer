@@ -3,8 +3,7 @@ import { createPortal } from 'react-dom'
 import { findExactFolderView } from '@shared/folderViews'
 import {
   findExactMetadataBinding,
-  resolveMetadataSet,
-  metadataScopePath
+  resolveMetadataSetForItem
 } from '@shared/userMetadataBindings'
 import { buildCommandMenuRows, commandMatches, type CommandMenuSubRow } from '@shared/contextMenuCommands'
 import {
@@ -232,7 +231,7 @@ function metadataSetFolderMenu(
           label: 'No sets defined…',
           action: () => {
             close()
-            s.openDialog({ kind: 'settings', section: 'metadata' })
+            s.openDialog({ kind: 'user-metadata-manager' })
           }
         }
       ]
@@ -305,8 +304,7 @@ function selectionSharesMetadataSet(
   for (const p of paths) {
     const e = entries?.find((en) => samePath(en.path, p))
     const isDir = e?.kind === 'dir' || e?.kind === 'directory'
-    const scope = metadataScopePath(p, !!isDir)
-    const set = resolveMetadataSet(scope, um)
+    const set = resolveMetadataSetForItem(p, !!isDir, um)
     if (!set) return false
     if (setId === undefined) setId = set.id
     else if (setId !== set.id) return false
@@ -426,9 +424,47 @@ function mapCommandSubRows(rows: CommandMenuSubRow[]): SubEntry[] {
   )
 }
 
+function placeFlyoutBeside(
+  wrap: HTMLElement,
+  sub: HTMLElement
+): { flipX: boolean; fixedTop: number; fixedLeft: number; maxHeight: number } {
+  const margin = 8
+  const vw = window.innerWidth
+  const vh = window.visualViewport?.height ?? window.innerHeight
+  const vTop = window.visualViewport?.offsetTop ?? 0
+  const wrapRect = wrap.getBoundingClientRect()
+  const raw = sub.getBoundingClientRect()
+  const maxHeight = Math.max(80, vh - margin * 2)
+  const height = Math.min(raw.height, maxHeight)
+  const subW = raw.width
+
+  const fitsRight = wrapRect.right + 2 + subW <= vw - margin
+  const fitsLeft = wrapRect.left - 2 - subW >= margin
+  const flipX = !fitsRight && fitsLeft
+
+  const fixedLeft = flipX ? wrapRect.left - subW - 2 : wrapRect.right + 2
+  let fixedTop = wrapRect.top - 5
+  if (fixedTop + height > vTop + vh - margin) {
+    fixedTop = vTop + vh - margin - height
+  }
+  if (fixedTop < vTop + margin) {
+    fixedTop = vTop + margin
+  }
+  return { flipX, fixedTop, fixedLeft, maxHeight }
+}
+
 function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: number }): JSX.Element {
   const [openNested, setOpenNested] = useState<number | null>(null)
+  const wrapRefs = useRef(new Map<number, HTMLDivElement>())
+  const subRef = useRef<HTMLDivElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [place, setPlace] = useState<{
+    flipX: boolean
+    fixedTop: number
+    fixedLeft: number
+    maxHeight: number | null
+    ready: boolean
+  }>({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
 
   const clearClose = (): void => {
     if (closeTimer.current) {
@@ -444,6 +480,18 @@ function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: nu
 
   useEffect(() => () => clearClose(), [])
 
+  useLayoutEffect(() => {
+    if (openNested === null) {
+      setPlace({ flipX: false, fixedTop: 0, fixedLeft: 0, maxHeight: null, ready: false })
+      return
+    }
+    const wrap = wrapRefs.current.get(openNested)
+    const sub = subRef.current
+    if (!wrap || !sub) return
+    const next = placeFlyoutBeside(wrap, sub)
+    setPlace({ ...next, ready: true })
+  }, [openNested, entries])
+
   return (
     <>
       {entries.map((sub, j) => {
@@ -453,6 +501,10 @@ function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: nu
           return (
             <div
               key={j}
+              ref={(el) => {
+                if (el) wrapRefs.current.set(j, el)
+                else wrapRefs.current.delete(j)
+              }}
               className="menu-sub-wrap"
               onMouseEnter={() => {
                 clearClose()
@@ -460,20 +512,38 @@ function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: nu
               }}
               onMouseLeave={scheduleClose}
             >
-              <button type="button" className={`menu-item has-sub${open ? ' focused' : ''}`} role="menuitem">
+              <button
+                type="button"
+                className={`menu-item has-sub${open ? ' focused' : ''}`}
+                role="menuitem"
+                aria-haspopup="menu"
+                aria-expanded={open}
+              >
                 <span className="menu-item-label">{sub.label}</span>
                 <span className="menu-hint">▸</span>
               </button>
-              {open && (
-                <div
-                  className={`context-menu context-submenu context-submenu-nested depth-${depth + 1}`}
-                  role="menu"
-                  onMouseEnter={clearClose}
-                  onMouseLeave={scheduleClose}
-                >
-                  <SubMenuFlyout entries={sub.items} depth={depth + 1} />
-                </div>
-              )}
+              {open
+                ? createPortal(
+                    <div
+                      ref={subRef}
+                      className={`context-menu context-submenu context-submenu-nested depth-${depth + 1}${place.flipX ? ' flip' : ''}`}
+                      role="menu"
+                      onMouseEnter={clearClose}
+                      onMouseLeave={scheduleClose}
+                      style={{
+                        position: 'fixed',
+                        left: place.fixedLeft,
+                        top: place.fixedTop,
+                        maxHeight: place.maxHeight ?? undefined,
+                        zIndex: 1100 + depth,
+                        visibility: place.ready ? 'visible' : 'hidden'
+                      }}
+                    >
+                      <SubMenuFlyout entries={sub.items} depth={depth + 1} />
+                    </div>,
+                    document.body
+                  )
+                : null}
             </div>
           )
         }
@@ -2979,31 +3049,8 @@ export function ContextMenu(): JSX.Element | null {
     const wrap = subWrapRefs.current.get(openSub)
     const sub = subRef.current
     if (!wrap || !sub) return
-
-    const margin = 8
-    const vw = window.innerWidth
-    const vh = window.visualViewport?.height ?? window.innerHeight
-    const vTop = window.visualViewport?.offsetTop ?? 0
-    const wrapRect = wrap.getBoundingClientRect()
-    const raw = sub.getBoundingClientRect()
-    const maxHeight = Math.max(80, vh - margin * 2)
-    const height = Math.min(raw.height, maxHeight)
-    const subW = raw.width
-
-    const fitsRight = wrapRect.right + 2 + subW <= vw - margin
-    const fitsLeft = wrapRect.left - 2 - subW >= margin
-    const flipX = !fitsRight && fitsLeft
-
-    const fixedLeft = flipX ? wrapRect.left - subW - 2 : wrapRect.right + 2
-    let fixedTop = wrapRect.top - 5
-    if (fixedTop + height > vTop + vh - margin) {
-      fixedTop = vTop + vh - margin - height
-    }
-    if (fixedTop < vTop + margin) {
-      fixedTop = vTop + margin
-    }
-
-    setSubPlace({ flipX, fixedTop, fixedLeft, maxHeight, ready: true })
+    const next = placeFlyoutBeside(wrap, sub)
+    setSubPlace({ ...next, ready: true })
   }, [openSub, items])
 
   useLayoutEffect(() => {

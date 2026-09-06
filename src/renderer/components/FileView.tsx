@@ -1106,6 +1106,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     folderPath
   )
   useEffect(() => {
+    if (!columnMetaBump.path || metaFetchColumns.length === 0) return
+    const target = columnMetaBump.path
+    if (samePath(target, folderPath)) {
+      setMetaByPath({})
+      requestedMetaRef.current.clear()
+      return
+    }
+    setMetaByPath((prev) => {
+      const next = { ...prev }
+      for (const k of Object.keys(next)) {
+        if (samePath(k, target)) delete next[k]
+      }
+      return next
+    })
+    for (const k of [...requestedMetaRef.current]) {
+      if (samePath(k, target)) requestedMetaRef.current.delete(k)
+    }
+  }, [columnMetaBump.rev, columnMetaBump.path, folderPath, metaFetchColumns])
+
+  // Runs after invalidate-on-bump so requestedMeta is cleared before we enqueue again.
+  useEffect(() => {
     if (metaFetchColumns.length === 0 || visibleRangeEnd < visibleRangeStart) return
     const needed: string[] = []
     for (let row = visibleRangeStart; row <= visibleRangeEnd; row++) {
@@ -1151,24 +1172,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     dirMetaColumns,
     scrollBoxH,
     rowCount,
-    rowHeight
+    rowHeight,
+    // After ADS/metadata saves, bump clears rows from metaByPath + requestedMeta —
+    // must re-run so visible cells refill (mtime often unchanged on NTFS ADS).
+    columnMetaBump.rev
   ])
-
-  useEffect(() => {
-    if (!columnMetaBump.path || metaFetchColumns.length === 0) return
-    const target = columnMetaBump.path
-    if (samePath(target, folderPath)) {
-      setMetaByPath({})
-      requestedMetaRef.current.clear()
-      return
-    }
-    setMetaByPath((prev) => {
-      const next = { ...prev }
-      delete next[target]
-      return next
-    })
-    requestedMetaRef.current.delete(target)
-  }, [columnMetaBump.rev, columnMetaBump.path, folderPath, metaFetchColumns])
 
   // Search / Recycle overlays must not rewrite the tab's folder scrollOffset.
   // Otherwise Close leaves you scrolled past the end of the real listing (gaps /

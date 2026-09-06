@@ -20,7 +20,7 @@ import {
   type PowerSearchScope,
   type PowerSearchState
 } from '@shared/searchBuilder'
-import { allUserMetadataFields } from '@shared/schemas/userMetadata'
+import { allUserMetadataFields, booleanFieldLabels } from '@shared/schemas/userMetadata'
 
 function ModalShell({
   title,
@@ -783,6 +783,33 @@ export function PowerSearchDialog(): JSX.Element {
                             {o.label}
                           </option>
                         ))}
+                      </select>
+                    </label>
+                  )
+                }
+                if (field.type === 'boolean') {
+                  const labels = booleanFieldLabels(field)
+                  const sel =
+                    mf.value === 'true' || mf.value === 'false' ? mf.value : ''
+                  return (
+                    <label className="power-search-field">
+                      <span>Value</span>
+                      <select
+                        value={sel}
+                        onChange={(e) =>
+                          patchBuilder({
+                            metaFilters: [
+                              {
+                                fieldId: field.id,
+                                value: e.target.value || undefined
+                              }
+                            ]
+                          })
+                        }
+                      >
+                        <option value="">(any / present)</option>
+                        <option value="true">{labels.trueLabel}</option>
+                        <option value="false">{labels.falseLabel}</option>
                       </select>
                     </label>
                   )

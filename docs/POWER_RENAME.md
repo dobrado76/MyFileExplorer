@@ -1,6 +1,6 @@
 # Power Rename (D40)
 
-**Status:** shipped · Decision **D40** · Inspired by [PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename) and [Bulk Rename Utility](https://www.bulkrenameutility.co.uk/) panels
+**Version:** 0.16.0 · **Status:** shipped · Decision **D40** · Inspired by [PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename) and [Bulk Rename Utility](https://www.bulkrenameutility.co.uk/) panels
 
 Batch-rename the **current selection** (files and/or folders) with a live preview. The dialog always shows a simple Search / Replace strip (PowerToys-style). Collapsible **Advanced options** add Bulk Rename Utility–style panels for case, remove, numbering, dates, and more — without leaving MyFileExplorer.
 
@@ -146,7 +146,7 @@ Applied to the stem, in roughly this order:
 | Control | Meaning |
 | ------- | ------- |
 | **First n** / **Last n** | Drop that many characters from the start / end |
-| **From** / **To** | 1-based inclusive character range to delete (`0` = unused) |
+| **From** / **To** | 1-based character range to delete (`0` = unused). **To** is never below **From** (raising **From** raises **To**). When **From** = **To**, delete from that position through the end of the stem; when **To** > **From**, delete the inclusive range |
 | **Chars** | Delete every occurrence of each character typed here |
 | **Words** | Delete whole tokens (split on spaces / `.` / `_` / `-`) matching the listed words |
 | **Crop** | **Before** / **After** a **Crop text** match (case-insensitive): keep the side you choose |

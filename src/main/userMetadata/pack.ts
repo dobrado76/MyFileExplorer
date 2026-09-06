@@ -215,6 +215,7 @@ export async function importMetadataPack(opts?: {
       }
       const merged: UserMetadataSettings = {
         enabled: cur.enabled === true,
+        showToolbarButton: cur.showToolbarButton === true,
         sets: [...setById.values()].slice(0, 32),
         bindings: cur.bindings
       }

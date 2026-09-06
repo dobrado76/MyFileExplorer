@@ -9,7 +9,8 @@ import {
   fieldById,
   fieldsBySearchKey,
   optionByKey,
-  optionIdsForSearchKey
+  optionIdsForSearchKey,
+  parseBooleanFieldToken
 } from './schemas/userMetadata'
 
 export type MetaSearchClause = {
@@ -177,14 +178,9 @@ export function buildMetaClauseFromValue(
     return { fieldId: field.id, mode: 'cmp', cmpOp: op, cmpNum: n }
   }
   if (field.type === 'boolean') {
-    const low = t.toLowerCase()
-    if (low === 'true' || low === '1' || low === 'yes') {
-      return { fieldId: field.id, mode: 'eq', value: true }
-    }
-    if (low === 'false' || low === '0' || low === 'no') {
-      return { fieldId: field.id, mode: 'eq', value: false }
-    }
-    return null
+    const b = parseBooleanFieldToken(field, t)
+    if (b == null) return null
+    return { fieldId: field.id, mode: 'eq', value: b }
   }
   if (field.type === 'choice' || field.type === 'multiChoice') {
     const opt = optionByKey(field, t.toLowerCase()) ?? optionByKey(field, t)
@@ -228,6 +224,15 @@ export function buildMetaClauseFromCompatibleFields(
       value: optionIds[0],
       optionIds
     }
+  }
+  if (primary.type === 'boolean') {
+    for (const f of fields) {
+      const b = parseBooleanFieldToken(f, t)
+      if (b != null) {
+        return { fieldId: primary.id, fieldIds, mode: 'eq', value: b }
+      }
+    }
+    return null
   }
   const base = buildMetaClauseFromValue(primary, t)
   if (!base) return null

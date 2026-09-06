@@ -18,6 +18,7 @@ describe('settings export / import', () => {
       usnManagerBounds: { x: 0, y: 1, width: 860, height: 640 },
       adsManagerBounds: { x: 1, y: 2, width: 800, height: 600 },
       powerRenameBounds: { x: 3, y: 4, width: 900, height: 700, maximized: true },
+      userMetadataManagerBounds: { x: 4, y: 5, width: 960, height: 720, maximized: false },
       remoteConnectionBounds: { x: 7, y: 8, width: 640, height: 520, maximized: false },
       compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 },
       previewWindowBounds: { x: 9, y: 10, width: 480, height: 720, maximized: true },

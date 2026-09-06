@@ -1,6 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import type { UserMetadataField } from '@shared/schemas/userMetadata'
-import { metadataScopePath, resolveMetadataSet } from '@shared/userMetadataBindings'
+import { booleanFieldLabels } from '@shared/schemas/userMetadata'
+import { resolveMetadataSetForItem } from '@shared/userMetadataBindings'
 import { useAppStore } from '../store/appStore'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, samePath } from '../lib/paths'
@@ -28,7 +29,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
     for (const p of paths) {
       const e = listing.entries.find((en) => samePath(en.path, p))
       const isDir = e?.kind === 'dir'
-      const set = resolveMetadataSet(metadataScopePath(p, isDir), catalog)
+      const set = resolveMetadataSetForItem(p, isDir, catalog)
       if (!set) return []
       if (sharedId === undefined) {
         sharedId = set.id
@@ -204,17 +205,23 @@ function FieldEditor({
 }): JSX.Element {
   const id = `um-${field.id}`
   if (field.type === 'boolean') {
+    const labels = booleanFieldLabels(field)
+    const sel = value === true ? 'true' : value === false ? 'false' : ''
     return (
-      <label className="settings-toggle" htmlFor={id}>
-        <span className="settings-toggle-text">
-          <span className="settings-toggle-label">{field.name}</span>
-        </span>
-        <input
+      <label className="settings-labeled-row" htmlFor={id}>
+        <span>{field.name}</span>
+        <select
           id={id}
-          type="checkbox"
-          checked={value === true}
-          onChange={(e) => onChange(e.target.checked ? true : null)}
-        />
+          value={sel}
+          onChange={(e) => {
+            const v = e.target.value
+            onChange(v === 'true' ? true : v === 'false' ? false : null)
+          }}
+        >
+          <option value="">—</option>
+          <option value="true">{labels.trueLabel}</option>
+          <option value="false">{labels.falseLabel}</option>
+        </select>
       </label>
     )
   }

@@ -644,6 +644,17 @@ const settingsFieldsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Last User Metadata manager dialog geometry (null = centered defaults). */
+  userMetadataManagerBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(640).max(10000),
+      height: z.number().min(420).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
   /** Last Add/Edit remote connection dialog geometry. */
   remoteConnectionBounds: z
     .object({
@@ -803,6 +814,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   usnManagerBounds: null,
   adsManagerBounds: null,
   powerRenameBounds: null,
+  userMetadataManagerBounds: null,
   remoteConnectionBounds: null,
   compiledListsWindowBounds: null,
   previewWindowBounds: null,

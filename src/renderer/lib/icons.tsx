@@ -404,6 +404,17 @@ export const ScriptIcon = svg(
     <path d="M10 9h4M10 13h4" />
   </>
 )
+/** User-defined metadata manager (toolbar) — upright sheet, not a diagonal tag. */
+export const MetadataIcon = svg(
+  <>
+    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    <path d="M8 13h2" />
+    <path d="M8 17h2" />
+    <path d="M14 13h2" />
+    <path d="M14 17h2" />
+  </>
+)
 export const EraserIcon = svg(
   <>
     <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />

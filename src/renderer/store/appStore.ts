@@ -315,6 +315,7 @@ export type DialogState =
   | { kind: 'tab-custom-icon'; tabId: string }
   | { kind: 'item-note'; path: string }
   | { kind: 'user-metadata'; paths: string[] }
+  | { kind: 'user-metadata-manager'; returnSection?: string }
   | { kind: 'item-icon'; path: string }
   | {
       kind: 'alert'

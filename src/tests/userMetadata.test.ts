@@ -3,11 +3,14 @@ import { parseEverythingQuery } from '../main/search/everythingQuery'
 import { metaRecordMatches } from '../shared/metaSearch'
 import {
   allUserMetadataFields,
+  formatBooleanFieldValue,
   newUserMetadataFieldId,
   newUserMetadataOptionId,
   newUserMetadataSetId,
+  parseBooleanFieldToken,
   type UserMetadataDoc,
-  type UserMetadataField
+  type UserMetadataField,
+  userMetadataFieldSchema
 } from '../shared/schemas/userMetadata'
 import { compileWholeValuePattern, testWholeValueSync } from '../shared/userMetadataValidate'
 import { buildSearchQuery, defaultPowerSearchState } from '../shared/searchBuilder'
@@ -65,6 +68,51 @@ describe('user metadata validation', () => {
     expect(testWholeValueSync('user@example.com', v).ok).toBe(true)
     expect(testWholeValueSync('garbage user@example.com garbage', v).ok).toBe(false)
     expect(testWholeValueSync('', v).ok).toBe(true)
+  })
+})
+
+describe('boolean field labels', () => {
+  const doneField: UserMetadataField = {
+    id: newUserMetadataFieldId(),
+    key: 'task_state',
+    name: 'Task',
+    type: 'boolean',
+    boolean: { trueLabel: 'Done', falseLabel: 'Todo' },
+    showAsColumn: true
+  }
+
+  it('defaults to Yes/No when labels omitted', () => {
+    const f: UserMetadataField = {
+      id: newUserMetadataFieldId(),
+      key: 'flag',
+      name: 'Flag',
+      type: 'boolean',
+      showAsColumn: false
+    }
+    expect(formatBooleanFieldValue(f, true)).toBe('Yes')
+    expect(formatBooleanFieldValue(f, false)).toBe('No')
+    expect(parseBooleanFieldToken(f, 'yes')).toBe(true)
+    expect(parseBooleanFieldToken(f, 'no')).toBe(false)
+  })
+
+  it('uses custom labels for display and query tokens', () => {
+    expect(formatBooleanFieldValue(doneField, true)).toBe('Done')
+    expect(formatBooleanFieldValue(doneField, false)).toBe('Todo')
+    expect(parseBooleanFieldToken(doneField, 'Done')).toBe(true)
+    expect(parseBooleanFieldToken(doneField, 'todo')).toBe(false)
+    expect(parseBooleanFieldToken(doneField, 'true')).toBe(true)
+  })
+
+  it('preserves boolean labels through field schema', () => {
+    const parsed = userMetadataFieldSchema.parse(doneField)
+    expect(parsed.boolean).toEqual({ trueLabel: 'Done', falseLabel: 'Todo' })
+  })
+
+  it('parses meta query with custom label', () => {
+    const q = parseEverythingQuery('meta.task_state:Done', {
+      userMetadataFields: [doneField]
+    })
+    expect(q.metaClauses[0]?.value).toBe(true)
   })
 })
 
@@ -200,5 +248,20 @@ describe('settings export userMetadata', () => {
     const doc = buildSettingsExportDocument({ settings, networkHosts: [] })
     const parsed = parseSettingsImport(doc)
     expect(parsed.settings.userMetadata.enabled).toBe(true)
+  })
+
+  it('round-trips showToolbarButton (D45)', () => {
+    const settings = settingsSchema.parse({
+      ...defaultSettings,
+      userMetadata: {
+        enabled: true,
+        showToolbarButton: true,
+        sets: [],
+        bindings: []
+      }
+    })
+    const doc = buildSettingsExportDocument({ settings, networkHosts: [] })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.userMetadata.showToolbarButton).toBe(true)
   })
 })

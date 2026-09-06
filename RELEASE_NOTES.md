@@ -1,57 +1,48 @@
-# MyFileExplorer v0.15.0 — release notes
+# MyFileExplorer v0.16.0 — release notes
 
-**Date:** 2026-09-02  
-**Tag:** `v0.15.0` (package **0.15.0**)  
-**Previous product baseline:** [v0.14.0](CHANGELOG.md#0140---2026-08-30)
+**Date:** 2026-09-06  
+**Tag:** `v0.16.0` (package **0.16.0**)  
+**Previous product baseline:** [v0.15.0](CHANGELOG.md#0150---2026-09-02)
 
-Fifteenth product release (**v0.15**): **user-defined metadata** (**D70**), **GPL-3.0** licensing (**D71**), experimental **Windows shell redirect** (**D72**), richer **media metadata** editing and library filters, plus polish on video thumbs / slideshow.
+Sixteenth product release (**v0.16**): **Power Rename Advanced** options, **multi-pack icon picker** (Lucide / Phosphor / Tabler), and a polished **User Metadata** experience (dedicated manager, Binary field labels, stable preview, child-folder bindings).
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). User metadata: [docs/USER_METADATA.md](docs/USER_METADATA.md) · media cards: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md) · shell redirect: [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md) · licensing: [LICENSING.md](LICENSING.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Power Rename: [docs/POWER_RENAME.md](docs/POWER_RENAME.md) · user metadata: [docs/USER_METADATA.md](docs/USER_METADATA.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### User-defined structured metadata (D70, off by default)
+### Power Rename Advanced options (D40)
 
-Define metadata **sets**, bind them to folders, edit values on files/folders (`mfe_meta` ADS), optional Details columns, and Power Search `meta.<key>:`.
+Collapsible Bulk Rename Utility–style panels behind the simple Search / Replace strip: Name, Case, Remove, Move/Copy, Add, Auto date, Append folder, Numbering, Extension, Selection filter. Apply works with advanced-only transforms (empty Search). DOS `*` / `?` wildcards when regex is off. Remove From/To clamps so **To** never goes below **From**.
 
-Enable under **Settings → Metadata**. Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
+Guide: [docs/POWER_RENAME.md](docs/POWER_RENAME.md).
 
-### Windows shell redirect (D72, experimental)
+### Multi-pack glyph picker
 
-Optional per-user redirect of ordinary `Directory` open/explore shell verbs to MyFileExplorer via a small `MfeShellLauncher.exe` (bundled in the installer).
+Tabs, per-item icons, Quick Launch, and Scripts share one Glyph picker with **Lucide**, **Phosphor** (Regular), and **Tabler**. Existing Lucide-only data keeps working; item ADS `kind` stays `'lucide'`.
 
-- **Settings → Windows integration** — Enable, Test, Repair, Restore previous folder-opening configuration
-- Machine-local registry state (not settings export/import)
-- Win+E / taskbar Explorer / direct `explorer.exe` launches stay untouched
+### User Metadata polish (D70)
 
-Guide: [docs/WINDOWS_SHELL_REDIRECT.md](docs/WINDOWS_SHELL_REDIRECT.md).
+- Floating **Metadata manager** (set tabs + Assignments / Pack); Settings → Metadata stays a thin enable + summary panel
+- Optional toolbar button for the manager
+- **Binary** fields with configurable true/false labels (Yes/No, True/False, Todo/Done, …)
+- Non-recursive (“this folder only”) bindings cover **direct child folders** as list items without applying inside those children
+- Preview Metadata block stays mounted across selection; Details columns refresh correctly after edits
 
-### Licence: GPL-3.0 (D71)
-
-The project is **GPL-3.0**, with a separate trademark policy for the MyFileExplorer name and logo. See [LICENSING.md](LICENSING.md) and [TRADEMARK.md](TRADEMARK.md).
-
-### Media metadata polish (D50)
-
-- **Edit metadata…** — fix inaccurate downloaded cards (title, year, cast, genres, synopsis, watched, episode fields) without editing ADS by hand. Preview / card hover / context menu; no stream yet → saves a **manual** card.
-- Icon actions on the preview hero (same glyphs as media-card hover; labels in tooltips).
-- Media-container tiles: hover download / edit / change cover / watched.
-- **Watched** and **Genre** toolbar filters remembered **per library folder** (included in Settings export).
-
-Guide: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md).
+Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
 
 ### Also in this release
 
-- Slideshow context menu **Copy image** (clipboard bitmap)
-- Renaming / same-volume moving a video also renames matching `!VIDTHUMB_CACHE` strip frames
-- AI script generation: stronger UTF-8 / CJK path handling guidance
+- Nested context submenus portaled (no clipped flyouts)
+- Preview autoplay preference moved to Settings → Preview
+- Media Metadata Clear confirms scope; Recycle Bin Restore reliability; Virtual Folder tree / preview polish; search vs folder view restore; Back after rename on NAS
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.15.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.16.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
 3. Before a PC swap: **Settings → About → Export…** (script library, templates catalog, and media-library filter prefs included; AI keys and shell-redirect state stay on the machine).
 4. **Optional OS projection:** install [WinFsp](https://winfsp.dev/), then `MfeVirtualFolderService-win-x64.zip` from the same Release.
@@ -59,7 +50,7 @@ Guide: [docs/MEDIA_METADATA.md](docs/MEDIA_METADATA.md).
 
 ## Upgrade notes
 
-- Fully quit and relaunch (IPC / preload / launcher changes need a cold start).
+- Fully quit and relaunch (IPC / preload changes need a cold start).
 - **User Metadata**, shell redirect, Git, Scripts, and Media Metadata stay **off** until you enable them.
-- Licence text and notices are GPL-3.0 going forward; see [LICENSING.md](LICENSING.md).
+- Boolean metadata fields remain stored as JSON `true`/`false`; only display labels are configurable.
 - Notes, item icons, folder statistics, and user metadata streams need **local NTFS**.

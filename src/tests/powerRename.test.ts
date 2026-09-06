@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  clampRemoveFromTo,
   countActiveAdvanced,
   defaultPowerRenameAdvanced,
   defaultPowerRenameOptions,
@@ -198,6 +199,32 @@ describe('transformBasename', () => {
       advanced: adv
     })
     expect(r.newName).toBe('vacation2020.jpg')
+  })
+
+  it('remove From–To inclusive; equal means through end', () => {
+    expect(clampRemoveFromTo(5, 3)).toEqual({ removeFrom: 5, removeTo: 5 })
+    expect(clampRemoveFromTo(2, 5)).toEqual({ removeFrom: 2, removeTo: 5 })
+
+    const range = defaultPowerRenameAdvanced()
+    range.removeFrom = 2
+    range.removeTo = 4
+    expect(
+      transformBasename('ABCDEF.jpg', { ...base, applyTo: 'name', advanced: range }).newName
+    ).toBe('AEF.jpg')
+
+    const toEnd = defaultPowerRenameAdvanced()
+    toEnd.removeFrom = 3
+    toEnd.removeTo = 3
+    expect(
+      transformBasename('ABCDEF.jpg', { ...base, applyTo: 'name', advanced: toEnd }).newName
+    ).toBe('AB.jpg')
+
+    const inverted = defaultPowerRenameAdvanced()
+    inverted.removeFrom = 4
+    inverted.removeTo = 2
+    expect(
+      transformBasename('ABCDEF.jpg', { ...base, applyTo: 'name', advanced: inverted }).newName
+    ).toBe('ABC.jpg')
   })
 
   it('fixed name + extension fixed', () => {

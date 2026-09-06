@@ -5,6 +5,7 @@ import {
   removeBindingsForSet,
   resolveMetadataBinding,
   resolveMetadataSet,
+  resolveMetadataSetForItem,
   upsertMetadataBinding,
   type UserMetadataBinding
 } from '@shared/userMetadataBindings'
@@ -38,6 +39,7 @@ describe('resolveMetadataBinding', () => {
     expect(hit?.setId).toBeNull()
     expect(resolveMetadataSet('E:\\Research\\Temporary', {
       enabled: false,
+      showToolbarButton: false,
       sets: [{ id: research, name: 'Research', fields: [] }],
       bindings: list
     })).toBeNull()
@@ -58,6 +60,43 @@ describe('resolveMetadataBinding', () => {
   it('remove assignment restores inheritance', () => {
     const after = list.filter((b) => b.path !== 'E:\\Research\\Temporary')
     expect(resolveMetadataBinding('E:\\Research\\Temporary', after)?.setId).toBe(research)
+  })
+})
+
+describe('resolveMetadataSetForItem', () => {
+  const setId = 'ms_research000001'
+  const settings: UserMetadataSettings = {
+    enabled: true,
+    showToolbarButton: false,
+    sets: [{ id: setId, name: 'Research', fields: [] }],
+    bindings: [binding('E:\\Research', false, setId)]
+  }
+
+  it('exact binding covers the bound folder itself', () => {
+    expect(resolveMetadataSetForItem('E:\\Research', true, settings)?.id).toBe(setId)
+  })
+
+  it('exact binding covers files and direct child folders as list items', () => {
+    expect(resolveMetadataSetForItem('E:\\Research\\a.txt', false, settings)?.id).toBe(setId)
+    expect(resolveMetadataSetForItem('E:\\Research\\New folder', true, settings)?.id).toBe(setId)
+  })
+
+  it('exact binding does not apply inside a child folder', () => {
+    expect(resolveMetadataSetForItem('E:\\Research\\New folder\\deep.txt', false, settings)).toBeNull()
+    expect(
+      resolveMetadataSetForItem('E:\\Research\\New folder\\nested', true, settings)
+    ).toBeNull()
+  })
+
+  it('explicit No metadata on a child blocks parent fallback', () => {
+    const withHole: UserMetadataSettings = {
+      ...settings,
+      bindings: [
+        binding('E:\\Research', false, setId),
+        binding('E:\\Research\\New folder', false, null)
+      ]
+    }
+    expect(resolveMetadataSetForItem('E:\\Research\\New folder', true, withHole)).toBeNull()
   })
 })
 
@@ -110,6 +149,7 @@ describe('migrateUserMetadataSettings', () => {
     const b = newUserMetadataSetId()
     const settings: UserMetadataSettings = {
       enabled: false,
+      showToolbarButton: false,
       sets: [
         {
           id: a,
@@ -149,6 +189,7 @@ describe('migrateUserMetadataSettings', () => {
     const b = newUserMetadataSetId()
     const settings: UserMetadataSettings = {
       enabled: true,
+      showToolbarButton: false,
       sets: [
         {
           id: a,

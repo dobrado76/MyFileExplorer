@@ -24,6 +24,9 @@ export const MAX_SET_NAME_LEN = 80
 export const MAX_TEXT_VALUE_LEN = 4000
 export const MAX_VALIDATION_PATTERN_LEN = 500
 export const MAX_VALIDATION_MESSAGE_LEN = 200
+export const MAX_BOOLEAN_LABEL_LEN = 40
+export const DEFAULT_BOOLEAN_TRUE_LABEL = 'Yes'
+export const DEFAULT_BOOLEAN_FALSE_LABEL = 'No'
 
 const FIELD_KEY_RE = /^[a-z][a-z0-9_]{0,63}$/
 const OPTION_KEY_RE = /^[a-z][a-z0-9_]{0,63}$/
@@ -66,6 +69,21 @@ export const userMetadataTextConstraintsSchema = z.object({
   validation: userMetadataTextValidationSchema.optional()
 })
 
+/** Display labels for boolean fields (ADS still stores true/false). Missing ⇒ Yes / No. */
+export const userMetadataBooleanLabelsSchema = z.object({
+  trueLabel: z
+    .string()
+    .min(1)
+    .max(MAX_BOOLEAN_LABEL_LEN)
+    .catch(DEFAULT_BOOLEAN_TRUE_LABEL),
+  falseLabel: z
+    .string()
+    .min(1)
+    .max(MAX_BOOLEAN_LABEL_LEN)
+    .catch(DEFAULT_BOOLEAN_FALSE_LABEL)
+})
+export type UserMetadataBooleanLabels = z.infer<typeof userMetadataBooleanLabelsSchema>
+
 export const userMetadataChoiceOptionSchema = z.object({
   id: z.string().regex(OPTION_ID_RE),
   key: z.string().regex(OPTION_KEY_RE),
@@ -81,6 +99,8 @@ export const userMetadataFieldSchema = z
     type: userMetadataFieldTypeSchema,
     choices: z.array(userMetadataChoiceOptionSchema).max(MAX_CHOICE_OPTIONS).optional(),
     text: userMetadataTextConstraintsSchema.optional(),
+    /** Labels for type boolean; omitted ⇒ Yes / No. */
+    boolean: userMetadataBooleanLabelsSchema.optional(),
     showAsColumn: z.boolean().catch(false)
   })
   .superRefine((f, ctx) => {
@@ -176,6 +196,8 @@ export type UserMetadataBinding = z.infer<typeof userMetadataBindingSchema>
 export const userMetadataSettingsObjectSchema = z.object({
   /** Off by default — context menu / preview / columns stay hidden until enabled. */
   enabled: z.boolean().catch(false),
+  /** Optional toolbar button opening the Metadata manager (left of Script Manager). */
+  showToolbarButton: z.boolean().catch(false),
   sets: z.array(userMetadataSetSchema).max(MAX_USER_METADATA_SETS).catch([]),
   bindings: z.array(userMetadataBindingSchema).max(MAX_USER_METADATA_BINDINGS).catch([])
 })
@@ -236,6 +258,7 @@ export type UserMetadataSettings = z.infer<typeof userMetadataSettingsObjectSche
 
 export const defaultUserMetadataSettings: UserMetadataSettings = {
   enabled: false,
+  showToolbarButton: false,
   sets: [],
   bindings: []
 }
@@ -249,17 +272,20 @@ export function migrateUserMetadataSettings(raw: unknown): UserMetadataSettings 
   if (!raw || typeof raw !== 'object') return { ...defaultUserMetadataSettings }
   const o = raw as Record<string, unknown>
   const enabled = typeof o.enabled === 'boolean' ? o.enabled : false
+  const showToolbarButton = typeof o.showToolbarButton === 'boolean' ? o.showToolbarButton : false
   if (Array.isArray(o.sets)) {
     return {
       enabled,
+      showToolbarButton,
       sets: o.sets as UserMetadataSet[],
       bindings: Array.isArray(o.bindings) ? (o.bindings as UserMetadataBinding[]) : []
     }
   }
   const legacyFields = Array.isArray(o.fields) ? (o.fields as UserMetadataField[]) : []
-  if (legacyFields.length === 0) return { ...defaultUserMetadataSettings, enabled }
+  if (legacyFields.length === 0) return { ...defaultUserMetadataSettings, enabled, showToolbarButton }
   return {
     enabled,
+    showToolbarButton,
     sets: [
       {
         id: MIGRATED_DEFAULT_SET_ID,
@@ -353,6 +379,49 @@ export function fieldByKey(
   key: string
 ): UserMetadataField | undefined {
   return fields.find((f) => f.key === key)
+}
+
+export function defaultBooleanLabels(): UserMetadataBooleanLabels {
+  return { trueLabel: DEFAULT_BOOLEAN_TRUE_LABEL, falseLabel: DEFAULT_BOOLEAN_FALSE_LABEL }
+}
+
+/** Display labels for a boolean field (ADS still stores true/false). Missing ⇒ Yes / No. */
+export function booleanFieldLabels(
+  field: Pick<UserMetadataField, 'boolean'>
+): UserMetadataBooleanLabels {
+  const t = field.boolean?.trueLabel?.trim()
+  const f = field.boolean?.falseLabel?.trim()
+  return {
+    trueLabel: t || DEFAULT_BOOLEAN_TRUE_LABEL,
+    falseLabel: f || DEFAULT_BOOLEAN_FALSE_LABEL
+  }
+}
+
+/** Format a stored boolean for columns / read-only UI. */
+export function formatBooleanFieldValue(
+  field: Pick<UserMetadataField, 'boolean'>,
+  value: boolean
+): string {
+  const labels = booleanFieldLabels(field)
+  return value ? labels.trueLabel : labels.falseLabel
+}
+
+/**
+ * Resolve a Power Search / typed token to a boolean.
+ * Always accepts true/false/1/0/yes/no; also the field’s configured labels.
+ */
+export function parseBooleanFieldToken(
+  field: Pick<UserMetadataField, 'boolean'>,
+  raw: string
+): boolean | null {
+  const low = raw.trim().toLowerCase()
+  if (!low) return null
+  if (low === 'true' || low === '1' || low === 'yes') return true
+  if (low === 'false' || low === '0' || low === 'no') return false
+  const labels = booleanFieldLabels(field)
+  if (low === labels.trueLabel.toLowerCase()) return true
+  if (low === labels.falseLabel.toLowerCase()) return false
+  return null
 }
 
 /** All fields sharing a query key (must be type-compatible when settings validated). */

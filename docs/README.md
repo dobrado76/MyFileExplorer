@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.15.0** — **D72** experimental Windows shell redirect; **D71** GPL-3.0; **D70** user-defined metadata; media metadata edit + per-library filters; **D68** / **D67** Virtual Folders remain. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.16.0** — Power Rename Advanced options; multi-pack glyphs (Lucide / Phosphor / Tabler); User Metadata manager + Binary labels + preview/column polish (**D70**). Prior: **D72** shell redirect, **D71** GPL-3.0. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -55,6 +55,14 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.16.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Power Rename Advanced (D40) | BRU-style panels, DOS wildcards, Remove From/To clamp — [POWER_RENAME.md](POWER_RENAME.md) |
+| Multi-pack glyphs | Lucide / Phosphor / Tabler picker for tabs, item icons, Quick Launch, Scripts |
+| User metadata (D70) | Manager dialog; Binary labels; child-folder exact binding; stable preview / column refresh — [USER_METADATA.md](USER_METADATA.md) |
 
 ## Recent behavior (v0.15.0)
 

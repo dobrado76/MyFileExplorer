@@ -72,6 +72,7 @@ import { TabCustomIconDialog } from './TabCustomIconDialog'
 import { ItemNoteDialog } from './ItemNoteDialog'
 import { EditMediaMetadataDialog } from './EditMediaMetadataDialog'
 import { UserMetadataDialog } from './UserMetadataDialog'
+import { UserMetadataManagerDialog } from './UserMetadataManagerDialog'
 import { UserMetadataSettingsPanel } from './UserMetadataSettingsPanel'
 import { ItemIconPickerDialog } from './ItemIconPickerDialog'
 import { CategorizerMapManager } from './CategorizerMapManager'
@@ -360,6 +361,8 @@ export function Dialogs(): JSX.Element | null {
       return useAppStore.getState().settings.userMetadata?.enabled === true ? (
         <UserMetadataDialog paths={dialog.paths} />
       ) : null
+    case 'user-metadata-manager':
+      return <UserMetadataManagerDialog returnSection={dialog.returnSection} />
     case 'item-icon':
       return <ItemIconPickerDialog path={dialog.path} />
     case 'alert':

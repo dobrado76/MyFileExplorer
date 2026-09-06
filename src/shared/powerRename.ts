@@ -187,6 +187,19 @@ export function defaultPowerRenameOptions(): PowerRenameOptions {
   }
 }
 
+/**
+ * Remove From/To are 1-based. To is never allowed below From (UI + apply).
+ * When From === To and From > 0, delete From through end of the stem.
+ */
+export function clampRemoveFromTo(
+  removeFrom: number,
+  removeTo: number
+): { removeFrom: number; removeTo: number } {
+  const from = Math.max(0, Math.floor(Number(removeFrom)) || 0)
+  const to = Math.max(0, Math.floor(Number(removeTo)) || 0)
+  return { removeFrom: from, removeTo: Math.max(to, from) }
+}
+
 /** How many advanced panels differ from defaults (for UI badge). */
 export function countActiveAdvanced(adv: PowerRenameAdvanced): number {
   const d = defaultPowerRenameAdvanced()
@@ -436,12 +449,14 @@ function applyRemove(stem: string, adv: PowerRenameAdvanced): string {
   if (last > 0 && last < s.length) s = s.slice(0, s.length - last)
   else if (last >= s.length) s = ''
 
-  const from = Math.floor(adv.removeFrom) || 0
-  const to = Math.floor(adv.removeTo) || 0
-  if (from > 0 && to >= from) {
+  const { removeFrom: from, removeTo: to } = clampRemoveFromTo(adv.removeFrom, adv.removeTo)
+  if (from > 0) {
     const a = from - 1
-    const b = to
-    if (a < s.length) s = s.slice(0, a) + s.slice(Math.min(b, s.length))
+    if (a < s.length) {
+      // From === To → delete through end; To > From → inclusive 1-based [From, To].
+      if (to <= from) s = s.slice(0, a)
+      else s = s.slice(0, a) + s.slice(Math.min(to, s.length))
+    }
   }
 
   if (adv.removeChars) {

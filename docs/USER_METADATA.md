@@ -2,7 +2,7 @@
 
 > **Opt-in, off by default.** Settings → **Metadata** → **Enable user metadata**. When off, context / preview / columns / Power Search meta UI stay hidden and `userMetadata:*` IPC rejects. Distinct from Media Metadata (D50) and notes (D61).
 
-**Version:** 0.15.0 · Decision **D70**
+**Version:** 0.16.0 · Decision **D70**
 
 MyFileExplorer is a **local file workbench**: richer meaning on ordinary files without relocating them into a proprietary database. User-defined metadata is a **project-local semantic schema** — not a global app feature:
 
@@ -49,6 +49,19 @@ Changing a field or option **`key`** requires a confirmation warning (raw typed 
 - Legacy flat `fields[]` migrates into one **Default** set with **no bindings** (opt-in immediately).
 
 Types: `text` | `number` | `boolean` | `date` | `choice` | `multiChoice`.
+
+### Binary fields (`type: "boolean"`)
+
+ADS still stores JSON `true` / `false`. Display and editors use configurable labels (default **Yes** / **No**):
+
+```ts
+boolean?: {
+  trueLabel: string   // ≤ 40 chars; default "Yes"
+  falseLabel: string  // ≤ 40 chars; default "No"
+}
+```
+
+Examples: True/False, Todo/Done, Open/Closed. Power Search accepts `true`/`false`/`yes`/`no`/`1`/`0` and the field’s labels (`meta.done:Done`). Details columns show the labels.
 
 ### Optional text validation
 
@@ -102,12 +115,13 @@ Writes use `withPreservedHostTimes` (D61 pattern). win32 local NTFS only; remote
 
 ## UX
 
-- Settings → **Metadata**: **Enable** (off by default), manage sets/fields, folder assignments list, text validation + Test strip, Metadata pack.
-- Context **Metadata set…** (folder / empty pane): Assign set · No metadata (this folder / + subfolders) · Remove explicit assignment.
+- Settings → **Metadata**: **Enable** (off by default), optional **Show toolbar button**, summary counts, **Manage sets…** opens the floating User Metadata manager (set tabs, Assignments, Pack). Guide edits: field validation + Test strip live in the manager.
+- Context **Metadata set…** (folder / empty pane): Assign set · No metadata (this folder / + subfolders) · Remove explicit assignment. **No sets defined…** opens the manager.
 - Context **Metadata…** (edit values): only when the selection shares one non-null resolved set.
 - Preview: pinned **Metadata** editor above Details when a set applies; otherwise omitted.
 - Details: while the list cwd resolves to a non-null set, fields with `showAsColumn` merge into effective columns; leave / No metadata → those columns disappear. Column ids remain `meta:<fieldId>`.
-- Files resolve the set for their **parent folder**; folders for **their own path**.
+- **Item editors** (preview / Metadata…): files use the **parent** folder’s binding. Folders use a binding on **themselves** first; if none, they inherit the **parent** folder’s binding (so a non-recursive “this folder only” assignment still covers direct child folders as list rows). Opening that child does not show columns/editors for its contents unless it has its own assignment (or a recursive ancestor).
+- **Cwd / columns / Assign set**: still resolve the folder path itself (exact, else longest recursive ancestor).
 
 ## Power Search
 

@@ -9,19 +9,30 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-09-06
+
+Sixteenth product release: **Power Rename Advanced** options, **multi-pack** glyphs (Lucide / Phosphor / Tabler), and polished **User Metadata** (manager dialog, Binary labels, child-folder bindings, stable preview / column refresh). See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ### Added
 
 - **Power Rename Advanced options** — collapsible BRU-style panels (Name, Case, Remove, Move/Copy, Add, Auto date, Append folder, Numbering, Extension, Selection filter) behind the simple search/replace UI. Apply works with advanced-only transforms (empty Search). Guide: [docs/POWER_RENAME.md](docs/POWER_RENAME.md).
 - **Power Rename DOS wildcards** — when regex is off, Search treats `*` and `?` like the DOS shell.
+- **Power Rename Remove From/To** — **To** cannot go below **From** (raising **From** raises **To**). When equal, delete from that position through the end of the stem.
 - **Multi-pack icon picker** — Tabs, per-item icons, Quick Launch, and Scripts share one Glyph picker with **Lucide**, **Phosphor** (Regular), and **Tabler**. Existing Lucide-only data (no `pack` / `lucidePack`) keeps working; item ADS `kind` stays `'lucide'`.
+- **Context nested submenus** — deeper flyouts (e.g. Metadata set → Assign set / No metadata) are portaled beside the parent instead of scrolling inside it.
+- **User Metadata manager** — floating dialog (like Script Manager) with a tab per set plus Assignments / Pack; Settings → Metadata stays a thin enable + summary panel with **Manage sets…**. Optional toolbar button (Settings → Metadata → **Show toolbar button**) opens the manager directly.
 
 ### Changed
 
+- **User metadata Binary fields** — type formerly shown as “Yes / No” is **Binary** with configurable true/false labels (defaults Yes/No; e.g. True/False, Todo/Done). ADS storage remains boolean.
 - **Autoplay media in preview** — moved from Settings → Behavior to Settings → Preview (same `previewVideoAutoplay` preference).
 - **Media Metadata → Clear…** — confirms before deleting streams; dialog states scope explicitly (selected files only vs recursive under folders). No undo.
 
 ### Fixed
 
+- **Preview Metadata block** — stays mounted while the file preview loads (no late “pop-in” / layout jump). Field chrome is drawn once; values soft-update. Saving a field no longer double-flashes the block.
+- **User metadata Details columns** — after editing a value, visible column cells refetch instead of staying blank.
+- **User metadata on child folders** — a non-recursive (“this folder only”) assignment also applies to direct child folders in the list (preview / Metadata…), not only to files; it still does not apply inside those children.
 - **Tab context menu “Recently closed”** — flyout is portaled beside the menu (not scrolled inside it).
 - **Back after rename (NAS)** — renaming files inside a folder no longer runs a full Refresh (which dropped listing caches and broke Back). Back again restores the parent’s scroll position and focuses the folder you came from. Late listing completion no longer re-selects that folder if you already moved with Arrow keys (so F2 renames the folder you focused, not the previous one). Covered by `historyFocus` / `tabHistory` / `renameListing` unit tests.
 - **Lazy delete selection (d8f2741 regression)** — while trash/delete is still running, changing selection is kept when the op finishes (no snap-back to the auto-picked survivor).

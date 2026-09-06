@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { UserMetadataField } from '@shared/schemas/userMetadata'
+import { booleanFieldLabels } from '@shared/schemas/userMetadata'
 import { isRemoteLocation } from '@shared/remotePaths'
-import { metadataScopePath, resolveMetadataSet } from '@shared/userMetadataBindings'
+import { resolveMetadataSetForItem } from '@shared/userMetadataBindings'
 import { testWholeValueSync } from '@shared/userMetadataValidate'
 import { useAppStore } from '../store/appStore'
 import { samePath } from '../lib/paths'
@@ -10,6 +11,7 @@ import { api, call, IpcError } from '../lib/ipc'
 /**
  * Editable user-metadata block pinned above Details.
  * Only renders when the path resolves to a non-null metadata set.
+ * Field chrome stays mounted across selection changes (values soft-update).
  */
 export function UserMetadataPreview({
   path,
@@ -27,8 +29,10 @@ export function UserMetadataPreview({
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const [values, setValues] = useState<Record<string, unknown>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [loaded, setLoaded] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  /** Skip soft-reload right after our own save (values already optimistic). */
+  const skipBumpReloadRef = useRef(false)
 
   const dirFlag = useMemo(() => {
     if (isDirectory != null) return isDirectory
@@ -40,8 +44,7 @@ export function UserMetadataPreview({
   const fields = useMemo(() => {
     if (!path) return [] as UserMetadataField[]
     const catalog = um ?? { enabled: false, sets: [], bindings: [] }
-    const scope = metadataScopePath(path, dirFlag)
-    return resolveMetadataSet(scope, catalog)?.fields ?? []
+    return resolveMetadataSetForItem(path, dirFlag, catalog)?.fields ?? []
   }, [path, dirFlag, um])
 
   const editable =
@@ -52,13 +55,20 @@ export function UserMetadataPreview({
     fields.length > 0
 
   useEffect(() => {
+    setValues({})
+    setErrors({})
+    skipBumpReloadRef.current = false
+  }, [path])
+
+  // Initial / path load — keep field chrome; only disable controls while fetching.
+  useEffect(() => {
     if (!path || fields.length === 0) {
       setValues({})
-      setLoaded(false)
+      setLoading(false)
       return
     }
     let cancelled = false
-    setLoaded(false)
+    setLoading(true)
     void (async () => {
       try {
         const res = await call(api.userMetadata.getMany({ paths: [path] }))
@@ -67,13 +77,36 @@ export function UserMetadataPreview({
       } catch {
         if (!cancelled) setValues({})
       } finally {
-        if (!cancelled) setLoaded(true)
+        if (!cancelled) setLoading(false)
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [path, fields, columnMetaBump.rev, columnMetaBump.path])
+  }, [path, fields])
+
+  // Soft reload when another surface edits this path (dialog, etc.) — no busy flash.
+  useEffect(() => {
+    if (!path || fields.length === 0) return
+    if (!columnMetaBump.path || !samePath(columnMetaBump.path, path)) return
+    if (skipBumpReloadRef.current) {
+      skipBumpReloadRef.current = false
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await call(api.userMetadata.getMany({ paths: [path] }))
+        if (cancelled) return
+        setValues({ ...(res[path]?.values ?? {}) })
+      } catch {
+        /* keep optimistic / previous */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [columnMetaBump.rev, columnMetaBump.path, path, fields])
 
   if (!editable || !path) return null
 
@@ -100,36 +133,33 @@ export function UserMetadataPreview({
       local[field.id] = next
     }
     setValues(local)
-    setBusy(true)
+    setSavingId(field.id)
     try {
       await call(api.userMetadata.setMany({ paths: [path], values: { [field.id]: next ?? null } }))
+      skipBumpReloadRef.current = true
       bumpColumnMeta(path)
     } catch (e) {
       notify(e instanceof IpcError ? e.message : String(e), true)
     } finally {
-      setBusy(false)
+      setSavingId(null)
     }
   }
 
   return (
     <div className="preview-user-meta">
       <div className="preview-user-meta-title">Metadata</div>
-      {!loaded ? (
-        <div className="preview-user-meta-loading">Loading…</div>
-      ) : (
-        <div className={`preview-user-meta-form${busy ? ' is-busy' : ''}`}>
-          {fields.map((field) => (
-            <PreviewFieldRow
-              key={field.id}
-              field={field}
-              value={values[field.id]}
-              error={errors[field.id]}
-              disabled={busy}
-              onCommit={(v) => void commitField(field, v)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="preview-user-meta-form">
+        {fields.map((field) => (
+          <PreviewFieldRow
+            key={field.id}
+            field={field}
+            value={values[field.id]}
+            error={errors[field.id]}
+            disabled={loading || savingId === field.id}
+            onCommit={(v) => void commitField(field, v)}
+          />
+        ))}
+      </div>
     </div>
   )
 }
@@ -148,15 +178,23 @@ function PreviewFieldRow({
   onCommit(v: unknown): void
 }): JSX.Element {
   if (field.type === 'boolean') {
+    const labels = booleanFieldLabels(field)
+    const sel = value === true ? 'true' : value === false ? 'false' : ''
     return (
-      <label className="preview-user-meta-row preview-user-meta-check">
-        <input
-          type="checkbox"
-          checked={value === true}
+      <label className="preview-user-meta-row">
+        <span className="preview-user-meta-label">{field.name}</span>
+        <select
+          value={sel}
           disabled={disabled}
-          onChange={(e) => onCommit(e.target.checked ? true : null)}
-        />
-        <span>{field.name}</span>
+          onChange={(e) => {
+            const v = e.target.value
+            onCommit(v === 'true' ? true : v === 'false' ? false : null)
+          }}
+        >
+          <option value="">—</option>
+          <option value="true">{labels.trueLabel}</option>
+          <option value="false">{labels.falseLabel}</option>
+        </select>
       </label>
     )
   }
@@ -182,24 +220,26 @@ function PreviewFieldRow({
   if (field.type === 'multiChoice') {
     const selected = new Set(Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : [])
     return (
-      <fieldset className="preview-user-meta-multi" disabled={disabled}>
-        <legend>{field.name}</legend>
-        {(field.choices ?? []).map((o) => (
-          <label key={o.id} className="preview-user-meta-check">
-            <input
-              type="checkbox"
-              checked={selected.has(o.id)}
-              onChange={() => {
-                const next = new Set(selected)
-                if (next.has(o.id)) next.delete(o.id)
-                else next.add(o.id)
-                onCommit(next.size ? [...next] : null)
-              }}
-            />
-            <span>{o.label}</span>
-          </label>
-        ))}
-      </fieldset>
+      <div className="preview-user-meta-row preview-user-meta-row-multi">
+        <span className="preview-user-meta-label">{field.name}</span>
+        <fieldset className="preview-user-meta-multi" disabled={disabled} aria-label={field.name}>
+          {(field.choices ?? []).map((o) => (
+            <label key={o.id} className="preview-user-meta-check">
+              <input
+                type="checkbox"
+                checked={selected.has(o.id)}
+                onChange={() => {
+                  const next = new Set(selected)
+                  if (next.has(o.id)) next.delete(o.id)
+                  else next.add(o.id)
+                  onCommit(next.size ? [...next] : null)
+                }}
+              />
+              <span>{o.label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </div>
     )
   }
   if (field.type === 'date') {
@@ -237,7 +277,7 @@ function PreviewFieldRow({
             /* draft until blur — controlled via value from parent after commit */
           }}
           defaultValue={typeof value === 'number' ? String(value) : ''}
-          key={String(value ?? '')}
+          key={`${field.id}:${String(value ?? '')}`}
         />
       </label>
     )
@@ -250,7 +290,7 @@ function PreviewFieldRow({
         <input
           type="text"
           defaultValue={typeof value === 'string' ? value : ''}
-          key={String(value ?? '')}
+          key={`${field.id}:${String(value ?? '')}`}
           disabled={disabled}
           onBlur={(e) => onCommit(e.target.value.trim() || null)}
         />

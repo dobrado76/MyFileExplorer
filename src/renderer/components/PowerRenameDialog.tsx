@@ -9,6 +9,7 @@ import {
   type ReactNode
 } from 'react'
 import {
+  clampRemoveFromTo,
   countActiveAdvanced,
   defaultPowerRenameAdvanced,
   previewPowerRename,
@@ -665,20 +666,30 @@ export function PowerRenameDialog({ paths }: { paths: string[] }): JSX.Element {
                           type="number"
                           min={0}
                           value={advanced.removeFrom}
-                          onChange={(e) =>
-                            patchAdvanced({ removeFrom: Number(e.target.value) || 0 })
-                          }
+                          onChange={(e) => {
+                            const next = clampRemoveFromTo(
+                              Number(e.target.value) || 0,
+                              advanced.removeTo
+                            )
+                            patchAdvanced(next)
+                          }}
+                          title="1-based start. When equal to To, deletes through end of name."
                         />
                       </label>
                       <label className="power-rename-field">
                         <span>To</span>
                         <input
                           type="number"
-                          min={0}
+                          min={advanced.removeFrom}
                           value={advanced.removeTo}
-                          onChange={(e) =>
-                            patchAdvanced({ removeTo: Number(e.target.value) || 0 })
-                          }
+                          onChange={(e) => {
+                            const next = clampRemoveFromTo(
+                              advanced.removeFrom,
+                              Number(e.target.value) || 0
+                            )
+                            patchAdvanced(next)
+                          }}
+                          title="1-based end (inclusive). Must be ≥ From. Equal to From = through end."
                         />
                       </label>
                     </div>

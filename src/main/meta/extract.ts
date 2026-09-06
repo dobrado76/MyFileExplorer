@@ -14,6 +14,7 @@ import {
   USER_METADATA_STREAM,
   allUserMetadataFields,
   fieldById,
+  formatBooleanFieldValue,
   optionById,
   parseMetaColumnFieldId,
   parseUserMetadataDoc
@@ -440,7 +441,8 @@ async function extractUserMetaColumns(
           .filter(Boolean)
           .join('; ')
       } else if (field.type === 'boolean') {
-        out[colId] = raw === true ? 'Yes' : raw === false ? 'No' : String(raw)
+        out[colId] =
+          typeof raw === 'boolean' ? formatBooleanFieldValue(field, raw) : String(raw)
       } else {
         out[colId] = truncate(String(raw), 200)
       }
