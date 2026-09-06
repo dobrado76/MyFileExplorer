@@ -1,16 +1,13 @@
 /**
  * Native Win32 helpers for Rich player (D33).
- * Positions mpv as a borderless overlay over the preview host (no SetParent /
- * --wid — both fight Electron’s GPU stack and produce black/flash failures).
+ * Positions mpv as a borderless **owned top-level overlay** over the preview host.
+ * Deliberately not `--wid` and not `WS_CHILD` under Chromium (those blank the VO).
  */
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { createRequire } from 'node:module'
 import type { BrowserWindow } from 'electron'
 import { screen } from 'electron'
 import type { PreviewMpvBounds } from '@shared/schemas/preview'
 
-const execFileAsync = promisify(execFile)
 const require = createRequire(import.meta.url)
 
 const WS_POPUP = 0x80000000
@@ -92,47 +89,22 @@ function isHwnd(v: unknown): boolean {
   return true
 }
 
-async function mainWindowHandleFromPid(pid: number): Promise<unknown | null> {
-  try {
-    const { stdout } = await execFileAsync(
-      'powershell.exe',
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-Command',
-        `(Get-Process -Id ${pid} -ErrorAction Stop).MainWindowHandle`
-      ],
-      { windowsHide: true, timeout: 2000 }
-    )
-    const n = Number.parseInt(String(stdout).trim(), 10)
-    if (!Number.isFinite(n) || n === 0) return null
-    return n
-  } catch {
-    return null
-  }
-}
-
 /**
- * Find mpv’s player window: exact `--title` first, then process MainWindowHandle.
+ * Find mpv’s player window by exact `--title`. No PowerShell — that path
+ * can stall the main process when mpv never creates a window.
  */
-export async function findMpvWindow(
-  title: string,
-  pid: number,
-  timeoutMs = 5000
-): Promise<unknown> {
+export async function findMpvWindow(title: string, _pid: number, timeoutMs = 5000): Promise<unknown> {
   const u = loadApi()
   const start = Date.now()
   while (Date.now() - start < timeoutMs) {
     const byTitle = u.FindWindowW(null, title)
     if (isHwnd(byTitle) && u.IsWindow(byTitle)) return byTitle
-    const byPid = await mainWindowHandleFromPid(pid)
-    if (isHwnd(byPid) && u.IsWindow(byPid)) return byPid
-    await new Promise((r) => setTimeout(r, 80))
+    await new Promise((r) => setTimeout(r, 50))
   }
-  throw new Error(`No mpv window for title “${title}” / pid ${pid}`)
+  throw new Error(`No mpv window for title “${title}”`)
 }
 
-function screenRectFor(
+export function screenRectFor(
   owner: BrowserWindow,
   bounds: PreviewMpvBounds
 ): { x: number; y: number; width: number; height: number } {
@@ -150,6 +122,17 @@ function screenRectFor(
     width: Math.max(32, Math.round(scr.width)),
     height: Math.max(32, Math.round(scr.height))
   }
+}
+
+/** Spawn mpv already at the overlay pixel rect (avoids the default 640×480 flash). */
+export function overlayGeometryArg(rect: { x: number; y: number; width: number; height: number }): string {
+  const w = Math.max(32, Math.round(rect.width))
+  const h = Math.max(32, Math.round(rect.height))
+  const x = Math.round(rect.x)
+  const y = Math.round(rect.y)
+  const xs = x >= 0 ? `+${x}` : `${x}`
+  const ys = y >= 0 ? `+${y}` : `${y}`
+  return `--geometry=${w}x${h}${xs}${ys}`
 }
 
 function readWindowHwnd(win: BrowserWindow): unknown | null {

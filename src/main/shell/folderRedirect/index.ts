@@ -24,6 +24,7 @@ import {
   shellRedirectDir,
   shellRedirectInvocationsPath,
   shellRedirectRegFragmentPath,
+  shellRedirectRepairRegFragmentPath,
   resolveLauncherPath,
   resolveMfeExePath,
   writeShellRedirectTargetExe
@@ -131,21 +132,40 @@ function expectedCommands(launcherPath: string): Record<string, string> {
   return out
 }
 
-async function exportSubtreeBackup(
-  manifest: ShellRedirectBackupManifest,
-  subtree: string
-): Promise<void> {
+/** Export one managed HKCU subtree to `regFile` (or record that it did not exist). */
+async function snapshotSubtreeToFile(
+  subtree: string,
+  regFile: string
+): Promise<SubtreeBackupEntry> {
   const key = hkcuSubtreeKey(subtree)
   const existedBefore = await regKeyExists(key)
-  const regFile = shellRedirectRegFragmentPath(subtree)
   if (existedBefore) {
     await regExport(key, regFile)
   } else if (fs.existsSync(regFile)) {
     fs.unlinkSync(regFile)
   }
-  manifest.subtrees[subtree] = {
+  return {
     existedBefore,
     regFile: existedBefore ? regFile : ''
+  }
+}
+
+async function exportSubtreeBackup(
+  manifest: ShellRedirectBackupManifest,
+  subtree: string
+): Promise<void> {
+  const regFile = shellRedirectRegFragmentPath(subtree)
+  manifest.subtrees[subtree] = await snapshotSubtreeToFile(subtree, regFile)
+}
+
+function clearRepairSnapshotFiles(): void {
+  for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+    const regFile = shellRedirectRepairRegFragmentPath(subtree)
+    try {
+      if (fs.existsSync(regFile)) fs.unlinkSync(regFile)
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -320,13 +340,18 @@ export async function repairShellRedirect(): Promise<ShellRedirectMutateResponse
     throw new AppError('validation', 'No backup manifest — enable redirect first or restore manually')
   }
 
-  // Snapshot live commands so a partial repair can roll back.
-  const prior: Record<string, string | null> = {}
-  for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
-    prior[subtree] = await readCommandValue(subtree)
-  }
-
+  // Full live managed-subtree snapshots (not just command defaults) so failure
+  // rollback also restores any DelegateExecute / other values repair cleared.
+  const rollbackEntries: Array<{ subtree: string; entry: SubtreeBackupEntry }> = []
+  const priorApplied = { ...manifest.applied }
+  const priorSavedAt = manifest.savedAt
   try {
+    for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
+      const regFile = shellRedirectRepairRegFragmentPath(subtree)
+      const entry = await snapshotSubtreeToFile(subtree, regFile)
+      rollbackEntries.push({ subtree, entry })
+    }
+
     const applied: Record<string, string> = {}
     await applyRedirectCommands(launcherPath, applied)
     manifest.applied = applied
@@ -342,14 +367,13 @@ export async function repairShellRedirect(): Promise<ShellRedirectMutateResponse
     setUserRequestedEnabled(true)
     writeShellRedirectTargetExe()
     ensureShellRedirectSidecarLauncher(launcherPath)
+    clearRepairSnapshotFiles()
     logMain('info', 'shell-redirect: repaired')
     return toMutateResponse(await getShellRedirectStatus())
   } catch (e) {
-    for (const subtree of SHELL_REDIRECT_V1_SUBTREES) {
-      const cmd = prior[subtree]
-      const cmdKey = hkcuCommandKey(subtree)
+    for (const { subtree, entry } of rollbackEntries) {
       try {
-        if (cmd) await regSetDefault(cmdKey, cmd)
+        await rollbackSubtree(subtree, entry)
       } catch (rollbackErr) {
         logMain(
           'error',
@@ -359,6 +383,19 @@ export async function repairShellRedirect(): Promise<ShellRedirectMutateResponse
         )
       }
     }
+    try {
+      manifest.applied = priorApplied
+      manifest.savedAt = priorSavedAt
+      writeBackupManifest(manifest)
+    } catch (manifestErr) {
+      logMain(
+        'error',
+        `shell-redirect repair manifest revert failed: ${
+          manifestErr instanceof Error ? manifestErr.message : String(manifestErr)
+        }`
+      )
+    }
+    clearRepairSnapshotFiles()
     throw e
   }
 }

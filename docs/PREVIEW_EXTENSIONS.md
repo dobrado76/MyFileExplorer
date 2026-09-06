@@ -99,9 +99,9 @@ Also shows **parsed metadata** underneath when present (same `music-metadata` pa
 
 | Ext | Behavior |
 | --- | -------- |
-| `mp4` / `m4v` | Direct play for H.264/AAC; **HEVC** when the OS decoder is available (Windows: HEVC Video Extensions); AV1 when Chromium supports it. Rich player: mpv fallback on Chromium decode failure. |
-| `webm` | Direct play for VP8/VP9/AV1 + Opus/Vorbis when Chromium supports them. Rich player: mpv fallback on failure. |
-| `mov` | Direct play when codecs allow (same H.264 / HEVC / AAC rules as MP4). Rich player: mpv fallback on failure. |
+| `mp4` / `m4v` | Direct play for H.264/AAC; **HEVC** when the OS decoder is available (Windows: HEVC Video Extensions); AV1 when Chromium supports it. Rich player does **not** take over on decode failure. |
+| `webm` | Direct play for VP8/VP9/AV1 + Opus/Vorbis when Chromium supports them. Rich player does **not** take over on decode failure. |
+| `mov` | Direct play when codecs allow (same H.264 / HEVC / AAC rules as MP4). Rich player does **not** take over on decode failure. |
 | `mkv` / `ts` / `m2ts` / `wmv` / `asf` / `mpg` / `mpeg` / `flv` | Default: **Open with default app** (optional still). With **Rich player (mpv)** on: in-pane mpv. No ffmpeg remux for Preview. |
 | `avi` | Default: **strip-only** + **Open with default app** (D33). Rich player on: in-pane mpv. Metadata still listed when parseable. |
 | `divx` | Same as AVI (RIFF/AVI container, DivX codec). |

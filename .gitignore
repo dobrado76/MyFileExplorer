@@ -16,6 +16,8 @@ tools/MfeShellLauncher/publish/
 # Portable mpv for Rich player (fetched via npm run tools:fetch-mpv)
 tools/mpv/*
 !tools/mpv/README.md
+!tools/mpv/THIRD_PARTY_NOTICES.md
+.tmp/
 
 
 # Installers are CI / local build outputs (often >100MB — GitHub rejects git push).

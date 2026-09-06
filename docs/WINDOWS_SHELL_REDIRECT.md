@@ -28,7 +28,7 @@ Attempt to redirect physical-directory opens that resolve through per-user HKCU 
 
 - Toggle redirect on/off (enable runs backup + transactional apply; repair is transactional too).
 - **Test** - `ShellExecute` on a temp folder; checks invocation log.
-- **Repair** - regenerate launcher paths after reinstall/move (rolls back command values if verification fails).
+- **Repair** - regenerate launcher paths after reinstall/move. Before apply it snapshots the **live** managed subtrees; on verification failure it **delete-then-import** restores those snapshots (including any `DelegateExecute` repair cleared). The Enable baseline backup is left untouched.
 - **Restore previous folder-opening configuration** - exact restore from backup, then clear backup artifacts.
 
 State lives in `%APPDATA%\MyFileExplorer\shell-redirect\` (`state.json`, `backup.json`, `*.reg`, `invocations.jsonl`, sidecar `MfeShellLauncher.exe`). Not portable.

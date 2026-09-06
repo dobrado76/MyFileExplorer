@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type JSX } from 'react'
 import { api } from '../../lib/ipc'
 
 /**
- * Host for opt-in Rich player (mpv). Reports DIP bounds to main; main embeds
- * mpv via --wid on a native WS_CHILD surface over this rectangle (D33).
+ * Host for opt-in Rich player (mpv). Reports DIP bounds to main; main places
+ * an owned borderless mpv overlay over this rectangle (D33 — not --wid / WS_CHILD).
  */
 export function MpvPreview({
   path,
@@ -51,7 +51,7 @@ export function MpvPreview({
     }
 
     const pushBounds = (): void => {
-      if (cancelled || startedFor.current !== path) return
+      if (cancelled) return
       const b = boundsFromHost()
       const key = `${b.x},${b.y},${b.width},${b.height}`
       if (key === lastSent) return
@@ -62,10 +62,17 @@ export function MpvPreview({
     const start = async (): Promise<void> => {
       setStatus('starting')
       setError(null)
-      // Wait for layout (media hero / flex) so the first HWND rect is correct.
-      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      let lastKey = ''
+      let bounds = boundsFromHost()
+      for (let i = 0; i < 8; i++) {
+        await new Promise<void>((r) => requestAnimationFrame(() => r()))
+        if (cancelled) return
+        bounds = boundsFromHost()
+        const key = `${bounds.x},${bounds.y},${bounds.width},${bounds.height}`
+        if (key === lastKey && bounds.width >= 32 && bounds.height >= 32) break
+        lastKey = key
+      }
       if (cancelled) return
-      const bounds = boundsFromHost()
       if (bounds.width < 32 || bounds.height < 32) {
         const msg = 'Preview area is too small for Rich player'
         setStatus('error')
@@ -104,7 +111,6 @@ export function MpvPreview({
     const onWinResize = (): void => pushBounds()
     window.addEventListener('resize', onWinResize)
 
-    // Layout can shift without resizing the host box (tabs, metadata). Poll lightly.
     const tick = (): void => {
       pushBounds()
       raf = window.setTimeout(tick, 250) as unknown as number

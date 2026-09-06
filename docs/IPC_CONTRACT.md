@@ -139,9 +139,9 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `preview:getDisplayUrl` | `{ path, ads? }` → `{ mediaUrl }` — slideshow/overlay only; no generation parse or full-file Sharp |
 | `preview:ensurePlayable` | `{ path }` → `{ mediaUrl }` — direct `mfe-media` URL for MP4/M4V/WebM/MOV only; **never ffmpeg**; null for other containers |
 | `preview:mpvAvailable` | `{}` → `{ available, path }` — opt-in Rich player binary resolve (D33) |
-| `preview:mpvStart` | `{ path, bounds, autoplay? }` → `{ started }` — embed mpv over preview host (`--wid`) |
-| `preview:mpvBounds` | `{ bounds }` → `{ ok }` — move/resize embed with host |
-| `preview:mpvStop` | `{}` → `{ stopped }` — kill mpv session |
+| `preview:mpvStart` | `{ path, bounds, autoplay? }` → `{ started }` — spawn mpv and place an **owned borderless overlay** over the sender’s preview host (not `--wid` / not `WS_CHILD`) |
+| `preview:mpvBounds` | `{ bounds }` → `{ ok }` — move/resize overlay; **owner-scoped** (sender must match the active session’s BrowserWindow) |
+| `preview:mpvStop` | `{}` → `{ stopped }` — kill mpv session only if sender owns it |
 
 ### `search.*`
 

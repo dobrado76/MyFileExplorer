@@ -841,7 +841,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewMpvStart, previewMpvStartSchema, (req, event) =>
     startMpvSession(event.sender, req.path, req.bounds, req.autoplay === true)
   )
-  handle(IPC.previewMpvBounds, previewMpvBoundsRequestSchema, (req) => setMpvBounds(req.bounds))
+  handle(IPC.previewMpvBounds, previewMpvBoundsRequestSchema, (req, event) =>
+    setMpvBounds(event.sender, req.bounds)
+  )
   handle(IPC.previewMpvStop, emptySchema, (_req, event) => stopMpvForSender(event.sender))
   handle(IPC.propertiesOpenWindows, openPropertiesWindowsRequestSchema, (req) =>
     openPropertiesWindows(req.paths, { separate: req.separate === true })

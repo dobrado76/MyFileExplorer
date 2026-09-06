@@ -30,6 +30,12 @@ export function shellRedirectRegFragmentPath(subtree: string): string {
   return path.join(shellRedirectDir(), `${safe}.reg`)
 }
 
+/** Transient full-subtree snapshots for transactional Repair (not the Enable baseline). */
+export function shellRedirectRepairRegFragmentPath(subtree: string): string {
+  const safe = subtree.replace(/\\/g, '-')
+  return path.join(shellRedirectDir(), `repair-${safe}.reg`)
+}
+
 /**
  * Sidecar copy used by the NSIS uninstaller when `$INSTDIR\MfeShellLauncher.exe`
  * is already gone. Written on Enable / Repair.
