@@ -6,6 +6,20 @@ import { isAudioExt, isVideoExt } from './icons'
 
 let previewSeq = 0
 
+function mergeAvTags(
+  model: PreviewModel,
+  meta: { fields: PreviewModel['fields']; subtitle?: string; coverUrl?: string }
+): PreviewModel {
+  const kept = model.fields.filter((f) => f.group !== 'video' && f.group !== 'audio')
+  return {
+    ...model,
+    fields: [...kept, ...meta.fields],
+    subtitle: meta.subtitle ?? model.subtitle,
+    posterUrl: model.kind === 'audio' && meta.coverUrl ? meta.coverUrl : model.posterUrl,
+    mediaMetaPending: false
+  }
+}
+
 export function usePreviewFetch(
   previewPath: string | null,
   versionOverrideAds: string | null | undefined,
@@ -37,37 +51,26 @@ export function usePreviewFetch(
     const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : ''
     const likelyAv = isVideoExt(ext) || isAudioExt(ext)
 
+    // Start tag parse in parallel with preview:get. Do not paint the player until
+    // both are ready — otherwise the VIDEO/AUDIO strip appears later and jumps the layout.
     const metaPromise = likelyAv ? api.preview.getMediaMeta({ path: previewPath }) : null
 
-    const applyMediaMeta = (
-      metaRes: Awaited<ReturnType<typeof api.preview.getMediaMeta>>
-    ): void => {
-      if (seq !== previewSeq || !metaRes.ok) return
-      const meta = metaRes.value
-      setModel((prev) => {
-        if (!prev || !samePath(prev.path, previewPath)) return prev
-        if (prev.kind !== 'video' && prev.kind !== 'audio') return prev
-        const kept = prev.fields.filter((f) => f.group !== 'video' && f.group !== 'audio')
-        return {
-          ...prev,
-          fields: [...kept, ...meta.fields],
-          subtitle: meta.subtitle ?? prev.subtitle,
-          posterUrl: prev.kind === 'audio' && meta.coverUrl ? meta.coverUrl : prev.posterUrl,
-          mediaMetaPending: false
-        }
-      })
-    }
-
-    void api.preview.get({ path: previewPath, ...adsArg }).then((res) => {
+    void api.preview.get({ path: previewPath, ...adsArg }).then(async (res) => {
       if (seq !== previewSeq) return
-      setLoading(false)
       const next = res.ok ? res.value : null
-      setModel(next)
-      if (metaPromise && next?.mediaMetaPending) {
-        void metaPromise.then(applyMediaMeta)
-      } else if (next?.mediaMetaPending && (next.kind === 'video' || next.kind === 'audio')) {
-        void api.preview.getMediaMeta({ path: previewPath }).then(applyMediaMeta)
+      if (metaPromise && next?.mediaMetaPending && (next.kind === 'video' || next.kind === 'audio')) {
+        const metaRes = await metaPromise
+        if (seq !== previewSeq) return
+        setLoading(false)
+        if (metaRes.ok) {
+          setModel(mergeAvTags(next, metaRes.value))
+        } else {
+          setModel({ ...next, mediaMetaPending: false })
+        }
+        return
       }
+      setLoading(false)
+      setModel(next)
     })
   }, [previewPath, selectedStamp, versionOverrideAds])
 

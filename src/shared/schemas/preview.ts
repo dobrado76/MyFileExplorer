@@ -95,7 +95,8 @@ export type PreviewModel = {
   needsPlayable?: boolean
   /**
    * When true, A/V tag fields (duration, codecs, …) are still loading via
-   * `preview.getMediaMeta` so the player can start without waiting on a full-file parse.
+   * `preview.getMediaMeta`. Main does not block `mediaUrl` on the parse; the renderer
+   * waits to paint the player until tags are merged so the File/VIDEO strip does not jump.
    */
   mediaMetaPending?: boolean
   /**

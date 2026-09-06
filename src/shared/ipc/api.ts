@@ -337,7 +337,7 @@ export type MyFileExplorerApi = {
     /** Slideshow: media URL only — no generation parse / full-file Sharp. */
     getDisplayUrl(req: PreviewDisplayUrlRequest): Promise<Result<{ mediaUrl: string | null }>>
     ensurePlayable(req: PreviewEnsurePlayableRequest): Promise<Result<{ mediaUrl: string | null }>>
-    /** A/V duration/codecs/tags — call after get when `mediaMetaPending` (non-blocking for player). */
+    /** A/V duration/codecs/tags — start in parallel with get; renderer waits to paint the player. */
     getMediaMeta(req: PreviewMediaMetaRequest): Promise<Result<PreviewMediaMetaResponse>>
     /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
     chmTopic(req: PreviewChmTopicRequest): Promise<Result<{ mediaUrl: string }>>
