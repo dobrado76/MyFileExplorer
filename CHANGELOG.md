@@ -9,8 +9,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Video preview — no ffmpeg for playback** — Preview plays MP4/M4V/WebM/MOV directly only. MKV/TS/etc. → **Open with default app**. No remux/transcode/“Preparing playback…” (ffmpeg was locking rename/move/delete).
+- **Video preview — HEVC / clearer codec fallbacks** — Preview enables Chromium `PlatformHEVCDecoderSupport` (HEVC in MP4/MOV/M4V via the OS decoder; Windows: HEVC Video Extensions). Hostile audio (AC-3/DTS) and unsupported HEVC get an explicit tip + Open with default app.
+- **User metadata required / Clear** — `required` is an editing constraint: Set needs a value; Clear unavailable; Leave allowed for legacy empties; defining required does not backfill.
+- **User metadata catalog tombstones** — `deletedIdentities` retains former field/option keys for Hygiene reconnect and pack recovery (ADS alone cannot remmap deleted option ids).
+- **User metadata Pack conflict safety** — conflicting definitions and dependent values are skipped/reported; Apply does not import unknown option ids as new orphans.
 - **User metadata catalog Undo** — manager Undo / Ctrl+Z restores previous set/binding definitions (session stack, cap 30; does not reverse ADS values).
-- **User metadata Hygiene** — scan / clear / reconnect-by-key for orphan `mfe_meta` field/option ids.
+- **User metadata Hygiene** — scan / clear / reconnect-by-key for orphan `mfe_meta` field/option ids (option remap via catalog tombstones).
 - **User metadata Pack Preview / Apply** — dry-run diff before import; export includes folders with streams; stable ids preserved.
 - **User metadata field extras** — `required`, `defaultValue`, `showOnIcon`, `columnWidthHint`; manager Searches tab lists Power Search saves (meta first).
 - **User metadata bulk edit** — multi-select Metadata… uses per-field Leave / Set / Clear (with “varies”); required fields enforced on Set; single-item dialog seeds `defaultValue` when empty.

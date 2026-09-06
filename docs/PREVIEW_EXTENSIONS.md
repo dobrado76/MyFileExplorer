@@ -99,10 +99,10 @@ Also shows **parsed metadata** underneath when present (same `music-metadata` pa
 
 | Ext | Behavior |
 | --- | -------- |
-| `mp4` / `m4v` | Direct play when H.264/AAC (typical). |
-| `webm` | Direct play when VP8/VP9/Opus (typical). |
-| `mov` | Direct play when codecs allow. |
-| `mkv` / `wmv` / `asf` / `mpg` / `mpeg` / `flv` | Still poster, then remux/transcode to MP4 under `userData/video-remux/` (session temp) when practical (`preview:ensurePlayable`). |
+| `mp4` / `m4v` | Direct play for H.264/AAC; **HEVC** when the OS decoder is available (Windows: HEVC Video Extensions); AV1 when Chromium supports it. |
+| `webm` | Direct play for VP8/VP9/AV1 + Opus/Vorbis when Chromium supports them. |
+| `mov` | Direct play when codecs allow (same H.264 / HEVC / AAC rules as MP4). |
+| `mkv` / `ts` / `m2ts` / `wmv` / `asf` / `mpg` / `mpeg` / `flv` | **Open with default app** (optional still). No ffmpeg remux for Preview (avoids locking the file). |
 | `avi` | **Strip-only** — no in-pane player. Animates `!VIDTHUMB_CACHE` frames when present + **Open with default app** (D33). Metadata still listed when parseable. |
 | `divx` | Same as AVI (RIFF/AVI container, DivX codec). Strip-only; Chromium cannot play DivX inline. |
 | `rmvb` / `rm` | RealMedia. **Strip-only** like AVI — Chromium cannot play RealVideo; `!VIDTHUMB_CACHE` + Open with default app. |

@@ -46,6 +46,11 @@ Changing a field or option **`key`** requires a confirmation warning (raw typed 
   showToolbarButton?: boolean   // optional Metadata manager button on the toolbar
   sets: Array<{ id: string; name: string; fields: Field[] }>
   bindings: Array<{ path: string; recursive: boolean; setId: string | null }>
+  /** Hidden recovery catalog — not shown in ordinary UI */
+  deletedIdentities?: {
+    fields: Array<{ id: string; formerKey: string; type: FieldType }>
+    options: Array<{ id: string; fieldId: string; formerKey: string }>
+  }
 }
 ```
 
@@ -54,7 +59,7 @@ Each **field** (beyond id / key / name / type):
 ```ts
 {
   showAsColumn?: boolean       // merge into Details by default when the set applies
-  required?: boolean           // dialog / bulk Set / Details clear rules
+  required?: boolean           // editing constraint — see Required fields
   defaultValue?: string | number | boolean | string[] | null
                                // seeded into Metadata… when the item has no value (not auto-written)
   showOnIcon?: boolean         // at most one per set — row icon badge
@@ -63,15 +68,28 @@ Each **field** (beyond id / key / name / type):
 }
 ```
 
+### Required fields
+
+`required` is an **editing constraint**, not a guarantee that every item already has a value:
+
+| Rule | Behavior |
+| --- | --- |
+| **Set** | Must supply a valid non-empty value |
+| **Clear** | Unavailable for required fields (bulk mode omits Clear; Details cannot cycle/clear to empty) |
+| **Leave** | Always allowed — including legacy items that still lack the required value |
+| **Single-item Save** | Rejects a missing / empty required value |
+| **Defining required** | Does **not** populate existing items; no automatic ADS writes |
+| **Clear all** | Still removes the whole `mfe_meta` stream (explicit wipe of the item) |
+
 - Cap 32 sets; 32 fields per set; 32 options per choice-like field; 200 bindings.
 - Feature chrome and IPC require `enabled === true`.
 - `setId: string` → use that set. `setId: null` → **explicit No metadata** (suppresses inherited recursive sets).
 - Resolve like folder views: exact path wins; else longest recursive ancestor. Winning binding may resolve to null.
 - **Remove assignment** ≠ **No metadata**: removing an exact binding restores inheritance; writing `null` suppresses until removed or replaced.
-- Deleting a set confirms with the count of bindings referencing it, then drops those bindings. Never scans or deletes ADS values.
+- Deleting a set confirms with the count of bindings referencing it, then drops those bindings and records **tombstones** for its fields/options. Never scans or deletes ADS values.
 - Soft-parse keeps valid fields/sets/bindings when one row fails Zod.
 - Legacy flat `fields[]` migrates into one **Default** set with **no bindings** (opt-in immediately).
-- Keys round-trip with Settings → About → **Export / Import** (D45). Window geometry for the manager is stripped.
+- Keys round-trip with Settings → About → **Export / Import** (D45). Window geometry for the manager is stripped. `deletedIdentities` is included in export.
 
 Types: `text` | `number` | `boolean` | `date` | `choice` | `multiChoice` | `link` | `iconTags`.
 
@@ -168,7 +186,7 @@ Floating Script-Manager-style window (`userMetadataManagerBounds`). Settings →
 | **Per-set tabs** | Rename / delete set; field list + Field editor (types, options ↑/↓, extras) |
 | **Assignments** | Folder bindings list (exact / recursive / No metadata) |
 | **Pack** | Export ZIP; **Preview…** dry-run; **Apply…** import |
-| **Hygiene** | Scan a folder for orphan field/option ids; clear selected; reconnect orphans to a catalog field by **key** |
+| **Hygiene** | Scan a folder for orphan field/option ids; clear selected; reconnect field orphans to a catalog field by **key** (option ids remapped via live options or **tombstones**) |
 | **Searches** | Read-only list of Power Search saves (meta queries first); open Power Search to run/edit |
 
 **Undo** / **Ctrl+Z** (when focus is not in an input): session stack of catalog snapshots (sets + bindings), cap 30. Restores definitions only — never reverses ADS values.
@@ -178,7 +196,7 @@ Floating Script-Manager-style window (`userMetadataManagerBounds`). Settings →
 ## UX
 
 - Settings → **Metadata**: **Enable**, optional **Show toolbar button**, counts, **Manage sets…**.
-- Context **Metadata set…** (folder / empty pane): Assign set · No metadata (this folder / + subfolders) · Remove explicit assignment. **No sets defined…** opens the manager.
+- Context **Metadata set…** (folder / empty pane): Assign set · No metadata (**Items in this folder only** / + subfolders) · Remove explicit assignment. **No sets defined…** opens the manager.
 - Context **Metadata…** (edit values): only when the selection shares one non-null resolved set. Submenu also **Copy metadata…** / **Paste metadata…** (session clipboard `{ setId, values }`; paste requires the same set).
 - Preview: pinned **Metadata** editor above Details when a set applies; otherwise omitted.
 - **Details columns**: while the list cwd resolves to a non-null set, fields with `showAsColumn` merge into effective columns; leave / No metadata → those columns disappear. Column ids remain `meta:<fieldId>`. Empty cells stay **blank** (no dash placeholders). **All field types** are editable in-column:
@@ -188,12 +206,12 @@ Floating Script-Manager-style window (`userMetadataManagerBounds`). Settings →
   - date / text / number — inline edit
   - icon tags — glyph toggles
   - link — Open / Reveal when filled; click-to-edit when empty
-- **Bulk Metadata…** (multi-select): per field **Leave** (default) / **Set** / **Clear**; “varies” when values differ. Save writes only Set/Clear keys (`Clear` → null). **Clear all** still wipes the whole stream. `required` enforced on **Set**.
+- **Bulk Metadata…** (multi-select): per field **Leave** (default) / **Set** / **Clear**; Clear omitted when `required`. “varies” when values differ. Save writes only Set/Clear keys (`Clear` → null). **Clear all** still wipes the whole stream. Required: **Set** needs a non-empty value; **Leave** allowed for legacy empties.
 - **In-folder facets** (toolbar): when a set resolves for the cwd, filter chips for boolean / choice / icon tags / multi-choice (session-only; cleared when leaving the folder). Distinct from Power Search and the name eye filter.
 - **Icon badge**: at most one field per set with `showOnIcon` overlays a short label (boolean/choice) or first on icon-tag glyph on the row icon (does not replace D62 custom item icons).
-- **Item editors** (preview / Metadata…): files use the **parent** folder’s binding. Folders use a binding on **themselves** first; if none, they inherit the **parent** folder’s binding (so a non-recursive “this folder only” assignment still covers direct child folders as list rows). Opening that child does not show columns/editors for its contents unless it has its own assignment (or a recursive ancestor).
+- **Item editors** (preview / Metadata…): files use the **parent** folder’s binding. Folders use a binding on **themselves** first; if none, they inherit the **parent** folder’s binding. A non-recursive assignment means **items directly contained in this folder** (list rows), not “metadata on the directory object only.” Opening that child does not apply the set to *its* contents unless the child has its own assignment (or a recursive ancestor). UI label: **Items in this folder only**.
 - **Cwd / columns / Assign set**: still resolve the folder path itself (exact, else longest recursive ancestor).
-- Single-item Metadata… seeds `defaultValue` when the item has no value for that field (user still must Save).
+- Single-item Metadata… seeds `defaultValue` when the item has no value for that field (user still must Save); Save rejects empty required fields.
 
 ---
 
@@ -215,29 +233,55 @@ Parser maps keys → opaque field id unions via the catalog of all sets. The str
 
 ## Metadata pack
 
-ZIP compress still omits ADS. Dedicated **Metadata pack** (ZIP of relative paths → `mfe_meta` JSON + definitions sidecar with **all sets**) so values can cross non-NTFS copies. Distinct from Compress-to-ZIP.
+ZIP compress still omits ADS. Dedicated **Metadata pack** (ZIP of relative paths → `mfe_meta` JSON + definitions sidecar with **all sets** and **`deletedIdentities`**) so values can cross non-NTFS copies. Distinct from Compress-to-ZIP.
 
 | Action | Behavior |
 | --- | --- |
-| **Export…** | Walk files **and directories** with non-empty `mfe_meta`; embed current definitions; preserve field/set **ids** |
-| **Preview…** | Dry-run: definition add/skip/conflict counts + value create/overwrite/missing |
-| **Apply…** | Merge sets **by id** (add missing fields; do not overwrite existing field defs; **do not** auto-create folder bindings; keep `enabled` from current settings); overwrite value streams for existing targets |
+| **Export…** | Walk files **and directories** with non-empty `mfe_meta`; embed current definitions (+ tombstones); preserve field/set **ids** |
+| **Preview…** | Dry-run: definition add/skip/conflict counts + value create/overwrite/missing/**conflict-skipped** |
+| **Apply…** | Merge non-conflicting definitions; write only non-conflicting filtered values; **do not** auto-create folder bindings; keep `enabled` from current settings |
 
-Apply writes streams with preserved host times on NTFS.
+### Pack merge conflict outcomes
+
+Safe default: **conflicting definitions and their dependent values are skipped, reported, and never partially imported.** Non-conflicting definitions and values may continue.
+
+| Situation | Outcome |
+| --- | --- |
+| Set id exists with a **different name** | Local name kept; reported; fields still merge under the rules below |
+| Field id exists with another **type** or **key** | Conflict — field def skipped; value keys for that id skipped |
+| Incoming field **key** collides with a differently typed local field (other id) | Conflict — incoming field skipped; its values skipped |
+| Compatible field id already present | Skip overwrite of the local def (including options); do **not** import pack option ids absent locally |
+| Incoming choice options include an **option id owned by another local field** | Conflict — whole incoming field skipped |
+| Pack value references a field id not present after merge, or option ids absent locally | Those keys / option ids **skipped** (no new orphans from Apply) |
+
+Apply writes accepted streams with preserved host times on NTFS.
 
 ---
 
 ## Hygiene (orphans)
 
-After deleting field definitions, ADS may still hold unknown field ids or unknown option ids.
+After deleting field definitions, ADS may still hold unknown field ids or unknown option ids. ADS stores **opaque option ids only** — after an option is deleted there is no former key left on disk.
+
+### Catalog tombstones
+
+Deleting a field, option, or set appends lightweight **`deletedIdentities`** rows (hidden from ordinary UI):
+
+```ts
+deletedIdentities: {
+  fields: [{ id, formerKey, type }]
+  options: [{ id, fieldId, formerKey }]
+}
+```
+
+Caps: 256 field tombstones, 512 option tombstones (newest first). Live ids prune matching tombstones. Packs export/import tombstones so recovery survives machines.
 
 | Action | Behavior |
 | --- | --- |
 | **Scan…** | Pick a folder root; report field / option orphans |
 | **Clear selected** | Rewrite docs removing those keys (delete stream if empty); host times preserved |
-| **Reconnect by key** | Prompt for a catalog field **key**; rewrite selected field-orphan ids to that field’s id (option ids remapped by option key when types have choices) |
+| **Reconnect by key** | Prompt for a catalog field **key**; rewrite selected **field** orphans to that field’s id when types match (via live field or field tombstone). Choice/multi/icon option ids remapped by **formerKey** from tombstones or still-live options — **never** by inventing keys from ADS alone. Without a tombstone / live option, unmapped option values are left unchanged (still orphan) |
 
-Never auto-wipe on set/field delete.
+Never auto-wipe on set/field delete. Do not promise option-key remapping when the old definition is unavailable and no tombstone exists.
 
 ---
 
@@ -255,7 +299,9 @@ Payload: `{ setId, setName, fields, items: [{ path, values }] }`. Deleted when t
 
 ## Non-goals
 
-No formula engine, schema stacking, per-item set override, database, auto-classification, workflow system, one-ADS-per-field, browsing-folder sidecars, regex replacement/formatting, wiping ADS on clear/delete set, or replacing Note/Status/media.
+No formula engine, schema relationships, computed fields, conditional fields, templates, workflows, automation rules, schema stacking, per-item set override, proprietary database, auto-classification, one-ADS-per-field, browsing-folder sidecars, regex replacement/formatting, wiping ADS on clear/delete set, or replacing Note/Status/media.
+
+After required-field clearing, orphan option recovery via tombstones, and pack conflict handling, the metadata system is **complete**. Do not grow it into a database application inside the file manager.
 
 ---
 

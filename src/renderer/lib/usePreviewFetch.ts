@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { PreviewModel } from '@shared/schemas/preview'
 import { api } from './ipc'
 import { basename, samePath } from './paths'
@@ -13,20 +13,18 @@ export function usePreviewFetch(
 ): {
   model: PreviewModel | null
   loading: boolean
+  /** No-op kept for PreviewView prop compatibility. */
   retryPlayableForce: () => void
 } {
   const [model, setModel] = useState<PreviewModel | null>(null)
   const [loading, setLoading] = useState(false)
-  const forcePlayableTried = useRef<string | null>(null)
 
   useEffect(() => {
     if (!previewPath) {
       setModel(null)
       setLoading(false)
-      forcePlayableTried.current = null
       return
     }
-    forcePlayableTried.current = null
     const seq = ++previewSeq
     setLoading(true)
     // Keep the current card while refetching the same path (e.g. live Space Usage patch)
@@ -65,28 +63,6 @@ export function usePreviewFetch(
       setLoading(false)
       const next = res.ok ? res.value : null
       setModel(next)
-      if (next?.kind === 'video' && next.needsPlayable && !next.mediaUrl) {
-        void api.preview.ensurePlayable({ path: previewPath }).then((play) => {
-          if (seq !== previewSeq) return
-          const mediaUrl = play.ok ? play.value.mediaUrl : null
-          setModel((prev) =>
-            prev && samePath(prev.path, previewPath)
-              ? {
-                  ...prev,
-                  mediaUrl: mediaUrl ?? undefined,
-                  needsPlayable: false,
-                  warnings:
-                    mediaUrl || !prev.posterUrl
-                      ? prev.warnings
-                      : [
-                          ...(prev.warnings ?? []),
-                          'In-app convert timed out or failed — open with the default app to watch'
-                        ]
-                }
-              : prev
-          )
-        })
-      }
       if (metaPromise && next?.mediaMetaPending) {
         void metaPromise.then(applyMediaMeta)
       } else if (next?.mediaMetaPending && (next.kind === 'video' || next.kind === 'audio')) {
@@ -96,33 +72,7 @@ export function usePreviewFetch(
   }, [previewPath, selectedStamp, versionOverrideAds])
 
   const retryPlayableForce = (): void => {
-    if (!previewPath) return
-    const path = previewPath
-    if (forcePlayableTried.current && samePath(forcePlayableTried.current, path)) return
-    forcePlayableTried.current = path
-    setModel((prev) =>
-      prev && samePath(prev.path, path)
-        ? { ...prev, mediaUrl: undefined, needsPlayable: true }
-        : prev
-    )
-    void api.preview.ensurePlayable({ path, force: true }).then((play) => {
-      const mediaUrl = play.ok ? play.value.mediaUrl : null
-      setModel((prev) => {
-        if (!prev || !samePath(prev.path, path)) return prev
-        return {
-          ...prev,
-          mediaUrl: mediaUrl ?? undefined,
-          needsPlayable: false,
-          warnings:
-            mediaUrl || !prev.posterUrl
-              ? prev.warnings
-              : [
-                  ...(prev.warnings ?? []),
-                  'In-app convert timed out or failed — open with the default app to watch'
-                ]
-        }
-      })
-    })
+    // Intentionally empty — Preview never ffmpeg-remuxes for playback.
   }
 
   return { model, loading, retryPlayableForce }

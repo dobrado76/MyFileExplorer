@@ -16,6 +16,11 @@ import {
   newUserMetadataFieldId,
   newUserMetadataOptionId,
   newUserMetadataSetId,
+  pruneDeletedIdentities,
+  recordDeletedField,
+  recordDeletedOption,
+  recordDeletedSet,
+  sanitizeDeletedIdentities,
   suggestFieldKey,
   userMetadataSettingsSchema,
   type UserMetadataChoiceOption,
@@ -69,7 +74,13 @@ const TYPE_LABEL: Record<UserMetadataFieldType, string> = Object.fromEntries(
 type ManagerTab = string
 
 function emptyMeta(): UserMetadataSettings {
-  return { enabled: false, showToolbarButton: false, sets: [], bindings: [] }
+  return {
+    enabled: false,
+    showToolbarButton: false,
+    sets: [],
+    bindings: [],
+    deletedIdentities: { fields: [], options: [] }
+  }
 }
 
 type Props = {
@@ -139,7 +150,14 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
   }, [fields, editingId])
 
   const persist = async (next: UserMetadataSettings): Promise<boolean> => {
-    const parsed = userMetadataSettingsSchema.safeParse(next)
+    const withPruned: UserMetadataSettings = {
+      ...next,
+      deletedIdentities: pruneDeletedIdentities(
+        sanitizeDeletedIdentities(next.deletedIdentities ?? um.deletedIdentities),
+        { sets: next.sets }
+      )
+    }
+    const parsed = userMetadataSettingsSchema.safeParse(withPruned)
     if (!parsed.success) {
       notify(parsed.error.issues[0]?.message ?? 'Invalid metadata settings', true)
       return false
@@ -216,9 +234,13 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
         : 'Delete this set? Metadata values on files are kept.'
     )
     if (!ok) return
+    const doomed = um.sets.find((s) => s.id === id)
     const sets = um.sets.filter((s) => s.id !== id)
     const bindings = removeBindingsForSet(um.bindings, id)
-    if (await persist({ ...um, enabled: um.enabled === true, sets, bindings })) {
+    const deletedIdentities = doomed
+      ? recordDeletedSet(sanitizeDeletedIdentities(um.deletedIdentities), doomed)
+      : um.deletedIdentities
+    if (await persist({ ...um, enabled: um.enabled === true, sets, bindings, deletedIdentities })) {
       if (activeTab === id) setActiveTab(sets[0]?.id ?? 'assignments')
     }
   }
@@ -292,7 +314,21 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
         if (f.id !== id && f.showOnIcon) next[i] = { ...f, showOnIcon: false }
       }
     }
-    return updateSetFields(activeSet.id, next)
+    let deletedIdentities = sanitizeDeletedIdentities(um.deletedIdentities)
+    if (patch.choices && current.choices) {
+      const keep = new Set(parsed.data.choices?.map((o) => o.id) ?? [])
+      for (const o of current.choices) {
+        if (!keep.has(o.id)) deletedIdentities = recordDeletedOption(deletedIdentities, id, o)
+      }
+    }
+    const sets = um.sets.map((s) => (s.id === activeSet.id ? { ...s, fields: next } : s))
+    return persist({
+      ...um,
+      enabled: um.enabled === true,
+      sets,
+      bindings: um.bindings,
+      deletedIdentities
+    })
   }
 
   const removeField = async (id: string): Promise<void> => {
@@ -304,10 +340,20 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
     ) {
       return
     }
-    await updateSetFields(
-      activeSet.id,
-      fields.filter((f) => f.id !== id)
+    const doomed = fields.find((f) => f.id === id)
+    const deletedIdentities = doomed
+      ? recordDeletedField(sanitizeDeletedIdentities(um.deletedIdentities), doomed)
+      : um.deletedIdentities
+    const sets = um.sets.map((s) =>
+      s.id === activeSet.id ? { ...s, fields: fields.filter((f) => f.id !== id) } : s
     )
+    await persist({
+      ...um,
+      enabled: um.enabled === true,
+      sets,
+      bindings: um.bindings,
+      deletedIdentities
+    })
     if (editingId === id) setEditingId(null)
   }
 
@@ -544,8 +590,8 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
           {activeTab === 'assignments' ? (
             <div className="user-meta-settings">
               <p className="settings-help user-meta-pack-help">
-                Assign a set (or No metadata) from the folder context menu. Exact assignments win
-                over recursive ancestors.
+                Assign a set (or No metadata) from the folder context menu. Non-recursive means items
+                directly in that folder. Exact assignments win over recursive ancestors.
               </p>
               {um.bindings.length === 0 ? (
                 <p className="settings-help">No folder assignments yet.</p>
@@ -559,7 +605,7 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
                           <span className="settings-qa-label">
                             {basename(entry.path)}
                             <span className="settings-scope-badge">
-                              {entry.recursive ? 'Tree' : 'Folder'}
+                              {entry.recursive ? 'Tree' : 'Items'}
                             </span>
                           </span>
                           <span className="settings-qa-path" title={entry.path}>
@@ -583,7 +629,7 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
                               })
                             }
                           >
-                            {entry.recursive ? 'Folder only' : 'Include subfolders'}
+                            {entry.recursive ? 'Items in folder only' : 'Include subfolders'}
                           </button>
                           <button
                             type="button"
@@ -671,7 +717,7 @@ function MetadataPackControls(): JSX.Element {
                   if (res.dryRun === true) {
                     setPreview(res)
                     notify(
-                      `Preview: +${res.definitions.addSets} sets, +${res.definitions.addFields} fields, ${res.values.create} create / ${res.values.overwrite} overwrite / ${res.values.skipMissing} missing`
+                      `Preview: +${res.definitions.addSets} sets, +${res.definitions.addFields} fields, ${res.values.create} create / ${res.values.overwrite} overwrite / ${res.values.skipMissing} missing / ${res.values.skipConflict} conflict-skipped`
                     )
                   }
                 } catch (e) {
@@ -728,7 +774,7 @@ function MetadataPackControls(): JSX.Element {
             </li>
             <li>
               Values: create {preview.values.create}, overwrite {preview.values.overwrite}, missing{' '}
-              {preview.values.skipMissing}
+              {preview.values.skipMissing}, conflict-skipped {preview.values.skipConflict}
             </li>
           </ul>
           {preview.definitions.conflicts.length > 0 ? (
@@ -868,7 +914,8 @@ function MetadataHygieneControls(): JSX.Element {
       </div>
       <p className="settings-help">
         Scan a folder for <code>mfe_meta</code> values whose field/option ids are no longer in the catalog.
-        Clearing only removes orphan keys; catalog undo never touches ADS.
+        Deleted field/option definitions leave hidden catalog tombstones so Reconnect can map by former
+        key. Clearing only removes orphan keys; catalog undo never touches ADS.
       </p>
       {orphans.length === 0 ? (
         <p className="settings-help">No orphans loaded. Click Scan…</p>

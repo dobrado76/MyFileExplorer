@@ -11,7 +11,7 @@ import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { runFfmpeg } from './ffmpegBin'
 
-/** Containers Chromium’s <video> usually cannot demux — remux via ffmpeg for preview. */
+/** Containers Chromium often can’t demux — try `<video>` anyway; no ffmpeg remux. */
 export const CHROMIUM_WEAK_VIDEO_EXTS = new Set([
   'mkv',
   'wmv',
@@ -118,18 +118,20 @@ async function extractPosterFrame(videoPath: string, destJpg: string): Promise<b
 
 /**
  * Resolve a JPEG poster URL for preview. Returns null if nothing can be produced.
+ * @param opts.extract — when false, never spawn ffmpeg (strip/cache only). Default true.
  */
 export async function resolveVideoPosterUrl(
   videoPath: string,
   mtimeMs: number,
-  size: number
+  size: number,
+  opts?: { extract?: boolean }
 ): Promise<string | null> {
   const cached = posterCachePath(videoPath, mtimeMs, size)
   try {
     const st = await fsp.stat(cached)
     if (st.isFile() && st.size > 0) return mediaUrlFor(cached, `${mtimeMs}-${size}`)
   } catch {
-    // generate
+    // generate or strip
   }
 
   const strip = await existingVidThumbFrame(videoPath)
@@ -142,6 +144,8 @@ export async function resolveVideoPosterUrl(
       return mediaUrlFor(strip, `${mtimeMs}-${size}`)
     }
   }
+
+  if (opts?.extract === false) return null
 
   const ok = await extractPosterFrame(videoPath, cached)
   if (!ok) return null

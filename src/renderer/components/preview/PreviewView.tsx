@@ -7,7 +7,6 @@ import {
   FileIcon,
   FolderIcon,
   AudioFileIcon,
-  VideoFileIcon,
   PdfFileIcon,
   SpinnerIcon,
   WrapTextIcon
@@ -454,6 +453,10 @@ function PreviewBody({
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
   const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
+  const videoCodecField = model.fields.find(
+    (f) => f.id === 'videoCodec' || f.id === 'codec'
+  )?.value
+  const audioCodecField = model.fields.find((f) => f.id === 'audioCodec')?.value
   const showMediaHero = !zen && folderPane !== 'folder'
   const showFolderStats = folderPane !== 'media'
 
@@ -507,20 +510,17 @@ function PreviewBody({
               chrome={!zen}
             />
           )}
-        {model.kind === 'video' &&
-          !model.stripFrames?.length &&
-          (model.mediaUrl || model.posterUrl || model.needsPlayable) &&
-          !mediaHold && (
-            <VideoPreview
-              url={model.mediaUrl}
-              posterUrl={model.posterUrl}
-              preparing={Boolean(model.needsPlayable && !model.mediaUrl)}
-              autoplay={previewVideoAutoplay}
-              active={playAv}
-              onOpenExternal={() => onOpenPath(model.path)}
-              onAudioOnly={onRetryPlayableForce}
-            />
-          )}
+        {model.kind === 'video' && !model.stripFrames?.length && !mediaHold && (
+          <VideoPreview
+            url={model.mediaUrl}
+            posterUrl={model.posterUrl}
+            autoplay={previewVideoAutoplay}
+            active={playAv}
+            videoCodec={videoCodecField}
+            audioCodec={audioCodecField}
+            onOpenExternal={() => onOpenPath(model.path)}
+          />
+        )}
         {model.kind === 'audio' && model.mediaUrl && !mediaHold && (
           <AudioPreview
             url={model.mediaUrl}
@@ -566,15 +566,10 @@ function PreviewBody({
         {model.kind === 'model3d' && !model.mediaUrl && (
           <div className="preview-model3d-status">3D preview skipped (file too large or unreadable)</div>
         )}
-        {((model.kind === 'video' &&
-          !model.mediaUrl &&
-          !model.posterUrl &&
-          !model.needsPlayable &&
-          !model.stripFrames?.length) ||
-          (model.kind === 'audio' && !model.mediaUrl)) && (
+        {model.kind === 'audio' && !model.mediaUrl && (
           <>
             <div className="preview-icon">
-              {model.kind === 'audio' ? <AudioFileIcon size={56} /> : <VideoFileIcon size={56} />}
+              <AudioFileIcon size={56} />
             </div>
             {!zen ? (
               <div style={{ textAlign: 'center', paddingBottom: 8 }}>

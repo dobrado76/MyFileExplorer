@@ -137,7 +137,11 @@ export const userMetadataFieldSchema = z
     /** Labels for type boolean; omitted ⇒ Yes / No. */
     boolean: userMetadataBooleanLabelsSchema.optional(),
     showAsColumn: z.boolean().catch(false),
-    /** Dialog / bulk Set must supply a value. */
+    /**
+     * Editing constraint (not a population guarantee):
+     * Set / single-item Save need a non-empty value; Clear is unavailable;
+     * Leave is allowed (including legacy items that still lack a value).
+     */
     required: z.boolean().catch(false),
     /**
      * Seeded into Metadata… when the item has no value for this field.
@@ -352,6 +356,160 @@ export function sanitizeUserMetadataSets(raw: unknown): UserMetadataSet[] {
   return out
 }
 
+/** Cap retained catalog tombstones (recovery / pack / Hygiene only). */
+export const MAX_DELETED_FIELD_IDENTITIES = 256
+export const MAX_DELETED_OPTION_IDENTITIES = 512
+
+/** Hidden recovery row after a field definition is deleted. */
+export const deletedFieldIdentitySchema = z.object({
+  id: z.string().regex(FIELD_ID_RE),
+  formerKey: z.string().regex(FIELD_KEY_RE),
+  type: userMetadataFieldTypeSchema
+})
+export type DeletedFieldIdentity = z.infer<typeof deletedFieldIdentitySchema>
+
+/** Hidden recovery row after a choice / multi-choice / icon-tag option is deleted. */
+export const deletedOptionIdentitySchema = z.object({
+  id: z.string().regex(OPTION_ID_RE),
+  fieldId: z.string().regex(FIELD_ID_RE),
+  formerKey: z.string().regex(OPTION_KEY_RE)
+})
+export type DeletedOptionIdentity = z.infer<typeof deletedOptionIdentitySchema>
+
+export const deletedIdentitiesSchema = z.object({
+  fields: z.array(deletedFieldIdentitySchema).max(MAX_DELETED_FIELD_IDENTITIES),
+  options: z.array(deletedOptionIdentitySchema).max(MAX_DELETED_OPTION_IDENTITIES)
+})
+export type DeletedIdentities = z.infer<typeof deletedIdentitiesSchema>
+
+export function emptyDeletedIdentities(): DeletedIdentities {
+  return { fields: [], options: [] }
+}
+
+export function sanitizeDeletedIdentities(raw: unknown): DeletedIdentities {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return emptyDeletedIdentities()
+  const o = raw as Record<string, unknown>
+  const fields: DeletedFieldIdentity[] = []
+  const options: DeletedOptionIdentity[] = []
+  if (Array.isArray(o.fields)) {
+    const seen = new Set<string>()
+    for (const item of o.fields) {
+      const p = deletedFieldIdentitySchema.safeParse(item)
+      if (!p.success || seen.has(p.data.id)) continue
+      seen.add(p.data.id)
+      fields.push(p.data)
+      if (fields.length >= MAX_DELETED_FIELD_IDENTITIES) break
+    }
+  }
+  if (Array.isArray(o.options)) {
+    const seen = new Set<string>()
+    for (const item of o.options) {
+      const p = deletedOptionIdentitySchema.safeParse(item)
+      if (!p.success || seen.has(p.data.id)) continue
+      seen.add(p.data.id)
+      options.push(p.data)
+      if (options.length >= MAX_DELETED_OPTION_IDENTITIES) break
+    }
+  }
+  return { fields, options }
+}
+
+/** Drop tombstones whose ids are live again in the catalog. */
+export function pruneDeletedIdentities(
+  di: DeletedIdentities,
+  settings: { sets: UserMetadataSet[] }
+): DeletedIdentities {
+  const liveFields = new Set<string>()
+  const liveOptions = new Set<string>()
+  for (const set of settings.sets) {
+    for (const f of set.fields) {
+      liveFields.add(f.id)
+      for (const o of f.choices ?? []) liveOptions.add(o.id)
+    }
+  }
+  return {
+    fields: di.fields.filter((t) => !liveFields.has(t.id)).slice(0, MAX_DELETED_FIELD_IDENTITIES),
+    options: di.options.filter((t) => !liveOptions.has(t.id)).slice(0, MAX_DELETED_OPTION_IDENTITIES)
+  }
+}
+
+function pushUniqueFieldTombstone(
+  list: DeletedFieldIdentity[],
+  row: DeletedFieldIdentity
+): DeletedFieldIdentity[] {
+  const next = [{ ...row }, ...list.filter((t) => t.id !== row.id)]
+  return next.slice(0, MAX_DELETED_FIELD_IDENTITIES)
+}
+
+function pushUniqueOptionTombstone(
+  list: DeletedOptionIdentity[],
+  row: DeletedOptionIdentity
+): DeletedOptionIdentity[] {
+  const next = [{ ...row }, ...list.filter((t) => t.id !== row.id)]
+  return next.slice(0, MAX_DELETED_OPTION_IDENTITIES)
+}
+
+/** Record a removed field (+ its options) for Hygiene / pack recovery. */
+export function recordDeletedField(
+  di: DeletedIdentities,
+  field: Pick<UserMetadataField, 'id' | 'key' | 'type' | 'choices'>
+): DeletedIdentities {
+  let fields = pushUniqueFieldTombstone(di.fields, {
+    id: field.id,
+    formerKey: field.key,
+    type: field.type
+  })
+  let options = di.options
+  for (const o of field.choices ?? []) {
+    options = pushUniqueOptionTombstone(options, {
+      id: o.id,
+      fieldId: field.id,
+      formerKey: o.key
+    })
+  }
+  return { fields, options }
+}
+
+/** Record a removed choice-like option. */
+export function recordDeletedOption(
+  di: DeletedIdentities,
+  fieldId: string,
+  option: Pick<UserMetadataChoiceOption, 'id' | 'key'>
+): DeletedIdentities {
+  return {
+    fields: di.fields,
+    options: pushUniqueOptionTombstone(di.options, {
+      id: option.id,
+      fieldId,
+      formerKey: option.key
+    })
+  }
+}
+
+/** Tombstone every field/option in a deleted set. */
+export function recordDeletedSet(
+  di: DeletedIdentities,
+  set: Pick<UserMetadataSet, 'fields'>
+): DeletedIdentities {
+  let next = di
+  for (const f of set.fields) next = recordDeletedField(next, f)
+  return next
+}
+
+export function lookupDeletedField(
+  di: DeletedIdentities | undefined,
+  fieldId: string
+): DeletedFieldIdentity | undefined {
+  return di?.fields.find((t) => t.id === fieldId)
+}
+
+export function lookupDeletedOptionKey(
+  di: DeletedIdentities | undefined,
+  optionId: string
+): string | undefined {
+  return di?.options.find((t) => t.id === optionId)?.formerKey
+}
+
 export const userMetadataSettingsObjectSchema = z.object({
   /** Off by default — context menu / preview / columns stay hidden until enabled. */
   enabled: z.boolean().catch(false),
@@ -364,7 +522,12 @@ export const userMetadataSettingsObjectSchema = z.object({
   bindings: z.preprocess(
     sanitizeUserMetadataBindings,
     z.array(userMetadataBindingSchema).max(MAX_USER_METADATA_BINDINGS)
-  )
+  ),
+  /**
+   * Lightweight catalog tombstones for Hygiene reconnect / pack identity recovery.
+   * Hidden from ordinary UI; never written into ADS values.
+   */
+  deletedIdentities: z.preprocess(sanitizeDeletedIdentities, deletedIdentitiesSchema).optional()
 })
 
 /** Full settings parse — cross-set key/type compat, global field ids, binding refs. */
@@ -425,7 +588,8 @@ export const defaultUserMetadataSettings: UserMetadataSettings = {
   enabled: false,
   showToolbarButton: false,
   sets: [],
-  bindings: []
+  bindings: [],
+  deletedIdentities: emptyDeletedIdentities()
 }
 
 /**
@@ -438,27 +602,34 @@ export function migrateUserMetadataSettings(raw: unknown): UserMetadataSettings 
   const o = raw as Record<string, unknown>
   const enabled = typeof o.enabled === 'boolean' ? o.enabled : false
   const showToolbarButton = typeof o.showToolbarButton === 'boolean' ? o.showToolbarButton : false
+  const rawTombstones = sanitizeDeletedIdentities(o.deletedIdentities)
   if (Array.isArray(o.sets)) {
+    const sets = sanitizeUserMetadataSets(o.sets)
     return {
       enabled,
       showToolbarButton,
-      sets: sanitizeUserMetadataSets(o.sets),
-      bindings: sanitizeUserMetadataBindings(o.bindings)
+      sets,
+      bindings: sanitizeUserMetadataBindings(o.bindings),
+      deletedIdentities: pruneDeletedIdentities(rawTombstones, { sets })
     }
   }
   const legacyFields = sanitizeUserMetadataFields(o.fields)
-  if (legacyFields.length === 0) return { ...defaultUserMetadataSettings, enabled, showToolbarButton }
+  if (legacyFields.length === 0) {
+    return { ...defaultUserMetadataSettings, enabled, showToolbarButton }
+  }
+  const sets = [
+    {
+      id: MIGRATED_DEFAULT_SET_ID,
+      name: 'Default',
+      fields: legacyFields
+    }
+  ]
   return {
     enabled,
     showToolbarButton,
-    sets: [
-      {
-        id: MIGRATED_DEFAULT_SET_ID,
-        name: 'Default',
-        fields: legacyFields
-      }
-    ],
-    bindings: []
+    sets,
+    bindings: [],
+    deletedIdentities: pruneDeletedIdentities(rawTombstones, { sets })
   }
 }
 

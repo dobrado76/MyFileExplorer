@@ -9,8 +9,12 @@ import {
   fieldById,
   fieldUsesChoiceOptions,
   fieldUsesMultiOptionIds,
+  lookupDeletedField,
+  lookupDeletedOptionKey,
   optionById,
   parseUserMetadataDoc,
+  sanitizeDeletedIdentities,
+  type DeletedIdentities,
   type UserMetadataDoc,
   type UserMetadataField
 } from '@shared/schemas/userMetadata'
@@ -37,6 +41,11 @@ import { walkUserMetadataHosts } from './walk'
 function catalog(): UserMetadataField[] {
   const um = getSettings().userMetadata
   return um ? allUserMetadataFields(um) : []
+}
+
+function tombstones(): DeletedIdentities {
+  const um = getSettings().userMetadata
+  return sanitizeDeletedIdentities(um?.deletedIdentities)
 }
 
 function assertLocalFolder(folderPath: string): string {
@@ -268,9 +277,10 @@ function valueCompatibleWithField(field: UserMetadataField, raw: unknown): boole
   }
 }
 
-/** Map option ids via option key when from/to fields (or catalog lookup) allow it. */
+/** Map option ids via live catalog, then deletedIdentities tombstones (former keys). */
 function remapOptionIds(
   fields: UserMetadataField[],
+  di: DeletedIdentities,
   fromField: UserMetadataField | undefined,
   toField: UserMetadataField,
   raw: unknown
@@ -287,7 +297,7 @@ function remapOptionIds(
       const o = optionById(f, optionId)
       if (o) return o.key
     }
-    return undefined
+    return lookupDeletedOptionKey(di, optionId)
   }
 
   const mapOne = (optionId: string): string | null => {
@@ -323,6 +333,7 @@ export async function reconnectUserMetadataOrphans(opts: {
     throw new AppError('not-allowed', 'User metadata requires NTFS alternate data streams (Windows)')
   }
   const fields = catalog()
+  const di = tombstones()
   let remapped = 0
   const touched: string[] = []
 
@@ -349,13 +360,18 @@ export async function reconnectUserMetadataOrphans(opts: {
         const toField = fieldById(fields, m.toFieldId)
         if (!toField) continue
         const fromField = fieldById(fields, m.fromFieldId)
+        const fromTomb = lookupDeletedField(di, m.fromFieldId)
         if (fromField) {
           if (fromField.key !== toField.key || fromField.type !== toField.type) continue
+        } else if (fromTomb) {
+          if (fromTomb.formerKey !== toField.key || fromTomb.type !== toField.type) continue
         }
+        // No live field and no tombstone: still allow reconnect when the user picks a target key,
+        // but option ids can only remap via tombstones / live catalog — never invent keys from ADS.
         const raw = values[m.fromFieldId]
         if (!valueCompatibleWithField(toField, raw)) continue
 
-        const remappedVal = remapOptionIds(fields, fromField, toField, raw)
+        const remappedVal = remapOptionIds(fields, di, fromField, toField, raw)
         if (
           fieldUsesMultiOptionIds(toField.type) &&
           Array.isArray(remappedVal) &&

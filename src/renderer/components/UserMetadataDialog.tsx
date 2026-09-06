@@ -228,6 +228,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
           const mode = modes[field.id] ?? 'leave'
           if (mode === 'leave') continue
           if (mode === 'clear') {
+            if (field.required) continue
             patch[field.id] = null
             continue
           }
@@ -266,7 +267,8 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
             <div className="user-meta-form">
               {multi && (
                 <p className="settings-help">
-                  Per field: Leave (unchanged), Set, or Clear. Only Set/Clear fields are written.
+                  Per field: Leave (unchanged), Set, or Clear (Clear unavailable when required). Only Set/Clear
+                  fields are written.
                 </p>
               )}
               {fields.map((field) => {
@@ -289,12 +291,12 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
                         <select
                           className="user-meta-bulk-mode"
                           aria-label={`${field.name} mode`}
-                          value={mode}
+                          value={mode === 'clear' && field.required ? 'leave' : mode}
                           onChange={(e) => setMode(field.id, e.target.value as FieldMode)}
                         >
                           <option value="leave">Leave</option>
                           <option value="set">Set</option>
-                          <option value="clear">Clear</option>
+                          {!field.required && <option value="clear">Clear</option>}
                         </select>
                       </div>
                     )}

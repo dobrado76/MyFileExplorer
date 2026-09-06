@@ -85,13 +85,12 @@ export type PreviewModel = {
   subtitle?: string
   mediaUrl?: string
   /**
-   * Still-frame JPEG for videos Chromium can’t play inline (e.g. many `.mkv`).
-   * Shown while remux prepares, or as fallback when remux/codecs fail.
+   * Still-frame JPEG when available (existing `!VIDTHUMB_CACHE` / cache).
+   * Shown if `<video>` fails to decode the source.
    */
   posterUrl?: string
   /**
-   * When true, renderer should call `preview.ensurePlayable` — main will remux
-   * (ffmpeg) to a Chromium-playable MP4 under userData and return `mediaUrl`.
+   * @deprecated Unused — Preview never ffmpeg-remuxes for playback.
    */
   needsPlayable?: boolean
   /**

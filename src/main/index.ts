@@ -57,13 +57,21 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
   process.exit(runUsnRecentCli(usnRecentCli.letter, usnRecentCli.outFile))
 }
 
-// Single instance: later launches forward their argv to this process and quit.
-const gotLock = app.requestSingleInstanceLock()
-if (!gotLock) {
-  app.quit()
-} else {
-  // Must run before ready. Reads settings.json synchronously.
-  try {
+  // Single instance: later launches forward their argv to this process and quit.
+  const gotLock = app.requestSingleInstanceLock()
+  if (!gotLock) {
+    app.quit()
+  } else {
+    // Before ready: prefer OS HEVC decoder for <video> (MP4/MOV). No-op if already default.
+    // Soft-decode is not bundled — Windows still needs HEVC Video Extensions for many files.
+    try {
+      app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport')
+    } catch {
+      /* ignore */
+    }
+
+    // Must run before ready. Reads settings.json synchronously.
+    try {
     // Isolate hardware acceleration setting checking safely to Windows environments
     if (process.platform === 'win32' && settingsStore().get().disableHardwareAcceleration) {
       app.disableHardwareAcceleration()

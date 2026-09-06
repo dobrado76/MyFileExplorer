@@ -8,6 +8,12 @@ import { pdfPreviewSrc } from '../../lib/pdfPreview'
 import { DEFAULT_VID_THUMB_FRAME_MS } from '@shared/vidThumbCache'
 import { useAppStore } from '../../store/appStore'
 import { CodePreview } from './CodePreview'
+import {
+  chromiumReportsHevcSupport,
+  isHevcCodecName,
+  isHostileAudioCodecName,
+  previewVideoUnsupportedHint
+} from '@shared/previewVideoCodecs'
 
 function releaseHtmlMedia(el: HTMLMediaElement | null): void {
   if (!el) return
@@ -398,7 +404,7 @@ export function VideoStripPreview({
       ) : null}
       {chrome ? (
         <>
-          <p>Open with the default app to play this video.</p>
+          <p>This format isn’t played in Preview.</p>
           <button type="button" className="btn" onClick={onOpenExternal}>
             Open with default app
           </button>
@@ -411,30 +417,57 @@ export function VideoStripPreview({
 export function VideoPreview({
   url,
   posterUrl,
-  preparing,
   autoplay,
   active = true,
-  onOpenExternal,
-  onAudioOnly
+  videoCodec,
+  audioCodec,
+  onOpenExternal
 }: {
   url?: string
   posterUrl?: string
-  /** Remux/transcode in progress. */
-  preparing?: boolean
   autoplay?: boolean
   /** False: poster only (pop-out owns the live player). */
   active?: boolean
+  /** From preview meta (`videoCodec` / `codec`) when known. */
+  videoCodec?: string
+  audioCodec?: string
   onOpenExternal(): void
-  /** Chromium decoded audio but no video — bad remux; request force transcode. */
-  onAudioOnly?(): void
 }): JSX.Element | null {
   const [failed, setFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+
   useEffect(() => {
     setFailed(false)
-    const el = videoRef.current
-    return () => releaseHtmlMedia(el)
-  }, [url, posterUrl, active])
+  }, [url])
+
+  // Only tear down the media element on unmount — clearing `src` on dep changes
+  // leaves a dead <video> when React does not re-apply the attribute.
+  useEffect(() => {
+    return () => releaseHtmlMedia(videoRef.current)
+  }, [])
+
+  // Meta arrived: HEVC/hostile audio with no Chromium support → skip a dead player.
+  useEffect(() => {
+    if (!url) return
+    if (isHevcCodecName(videoCodec) && !chromiumReportsHevcSupport()) {
+      setFailed(true)
+      return
+    }
+    if (isHostileAudioCodecName(audioCodec)) {
+      setFailed(true)
+    }
+  }, [url, videoCodec, audioCodec])
+
+  // Stall watchdog — unsupported streams sometimes never fire `error` (black controls).
+  useEffect(() => {
+    if (!url || failed || !active) return
+    const t = window.setTimeout(() => {
+      const el = videoRef.current
+      if (!el) return
+      if (el.videoWidth === 0) setFailed(true)
+    }, 8000)
+    return () => window.clearTimeout(t)
+  }, [url, failed, active])
 
   if (!active) {
     if (!posterUrl) return null
@@ -462,43 +495,25 @@ export function VideoPreview({
           autoPlay={Boolean(autoplay)}
           onError={() => setFailed(true)}
           onLoadedMetadata={(e) => {
-            // Same <video> as MP4/MKV — Chromium uses audio-style controls when
-            // videoWidth===0. Hide that chrome and ask main to force-transcode.
-            if (e.currentTarget.videoWidth === 0) {
-              setFailed(true)
-              onAudioOnly?.()
-            }
+            if (e.currentTarget.videoWidth === 0) setFailed(true)
           }}
         />
       </div>
     )
   }
 
-  if (posterUrl) {
-    return (
-      <div className="preview-av-fallback preview-av-poster">
-        <img className="preview-video-poster" src={posterUrl} alt="" draggable={false} />
-        <p>
-          {preparing
-            ? 'Preparing a short in-app preview…'
-            : failed
-              ? 'This video can’t play in the built-in player (codec not supported).'
-              : 'Could not prepare in-app playback for this file.'}
-        </p>
-        <button type="button" className="btn" onClick={onOpenExternal}>
-          Open with default app
-        </button>
-      </div>
-    )
-  }
+  const hint = previewVideoUnsupportedHint({
+    videoCodec,
+    audioCodec,
+    hadMediaUrl: Boolean(url)
+  })
 
   return (
-    <div className="preview-av-fallback">
-      <p>
-        {preparing
-          ? 'Preparing a short in-app preview…'
-          : 'This video can’t play in the built-in player (codec or container not supported).'}
-      </p>
+    <div className={`preview-av-fallback${posterUrl ? ' preview-av-poster' : ''}`}>
+      {posterUrl ? (
+        <img className="preview-video-poster" src={posterUrl} alt="" draggable={false} />
+      ) : null}
+      <p>{hint}</p>
       <button type="button" className="btn" onClick={onOpenExternal}>
         Open with default app
       </button>
@@ -524,9 +539,11 @@ export function AudioPreview({
   const audioRef = useRef<HTMLAudioElement>(null)
   useEffect(() => {
     setFailed(false)
-    const el = audioRef.current
-    return () => releaseHtmlMedia(el)
-  }, [url, active])
+  }, [url])
+
+  useEffect(() => {
+    return () => releaseHtmlMedia(audioRef.current)
+  }, [])
   if (!active) {
     if (!coverUrl) return null
     return (

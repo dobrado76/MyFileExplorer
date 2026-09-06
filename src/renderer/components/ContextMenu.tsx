@@ -258,7 +258,7 @@ function metadataSetFolderMenu(
         {
           label: 'Assign set',
           items: [
-            { label: 'This folder only', items: setPicks(false) },
+            { label: 'Items in this folder only', items: setPicks(false) },
             { label: 'This folder and subfolders', items: setPicks(true) }
           ]
         },
@@ -266,7 +266,7 @@ function metadataSetFolderMenu(
           label: 'No metadata',
           items: [
             {
-              label: 'This folder only',
+              label: 'Items in this folder only',
               action: () => {
                 close()
                 void s.assignMetadataBinding(folderPath, null, false)

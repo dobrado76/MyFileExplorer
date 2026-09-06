@@ -25,6 +25,8 @@ export type UserMetadataPackDryRunValues = {
   overwrite: number
   /** Relative path has no host file/folder. */
   skipMissing: number
+  /** Value keys skipped due to definition conflicts or unknown/orphan option ids. */
+  skipConflict: number
 }
 
 export type UserMetadataPackDryRunResult = {

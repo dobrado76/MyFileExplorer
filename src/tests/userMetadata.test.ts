@@ -3,13 +3,17 @@ import { parseEverythingQuery } from '../main/search/everythingQuery'
 import { metaRecordMatches } from '../shared/metaSearch'
 import {
   allUserMetadataFields,
+  emptyDeletedIdentities,
   formatBooleanFieldValue,
   formatIconTagsColumnValue,
+  lookupDeletedOptionKey,
   newUserMetadataFieldId,
   newUserMetadataOptionId,
   newUserMetadataSetId,
   parseBooleanFieldToken,
   parseIconTagsColumnValue,
+  pruneDeletedIdentities,
+  recordDeletedField,
   type UserMetadataDoc,
   type UserMetadataField,
   userMetadataFieldSchema,
@@ -459,6 +463,52 @@ describe('settings export userMetadata', () => {
     const doc = buildSettingsExportDocument({ settings, networkHosts: [] })
     const parsed = parseSettingsImport(doc)
     expect(parsed.settings.userMetadata.showToolbarButton).toBe(true)
+  })
+})
+
+describe('deletedIdentities tombstones', () => {
+  it('records field and option former keys, prunes when live again', () => {
+    const fieldId = newUserMetadataFieldId()
+    const optId = newUserMetadataOptionId()
+    const field: UserMetadataField = {
+      id: fieldId,
+      key: 'status',
+      name: 'Status',
+      type: 'choice',
+      choices: [{ id: optId, key: 'open', label: 'Open' }],
+      showAsColumn: false,
+      required: false,
+      showOnIcon: false
+    }
+    let di = recordDeletedField(emptyDeletedIdentities(), field)
+    expect(di.fields[0]).toEqual({ id: fieldId, formerKey: 'status', type: 'choice' })
+    expect(di.options[0]).toEqual({ id: optId, fieldId, formerKey: 'open' })
+    expect(lookupDeletedOptionKey(di, optId)).toBe('open')
+
+    di = pruneDeletedIdentities(di, {
+      sets: [{ id: newUserMetadataSetId(), name: 'S', fields: [field] }]
+    })
+    expect(di.fields).toEqual([])
+    expect(di.options).toEqual([])
+  })
+
+  it('round-trips tombstones via settings export (D45)', () => {
+    const fieldId = newUserMetadataFieldId()
+    const settings = settingsSchema.parse({
+      ...defaultSettings,
+      userMetadata: {
+        enabled: true,
+        sets: [],
+        bindings: [],
+        deletedIdentities: {
+          fields: [{ id: fieldId, formerKey: 'gone', type: 'text' }],
+          options: []
+        }
+      }
+    })
+    const doc = buildSettingsExportDocument({ settings, networkHosts: [] })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.userMetadata.deletedIdentities?.fields[0]?.formerKey).toBe('gone')
   })
 })
 

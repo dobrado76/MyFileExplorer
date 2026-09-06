@@ -4,7 +4,7 @@ import { useAppStore } from '../store/appStore'
 import { IpcError } from '../lib/ipc'
 
 function emptyMeta(): UserMetadataSettings {
-  return { enabled: false, showToolbarButton: false, sets: [], bindings: [] }
+  return { enabled: false, showToolbarButton: false, sets: [], bindings: [], deletedIdentities: { fields: [], options: [] } }
 }
 
 function SettingsToggle({

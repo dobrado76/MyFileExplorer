@@ -50,11 +50,9 @@ import {
 import { readPeVersionInfo } from './peVersion'
 import { getShellIconUrl } from '../icons/shell'
 import {
-  CHROMIUM_WEAK_VIDEO_EXTS,
   resolveVideoPosterUrl,
   STRIP_ONLY_VIDEO_EXTS
 } from './videoPoster'
-import { cachedPlayableVideoUrl, ensurePlayableVideoUrl } from './videoRemux'
 import { resolveVidThumbFrames } from '../thumbs/vidCache'
 
 const EXE_PREVIEW_EXTS = new Set(['exe', 'dll', 'scr', 'ocx', 'cpl', 'sys', 'com'])
@@ -1136,6 +1134,9 @@ async function buildRtfPreview(
   }
 }
 
+/** Containers Chromium’s `<video>` usually plays via byte-range `mfe-media` (D33). */
+const CHROMIUM_NATIVE_VIDEO_EXTS = new Set(['mp4', 'm4v', 'webm', 'mov'])
+
 async function buildVideoPreview(
   file: string,
   ext: string,
@@ -1160,7 +1161,7 @@ async function buildVideoPreview(
   // Do not await music-metadata here — large files can scan the whole stream for
   // duration and would block mediaUrl / the player. Renderer loads tags via getMediaMeta.
 
-  // AVI: no in-pane player — animated !VIDTHUMB_CACHE strip + Open (D33).
+  // AVI / RealMedia: no in-pane player — animated !VIDTHUMB_CACHE strip + Open (D33).
   if (STRIP_ONLY_VIDEO_EXTS.has(ext)) {
     const stripFrames = await resolveVidThumbFrames(file)
     return {
@@ -1173,38 +1174,39 @@ async function buildVideoPreview(
     }
   }
 
-  let mediaUrl: string | undefined
-  let posterUrl: string | undefined
-  let needsPlayable = false
-
-  if (CHROMIUM_WEAK_VIDEO_EXTS.has(ext)) {
-    // Fast path: poster + cached remux if any. Full remux is async via ensurePlayable.
-    posterUrl = (await resolveVideoPosterUrl(file, mtimeMs, size)) ?? undefined
-    mediaUrl = (await cachedPlayableVideoUrl(file, mtimeMs, size)) ?? undefined
-    needsPlayable = !mediaUrl
-    if (!posterUrl && !mediaUrl) {
-      warnings.push('Could not prepare an in-app preview — open with the default app to watch')
+  // MP4 / WebM / MOV — play the source (H.264 / HEVC / AV1 / VP9 when Chromium + OS allow).
+  // No ffmpeg remux for MKV/TS/… — locks files and was explicitly rejected (D33).
+  if (CHROMIUM_NATIVE_VIDEO_EXTS.has(ext)) {
+    return {
+      path: file,
+      kind: 'video',
+      mediaUrl: mediaUrlFor(file, mediaCacheKey),
+      mediaMetaPending: true,
+      fields,
+      warnings: warnings.length ? warnings : undefined
     }
-  } else {
-    mediaUrl = mediaUrlFor(file, mediaCacheKey)
   }
 
+  const posterUrl =
+    (await resolveVideoPosterUrl(file, mtimeMs, size, { extract: false })) ?? undefined
+  const stripFrames = await resolveVidThumbFrames(file)
   return {
     path: file,
     kind: 'video',
-    mediaUrl,
     posterUrl,
-    needsPlayable: needsPlayable || undefined,
+    stripFrames: !posterUrl && stripFrames.length > 0 ? stripFrames : undefined,
     mediaMetaPending: true,
     fields,
     warnings: warnings.length ? warnings : undefined
   }
 }
 
-/** Remux/transcode weak-container video to MP4 for `<video>` playback (userData cache). */
+/**
+ * Direct media URL for Chromium-native containers only. Never runs ffmpeg.
+ */
 export async function ensurePlayablePreview(
   rawPath: string,
-  opts?: { force?: boolean }
+  _opts?: { force?: boolean }
 ): Promise<{ mediaUrl: string | null }> {
   let file = requireAbsolute(rawPath)
   if (file.toLowerCase().startsWith('mfe-remote://')) {
@@ -1214,13 +1216,9 @@ export async function ensurePlayablePreview(
   const st = await statPath(file)
   if (!st.exists || st.kind === 'dir') return { mediaUrl: null }
   const ext = path.extname(file).replace(/^\./, '').toLowerCase()
-  if (STRIP_ONLY_VIDEO_EXTS.has(ext)) return { mediaUrl: null }
-  if (!CHROMIUM_WEAK_VIDEO_EXTS.has(ext)) {
-    protocolAllowlist.allowDir(path.dirname(file))
-    return { mediaUrl: mediaUrlFor(file, `${st.mtimeMs}-${st.size}`) }
-  }
-  const url = await ensurePlayableVideoUrl(file, st.mtimeMs, st.size, opts)
-  return { mediaUrl: url }
+  if (!CHROMIUM_NATIVE_VIDEO_EXTS.has(ext)) return { mediaUrl: null }
+  protocolAllowlist.allowDir(path.dirname(file))
+  return { mediaUrl: mediaUrlFor(file, `${st.mtimeMs}-${st.size}`) }
 }
 
 /**

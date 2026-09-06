@@ -36,6 +36,10 @@ function catalog(): UserMetadataField[] {
   return um ? allUserMetadataFields(um) : []
 }
 
+function isEmptyMetaValue(v: unknown): boolean {
+  return v == null || v === '' || (Array.isArray(v) && v.length === 0)
+}
+
 async function validateValuesAgainstCatalog(
   fields: UserMetadataField[],
   values: Record<string, unknown>
@@ -113,7 +117,8 @@ export async function getUserMetadataMany(
 export async function setUserMetadata(
   filePath: string,
   values: Record<string, unknown> | null,
-  fieldsOverride?: UserMetadataField[]
+  fieldsOverride?: UserMetadataField[],
+  opts?: { enforceRequired?: boolean }
 ): Promise<{ ok: true }> {
   const file = assertLocal(filePath)
   if (process.platform !== 'win32') {
@@ -129,6 +134,16 @@ export async function setUserMetadata(
     }
   }
   await validateValuesAgainstCatalog(fields, cleaned)
+  if (values != null && opts?.enforceRequired !== false) {
+    // Single-item Metadata… sends the whole resolved set; enforce only those keys.
+    for (const field of fields) {
+      if (!field.required) continue
+      if (!(field.id in values)) continue
+      if (isEmptyMetaValue(cleaned[field.id])) {
+        throw new AppError('validation', `${field.name}: required`)
+      }
+    }
+  }
 
   const empty = Object.keys(cleaned).length === 0
   await withPreservedHostTimes(file, async () => {
@@ -160,15 +175,23 @@ export async function setUserMetadataMany(
   let done = 0
   for (const p of paths) {
     if (patchEmpty) {
-      await setUserMetadata(p, null, fields)
+      // Clear all — explicit wipe; not a per-field Clear of required fields.
+      await setUserMetadata(p, null, fields, { enforceRequired: false })
     } else {
+      for (const [k, v] of Object.entries(values)) {
+        if (!isEmptyMetaValue(v)) continue
+        const field = fieldById(fields, k)
+        if (field?.required) {
+          throw new AppError('validation', `${field.name}: required — cannot Clear`)
+        }
+      }
       const existing = (await getUserMetadataMany([p]))[p]
       const merged: Record<string, unknown> = { ...(existing?.values ?? {}) }
       for (const [k, v] of Object.entries(values)) {
-        if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) delete merged[k]
+        if (isEmptyMetaValue(v)) delete merged[k]
         else merged[k] = v
       }
-      await setUserMetadata(p, merged, fields)
+      await setUserMetadata(p, merged, fields, { enforceRequired: false })
     }
     done++
   }

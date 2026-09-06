@@ -158,7 +158,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
 - Text / code / Markdown / HTML source: **Word wrap** toggle in the preview header (remembered).
-- Inline video/audio playback in-pane for common containers (see PREVIEW.md); MKV remuxed via ffmpeg when practical; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app (no in-pane player).
+- Inline video/audio playback in-pane for Chromium-native containers (see PREVIEW.md); **no ffmpeg remux for Preview** — MKV/TS/WMV/… use **Open with default app**; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app.
 - Office docs: Word, PowerPoint (`.pptx` approximate slide layout + images; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 - Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 - ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
