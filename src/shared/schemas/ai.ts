@@ -29,6 +29,8 @@ export type AiProviderProfile = z.infer<typeof aiProviderProfileSchema>
 
 export const aiSettingsSchema = z.object({
   enabled: z.boolean().catch(false),
+  /** Ask AI button on the main toolbar (left of Settings, after Script Manager). */
+  showToolbarButton: z.boolean().catch(true),
   defaultProviderId: z.string().max(80).catch(''),
   defaultModel: z.string().max(200).catch(''),
   preferredScriptLanguage: z.enum(['auto', ...SCRIPT_LANGUAGES]).catch('auto'),

@@ -317,6 +317,22 @@ export const IPC = {
   aiModify: 'ai:modify',
   aiFix: 'ai:fix',
 
+  aiChatOpen: 'aiChat:open',
+  aiChatSnapshot: 'aiChat:snapshot',
+  aiChatCreateTopic: 'aiChat:createTopic',
+  aiChatRenameTopic: 'aiChat:renameTopic',
+  aiChatMoveTopic: 'aiChat:moveTopic',
+  aiChatDeleteTopic: 'aiChat:deleteTopic',
+  aiChatCreateConversation: 'aiChat:createConversation',
+  aiChatRenameConversation: 'aiChat:renameConversation',
+  aiChatMoveConversation: 'aiChat:moveConversation',
+  aiChatDeleteConversation: 'aiChat:deleteConversation',
+  aiChatGetConversation: 'aiChat:getConversation',
+  aiChatSendMessage: 'aiChat:sendMessage',
+  aiChatStartFromStarter: 'aiChat:startFromStarter',
+  aiChatSetUi: 'aiChat:setUi',
+  mediaMetadataAskAi: 'mediaMetadata:askAi',
+
   gitDetect: 'git:detect',
   gitTest: 'git:test',
   gitDiscover: 'git:discover',
@@ -489,6 +505,10 @@ export type MfeEvent =
   | {
       type: 'preview-window'
       payload: { open: boolean }
+    }
+  | {
+      type: 'ai-chat-focus'
+      payload: { conversationId: string }
     }
   | {
       type: 'script-output'

@@ -580,6 +580,14 @@ export type MyFileExplorerApi = {
       previewBase64?: string
     }): Promise<Result<{ ok: true }>>
     setWatched(req: { paths: string[]; watched: boolean }): Promise<Result<{ updated: string[] }>>
+    askAi(req: {
+      path: string
+      queryId: import('../schemas/aiChat').MediaAskAiQueryId
+      providerId?: string
+      model?: string
+    }): Promise<
+      Result<{ conversation: import('../schemas/aiChat').AiChatConversation; local: boolean }>
+    >
     save(req: {
       path: string
       fields: import('../mediaMetadata').MediaMetadataEditFields
@@ -920,6 +928,66 @@ export type MyFileExplorerApi = {
       providerId?: string
       model?: string
     }): Promise<Result<{ script: import('../schemas/ai').GeneratedScript; local: boolean }>>
+  }
+  aiChat: {
+    open(req?: {
+      topicSystemKey?: import('../schemas/aiChat').AiChatTopicSystemKey
+      conversationId?: string
+    }): Promise<Result<{ opened: true }>>
+    snapshot(): Promise<Result<import('../schemas/aiChat').AiChatStoreDocument>>
+    createTopic(req: {
+      name: string
+      parentId?: string | null
+    }): Promise<Result<{ topic: import('../schemas/aiChat').AiChatTopic }>>
+    renameTopic(req: {
+      id: string
+      name: string
+    }): Promise<Result<{ topic: import('../schemas/aiChat').AiChatTopic }>>
+    moveTopic(req: {
+      id: string
+      parentId: string | null
+      beforeId?: string | null
+    }): Promise<Result<{ topic: import('../schemas/aiChat').AiChatTopic }>>
+    deleteTopic(req: { id: string }): Promise<Result<{ deleted: true }>>
+    createConversation(req: {
+      topicId: string
+      title?: string
+    }): Promise<Result<{ conversation: import('../schemas/aiChat').AiChatConversation }>>
+    renameConversation(req: {
+      id: string
+      title: string
+    }): Promise<Result<{ conversation: import('../schemas/aiChat').AiChatConversation }>>
+    moveConversation(req: {
+      id: string
+      topicId: string
+    }): Promise<Result<{ conversation: import('../schemas/aiChat').AiChatConversation }>>
+    deleteConversation(req: { id: string }): Promise<Result<{ deleted: true }>>
+    getConversation(req: {
+      id: string
+    }): Promise<Result<{ conversation: import('../schemas/aiChat').AiChatConversation }>>
+    sendMessage(req: {
+      conversationId: string
+      content: string
+      providerId?: string
+      model?: string
+    }): Promise<
+      Result<{ conversation: import('../schemas/aiChat').AiChatConversation; local: boolean }>
+    >
+    startFromStarter(req: {
+      topicSystemKey: import('../schemas/aiChat').AiChatTopicSystemKey
+      title: string
+      starterLabel: string
+      system: string
+      user: string
+      sourceContext?: import('../schemas/aiChat').AiChatSourceContext
+      providerId?: string
+      model?: string
+    }): Promise<
+      Result<{ conversation: import('../schemas/aiChat').AiChatConversation; local: boolean }>
+    >
+    setUi(
+      req: Partial<import('../schemas/aiChat').AiChatUiState>
+    ): Promise<Result<{ ui: import('../schemas/aiChat').AiChatUiState }>>
   }
   git: {
     detect(): Promise<Result<import('../schemas/git').GitExecutableInfo>>

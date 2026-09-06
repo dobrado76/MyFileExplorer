@@ -7,6 +7,7 @@ import {
   PanelIcon,
   SettingsIcon,
   ScriptIcon,
+  AskAiIcon,
   MetadataIcon,
   EyeIcon,
   EyeOffIcon,
@@ -26,6 +27,7 @@ import {
   FolderOpenIcon,
   EraserIcon
 } from '../lib/icons'
+import { api, call } from '../lib/ipc'
 import { LayoutsMenu } from './LayoutsMenu'
 import { NewItemMenu } from './NewItemMenu'
 import { SearchOptionsMenu } from './SearchOptionsMenu'
@@ -358,6 +360,18 @@ export function Toolbar(): JSX.Element {
             <ScriptIcon />
           </button>
         )}
+        {settings.scripts?.enabled &&
+          settings.ai?.enabled &&
+          settings.ai.showToolbarButton !== false && (
+            <button
+              className="icon-btn"
+              aria-label="Ask AI"
+              title="Ask AI"
+              onClick={() => void call(api.aiChat.open())}
+            >
+              <AskAiIcon />
+            </button>
+          )}
         <button
           className="icon-btn"
           aria-label="Settings"

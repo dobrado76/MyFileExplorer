@@ -1,6 +1,6 @@
 # Local scripts (D51)
 
-**Status:** shipped in **v0.9.0**. Script Runner works with **no AI configured**. AI may **write** scripts; it **never reads** the user’s files.
+**Status:** shipped in **v0.9.0**. Script Runner works with **no AI configured**. AI may **write** scripts and answer **Ask AI** chat starters; it **never reads** the user’s files. Media Ask AI may send **titles / year / kind** from metadata streams — not paths or bytes. Guide: [AI_CHAT.md](AI_CHAT.md).
 
 MyFileExplorer is not only a browser. It is a **universal script runner** attached to whatever you are looking at. A saved script is a first-class command on the current folder or selection — as reachable as Copy or Delete. Anything you can express in PowerShell, Python, cmd, or bash becomes a reusable verb. The app does not need a new feature for each job.
 

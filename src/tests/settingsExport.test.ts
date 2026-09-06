@@ -22,6 +22,7 @@ describe('settings export / import', () => {
       remoteConnectionBounds: { x: 7, y: 8, width: 640, height: 520, maximized: false },
       compiledListsWindowBounds: { x: 5, y: 6, width: 640, height: 480 },
       previewWindowBounds: { x: 9, y: 10, width: 480, height: 720, maximized: true },
+      aiChatWindowBounds: { x: 11, y: 12, width: 900, height: 700, maximized: false },
       scriptManagerBounds: { x: 11, y: 12, width: 800, height: 600, maximized: false },
       scriptGenerateBounds: { x: 13, y: 14, width: 720, height: 520, maximized: false },
       scriptRunnerBounds: { x: 15, y: 16, width: 760, height: 640 }

@@ -404,6 +404,13 @@ export const ScriptIcon = svg(
     <path d="M10 9h4M10 13h4" />
   </>
 )
+/** Ask AI chat window (toolbar). */
+export const AskAiIcon = svg(
+  <>
+    <path d="M12 3c-4.4 0-8 2.9-8 6.5 0 2.2 1.2 4.1 3.1 5.2L5 21l4.6-2.6c.8.2 1.6.3 2.4.3 4.4 0 8-2.9 8-6.5S16.4 3 12 3z" />
+    <path d="M9 10h6M9 13h4" />
+  </>
+)
 /** User-defined metadata manager (toolbar) — upright sheet, not a diagonal tag. */
 export const MetadataIcon = svg(
   <>

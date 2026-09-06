@@ -47,6 +47,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
 | [USER_METADATA.md](USER_METADATA.md)             | Opt-in user-defined structured metadata (D70, off by default) |
+| [AI_CHAT.md](AI_CHAT.md)                         | Ask AI chat window + starters (D51) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [POWER_RENAME.md](POWER_RENAME.md)               | Power Rename — search/replace, DOS wildcards, Advanced options (D40) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |

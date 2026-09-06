@@ -26,7 +26,8 @@ import {
   virtualFolderOpenCwdPath
 } from '@shared/virtualFolder'
 import { isVolumeRootPath } from '../lib/rightDrag'
-import { isMediaMetadataVideoName } from '@shared/mediaMetadata'
+import { isMediaMetadataVideoName, isSeasonFolderName } from '@shared/mediaMetadata'
+import { mediaAskAiMenuItems, type MediaAskAiKind } from '@shared/mediaAskAi'
 import { isImageExt, isVideoExt } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { isSlideshowImagePath } from '@shared/slideshow/constants'
@@ -500,7 +501,49 @@ function mediaMetadataMenu(
               void s.mediaMetadataSetWatched(targets, nextWatched)
             }
           }
-        })()
+        })(),
+        ...(targets.length === 1 &&
+        s.settings.scripts.enabled &&
+        s.settings.ai.enabled
+          ? [
+              {
+                label: 'Ask AI…',
+                title: 'Open Ask AI chat with a seeded question about this title',
+                items: (() => {
+                  const p = targets[0]!
+                  const flags = s.mediaLibrary.items[p.toLowerCase()]
+                  const entry = opts?.entries?.find((en) => samePath(en.path, p))
+                  const isDir =
+                    opts?.treatAsFolders === true ||
+                    entry?.kind === 'dir' ||
+                    (!entry && !isMediaMetadataVideoName(basename(p)))
+                  const name = basename(p)
+                  let kind: MediaAskAiKind = 'movie'
+                  if (flags?.kind === 'episode') kind = 'episode'
+                  else if (flags?.kind === 'show') kind = 'show'
+                  else if (flags?.kind === 'movie') kind = 'movie'
+                  else if (isDir && isSeasonFolderName(name)) kind = 'season'
+                  else if (isDir) kind = 'show'
+                  return mediaAskAiMenuItems(kind).map((item) => ({
+                    label: item.label,
+                    title: item.title,
+                    action: () => {
+                      close()
+                      void (async () => {
+                        try {
+                          await call(api.mediaMetadata.askAi({ path: p, queryId: item.queryId }))
+                        } catch (e) {
+                          useAppStore
+                            .getState()
+                            .notify(e instanceof Error ? e.message : String(e), true)
+                        }
+                      })()
+                    }
+                  }))
+                })()
+              }
+            ]
+          : [])
       ]
     }
   ]

@@ -707,6 +707,17 @@ const settingsFieldsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Detached Ask AI chat window geometry. */
+  aiChatWindowBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(640).max(10000),
+      height: z.number().min(480).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
   scriptManagerBounds: z
     .object({
       x: z.number(),
@@ -840,6 +851,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   remoteConnectionBounds: null,
   compiledListsWindowBounds: null,
   previewWindowBounds: null,
+  aiChatWindowBounds: null,
   scriptManagerBounds: null,
   scriptGenerateBounds: null,
   scriptRunnerBounds: null,

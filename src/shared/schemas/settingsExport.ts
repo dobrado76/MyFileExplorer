@@ -28,6 +28,7 @@ const WINDOW_LIKE_KEYS = [
   'remoteConnectionBounds',
   'compiledListsWindowBounds',
   'previewWindowBounds',
+  'aiChatWindowBounds',
   'scriptManagerBounds',
   'scriptGenerateBounds',
   'scriptRunnerBounds'
@@ -50,6 +51,7 @@ export function settingsForPortableExport(settings: Settings): Settings {
     remoteConnectionBounds: null,
     compiledListsWindowBounds: null,
     previewWindowBounds: null,
+    aiChatWindowBounds: null,
     scriptManagerBounds: null,
     scriptGenerateBounds: null,
     scriptRunnerBounds: null

@@ -38,6 +38,12 @@ describe('AI settings patch', () => {
   it('scripting chrome is off on a first install', () => {
     expect(defaultSettings.scripts.enabled).toBe(false)
     expect(defaultSettings.ai.enabled).toBe(false)
+    expect(defaultSettings.ai.showToolbarButton).toBe(true)
+  })
+
+  it('patches ai.showToolbarButton', () => {
+    const parsed = settingsPatchSchema.parse({ ai: { showToolbarButton: false } })
+    expect(parsed.ai?.showToolbarButton).toBe(false)
   })
 
   it('patches scripts.enabled without dropping interpreter overrides', () => {

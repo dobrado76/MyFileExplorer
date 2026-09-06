@@ -212,6 +212,7 @@ const api: MyFileExplorerApi = {
     loadCustomCover: invoke(IPC.mediaMetadataLoadCustomCover),
     setCover: invoke(IPC.mediaMetadataSetCover),
     setWatched: invoke(IPC.mediaMetadataSetWatched),
+    askAi: invoke(IPC.mediaMetadataAskAi),
     save: invoke(IPC.mediaMetadataSave),
     folderLibrary: invoke(IPC.mediaMetadataFolderLibrary),
     consolidateSubtitles: invoke(IPC.mediaMetadataConsolidateSubtitles),
@@ -303,6 +304,22 @@ const api: MyFileExplorerApi = {
     generate: invoke(IPC.aiGenerate),
     modify: invoke(IPC.aiModify),
     fix: invoke(IPC.aiFix)
+  },
+  aiChat: {
+    open: invoke(IPC.aiChatOpen),
+    snapshot: invokeVoid(IPC.aiChatSnapshot),
+    createTopic: invoke(IPC.aiChatCreateTopic),
+    renameTopic: invoke(IPC.aiChatRenameTopic),
+    moveTopic: invoke(IPC.aiChatMoveTopic),
+    deleteTopic: invoke(IPC.aiChatDeleteTopic),
+    createConversation: invoke(IPC.aiChatCreateConversation),
+    renameConversation: invoke(IPC.aiChatRenameConversation),
+    moveConversation: invoke(IPC.aiChatMoveConversation),
+    deleteConversation: invoke(IPC.aiChatDeleteConversation),
+    getConversation: invoke(IPC.aiChatGetConversation),
+    sendMessage: invoke(IPC.aiChatSendMessage),
+    startFromStarter: invoke(IPC.aiChatStartFromStarter),
+    setUi: invoke(IPC.aiChatSetUi)
   },
   git: {
     detect: invokeVoid(IPC.gitDetect),

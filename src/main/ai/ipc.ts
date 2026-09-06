@@ -8,6 +8,21 @@ import {
   aiProviderUpsertSchema
 } from '@shared/schemas/ai'
 import {
+  aiChatConversationIdSchema,
+  aiChatCreateConversationSchema,
+  aiChatCreateTopicSchema,
+  aiChatDeleteTopicSchema,
+  aiChatMoveConversationSchema,
+  aiChatMoveTopicSchema,
+  aiChatOpenSchema,
+  aiChatRenameConversationSchema,
+  aiChatRenameTopicSchema,
+  aiChatSendMessageSchema,
+  aiChatSetUiSchema,
+  aiChatStartFromStarterSchema,
+  mediaAskAiStartSchema
+} from '@shared/schemas/aiChat'
+import {
   deleteAiProvider,
   listAiModels,
   listAiProviders,
@@ -16,6 +31,22 @@ import {
   upsertAiProvider
 } from './provider'
 import { fixScript, generateScript, modifyScript } from './generate'
+import {
+  createAiChatConversation,
+  createAiChatTopic,
+  deleteAiChatConversation,
+  deleteAiChatTopic,
+  getAiChatConversation,
+  getAiChatSnapshot,
+  getTopicBySystemKey,
+  moveAiChatConversation,
+  moveAiChatTopic,
+  renameAiChatConversation,
+  renameAiChatTopic,
+  setAiChatUi
+} from './chatStore'
+import { sendAiChatMessage, startAiChatFromStarter, startMediaAskAi } from './chatService'
+import { openAiChatWindow } from './chatWindow'
 
 const emptySchema = z.union([z.undefined(), z.null(), z.object({}).strict()]).optional()
 
@@ -54,4 +85,56 @@ export function registerAiIpc(handle: Handle): void {
     script: await fixScript(req),
     local: localFlag(req.providerId)
   }))
+
+  handle(
+    IPC.aiChatOpen,
+    z
+      .object({
+        topicSystemKey: aiChatOpenSchema.shape.topicSystemKey,
+        conversationId: aiChatOpenSchema.shape.conversationId
+      })
+      .partial()
+      .optional(),
+    (req) => {
+      const topicId = req?.topicSystemKey
+        ? getTopicBySystemKey(req.topicSystemKey).id
+        : undefined
+      return openAiChatWindow({
+        conversationId: req?.conversationId,
+        topicId
+      })
+    }
+  )
+  handle(IPC.aiChatSnapshot, emptySchema, () => getAiChatSnapshot())
+  handle(IPC.aiChatCreateTopic, aiChatCreateTopicSchema, (req) => ({
+    topic: createAiChatTopic(req.name, req.parentId ?? null)
+  }))
+  handle(IPC.aiChatRenameTopic, aiChatRenameTopicSchema, (req) => ({
+    topic: renameAiChatTopic(req.id, req.name)
+  }))
+  handle(IPC.aiChatMoveTopic, aiChatMoveTopicSchema, (req) => ({
+    topic: moveAiChatTopic(req.id, req.parentId, req.beforeId)
+  }))
+  handle(IPC.aiChatDeleteTopic, aiChatDeleteTopicSchema, (req) => deleteAiChatTopic(req.id))
+  handle(IPC.aiChatCreateConversation, aiChatCreateConversationSchema, (req) => ({
+    conversation: createAiChatConversation(req.topicId, req.title)
+  }))
+  handle(IPC.aiChatRenameConversation, aiChatRenameConversationSchema, (req) => ({
+    conversation: renameAiChatConversation(req.id, req.title)
+  }))
+  handle(IPC.aiChatMoveConversation, aiChatMoveConversationSchema, (req) => ({
+    conversation: moveAiChatConversation(req.id, req.topicId)
+  }))
+  handle(IPC.aiChatDeleteConversation, aiChatConversationIdSchema, (req) =>
+    deleteAiChatConversation(req.id)
+  )
+  handle(IPC.aiChatGetConversation, aiChatConversationIdSchema, (req) => ({
+    conversation: getAiChatConversation(req.id)
+  }))
+  handle(IPC.aiChatSendMessage, aiChatSendMessageSchema, async (req) => sendAiChatMessage(req))
+  handle(IPC.aiChatStartFromStarter, aiChatStartFromStarterSchema, async (req) =>
+    startAiChatFromStarter(req)
+  )
+  handle(IPC.aiChatSetUi, aiChatSetUiSchema, (req) => ({ ui: setAiChatUi(req) }))
+  handle(IPC.mediaMetadataAskAi, mediaAskAiStartSchema, async (req) => startMediaAskAi(req))
 }

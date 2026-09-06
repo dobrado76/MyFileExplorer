@@ -265,9 +265,32 @@ Folder slideshow / image-list cache (gated by Settings → Slideshow).
 | `slideshow:pickOpenFile` / `pickSaveFile` | dialog opts | `{ path }` |
 | `slideshow:readTextFile` / `writeTextFile` | `{ path, text? }` | text / `{ ok }` |
 
+### `aiChat.*` (Ask AI window — D51)
+
+Requires `scripts.enabled` and `ai.enabled`. History in `userData/ai-chats/` (not settings export). Guide: [AI_CHAT.md](AI_CHAT.md).
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `aiChat:open` | `{ topicSystemKey?, conversationId? }?` | `{ opened: true }` |
+| `aiChat:snapshot` | — | store document (topics, conversations, ui) |
+| `aiChat:createTopic` | `{ name, parentId? }` | `{ topic }` |
+| `aiChat:renameTopic` | `{ id, name }` | `{ topic }` |
+| `aiChat:moveTopic` | `{ id, parentId, beforeId? }` | `{ topic }` — reparent / reorder among siblings |
+| `aiChat:deleteTopic` | `{ id }` | `{ deleted: true }` |
+| `aiChat:createConversation` | `{ topicId, title? }` | `{ conversation }` |
+| `aiChat:renameConversation` | `{ id, title }` | `{ conversation }` |
+| `aiChat:moveConversation` | `{ id, topicId }` | `{ conversation }` |
+| `aiChat:deleteConversation` | `{ id }` | `{ deleted: true }` |
+| `aiChat:getConversation` | `{ id }` | `{ conversation }` |
+| `aiChat:sendMessage` | `{ conversationId, content, providerId?, model? }` | `{ conversation, local }` |
+| `aiChat:startFromStarter` | `{ topicSystemKey, title, starterLabel, system, user, … }` | `{ conversation, local }` |
+| `aiChat:setUi` | partial ui | `{ ui }` |
+
+Event `ai-chat-focus` → `{ conversationId }`.
+
 ### `mediaMetadata.*`
 
-Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md).
+Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Guide: [MEDIA_METADATA.md](MEDIA_METADATA.md). Ask AI: [AI_CHAT.md](AI_CHAT.md).
 
 | Channel | Request | Response |
 | ------- | ------- | -------- |
@@ -280,6 +303,7 @@ Opt-in D50. Main refuses most channels when `mediaMetadata.enabled` is false. Gu
 | `mediaMetadata:loadCustomCover` | `{ path, imagePath }` | `{ cover }` — register a user-picked image file for the picker / `setCover` |
 | `mediaMetadata:setCover` | `{ path, coverId, previewBase64? }` | `{ ok: true }` — preview is a fallback if the cover session is gone |
 | `mediaMetadata:setWatched` | `{ paths[], watched }` | `{ updated[] }` |
+| `mediaMetadata:askAi` | `{ path, queryId }` | `{ conversation, local }` — opens Ask AI chat with a media starter ([AI_CHAT.md](AI_CHAT.md)) |
 | `mediaMetadata:save` | `{ path, fields }` | `{ path }` — merge editable card fields; creates `source: 'manual'` when no stream yet |
 | `mediaMetadata:folderLibrary` | `{ path }` | `{ isContainer, items: { path, watched, genres[], kind, season?, episode?, title?, showTitle? }[] }` |
 | `mediaMetadata:consolidateSubtitles` | `{ paths[] }` | `{ copied, skipped, recycled, failed[] }` — flatten Subs / Subtitles next to videos; Recycle Bin |
@@ -306,6 +330,7 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 
 | Event                     | Payload                                       |
 | ------------------------- | --------------------------------------------- |
+| `ai-chat-focus` | `{ conversationId }` — Ask AI window: show this chat |
 | `fs-changed`              | `{ path, reason }`                            |
 | `fs-watch-lost`           | `{ path }` — watcher closed; renderer may re-arm |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |

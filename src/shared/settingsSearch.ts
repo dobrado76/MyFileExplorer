@@ -130,7 +130,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: 'ai',
     label: 'Scripting and AI',
     keywords:
-      'scripting scripts ai python powershell pwsh cmd bash interpreter openai openrouter lmstudio provider api key model temperature tokens generate runner global'
+      'scripting scripts ai ask ai chat toolbar python powershell pwsh cmd bash interpreter openai openrouter lmstudio provider api key model temperature tokens generate runner global'
   },
   {
     id: 'advanced',

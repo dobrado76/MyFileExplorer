@@ -258,6 +258,7 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
     }
     sessionStore().flush()
     settingsStore().flush()
+    void import('./ai/chatStore').then((m) => m.flushAiChatStore()).catch(() => {})
     void import('./fs/network').then((m) => m.disposeNetworkDiscovery())
     void import('./search').then((m) => m.shutdownSearchIndexRuntime())
     void import('./search/httpServer').then((h) => h.stopSearchHttpServer())

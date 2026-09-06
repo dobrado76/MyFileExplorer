@@ -189,6 +189,25 @@ export async function completeChat(input: {
   temperature?: number
   maxTokens?: number
 }): Promise<string> {
+  return completeChatMessages({
+    providerId: input.providerId,
+    model: input.model,
+    temperature: input.temperature,
+    maxTokens: input.maxTokens,
+    messages: [
+      { role: 'system', content: input.system },
+      { role: 'user', content: input.user }
+    ]
+  })
+}
+
+export async function completeChatMessages(input: {
+  providerId?: string
+  model?: string
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
+  temperature?: number
+  maxTokens?: number
+}): Promise<string> {
   assertAiEnabled()
   const ai = getSettings().ai
   const providerId = input.providerId || ai.defaultProviderId
@@ -196,14 +215,12 @@ export async function completeChat(input: {
   const provider = getAiProvider(providerId)
   const model = input.model || ai.defaultModel || provider.model
   if (!model) throw new AppError('validation', 'No model selected')
+  if (!input.messages.length) throw new AppError('validation', 'No messages to send')
 
   const maxTokens = input.maxTokens ?? ai.maxOutputTokens
   const request: Record<string, unknown> = {
     model,
-    messages: [
-      { role: 'system', content: input.system },
-      { role: 'user', content: input.user }
-    ]
+    messages: input.messages.map((m) => ({ role: m.role, content: m.content }))
   }
   if (allowsCustomTemperature(model)) {
     request.temperature = input.temperature ?? ai.temperature

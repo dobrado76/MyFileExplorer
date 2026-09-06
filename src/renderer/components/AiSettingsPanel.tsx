@@ -13,6 +13,38 @@ import { formatError } from './scriptUi'
 
 const TYPES: AiProviderType[] = ['openai', 'openrouter', 'lmstudio', 'custom']
 
+function SettingsToggle({
+  id,
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange
+}: {
+  id: string
+  label: string
+  hint?: string
+  checked: boolean
+  disabled?: boolean
+  onChange(v: boolean): void
+}): JSX.Element {
+  return (
+    <label className="settings-toggle" htmlFor={id} title={hint}>
+      <span className="settings-toggle-text">
+        <span className="settings-toggle-label">{label}</span>
+        {hint ? <span className="settings-toggle-hint">{hint}</span> : null}
+      </span>
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+    </label>
+  )
+}
+
 export function AiSettingsPanel(): JSX.Element {
   const settings = useAppStore((s) => s.settings)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
@@ -111,23 +143,13 @@ export function AiSettingsPanel(): JSX.Element {
 
   return (
     <div className="settings-stack">
-      <label
-        className="settings-toggle"
-        title="Off by default. On: Script Manager, a toolbar button for each global script, and Scripts on the context menu. Scripts run as your Windows user."
-      >
-        <input
-          type="checkbox"
-          checked={scriptingOn}
-          onChange={(e) => void applySettingsPatch({ scripts: { enabled: e.target.checked } })}
-        />
-        <span className="settings-toggle-text">
-          <span className="settings-toggle-label">Enable scripting</span>
-          <span className="settings-toggle-hint">
-            Off by default. On: Script Manager, a toolbar button for each global script, and Scripts
-            on the context menu. Scripts run as your Windows user and can change or delete files.
-          </span>
-        </span>
-      </label>
+      <SettingsToggle
+        id="set-scripts-enabled"
+        label="Enable scripting"
+        hint="Off by default. On: Script Manager, a toolbar button for each global script, and Scripts on the context menu. Scripts run as your Windows user and can change or delete files."
+        checked={scriptingOn}
+        onChange={(v) => void applySettingsPatch({ scripts: { enabled: v } })}
+      />
       {!scriptingOn ? (
         <p className="settings-field-hint">
           This is an advanced feature. A first install stays a plain file manager until you turn
@@ -166,22 +188,21 @@ export function AiSettingsPanel(): JSX.Element {
       ))}
 
       <h3>AI (optional)</h3>
-      <label
-        className="settings-toggle"
-        title="Off = no outbound AI HTTP. Hand-written scripts still run locally. AI never receives file names or bytes."
-      >
-        <input
-          type="checkbox"
-          checked={ai.enabled}
-          onChange={(e) => void applySettingsPatch({ ai: { enabled: e.target.checked } })}
-        />
-        <span className="settings-toggle-text">
-          <span className="settings-toggle-label">Enable AI</span>
-          <span className="settings-toggle-hint">
-            Off = no outbound AI HTTP. Hand-written scripts still run locally.
-          </span>
-        </span>
-      </label>
+      <SettingsToggle
+        id="set-ai-enabled"
+        label="Enable AI"
+        hint="Off = no outbound AI HTTP. Hand-written scripts still run locally."
+        checked={ai.enabled}
+        onChange={(v) => void applySettingsPatch({ ai: { enabled: v } })}
+      />
+      <SettingsToggle
+        id="set-ai-toolbar"
+        label="Show AI button on the toolbar"
+        hint="Adds an Ask AI button on the main toolbar (after Script Manager). Requires Enable AI."
+        checked={ai.showToolbarButton !== false}
+        disabled={!ai.enabled}
+        onChange={(v) => void applySettingsPatch({ ai: { showToolbarButton: v } })}
+      />
       <p className="settings-field-hint">
         AI may write scripts. It never receives file names, paths, folder listings, or file bytes.
         API keys are stored with OS encryption (safeStorage), not in settings.json. Settings export
@@ -355,13 +376,12 @@ export function AiSettingsPanel(): JSX.Element {
             autoComplete="off"
           />
         </label>
-        <label
-          className="settings-toggle"
-          title="Local providers skip the first-use cloud warning"
-        >
-          <input type="checkbox" checked={local} onChange={(e) => setLocal(e.target.checked)} />
-          <span>Treat as local (no cloud first-use warning)</span>
-        </label>
+        <SettingsToggle
+          id="set-ai-provider-local"
+          label="Treat as local (no cloud first-use warning)"
+          checked={local}
+          onChange={setLocal}
+        />
       </div>
       <div className="script-check-row">
         <button type="button" className="btn primary" onClick={() => void saveProvider()}>

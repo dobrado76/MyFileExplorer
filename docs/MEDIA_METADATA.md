@@ -61,6 +61,7 @@ Shown only on **folders** and **video files**. Remotes (`mfe-remote://`) are ski
 | **Edit metadata…** | Single item only. Dialog to fix title, year, language, country, genres, directors, actors, synopsis, watched, and (episodes) season / episode / show title. Does not edit ratings or cover (use **Change cover…**). Preserves source id / kind / ratings. With no card yet, saves a **manual** entry. Also on the preview hero and media-card hover pencil. |
 | **Change cover…** | Single item only. Pick a poster from Plex / TMDB, **browse for your own image**, or keep the current cover. Does **not** change Plex’s own selected poster. |
 | **Mark as Watched** | Toggles to **Mark as Unwatched** when the selection is already watched. Needs stored metadata. On a **series** or **season** folder, also marks episode files under it. |
+| **Ask AI…** | When Scripting and AI are enabled: four kind-aware prompts open the generic [Ask AI chat](AI_CHAT.md) under the **Media** topic (spoiler-safe / full; summary or list). Needs stored metadata title. Single selection only. |
 
 Status-bar progress shows while a batch runs; **Cancel** stops between items.
 
@@ -171,6 +172,17 @@ Plex does not need to be running for local bundle posters. The on-disk layout is
 `watched` is a field on the item’s JSON. Extract / Download / Update **keep** it.
 
 **Mark as Watched** (menu, preview, or media-card hover) only changes items that already have metadata. On a **movie** folder it toggles that folder. On a **series** folder (`kind: show`) or a **season** folder (`Season N` / `S01` / `Specials`) it also marks every episode video under that tree that already has metadata (same for Unwatched).
+
+### Ask AI (media starters)
+
+When **Settings → Scripting and AI** has both scripting and AI enabled, **Media Metadata → Ask AI…** offers four prompts for a **single** movie, show, season, or episode that already has a metadata title. The choice opens the shared [Ask AI chat](AI_CHAT.md) window, seeds a conversation under the **Media** topic (title / year / kind only — never paths or file bytes), and you can keep chatting. Prompt table:
+
+| Kind | Prompts |
+| ---- | ------- |
+| Movie | Summary (no / full spoilers); Related movies / franchise blurbs (no / full spoilers) |
+| Show | Show summary (no / full); List seasons with summaries (no / full) |
+| Season | Season summary (no / full); List episodes with summaries (no / full) |
+| Episode | Episode summary (no / full); How it fits the show (no / full) |
 
 When metadata is written, `media_metadata_container` is set on the library folder and on the title folder. **Only then** does that folder’s toolbar show:
 

@@ -38,6 +38,7 @@ export function replaceSettings(raw: unknown): Settings {
     compiledListsWindowBounds: null,
     previewWindowBounds: null,
     propertiesWindowBounds: null,
+    aiChatWindowBounds: null,
     scriptManagerBounds: null,
     scriptGenerateBounds: null,
     scriptRunnerBounds: null
