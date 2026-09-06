@@ -174,7 +174,7 @@ type CacheEntry = { mtimeMs: number; size: number; model: PreviewModel }
 const cache = new Map<string, CacheEntry>()
 const CACHE_MAX = 100
 /** Bump when preview builders change shape/parsing so stale models are dropped. */
-const PREVIEW_CACHE_REV = 26
+const PREVIEW_CACHE_REV = 27
 
 /** Drop cached previews for paths (Calculate Statistics preserves host mtime/size). */
 export function invalidatePreviewCache(paths?: readonly string[]): void {
@@ -286,7 +286,14 @@ export async function getPreview(
   const ext = path.extname(file).slice(1).toLowerCase()
   const archiveFmt = detectArchiveFormat(file)
 
-  fields.push({ id: 'file.name', label: 'Name', value: name, group: 'file', copyable: true })
+  // Volume roots (`D:\`) have an empty basename — keep the details strip row tall.
+  fields.push({
+    id: 'file.name',
+    label: 'Name',
+    value: name || '(No Name)',
+    group: 'file',
+    copyable: true
+  })
 
   let model: PreviewModel
 

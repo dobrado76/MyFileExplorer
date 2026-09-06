@@ -1036,6 +1036,8 @@ function DetailRow({
   field: PreviewField
   onCopy(v: string): Promise<void>
 }): JSX.Element {
+  const value =
+    field.id === 'file.name' && !field.value.trim() ? '(No Name)' : field.value
   return (
     <div className="d-row">
       <div className="d-label">
@@ -1044,13 +1046,13 @@ function DetailRow({
           <button
             className="field-copy"
             aria-label={`Copy ${field.label}`}
-            onClick={() => void onCopy(field.value)}
+            onClick={() => void onCopy(value)}
           >
             <CopyIcon size={12} />
           </button>
         )}
       </div>
-      <div className={`d-value${field.mono ? ' mono' : ''}`}>{field.value}</div>
+      <div className={`d-value${field.mono ? ' mono' : ''}`}>{value}</div>
     </div>
   )
 }
