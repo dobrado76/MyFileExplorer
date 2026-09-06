@@ -474,6 +474,20 @@ export function isSeasonFolderName(name: string): boolean {
   return /^(season\s*\d+|s\d{1,2}|specials)$/i.test(name.trim())
 }
 
+/**
+ * Whether Mark as Watched / Unwatched on a folder should also update episode
+ * files under it. Movies stay on the title folder only; shows and season
+ * folders walk descendant videos.
+ */
+export function shouldRecurseMediaWatched(
+  folderName: string,
+  kind: MediaMetadata['kind'] | undefined | null
+): boolean {
+  if (kind === 'movie') return false
+  if (kind === 'show') return true
+  return isSeasonFolderName(folderName)
+}
+
 export function isMoviePartVideoName(name: string): boolean {
   if (!isMediaMetadataVideoName(name)) return false
   if (parseMediaFileName(name).kind === 'episode') return false

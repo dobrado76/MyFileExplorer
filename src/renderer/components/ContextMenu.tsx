@@ -493,7 +493,8 @@ function mediaMetadataMenu(
           const nextWatched = !allWatched
           return {
             label: nextWatched ? 'Mark as Watched' : 'Mark as Unwatched',
-            title: 'Requires stored media metadata on the selection',
+            title:
+              'Requires stored media metadata. On a series or season folder, also marks episodes under it.',
             action: () => {
               close()
               void s.mediaMetadataSetWatched(targets, nextWatched)

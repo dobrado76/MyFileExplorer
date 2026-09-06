@@ -9,6 +9,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Watched media badge** — in a media-library folder (icon/thumbnail), watched titles show a small eye badge at the top-right of the card (same glyph as Mark as Watched).
+- **Mark as Watched on series** — marking a show or season folder watched/unwatched also updates episode files under it that already have metadata (movies stay folder-only).
 - **Preview dock / detach** — Open preview window hides the docked pane; Dock / Panel / Ctrl+Shift+P brings it back. Only one preview is visible. Detached window hydrates settings (no more “Preview failed”) and uses a two-column layout when the *window* is wider than it is tall (folder **Space usage** map on the left; draggable splitter, last width remembered). Docked pane layout is unchanged.
 - **Video preview — no ffmpeg for playback** — Preview plays MP4/M4V/WebM/MOV directly only. MKV/TS/etc. → **Open with default app**. No remux/transcode/“Preparing playback…” (ffmpeg was locking rename/move/delete).
 - **Video preview — HEVC / clearer codec fallbacks** — Preview enables Chromium `PlatformHEVCDecoderSupport` (HEVC in MP4/MOV/M4V via the OS decoder; Windows: HEVC Video Extensions). Hostile audio (AC-3/DTS) and unsupported HEVC get an explicit tip + Open with default app.

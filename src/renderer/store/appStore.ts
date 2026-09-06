@@ -8672,7 +8672,15 @@ export const useAppStore = create<AppState>()((set, get) => {
         const folder = get().listing.path
         get().invalidateContentThumbs([...res.updated, ...paths, ...(folder ? [folder] : [])])
         if (folder) void refreshMediaLibraryFolder(folder)
-        get().notify(watched ? 'Marked as watched' : 'Marked as unwatched')
+        get().notify(
+          watched
+            ? res.updated.length === 1
+              ? 'Marked as watched'
+              : `Marked ${res.updated.length} items as watched`
+            : res.updated.length === 1
+              ? 'Marked as unwatched'
+              : `Marked ${res.updated.length} items as unwatched`
+        )
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)
       }

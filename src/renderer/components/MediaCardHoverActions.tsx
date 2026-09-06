@@ -30,7 +30,13 @@ export function MediaCardHoverActions({ entry, watched }: Props): JSX.Element | 
   const isWatched = watched === true
 
   return (
-    <div className="media-card-hover-actions" role="toolbar" aria-label="Media actions">
+    <>
+      {isWatched ? (
+        <span className="media-card-watched-badge" title="Watched" aria-label="Watched">
+          <Eye size={12} strokeWidth={2.5} aria-hidden />
+        </span>
+      ) : null}
+      <div className="media-card-hover-actions" role="toolbar" aria-label="Media actions">
       {downloadSource ? (
         <button
           type="button"
@@ -98,6 +104,7 @@ export function MediaCardHoverActions({ entry, watched }: Props): JSX.Element | 
           <Eye size={16} strokeWidth={2} aria-hidden />
         )}
       </button>
-    </div>
+      </div>
+    </>
   )
 }

@@ -18,6 +18,7 @@ import {
   isGenericMediaFolderName,
   isMediaTitleFolder,
   isSeasonFolderName,
+  shouldRecurseMediaWatched,
   classifyMediaFromNames,
   isMoviePartVideoName,
   isMultipartMovieFolder,
@@ -608,6 +609,16 @@ describe('isSeasonFolderName', () => {
     expect(isSeasonFolderName('S02')).toBe(true)
     expect(isSeasonFolderName('Specials')).toBe(true)
     expect(isSeasonFolderName('Breaking Bad')).toBe(false)
+  })
+})
+
+describe('shouldRecurseMediaWatched', () => {
+  it('recurses shows and season folders, not movies', () => {
+    expect(shouldRecurseMediaWatched('Breaking Bad', 'show')).toBe(true)
+    expect(shouldRecurseMediaWatched('Season 01', undefined)).toBe(true)
+    expect(shouldRecurseMediaWatched('S02', null)).toBe(true)
+    expect(shouldRecurseMediaWatched('Inception (2010)', 'movie')).toBe(false)
+    expect(shouldRecurseMediaWatched('Movies', undefined)).toBe(false)
   })
 })
 

@@ -2209,6 +2209,22 @@ body.right-dragging * {
   object-position: center;
   border-radius: 3px;
 }
+.media-card-watched-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  color: #f5f5f5;
+  background: color-mix(in srgb, #111 72%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, #000 40%, transparent);
+  pointer-events: none;
+}
 .media-card-hover-actions {
   position: absolute;
   left: 50%;

@@ -12,6 +12,7 @@ import {
   isMediaNameMissError,
   isNeedsMediaPickError,
   isSeasonFolderName,
+  shouldRecurseMediaWatched,
   mediaSearchStem,
   normalizeEpisodeFields,
   parseMediaFileName,
@@ -615,10 +616,43 @@ export async function getMediaMetadataView(rawPath: string): Promise<{
   }
 }
 
-export async function setWatchedMany(rawPaths: string[], watched: boolean): Promise<{ updated: string[] }> {
-  const updated: string[] = []
+async function expandWatchedTargets(rawPaths: string[]): Promise<string[]> {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const add = (p: string): void => {
+    const key = p.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push(p)
+  }
+
   for (const raw of rawPaths) {
     const p = requireAbsolute(raw)
+    let st
+    try {
+      st = await fsp.stat(p)
+    } catch {
+      continue
+    }
+    if (st.isFile()) {
+      add(p)
+      continue
+    }
+    if (!st.isDirectory()) continue
+    add(p)
+    const meta = await readMediaMetadata(p)
+    if (!shouldRecurseMediaWatched(path.basename(p), meta?.kind)) continue
+    const videos: string[] = []
+    await walkMediaTree(p, videos, new Set())
+    for (const v of videos) add(v)
+  }
+  return out
+}
+
+export async function setWatchedMany(rawPaths: string[], watched: boolean): Promise<{ updated: string[] }> {
+  const targets = await expandWatchedTargets(rawPaths)
+  const updated: string[] = []
+  for (const p of targets) {
     const meta = await readMediaMetadata(p)
     if (!meta) continue
     if (meta.watched === watched) {

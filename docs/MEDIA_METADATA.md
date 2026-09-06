@@ -60,7 +60,7 @@ Shown only on **folders** and **video files**. Remotes (`mfe-remote://`) are ski
 | **Consolidate subtitles** | Copy the first English subtitle next to each video, then Recycle the `Subs` / `Subtitles` tree. Confirms first. |
 | **Edit metadata…** | Single item only. Dialog to fix title, year, language, country, genres, directors, actors, synopsis, watched, and (episodes) season / episode / show title. Does not edit ratings or cover (use **Change cover…**). Preserves source id / kind / ratings. With no card yet, saves a **manual** entry. Also on the preview hero and media-card hover pencil. |
 | **Change cover…** | Single item only. Pick a poster from Plex / TMDB, **browse for your own image**, or keep the current cover. Does **not** change Plex’s own selected poster. |
-| **Mark as Watched** | Toggles to **Mark as Unwatched** when the selection is already watched. Needs stored metadata. |
+| **Mark as Watched** | Toggles to **Mark as Unwatched** when the selection is already watched. Needs stored metadata. On a **series** or **season** folder, also marks episode files under it. |
 
 Status-bar progress shows while a batch runs; **Cancel** stops between items.
 
@@ -112,7 +112,7 @@ A **Search as** (no match, or **Search as…** on **Which title?**) sends the ty
 
 | View | Episode with metadata | Movie / show folder with a cover |
 | ---- | --------------------- | -------------------------------- |
-| Icon / thumbnail | `S01E07` + episode title **only when stored** on the file’s media metadata (not guessed from the filename). Off via **Show season/episode and title on icon tiles** → filename | Poster as the thumb. **XL icons only** hides the name when a poster/strip is shown (same for movie files and folders) |
+| Icon / thumbnail | `S01E07` + episode title **only when stored** on the file’s media metadata (not guessed from the filename). Off via **Show season/episode and title on icon tiles** → filename | Poster as the thumb. **Watched** items show a small eye badge (top-right). **XL icons only** hides the name when a poster/strip is shown (same for movie files and folders) |
 | Details / List | Always the filename | Always the folder name |
 | Tooltip | Always the filename | Always the folder name |
 
@@ -170,7 +170,7 @@ Plex does not need to be running for local bundle posters. The on-disk layout is
 
 `watched` is a field on the item’s JSON. Extract / Download / Update **keep** it.
 
-**Mark as Watched** (menu or preview) only changes items that already have metadata.
+**Mark as Watched** (menu, preview, or media-card hover) only changes items that already have metadata. On a **movie** folder it toggles that folder. On a **series** folder (`kind: show`) or a **season** folder (`Season N` / `S01` / `Specials`) it also marks every episode video under that tree that already has metadata (same for Unwatched).
 
 When metadata is written, `media_metadata_container` is set on the library folder and on the title folder. **Only then** does that folder’s toolbar show:
 
