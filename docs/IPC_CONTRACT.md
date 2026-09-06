@@ -211,8 +211,11 @@ Requires `isDevGateActive()`. Unpublished product surface.
 | `userMetadata:setMany` | `{ paths[], values }` | merges patch into each path |
 | `userMetadata:validateText` | `{ value, fieldId }` | protected whole-value regex |
 | `userMetadata:testPattern` | `{ pattern, flags?, value, message? }` | Settings Test strip |
-| `userMetadata:exportPack` | `{ folderPath?, zipPath? }` | Metadata pack ZIP (values + all sets) |
-| `userMetadata:importPack` | `{ zipPath?, destFolder?, mergeDefinitions? }` | apply pack + optional set merge (bindings not auto-created) |
+| `userMetadata:exportPack` | `{ folderPath?, zipPath? }` | Metadata pack ZIP (values + all sets; files **and** dirs with `mfe_meta`) |
+| `userMetadata:importPack` | `{ zipPath?, destFolder?, mergeDefinitions?, dryRun? }` | apply pack + optional set merge; `dryRun: true` → diff only (no writes). Bindings not auto-created |
+| `userMetadata:scanOrphans` | `{ folderPath }` | `{ orphans: [{ path, kind: 'field'\|'option', fieldId, optionId?, keyGuess? }] }` |
+| `userMetadata:clearOrphans` | `{ paths?, orphans }` | strip orphan field keys / option ids; `{ ok, cleared }` |
+| `userMetadata:reconnectOrphans` | `{ mappings: [{ path, fromFieldId, toFieldId }] }` | remap orphan field ids when target has same key + type; `{ ok, remapped }` |
 
 Sets and folder bindings live in settings (`userMetadata.sets` / `bindings`); renderer resolves which set applies to a path.
 

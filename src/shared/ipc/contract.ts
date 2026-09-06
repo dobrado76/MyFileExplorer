@@ -196,6 +196,9 @@ export const IPC = {
   userMetadataTestPattern: 'userMetadata:testPattern',
   userMetadataExportPack: 'userMetadata:exportPack',
   userMetadataImportPack: 'userMetadata:importPack',
+  userMetadataScanOrphans: 'userMetadata:scanOrphans',
+  userMetadataClearOrphans: 'userMetadata:clearOrphans',
+  userMetadataReconnectOrphans: 'userMetadata:reconnectOrphans',
 
   /** Slideshow (gated by settings.slideshowFeaturesEnabled in renderer). */
   slideshowListImages: 'slideshow:listImages',

@@ -132,11 +132,18 @@ Writes use `withPreservedHostTimes` (D61 pattern). win32 local NTFS only; remote
 
 ## UX
 
-- Settings → **Metadata**: **Enable** (off by default), optional **Show toolbar button**, summary counts, **Manage sets…** opens the floating User Metadata manager (set tabs, Assignments, Pack). Guide edits: field validation + Test strip live in the manager.
+- Settings → **Metadata**: **Enable** (off by default), optional **Show toolbar button**, summary counts, **Manage sets…** opens the floating User Metadata manager (set tabs, Assignments, Pack, Hygiene, Searches). Guide edits: field validation + Test strip live in the manager. **Undo** / Ctrl+Z restores prior catalog definitions (session stack; does not reverse ADS).
 - Context **Metadata set…** (folder / empty pane): Assign set · No metadata (this folder / + subfolders) · Remove explicit assignment. **No sets defined…** opens the manager.
 - Context **Metadata…** (edit values): only when the selection shares one non-null resolved set.
 - Preview: pinned **Metadata** editor above Details when a set applies; otherwise omitted.
-- Details: while the list cwd resolves to a non-null set, fields with `showAsColumn` merge into effective columns; leave / No metadata → those columns disappear. Column ids remain `meta:<fieldId>`.
+- Details: while the list cwd resolves to a non-null set, fields with `showAsColumn` merge into effective columns; leave / No metadata → those columns disappear. Column ids remain `meta:<fieldId>`. **All field types** are editable in Details: boolean cycle, choice / multi-choice menus, date / text / number inline edit, icon tags toggles; links Open / Reveal when filled (empty links click-to-edit).
+- **Bulk Metadata…** (multi-select): per field **Leave** (default) / **Set** / **Clear**; “varies” when values differ. Save writes only Set/Clear keys (`Clear` → null). **Clear all** still wipes the whole stream.
+- **Copy / Paste metadata** (context → Metadata): session clipboard `{ setId, values }` — copy all non-empty fields from the primary selection; paste onto other selected paths that share the same set.
+- **In-folder facets** (toolbar): when a set resolves for the cwd, filter chips for boolean / choice / icon tags / multi-choice (session-only; cleared when leaving the folder). Distinct from Power Search and the name eye filter.
+- **Icon badge**: at most one field per set with `showOnIcon` overlays a short label (boolean/choice) or first icon-tag glyph on the row icon.
+- Field extras: `required`, `defaultValue` (seeded in Metadata… when empty), `showOnIcon`, `columnWidthHint`.
+- **Hygiene** (manager): scan / clear / reconnect orphan `mfe_meta` keys under a folder.
+- **Pack Preview / Apply**: dry-run diff before writing; export includes directories with streams.
 - **Item editors** (preview / Metadata…): files use the **parent** folder’s binding. Folders use a binding on **themselves** first; if none, they inherit the **parent** folder’s binding (so a non-recursive “this folder only” assignment still covers direct child folders as list rows). Opening that child does not show columns/editors for its contents unless it has its own assignment (or a recursive ancestor).
 - **Cwd / columns / Assign set**: still resolve the folder path itself (exact, else longest recursive ancestor).
 
@@ -152,11 +159,21 @@ hasmeta:
 hasmeta.review_state:
 ```
 
-Parser maps keys → opaque field id unions via the catalog of all sets. Structured Power Search builder stores opaque field ids.
+Parser maps keys → opaque field id unions via the catalog of all sets. The structured builder picks a **metadata set** first, then a field from that set only (not a flat list of every field).
 
 ## Metadata pack
 
-ZIP compress still omits ADS. D70 proposes a dedicated **Metadata pack** (ZIP of relative paths → `mfe_meta` JSON + definitions sidecar with **all sets**) so values can cross non-NTFS copies. Distinct from Compress-to-ZIP. Apply writes streams with preserved host times on NTFS; merges sets by id; does **not** auto-create folder bindings.
+ZIP compress still omits ADS. D70 proposes a dedicated **Metadata pack** (ZIP of relative paths → `mfe_meta` JSON + definitions sidecar with **all sets**) so values can cross non-NTFS copies. Distinct from Compress-to-ZIP. Apply writes streams with preserved host times on NTFS; merges sets by id; does **not** auto-create folder bindings. Manager **Preview…** runs a dry-run diff; **Apply** writes after review. Export walks files **and directories**.
+
+## Scripts bridge
+
+When user metadata is enabled and a **selection** script run shares one resolved set, the runner writes a sibling temp JSON and sets:
+
+```text
+MFE_META_MANIFEST=<path>
+```
+
+Payload: `{ setId, setName, fields, items: [{ path, values }] }`. Deleted when the process exits (same lifecycle as `--input-list`). See [SCRIPTS.md](SCRIPTS.md).
 
 ## Non-goals
 

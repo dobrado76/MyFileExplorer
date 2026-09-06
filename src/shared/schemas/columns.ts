@@ -725,7 +725,7 @@ export function columnMeta(
       id,
       label: field?.name ?? fid,
       group: 'userMeta',
-      defaultWidth: 140,
+      defaultWidth: field?.columnWidthHint ?? 140,
       async: true
     }
   }

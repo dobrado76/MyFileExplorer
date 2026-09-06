@@ -38,17 +38,30 @@ import {
 import { resolveFolderViewForTab } from '@shared/folderViews'
 import {
   allUserMetadataFields,
+  DEFAULT_ICON_TAG_NAME,
   fieldById,
+  formatBooleanFieldValue,
   formatIconTagsColumnValue,
+  iconTagOptionColor,
+  optionById,
   parseIconTagsColumnValue,
   parseMetaColumnFieldId
 } from '@shared/schemas/userMetadata'
 import { resolveMetadataSet } from '@shared/userMetadataBindings'
+import { normalizeIconPack } from '@shared/schemas/iconPack'
+import { packIconElement } from '../lib/iconPacks'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
 import { linkBaseDirForItem } from '../lib/userMetadataLink'
 import { UserMetadataLinkCell } from './UserMetadataLinkCell'
 import { UserMetadataIconTagsCell } from './UserMetadataIconTagsToggle'
+import {
+  UserMetadataBooleanCell,
+  UserMetadataChoiceCell,
+  UserMetadataDateCell,
+  UserMetadataMultiChoiceCell,
+  UserMetadataTextCell
+} from './UserMetadataSimpleCells'
 import { api, call, IpcError } from '../lib/ipc'
 import { pathKey } from '@shared/paths'
 import { virtualFolderOpenCwdPath } from '@shared/virtualFolder'
@@ -84,6 +97,10 @@ import {
   formatMediaRatingCopyLine
 } from '@shared/mediaRatings'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
+import {
+  isExcludedByUserMetadataFacets,
+  userMetadataFacetsActive
+} from '../lib/userMetadataFacets'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { visibleIndexRange } from '@shared/visibleIndexRange'
@@ -334,9 +351,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
   const bumpColumnMeta = useAppStore((s) => s.bumpColumnMeta)
+  const mediaLibrary = useAppStore((s) => s.mediaLibrary)
+  const userMetadataSession = useAppStore((s) => s.userMetadataSession)
+  const mergeUserMetadataSessionValues = useAppStore((s) => s.mergeUserMetadataSessionValues)
+  const clearUserMetadataSessionPath = useAppStore((s) => s.clearUserMetadataSessionPath)
   const notify = useAppStore((s) => s.notify)
   const hideNameExtensions = settings.hideNameExtensions
-  const mediaLibrary = useAppStore((s) => s.mediaLibrary)
   const labelFor = (entry: DirEntry): string => {
     if (entry.ext.toLowerCase() === 'mfevirtual' || entry.name.toLowerCase().endsWith('.mfevirtual')) {
       return displayFileName(entry.name, hideNameExtensions)
@@ -440,6 +460,23 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     () => allUserMetadataFields(umSettings),
     [umSettings]
   )
+  const iconBadgeField = useMemo(
+    () => userMetaFields.find((f) => f.showOnIcon === true) ?? null,
+    [userMetaFields]
+  )
+  const umFacets =
+    userMetadataSession.folderPath &&
+    folderPath &&
+    samePath(userMetadataSession.folderPath, folderPath)
+      ? userMetadataSession.facets
+      : {}
+  const umFacetsActive = userMetadataEnabled && userMetadataFacetsActive(umFacets)
+  const umValuesByPath =
+    userMetadataSession.folderPath &&
+    folderPath &&
+    samePath(userMetadataSession.folderPath, folderPath)
+      ? userMetadataSession.valuesByPath
+      : {}
   /** Column picker Media Metadata section: library folder or recognized subfolder. */
   const showMediaMetadataColumns =
     mediaMetadataEnabled &&
@@ -504,6 +541,51 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     },
     [isProjectedVf, projectedMountPath]
   )
+
+  const userMetaIconBadge = useCallback(
+    (entry: DirEntry): JSX.Element | null => {
+      if (!iconBadgeField) return null
+      const raw = umValuesByPath[entry.path]?.[iconBadgeField.id]
+      if (iconBadgeField.type === 'boolean') {
+        if (typeof raw !== 'boolean') return null
+        const label = formatBooleanFieldValue(iconBadgeField, raw)
+        return (
+          <span className="user-meta-icon-badge" title={`${iconBadgeField.name}: ${label}`}>
+            {label.slice(0, 3)}
+          </span>
+        )
+      }
+      if (iconBadgeField.type === 'choice' && typeof raw === 'string') {
+        const opt = optionById(iconBadgeField, raw)
+        if (!opt) return null
+        return (
+          <span className="user-meta-icon-badge" title={`${iconBadgeField.name}: ${opt.label}`}>
+            {(opt.label || opt.key).slice(0, 3)}
+          </span>
+        )
+      }
+      if (iconBadgeField.type === 'iconTags' && Array.isArray(raw)) {
+        const first = raw.find((id): id is string => typeof id === 'string')
+        if (!first) return null
+        const opt = optionById(iconBadgeField, first)
+        if (!opt) return null
+        const pack = normalizeIconPack(opt.lucidePack)
+        const name = opt.lucideName?.trim() || DEFAULT_ICON_TAG_NAME
+        const color = iconTagOptionColor(opt)
+        return (
+          <span
+            className="user-meta-icon-badge is-glyph"
+            title={`${iconBadgeField.name}: ${opt.label}`}
+          >
+            {packIconElement(pack, name, { size: 10, color, strokeWidth: 2 })}
+          </span>
+        )
+      }
+      return null
+    },
+    [iconBadgeField, umValuesByPath]
+  )
+
   const gitByRoot = useAppStore((s) => s.gitByRoot)
   const virtualFolderMode = Boolean(listing.virtualFolder)
   const detailsColumns = useMemo(() => {
@@ -931,6 +1013,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (applyMedia) {
       filtered = filtered.filter((e) => !isExcludedByMediaLibrary(e.path, mediaLibrary))
     }
+    if (umFacetsActive && !recycleMode && !searchMode) {
+      filtered = filtered.filter(
+        (e) =>
+          !isExcludedByUserMetadataFacets(umValuesByPath[e.path], umFacets, userMetaFields)
+      )
+    }
     const foldersFirst =
       recycleMode || searchMode
         ? settings.foldersFirst
@@ -1014,7 +1102,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     searchMode,
     showFolderStatistics,
     mediaLibrary,
-    folderPath
+    folderPath,
+    umFacetsActive,
+    umFacets,
+    umValuesByPath,
+    userMetaFields
   ])
   const shouldShowLoadingOverlay =
     listing.loading && listing.loadingOverlay === true && entries.length > 0
@@ -1133,8 +1225,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     folderPath
   )
   useEffect(() => {
-    if (!columnMetaBump.path || metaFetchColumns.length === 0) return
+    if (!columnMetaBump.path) return
     const target = columnMetaBump.path
+    clearUserMetadataSessionPath(target)
+    if (metaFetchColumns.length === 0) return
     if (samePath(target, folderPath)) {
       setMetaByPath({})
       requestedMetaRef.current.clear()
@@ -1150,7 +1244,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     for (const k of [...requestedMetaRef.current]) {
       if (samePath(k, target)) requestedMetaRef.current.delete(k)
     }
-  }, [columnMetaBump.rev, columnMetaBump.path, folderPath, metaFetchColumns])
+  }, [columnMetaBump.rev, columnMetaBump.path, folderPath, metaFetchColumns, clearUserMetadataSessionPath])
 
   // Runs after invalidate-on-bump so requestedMeta is cleared before we enqueue again.
   useEffect(() => {
@@ -1202,6 +1296,51 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     rowHeight,
     // After ADS/metadata saves, bump clears rows from metaByPath + requestedMeta —
     // must re-run so visible cells refill (mtime often unchanged on NTFS ADS).
+    columnMetaBump.rev
+  ])
+
+  // Facet filter + icon badge: raw user-metadata values (session cache).
+  useEffect(() => {
+    if (recycleMode || searchMode || !userMetadataEnabled) return
+    if (!umFacetsActive && !iconBadgeField) return
+    const needAll = umFacetsActive
+    const paths = needAll
+      ? sourceEntries.map((e) => e.path)
+      : visibleItemPaths
+    if (paths.length === 0) return
+    const missing = paths.filter((p) => umValuesByPath[p] === undefined)
+    if (missing.length === 0) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const chunk = 80
+        const merged: Record<string, Record<string, unknown>> = {}
+        for (let i = 0; i < missing.length; i += chunk) {
+          const slice = missing.slice(i, i + chunk)
+          const res = await call(api.userMetadata.getMany({ paths: slice }))
+          if (cancelled) return
+          for (const p of slice) {
+            merged[p] = { ...(res[p]?.values ?? {}) }
+          }
+        }
+        if (!cancelled && Object.keys(merged).length) mergeUserMetadataSessionValues(merged)
+      } catch {
+        /* soft */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    recycleMode,
+    searchMode,
+    userMetadataEnabled,
+    umFacetsActive,
+    iconBadgeField,
+    sourceEntries,
+    visibleItemPaths,
+    umValuesByPath,
+    mergeUserMetadataSessionValues,
     columnMetaBump.rev
   ])
 
@@ -2560,6 +2699,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     />
                     {gitBadge(entry)}
                     {projectionBadge(entry)}
+                    {userMetaIconBadge(entry)}
                   </span>
                   {renameSource === 'files' &&
                   renamingPath !== null &&
@@ -2623,13 +2763,38 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           ? <MediaMetadataRatingsCell raw={raw} />
                           : c.id === 'mmGenres' && text
                             ? <MediaMetadataGenresCell text={text} />
-                          : metaField?.type === 'link' && text
-                          ? (
-                              <UserMetadataLinkCell
-                                text={text}
-                                baseDir={linkBaseDirForItem(entry.path, entry.kind === 'dir')}
-                              />
-                            )
+                          : metaField?.type === 'link'
+                          ? text
+                            ? (
+                                <UserMetadataLinkCell
+                                  text={text}
+                                  baseDir={linkBaseDirForItem(entry.path, entry.kind === 'dir')}
+                                />
+                              )
+                            : (
+                                <UserMetadataTextCell
+                                  field={metaField}
+                                  text={text}
+                                  onCommit={(next) => {
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
                           : metaField?.type === 'iconTags'
                             ? (
                                 <UserMetadataIconTagsCell
@@ -2648,6 +2813,131 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                                     if (selected.has(optionId)) selected.delete(optionId)
                                     else selected.add(optionId)
                                     const next = selected.size ? [...selected] : null
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
+                          : metaField?.type === 'boolean'
+                            ? (
+                                <UserMetadataBooleanCell
+                                  field={metaField}
+                                  text={text}
+                                  onCommit={(next) => {
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
+                          : metaField?.type === 'choice'
+                            ? (
+                                <UserMetadataChoiceCell
+                                  field={metaField}
+                                  text={text}
+                                  onCommit={(next) => {
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
+                          : metaField?.type === 'date'
+                            ? (
+                                <UserMetadataDateCell
+                                  field={metaField}
+                                  text={text}
+                                  onCommit={(next) => {
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
+                          : metaField?.type === 'multiChoice'
+                            ? (
+                                <UserMetadataMultiChoiceCell
+                                  field={metaField}
+                                  text={text}
+                                  onCommit={(next) => {
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
+                          : metaField?.type === 'text' || metaField?.type === 'number'
+                            ? (
+                                <UserMetadataTextCell
+                                  field={metaField}
+                                  text={text}
+                                  onCommit={(next) => {
                                     void (async () => {
                                       try {
                                         await call(

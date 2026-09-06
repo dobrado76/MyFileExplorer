@@ -74,6 +74,7 @@ import {
 import {
   findExactMetadataBinding,
   removeMetadataBinding,
+  resolveMetadataSet,
   upsertMetadataBinding
 } from '@shared/userMetadataBindings'
 import {
@@ -138,6 +139,11 @@ import {
   type MediaWatchedFilter
 } from '@shared/mediaMetadata'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
+import {
+  isExcludedByUserMetadataFacets,
+  userMetadataFacetsActive,
+  userMetadataFacetsFilterKey
+} from '../lib/userMetadataFacets'
 import { isExcludedByViewFilter, listingHasAllSelected } from '../lib/viewFilter'
 import {
   mergeDismissedPaths,
@@ -404,6 +410,19 @@ export function emptyMediaLibrary(): MediaLibraryState {
     watchedFilter: 'all',
     genreFilter: null
   }
+}
+
+/** Session-only in-folder user-metadata facets (not persisted). */
+export type UserMetadataSessionState = {
+  folderPath: string
+  /** fieldId → selected option ids or `'true'`/`'false'`. */
+  facets: Record<string, string[]>
+  /** Raw ADS values keyed by path (for facet filter + icon badge). */
+  valuesByPath: Record<string, Record<string, unknown>>
+}
+
+export function emptyUserMetadataSession(): UserMetadataSessionState {
+  return { folderPath: '', facets: {}, valuesByPath: {} }
 }
 
 /** Temporary preview override: `ads: null` = `$DATA` (original); else `VER_k`. */
@@ -706,6 +725,8 @@ type AppState = {
   slideshow: SlideshowSession
   /** Toolbar filters for a folder marked as a media metadata container. */
   mediaLibrary: MediaLibraryState
+  /** Session-only metadata facet filters + value cache for the current folder. */
+  userMetadataSession: UserMetadataSessionState
   /**
    * Git repo status keyed by lowercase canonical root path (D64).
    * Updated by `git-status` events and refresh/getStatus actions.
@@ -1091,6 +1112,10 @@ type AppState = {
   ): Promise<void>
   setMediaLibraryWatchedFilter(value: MediaWatchedFilter): void
   setMediaLibraryGenreFilter(genre: string | null): void
+  setUserMetadataFacet(fieldId: string, selected: string[]): void
+  clearUserMetadataFacets(): void
+  mergeUserMetadataSessionValues(valuesByPath: Record<string, Record<string, unknown>>): void
+  clearUserMetadataSessionPath(path: string): void
 
   // Quick access
   quickAccessEntries(): QuickAccessEntry[]
@@ -2119,6 +2144,13 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (get().activeTabId === tabId) {
       stopOfflinePoll()
       void refreshMediaLibraryFolder(path)
+      const sess = get().userMetadataSession
+      if (!sess.folderPath || !samePath(sess.folderPath, path)) {
+        set({
+          userMetadataSession: { folderPath: path, facets: {}, valuesByPath: {} }
+        })
+        viewOrderCache = null
+      }
     }
     armWatchesForPath(path, sortedEntries.length)
     if (tabId === get().activeTabId) {
@@ -2669,8 +2701,9 @@ export const useAppStore = create<AppState>()((set, get) => {
   function viewOrderFilterKey(s: {
     settings: { viewFilterEnabled: boolean; viewFilterPatterns: string[] }
     mediaLibrary: MediaLibraryState
+    userMetadataSession: UserMetadataSessionState
   }): string {
-    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}|${s.mediaLibrary.watchedFilter}|${s.mediaLibrary.genreFilter ?? ''}`
+    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}|${s.mediaLibrary.watchedFilter}|${s.mediaLibrary.genreFilter ?? ''}|${userMetadataFacetsFilterKey(s.userMetadataSession.facets)}`
   }
 
   /** Sorted/filtered paths matching the file view (cached; pruned in place on delete). */
@@ -2708,6 +2741,17 @@ export const useAppStore = create<AppState>()((set, get) => {
       !tab.search.active &&
       s.listing.path &&
       samePath(s.listing.path, s.mediaLibrary.folderPath)
+    const umSettings = s.settings.userMetadata ?? defaultUserMetadataSettings
+    const applyUmFacets =
+      !tab.search.active &&
+      umSettings.enabled === true &&
+      s.listing.path &&
+      s.userMetadataSession.folderPath &&
+      samePath(s.listing.path, s.userMetadataSession.folderPath) &&
+      userMetadataFacetsActive(s.userMetadataSession.facets)
+    const umFacetFields = applyUmFacets
+      ? (resolveMetadataSet(s.listing.path, umSettings)?.fields ?? [])
+      : []
     const foldersFirst = tab.search.active
       ? s.settings.foldersFirst
         : listingFoldersFirst({
@@ -2729,6 +2773,16 @@ export const useAppStore = create<AppState>()((set, get) => {
           return false
         }
         if (applyMedia && isExcludedByMediaLibrary(e.path, s.mediaLibrary)) return false
+        if (
+          applyUmFacets &&
+          isExcludedByUserMetadataFacets(
+            s.userMetadataSession.valuesByPath[e.path],
+            s.userMetadataSession.facets,
+            umFacetFields
+          )
+        ) {
+          return false
+        }
         return true
       }),
       sort,
@@ -3230,6 +3284,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     redoStack: [],
     slideshow: emptySlideshowSession(),
     mediaLibrary: emptyMediaLibrary(),
+    userMetadataSession: emptyUserMetadataSession(),
 
     activeTab() {
       const s = get()
@@ -8623,6 +8678,75 @@ export const useAppStore = create<AppState>()((set, get) => {
         genre
       )
       void get().applySettingsPatch({ mediaMetadata: { libraryFilters } })
+    },
+
+    setUserMetadataFacet(fieldId, selected) {
+      const folder = get().listing.path
+      if (!folder) return
+      set((s) => {
+        const same =
+          s.userMetadataSession.folderPath !== '' &&
+          samePath(s.userMetadataSession.folderPath, folder)
+        const facets = { ...(same ? s.userMetadataSession.facets : {}) }
+        if (selected.length === 0) delete facets[fieldId]
+        else facets[fieldId] = selected
+        return {
+          userMetadataSession: {
+            folderPath: folder,
+            facets,
+            valuesByPath: same ? s.userMetadataSession.valuesByPath : {}
+          }
+        }
+      })
+      viewOrderCache = null
+    },
+
+    clearUserMetadataFacets() {
+      set((s) => ({
+        userMetadataSession: {
+          ...s.userMetadataSession,
+          facets: {}
+        }
+      }))
+      viewOrderCache = null
+    },
+
+    mergeUserMetadataSessionValues(valuesByPath) {
+      const folder = get().listing.path
+      if (!folder) return
+      set((s) => {
+        const same =
+          s.userMetadataSession.folderPath !== '' &&
+          samePath(s.userMetadataSession.folderPath, folder)
+        return {
+          userMetadataSession: {
+            folderPath: folder,
+            facets: same ? s.userMetadataSession.facets : {},
+            valuesByPath: {
+              ...(same ? s.userMetadataSession.valuesByPath : {}),
+              ...valuesByPath
+            }
+          }
+        }
+      })
+      viewOrderCache = null
+    },
+
+    clearUserMetadataSessionPath(path) {
+      set((s) => {
+        if (samePath(path, s.listing.path)) {
+          return {
+            userMetadataSession: { ...s.userMetadataSession, valuesByPath: {} }
+          }
+        }
+        const next = { ...s.userMetadataSession.valuesByPath }
+        for (const k of Object.keys(next)) {
+          if (samePath(k, path)) delete next[k]
+        }
+        return {
+          userMetadataSession: { ...s.userMetadataSession, valuesByPath: next }
+        }
+      })
     },
 
     async calculateFolderStatistics(folderPath, opts) {

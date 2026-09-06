@@ -25,6 +25,11 @@ import { compileWholeValuePattern, testWholeValueSync } from '../shared/userMeta
 import { buildSearchQuery, defaultPowerSearchState } from '../shared/searchBuilder'
 import { defaultSettings, settingsSchema } from '../shared/schemas/settings'
 import { buildSettingsExportDocument, parseSettingsImport } from '../shared/schemas/settingsExport'
+import {
+  MAX_USER_METADATA_CATALOG_UNDO,
+  popCatalogUndo,
+  pushCatalogUndo
+} from '../shared/userMetadataCatalogUndo'
 
 const reviewOpt = {
   id: newUserMetadataOptionId(),
@@ -39,14 +44,18 @@ const fields: UserMetadataField[] = [
     name: 'Review state',
     type: 'choice',
     choices: [reviewOpt],
-    showAsColumn: true
+    showAsColumn: true,
+    required: false,
+    showOnIcon: false,
   },
   {
     id: newUserMetadataFieldId(),
     key: 'rating',
     name: 'Rating',
     type: 'number',
-    showAsColumn: false
+    showAsColumn: false,
+    required: false,
+    showOnIcon: false,
   },
   {
     id: newUserMetadataFieldId(),
@@ -60,7 +69,9 @@ const fields: UserMetadataField[] = [
         message: 'Enter a valid email address.'
       }
     },
-    showAsColumn: false
+    showAsColumn: false,
+    required: false,
+    showOnIcon: false,
   }
 ]
 
@@ -87,7 +98,9 @@ describe('boolean field labels', () => {
     name: 'Task',
     type: 'boolean',
     boolean: { trueLabel: 'Done', falseLabel: 'Todo' },
-    showAsColumn: true
+    showAsColumn: true,
+    required: false,
+    showOnIcon: false,
   }
 
   it('defaults to Yes/No when labels omitted', () => {
@@ -96,7 +109,9 @@ describe('boolean field labels', () => {
       key: 'flag',
       name: 'Flag',
       type: 'boolean',
-      showAsColumn: false
+      showAsColumn: false,
+      required: false,
+      showOnIcon: false,
     }
     expect(formatBooleanFieldValue(f, true)).toBe('Yes')
     expect(formatBooleanFieldValue(f, false)).toBe('No')
@@ -132,7 +147,9 @@ describe('link field values', () => {
       key: 'homepage',
       name: 'Homepage',
       type: 'link',
-      showAsColumn: true
+      showAsColumn: true,
+      required: false,
+      showOnIcon: false,
     })
     expect(parsed.type).toBe('link')
   })
@@ -187,21 +204,27 @@ describe('link field values', () => {
               key: 'title',
               name: 'Title',
               type: 'text',
-              showAsColumn: false
+              showAsColumn: false,
+              required: false,
+              showOnIcon: false,
             },
             {
               id: newUserMetadataFieldId(),
               key: 'bad',
               name: 'Bad',
               type: 'not_a_real_type',
-              showAsColumn: false
+              showAsColumn: false,
+              required: false,
+              showOnIcon: false,
             },
             {
               id: newUserMetadataFieldId(),
               key: 'site',
               name: 'Site',
               type: 'link',
-              showAsColumn: true
+              showAsColumn: true,
+              required: false,
+              showOnIcon: false,
             }
           ]
         }
@@ -234,7 +257,9 @@ describe('icon tags', () => {
     name: 'Tags',
     type: 'iconTags',
     choices: [tagA, tagB],
-    showAsColumn: true
+    showAsColumn: true,
+    required: false,
+    showOnIcon: false,
   }
 
   it('requires lucideName on icon tag options', () => {
@@ -310,7 +335,9 @@ describe('meta search parse + match', () => {
       name: 'State',
       type: 'choice',
       choices: [optA],
-      showAsColumn: false
+      showAsColumn: false,
+      required: false,
+      showOnIcon: false,
     }
     const fB: UserMetadataField = {
       id: newUserMetadataFieldId(),
@@ -318,7 +345,9 @@ describe('meta search parse + match', () => {
       name: 'State',
       type: 'choice',
       choices: [optB],
-      showAsColumn: false
+      showAsColumn: false,
+      required: false,
+      showOnIcon: false,
     }
     const catalog = [fA, fB]
     const q = parseEverythingQuery('meta.review_state:approved', { userMetadataFields: catalog })
@@ -430,5 +459,25 @@ describe('settings export userMetadata', () => {
     const doc = buildSettingsExportDocument({ settings, networkHosts: [] })
     const parsed = parseSettingsImport(doc)
     expect(parsed.settings.userMetadata.showToolbarButton).toBe(true)
+  })
+})
+
+describe('catalog undo stack', () => {
+  it('pushes, pops, and caps at 30', () => {
+    let stack: import('../shared/schemas/userMetadata').UserMetadataSettings[] = []
+    for (let i = 0; i < 35; i++) {
+      stack = pushCatalogUndo(stack, {
+        enabled: i % 2 === 0,
+        showToolbarButton: false,
+        sets: [],
+        bindings: []
+      })
+    }
+    expect(stack.length).toBe(MAX_USER_METADATA_CATALOG_UNDO)
+    const popped = popCatalogUndo(stack)
+    expect(popped).not.toBeNull()
+    expect(popped!.snapshot.enabled).toBe(true) // i=34 even
+    expect(popped!.next.length).toBe(MAX_USER_METADATA_CATALOG_UNDO - 1)
+    expect(popCatalogUndo([])).toBeNull()
   })
 })

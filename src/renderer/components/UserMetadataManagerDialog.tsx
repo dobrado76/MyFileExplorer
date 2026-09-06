@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   MAX_CHOICE_OPTIONS,
   MAX_USER_METADATA_FIELDS,
@@ -25,6 +25,11 @@ import {
   type UserMetadataSet,
   userMetadataFieldSchema
 } from '@shared/schemas/userMetadata'
+import {
+  cloneUserMetadataSettings,
+  popCatalogUndo,
+  pushCatalogUndo
+} from '@shared/userMetadataCatalogUndo'
 import { normalizeIconPack } from '@shared/schemas/iconPack'
 import {
   countBindingsForSet,
@@ -60,7 +65,8 @@ const TYPE_LABEL: Record<UserMetadataFieldType, string> = Object.fromEntries(
   FIELD_TYPES.map((t) => [t.id, t.label])
 ) as Record<UserMetadataFieldType, string>
 
-type ManagerTab = string // set id | 'assignments' | 'pack'
+/** Active manager pane: set id, or assignments | pack | hygiene | searches. */
+type ManagerTab = string
 
 function emptyMeta(): UserMetadataSettings {
   return { enabled: false, showToolbarButton: false, sets: [], bindings: [] }
@@ -82,9 +88,17 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
 
   const [activeTab, setActiveTab] = useState<ManagerTab>(um.sets[0]?.id ?? 'assignments')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [catalogUndo, setCatalogUndo] = useState<UserMetadataSettings[]>([])
+  const catalogUndoRef = useRef(catalogUndo)
+  catalogUndoRef.current = catalogUndo
+  const umRef = useRef(um)
+  umRef.current = um
 
   const activeSet =
-    activeTab !== 'assignments' && activeTab !== 'pack'
+    activeTab !== 'assignments' &&
+    activeTab !== 'pack' &&
+    activeTab !== 'hygiene' &&
+    activeTab !== 'searches'
       ? (um.sets.find((s) => s.id === activeTab) ?? null)
       : null
   const fields = useMemo(() => activeSet?.fields ?? [], [activeSet])
@@ -102,7 +116,13 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
   )
 
   useEffect(() => {
-    if (activeTab === 'assignments' || activeTab === 'pack') return
+    if (
+      activeTab === 'assignments' ||
+      activeTab === 'pack' ||
+      activeTab === 'hygiene' ||
+      activeTab === 'searches'
+    )
+      return
     if (!um.sets.some((s) => s.id === activeTab)) {
       setActiveTab(um.sets[0]?.id ?? 'assignments')
     }
@@ -120,14 +140,47 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
       notify(parsed.error.issues[0]?.message ?? 'Invalid metadata settings', true)
       return false
     }
+    const before = cloneUserMetadataSettings(umRef.current)
     try {
       await applySettingsPatch({ userMetadata: parsed.data })
+      setCatalogUndo((stack) => pushCatalogUndo(stack, before))
       return true
     } catch (e) {
       notify(e instanceof IpcError ? e.message : String(e), true)
       return false
     }
   }
+
+  const undoCatalog = useCallback(async (): Promise<void> => {
+    const popped = popCatalogUndo(catalogUndoRef.current)
+    if (!popped) return
+    const parsed = userMetadataSettingsSchema.safeParse(popped.snapshot)
+    if (!parsed.success) {
+      notify(parsed.error.issues[0]?.message ?? 'Cannot restore catalog', true)
+      return
+    }
+    try {
+      await applySettingsPatch({ userMetadata: parsed.data })
+      setCatalogUndo(popped.next)
+      notify('Catalog restored')
+    } catch (e) {
+      notify(e instanceof IpcError ? e.message : String(e), true)
+    }
+  }, [applySettingsPatch, notify])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z' || e.shiftKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      if (catalogUndoRef.current.length === 0) return
+      e.preventDefault()
+      e.stopPropagation()
+      void undoCatalog()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [undoCatalog])
 
   const persistSets = async (sets: UserMetadataSet[], bindings = um.bindings): Promise<boolean> =>
     persist({ ...um, enabled: um.enabled === true, sets, bindings })
@@ -184,7 +237,9 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
       key: suggestFieldKey(name, taken),
       name,
       type: 'text',
-      showAsColumn: false
+      showAsColumn: false,
+      required: false,
+      showOnIcon: false
     }
     if (await updateSetFields(activeSet.id, [...fields, field])) setEditingId(field.id)
   }
@@ -226,6 +281,13 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
       }
     }
     const next = fields.map((f) => (f.id === id ? parsed.data : f))
+    // At most one showOnIcon per set
+    if (parsed.data.showOnIcon === true) {
+      for (let i = 0; i < next.length; i++) {
+        const f = next[i]!
+        if (f.id !== id && f.showOnIcon) next[i] = { ...f, showOnIcon: false }
+      }
+    }
     return updateSetFields(activeSet.id, next)
   }
 
@@ -279,6 +341,15 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
       }}
       actions={
         <>
+          <button
+            type="button"
+            className="btn"
+            disabled={catalogUndo.length === 0}
+            title="Undo catalog change (Ctrl+Z)"
+            onClick={() => void undoCatalog()}
+          >
+            Undo
+          </button>
           {returnSection ? (
             <button type="button" className="btn" onClick={finish}>
               Back to Settings
@@ -335,6 +406,24 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
             onClick={() => setActiveTab('pack')}
           >
             Pack
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'hygiene'}
+            className={`user-meta-manager-tab${activeTab === 'hygiene' ? ' active' : ''}`}
+            onClick={() => setActiveTab('hygiene')}
+          >
+            Hygiene
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'searches'}
+            className={`user-meta-manager-tab${activeTab === 'searches' ? ' active' : ''}`}
+            onClick={() => setActiveTab('searches')}
+          >
+            Searches
           </button>
         </div>
 
@@ -525,6 +614,8 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
           ) : null}
 
           {activeTab === 'pack' ? <MetadataPackControls /> : null}
+          {activeTab === 'hygiene' ? <MetadataHygieneControls /> : null}
+          {activeTab === 'searches' ? <MetadataSavedSearches /> : null}
         </div>
       </div>
     </ScriptModal>
@@ -535,6 +626,9 @@ function MetadataPackControls(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<import('@shared/userMetadataPack').UserMetadataPackDryRunResult | null>(
+    null
+  )
   return (
     <div className="user-meta-pack">
       <div className="user-meta-pack-head">
@@ -569,9 +663,37 @@ function MetadataPackControls(): JSX.Element {
               void (async () => {
                 setBusy(true)
                 try {
-                  const res = await call(api.userMetadata.importPack({}))
+                  const res = await call(api.userMetadata.importPack({ dryRun: true }))
+                  if (res.dryRun === true) {
+                    setPreview(res)
+                    notify(
+                      `Preview: +${res.definitions.addSets} sets, +${res.definitions.addFields} fields, ${res.values.create} create / ${res.values.overwrite} overwrite / ${res.values.skipMissing} missing`
+                    )
+                  }
+                } catch (e) {
+                  if (e instanceof IpcError && e.code === 'cancelled') return
+                  notify(e instanceof IpcError ? e.message : String(e), true)
+                } finally {
+                  setBusy(false)
+                }
+              })()
+            }}
+          >
+            Preview…
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy}
+            onClick={() => {
+              void (async () => {
+                setBusy(true)
+                try {
+                  const res = await call(api.userMetadata.importPack({ dryRun: false }))
                   const settings = await call(api.settings.get())
                   await applySettingsPatch({ userMetadata: settings.userMetadata })
+                  setPreview(null)
+                  if (res.dryRun === true) return
                   notify(
                     `Imported ${res.written} item(s)${res.definitionsMerged ? ' (definitions merged)' : ''}`
                   )
@@ -584,13 +706,247 @@ function MetadataPackControls(): JSX.Element {
               })()
             }}
           >
-            Import…
+            Apply…
           </button>
         </div>
       </div>
       <p className="settings-help user-meta-pack-help">
-        ZIP of paths → <code>mfe_meta</code> + definitions. Distinct from Compress-to-ZIP (ADS-free).
+        ZIP of paths → <code>mfe_meta</code> + definitions (files and folders). Use <strong>Preview…</strong> for a
+        dry-run diff, then <strong>Apply…</strong>. Ids are preserved; folder bindings are not auto-created.
       </p>
+      {preview ? (
+        <div className="user-meta-pack-preview">
+          <div className="user-meta-section-label">Last preview</div>
+          <ul className="settings-help">
+            <li>
+              Definitions: add {preview.definitions.addSets} set(s), {preview.definitions.addFields} field(s);
+              skip {preview.definitions.skipFields}; conflicts {preview.definitions.conflicts.length}
+            </li>
+            <li>
+              Values: create {preview.values.create}, overwrite {preview.values.overwrite}, missing{' '}
+              {preview.values.skipMissing}
+            </li>
+          </ul>
+          {preview.definitions.conflicts.length > 0 ? (
+            <ul className="settings-help">
+              {preview.definitions.conflicts.slice(0, 12).map((c, i) => (
+                <li key={`${c.setId}-${c.fieldId}-${i}`}>
+                  {c.fieldId}: {c.reason}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function MetadataHygieneControls(): JSX.Element {
+  const notify = useAppStore((s) => s.notify)
+  const um = useAppStore((s) => s.settings.userMetadata) ?? emptyMeta()
+  const [busy, setBusy] = useState(false)
+  const [orphans, setOrphans] = useState<import('@shared/userMetadataOrphans').UserMetadataOrphan[]>(
+    []
+  )
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const orphanKey = (o: import('@shared/userMetadataOrphans').UserMetadataOrphan): string =>
+    `${o.path}|${o.kind}|${o.fieldId}|${o.optionId ?? ''}`
+
+  return (
+    <div className="user-meta-pack">
+      <div className="user-meta-pack-head">
+        <span className="user-meta-section-label">Orphan hygiene</span>
+        <div className="user-meta-pack-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => {
+              void (async () => {
+                setBusy(true)
+                try {
+                  const res = await call(api.userMetadata.scanOrphans({}))
+                  setOrphans(res.orphans)
+                  setSelected(new Set())
+                  notify(`Found ${res.orphans.length} orphan value(s)`)
+                } catch (e) {
+                  if (e instanceof IpcError && e.code === 'cancelled') return
+                  notify(e instanceof IpcError ? e.message : String(e), true)
+                } finally {
+                  setBusy(false)
+                }
+              })()
+            }}
+          >
+            Scan…
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || selected.size === 0}
+            onClick={() => {
+              void (async () => {
+                const list = orphans.filter((o) => selected.has(orphanKey(o)))
+                if (list.length === 0) return
+                if (!window.confirm(`Clear ${list.length} orphan value(s) from disk?`)) return
+                setBusy(true)
+                try {
+                  const res = await call(api.userMetadata.clearOrphans({ orphans: list }))
+                  notify(`Cleared ${res.cleared} item(s)`)
+                  setOrphans((prev) => prev.filter((o) => !selected.has(orphanKey(o))))
+                  setSelected(new Set())
+                } catch (e) {
+                  notify(e instanceof IpcError ? e.message : String(e), true)
+                } finally {
+                  setBusy(false)
+                }
+              })()
+            }}
+          >
+            Clear selected
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || selected.size === 0}
+            onClick={() => {
+              void (async () => {
+                const list = orphans.filter(
+                  (o) => selected.has(orphanKey(o)) && o.kind === 'field'
+                )
+                if (list.length === 0) {
+                  notify('Select field orphans to reconnect', true)
+                  return
+                }
+                const keyRaw = window.prompt(
+                  'Reconnect selected orphans to which catalog field key?'
+                )
+                const key = keyRaw?.trim()
+                if (!key) return
+                const fields = um.sets.flatMap((s) => s.fields)
+                const to = fields.find((f) => f.key === key)
+                if (!to) {
+                  notify(`No field with key “${key}”`, true)
+                  return
+                }
+                const mappings: import('@shared/userMetadataOrphans').UserMetadataOrphanReconnectMapping[] =
+                  list.map((o) => ({
+                    path: o.path,
+                    fromFieldId: o.fieldId,
+                    toFieldId: to.id
+                  }))
+                if (
+                  !window.confirm(
+                    `Reconnect ${mappings.length} orphan(s) to field “${to.name}” (${to.key})?`
+                  )
+                ) {
+                  return
+                }
+                setBusy(true)
+                try {
+                  const res = await call(api.userMetadata.reconnectOrphans({ mappings }))
+                  notify(`Remapped ${res.remapped} value(s)`)
+                  const rescan = await call(api.userMetadata.scanOrphans({}))
+                  setOrphans(rescan.orphans)
+                  setSelected(new Set())
+                } catch (e) {
+                  notify(e instanceof IpcError ? e.message : String(e), true)
+                } finally {
+                  setBusy(false)
+                }
+              })()
+            }}
+          >
+            Reconnect by key
+          </button>
+        </div>
+      </div>
+      <p className="settings-help">
+        Scan a folder for <code>mfe_meta</code> values whose field/option ids are no longer in the catalog.
+        Clearing only removes orphan keys; catalog undo never touches ADS.
+      </p>
+      {orphans.length === 0 ? (
+        <p className="settings-help">No orphans loaded. Click Scan…</p>
+      ) : (
+        <div className="user-meta-orphan-list">
+          {orphans.slice(0, 500).map((o) => {
+            const k = orphanKey(o)
+            return (
+              <label key={k} className="user-meta-check">
+                <input
+                  type="checkbox"
+                  checked={selected.has(k)}
+                  onChange={(e) => {
+                    setSelected((prev) => {
+                      const next = new Set(prev)
+                      if (e.target.checked) next.add(k)
+                      else next.delete(k)
+                      return next
+                    })
+                  }}
+                />
+                <span>
+                  <code>{o.kind}</code> {o.fieldId}
+                  {o.optionId ? ` / ${o.optionId}` : ''}
+                  {o.keyGuess ? ` (${o.keyGuess})` : ''} — {o.path}
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MetadataSavedSearches(): JSX.Element {
+  const settings = useAppStore((s) => s.settings)
+  const openDialog = useAppStore((s) => s.openDialog)
+  const closeDialog = useAppStore((s) => s.closeDialog)
+  const saved = [...(settings.powerSearchSaved ?? [])].sort((a, b) => {
+    const am = (a.builder.metaFilters?.length ?? 0) > 0 ? 0 : 1
+    const bm = (b.builder.metaFilters?.length ?? 0) > 0 ? 0 : 1
+    if (am !== bm) return am - bm
+    return a.name.localeCompare(b.name)
+  })
+
+  return (
+    <div className="user-meta-pack">
+      <div className="user-meta-section-label">Saved Power Search</div>
+      <p className="settings-help">
+        Read-only list (meta queries first). Create and edit saves in Power Search. Run opens Power Search with
+        that preset.
+      </p>
+      {saved.length === 0 ? (
+        <p className="settings-help">No saved searches yet.</p>
+      ) : (
+        <div className="user-meta-saved-searches">
+          {saved.map((entry) => (
+            <div key={entry.id} className="user-meta-saved-search-row">
+              <div>
+                <strong>{entry.name}</strong>
+                {(entry.builder.metaFilters?.length ?? 0) > 0 ? (
+                  <span className="settings-help"> · meta</span>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  closeDialog()
+                  openDialog({ kind: 'power-search' })
+                  // Power Search loads its own list; user double-clicks the save.
+                  // Prefer notifying which preset to run.
+                  useAppStore.getState().notify(`Open Power Search and run “${entry.name}”`)
+                }}
+              >
+                Open in Power Search
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -831,6 +1187,44 @@ function FieldEditor({
           onChange={(e) => void onChange({ showAsColumn: e.target.checked })}
         />
         <span>Show as Details column by default</span>
+      </label>
+
+      <label className="user-meta-check">
+        <input
+          type="checkbox"
+          checked={field.required === true}
+          onChange={(e) => void onChange({ required: e.target.checked })}
+        />
+        <span>Required</span>
+      </label>
+
+      <label className="user-meta-check">
+        <input
+          type="checkbox"
+          checked={field.showOnIcon === true}
+          onChange={(e) => void onChange({ showOnIcon: e.target.checked })}
+        />
+        <span>Show badge on icons (one per set)</span>
+      </label>
+
+      <label className="user-meta-field">
+        <span>Column width hint (px)</span>
+        <input
+          type="number"
+          min={60}
+          max={480}
+          placeholder="140"
+          value={field.columnWidthHint ?? ''}
+          onChange={(e) => {
+            const t = e.target.value.trim()
+            if (!t) {
+              void onChange({ columnWidthHint: undefined })
+              return
+            }
+            const n = Number(t)
+            if (Number.isFinite(n)) void onChange({ columnWidthHint: Math.round(n) })
+          }}
+        />
       </label>
 
       <p className="user-meta-id" title="Immutable · ADS keys and column ids">

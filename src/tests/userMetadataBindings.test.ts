@@ -161,7 +161,9 @@ describe('migrateUserMetadataSettings', () => {
               name: 'Status',
               type: 'choice',
               choices: [{ id: 'mo_aaaaaa', key: 'ok', label: 'OK' }],
-              showAsColumn: false
+              showAsColumn: false,
+              required: false,
+              showOnIcon: false,
             }
           ]
         },
@@ -174,7 +176,9 @@ describe('migrateUserMetadataSettings', () => {
               key: 'status',
               name: 'Status',
               type: 'text',
-              showAsColumn: false
+              showAsColumn: false,
+              required: false,
+              showOnIcon: false,
             }
           ]
         }
@@ -200,7 +204,9 @@ describe('migrateUserMetadataSettings', () => {
               key: 'rating',
               name: 'Rating',
               type: 'number',
-              showAsColumn: false
+              showAsColumn: false,
+              required: false,
+              showOnIcon: false,
             }
           ]
         },
@@ -213,7 +219,9 @@ describe('migrateUserMetadataSettings', () => {
               key: 'rating',
               name: 'Rating',
               type: 'number',
-              showAsColumn: false
+              showAsColumn: false,
+              required: false,
+              showOnIcon: false,
             }
           ]
         }

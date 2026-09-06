@@ -191,7 +191,10 @@ const api: MyFileExplorerApi = {
     validateText: invoke(IPC.userMetadataValidateText),
     testPattern: invoke(IPC.userMetadataTestPattern),
     exportPack: invoke(IPC.userMetadataExportPack),
-    importPack: invoke(IPC.userMetadataImportPack)
+    importPack: invoke(IPC.userMetadataImportPack),
+    scanOrphans: invoke(IPC.userMetadataScanOrphans),
+    clearOrphans: invoke(IPC.userMetadataClearOrphans),
+    reconnectOrphans: invoke(IPC.userMetadataReconnectOrphans)
   },
   mediaMetadata: {
     extractPlex: invoke(IPC.mediaMetadataExtractPlex),

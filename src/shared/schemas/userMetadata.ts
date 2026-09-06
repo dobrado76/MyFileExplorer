@@ -136,7 +136,20 @@ export const userMetadataFieldSchema = z
     text: userMetadataTextConstraintsSchema.optional(),
     /** Labels for type boolean; omitted ⇒ Yes / No. */
     boolean: userMetadataBooleanLabelsSchema.optional(),
-    showAsColumn: z.boolean().catch(false)
+    showAsColumn: z.boolean().catch(false),
+    /** Dialog / bulk Set must supply a value. */
+    required: z.boolean().catch(false),
+    /**
+     * Seeded into Metadata… when the item has no value for this field.
+     * Not written until the user saves.
+     */
+    defaultValue: z
+      .union([z.string(), z.number(), z.boolean(), z.array(z.string()), z.null()])
+      .optional(),
+    /** At most one field per set; drives icon-row badge. */
+    showOnIcon: z.boolean().catch(false),
+    /** Preferred Details column width (px). */
+    columnWidthHint: z.number().int().min(60).max(480).optional()
   })
   .superRefine((f, ctx) => {
     if (fieldUsesChoiceOptions(f.type)) {
@@ -264,6 +277,14 @@ export const userMetadataSetSchema = z
   })
   .superRefine((set, ctx) => {
     refineFieldsUnique(set.fields, ctx, ['fields'])
+    const iconBadge = set.fields.filter((f) => f.showOnIcon === true)
+    if (iconBadge.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'At most one field per set can show on icons',
+        path: ['fields']
+      })
+    }
   })
 export type UserMetadataSet = z.infer<typeof userMetadataSetSchema>
 

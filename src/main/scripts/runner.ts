@@ -10,10 +10,13 @@ import {
   type InterpreterOverrides
 } from '@shared/scriptCli'
 import type { ScriptLanguage, ScriptRunRequest } from '@shared/schemas/scripts'
+import { resolveMetadataSetForItem } from '@shared/userMetadataBindings'
 import { requireAbsolute } from '../fs/list'
 import { broadcast } from '../ipc/events'
+import { getSettings } from '../settings/store'
+import { getUserMetadataMany } from '../userMetadata/store'
 import { availableRuntimeMap, detectRuntimes, interpreterOverridesFromSettings } from './runtimes'
-import { cleanupManifestFile, writeInputManifestFile } from './manifest'
+import { cleanupManifestFile, writeInputManifestFile, writeMetaManifestFile } from './manifest'
 
 const MAX_OUTPUT_CHARS = 400_000
 const CHUNK = 8_192
@@ -22,6 +25,7 @@ type ActiveRun = {
   child: ChildProcess
   startedAt: number
   manifestPath: string | null
+  metaManifestPath: string | null
   tempScript: string | null
   cancelled: boolean
   buffer: string
@@ -62,6 +66,44 @@ export type ScriptRunResult = {
   output: string
 }
 
+async function maybeWriteMetaManifest(paths: string[]): Promise<string | null> {
+  const um = getSettings().userMetadata
+  if (!um || um.enabled !== true || paths.length === 0) return null
+  let sharedId: string | null | undefined
+  let sharedSet = null as ReturnType<typeof resolveMetadataSetForItem>
+  for (const p of paths) {
+    let isDir = false
+    try {
+      isDir = (await fsp.stat(p)).isDirectory()
+    } catch {
+      isDir = false
+    }
+    const set = resolveMetadataSetForItem(p, isDir, um)
+    if (!set) return null
+    if (sharedId === undefined) {
+      sharedId = set.id
+      sharedSet = set
+    } else if (sharedId !== set.id) {
+      return null
+    }
+  }
+  if (!sharedSet || sharedId == null) return null
+  const docs = await getUserMetadataMany(paths)
+  const items = paths.map((p) => ({
+    path: p,
+    values: { ...(docs[p]?.values ?? {}) }
+  }))
+  return writeMetaManifestFile(
+    {
+      setId: sharedSet.id,
+      setName: sharedSet.name,
+      fields: sharedSet.fields,
+      items
+    },
+    os.tmpdir()
+  )
+}
+
 export async function runScriptProcess(input: {
   req: ScriptRunRequest
   language: ScriptLanguage
@@ -75,10 +117,16 @@ export async function runScriptProcess(input: {
   }
 
   let manifestPath: string | null = null
+  let metaManifestPath: string | null = null
   if (req.mode === 'selection') {
     const paths = (req.paths ?? []).map((p) => requireAbsolute(p))
     if (paths.length === 0) throw new AppError('validation', 'Select at least one file or folder')
     manifestPath = writeInputManifestFile(paths, os.tmpdir())
+    try {
+      metaManifestPath = await maybeWriteMetaManifest(paths)
+    } catch {
+      metaManifestPath = null
+    }
   } else if (req.mode === 'folder' && req.root) {
     requireAbsolute(req.root)
   }
@@ -106,8 +154,12 @@ export async function runScriptProcess(input: {
     })
   } catch (e) {
     cleanupManifestFile(manifestPath)
+    cleanupManifestFile(metaManifestPath)
     throw new AppError('not-found', e instanceof Error ? e.message : String(e))
   }
+
+  const env = { ...process.env }
+  if (metaManifestPath) env.MFE_META_MANIFEST = metaManifestPath
 
   return await new Promise<ScriptRunResult>((resolve, reject) => {
     let child: ChildProcess
@@ -116,10 +168,12 @@ export async function runScriptProcess(input: {
         cwd: input.cwd,
         windowsHide: true,
         shell: false,
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env
       })
     } catch (e) {
       cleanupManifestFile(manifestPath)
+      cleanupManifestFile(metaManifestPath)
       reject(new AppError('io', e instanceof Error ? e.message : String(e)))
       return
     }
@@ -128,6 +182,7 @@ export async function runScriptProcess(input: {
       child,
       startedAt: Date.now(),
       manifestPath,
+      metaManifestPath,
       tempScript: null,
       cancelled: false,
       buffer: ''
@@ -137,6 +192,7 @@ export async function runScriptProcess(input: {
     const finish = (exitCode: number | null): void => {
       runs.delete(req.runId)
       cleanupManifestFile(run.manifestPath)
+      cleanupManifestFile(run.metaManifestPath)
       if (run.tempScript) cleanupManifestFile(run.tempScript)
       const elapsedMs = Date.now() - run.startedAt
       broadcast({
@@ -167,6 +223,7 @@ export async function runScriptProcess(input: {
     child.on('error', (err) => {
       runs.delete(req.runId)
       cleanupManifestFile(run.manifestPath)
+      cleanupManifestFile(run.metaManifestPath)
       reject(new AppError('io', err.message))
     })
     child.on('close', (code) => finish(code))

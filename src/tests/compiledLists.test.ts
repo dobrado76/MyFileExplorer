@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import fsp from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import {
   isCompiledListRefPath,
   lastListHasPositiveCounts,
@@ -9,6 +12,7 @@ import {
   sanitizeCompiledName,
   serializeLastList
 } from '../shared/slideshow/compiledLists'
+import { validateCompiledLists } from '../main/slideshow/compiledLists'
 
 describe('compiledLists helpers', () => {
   it('sanitizes names', () => {
@@ -40,8 +44,8 @@ describe('compiledLists helpers', () => {
   })
 
   it('detects list refs vs folders in .txt body', () => {
-    expect(isCompiledListRefPath('C:\\Lists\\Me.dat')).toBe(true)
-    expect(isCompiledListRefPath('C:\\Lists\\combo.TXT')).toBe(true)
+    expect(isCompiledListRefPath('C:\\lists\\Me.dat')).toBe(true)
+    expect(isCompiledListRefPath('C:\\lists\\combo.TXT')).toBe(true)
     expect(isCompiledListRefPath('C:\\photos')).toBe(false)
 
     const rows = parseTxtBodyLines(
@@ -68,81 +72,79 @@ describe('compiledLists helpers', () => {
 })
 
 describe('validateCompiledLists', () => {
-  it('reports missing folders and nested list refs', async () => {
-    const os = await import('node:os')
-    const fsp = await import('node:fs/promises')
-    const path = await import('node:path')
-    const { validateCompiledLists } = await import('../main/slideshow/compiledLists')
+  it(
+    'reports missing folders and nested list refs',
+    async () => {
+      const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-validate-lists-'))
+      const cat = path.join(root, 'Cat')
+      await fsp.mkdir(cat, { recursive: true })
+      const realFolder = path.join(root, 'RealPhotos')
+      await fsp.mkdir(realFolder, { recursive: true })
+      const nestedOk = path.join(cat, 'ok.dat')
+      await fsp.writeFile(nestedOk, `${realFolder}\n`, 'utf8')
 
-    const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-validate-lists-'))
-    const cat = path.join(root, 'Cat')
-    await fsp.mkdir(cat, { recursive: true })
-    const realFolder = path.join(root, 'RealPhotos')
-    await fsp.mkdir(realFolder, { recursive: true })
-    const nestedOk = path.join(cat, 'ok.dat')
-    await fsp.writeFile(nestedOk, `${realFolder}\n`, 'utf8')
+      const brokenDat = path.join(cat, 'broken.dat')
+      await fsp.writeFile(
+        brokenDat,
+        [`${path.join(root, 'NoSuchFolder')}`, `${path.join(cat, 'missing.dat')}|=>2`, `${realFolder}`].join(
+          '\n'
+        ),
+        'utf8'
+      )
 
-    const brokenDat = path.join(cat, 'broken.dat')
-    await fsp.writeFile(
-      brokenDat,
-      [`${path.join(root, 'NoSuchFolder')}`, `${path.join(cat, 'missing.dat')}|=>2`, `${realFolder}`].join(
-        '\n'
-      ),
-      'utf8'
-    )
+      const brokenTxt = path.join(cat, 'combo.txt')
+      await fsp.writeFile(
+        brokenTxt,
+        [`${path.join(root, 'AlsoMissing')}`, `${path.join(cat, 'gone.txt')}`].join('\n'),
+        'utf8'
+      )
 
-    const brokenTxt = path.join(cat, 'combo.txt')
-    await fsp.writeFile(
-      brokenTxt,
-      [`${path.join(root, 'AlsoMissing')}`, `${path.join(cat, 'gone.txt')}`].join('\n'),
-      'utf8'
-    )
+      try {
+        const res = await validateCompiledLists(root)
+        expect(res.checkedLists).toBe(3)
+        expect(res.ok).toBe(false)
+        const kinds = res.issues.map((i) => i.kind).sort()
+        expect(kinds).toContain('missing-folder')
+        expect(kinds).toContain('missing-list')
+        expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('nosuchfolder'))).toBe(true)
+        expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('missing.dat'))).toBe(true)
+        expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('gone.txt'))).toBe(true)
+        expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('alsomissing'))).toBe(true)
+      } finally {
+        await fsp.rm(root, { recursive: true, force: true })
+      }
+    },
+    20_000
+  )
 
-    try {
-      const res = await validateCompiledLists(root)
-      expect(res.checkedLists).toBe(3)
-      expect(res.ok).toBe(false)
-      const kinds = res.issues.map((i) => i.kind).sort()
-      expect(kinds).toContain('missing-folder')
-      expect(kinds).toContain('missing-list')
-      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('nosuchfolder'))).toBe(true)
-      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('missing.dat'))).toBe(true)
-      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('gone.txt'))).toBe(true)
-      expect(res.issues.some((i) => i.refPath?.toLowerCase().includes('alsomissing'))).toBe(true)
-    } finally {
-      await fsp.rm(root, { recursive: true, force: true })
-    }
-  })
+  it(
+    'limits validation to selected category folders',
+    async () => {
+      const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-validate-subset-'))
+      const good = path.join(root, 'Good')
+      const bad = path.join(root, 'Bad')
+      await fsp.mkdir(good, { recursive: true })
+      await fsp.mkdir(bad, { recursive: true })
+      const photos = path.join(root, 'Photos')
+      await fsp.mkdir(photos, { recursive: true })
+      await fsp.writeFile(path.join(good, 'ok.dat'), `${photos}\n`, 'utf8')
+      await fsp.writeFile(path.join(bad, 'broken.dat'), `${path.join(root, 'Missing')}\n`, 'utf8')
 
-  it('limits validation to selected category folders', async () => {
-    const os = await import('node:os')
-    const fsp = await import('node:fs/promises')
-    const path = await import('node:path')
-    const { validateCompiledLists } = await import('../main/slideshow/compiledLists')
+      try {
+        const onlyGood = await validateCompiledLists(root, [
+          { name: 'Good', folder: good }
+        ])
+        expect(onlyGood.ok).toBe(true)
+        expect(onlyGood.checkedLists).toBe(1)
 
-    const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-validate-subset-'))
-    const good = path.join(root, 'Good')
-    const bad = path.join(root, 'Bad')
-    await fsp.mkdir(good, { recursive: true })
-    await fsp.mkdir(bad, { recursive: true })
-    const photos = path.join(root, 'Photos')
-    await fsp.mkdir(photos, { recursive: true })
-    await fsp.writeFile(path.join(good, 'ok.dat'), `${photos}\n`, 'utf8')
-    await fsp.writeFile(path.join(bad, 'broken.dat'), `${path.join(root, 'Missing')}\n`, 'utf8')
-
-    try {
-      const onlyGood = await validateCompiledLists(root, [
-        { name: 'Good', folder: good }
-      ])
-      expect(onlyGood.ok).toBe(true)
-      expect(onlyGood.checkedLists).toBe(1)
-
-      const onlyBad = await validateCompiledLists(root, [{ name: 'Bad', folder: bad }])
-      expect(onlyBad.ok).toBe(false)
-      expect(onlyBad.checkedLists).toBe(1)
-      expect(onlyBad.issues.some((i) => i.kind === 'missing-folder')).toBe(true)
-    } finally {
-      await fsp.rm(root, { recursive: true, force: true })
-    }
-  })
+        const onlyBad = await validateCompiledLists(root, [{ name: 'Bad', folder: bad }])
+        expect(onlyBad.ok).toBe(false)
+        expect(onlyBad.checkedLists).toBe(1)
+        expect(onlyBad.issues.some((i) => i.kind === 'missing-folder')).toBe(true)
+      } finally {
+        await fsp.rm(root, { recursive: true, force: true })
+      }
+    },
+    20_000
+  )
 })

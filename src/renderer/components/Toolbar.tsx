@@ -32,6 +32,7 @@ import { SearchOptionsMenu } from './SearchOptionsMenu'
 import { ViewLayoutSelector } from './ViewLayoutSelector'
 import { RemoteReposToolbar } from './RemoteReposToolbar'
 import { MediaLibraryToolbar } from './MediaLibraryToolbar'
+import { UserMetadataFacetToolbar } from './UserMetadataFacetToolbar'
 import { GlobalScriptsMenu } from './GlobalScriptsMenu'
 import { QuickLaunchToolbar } from './QuickLaunchToolbar'
 import { GitToolbar } from './GitToolbar'
@@ -265,6 +266,7 @@ export function Toolbar(): JSX.Element {
       <GitToolbar />
       <RemoteReposToolbar />
       <MediaLibraryToolbar />
+      <UserMetadataFacetToolbar />
 
       <div className="toolbar-trailing">
         <ViewLayoutSelector />

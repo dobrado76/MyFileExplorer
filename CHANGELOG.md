@@ -9,6 +9,16 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **User metadata catalog Undo** — manager Undo / Ctrl+Z restores previous set/binding definitions (session stack, cap 30; does not reverse ADS values).
+- **User metadata Hygiene** — scan / clear / reconnect-by-key for orphan `mfe_meta` field/option ids.
+- **User metadata Pack Preview / Apply** — dry-run diff before import; export includes folders with streams; stable ids preserved.
+- **User metadata field extras** — `required`, `defaultValue`, `showOnIcon`, `columnWidthHint`; manager Searches tab lists Power Search saves (meta first).
+- **User metadata bulk edit** — multi-select Metadata… uses per-field Leave / Set / Clear (with “varies”); required fields enforced on Set; single-item dialog seeds `defaultValue` when empty.
+- **User metadata Details click-edit** — all field types in-column: boolean cycle, choice / multi-choice menus, date / text / number inline edit, icon tags; links Open when filled.
+- **User metadata Copy / Paste** — context Metadata submenu; session clipboard by set id (paste onto other selected paths sharing the set).
+- **User metadata in-folder facets** — toolbar filters for boolean / choice / icon tags / multi-choice (session-only; cleared when leaving the folder).
+- **User metadata icon badge** — optional `showOnIcon` field overlays a short label or first icon-tag glyph on the row icon.
+- **User metadata scripts bridge** — selection runs with a shared set get `MFE_META_MANIFEST` (JSON of set + per-path values).
 - **Media Metadata Details columns** — in a media-library folder or recognized subfolder, the Details column picker adds a **Media Metadata** section (title, year, kind, watched, genres, season/episode, show, language, country, directors, actors, ratings with service icons, synopsis). Distinct from Tags and Audio/video technical columns.
 - **User metadata Icon tags** — multi-select visual tags (shared glyph picker). Preview / dialog / Details show every option icon in order (grey off / color on); click toggles. Power Search like multi-choice.
 - **User metadata option reorder** — ↑/↓ for Choice, Multi-choice, and Icon tags options in the manager.

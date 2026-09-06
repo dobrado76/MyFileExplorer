@@ -15,12 +15,23 @@ import {
   parseUserMetadataDoc,
   userMetadataSettingsSchema,
   type UserMetadataDoc,
+  type UserMetadataField,
   type UserMetadataSettings
 } from '@shared/schemas/userMetadata'
+import type {
+  UserMetadataPackDefinitionConflict,
+  UserMetadataPackImportResult
+} from '@shared/userMetadataPack'
 import { requireAbsolute } from '../fs/list'
-import { readStreamText, streamExists, writeStreamText, withPreservedHostTimes } from '../fs/adsWin32'
+import {
+  readStreamText,
+  streamExists,
+  writeStreamText,
+  withPreservedHostTimes
+} from '../fs/adsWin32'
 import { getSettings, patchSettings } from '../settings/store'
 import { invalidateColumnMetaPaths } from '../meta/columns'
+import { walkUserMetadataHosts } from './walk'
 
 const PACK_MANIFEST = 'mfe-metadata-pack.json'
 const VALUES_PREFIX = 'values/'
@@ -32,29 +43,13 @@ type PackManifest = {
   definitions: UserMetadataSettings
 }
 
-async function walkFiles(root: string, max = 50_000): Promise<string[]> {
-  const out: string[] = []
-  const stack = [root]
-  while (stack.length && out.length < max) {
-    const dir = stack.pop()!
-    let ents
-    try {
-      ents = await fsp.readdir(dir, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const e of ents) {
-      const full = path.join(dir, e.name)
-      if (e.isDirectory()) stack.push(full)
-      else if (e.isFile() || e.isSymbolicLink()) out.push(full)
-      if (out.length >= max) break
-    }
-  }
-  return out
-}
-
 function relPosix(root: string, file: string): string {
   return path.relative(root, file).split(path.sep).join('/')
+}
+
+/** ZIP entry under values/; root host → `values/.json` (rel `.` on import). */
+function valuesEntryName(rel: string): string {
+  return rel === '' ? `${VALUES_PREFIX}.json` : `${VALUES_PREFIX}${rel}.json`
 }
 
 export async function exportMetadataPack(opts?: {
@@ -112,16 +107,16 @@ export async function exportMetadataPack(opts?: {
   }
   zip.file(PACK_MANIFEST, JSON.stringify(manifest, null, 2))
 
-  const files = await walkFiles(folder)
+  const hosts = await walkUserMetadataHosts(folder)
   let count = 0
-  for (const file of files) {
+  for (const host of hosts) {
     try {
-      if (!streamExists(file, USER_METADATA_STREAM)) continue
-      const raw = await readStreamText(file, USER_METADATA_STREAM)
+      if (!streamExists(host, USER_METADATA_STREAM)) continue
+      const raw = await readStreamText(host, USER_METADATA_STREAM)
       const doc = parseUserMetadataDoc(raw)
       if (!doc || Object.keys(doc.values).length === 0) continue
-      const rel = relPosix(folder, file)
-      zip.file(`${VALUES_PREFIX}${rel}.json`, JSON.stringify(doc, null, 2))
+      const rel = relPosix(folder, host)
+      zip.file(valuesEntryName(rel), JSON.stringify(doc, null, 2))
       count++
     } catch {
       /* soft */
@@ -133,14 +128,102 @@ export async function exportMetadataPack(opts?: {
   return { path: zipPath, count }
 }
 
+function planDefinitionMerge(
+  cur: UserMetadataSettings,
+  incoming: UserMetadataSettings
+): {
+  addSets: number
+  addFields: number
+  skipFields: number
+  conflicts: UserMetadataPackDefinitionConflict[]
+  merged: UserMetadataSettings | null
+} {
+  const conflicts: UserMetadataPackDefinitionConflict[] = []
+  let addSets = 0
+  let addFields = 0
+  let skipFields = 0
+
+  const setById = new Map(cur.sets.map((s) => [s.id, { ...s, fields: [...s.fields] }]))
+  const globalFields = new Map(allUserMetadataFields(cur).map((f) => [f.id, f]))
+
+  const conflictReason = (existing: UserMetadataField, incomingF: UserMetadataField): string | null => {
+    if (existing.key !== incomingF.key) {
+      return `Field id exists with key “${existing.key}”; pack has “${incomingF.key}”`
+    }
+    if (existing.type !== incomingF.type) {
+      return `Field id exists as ${existing.type}; pack has ${incomingF.type}`
+    }
+    return null
+  }
+
+  for (const incomingSet of incoming.sets) {
+    const existing = setById.get(incomingSet.id)
+    if (!existing) {
+      addSets++
+      const fields: UserMetadataField[] = []
+      for (const f of incomingSet.fields) {
+        const g = globalFields.get(f.id)
+        if (g) {
+          const reason = conflictReason(g, f)
+          if (reason) {
+            conflicts.push({ setId: incomingSet.id, fieldId: f.id, reason })
+          } else {
+            skipFields++
+          }
+          continue
+        }
+        fields.push(f)
+        globalFields.set(f.id, f)
+        addFields++
+      }
+      setById.set(incomingSet.id, { ...incomingSet, fields: fields.slice(0, 32) })
+    } else {
+      const byId = new Map(existing.fields.map((f) => [f.id, f]))
+      for (const f of incomingSet.fields) {
+        const local = byId.get(f.id) ?? globalFields.get(f.id)
+        if (local) {
+          const reason = conflictReason(local, f)
+          if (reason) {
+            conflicts.push({ setId: incomingSet.id, fieldId: f.id, reason })
+          } else {
+            skipFields++
+          }
+          continue
+        }
+        byId.set(f.id, f)
+        globalFields.set(f.id, f)
+        addFields++
+      }
+      existing.fields = [...byId.values()].slice(0, 32)
+    }
+  }
+
+  const merged: UserMetadataSettings = {
+    enabled: cur.enabled === true,
+    showToolbarButton: cur.showToolbarButton === true,
+    sets: [...setById.values()].slice(0, 32),
+    bindings: cur.bindings
+  }
+  const ok = userMetadataSettingsSchema.safeParse(merged)
+  return {
+    addSets,
+    addFields,
+    skipFields,
+    conflicts,
+    merged: ok.success ? ok.data : null
+  }
+}
+
 export async function importMetadataPack(opts?: {
   zipPath?: string
   destFolder?: string
   mergeDefinitions?: boolean
-}): Promise<{ written: number; definitionsMerged: boolean }> {
+  dryRun?: boolean
+}): Promise<UserMetadataPackImportResult> {
   if (process.platform !== 'win32') {
     throw new AppError('not-allowed', 'Metadata pack requires Windows NTFS')
   }
+  const dryRun = opts?.dryRun === true
   const win = BrowserWindow.getFocusedWindow()
   let zipPath = opts?.zipPath
   if (!zipPath) {
@@ -188,58 +271,52 @@ export async function importMetadataPack(opts?: {
     throw new AppError('validation', 'Invalid metadata pack format')
   }
 
-  let definitionsMerged = false
+  const cur = getSettings().userMetadata ?? { enabled: false, sets: [], bindings: [] }
+  let plan = {
+    addSets: 0,
+    addFields: 0,
+    skipFields: 0,
+    conflicts: [] as UserMetadataPackDefinitionConflict[],
+    merged: null as UserMetadataSettings | null
+  }
+
   if (opts?.mergeDefinitions !== false && man.definitions) {
     const migrated = migrateUserMetadataSettings(man.definitions)
     const parsed = userMetadataSettingsSchema.safeParse(migrated)
     if (parsed.success && parsed.data.sets.some((s) => s.fields.length > 0)) {
-      const cur = getSettings().userMetadata ?? { enabled: false, sets: [], bindings: [] }
-      const setById = new Map(cur.sets.map((s) => [s.id, { ...s, fields: [...s.fields] }]))
-      const globalFields = new Map(allUserMetadataFields(cur).map((f) => [f.id, f]))
-      for (const incoming of parsed.data.sets) {
-        const existing = setById.get(incoming.id)
-        if (!existing) {
-          const fields = incoming.fields.filter((f) => !globalFields.has(f.id)).slice(0, 32)
-          for (const f of fields) globalFields.set(f.id, f)
-          setById.set(incoming.id, { ...incoming, fields })
-        } else {
-          const byId = new Map(existing.fields.map((f) => [f.id, f]))
-          for (const f of incoming.fields) {
-            if (!byId.has(f.id) && !globalFields.has(f.id)) {
-              byId.set(f.id, f)
-              globalFields.set(f.id, f)
-            }
-          }
-          existing.fields = [...byId.values()].slice(0, 32)
-        }
-      }
-      const merged: UserMetadataSettings = {
-        enabled: cur.enabled === true,
-        showToolbarButton: cur.showToolbarButton === true,
-        sets: [...setById.values()].slice(0, 32),
-        bindings: cur.bindings
-      }
-      const ok = userMetadataSettingsSchema.safeParse(merged)
-      if (ok.success) {
-        patchSettings({ userMetadata: ok.data })
-        definitionsMerged = true
-      }
+      plan = planDefinitionMerge(cur, parsed.data)
     }
   }
 
+  let create = 0
+  let overwrite = 0
+  let skipMissing = 0
   let written = 0
   const paths: string[] = []
+
   for (const [name, entry] of Object.entries(zip.files)) {
     if (entry.dir) continue
     if (!name.startsWith(VALUES_PREFIX) || !name.endsWith('.json')) continue
     const rel = name.slice(VALUES_PREFIX.length, -'.json'.length)
+    // Allow `.` for pack root host; reject empty after strip only if not `.`
     if (!rel || rel.includes('..')) continue
-    const target = path.join(dest, ...rel.split('/'))
+    const target = rel === '.' ? dest : path.join(dest, ...rel.split('/'))
     try {
       const raw = await entry.async('string')
       const doc = parseUserMetadataDoc(raw) as UserMetadataDoc | null
       if (!doc) continue
-      await fsp.access(target)
+      try {
+        await fsp.access(target)
+      } catch {
+        skipMissing++
+        continue
+      }
+      const hasStream = streamExists(target, USER_METADATA_STREAM)
+      if (dryRun) {
+        if (hasStream) overwrite++
+        else create++
+        continue
+      }
       await withPreservedHostTimes(target, async () => {
         await writeStreamText(
           target,
@@ -257,9 +334,29 @@ export async function importMetadataPack(opts?: {
       written++
       paths.push(target)
     } catch {
-      /* missing target or IO — soft */
+      /* IO — soft */
     }
   }
+
+  if (dryRun) {
+    return {
+      dryRun: true as const,
+      definitions: {
+        addSets: plan.addSets,
+        addFields: plan.addFields,
+        skipFields: plan.skipFields,
+        conflicts: plan.conflicts
+      },
+      values: { create, overwrite, skipMissing }
+    }
+  }
+
+  let definitionsMerged = false
+  if (opts?.mergeDefinitions !== false && plan.merged) {
+    patchSettings({ userMetadata: plan.merged })
+    definitionsMerged = true
+  }
+
   if (paths.length) await invalidateColumnMetaPaths(paths)
   return { written, definitionsMerged }
 }

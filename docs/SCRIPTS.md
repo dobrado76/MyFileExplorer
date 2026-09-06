@@ -59,7 +59,7 @@ That is the point of v0.9: the app ships a **stable place to run code against th
 You are always in a **folder**, and you may have a **selection**. Some jobs need neither.
 
 1. **Folder scope** — “do this to the place I am looking at.” The runner passes `--root` (absolute path of the current tab folder) and, if you tick it, `--recursive`. Working directory is that folder.
-2. **Selection scope** — “do this to what I highlighted.” Paths go in a **temp UTF-8 manifest** (one absolute path per line). The runner passes `--input-list` pointing at that file, then deletes it when the process exits. Working directory is the parent of the first selected path.
+2. **Selection scope** — “do this to what I highlighted.” Paths go in a **temp UTF-8 manifest** (one absolute path per line). The runner passes `--input-list` pointing at that file, then deletes it when the process exits. Working directory is the parent of the first selected path. When **user metadata** is enabled and the selection shares one resolved set, a sibling JSON is also written and exposed as env `MFE_META_MANIFEST` (see below).
 3. **Global scope** — “do this with no current folder or selection.” Tick **Global** in Script Manager (next to Min selection). Folder, Selection, Recursive, Context menu, Destructive, and Dry-run supported turn off and stay disabled; **External file** can stay on. The script appears as its own toolbar button (the strip is hidden when none exist). Choose **Show** (icon / label / both), **Icon size** (12–48 px), and **Icon…** (Lucide, custom image, or External file glyph) — same idea as Quick Launch. The runner passes only optional `--dry-run` and named `--params`. Working directory is the folder that contains the script file.
 
 A script can enable **folder, selection, or both**. **Global is exclusive** of those. Context **Scripts >** only lists folder/selection items that match:
@@ -88,6 +88,19 @@ Every script must parse **argv**, not a single shell string.
 | `--input-list <file>` | Selection mode | UTF-8 text file, one absolute path per line (empty lines ignored) |
 | `--dry-run` | Optional | Print what would change; exit 0; **do not write or delete** |
 | `--<name> [value]` | When you defined parameters | See [Parameters](#parameters) |
+
+**Environment (selection + user metadata):** when Settings → Metadata is enabled and every selected path resolves to the **same** metadata set, the runner also writes a temp JSON and sets `MFE_META_MANIFEST` to that path. Shape:
+
+```json
+{
+  "setId": "ms_…",
+  "setName": "Project",
+  "fields": [ /* catalog fields for that set */ ],
+  "items": [{ "path": "D:\\…\\file.txt", "values": { "mf_…": "…" } }]
+}
+```
+
+The file is deleted when the process exits (same lifecycle as `--input-list`). Scripts that do not need metadata can ignore the env var.
 
 **Folder:**
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import type { UserMetadataField } from '@shared/schemas/userMetadata'
 import { booleanFieldLabels } from '@shared/schemas/userMetadata'
 import { validateUserMetadataLinkValue } from '@shared/userMetadataLink'
@@ -11,6 +11,37 @@ import { testWholeValueSync } from '@shared/userMetadataValidate'
 import { UserMetadataLinkEditor } from './UserMetadataLinkEditor'
 import { UserMetadataIconTagsToggle } from './UserMetadataIconTagsToggle'
 
+type FieldMode = 'leave' | 'set' | 'clear'
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false
+    const sa = [...a].map(String).sort()
+    const sb = [...b].map(String).sort()
+    return sa.every((v, i) => v === sb[i])
+  }
+  return false
+}
+
+function isEmptyValue(v: unknown): boolean {
+  return v == null || v === '' || (Array.isArray(v) && v.length === 0)
+}
+
+function seedDefaults(
+  fields: UserMetadataField[],
+  loaded: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...loaded }
+  for (const f of fields) {
+    if (f.id in next && !isEmptyValue(next[f.id])) continue
+    if (f.defaultValue === undefined || f.defaultValue === null) continue
+    if (isEmptyValue(f.defaultValue)) continue
+    next[f.id] = f.defaultValue
+  }
+  return next
+}
+
 export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
   const bumpColumnMeta = useAppStore((s) => s.bumpColumnMeta)
@@ -18,6 +49,8 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
   const um = useAppStore((s) => s.settings.userMetadata)
   const listing = useAppStore((s) => s.listing)
   const [values, setValues] = useState<Record<string, unknown>>({})
+  const [modes, setModes] = useState<Record<string, FieldMode>>({})
+  const [varies, setVaries] = useState<Record<string, boolean>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [loaded, setLoaded] = useState(false)
@@ -26,7 +59,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
     ? `Metadata (${paths.length} items)`
     : `Metadata — ${basename(paths[0] ?? '')}`
 
-  const fields = ((): UserMetadataField[] => {
+  const fields = useMemo((): UserMetadataField[] => {
     const catalog = um ?? { enabled: false, sets: [], bindings: [] }
     let sharedId: string | null | undefined
     let sharedFields: UserMetadataField[] | null = null
@@ -43,7 +76,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
       }
     }
     return sharedFields ?? []
-  })()
+  }, [paths, um, listing.entries])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -61,9 +94,32 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
         const res = await call(api.userMetadata.getMany({ paths }))
         if (cancelled) return
         if (!multi && paths[0]) {
-          setValues({ ...(res[paths[0]]?.values ?? {}) })
+          setValues(seedDefaults(fields, { ...(res[paths[0]]?.values ?? {}) }))
+          setVaries({})
+          setModes({})
         } else {
-          setValues({})
+          const variesNext: Record<string, boolean> = {}
+          const initial: Record<string, unknown> = {}
+          for (const field of fields) {
+            let first: unknown = undefined
+            let seen = false
+            let differs = false
+            for (const p of paths) {
+              const v = res[p]?.values?.[field.id]
+              if (!seen) {
+                first = v
+                seen = true
+              } else if (!valuesEqual(first, v)) {
+                differs = true
+                break
+              }
+            }
+            variesNext[field.id] = differs
+            if (!differs && !isEmptyValue(first)) initial[field.id] = first as unknown
+          }
+          setVaries(variesNext)
+          setValues(initial)
+          setModes({})
         }
       } catch {
         /* soft */
@@ -74,20 +130,18 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
     return () => {
       cancelled = true
     }
-  }, [paths, multi])
-
-  const orderedFields = fields
+  }, [paths, multi, fields])
 
   const setField = (field: UserMetadataField, next: unknown): void => {
     setValues((prev) => {
       const copy = { ...prev }
-      if (next == null || next === '' || (Array.isArray(next) && next.length === 0)) {
-        delete copy[field.id]
-      } else {
-        copy[field.id] = next
-      }
+      if (isEmptyValue(next)) delete copy[field.id]
+      else copy[field.id] = next
       return copy
     })
+    if (multi) {
+      setModes((m) => ({ ...m, [field.id]: 'set' }))
+    }
     if (field.type === 'text' && typeof next === 'string') {
       const r = testWholeValueSync(next, field.text?.validation, {
         minLength: field.text?.minLength,
@@ -116,10 +170,50 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
     }
   }
 
+  const setMode = (fieldId: string, mode: FieldMode): void => {
+    setModes((m) => ({ ...m, [fieldId]: mode }))
+    if (mode !== 'set') {
+      setErrors((e) => {
+        const n = { ...e }
+        delete n[fieldId]
+        return n
+      })
+    }
+  }
+
   const hasErrors = Object.keys(errors).length > 0
 
+  const validateRequired = (forSave: boolean): boolean => {
+    const nextErrors: Record<string, string> = { ...errors }
+    let ok = true
+    for (const field of fields) {
+      if (!field.required) continue
+      if (multi) {
+        const mode = modes[field.id] ?? 'leave'
+        if (mode === 'clear') {
+          nextErrors[field.id] = 'Required — cannot Clear'
+          ok = false
+          continue
+        }
+        if (mode !== 'set') continue
+        if (isEmptyValue(values[field.id])) {
+          nextErrors[field.id] = 'Required'
+          ok = false
+        }
+      } else if (forSave && isEmptyValue(values[field.id])) {
+        nextErrors[field.id] = 'Required'
+        ok = false
+      }
+    }
+    setErrors(nextErrors)
+    return ok && Object.keys(nextErrors).length === 0
+  }
+
   const save = async (clear: boolean): Promise<void> => {
-    if (hasErrors && !clear) return
+    if (!clear) {
+      if (hasErrors) return
+      if (!validateRequired(true)) return
+    }
     setBusy(true)
     try {
       if (clear) {
@@ -129,7 +223,21 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
           await call(api.userMetadata.set({ path: paths[0]!, values: null }))
         }
       } else if (multi) {
-        await call(api.userMetadata.setMany({ paths, values }))
+        const patch: Record<string, unknown> = {}
+        for (const field of fields) {
+          const mode = modes[field.id] ?? 'leave'
+          if (mode === 'leave') continue
+          if (mode === 'clear') {
+            patch[field.id] = null
+            continue
+          }
+          patch[field.id] = isEmptyValue(values[field.id]) ? null : values[field.id]
+        }
+        if (Object.keys(patch).length === 0) {
+          closeDialog()
+          return
+        }
+        await call(api.userMetadata.setMany({ paths, values: patch }))
       } else {
         await call(api.userMetadata.set({ path: paths[0]!, values }))
       }
@@ -149,7 +257,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
         <div className="modal-body">
           {!loaded ? (
             <p className="settings-help">Loading…</p>
-          ) : orderedFields.length === 0 ? (
+          ) : fields.length === 0 ? (
             <p className="settings-help">
               No metadata set applies to this selection. Assign a set to the folder via context menu →
               Metadata set…
@@ -158,26 +266,68 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
             <div className="user-meta-form">
               {multi && (
                 <p className="settings-help">
-                  Bulk edit applies the values below to every selected item (only fields you set).
+                  Per field: Leave (unchanged), Set, or Clear. Only Set/Clear fields are written.
                 </p>
               )}
-              {orderedFields.map((field) => (
-                <FieldEditor
-                  key={field.id}
-                  field={field}
-                  value={values[field.id]}
-                  error={errors[field.id]}
-                  baseDir={
-                    !multi && paths[0]
-                      ? linkBaseDirForItem(
-                          paths[0],
-                          listing.entries.find((en) => samePath(en.path, paths[0]!))?.kind === 'dir'
-                        )
-                      : null
-                  }
-                  onChange={(v) => setField(field, v)}
-                />
-              ))}
+              {fields.map((field) => {
+                const mode = modes[field.id] ?? 'leave'
+                const showEditor = !multi || mode === 'set'
+                return (
+                  <div key={field.id} className="user-meta-bulk-field">
+                    {multi && (
+                      <div className="user-meta-bulk-mode-row">
+                        <span className="user-meta-bulk-name">
+                          {field.name}
+                          {field.required ? ' *' : ''}
+                          {varies[field.id] ? (
+                            <span className="user-meta-varies" title="Values differ across selection">
+                              {' '}
+                              (varies)
+                            </span>
+                          ) : null}
+                        </span>
+                        <select
+                          className="user-meta-bulk-mode"
+                          aria-label={`${field.name} mode`}
+                          value={mode}
+                          onChange={(e) => setMode(field.id, e.target.value as FieldMode)}
+                        >
+                          <option value="leave">Leave</option>
+                          <option value="set">Set</option>
+                          <option value="clear">Clear</option>
+                        </select>
+                      </div>
+                    )}
+                    {showEditor && (
+                      <FieldEditor
+                        field={field}
+                        value={values[field.id]}
+                        error={errors[field.id]}
+                        hideLabel={multi}
+                        baseDir={
+                          !multi && paths[0]
+                            ? linkBaseDirForItem(
+                                paths[0],
+                                listing.entries.find((en) => samePath(en.path, paths[0]!))
+                                  ?.kind === 'dir'
+                              )
+                            : null
+                        }
+                        onChange={(v) => setField(field, v)}
+                      />
+                    )}
+                    {!multi && errors[field.id] && field.type !== 'text' && field.type !== 'link' ? (
+                      <span className="user-meta-error">{errors[field.id]}</span>
+                    ) : null}
+                    {multi && mode === 'set' && errors[field.id] ? (
+                      <span className="user-meta-error">{errors[field.id]}</span>
+                    ) : null}
+                    {multi && mode === 'clear' && errors[field.id] ? (
+                      <span className="user-meta-error">{errors[field.id]}</span>
+                    ) : null}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -185,7 +335,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
           <button type="button" className="btn" disabled={busy} onClick={() => closeDialog()}>
             Cancel
           </button>
-          {orderedFields.length > 0 && (
+          {fields.length > 0 && (
             <>
               <button
                 type="button"
@@ -194,7 +344,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
                 onClick={() => void save(true)}
                 title="Remove all user metadata from the selection"
               >
-                Clear
+                Clear all
               </button>
               <button
                 type="button"
@@ -217,21 +367,29 @@ function FieldEditor({
   value,
   error,
   baseDir,
+  hideLabel,
   onChange
 }: {
   field: UserMetadataField
   value: unknown
   error?: string
   baseDir: string | null
+  hideLabel?: boolean
   onChange(v: unknown): void
 }): JSX.Element {
   const id = `um-${field.id}`
+  const label = hideLabel ? null : (
+    <span>
+      {field.name}
+      {field.required ? ' *' : ''}
+    </span>
+  )
   if (field.type === 'boolean') {
     const labels = booleanFieldLabels(field)
     const sel = value === true ? 'true' : value === false ? 'false' : ''
     return (
       <label className="settings-labeled-row" htmlFor={id}>
-        <span>{field.name}</span>
+        {label}
         <select
           id={id}
           value={sel}
@@ -250,7 +408,7 @@ function FieldEditor({
   if (field.type === 'choice') {
     return (
       <label className="settings-labeled-row" htmlFor={id}>
-        <span>{field.name}</span>
+        {label}
         <select
           id={id}
           value={typeof value === 'string' ? value : ''}
@@ -270,7 +428,7 @@ function FieldEditor({
     const selected = new Set(Array.isArray(value) ? (value as string[]) : [])
     return (
       <fieldset className="user-meta-multichoice">
-        <legend>{field.name}</legend>
+        <legend>{hideLabel ? 'Options' : field.name}</legend>
         {(field.choices ?? []).map((o) => (
           <label key={o.id} className="settings-toggle">
             <span className="settings-toggle-label">{o.label}</span>
@@ -295,7 +453,7 @@ function FieldEditor({
       : []
     return (
       <div className="settings-labeled-row user-meta-icon-tags-row">
-        <span>{field.name}</span>
+        {label}
         <UserMetadataIconTagsToggle
           field={field}
           selectedIds={selected}
@@ -312,7 +470,7 @@ function FieldEditor({
   if (field.type === 'number') {
     return (
       <label className="settings-labeled-row" htmlFor={id}>
-        <span>{field.name}</span>
+        {label}
         <input
           id={id}
           type="number"
@@ -328,7 +486,7 @@ function FieldEditor({
   if (field.type === 'date') {
     return (
       <label className="settings-labeled-row" htmlFor={id}>
-        <span>{field.name}</span>
+        {label}
         <input
           id={id}
           type="date"
@@ -342,7 +500,7 @@ function FieldEditor({
     const str = typeof value === 'string' ? value : ''
     return (
       <label className="settings-labeled-row user-meta-text user-meta-link-row" htmlFor={id}>
-        <span>{field.name}</span>
+        {label}
         <UserMetadataLinkEditor
           id={id}
           value={str}
@@ -356,7 +514,7 @@ function FieldEditor({
   // text
   return (
     <label className="settings-labeled-row user-meta-text" htmlFor={id}>
-      <span>{field.name}</span>
+      {label}
       <div className="user-meta-text-wrap">
         <input
           id={id}
@@ -369,7 +527,6 @@ function FieldEditor({
               minLength: field.text?.minLength,
               maxLength: field.text?.maxLength
             })
-            // parent already tracks via onChange; blur re-validates
             onChange(e.target.value)
             void r
           }}

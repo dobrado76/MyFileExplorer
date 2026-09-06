@@ -201,6 +201,11 @@ import {
 } from '../userMetadata/store'
 import { assertPatternSafeForSettings, testWholeValueProtected } from '../userMetadata/safeRegex'
 import { exportMetadataPack, importMetadataPack } from '../userMetadata/pack'
+import {
+  clearUserMetadataOrphans,
+  reconnectUserMetadataOrphans,
+  scanUserMetadataOrphans
+} from '../userMetadata/orphans'
 import { fieldByIdInSettings } from '@shared/schemas/userMetadata'
 import {
   deleteFileTemplate,
@@ -959,12 +964,60 @@ export function registerIpcHandlers(): void {
       .object({
         zipPath: z.string().min(1).optional(),
         destFolder: z.string().min(1).optional(),
-        mergeDefinitions: z.boolean().optional()
+        mergeDefinitions: z.boolean().optional(),
+        dryRun: z.boolean().optional()
       })
       .optional(),
     (req) => {
       assertUserMetadataEnabled()
       return importMetadataPack(req ?? {})
+    }
+  )
+  handle(
+    IPC.userMetadataScanOrphans,
+    z.object({ folderPath: z.string().min(1).optional() }),
+    (req) => {
+      assertUserMetadataEnabled()
+      return scanUserMetadataOrphans({ folderPath: req.folderPath })
+    }
+  )
+  handle(
+    IPC.userMetadataClearOrphans,
+    z.object({
+      paths: z.array(z.string().min(1)).max(50_000).optional(),
+      orphans: z
+        .array(
+          z.object({
+            path: z.string().min(1),
+            kind: z.enum(['field', 'option']),
+            fieldId: z.string().min(1),
+            optionId: z.string().min(1).optional(),
+            keyGuess: z.string().optional()
+          })
+        )
+        .max(50_000)
+    }),
+    (req) => {
+      assertUserMetadataEnabled()
+      return clearUserMetadataOrphans(req)
+    }
+  )
+  handle(
+    IPC.userMetadataReconnectOrphans,
+    z.object({
+      mappings: z
+        .array(
+          z.object({
+            path: z.string().min(1),
+            fromFieldId: z.string().min(1),
+            toFieldId: z.string().min(1)
+          })
+        )
+        .max(50_000)
+    }),
+    (req) => {
+      assertUserMetadataEnabled()
+      return reconnectUserMetadataOrphans(req)
     }
   )
   handle(IPC.tabsImportCustomIcon, emptySchema, async (_req, event) => {

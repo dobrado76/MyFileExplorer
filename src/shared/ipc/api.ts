@@ -281,7 +281,18 @@ export type MyFileExplorerApi = {
       zipPath?: string
       destFolder?: string
       mergeDefinitions?: boolean
-    }): Promise<Result<{ written: number; definitionsMerged: boolean }>>
+      dryRun?: boolean
+    }): Promise<Result<import('../userMetadataPack').UserMetadataPackImportResult>>
+    scanOrphans(req?: {
+      folderPath?: string
+    }): Promise<Result<import('../userMetadataOrphans').UserMetadataOrphanScanResult>>
+    clearOrphans(req: {
+      paths?: string[]
+      orphans: import('../userMetadataOrphans').UserMetadataOrphan[]
+    }): Promise<Result<import('../userMetadataOrphans').UserMetadataOrphanClearResult>>
+    reconnectOrphans(req: {
+      mappings: import('../userMetadataOrphans').UserMetadataOrphanReconnectMapping[]
+    }): Promise<Result<import('../userMetadataOrphans').UserMetadataOrphanReconnectResult>>
   }
   tabs: {
     /** Open-file dialog; Sharp cover-crops to a square PNG under userData. */

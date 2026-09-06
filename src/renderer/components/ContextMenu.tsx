@@ -42,6 +42,10 @@ import { slideshowCurrentPath } from '../lib/slideshowTypes'
 import { ShellIcon } from './ShellIcon'
 import { buildScriptsMenuItems, isRemoteLocation } from '../lib/scriptsMenu'
 import { itemAdsAvailable } from '../lib/itemAdsUi'
+import {
+  getUserMetadataClipboard,
+  setUserMetadataClipboard
+} from '../lib/userMetadataClipboard'
 import type { ScriptDefinition } from '@shared/schemas/scripts'
 import type { ScriptMenuContext } from '@shared/scriptMatch'
 
@@ -66,6 +70,7 @@ type SubEntry = {
   items?: SubEntry[]
   sep?: boolean
   title?: string
+  disabled?: boolean
   /** Leading icon (same pattern as toolbar + New). */
   icon?: ReactNode
 }
@@ -292,24 +297,108 @@ function metadataSetFolderMenu(
   ]
 }
 
-/** True when every path resolves to the same non-null metadata set (edit values). */
-function selectionSharesMetadataSet(
+/** Resolved set id when every path shares one non-null metadata set. */
+function sharedMetadataSetId(
   paths: string[],
   entries: { path: string; kind: string }[] | undefined,
   s: ReturnType<typeof useAppStore.getState>
-): boolean {
+): string | null {
   const um = s.settings.userMetadata ?? { enabled: false, sets: [], bindings: [] }
-  if (um.sets.length === 0 || paths.length === 0) return false
+  if (um.sets.length === 0 || paths.length === 0) return null
   let setId: string | null | undefined
   for (const p of paths) {
     const e = entries?.find((en) => samePath(en.path, p))
     const isDir = e?.kind === 'dir' || e?.kind === 'directory'
     const set = resolveMetadataSetForItem(p, !!isDir, um)
-    if (!set) return false
+    if (!set) return null
     if (setId === undefined) setId = set.id
-    else if (setId !== set.id) return false
+    else if (setId !== set.id) return null
   }
-  return setId != null
+  return setId ?? null
+}
+
+function userMetadataEditMenu(
+  paths: string[],
+  close: () => void,
+  s: ReturnType<typeof useAppStore.getState>,
+  entries: { path: string; kind: string }[] | undefined
+): MenuItem[] {
+  if (s.settings.userMetadata?.enabled !== true) return []
+  const targets = paths.filter((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
+  if (targets.length === 0) return []
+  const setId = sharedMetadataSetId(targets, entries, s)
+  const clip = getUserMetadataClipboard()
+  const pasteOk =
+    clip != null && setId != null && clip.setId === setId && targets.length > 0
+  const primary = targets[0]!
+  return [
+    {
+      type: 'submenu',
+      label: 'Metadata',
+      builtin: 'user-metadata',
+      disabled: setId == null,
+      items: [
+        {
+          label: 'Edit…',
+          disabled: setId == null,
+          action: () => {
+            close()
+            s.openDialog({ kind: 'user-metadata', paths: targets })
+          }
+        },
+        {
+          label: 'Copy metadata…',
+          disabled: setId == null,
+          action: () => {
+            close()
+            void (async () => {
+              try {
+                const res = await call(api.userMetadata.getMany({ paths: [primary] }))
+                const values = { ...(res[primary]?.values ?? {}) }
+                for (const [k, v] of Object.entries(values)) {
+                  if (v == null || v === '' || (Array.isArray(v) && v.length === 0)) {
+                    delete values[k]
+                  }
+                }
+                setUserMetadataClipboard({ setId: setId!, values })
+                s.notify(
+                  Object.keys(values).length
+                    ? `Copied metadata (${Object.keys(values).length} fields)`
+                    : 'No metadata values to copy',
+                  false
+                )
+              } catch (e) {
+                s.notify(e instanceof IpcError ? e.message : String(e), true)
+              }
+            })()
+          }
+        },
+        {
+          label: 'Paste metadata…',
+          disabled: !pasteOk,
+          action: () => {
+            close()
+            const payload = getUserMetadataClipboard()
+            if (!payload || !pasteOk) return
+            void (async () => {
+              try {
+                await call(
+                  api.userMetadata.setMany({
+                    paths: targets,
+                    values: payload.values
+                  })
+                )
+                for (const p of targets) s.bumpColumnMeta(p)
+                s.notify(`Pasted metadata onto ${targets.length} item(s)`, false)
+              } catch (e) {
+                s.notify(e instanceof IpcError ? e.message : String(e), true)
+              }
+            })()
+          }
+        }
+      ]
+    }
+  ]
 }
 
 function mediaMetadataMenu(
@@ -551,8 +640,12 @@ function SubMenuFlyout({ entries, depth = 0 }: { entries: SubEntry[]; depth?: nu
           <button
             key={j}
             type="button"
-            className="menu-item"
-            onClick={(e) => sub.action?.(menuMods(e))}
+            className={`menu-item${sub.disabled ? ' disabled' : ''}`}
+            disabled={sub.disabled}
+            onClick={(e) => {
+              if (sub.disabled) return
+              sub.action?.(menuMods(e))
+            }}
             role="menuitem"
             title={sub.title}
             onMouseEnter={() => setOpenNested(null)}
@@ -1568,7 +1661,7 @@ export function ContextMenu(): JSX.Element | null {
               },
               ...mediaMetadataMenu([folderPath], close, s, { treatAsFolders: true })
             ] as MenuItem[])),
-        ...(itemAdsAvailable(s.platform, folderPath, s.recycleBin.active)
+              ...(itemAdsAvailable(s.platform, folderPath, s.recycleBin.active)
           ? [
               {
                 type: 'item' as const,
@@ -1579,24 +1672,9 @@ export function ContextMenu(): JSX.Element | null {
                   s.openDialog({ kind: 'item-note', path: folderPath })
                 }
               },
-              ...(s.settings.userMetadata?.enabled === true
-                ? [
-                    {
-                      type: 'item' as const,
-                      label: 'Metadata…',
-                      builtin: 'user-metadata' as const,
-                      disabled: !selectionSharesMetadataSet(
-                        [folderPath],
-                        [{ path: folderPath, kind: 'dir' }],
-                        s
-                      ),
-                      action: () => {
-                        close()
-                        s.openDialog({ kind: 'user-metadata', paths: [folderPath] })
-                      }
-                    }
-                  ]
-                : []),
+              ...userMetadataEditMenu([folderPath], close, s, [
+                { path: folderPath, kind: 'dir' }
+              ]),
               {
                 type: 'item' as const,
                 label: 'Set icon…',
@@ -2758,32 +2836,15 @@ export function ContextMenu(): JSX.Element | null {
                 s.openDialog({ kind: 'item-note', path: single })
               }
             },
-            ...(s.settings.userMetadata?.enabled === true
-              ? [
-                  {
-                    type: 'item' as const,
-                    label: 'Metadata…',
-                    builtin: 'user-metadata' as const,
-                    disabled: !selectionSharesMetadataSet(
-                      paths.length > 0 &&
-                        paths.every((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
-                        ? paths
-                        : [single],
-                      entries,
-                      s
-                    ),
-                    action: () => {
-                      close()
-                      const sel =
-                        paths.length > 0 &&
-                        paths.every((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
-                          ? paths
-                          : [single]
-                      s.openDialog({ kind: 'user-metadata', paths: sel })
-                    }
-                  }
-                ]
-              : []),
+            ...userMetadataEditMenu(
+              paths.length > 0 &&
+                paths.every((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
+                ? paths
+                : [single],
+              close,
+              s,
+              entries
+            ),
             {
               type: 'item' as const,
               label: 'Set icon…',
@@ -3154,7 +3215,7 @@ export function ContextMenu(): JSX.Element | null {
       } else if (e.key === 'Enter') {
         if (subItems && subFocusIdx >= 0) {
           const sub = subItems[subFocusIdx]
-          if (sub && !sub.sep && sub.action) sub.action(menuMods(e))
+          if (sub && !sub.sep && !sub.disabled && sub.action) sub.action(menuMods(e))
         } else if (focused?.type === 'submenu' && !focused.disabled) {
           showSub(focusIdx)
           const first = focused.items.findIndex((x) => !x.sep)

@@ -83,12 +83,21 @@ export function PowerSearchDialog(): JSX.Element {
   const runSearch = useAppStore((s) => s.runSearch)
   const openDialog = useAppStore((s) => s.openDialog)
   const activePath = useAppStore((s) => s.activeTab().path)
+  const userMetadataSets = useMemo(() => {
+    if (settings.userMetadata?.enabled !== true) return []
+    return settings.userMetadata.sets ?? []
+  }, [settings.userMetadata])
   const userMetadataFields = useMemo(() => {
     if (settings.userMetadata?.enabled !== true) return []
     return allUserMetadataFields(
       settings.userMetadata ?? { enabled: false, sets: [], bindings: [] }
     )
   }, [settings.userMetadata])
+  const [metaSetId, setMetaSetId] = useState('')
+  const metaSetFields = useMemo(() => {
+    const set = userMetadataSets.find((s) => s.id === metaSetId)
+    return set?.fields ?? []
+  }, [userMetadataSets, metaSetId])
 
   const [scope, setScope] = useState<PowerSearchScope>(() =>
     search.indexedOnly ? 'indexed' : 'folder'
@@ -105,6 +114,13 @@ export function PowerSearchDialog(): JSX.Element {
   const [regex, setRegex] = useState(settings.searchRegex)
   const [saveName, setSaveName] = useState('')
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fid = builder.metaFilters[0]?.fieldId
+    if (!fid) return
+    const owner = userMetadataSets.find((s) => s.fields.some((f) => f.id === fid))
+    if (owner && owner.id !== metaSetId) setMetaSetId(owner.id)
+  }, [builder.metaFilters, userMetadataSets, metaSetId])
 
   const builtQuery = useMemo(
     () => buildSearchQuery(builder, { userMetadataFields }),
@@ -123,6 +139,7 @@ export function PowerSearchDialog(): JSX.Element {
   const loadBookmark = (b: SearchBookmark): void => {
     setScope(b.scope)
     setBuilder(defaultPowerSearchState())
+    setMetaSetId('')
     setManualQuery(true)
     setQueryText(b.query)
   }
@@ -130,6 +147,7 @@ export function PowerSearchDialog(): JSX.Element {
   const loadFilter = (f: SearchFilter): void => {
     setScope('indexed')
     setBuilder(defaultPowerSearchState())
+    setMetaSetId('')
     setManualQuery(true)
     setQueryText(f.macro ? `${f.macro}:` : f.query)
   }
@@ -173,7 +191,13 @@ export function PowerSearchDialog(): JSX.Element {
   }, [settings.powerSearchSaved])
 
   const applySaved = (entry: PowerSearchSaved): void => {
-    setBuilder(sanitizePowerSearchState(entry.builder))
+    const next = sanitizePowerSearchState(entry.builder)
+    setBuilder(next)
+    const fid = next.metaFilters[0]?.fieldId
+    const owner = fid
+      ? userMetadataSets.find((s) => s.fields.some((f) => f.id === fid))
+      : undefined
+    setMetaSetId(owner?.id ?? '')
     setMatchPath(entry.matchPath)
     setMatchCase(entry.matchCase)
     setWholeWord(entry.wholeWord)
@@ -233,6 +257,7 @@ export function PowerSearchDialog(): JSX.Element {
             className="btn"
             onClick={() => {
               setBuilder(defaultPowerSearchState())
+              setMetaSetId('')
               setManualQuery(false)
               setQueryText('')
             }}
@@ -734,12 +759,31 @@ export function PowerSearchDialog(): JSX.Element {
               Has user metadata
             </label>
           </div>
-          {userMetadataFields.length > 0 && (
+          {userMetadataSets.length > 0 && (
             <div className="power-search-fields power-search-fields-3" style={{ marginTop: 8 }}>
+              <label className="power-search-field">
+                <span>Metadata set</span>
+                <select
+                  value={metaSetId}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    setMetaSetId(next)
+                    patchBuilder({ metaFilters: [] })
+                  }}
+                >
+                  <option value="">—</option>
+                  {userMetadataSets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <label className="power-search-field">
                 <span>Metadata field</span>
                 <select
                   value={builder.metaFilters[0]?.fieldId ?? ''}
+                  disabled={!metaSetId}
                   onChange={(e) => {
                     const fieldId = e.target.value
                     if (!fieldId) {
@@ -751,8 +795,8 @@ export function PowerSearchDialog(): JSX.Element {
                     })
                   }}
                 >
-                  <option value="">—</option>
-                  {userMetadataFields.map((f) => (
+                  <option value="">{metaSetId ? '—' : 'Select a set first'}</option>
+                  {metaSetFields.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name}
                     </option>
@@ -761,7 +805,7 @@ export function PowerSearchDialog(): JSX.Element {
               </label>
               {(() => {
                 const mf = builder.metaFilters[0]
-                const field = userMetadataFields.find((f) => f.id === mf?.fieldId)
+                const field = metaSetFields.find((f) => f.id === mf?.fieldId)
                 if (!field || !mf) return null
                 if (
                   field.type === 'choice' ||
