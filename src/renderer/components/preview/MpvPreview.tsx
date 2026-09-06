@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { api } from '../../lib/ipc'
+import { useAppStore } from '../../store/appStore'
 
 /**
  * Host for opt-in Rich player (mpv). Reports DIP bounds to main; main places
@@ -24,6 +25,14 @@ export function MpvPreview({
   const [status, setStatus] = useState<'starting' | 'playing' | 'error'>('starting')
   const [error, setError] = useState<string | null>(null)
   const startedFor = useRef<string | null>(null)
+  const overlayBlocked = useAppStore(
+    (s) => s.dialog != null || s.contextMenu != null || s.imageViewer != null
+  )
+
+  useEffect(() => {
+    if (status !== 'playing') return
+    void api.preview.mpvVisible({ visible: !overlayBlocked })
+  }, [overlayBlocked, status])
 
   useEffect(() => {
     if (!active) {

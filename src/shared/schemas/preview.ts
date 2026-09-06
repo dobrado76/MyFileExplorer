@@ -178,6 +178,11 @@ export const previewMpvBoundsRequestSchema = z.object({
 })
 export type PreviewMpvBoundsRequest = z.infer<typeof previewMpvBoundsRequestSchema>
 
+export const previewMpvVisibleSchema = z.object({
+  visible: z.boolean()
+})
+export type PreviewMpvVisibleRequest = z.infer<typeof previewMpvVisibleSchema>
+
 /** Async A/V tag fields after a fast `preview:get` (duration/codecs/cover). */
 export const previewMediaMetaSchema = z.object({
   path: z.string().min(1)

@@ -352,6 +352,9 @@ export type MyFileExplorerApi = {
     mpvBounds(
       req: import('../schemas/preview').PreviewMpvBoundsRequest
     ): Promise<Result<{ ok: true }>>
+    mpvVisible(
+      req: import('../schemas/preview').PreviewMpvVisibleRequest
+    ): Promise<Result<{ ok: true }>>
     mpvStop(): Promise<Result<{ stopped: boolean }>>
   }
   properties: {

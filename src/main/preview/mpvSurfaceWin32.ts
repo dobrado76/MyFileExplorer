@@ -24,10 +24,15 @@ const SWP_NOACTIVATE = 0x0010
 const SWP_SHOWWINDOW = 0x0040
 const SWP_FRAMECHANGED = 0x0020
 const SWP_NOZORDER = 0x0004
-const SW_SHOW = 5
-const HWND_TOP = 0
+const SWP_HIDEWINDOW = 0x0080
+const SW_HIDE = 0
+const SW_SHOWNA = 8
+/** Place below topmost windows; do not raise above other apps. */
+const HWND_NOTOPMOST = -2
 const GWL_STYLE = -16
+const GWL_EXSTYLE = -20
 const GWLP_HWNDPARENT = -8
+const WS_EX_TOPMOST = 0x00000008
 
 type Api = {
   FindWindowW: (cls: unknown, title: string) => unknown
@@ -174,6 +179,9 @@ export function placeMpvOverlay(
     BigInt(WS_POPUP | WS_VISIBLE | WS_CLIPSIBLINGS)
   u.SetWindowLongPtrW(mpvHwnd, GWL_STYLE, next)
 
+  const ex = toBigInt(u.GetWindowLongPtrW(mpvHwnd, GWL_EXSTYLE))
+  u.SetWindowLongPtrW(mpvHwnd, GWL_EXSTYLE, ex & ~BigInt(WS_EX_TOPMOST))
+
   const parent = readWindowHwnd(owner)
   if (parent) {
     u.SetWindowLongPtrW(mpvHwnd, GWLP_HWNDPARENT, toBigInt(parent))
@@ -182,17 +190,23 @@ export function placeMpvOverlay(
   const r = screenRectFor(owner, bounds)
   u.SetWindowPos(
     mpvHwnd,
-    HWND_TOP,
+    HWND_NOTOPMOST,
     r.x,
     r.y,
     r.width,
     r.height,
     SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED
   )
-  u.ShowWindow(mpvHwnd, SW_SHOW)
+  u.ShowWindow(mpvHwnd, SW_SHOWNA)
 }
 
-export function moveMpvOverlay(
+export function hideMpvOverlay(mpvHwnd: unknown): void {
+  const u = loadApi()
+  if (!mpvHwnd || !u.IsWindow(mpvHwnd)) return
+  u.ShowWindow(mpvHwnd, SW_HIDE)
+}
+
+export function showMpvOverlay(
   owner: BrowserWindow,
   mpvHwnd: unknown,
   bounds: PreviewMpvBounds
@@ -202,11 +216,33 @@ export function moveMpvOverlay(
   const r = screenRectFor(owner, bounds)
   u.SetWindowPos(
     mpvHwnd,
-    HWND_TOP,
+    HWND_NOTOPMOST,
     r.x,
     r.y,
     r.width,
     r.height,
-    SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOZORDER
+    SWP_NOACTIVATE | SWP_NOZORDER
+  )
+  u.ShowWindow(mpvHwnd, SW_SHOWNA)
+}
+
+export function moveMpvOverlay(
+  owner: BrowserWindow,
+  mpvHwnd: unknown,
+  bounds: PreviewMpvBounds,
+  opts?: { hide?: boolean }
+): void {
+  const u = loadApi()
+  if (!mpvHwnd || !u.IsWindow(mpvHwnd)) return
+  const r = screenRectFor(owner, bounds)
+  // Never SWP_SHOWWINDOW here — that re-raises the overlay above dialogs / other apps.
+  u.SetWindowPos(
+    mpvHwnd,
+    HWND_NOTOPMOST,
+    r.x,
+    r.y,
+    r.width,
+    r.height,
+    SWP_NOACTIVATE | SWP_NOZORDER | (opts?.hide === true ? SWP_HIDEWINDOW : 0)
   )
 }

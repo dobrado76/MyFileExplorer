@@ -17,6 +17,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 - **Rich player regression fix** — restore Chromium `<video>` teardown-on-unmount-only (clearing `src` on effect re-run left dead players). MP4/MOV path no longer touches mpv.
 - **Rich player OSC** — controls stay visible while windowed (`osc-visibility=always`, `windowcontrols=no`, `layout=bottombar`). Hover-over-video cannot drive OSC because the mouse hits Chromium, not mpv.
 - **Video preview layout** — wait for File/VIDEO (or Audio) tags before painting the player so the pane does not jump when duration/codecs/title appear.
+- **Rich player z-order** — overlay is not always-on-top; bounds ticks no longer raise it; hide while Settings/menus/other MFE windows need the screen.
 - **User metadata required / Clear** — `required` is an editing constraint: Set needs a value; Clear unavailable; Leave allowed for legacy empties; defining required does not backfill.
 - **User metadata catalog tombstones** — `deletedIdentities` retains former field/option keys for Hygiene reconnect and pack recovery (ADS alone cannot remmap deleted option ids).
 - **User metadata Pack conflict safety** — conflicting definitions and dependent values are skipped/reported; Apply does not import unknown option ids as new orphans.

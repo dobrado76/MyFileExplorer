@@ -144,6 +144,7 @@ export const IPC = {
   previewMpvAvailable: 'preview:mpvAvailable',
   previewMpvStart: 'preview:mpvStart',
   previewMpvBounds: 'preview:mpvBounds',
+  previewMpvVisible: 'preview:mpvVisible',
   previewMpvStop: 'preview:mpvStop',
 
   /** Open one detached Properties window per path (peer of the shell). */

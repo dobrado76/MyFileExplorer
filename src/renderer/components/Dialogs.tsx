@@ -4058,7 +4058,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <SettingsToggle
                 id="set-preview-rich-player"
                 label="Rich player (mpv)"
-                hint="Experimental. Only affects MKV/WMV/AVI and similar (not MP4/WebM/MOV). Requires mpv. Leave off unless you are testing — default Open with default app / strip preview is unchanged when this is off."
+                hint="Play MKV, WMV, AVI and similar in the preview pane. MP4, WebM and MOV still use the built-in player."
                 checked={settings.previewRichPlayerMpv === true}
                 searchTerms="mpv rich player mkv wmv avi matroska codec embed"
                 onChange={(v) => void applySettingsPatch({ previewRichPlayerMpv: v })}

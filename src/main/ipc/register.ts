@@ -34,6 +34,7 @@ import {
   previewMediaMetaSchema,
   previewMpvBoundsRequestSchema,
   previewMpvStartSchema,
+  previewMpvVisibleSchema,
   previewRequestSchema,
   previewWindowTargetSchema
 } from '@shared/schemas/preview'
@@ -291,7 +292,7 @@ function assertRemoteReposEnabled(): void {
   }
 }
 import { ensurePlayablePreview, getChmTopicPreview, getImageDisplayUrl, getMediaPreviewMeta, getPreview } from '../preview'
-import { mpvProbe, setMpvBounds, startMpvSession, stopMpvForSender } from '../preview/mpvPlayer'
+import { mpvProbe, setMpvBounds, setMpvVisible, startMpvSession, stopMpvForSender } from '../preview/mpvPlayer'
 import {
   getPreviewTarget,
   openPreviewWindow,
@@ -843,6 +844,9 @@ export function registerIpcHandlers(): void {
   )
   handle(IPC.previewMpvBounds, previewMpvBoundsRequestSchema, (req, event) =>
     setMpvBounds(event.sender, req.bounds)
+  )
+  handle(IPC.previewMpvVisible, previewMpvVisibleSchema, (req, event) =>
+    setMpvVisible(event.sender, req.visible)
   )
   handle(IPC.previewMpvStop, emptySchema, (_req, event) => stopMpvForSender(event.sender))
   handle(IPC.propertiesOpenWindows, openPropertiesWindowsRequestSchema, (req) =>

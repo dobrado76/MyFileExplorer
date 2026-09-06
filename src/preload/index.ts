@@ -149,6 +149,7 @@ const api: MyFileExplorerApi = {
     mpvAvailable: invokeVoid(IPC.previewMpvAvailable),
     mpvStart: invoke(IPC.previewMpvStart),
     mpvBounds: invoke(IPC.previewMpvBounds),
+    mpvVisible: invoke(IPC.previewMpvVisible),
     mpvStop: invokeVoid(IPC.previewMpvStop)
   },
   properties: {

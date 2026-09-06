@@ -5,17 +5,19 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
-import { BrowserWindow, type WebContents } from 'electron'
+import { app, BrowserWindow, type WebContents } from 'electron'
 import { AppError } from '@shared/result'
 import type { PreviewMpvBounds } from '@shared/schemas/preview'
 import { logMain } from '../logging'
 import { ensureMpvOscScript, resolveMpvPath } from './mpvBin'
 import {
   findMpvWindow,
+  hideMpvOverlay,
   moveMpvOverlay,
   overlayGeometryArg,
   placeMpvOverlay,
-  screenRectFor
+  screenRectFor,
+  showMpvOverlay
 } from './mpvSurfaceWin32'
 
 let titleSeq = 0
@@ -30,8 +32,13 @@ type Session = {
   mpvHwnd: unknown | null
   child: ChildProcess
   lastRel: PreviewMpvBounds
+  /** Dialog / menu asked to hide the overlay without killing playback. */
+  chromeHidden: boolean
   moveHandler: () => void
   resizeHandler: () => void
+  minimizeHandler: () => void
+  restoreHandler: () => void
+  appFocusHandler: (win: BrowserWindow) => void
 }
 
 let session: Session | null = null
@@ -61,7 +68,10 @@ function detachOwnerListeners(cur: Session): void {
   if (owner && !owner.isDestroyed()) {
     owner.off('move', cur.moveHandler)
     owner.off('resize', cur.resizeHandler)
+    owner.off('minimize', cur.minimizeHandler)
+    owner.off('restore', cur.restoreHandler)
   }
+  app.off('browser-window-focus', cur.appFocusHandler)
 }
 
 export function stopMpvSession(): { stopped: boolean } {
@@ -142,6 +152,7 @@ export async function startMpvSession(
     '--keep-open=yes',
     '--no-border',
     '--keepaspect-window=no',
+    '--no-ontop',
     '--osc=yes',
     '--script-opts=osc-visibility=always,osc-windowcontrols=no,osc-layout=bottombar',
     `--script=${oscScript}`,
@@ -177,7 +188,33 @@ export async function startMpvSession(
   const moveHandler = (): void => {
     if (!session || session.generation !== generation || owner.isDestroyed()) return
     if (!session.mpvHwnd) return
-    moveMpvOverlay(owner, session.mpvHwnd, session.lastRel)
+    moveMpvOverlay(owner, session.mpvHwnd, session.lastRel, {
+      hide: session.chromeHidden || owner.isMinimized()
+    })
+  }
+
+  const minimizeHandler = (): void => {
+    if (!session || session.generation !== generation || !session.mpvHwnd) return
+    hideMpvOverlay(session.mpvHwnd)
+  }
+
+  const restoreHandler = (): void => {
+    if (!session || session.generation !== generation || !session.mpvHwnd) return
+    if (session.chromeHidden) return
+    showMpvOverlay(owner, session.mpvHwnd, session.lastRel)
+  }
+
+  const appFocusHandler = (win: BrowserWindow): void => {
+    if (!session || session.generation !== generation || !session.mpvHwnd) return
+    if (session.chromeHidden) return
+    if (win.id === session.ownerId) {
+      if (!owner.isDestroyed() && !owner.isMinimized()) {
+        showMpvOverlay(owner, session.mpvHwnd, session.lastRel)
+      }
+      return
+    }
+    // Another MFE window (Properties, pop-out, …) — do not cover it.
+    hideMpvOverlay(session.mpvHwnd)
   }
 
   // Provisional session immediately so concurrent stop/start can kill this child.
@@ -188,8 +225,12 @@ export async function startMpvSession(
     mpvHwnd: null,
     child,
     lastRel: { ...bounds },
+    chromeHidden: false,
     moveHandler,
-    resizeHandler: moveHandler
+    resizeHandler: moveHandler,
+    minimizeHandler,
+    restoreHandler,
+    appFocusHandler
   }
 
   let startFailed = false
@@ -241,6 +282,7 @@ export async function startMpvSession(
 
   try {
     placeMpvOverlay(owner, mpvHwnd, session.lastRel)
+    if (session.chromeHidden || owner.isMinimized()) hideMpvOverlay(mpvHwnd)
   } catch (e) {
     if (session?.generation === generation) {
       stopMpvSession()
@@ -260,6 +302,9 @@ export async function startMpvSession(
 
   owner.on('move', moveHandler)
   owner.on('resize', moveHandler)
+  owner.on('minimize', minimizeHandler)
+  owner.on('restore', restoreHandler)
+  app.on('browser-window-focus', appFocusHandler)
 
   session.mpvHwnd = mpvHwnd
 
@@ -268,7 +313,9 @@ export async function startMpvSession(
     setTimeout(() => {
       if (!stillCurrent(generation) || !session?.mpvHwnd) return
       if (owner.isDestroyed()) return
-      moveMpvOverlay(owner, session.mpvHwnd, session.lastRel)
+      moveMpvOverlay(owner, session.mpvHwnd, session.lastRel, {
+        hide: session.chromeHidden || owner.isMinimized()
+      })
     }, ms)
   }
 
@@ -285,7 +332,24 @@ export function setMpvBounds(sender: WebContents, bounds: PreviewMpvBounds): { o
   if (!cur.mpvHwnd) return { ok: true }
   const owner = BrowserWindow.fromId(cur.ownerId)
   if (!owner || owner.isDestroyed()) return { ok: true }
-  moveMpvOverlay(owner, cur.mpvHwnd, bounds)
+  moveMpvOverlay(owner, cur.mpvHwnd, bounds, {
+    hide: cur.chromeHidden || owner.isMinimized()
+  })
+  return { ok: true }
+}
+
+/** Hide/show the overlay without killing playback. Owner-scoped. */
+export function setMpvVisible(sender: WebContents, visible: boolean): { ok: true } {
+  const cur = session
+  if (!cur) return { ok: true }
+  const ownerId = ownerWindowId(sender)
+  if (ownerId === null || ownerId !== cur.ownerId) return { ok: true }
+  cur.chromeHidden = !visible
+  if (!cur.mpvHwnd) return { ok: true }
+  const owner = BrowserWindow.fromId(cur.ownerId)
+  if (!owner || owner.isDestroyed()) return { ok: true }
+  if (!visible || owner.isMinimized()) hideMpvOverlay(cur.mpvHwnd)
+  else showMpvOverlay(owner, cur.mpvHwnd, cur.lastRel)
   return { ok: true }
 }
 
