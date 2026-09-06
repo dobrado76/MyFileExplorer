@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useState, type JSX } from 'react'
 import type { UserMetadataField } from '@shared/schemas/userMetadata'
 import { booleanFieldLabels } from '@shared/schemas/userMetadata'
 import { validateUserMetadataLinkValue } from '@shared/userMetadataLink'
@@ -59,7 +59,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
     ? `Metadata (${paths.length} items)`
     : `Metadata — ${basename(paths[0] ?? '')}`
 
-  const fields = useMemo((): UserMetadataField[] => {
+  const fields = ((): UserMetadataField[] => {
     const catalog = um ?? { enabled: false, sets: [], bindings: [] }
     let sharedId: string | null | undefined
     let sharedFields: UserMetadataField[] | null = null
@@ -76,7 +76,7 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
       }
     }
     return sharedFields ?? []
-  }, [paths, um, listing.entries])
+  })()
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {

@@ -455,7 +455,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     if (!userMetadataEnabled || !folderPath) return null
     return resolveMetadataSet(folderPath, umSettings)
   }, [userMetadataEnabled, folderPath, umSettings])
-  const userMetaFields = cwdMetadataSet?.fields ?? []
+  const userMetaFields = useMemo(
+    () => cwdMetadataSet?.fields ?? [],
+    [cwdMetadataSet]
+  )
   const userMetaFieldsCatalog = useMemo(
     () => allUserMetadataFields(umSettings),
     [umSettings]
@@ -464,19 +467,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     () => userMetaFields.find((f) => f.showOnIcon === true) ?? null,
     [userMetaFields]
   )
-  const umFacets =
-    userMetadataSession.folderPath &&
-    folderPath &&
-    samePath(userMetadataSession.folderPath, folderPath)
-      ? userMetadataSession.facets
-      : {}
+  const umFacets = useMemo(() => {
+    if (
+      userMetadataSession.folderPath &&
+      folderPath &&
+      samePath(userMetadataSession.folderPath, folderPath)
+    ) {
+      return userMetadataSession.facets
+    }
+    return {}
+  }, [userMetadataSession.folderPath, userMetadataSession.facets, folderPath])
   const umFacetsActive = userMetadataEnabled && userMetadataFacetsActive(umFacets)
-  const umValuesByPath =
-    userMetadataSession.folderPath &&
-    folderPath &&
-    samePath(userMetadataSession.folderPath, folderPath)
-      ? userMetadataSession.valuesByPath
-      : {}
+  const umValuesByPath = useMemo(() => {
+    if (
+      userMetadataSession.folderPath &&
+      folderPath &&
+      samePath(userMetadataSession.folderPath, folderPath)
+    ) {
+      return userMetadataSession.valuesByPath
+    }
+    return {}
+  }, [userMetadataSession.folderPath, userMetadataSession.valuesByPath, folderPath])
   /** Column picker Media Metadata section: library folder or recognized subfolder. */
   const showMediaMetadataColumns =
     mediaMetadataEnabled &&

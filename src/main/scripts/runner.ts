@@ -72,7 +72,7 @@ async function maybeWriteMetaManifest(paths: string[]): Promise<string | null> {
   let sharedId: string | null | undefined
   let sharedSet = null as ReturnType<typeof resolveMetadataSetForItem>
   for (const p of paths) {
-    let isDir = false
+    let isDir: boolean
     try {
       isDir = (await fsp.stat(p)).isDirectory()
     } catch {

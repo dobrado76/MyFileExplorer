@@ -90,9 +90,13 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
   const [editingId, setEditingId] = useState<string | null>(null)
   const [catalogUndo, setCatalogUndo] = useState<UserMetadataSettings[]>([])
   const catalogUndoRef = useRef(catalogUndo)
-  catalogUndoRef.current = catalogUndo
   const umRef = useRef(um)
-  umRef.current = um
+  useEffect(() => {
+    catalogUndoRef.current = catalogUndo
+  }, [catalogUndo])
+  useEffect(() => {
+    umRef.current = um
+  }, [um])
 
   const activeSet =
     activeTab !== 'assignments' &&
