@@ -150,7 +150,12 @@ export async function loadMediaPreviewMeta(
 
   try {
     const { parseFile } = await import('music-metadata')
-    const meta = await parseFile(filePath, { duration: true, skipCovers: !includeCover })
+    // duration:true scans the whole file when the header has no duration — fine for
+    // songs, disastrous for multi‑GB MKV/AVI. Header duration is still read either way.
+    const meta = await parseFile(filePath, {
+      duration: group === 'audio',
+      skipCovers: !includeCover
+    })
     const { common, format } = meta
 
     // Format / stream
