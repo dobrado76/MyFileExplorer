@@ -28,6 +28,7 @@
     "samples:preview": "node scripts/generate-preview-samples.mjs",
     "postinstall": "node scripts/patch-filerobot-crop.mjs",
     "build:win": "node scripts/build-win.mjs",
+    "tools:fetch-mpv": "node scripts/fetch-mpv.mjs",
     "dist": "node scripts/dist.mjs",
     "dist:nobump": "node scripts/dist.mjs --no-bump",
     "dist:linux": "npm run build:linux"

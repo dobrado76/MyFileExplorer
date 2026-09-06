@@ -188,7 +188,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
 | Multi-pane | D31 — 1 / 2 / 3 / 4 panes + per-pane tree + layout persistence; empty pane Open Computer / Browse |
 | Tab icons | D32 — Lucide icon + color; tab context menu |
-| In-pane video | D33 — byte-range media; MKV remux; AVI strip-only |
+| In-pane video | D33 — Chromium for MP4/M4V/WebM/MOV; no ffmpeg remux; opt-in Rich player (mpv); else Open with default app / strip-only |
 | Richer previews | HTML/Markdown Preview·Raw; Unity; PE; ZIP/7z/RAR/TAR/APK/MSI/ISO; `.chm` (D35); `.ttf` (D36) — [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
 | Windows Properties | Shell property sheet from detached Properties window |
 | OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll; tree hover-expand |

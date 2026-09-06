@@ -145,7 +145,11 @@ const api: MyFileExplorerApi = {
     chmTopic: invoke(IPC.previewChmTopic),
     openWindow: invokeVoid(IPC.previewOpenWindow),
     setTarget: invoke(IPC.previewSetTarget),
-    getTarget: invokeVoid(IPC.previewGetTarget)
+    getTarget: invokeVoid(IPC.previewGetTarget),
+    mpvAvailable: invokeVoid(IPC.previewMpvAvailable),
+    mpvStart: invoke(IPC.previewMpvStart),
+    mpvBounds: invoke(IPC.previewMpvBounds),
+    mpvStop: invokeVoid(IPC.previewMpvStop)
   },
   properties: {
     openWindows: invoke(IPC.propertiesOpenWindows),

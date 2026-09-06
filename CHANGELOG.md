@@ -11,6 +11,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 - **Video preview — no ffmpeg for playback** — Preview plays MP4/M4V/WebM/MOV directly only. MKV/TS/etc. → **Open with default app**. No remux/transcode/“Preparing playback…” (ffmpeg was locking rename/move/delete).
 - **Video preview — HEVC / clearer codec fallbacks** — Preview enables Chromium `PlatformHEVCDecoderSupport` (HEVC in MP4/MOV/M4V via the OS decoder; Windows: HEVC Video Extensions). Hostile audio (AC-3/DTS) and unsupported HEVC get an explicit tip + Open with default app.
+- **D33 amendment (spec lock)** — opt-in Settings → Preview → **Rich player (mpv)** (`previewRichPlayerMpv`, default off) for in-pane MKV/etc. via a bundled mpv helper; default path stays Open with default app. Not implemented yet.
+- **Rich player (mpv)** — Settings → Preview → **Rich player (mpv)** (off by default). When on, Preview embeds mpv for containers Chromium cannot play (MKV/WMV/AVI/…). Fetch binaries with `npm run tools:fetch-mpv`. Still no ffmpeg remux.
+- **Rich player embed fix** — native Win32 child HWND + DPI `dipToScreenRect` / `ScreenToClient` (replaces broken Electron overlay window that stayed black and drifted on resize).
+- **Rich player video fix** — stop using `--wid` (black frames under Electron GPU). Spawn mpv normally, then **reparent** its window into the preview HWND.
+- **Rich player regression fix** — restore Chromium `<video>` teardown-on-unmount-only (clearing `src` on effect re-run left dead players). MP4/MOV path no longer touches mpv. Rich player is a separate branch for non-mediaUrl files only.
+- **Rich player window find** — drop `koffi.register` (`Unexpected character '('`). Locate mpv via `--title` + `FindWindowW` / process MainWindowHandle.
+- **Rich player OSC** — controls stay visible while windowed (`osc-visibility=always`); auto-hide only in fullscreen. Hover-over-video cannot drive OSC because the mouse hits Chromium, not mpv.
 - **User metadata required / Clear** — `required` is an editing constraint: Set needs a value; Clear unavailable; Leave allowed for legacy empties; defining required does not backfill.
 - **User metadata catalog tombstones** — `deletedIdentities` retains former field/option keys for Hygiene reconnect and pack recovery (ADS alone cannot remmap deleted option ids).
 - **User metadata Pack conflict safety** — conflicting definitions and dependent values are skipped/reported; Apply does not import unknown option ids as new orphans.

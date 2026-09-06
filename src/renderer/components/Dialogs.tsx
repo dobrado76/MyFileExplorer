@@ -4055,6 +4055,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 searchTerms="autoplay video audio movie episode play"
                 onChange={(v) => void applySettingsPatch({ previewVideoAutoplay: v })}
               />
+              <SettingsToggle
+                id="set-preview-rich-player"
+                label="Rich player (mpv)"
+                hint="Experimental. Only affects MKV/WMV/AVI and similar (not MP4/WebM/MOV). Requires mpv. Leave off unless you are testing — default Open with default app / strip preview is unchanged when this is off."
+                checked={settings.previewRichPlayerMpv === true}
+                searchTerms="mpv rich player mkv wmv avi matroska codec embed"
+                onChange={(v) => void applySettingsPatch({ previewRichPlayerMpv: v })}
+              />
               <label
                 className="settings-field settings-field-narrow"
                 htmlFor="set-maxbytes"

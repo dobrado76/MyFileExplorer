@@ -137,7 +137,11 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | ------------- | ---------------------------------------------------------- |
 | `preview:get` | `{ path, ads? }` → `PreviewModel` — optional `ads` (`null` = `$DATA`, `"VER_k"` = stream; omit = tip) (see [PREVIEW.md](PREVIEW.md)) |
 | `preview:getDisplayUrl` | `{ path, ads? }` → `{ mediaUrl }` — slideshow/overlay only; no generation parse or full-file Sharp |
-| `preview:ensurePlayable` | `{ path }` → `{ mediaUrl }` — direct `mfe-media` URL for MP4/M4V/WebM/MOV only; **never ffmpeg**; null for other containers (Open with default app) |
+| `preview:ensurePlayable` | `{ path }` → `{ mediaUrl }` — direct `mfe-media` URL for MP4/M4V/WebM/MOV only; **never ffmpeg**; null for other containers |
+| `preview:mpvAvailable` | `{}` → `{ available, path }` — opt-in Rich player binary resolve (D33) |
+| `preview:mpvStart` | `{ path, bounds, autoplay? }` → `{ started }` — embed mpv over preview host (`--wid`) |
+| `preview:mpvBounds` | `{ bounds }` → `{ ok }` — move/resize embed with host |
+| `preview:mpvStop` | `{}` → `{ stopped }` — kill mpv session |
 
 ### `search.*`
 

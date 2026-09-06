@@ -151,10 +151,31 @@ export type PreviewDisplayUrlRequest = z.infer<typeof previewDisplayUrlSchema>
 
 export const previewEnsurePlayableSchema = z.object({
   path: z.string().min(1),
-  /** Drop cache and force H.264 transcode (recovery from audio-only remux). */
+  /** Unused — Preview never ffmpeg-remuxes; kept for soft schema compat. */
   force: z.boolean().optional()
 })
 export type PreviewEnsurePlayableRequest = z.infer<typeof previewEnsurePlayableSchema>
+
+/** DIP bounds of the preview media host relative to the BrowserWindow content area. */
+export const previewMpvBoundsSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number().min(1),
+  height: z.number().min(1)
+})
+export type PreviewMpvBounds = z.infer<typeof previewMpvBoundsSchema>
+
+export const previewMpvStartSchema = z.object({
+  path: z.string().min(1),
+  bounds: previewMpvBoundsSchema,
+  autoplay: z.boolean().optional()
+})
+export type PreviewMpvStartRequest = z.infer<typeof previewMpvStartSchema>
+
+export const previewMpvBoundsRequestSchema = z.object({
+  bounds: previewMpvBoundsSchema
+})
+export type PreviewMpvBoundsRequest = z.infer<typeof previewMpvBoundsRequestSchema>
 
 /** Async A/V tag fields after a fast `preview:get` (duration/codecs/cover). */
 export const previewMediaMetaSchema = z.object({

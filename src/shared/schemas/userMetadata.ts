@@ -454,7 +454,7 @@ export function recordDeletedField(
   di: DeletedIdentities,
   field: Pick<UserMetadataField, 'id' | 'key' | 'type' | 'choices'>
 ): DeletedIdentities {
-  let fields = pushUniqueFieldTombstone(di.fields, {
+  const fields = pushUniqueFieldTombstone(di.fields, {
     id: field.id,
     formerKey: field.key,
     type: field.type

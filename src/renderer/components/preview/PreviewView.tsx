@@ -31,6 +31,7 @@ import { ZipArchivePreview } from './ZipArchivePreview'
 import { ChmPreview } from './ChmPreview'
 import { FontPreview } from './FontPreview'
 import { Model3dPreview } from './Model3dPreview'
+import { MpvPreview } from './MpvPreview'
 import { DriveSpacePreview } from './DriveSpacePreview'
 import { FolderStatsCard } from './FolderStatsCard'
 import { GitRepoPreview } from './GitRepoPreview'
@@ -134,6 +135,8 @@ export type PreviewViewProps = {
   /** When the pop-out is open, the docked pane must not mount `<video>`/`<audio>`. */
   previewWindowOpen?: boolean
   previewVideoAutoplay?: boolean
+  /** Settings → Preview → Rich player (mpv). */
+  previewRichPlayerMpv?: boolean
   captionPosterUrl?: string | null
   /** Pop-out only: hide metadata / details and fill with the visualization. */
   zen?: boolean
@@ -177,6 +180,7 @@ function PreviewViewInner({
   mediaHold = false,
   previewWindowOpen = false,
   previewVideoAutoplay = false,
+  previewRichPlayerMpv = false,
   captionPosterUrl = null,
   zen = false,
   textWordWrap = false,
@@ -390,6 +394,7 @@ function PreviewViewInner({
           mediaHold={mediaHold}
           previewWindowOpen={previewWindowOpen}
           previewVideoAutoplay={previewVideoAutoplay}
+          previewRichPlayerMpv={previewRichPlayerMpv}
           captionPosterUrl={captionPosterUrl}
           zen={zen}
           folderPane={folderPane}
@@ -423,13 +428,14 @@ function PreviewBody({
   mediaHold,
   previewWindowOpen,
   previewVideoAutoplay,
+  previewRichPlayerMpv,
   captionPosterUrl,
   zen,
   folderPane = 'combined',
   onOpenPath,
   onExtractZip,
   onCopy,
-  onRetryPlayableForce,
+  onRetryPlayableForce: _onRetryPlayableForce,
   onRevealPath,
   onNotify
 }: {
@@ -438,6 +444,7 @@ function PreviewBody({
   mediaHold: boolean
   previewWindowOpen: boolean
   previewVideoAutoplay: boolean
+  previewRichPlayerMpv: boolean
   captionPosterUrl: string | null
   zen: boolean
   /** Directory with media metadata: split Media vs Folder; else combined. */
@@ -450,9 +457,12 @@ function PreviewBody({
   onNotify?: (text: string, isError?: boolean) => void
 }): JSX.Element {
   void _previewPath
+  void _onRetryPlayableForce
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
   const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
+  /** Opt-in mpv overlay — only when Chromium has no mediaUrl (MKV/etc.). */
+  const useRichPlayer = previewRichPlayerMpv === true && playAv && !model.mediaUrl
   const videoCodecField = model.fields.find(
     (f) => f.id === 'videoCodec' || f.id === 'codec'
   )?.value
@@ -500,17 +510,8 @@ function PreviewBody({
         {model.kind === 'pdf' && model.mediaUrl && !mediaHold && (
           <PdfPreview url={model.mediaUrl} />
         )}
-        {model.kind === 'video' &&
-          model.stripFrames &&
-          model.stripFrames.length > 0 &&
-          !mediaHold && (
-            <VideoStripPreview
-              frames={model.stripFrames}
-              onOpenExternal={() => onOpenPath(model.path)}
-              chrome={!zen}
-            />
-          )}
-        {model.kind === 'video' && !model.stripFrames?.length && !mediaHold && (
+        {/* Chromium-native video — unchanged path (MP4/M4V/WebM/MOV). */}
+        {model.kind === 'video' && model.mediaUrl && !mediaHold && (
           <VideoPreview
             url={model.mediaUrl}
             posterUrl={model.posterUrl}
@@ -521,6 +522,43 @@ function PreviewBody({
             onOpenExternal={() => onOpenPath(model.path)}
           />
         )}
+        {/* Opt-in Rich player for containers without mediaUrl. */}
+        {model.kind === 'video' && useRichPlayer && !mediaHold && (
+          <MpvPreview
+            path={model.path}
+            posterUrl={model.posterUrl ?? model.stripFrames?.[0]}
+            autoplay={previewVideoAutoplay}
+            active={playAv}
+            onOpenExternal={() => onOpenPath(model.path)}
+          />
+        )}
+        {/* Default non-Chromium: strip + Open (when Rich player off). */}
+        {model.kind === 'video' &&
+          !model.mediaUrl &&
+          !useRichPlayer &&
+          model.stripFrames &&
+          model.stripFrames.length > 0 &&
+          !mediaHold && (
+            <VideoStripPreview
+              frames={model.stripFrames}
+              onOpenExternal={() => onOpenPath(model.path)}
+              chrome={!zen}
+            />
+          )}
+        {model.kind === 'video' &&
+          !model.mediaUrl &&
+          !useRichPlayer &&
+          !model.stripFrames?.length &&
+          !mediaHold && (
+            <VideoPreview
+              posterUrl={model.posterUrl}
+              autoplay={previewVideoAutoplay}
+              active={playAv}
+              videoCodec={videoCodecField}
+              audioCodec={audioCodecField}
+              onOpenExternal={() => onOpenPath(model.path)}
+            />
+          )}
         {model.kind === 'audio' && model.mediaUrl && !mediaHold && (
           <AudioPreview
             url={model.mediaUrl}

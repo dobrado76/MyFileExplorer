@@ -67,6 +67,7 @@ function applyChromeSettings(settings: Settings): void {
 export function PreviewWindowApp(): JSX.Element {
   const [target, setTarget] = useState<PreviewWindowTarget>({ path: null })
   const [autoplay, setAutoplay] = useState(false)
+  const [richPlayer, setRichPlayer] = useState(false)
   const [zen, setZen] = useState(false)
   const [textWordWrap, setTextWordWrap] = useState(false)
   const [itemNote, setItemNote] = useState<ItemNote | null>(null)
@@ -78,6 +79,7 @@ export function PreviewWindowApp(): JSX.Element {
         .then((s) => {
           applyChromeSettings(s)
           setAutoplay(s.previewVideoAutoplay)
+          setRichPlayer(s.previewRichPlayerMpv === true)
           setZen(s.previewWindowZen === true)
           setTextWordWrap(s.previewTextWordWrap === true)
           setUserMetadataEnabled(s.userMetadata?.enabled === true)
@@ -153,6 +155,7 @@ export function PreviewWindowApp(): JSX.Element {
         loading={loading}
         previewPath={target.path}
         previewVideoAutoplay={autoplay}
+        previewRichPlayerMpv={richPlayer}
         zen={zen}
         textWordWrap={textWordWrap}
         onToggleTextWordWrap={toggleWordWrap}

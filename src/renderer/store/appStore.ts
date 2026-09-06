@@ -2686,6 +2686,7 @@ export const useAppStore = create<AppState>()((set, get) => {
   /** Drop AV/PDF media elements so Chromium releases any remaining holds. */
   async function releaseMediaLocks(): Promise<void> {
     set({ mediaHold: true })
+    void api.preview.mpvStop()
     // Two animation frames is enough for React to unmount <video>/<audio>/PDF.
     await new Promise<void>((resolve) => {
       window.requestAnimationFrame(() => {

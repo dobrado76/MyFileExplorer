@@ -131,15 +131,20 @@ export const IPC = {
   previewGet: 'preview:get',
   /** Slideshow / overlay: media URL only (no gen-metadata full-file parse). */
   previewGetDisplayUrl: 'preview:getDisplayUrl',
-  /** Remux MKV/etc. to playable MP4 under userData for in-pane `<video>`. */
+  /** Direct playable URL for Chromium-native containers only — never ffmpeg. */
   previewEnsurePlayable: 'preview:ensurePlayable',
   /** Async A/V tag fields after fast preview:get (does not block mediaUrl). */
   previewGetMediaMeta: 'preview:getMediaMeta',
-  /** Resolve a `.chm` TOC topic to an mfe-media://chm/ URL for the preview iframe. */
+  /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
   previewChmTopic: 'preview:chmTopic',
   previewOpenWindow: 'preview:openWindow',
   previewSetTarget: 'preview:setTarget',
   previewGetTarget: 'preview:getTarget',
+  /** Opt-in Rich player (mpv) — D33. */
+  previewMpvAvailable: 'preview:mpvAvailable',
+  previewMpvStart: 'preview:mpvStart',
+  previewMpvBounds: 'preview:mpvBounds',
+  previewMpvStop: 'preview:mpvStop',
 
   /** Open one detached Properties window per path (peer of the shell). */
   propertiesOpenWindows: 'properties:openWindows',

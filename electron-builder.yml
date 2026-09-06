@@ -51,6 +51,12 @@ fileAssociations:
 extraFiles:
   - from: tools/MfeShellLauncher/publish/MfeShellLauncher.exe
     to: MfeShellLauncher.exe
+  # Opt-in Rich player (D33) — populate with `npm run tools:fetch-mpv`
+  - from: tools/mpv
+    to: mpv
+    filter:
+      - '**/*'
+      - '!README.md'
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

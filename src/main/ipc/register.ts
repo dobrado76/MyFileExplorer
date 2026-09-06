@@ -32,6 +32,8 @@ import {
   previewDisplayUrlSchema,
   previewEnsurePlayableSchema,
   previewMediaMetaSchema,
+  previewMpvBoundsRequestSchema,
+  previewMpvStartSchema,
   previewRequestSchema,
   previewWindowTargetSchema
 } from '@shared/schemas/preview'
@@ -289,6 +291,7 @@ function assertRemoteReposEnabled(): void {
   }
 }
 import { ensurePlayablePreview, getChmTopicPreview, getImageDisplayUrl, getMediaPreviewMeta, getPreview } from '../preview'
+import { mpvProbe, setMpvBounds, startMpvSession, stopMpvForSender } from '../preview/mpvPlayer'
 import {
   getPreviewTarget,
   openPreviewWindow,
@@ -834,6 +837,12 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewOpenWindow, emptySchema, () => openPreviewWindow())
   handle(IPC.previewSetTarget, previewWindowTargetSchema, (req) => setPreviewTarget(req))
   handle(IPC.previewGetTarget, emptySchema, () => getPreviewTarget())
+  handle(IPC.previewMpvAvailable, emptySchema, () => mpvProbe())
+  handle(IPC.previewMpvStart, previewMpvStartSchema, (req, event) =>
+    startMpvSession(event.sender, req.path, req.bounds, req.autoplay === true)
+  )
+  handle(IPC.previewMpvBounds, previewMpvBoundsRequestSchema, (req) => setMpvBounds(req.bounds))
+  handle(IPC.previewMpvStop, emptySchema, (_req, event) => stopMpvForSender(event.sender))
   handle(IPC.propertiesOpenWindows, openPropertiesWindowsRequestSchema, (req) =>
     openPropertiesWindows(req.paths, { separate: req.separate === true })
   )

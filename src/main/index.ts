@@ -244,6 +244,11 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
 
   app.on('before-quit', () => {
     try {
+      void import('./preview/mpvPlayer').then((m) => m.stopMpvSession())
+    } catch {
+      /* ignore */
+    }
+    try {
       clearSessionTempDirsSync(app.getPath('userData'))
     } catch (e) {
       logMain(

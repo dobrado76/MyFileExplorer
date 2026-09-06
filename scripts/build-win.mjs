@@ -43,6 +43,13 @@ try {
   )
 }
 
+try {
+  execSync('node scripts/fetch-mpv.mjs', { stdio: 'inherit', env: process.env })
+} catch (e) {
+  const msg = e instanceof Error ? e.message : String(e)
+  console.warn('fetch-mpv failed — Rich player will not be bundled:', msg)
+}
+
 execSync('electron-vite build && electron-builder --win --config electron-builder.yml --publish never', {
   stdio: 'inherit',
   env: process.env

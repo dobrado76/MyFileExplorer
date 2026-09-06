@@ -93,19 +93,19 @@ Also shows **parsed metadata** (ID3 / Vorbis / etc. via `music-metadata`): durat
 
 ## Video
 
-Inline `<video>` via byte-range `mfe-media://` when Chromium can play the container/codecs. Optional autoplay (same setting as audio).
+Inline `<video>` via byte-range `mfe-media://` when Chromium can play the container/codecs. Optional autoplay (same setting as audio). Opt-in **Rich player (mpv)** (D33, default off) plays non-Chromium containers in-pane; otherwise **Open with default app**. No ffmpeg remux for Preview.
 
 Also shows **parsed metadata** underneath when present (same `music-metadata` path as audio): duration, bitrate, dimensions/fps when known, codecs/container, title/artist/album and other tags. Empty fields omitted.
 
 | Ext | Behavior |
 | --- | -------- |
-| `mp4` / `m4v` | Direct play for H.264/AAC; **HEVC** when the OS decoder is available (Windows: HEVC Video Extensions); AV1 when Chromium supports it. |
-| `webm` | Direct play for VP8/VP9/AV1 + Opus/Vorbis when Chromium supports them. |
-| `mov` | Direct play when codecs allow (same H.264 / HEVC / AAC rules as MP4). |
-| `mkv` / `ts` / `m2ts` / `wmv` / `asf` / `mpg` / `mpeg` / `flv` | **Open with default app** (optional still). No ffmpeg remux for Preview (avoids locking the file). |
-| `avi` | **Strip-only** — no in-pane player. Animates `!VIDTHUMB_CACHE` frames when present + **Open with default app** (D33). Metadata still listed when parseable. |
-| `divx` | Same as AVI (RIFF/AVI container, DivX codec). Strip-only; Chromium cannot play DivX inline. |
-| `rmvb` / `rm` | RealMedia. **Strip-only** like AVI — Chromium cannot play RealVideo; `!VIDTHUMB_CACHE` + Open with default app. |
+| `mp4` / `m4v` | Direct play for H.264/AAC; **HEVC** when the OS decoder is available (Windows: HEVC Video Extensions); AV1 when Chromium supports it. Rich player: mpv fallback on Chromium decode failure. |
+| `webm` | Direct play for VP8/VP9/AV1 + Opus/Vorbis when Chromium supports them. Rich player: mpv fallback on failure. |
+| `mov` | Direct play when codecs allow (same H.264 / HEVC / AAC rules as MP4). Rich player: mpv fallback on failure. |
+| `mkv` / `ts` / `m2ts` / `wmv` / `asf` / `mpg` / `mpeg` / `flv` | Default: **Open with default app** (optional still). With **Rich player (mpv)** on: in-pane mpv. No ffmpeg remux for Preview. |
+| `avi` | Default: **strip-only** + **Open with default app** (D33). Rich player on: in-pane mpv. Metadata still listed when parseable. |
+| `divx` | Same as AVI (RIFF/AVI container, DivX codec). |
+| `rmvb` / `rm` | RealMedia. Default: strip-only + Open with default app. Rich player on: try mpv. |
 
 Icon-view video strips (`!VIDTHUMB_CACHE`) are separate from the preview pane; see [PREVIEW.md](PREVIEW.md).
 

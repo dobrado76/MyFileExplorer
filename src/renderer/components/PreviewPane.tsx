@@ -23,6 +23,7 @@ export function PreviewPane(): JSX.Element {
   const mediaHold = useAppStore((s) => s.mediaHold)
   const previewWindowOpen = useAppStore((s) => s.previewWindowOpen)
   const previewVideoAutoplay = useAppStore((s) => s.settings.previewVideoAutoplay)
+  const previewRichPlayerMpv = useAppStore((s) => s.settings.previewRichPlayerMpv)
   const textWordWrap = useAppStore((s) => s.settings.previewTextWordWrap === true)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
   const setImageVersionPreview = useAppStore((s) => s.setImageVersionPreview)
@@ -210,6 +211,7 @@ export function PreviewPane(): JSX.Element {
       mediaHold={mediaHold}
       previewWindowOpen={previewWindowOpen}
       previewVideoAutoplay={previewVideoAutoplay}
+      previewRichPlayerMpv={previewRichPlayerMpv}
       captionPosterUrl={captionPosterUrl}
       textWordWrap={textWordWrap}
       onToggleTextWordWrap={() => void applySettingsPatch({ previewTextWordWrap: !textWordWrap })}

@@ -323,6 +323,11 @@ const settingsFieldsSchema = z.object({
     .catch(DEFAULT_VID_THUMB_FRAME_MS),
   /** Auto-start preview `<video>` / `<audio>` when a media file is selected. */
   previewVideoAutoplay: z.boolean().catch(false),
+  /**
+   * Opt-in Rich player (mpv) for containers/codecs Chromium cannot play (D33).
+   * Default off — Open with default app / strip fallbacks stay the default path.
+   */
+  previewRichPlayerMpv: z.boolean().catch(false),
   /** Detached preview window: hide metadata / details and show only the visualization. */
   previewWindowZen: z.boolean().catch(false),
   /** Wrap long lines in text / code / markdown / HTML source preview. */
@@ -764,6 +769,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   textPreviewMaxBytes: 2 * 1024 * 1024,
   vidThumbFrameMs: DEFAULT_VID_THUMB_FRAME_MS,
   previewVideoAutoplay: false,
+  previewRichPlayerMpv: false,
   previewWindowZen: false,
   previewTextWordWrap: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],

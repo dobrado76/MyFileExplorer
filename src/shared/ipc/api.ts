@@ -344,6 +344,15 @@ export type MyFileExplorerApi = {
     openWindow(): Promise<Result<{ opened: true }>>
     setTarget(req: PreviewWindowTarget): Promise<Result<{ ok: true }>>
     getTarget(): Promise<Result<PreviewWindowTarget>>
+    /** Opt-in Rich player (mpv) availability. */
+    mpvAvailable(): Promise<Result<{ available: boolean; path: string | null }>>
+    mpvStart(
+      req: import('../schemas/preview').PreviewMpvStartRequest
+    ): Promise<Result<{ started: true }>>
+    mpvBounds(
+      req: import('../schemas/preview').PreviewMpvBoundsRequest
+    ): Promise<Result<{ ok: true }>>
+    mpvStop(): Promise<Result<{ stopped: boolean }>>
   }
   properties: {
     /** One peer OS window (combined multi-select) or one per path when `separate`. */

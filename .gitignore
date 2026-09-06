@@ -13,6 +13,10 @@ dist/
 tools/**/bin/
 tools/**/obj/
 tools/MfeShellLauncher/publish/
+# Portable mpv for Rich player (fetched via npm run tools:fetch-mpv)
+tools/mpv/*
+!tools/mpv/README.md
+
 
 # Installers are CI / local build outputs (often >100MB — GitHub rejects git push).
 **/MyFileExplorer Setup*.exe

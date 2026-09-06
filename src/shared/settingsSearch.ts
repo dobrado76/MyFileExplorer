@@ -79,7 +79,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'preview',
     label: 'Preview',
-    keywords: 'preview pane text markdown html max bytes truncate code wrap word wrap folder statistics space map treemap autoplay video audio movie media play'
+    keywords: 'preview pane text markdown html max bytes truncate code wrap word wrap folder statistics space map treemap autoplay video audio movie media play mpv rich player mkv'
   },
   {
     id: 'search',

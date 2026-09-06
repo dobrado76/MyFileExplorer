@@ -440,10 +440,14 @@ export function VideoPreview({
     setFailed(false)
   }, [url])
 
-  // Only tear down the media element on unmount — clearing `src` on dep changes
-  // leaves a dead <video> when React does not re-apply the attribute.
+  // Only tear down on unmount — clearing `src` while the node stays mounted
+  // leaves a dead <video> because React will not re-apply the same src prop.
   useEffect(() => {
-    return () => releaseHtmlMedia(videoRef.current)
+    return () => {
+      // Intentionally read latest ref on unmount (not a mount-time snapshot).
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only release
+      releaseHtmlMedia(videoRef.current)
+    }
   }, [])
 
   // Meta arrived: HEVC/hostile audio with no Chromium support → skip a dead player.
@@ -541,8 +545,12 @@ export function AudioPreview({
     setFailed(false)
   }, [url])
 
+  // Only tear down on unmount — same rule as VideoPreview.
   useEffect(() => {
-    return () => releaseHtmlMedia(audioRef.current)
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount-only release
+      releaseHtmlMedia(audioRef.current)
+    }
   }, [])
   if (!active) {
     if (!coverUrl) return null

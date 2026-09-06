@@ -158,7 +158,7 @@ See [PREVIEW.md](PREVIEW.md).
 - Type-specific fields; for images, parse embedded generation metadata when present.
 - Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
 - Text / code / Markdown / HTML source: **Word wrap** toggle in the preview header (remembered).
-- Inline video/audio playback in-pane for Chromium-native containers (see PREVIEW.md); **no ffmpeg remux for Preview** — MKV/TS/WMV/… use **Open with default app**; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app.
+- Inline video/audio playback in-pane for Chromium-native containers (see PREVIEW.md); **no ffmpeg remux for Preview** — MKV/TS/WMV/… default to **Open with default app**; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app unless opt-in **Rich player (mpv)** is on (D33).
 - Office docs: Word, PowerPoint (`.pptx` approximate slide layout + images; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
 - Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
 - ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
@@ -194,7 +194,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | ------------ | ---------------------------------------------------------------------------------- |
 | Appearance   | Theme dark / light / custom; font family; font size; icon size; **equal-width tabs** (`tabEqualWidth`, default off); **show tab icons** (`showTabIcons`, default on); **pin control to hide the folder tree** (`treePinToggle`, default on — off uses a per-pane toolbar button, flipped preview-panel icon); **Recycle Bin** (`recycleBinPlacement`: none / tree / toolbar / both, default both) |
 | Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files; **Show folder statistics** (`showFolderStatistics`, default on); **Folder space map max files** (`folderStatsTreemapMaxLeaves`, default 50000, 100–50000) — N largest files kept in the Calculate Statistics space map (D66); skip-path list for Calculate failures |
-| Preview      | Show preview by default; **autoplay media in preview** (`previewVideoAutoplay`, default off); text preview max bytes; word wrap |
+| Preview      | Show preview by default; **autoplay media in preview** (`previewVideoAutoplay`, default off); **Rich player (mpv)** (`previewRichPlayerMpv`, default off — D33); text preview max bytes; word wrap |
 | Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
 | Quick access | Manage tree shortcuts                                                              |
 | Quick Launch | Toolbar apps: add / name / path / arguments / show (icon, label, both) / icon (app, glyph pack, custom) / order (D63) |
