@@ -32,6 +32,7 @@ import { useAppStore } from '../store/appStore'
 import { basename } from '../lib/paths'
 import { api, call, IpcError } from '../lib/ipc'
 import { ScriptModal } from './scriptUi'
+import { TrashIcon } from '../lib/icons'
 
 const FIELD_TYPES: { id: UserMetadataFieldType; label: string }[] = [
   { id: 'text', label: 'Text' },
@@ -252,6 +253,7 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
     <ScriptModal
       className="modal-user-metadata-manager"
       title="User Metadata"
+      titleHint="Define metadata sets, assign them to folders, and edit field catalogs. Values live on files as NTFS ADS."
       onClose={finish}
       floating={{
         saved: settings.userMetadataManagerBounds,
@@ -338,7 +340,7 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
                 </div>
                 <button
                   type="button"
-                  className="btn btn-tiny"
+                  className="btn"
                   onClick={() => void deleteSet(activeSet.id)}
                 >
                   Delete set
@@ -381,36 +383,39 @@ export function UserMetadataManagerDialog({ returnSection }: Props): JSX.Element
                               onClick={() => setEditingId(open ? null : f.id)}
                             >
                               <span className="user-meta-field-name">{f.name}</span>
-                              <span className="muted">
-                                {f.key} · {TYPE_LABEL[f.type] ?? f.type}
-                              </span>
                             </button>
+                            <span className="user-meta-field-type muted">
+                              {TYPE_LABEL[f.type] ?? f.type}
+                            </span>
                             <span className="user-meta-field-actions">
                               <button
                                 type="button"
-                                className="btn btn-tiny"
+                                className="icon-btn"
                                 disabled={idx === 0}
                                 title="Move up"
+                                aria-label="Move up"
                                 onClick={() => void moveField(f.id, -1)}
                               >
                                 ↑
                               </button>
                               <button
                                 type="button"
-                                className="btn btn-tiny"
+                                className="icon-btn"
                                 disabled={idx === fields.length - 1}
                                 title="Move down"
+                                aria-label="Move down"
                                 onClick={() => void moveField(f.id, 1)}
                               >
                                 ↓
                               </button>
                               <button
                                 type="button"
-                                className="btn btn-tiny"
+                                className="icon-btn"
                                 title="Delete field"
+                                aria-label="Delete field"
                                 onClick={() => void removeField(f.id)}
                               >
-                                Delete
+                                <TrashIcon size={14} />
                               </button>
                             </span>
                           </div>

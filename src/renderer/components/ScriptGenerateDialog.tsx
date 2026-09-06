@@ -282,6 +282,7 @@ export function ScriptGenerateDialog(props: {
             ? 'Modify script with AI'
             : 'Generate script with AI'
       }
+      titleHint="AI writes or edits script source only — it never reads your files or folder listings."
       onClose={closeDialog}
       floating={{
         saved: settings.scriptGenerateBounds,

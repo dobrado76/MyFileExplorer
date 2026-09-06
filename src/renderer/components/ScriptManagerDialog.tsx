@@ -309,6 +309,7 @@ export function ScriptManagerDialog({ selectId }: { selectId?: string }): JSX.El
     <ScriptModal
       className="modal-script-manager"
       title="Script Manager"
+      titleHint="Saved scripts run locally on the current folder or selection. AI (optional) can write or edit source — it never reads your files."
       onClose={closeDialog}
       floating={{
         saved: settings.scriptManagerBounds,

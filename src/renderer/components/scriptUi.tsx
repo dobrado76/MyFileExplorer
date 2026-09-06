@@ -22,6 +22,8 @@ import {
 
 type ScriptModalProps = {
   title: string
+  /** Tooltip on the title text (tool-specific). Omit for no tooltip. */
+  titleHint?: string
   children: ReactNode
   actions: ReactNode
   className?: string
@@ -59,6 +61,7 @@ export function ScriptModal(props: ScriptModalProps): JSX.Element {
 
 function CenteredScriptModal({
   title,
+  titleHint,
   children,
   actions,
   className,
@@ -79,7 +82,7 @@ function CenteredScriptModal({
         aria-label={title}
         aria-busy={busy || undefined}
       >
-        <ScriptModalChrome title={title} onClose={onClose} busy={busy} />
+        <ScriptModalChrome title={title} titleHint={titleHint} onClose={onClose} busy={busy} />
         <div className="modal-body modal-body-scripts">{children}</div>
         <div className="modal-actions">{actions}</div>
         {busy && <AiBusyOverlay title={busyTitle ?? 'Working…'} hint={busyHint} />}
@@ -90,6 +93,7 @@ function CenteredScriptModal({
 
 function FloatingScriptModal({
   title,
+  titleHint,
   children,
   actions,
   className,
@@ -124,6 +128,7 @@ function FloatingScriptModal({
           ))}
         <ScriptModalChrome
           title={title}
+          titleHint={titleHint}
           onClose={onClose}
           busy={busy}
           onMove={maximized ? undefined : (e) => beginDrag('move', e)}
@@ -140,6 +145,7 @@ function FloatingScriptModal({
 
 function ScriptModalChrome({
   title,
+  titleHint,
   onClose,
   busy,
   onMove,
@@ -147,6 +153,7 @@ function ScriptModalChrome({
   maximized
 }: {
   title: string
+  titleHint?: string
   onClose(): void
   busy?: boolean
   onMove?: (e: ReactPointerEvent) => void
@@ -166,10 +173,7 @@ function ScriptModalChrome({
           : undefined
       }
     >
-      <span
-        className="modal-title-text"
-        title="Saved scripts run locally on the current folder or selection. AI (optional) can write or edit source — it never reads your files."
-      >
+      <span className="modal-title-text" title={titleHint}>
         {title}
       </span>
       {onMaximize ? (
@@ -177,7 +181,7 @@ function ScriptModalChrome({
           type="button"
           className="modal-title-btn"
           aria-label={maximized ? 'Restore' : 'Maximize'}
-          title={maximized ? 'Restore down (remembered)' : 'Maximize — two-column fields, taller editor'}
+          title={maximized ? 'Restore' : 'Maximize'}
           disabled={busy}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
@@ -214,7 +218,7 @@ function ScriptModalChrome({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={onClose}
       >
-        <CloseIcon size={18} />
+        <CloseIcon size={16} />
       </button>
     </div>
   )

@@ -5145,40 +5145,9 @@ html.idle-cursor-hidden * {
 .modal.modal-power-rename .modal-title {
   cursor: move;
   user-select: none;
-  padding: 10px 12px 10px 18px;
-  background: color-mix(in srgb, var(--bg) 72%, #000);
-  border-bottom: 1px solid var(--border);
 }
 .modal.modal-power-rename.is-maximized .modal-title {
   cursor: default;
-}
-.modal.modal-power-rename .modal-title-chrome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 10px;
-}
-.modal.modal-power-rename .modal-title-text {
-  flex: 1;
-  min-width: 0;
-}
-.modal.modal-power-rename .modal-title-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-.modal.modal-power-rename .modal-title-btn:hover {
-  background: var(--bg-elevated);
-  color: var(--text);
 }
 .modal.modal-remote-connection {
   /* Size/position set inline; defaults applied in RemoteReposToolbar. */
@@ -5199,34 +5168,6 @@ html.idle-cursor-hidden * {
 }
 .modal.modal-remote-connection.is-maximized .modal-title {
   cursor: default;
-}
-.modal.modal-remote-connection .modal-title-chrome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 10px;
-}
-.modal.modal-remote-connection .modal-title-text {
-  flex: 1;
-  min-width: 0;
-}
-.modal.modal-remote-connection .modal-title-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-.modal.modal-remote-connection .modal-title-btn:hover {
-  background: var(--bg);
-  color: var(--text);
 }
 .modal-body.modal-body-remote-connection {
   flex: 1;
@@ -5323,39 +5264,6 @@ html.idle-cursor-hidden * {
   min-width: min(720px, 96vw);
   max-width: 96vw;
   max-height: 92vh;
-}
-.modal.modal-power-search .modal-title {
-  padding: 10px 12px 10px 18px;
-  background: color-mix(in srgb, var(--bg) 72%, #000);
-  border-bottom: 1px solid var(--border);
-}
-.modal.modal-power-search .modal-title-chrome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 10px;
-}
-.modal.modal-power-search .modal-title-text {
-  flex: 1;
-  min-width: 0;
-}
-.modal.modal-power-search .modal-title-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-.modal.modal-power-search .modal-title-btn:hover {
-  background: var(--bg-elevated);
-  color: var(--text);
 }
 .modal-body.modal-body-power-search {
   overflow: auto;
@@ -6214,22 +6122,21 @@ html.idle-cursor-hidden * {
   background: var(--surface-2, #ffffff08);
 }
 .user-meta-field-head {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(5.5rem, 7.5rem) auto;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 10px;
+  gap: 8px 10px;
+  padding: 4px 6px 4px 10px;
+  min-height: 2rem;
 }
 .user-meta-field-pick {
-  flex: 1;
   min-width: 0;
   text-align: left;
   background: none;
   border: 0;
   color: inherit;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: block;
   padding: 4px 2px;
   border-radius: 4px;
 }
@@ -6241,19 +6148,35 @@ html.idle-cursor-hidden * {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: block;
 }
-.user-meta-field-pick .muted,
-.user-meta-settings .muted {
-  opacity: 0.65;
-  font-size: 0.82em;
+.user-meta-field-type {
+  justify-self: start;
+  font-size: 0.85em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.user-meta-field-pick .muted,
+.user-meta-settings .muted,
+.user-meta-field-type.muted {
+  opacity: 0.65;
+}
 .user-meta-field-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
+  align-items: center;
+}
+.user-meta-field-actions .icon-btn {
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85em;
+  line-height: 1;
 }
 .user-meta-field-editor {
   display: flex;
@@ -7393,43 +7316,6 @@ html.idle-cursor-hidden * {
   height: min(880px, 94vh);
   max-height: 94vh;
 }
-.modal.modal-settings .modal-title {
-  padding: 10px 12px 10px 18px;
-  background: color-mix(in srgb, var(--bg) 72%, #000);
-  border-bottom: 1px solid var(--border);
-}
-.modal.modal-settings .modal-title-chrome {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-right: 10px;
-}
-.modal.modal-settings .modal-title-text {
-  flex: 1;
-  min-width: 0;
-}
-.modal.modal-settings .modal-title-btn {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  color: var(--text-dim);
-  cursor: pointer;
-}
-.modal.modal-settings .modal-title-btn:hover {
-  background: var(--bg-elevated);
-  color: var(--text);
-}
-.modal.modal-settings .modal-title-btn svg {
-  width: 16px;
-  height: 16px;
-}
 .modal.modal-categorizer-map {
   width: min(1100px, 96vw);
   min-width: min(720px, 96vw);
@@ -8148,11 +8034,14 @@ html.idle-cursor-hidden * {
   font-weight: 600;
   font-size: 1.05em;
 }
+/* Shared floating-tool chrome (Power Rename / Script Manager / Metadata / …). */
 .modal-title.modal-title-chrome {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-right: 12px;
+  padding: 10px 12px 10px 18px;
+  background: color-mix(in srgb, var(--bg) 72%, #000);
+  border-bottom: 1px solid var(--border);
 }
 .modal-title-text {
   flex: 1;
@@ -8163,19 +8052,18 @@ html.idle-cursor-hidden * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  border: none;
+  border-radius: 5px;
+  background: transparent;
   color: var(--text-dim);
   cursor: pointer;
 }
 .modal-title-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--bg) 70%, var(--text-dim));
+  background: var(--bg-elevated);
   color: var(--text);
-  border-color: var(--text-dim);
 }
 .modal-title-btn:disabled {
   opacity: 0.45;
