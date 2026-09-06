@@ -4,6 +4,8 @@
 
 A reusable **ChatGPT-style** window for multi-turn Markdown Q&A. Features open it with a **starter** (seeded system + user message). History lives on this PC under `userData/ai-chats/` — not in settings export.
 
+**Parked (not implementing now):** broader document Ask AI + explicit file-share consent (chat-only; D51 script privacy unchanged; history stays readable when AI is off) — [plans/AI_SEMANTIC_WORKBENCH.md](plans/AI_SEMANTIC_WORKBENCH.md).
+
 ## Open the window
 
 - Toolbar **Ask AI** (when Scripting + AI are on; optional via Settings).

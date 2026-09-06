@@ -6164,8 +6164,8 @@ html.idle-cursor-hidden * {
 .power-rename-rows {
   overflow: auto;
   flex: 1;
-  min-height: 220px;
-  max-height: min(52vh, 480px);
+  /* Fill the resizable dialog; do not cap to vh — that left empty space under a short list. */
+  min-height: 0;
 }
 .power-rename-row {
   display: grid;

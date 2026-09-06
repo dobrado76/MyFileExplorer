@@ -92,3 +92,4 @@ The former `FUTURE_IDEAS.md` parking lot is cleared: its ten candidates shipped 
 - Cloud provider namespace integration
 - **Remote FTP/SFTP repositories** — shipped as opt-in D46; see [REMOTE_FTP.md](REMOTE_FTP.md). Not local-drive parity.
 - **Linux FUSE OS projection** of Virtual Folders (D68 is Windows-first; .NET+FUSE later if needed)
+- **Ask AI Semantic Workbench** (document/text starters; explicit Share with AI consent distinct from D51 script privacy; history readable when AI off; images describe + transform later) — parked plan only, not a locked decision yet: [plans/AI_SEMANTIC_WORKBENCH.md](plans/AI_SEMANTIC_WORKBENCH.md)
