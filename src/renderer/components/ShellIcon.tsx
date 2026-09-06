@@ -99,11 +99,17 @@ function initialShellUrl(
   isDir: boolean | undefined,
   px: number
 ): string | null {
-  const hit =
-    memoryCacheGet(memoryCache, key) ??
-    (extKey ? memoryCacheGet(extMemoryCache, extKey) ?? null : null) ??
-    (isDir === true ? genericDirUrlByPx.get(px) ?? null : null)
-  return isInstantPaintUrl(hit) ? hit : null
+  const fromPath = memoryCacheGet(memoryCache, key)
+  if (isInstantPaintUrl(fromPath)) return fromPath
+  if (extKey) {
+    const fromExt = memoryCacheGet(extMemoryCache, extKey)
+    if (isInstantPaintUrl(fromExt)) return fromExt
+  }
+  if (isDir === true) {
+    const generic = genericDirUrlByPx.get(px)
+    if (isInstantPaintUrl(generic)) return generic
+  }
+  return null
 }
 
 /**
