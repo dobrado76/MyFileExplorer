@@ -44,6 +44,7 @@ import { buildQuickAccess, materializeQuickAccessList } from '../lib/quickAccess
 import { flattenQuickAccessTokens, isQuickAccessGroup } from '@shared/schemas/quickAccess'
 import { isRecycleBinTreePath, RECYCLE_BIN_TREE_PATH, recycleBinShowsInTree } from '@shared/recycleBinTree'
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
+import { warmGenericFolderShellIcons, warmShellIcon } from './ShellIcon'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
 
@@ -254,6 +255,13 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     return out
   }, [nodes, quickAccess])
   const itemAdsByPath = useItemAdsOverlays(treeAdsPaths, platform === 'win32', `tree:${activeTabId}`)
+
+  useEffect(() => {
+    const probe = treeAdsPaths[0] ?? activePath
+    if (probe) warmGenericFolderShellIcons(probe)
+    for (const p of treeAdsPaths) warmShellIcon(p, 16, true)
+  }, [treeAdsPaths, activePath])
+
   const dropHighlightPath = useAppStore((s) => s.dropHighlightPath)
   const setDropHighlight = useAppStore((s) => s.setDropHighlight)
   /** Tab id whose session `treeExpanded` has been applied (avoids wiping on tab switch). */

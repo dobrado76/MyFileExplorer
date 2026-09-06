@@ -4595,6 +4595,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (!tab) return
       if (s.recycleBin.active) get().closeRecycleBinView()
       const focus = focusFromSelection(tab.selected)
+      const existing = s.listingsByTabId[tabId]
+      const hasPaintedListing =
+        Boolean(existing) &&
+        samePath(existing!.path, tab.path) &&
+        !existing!.loading &&
+        existing!.entries.length > 0
       set({
         paneTabIds,
         focusedPaneIndex: paneIndex,
@@ -4603,10 +4609,20 @@ export const useAppStore = create<AppState>()((set, get) => {
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
         renamingPath: null,
-        renameSource: null
+        renameSource: null,
+        listing: hasPaintedListing
+          ? existing!
+          : syncActiveListing(s.listingsByTabId, tabId)
       })
       scheduleSessionSave()
-      await loadListing(tab.path, { tabId })
+      // Tab switch must not blank / overlay-reload a listing we already have —
+      // that remounts every row and flashes folder glyphs (names first, icons later).
+      if (hasPaintedListing) {
+        void loadListing(tab.path, { tabId, soft: true, preserveSelection: true })
+      } else {
+        await loadListing(tab.path, { tabId, preserveSelection: true })
+      }
+      void get().ensureGitForActivePane()
     },
 
     async duplicateTabIntoPane(paneIndex, sourceTabId, opts) {

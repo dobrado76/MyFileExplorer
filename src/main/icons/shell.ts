@@ -4,7 +4,6 @@ import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { app } from 'electron'
-import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
 import { enqueueShellIconExtract } from './extractQueue'
@@ -74,6 +73,19 @@ function mapSize(px: number): ShellIconSize {
 
 function pixelSize(kind: ShellIconSize): 16 | 32 {
   return kind === 'small' ? 16 : 32
+}
+
+/**
+ * Inline PNG for the renderer. Do not use mfe-media:// here — `<img>` remounts
+ * re-hit Chromium's network stack (VPN / ERR_NETWORK_CHANGED) and flash blank.
+ * data: URLs paint from memory with no protocol round-trip.
+ */
+function dataUrlFromPng(png: Buffer): string {
+  return `data:image/png;base64,${png.toString('base64')}`
+}
+
+async function dataUrlFromPngFile(cacheFile: string): Promise<string> {
+  return dataUrlFromPng(await fsp.readFile(cacheFile))
 }
 
 async function folderStamp(dir: string, stMtimeMs: number): Promise<string> {
@@ -213,7 +225,7 @@ async function readDeferredRichUrl(file: string, px: 16 | 32): Promise<string | 
   const cacheFile = path.join(shellIconCacheDir(), `${key}.png`)
   try {
     await fsp.access(cacheFile)
-    return mediaUrlFor(cacheFile)
+    return await dataUrlFromPngFile(cacheFile)
   } catch {
     return null
   }
@@ -226,7 +238,7 @@ async function writeDeferredRichUrl(file: string, px: 16 | 32, png: Buffer): Pro
   const tmp = cacheFile + '.tmp'
   await fsp.writeFile(tmp, png)
   await fsp.rename(tmp, cacheFile)
-  return mediaUrlFor(cacheFile)
+  return dataUrlFromPng(png)
 }
 
 /** Fill deferred rich cache in the background (does not block the caller). */
@@ -335,7 +347,7 @@ async function getAttributeIconUrl(
   const cacheFile = path.join(shellIconCacheDir(), `${key}.png`)
   try {
     await fsp.access(cacheFile)
-    const url = mediaUrlFor(cacheFile)
+    const url = await dataUrlFromPngFile(cacheFile)
     if (!perFile) extUrlCache.set(`${ext || '_none'}|${px}`, url)
     return { url }
   } catch {
@@ -352,7 +364,7 @@ async function getAttributeIconUrl(
       const tmp = cacheFile + '.tmp'
       await fsp.writeFile(tmp, png)
       await fsp.rename(tmp, cacheFile)
-      const url = mediaUrlFor(cacheFile)
+      const url = dataUrlFromPng(png)
       if (!perFile) extUrlCache.set(`${ext || '_none'}|${px}`, url)
       return url
     } catch {
@@ -368,7 +380,8 @@ async function getAttributeIconUrl(
 /**
  * Shell icon for a path — on Windows this uses SHGetFileInfo (Explorer-accurate:
  * Downloads / Documents special icons, Dropbox desktop.ini, exe/lnk overlays).
- * Cached under userData and served via mfe-media://.
+ * PNG bytes are cached under userData; IPC returns `data:image/png;base64,…`
+ * so the renderer never touches Chromium's network stack for glyphs.
  *
  * @param isDirHint — from the renderer (tree/list already know kind). Required to
  *   keep folder icons out of the shared extension cache.
@@ -430,7 +443,7 @@ export async function getShellIconUrl(
 
   try {
     await fsp.access(cacheFile)
-    const url = mediaUrlFor(cacheFile)
+    const url = await dataUrlFromPngFile(cacheFile)
     if (!perFile) extUrlCache.set(`${ext || '_none'}|${px}`, url)
     return { url }
   } catch {
@@ -448,7 +461,7 @@ export async function getShellIconUrl(
       const tmp = cacheFile + '.tmp'
       await fsp.writeFile(tmp, png)
       await fsp.rename(tmp, cacheFile)
-      const url = mediaUrlFor(cacheFile)
+      const url = dataUrlFromPng(png)
       if (!perFile) extUrlCache.set(`${ext || '_none'}|${px}`, url)
       return url
     } catch {

@@ -35,10 +35,22 @@ export function ShellTint({ color, children }: { color: string; children: ReactN
   )
 }
 
+/**
+ * Path/ext → display URL from IPC (`data:image/png;base64,…`).
+ * No fetch / mfe-media — VPN and Chromium network changes must not affect glyphs.
+ */
 const memoryCache = new Map<string, string>()
 /** Same glyph for every file of an extension (matches main's extUrlCache). */
 const extMemoryCache = new Map<string, string>()
+/**
+ * First successful shell folder glyph per pixel size — synchronous stand-in so
+ * remounts do not flash the empty Lucide placeholder while per-path IPC runs.
+ */
+const genericDirUrlByPx = new Map<number, string>()
+/** In-flight fetches keyed like memoryCache — remounts join instead of requeue. */
+const inflightByKey = new Map<string, Promise<string | null>>()
 const MAX_CACHE = 4000
+const MAX_EXT_CACHE = 800
 /** Icons that are per-file on Windows (must not share by extension). */
 const PER_FILE_EXTS = new Set([
   'exe',
@@ -52,6 +64,47 @@ const PER_FILE_EXTS = new Set([
   'msix',
   'msc'
 ])
+
+/** LRU: Map insertion order — re-set on hit/write; drop oldest when over cap. */
+function memoryCacheSet(map: Map<string, string>, key: string, url: string, max: number): void {
+  if (map.has(key)) map.delete(key)
+  map.set(key, url)
+  while (map.size > max) {
+    const oldest = map.keys().next().value
+    if (oldest === undefined) break
+    map.delete(oldest)
+  }
+}
+
+function memoryCacheGet(map: Map<string, string>, key: string): string | undefined {
+  const hit = map.get(key)
+  if (!hit) return undefined
+  // Drop legacy mfe-media URLs — they re-hit Chromium's network stack on remount.
+  if (hit.startsWith('mfe-media:')) {
+    map.delete(key)
+    return undefined
+  }
+  map.delete(key)
+  map.set(key, hit)
+  return hit
+}
+
+function isInstantPaintUrl(url: string | null | undefined): url is string {
+  return Boolean(url && (url.startsWith('data:') || url.startsWith('blob:')))
+}
+
+function initialShellUrl(
+  key: string,
+  extKey: string | null,
+  isDir: boolean | undefined,
+  px: number
+): string | null {
+  const hit =
+    memoryCacheGet(memoryCache, key) ??
+    (extKey ? memoryCacheGet(extMemoryCache, extKey) ?? null : null) ??
+    (isDir === true ? genericDirUrlByPx.get(px) ?? null : null)
+  return isInstantPaintUrl(hit) ? hit : null
+}
 
 /**
  * ShellTint flood for Virtual Folders — same Windows folder glyph as a normal
@@ -69,7 +122,38 @@ type Props = {
 }
 
 function cachedUrl(key: string, extKey: string | null): string | null {
-  return memoryCache.get(key) ?? (extKey ? extMemoryCache.get(extKey) ?? null : null)
+  const hit =
+    memoryCacheGet(memoryCache, key) ?? (extKey ? memoryCacheGet(extMemoryCache, extKey) ?? null : null)
+  return isInstantPaintUrl(hit) ? hit : null
+}
+
+/** Fill session cache without waiting for a mounted <ShellIcon> (tab / tree churn). */
+export function warmShellIcon(path: string, size: number, isDir: boolean): void {
+  const px = size <= 20 ? 16 : 32
+  const key = `${path.toLowerCase()}|${px}|${isDir ? 'd' : 'f'}`
+  if (cachedUrl(key, null)) return
+  if (inflightByKey.has(key)) return
+  const pending = (async (): Promise<string | null> => {
+    const res = await api.icons.get({ path, size, isDir })
+    const url = res.ok && res.value.url && isInstantPaintUrl(res.value.url) ? res.value.url : null
+    if (url) {
+      memoryCacheSet(memoryCache, key, url, MAX_CACHE)
+      if (isDir) genericDirUrlByPx.set(px, url)
+    }
+    return url
+  })().finally(() => {
+    inflightByKey.delete(key)
+  })
+  inflightByKey.set(key, pending)
+}
+
+/** Warm 16px + 32px generic folder glyphs once (tree + list). */
+let genericWarmStarted = false
+export function warmGenericFolderShellIcons(probePath: string): void {
+  if (genericWarmStarted || !probePath) return
+  genericWarmStarted = true
+  warmShellIcon(probePath, 16, true)
+  warmShellIcon(probePath, 32, true)
 }
 
 function extOf(filePath: string): string {
@@ -117,7 +201,7 @@ function virtualFolderShellProbe(filePath: string): string {
 }
 
 /**
- * Shell (Explorer) icon for a path. Cached in memory by path+size.
+ * Shell (Explorer) icon for a path. Cached in memory as data: URLs (session).
  *
  * Dropbox / mapped-drive folders: show a type icon immediately, then upgrade to
  * the rich shell glyph when the off-thread worker finishes (does not freeze UI).
@@ -139,14 +223,14 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     !isVirtualFolder && iconIsDir !== true && ext && !PER_FILE_EXTS.has(ext)
       ? `${ext}|${px}`
       : null
-  const [url, setUrl] = useState<string | null>(() => cachedUrl(key, extKey))
+  const [url, setUrl] = useState<string | null>(() => initialShellUrl(key, extKey, iconIsDir, px))
   const [failed, setFailed] = useState(false)
 
   const restoreFromCache = (): boolean => {
     const hit = cachedUrl(key, extKey)
     if (!hit) return false
-    if (extKey && !memoryCache.get(key)) {
-      memoryCache.set(key, hit)
+    if (extKey && !memoryCache.has(key)) {
+      memoryCacheSet(memoryCache, key, hit, MAX_CACHE)
     }
     setUrl(hit)
     setFailed(false)
@@ -154,12 +238,23 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
   }
 
   const applyUrl = (next: string): void => {
-    if (memoryCache.size > MAX_CACHE) memoryCache.clear()
-    memoryCache.set(key, next)
-    if (extKey && iconIsDir !== true) extMemoryCache.set(extKey, next)
+    if (!isInstantPaintUrl(next)) return
+    memoryCacheSet(memoryCache, key, next, MAX_CACHE)
+    if (extKey && iconIsDir !== true) memoryCacheSet(extMemoryCache, extKey, next, MAX_EXT_CACHE)
+    if (iconIsDir === true) genericDirUrlByPx.set(px, next)
     setUrl(next)
     setFailed(false)
   }
+
+  // Keep paint in sync when the row path/size changes (virtualized recycle).
+  // Never clear to null on a miss — empty glyph then pop-in is the tab-switch flash.
+  useLayoutEffect(() => {
+    const next = initialShellUrl(key, extKey, iconIsDir, px)
+    if (next) {
+      setUrl(next)
+      setFailed(false)
+    }
+  }, [key, extKey, iconIsDir, px])
 
   // Cancel / same-name commit: no listing refresh — pull the glyph back from cache.
   useLayoutEffect(() => {
@@ -173,38 +268,49 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     if (restoreFromCache()) return
 
     setFailed(false)
-    const perFile = iconIsDir === true || PER_FILE_EXTS.has(ext)
+    // Only throttle heavy per-file extracts (.exe / .lnk / …). Folders must not
+    // serialize behind that queue on every tab return.
+    const heavyExtract = iconIsDir !== true && PER_FILE_EXTS.has(ext)
 
     const request = async (): Promise<void> => {
       if (!alive) return
-      // Deferred paths: placeholder first (fast), then rich upgrade off-thread.
-      const first = await api.icons.get({
-        path: iconPath,
-        size,
-        isDir: iconIsDir === true,
-        fast: deferred === true
-      })
-      if (!alive) return
-      if (first.ok && first.value.url) {
-        applyUrl(first.value.url)
-      } else if (!cachedUrl(key, extKey)) {
-        setFailed(true)
+
+      let pending = inflightByKey.get(key)
+      if (!pending) {
+        pending = (async (): Promise<string | null> => {
+          const first = await api.icons.get({
+            path: iconPath,
+            size,
+            isDir: iconIsDir === true,
+            fast: deferred === true
+          })
+          let urlOut: string | null = first.ok && first.value.url ? first.value.url : null
+          if (deferred && first.ok && first.value.pendingRich) {
+            const rich = await api.icons.get({
+              path: iconPath,
+              size,
+              isDir: iconIsDir === true,
+              fast: false
+            })
+            if (rich.ok && rich.value.url) urlOut = rich.value.url
+          }
+          return urlOut
+        })().finally(() => {
+          inflightByKey.delete(key)
+        })
+        inflightByKey.set(key, pending)
       }
 
+      const resolved = await pending
       if (!alive) return
-      if (deferred && first.ok && first.value.pendingRich) {
-        const rich = await api.icons.get({
-          path: iconPath,
-          size,
-          isDir: iconIsDir === true,
-          fast: false
-        })
-        if (!alive) return
-        if (rich.ok && rich.value.url) applyUrl(rich.value.url)
+      if (resolved) {
+        applyUrl(resolved)
+      } else if (!cachedUrl(key, extKey) && !genericDirUrlByPx.get(px)) {
+        setFailed(true)
       }
     }
 
-    void (perFile && !deferred ? withIconRequestSlot(request) : request())
+    void (heavyExtract && !deferred ? withIconRequestSlot(request) : request())
     return () => {
       alive = false
     }
@@ -220,6 +326,7 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
         return
       }
       memoryCache.delete(key)
+      inflightByKey.delete(key)
       void (async () => {
         const first = await api.icons.get({
           path: iconPath,
@@ -228,9 +335,7 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
           fast: false
         })
         if (first.ok && first.value.url) {
-          memoryCache.set(key, first.value.url)
-          setUrl(first.value.url)
-          setFailed(false)
+          applyUrl(first.value.url)
         } else {
           setFailed(true)
         }
@@ -238,7 +343,8 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     }
     window.addEventListener('mfe-shell-icon-invalidate', onInvalidate)
     return () => window.removeEventListener('mfe-shell-icon-invalidate', onInvalidate)
-  }, [key, path, iconPath, size, iconIsDir])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, path, iconPath, size, iconIsDir, px])
 
   const cls = `shell-icon${className ? ` ${className}` : ''}`
   const box: CSSProperties = {
@@ -259,6 +365,7 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
         style={box}
         alt=""
         draggable={false}
+        decoding="sync"
         onError={() => {
           memoryCache.delete(key)
           if (extKey) extMemoryCache.delete(extKey)

@@ -22,15 +22,27 @@ export function thumbMemoryKey(
 }
 
 export function getThumbMemory(key: string): ThumbMemoryEntry | undefined {
-  return memoryCache.get(key)
+  const hit = memoryCache.get(key)
+  if (!hit) return undefined
+  // LRU touch — Map insertion order
+  memoryCache.delete(key)
+  memoryCache.set(key, hit)
+  return hit
 }
 
 export function setThumbMemory(key: string, entry: ThumbMemoryEntry): void {
-  if (memoryCache.size > MAX_CACHE) {
-    memoryCache.clear()
-    decodedUrls.clear()
-  }
+  if (memoryCache.has(key)) memoryCache.delete(key)
   memoryCache.set(key, entry)
+  while (memoryCache.size > MAX_CACHE) {
+    const oldest = memoryCache.keys().next().value
+    if (oldest === undefined) break
+    const evicted = memoryCache.get(oldest)
+    memoryCache.delete(oldest)
+    if (evicted) {
+      decodedUrls.delete(evicted.url)
+      if (evicted.frames) for (const u of evicted.frames) decodedUrls.delete(u)
+    }
+  }
 }
 
 export function markThumbDecoded(url: string): void {
@@ -45,7 +57,14 @@ export function isThumbDecoded(url: string): boolean {
 export function invalidateThumbMemory(filePath: string): void {
   const prefix = thumbPathKey(filePath) + '|'
   for (const k of [...memoryCache.keys()]) {
-    if (k.startsWith(prefix)) memoryCache.delete(k)
+    if (k.startsWith(prefix)) {
+      const evicted = memoryCache.get(k)
+      memoryCache.delete(k)
+      if (evicted) {
+        decodedUrls.delete(evicted.url)
+        if (evicted.frames) for (const u of evicted.frames) decodedUrls.delete(u)
+      }
+    }
   }
 }
 
@@ -58,6 +77,13 @@ export function invalidateThumbMemoryMany(filePaths: string[]): void {
   }
   const prefixes = filePaths.map((p) => thumbPathKey(p) + '|')
   for (const k of [...memoryCache.keys()]) {
-    if (prefixes.some((prefix) => k.startsWith(prefix))) memoryCache.delete(k)
+    if (prefixes.some((prefix) => k.startsWith(prefix))) {
+      const evicted = memoryCache.get(k)
+      memoryCache.delete(k)
+      if (evicted) {
+        decodedUrls.delete(evicted.url)
+        if (evicted.frames) for (const u of evicted.frames) decodedUrls.delete(u)
+      }
+    }
   }
 }

@@ -398,7 +398,7 @@ export type MyFileExplorerApi = {
     >
   }
   icons: {
-    /** Windows shell icon (folder / file-type / exe) via SHGetFileInfo. */
+    /** Windows shell icon (folder / file-type / exe) via SHGetFileInfo — `data:image/png;base64,…` (not mfe-media). */
     get(req: {
       path: string
       size: number

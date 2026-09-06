@@ -112,6 +112,7 @@ import {
   MediaMetadataRatingsCell
 } from './MediaMetadataRatingsCell'
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
+import { warmGenericFolderShellIcons, warmShellIcon } from './ShellIcon'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
 import { noteFileViewScroll } from '../lib/fileViewScroll'
@@ -1235,6 +1236,18 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     platform === 'win32' && !recycleMode,
     folderPath
   )
+
+  // Prefetch folder glyphs into the session Map before / while rows mount so tab
+  // switches hit cache on first paint (names + icons together).
+  useEffect(() => {
+    const probe = entries.find((e) => e.kind === 'dir')?.path ?? folderPath
+    if (probe) warmGenericFolderShellIcons(probe)
+    const size = spec ? Math.min(spec.thumb, 48) : 16
+    for (const e of entries) {
+      if (e.kind === 'dir') warmShellIcon(e.path, size, true)
+    }
+  }, [entries, folderPath, spec])
+
   useEffect(() => {
     if (!columnMetaBump.path) return
     const target = columnMetaBump.path
