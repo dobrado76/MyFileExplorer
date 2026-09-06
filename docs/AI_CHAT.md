@@ -6,6 +6,7 @@ A reusable **ChatGPT-style** window for multi-turn Markdown Q&A. Features open i
 
 ## Open the window
 
+- Toolbar **Ask AI** (when Scripting + AI are on; optional via Settings).
 - **Media Metadata → Ask AI…** (context menu on a single movie/show/season/episode with stored metadata) — first built-in starter set.
 - Later: Help / how-to starters can call the same `aiChat:startFromStarter` IPC with docs URLs in the prompt text (still no local paths).
 
@@ -15,6 +16,8 @@ Gates: `settings.scripts.enabled` **and** `settings.ai.enabled` (same as script 
 
 Peer `BrowserWindow` of the explorer (**no parent** — same as Preview / Properties): OS title bar, maximize / close, move / resize, and free placement on another display. Bounds in `settings.aiChatWindowBounds` (restored on reopen if still on a connected screen; stripped on settings export).
 
+**Toolbar:** **Ask AI** (after Script Manager) when Scripting and AI are both on. Hide via Settings → Scripting and AI → **Show AI toolbar button** (`ai.showToolbarButton`, default on).
+
 | Region | Role |
 | ------ | ---- |
 | Left top | **Folders** tree (expand/collapse, nested subfolders). Defaults **Media**, **General**, **Help** are normal folders — rename, rearrange, nest, or delete. Drag a folder by the **edges** to reorder among siblings, **center** to nest under another; drop on empty tree area for root. |
@@ -22,6 +25,8 @@ Peer `BrowserWindow` of the explorer (**no parent** — same as Preview / Proper
 | Right | Thread (Markdown for AI replies) + composer for follow-ups |
 
 Not a single-shot dialog: after the starter reply you can keep chatting in that conversation.
+
+**Splitters:** Drag the vertical bar between the sidebar and thread, or the horizontal bar between **Folders** and **Chats**. Width and split ratio persist in `userData/ai-chats/index.json` (not settings export). On reopen, the last folder, chat, expanded folder branches, sidebar width, and folders/chats split restore from the same store.
 
 **Conversation anatomy**
 

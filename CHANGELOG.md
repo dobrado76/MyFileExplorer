@@ -9,7 +9,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
-- **Ask AI chat** — generic ChatGPT-style window (editable folder tree + conversation list + Markdown thread). Nest/rename/delete folders; drag chats onto folders. Media Metadata → **Ask AI…** seeds Media-folder chats from title metadata only (never paths/files). History in `userData/ai-chats/`. Requires Scripting + AI enabled. Guide: [docs/AI_CHAT.md](docs/AI_CHAT.md).
+- **Ask AI chat** — generic ChatGPT-style window (editable folder tree + conversation list + Markdown thread). Nest/rename/delete folders; drag chats onto folders; draggable sidebar and folders/chats splitters (persisted in `userData/ai-chats/`). Toolbar **Ask AI** button (Settings → Scripting and AI → Show AI toolbar button). Media Metadata → **Ask AI…** seeds Media-folder chats from title metadata only (never paths/files). Requires Scripting + AI enabled. Guide: [docs/AI_CHAT.md](docs/AI_CHAT.md).
+- **Ask AI splitters** — fix snap-back on release when the pointer ended over a folder row or chat item (pointer capture + serialized `aiChat:setUi` saves).
 - **Watched media badge** — in a media-library folder (icon/thumbnail), watched titles show a small eye badge at the top-right of the card (same glyph as Mark as Watched).
 - **Mark as Watched on series** — marking a show or season folder watched/unwatched also updates episode files under it that already have metadata (movies stay folder-only).
 - **Preview dock / detach** — Open preview window hides the docked pane; Dock / Panel / Ctrl+Shift+P brings it back. Only one preview is visible. Detached window hydrates settings (no more “Preview failed”) and uses a two-column layout when the *window* is wider than it is tall (folder **Space usage** map on the left; draggable splitter, last width remembered). Docked pane layout is unchanged.

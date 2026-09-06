@@ -62,8 +62,6 @@ export function AiChatWindowApp(): JSX.Element {
   const [error, setError] = useState<string | null>(null)
   const [cloudAckNeeded, setCloudAckNeeded] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
-  const expandedRef = useRef(expanded)
-  expandedRef.current = expanded
   const [topicDrop, setTopicDrop] = useState<{
     topicId: string
     mode: 'before' | 'after' | 'into'
@@ -112,6 +110,41 @@ export function AiChatWindowApp(): JSX.Element {
     }
   }, [])
 
+  const persistQueueRef = useRef(Promise.resolve())
+  const persistUi = useCallback((patch: Partial<AiChatUiState>): Promise<void> => {
+    setDoc((d) => (d ? { ...d, ui: { ...d.ui, ...patch } } : d))
+    const run = persistQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        const res = await call(api.aiChat.setUi(patch))
+        return res.ui
+      })
+    persistQueueRef.current = run.then(() => undefined, () => undefined)
+    return run
+      .then((ui) => {
+        setDoc((d) => (d ? { ...d, ui } : d))
+      })
+      .catch(() => undefined)
+  }, [])
+
+  const persistExpanded = useCallback(
+    (ids: Set<string>): void => {
+      void persistUi({ expandedTopicIds: [...ids] })
+    },
+    [persistUi]
+  )
+
+  useEffect(() => {
+    const flush = (): void => {
+      void persistUi({ expandedTopicIds: [...expanded] })
+    }
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      flush()
+      window.removeEventListener('beforeunload', flush)
+    }
+  }, [expanded, persistUi])
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -148,7 +181,7 @@ export function AiChatWindowApp(): JSX.Element {
               const next = new Set(prev)
               next.add(conv.topicId)
               for (const id of ancestorTopicIds(snap.topics, conv.topicId)) next.add(id)
-              void persistExpandedRef.current(next)
+              persistExpanded(next)
               return next
             })
           }
@@ -160,46 +193,13 @@ export function AiChatWindowApp(): JSX.Element {
       cancelled = true
       unsub()
     }
-  }, [loadConversation, refreshSnapshot])
+  }, [loadConversation, persistExpanded, refreshSnapshot])
 
   useEffect(() => {
     const el = threadRef.current
     if (!el) return
     el.scrollTop = el.scrollHeight
   }, [conversation?.messages.length, busy])
-
-  const persistQueueRef = useRef(Promise.resolve())
-  const persistUi = useCallback((patch: Partial<AiChatUiState>): Promise<void> => {
-    setDoc((d) => (d ? { ...d, ui: { ...d.ui, ...patch } } : d))
-    const run = persistQueueRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        const res = await call(api.aiChat.setUi(patch))
-        return res.ui
-      })
-    persistQueueRef.current = run.then(() => undefined, () => undefined)
-    return run
-      .then((ui) => {
-        setDoc((d) => (d ? { ...d, ui } : d))
-      })
-      .catch(() => undefined)
-  }, [])
-
-  const persistExpandedRef = useRef<(ids: Set<string>) => void>(() => {})
-  persistExpandedRef.current = (ids: Set<string>): void => {
-    void persistUi({ expandedTopicIds: [...ids] })
-  }
-
-  useEffect(() => {
-    const flush = (): void => {
-      persistExpandedRef.current(expandedRef.current)
-    }
-    window.addEventListener('beforeunload', flush)
-    return () => {
-      flush()
-      window.removeEventListener('beforeunload', flush)
-    }
-  }, [])
 
   const topics = doc?.topics ?? []
   const conversations = useMemo(() => {
@@ -228,7 +228,7 @@ export function AiChatWindowApp(): JSX.Element {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
-      persistExpandedRef.current(next)
+      persistExpanded(next)
       return next
     })
   }
@@ -312,7 +312,7 @@ export function AiChatWindowApp(): JSX.Element {
       const res = await call(api.aiChat.createTopic({ name, parentId }))
       setExpanded((prev) => {
         const next = new Set(prev).add(parentId)
-        persistExpandedRef.current(next)
+        persistExpanded(next)
         return next
       })
       await refreshSnapshot()
@@ -604,7 +604,7 @@ export function AiChatWindowApp(): JSX.Element {
       await call(api.aiChat.moveTopic({ id: draggedId, parentId: target.id }))
       setExpanded((prev) => {
         const next = new Set(prev).add(target.id)
-        persistExpandedRef.current(next)
+        persistExpanded(next)
         return next
       })
       return

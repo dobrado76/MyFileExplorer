@@ -733,6 +733,7 @@ Export each as `.mfescript` into a backup folder you actually sync. Settings →
 Settings → **Scripting and AI** (after scripting is on):
 
 - Enable AI (off = no outbound AI HTTP).
+- **Show AI toolbar button** — toolbar **Ask AI** after Script Manager (default on). Chat window: [AI_CHAT.md](AI_CHAT.md).
 - Providers: OpenAI, OpenRouter, LM Studio, custom OpenAI-compatible base URL.
 - **Test** / **Refresh models** uses `GET /v1/models` (no wasteful completion). The result fills a model dropdown and is cached on the provider (no keys).
 - Default model, per-provider model, temperature, max tokens, preferred language. Switch providers or pick a cheaper model from the list — you do not type ids.

@@ -284,9 +284,21 @@ Requires `scripts.enabled` and `ai.enabled`. History in `userData/ai-chats/` (no
 | `aiChat:getConversation` | `{ id }` | `{ conversation }` |
 | `aiChat:sendMessage` | `{ conversationId, content, providerId?, model? }` | `{ conversation, local }` |
 | `aiChat:startFromStarter` | `{ topicSystemKey, title, starterLabel, system, user, … }` | `{ conversation, local }` |
-| `aiChat:setUi` | partial ui | `{ ui }` |
+| `aiChat:setUi` | partial ui (see below) | `{ ui }` — merged into store; renderer serializes overlapping patches |
 
 Event `ai-chat-focus` → `{ conversationId }`.
+
+**`aiChat:setUi` fields** (all optional; live in `userData/ai-chats/index.json` → `ui`):
+
+| Field | Role |
+| ----- | ---- |
+| `lastTopicId` | Last selected folder |
+| `lastConversationId` | Last open chat |
+| `sidebarWidthPx` | Sidebar vs thread split (160–560 px) |
+| `topicPaneRatio` | Folders vs chats split in sidebar (0.2–0.8) |
+| `expandedTopicIds` | Folder tree branches left expanded |
+
+Window bounds stay in `settings.aiChatWindowBounds` (export-stripped per D45).
 
 ### `mediaMetadata.*`
 
