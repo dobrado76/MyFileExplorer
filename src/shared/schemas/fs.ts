@@ -32,6 +32,12 @@ export type StatResult = {
 export const pathRequestSchema = z.object({ path: z.string().min(1) })
 export type PathRequest = z.infer<typeof pathRequestSchema>
 
+/** http(s) only — validated again in main before shell.openExternal. */
+export const openExternalUrlRequestSchema = z.object({
+  url: z.string().min(1).max(2048)
+})
+export type OpenExternalUrlRequest = z.infer<typeof openExternalUrlRequestSchema>
+
 export const calculateFolderStatisticsRequestSchema = z.object({
   path: z.string().min(1),
   /** When true, skip folders that already have a valid TotalSize ADS stream. */

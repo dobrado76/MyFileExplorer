@@ -1,11 +1,15 @@
 import { useEffect, useState, type JSX } from 'react'
 import type { UserMetadataField } from '@shared/schemas/userMetadata'
 import { booleanFieldLabels } from '@shared/schemas/userMetadata'
+import { validateUserMetadataLinkValue } from '@shared/userMetadataLink'
 import { resolveMetadataSetForItem } from '@shared/userMetadataBindings'
 import { useAppStore } from '../store/appStore'
 import { api, call, IpcError } from '../lib/ipc'
 import { basename, samePath } from '../lib/paths'
+import { linkBaseDirForItem } from '../lib/userMetadataLink'
 import { testWholeValueSync } from '@shared/userMetadataValidate'
+import { UserMetadataLinkEditor } from './UserMetadataLinkEditor'
+import { UserMetadataIconTagsToggle } from './UserMetadataIconTagsToggle'
 
 export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
@@ -95,6 +99,14 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
         else n[field.id] = r.message
         return n
       })
+    } else if (field.type === 'link' && typeof next === 'string') {
+      const r = validateUserMetadataLinkValue(next)
+      setErrors((e) => {
+        const n = { ...e }
+        if (r.ok) delete n[field.id]
+        else n[field.id] = r.message
+        return n
+      })
     } else {
       setErrors((e) => {
         const n = { ...e }
@@ -155,6 +167,14 @@ export function UserMetadataDialog({ paths }: { paths: string[] }): JSX.Element 
                   field={field}
                   value={values[field.id]}
                   error={errors[field.id]}
+                  baseDir={
+                    !multi && paths[0]
+                      ? linkBaseDirForItem(
+                          paths[0],
+                          listing.entries.find((en) => samePath(en.path, paths[0]!))?.kind === 'dir'
+                        )
+                      : null
+                  }
                   onChange={(v) => setField(field, v)}
                 />
               ))}
@@ -196,11 +216,13 @@ function FieldEditor({
   field,
   value,
   error,
+  baseDir,
   onChange
 }: {
   field: UserMetadataField
   value: unknown
   error?: string
+  baseDir: string | null
   onChange(v: unknown): void
 }): JSX.Element {
   const id = `um-${field.id}`
@@ -267,6 +289,26 @@ function FieldEditor({
       </fieldset>
     )
   }
+  if (field.type === 'iconTags') {
+    const selected = Array.isArray(value)
+      ? value.filter((x): x is string => typeof x === 'string')
+      : []
+    return (
+      <div className="settings-labeled-row user-meta-icon-tags-row">
+        <span>{field.name}</span>
+        <UserMetadataIconTagsToggle
+          field={field}
+          selectedIds={selected}
+          onToggle={(optionId) => {
+            const next = new Set(selected)
+            if (next.has(optionId)) next.delete(optionId)
+            else next.add(optionId)
+            onChange(next.size ? [...next] : [])
+          }}
+        />
+      </div>
+    )
+  }
   if (field.type === 'number') {
     return (
       <label className="settings-labeled-row" htmlFor={id}>
@@ -292,6 +334,21 @@ function FieldEditor({
           type="date"
           value={typeof value === 'string' ? value : ''}
           onChange={(e) => onChange(e.target.value || null)}
+        />
+      </label>
+    )
+  }
+  if (field.type === 'link') {
+    const str = typeof value === 'string' ? value : ''
+    return (
+      <label className="settings-labeled-row user-meta-text user-meta-link-row" htmlFor={id}>
+        <span>{field.name}</span>
+        <UserMetadataLinkEditor
+          id={id}
+          value={str}
+          baseDir={baseDir}
+          error={error}
+          onChange={(next) => onChange(next)}
         />
       </label>
     )

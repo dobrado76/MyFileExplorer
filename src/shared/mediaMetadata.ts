@@ -560,6 +560,43 @@ export function parseMediaMetadataJson(text: string): MediaMetadata | null {
   }
 }
 
+export function formatMediaMetadataKindLabel(kind: MediaMetadataKind): string {
+  switch (kind) {
+    case 'movie':
+      return 'Movie'
+    case 'show':
+      return 'Show'
+    case 'episode':
+      return 'Episode'
+  }
+}
+
+/** Encode ratings for Details `mmRatings` (JSON; FileView renders icons). */
+export function formatMediaRatingsColumnValue(ratings: MediaMetadataRating[]): string {
+  return JSON.stringify(ratings)
+}
+
+export function parseMediaRatingsColumnValue(raw: string): MediaMetadataRating[] {
+  if (!raw.trim()) return []
+  try {
+    const v = JSON.parse(raw) as unknown
+    if (!Array.isArray(v)) return []
+    const out: MediaMetadataRating[] = []
+    for (const item of v) {
+      if (!item || typeof item !== 'object') continue
+      const o = item as Record<string, unknown>
+      if (typeof o.source !== 'string' || typeof o.value !== 'number') continue
+      if (!Number.isFinite(o.value)) continue
+      const max =
+        typeof o.max === 'number' && Number.isFinite(o.max) ? o.max : undefined
+      out.push(max != null ? { source: o.source, value: o.value, max } : { source: o.source, value: o.value })
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
 /** Cap how many remakes / same-title hits we show in the picker. */
 export const MEDIA_PICK_MAX = 12
 

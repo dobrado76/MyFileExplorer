@@ -56,6 +56,27 @@ export const MEDIA_COLUMN_IDS = [
   'mediaHeight'
 ] as const
 
+/**
+ * D50 Media Metadata card columns (NTFS `media_metadata` ADS).
+ * Distinct from Audio/video technical columns and Tags (embedded file tags).
+ */
+export const MEDIA_METADATA_COLUMN_IDS = [
+  'mmTitle',
+  'mmYear',
+  'mmKind',
+  'mmWatched',
+  'mmGenres',
+  'mmSeason',
+  'mmEpisode',
+  'mmShowTitle',
+  'mmLanguage',
+  'mmCountry',
+  'mmDirectors',
+  'mmActors',
+  'mmRatings',
+  'mmSynopsis'
+] as const
+
 /** Common media tags. */
 export const TAG_COLUMN_IDS = [
   'title',
@@ -87,6 +108,7 @@ export const DETAILS_COLUMN_IDS = [
   ...FOLDER_STATS_COLUMN_IDS,
   ...IMAGE_COLUMN_IDS,
   ...MEDIA_COLUMN_IDS,
+  ...MEDIA_METADATA_COLUMN_IDS,
   ...TAG_COLUMN_IDS,
   ...GEN_COLUMN_IDS
 ] as const
@@ -266,6 +288,7 @@ export type ColumnGroup =
   | 'file'
   | 'adsFields'
   | 'userMeta'
+  | 'mediaMetadata'
   | 'folderStats'
   | 'image'
   | 'media'
@@ -483,6 +506,96 @@ export const DETAILS_COLUMN_META: Record<BuiltinDetailsColumnId, DetailsColumnMe
     async: true
   },
 
+  mmTitle: { id: 'mmTitle', label: 'Title', group: 'mediaMetadata', defaultWidth: 180, async: true },
+  mmYear: {
+    id: 'mmYear',
+    label: 'Year',
+    group: 'mediaMetadata',
+    defaultWidth: 70,
+    numeric: true,
+    async: true
+  },
+  mmKind: { id: 'mmKind', label: 'Kind', group: 'mediaMetadata', defaultWidth: 90, async: true },
+  mmWatched: {
+    id: 'mmWatched',
+    label: 'Watched',
+    group: 'mediaMetadata',
+    defaultWidth: 90,
+    async: true
+  },
+  mmGenres: {
+    id: 'mmGenres',
+    label: 'Genres',
+    group: 'mediaMetadata',
+    defaultWidth: 160,
+    async: true
+  },
+  mmSeason: {
+    id: 'mmSeason',
+    label: 'Season',
+    group: 'mediaMetadata',
+    defaultWidth: 70,
+    numeric: true,
+    async: true
+  },
+  mmEpisode: {
+    id: 'mmEpisode',
+    label: 'Episode',
+    group: 'mediaMetadata',
+    defaultWidth: 70,
+    numeric: true,
+    async: true
+  },
+  mmShowTitle: {
+    id: 'mmShowTitle',
+    label: 'Show',
+    group: 'mediaMetadata',
+    defaultWidth: 160,
+    async: true
+  },
+  mmLanguage: {
+    id: 'mmLanguage',
+    label: 'Language',
+    group: 'mediaMetadata',
+    defaultWidth: 90,
+    async: true
+  },
+  mmCountry: {
+    id: 'mmCountry',
+    label: 'Country',
+    group: 'mediaMetadata',
+    defaultWidth: 120,
+    async: true
+  },
+  mmDirectors: {
+    id: 'mmDirectors',
+    label: 'Directors',
+    group: 'mediaMetadata',
+    defaultWidth: 140,
+    async: true
+  },
+  mmActors: {
+    id: 'mmActors',
+    label: 'Actors',
+    group: 'mediaMetadata',
+    defaultWidth: 180,
+    async: true
+  },
+  mmRatings: {
+    id: 'mmRatings',
+    label: 'Ratings',
+    group: 'mediaMetadata',
+    defaultWidth: 200,
+    async: true
+  },
+  mmSynopsis: {
+    id: 'mmSynopsis',
+    label: 'Synopsis',
+    group: 'mediaMetadata',
+    defaultWidth: 280,
+    async: true
+  },
+
   title: { id: 'title', label: 'Title', group: 'tags', defaultWidth: 160, async: true },
   artist: { id: 'artist', label: 'Artist', group: 'tags', defaultWidth: 140, async: true },
   album: { id: 'album', label: 'Album', group: 'tags', defaultWidth: 140, async: true },
@@ -570,6 +683,7 @@ export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
   file: 'File',
   adsFields: 'Stream values',
   userMeta: 'Metadata',
+  mediaMetadata: 'Media Metadata',
   folderStats: 'Folder statistics',
   image: 'Image',
   media: 'Audio / video',
@@ -580,6 +694,7 @@ export const COLUMN_GROUP_LABELS: Record<ColumnGroup, string> = {
 export const COLUMN_GROUP_ORDER: ColumnGroup[] = [
   'file',
   'userMeta',
+  'mediaMetadata',
   'adsFields',
   'folderStats',
   'image',
@@ -626,12 +741,22 @@ export function isFolderStatsColumnId(id: string): boolean {
   return (FOLDER_STATS_COLUMN_IDS as readonly string[]).includes(id)
 }
 
+export function isMediaMetadataColumnId(id: string): boolean {
+  return (MEDIA_METADATA_COLUMN_IDS as readonly string[]).includes(id)
+}
+
 /** Columns fetched via meta.getMany for directory rows (includes sync Size when TotalSize ADS exists). */
 export function isDirectoryMetaColumn(
   id: DetailsColumnId,
   opts?: MetaFetchOptions
 ): boolean {
-  if (id === 'ads' || isItemNoteColumnId(id) || isAdsFieldColumnId(id) || isMetaFieldColumnId(id))
+  if (
+    id === 'ads' ||
+    isItemNoteColumnId(id) ||
+    isAdsFieldColumnId(id) ||
+    isMetaFieldColumnId(id) ||
+    isMediaMetadataColumnId(id)
+  )
     return true
   if (opts?.showFolderStatistics === false) return false
   return columnNeedsDirectoryMeta(id) || id === 'size'
@@ -684,6 +809,7 @@ export function columnNeedsDirectoryMeta(id: DetailsColumnId): boolean {
     isItemNoteColumnId(id) ||
     isAdsFieldColumnId(id) ||
     isMetaFieldColumnId(id) ||
+    isMediaMetadataColumnId(id) ||
     isFolderStatsColumnId(id)
   )
 }

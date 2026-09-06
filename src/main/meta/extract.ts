@@ -8,22 +8,29 @@ import {
   formatAdsColumnValue,
   formatAdsValuePreview
 } from '@shared/ads/paths'
-import { parseAdsFieldColumnName, isMetaFieldColumnId } from '@shared/schemas/columns'
+import { parseAdsFieldColumnName, isMetaFieldColumnId, MEDIA_METADATA_COLUMN_IDS } from '@shared/schemas/columns'
 import { ITEM_NOTE_STREAM, parseItemNote } from '@shared/schemas/itemAds'
 import {
   USER_METADATA_STREAM,
   allUserMetadataFields,
   fieldById,
   formatBooleanFieldValue,
+  formatIconTagsColumnValue,
   optionById,
   parseMetaColumnFieldId,
   parseUserMetadataDoc
 } from '@shared/schemas/userMetadata'
+import {
+  formatMediaMetadataKindLabel,
+  formatMediaRatingsColumnValue,
+  normalizeEpisodeFields
+} from '@shared/mediaMetadata'
 import { encodeNoteChecklistColumn, itemNoteChecklistItems } from '@shared/noteSearch'
 import { listStreamNames, readStreamText, streamExists } from '../fs/adsWin32'
 import { settingsStore } from '../settings/store'
 import { parseA1111Parameters } from '../preview/a1111'
 import { resolveGenerationParametersText } from '../preview/genFields'
+import { readMediaMetadata } from '../mediaMetadata/store'
 
 const IMAGE_EXTS = new Set([
   'png',
@@ -427,8 +434,13 @@ async function extractUserMetaColumns(
       const fid = parseMetaColumnFieldId(colId)
       if (!fid) continue
       const raw = doc.values[fid]
-      if (raw == null || raw === '') continue
       const field = fieldById(fields, fid)
+      if (raw == null || raw === '' || (Array.isArray(raw) && raw.length === 0)) {
+        if (field?.type === 'iconTags') {
+          out[colId] = formatIconTagsColumnValue(field, [])
+        }
+        continue
+      }
       if (!field) {
         out[colId] = String(raw)
         continue
@@ -440,13 +452,54 @@ async function extractUserMetaColumns(
           .map((id) => (typeof id === 'string' ? optionById(field, id)?.label ?? id : ''))
           .filter(Boolean)
           .join('; ')
+      } else if (field.type === 'iconTags' && Array.isArray(raw)) {
+        out[colId] = formatIconTagsColumnValue(
+          field,
+          raw.filter((id): id is string => typeof id === 'string')
+        )
       } else if (field.type === 'boolean') {
         out[colId] =
           typeof raw === 'boolean' ? formatBooleanFieldValue(field, raw) : String(raw)
+      } else if (field.type === 'link') {
+        // Keep full value so Details can follow the link (URLs/paths).
+        out[colId] = typeof raw === 'string' ? raw : String(raw)
       } else {
         out[colId] = truncate(String(raw), 200)
       }
     }
+  } catch {
+    /* soft-fail */
+  }
+  return out
+}
+
+async function extractMediaMetadataColumns(
+  file: string,
+  wanted: Set<DetailsColumnId>
+): Promise<EntryColumnValues> {
+  const out: EntryColumnValues = {}
+  if (![...MEDIA_METADATA_COLUMN_IDS].some((k) => wanted.has(k))) return out
+  if (settingsStore().get().mediaMetadata?.enabled !== true) return out
+  try {
+    const meta = await readMediaMetadata(file)
+    if (!meta) return out
+    const ep = normalizeEpisodeFields(meta, path.basename(file))
+    pick(wanted, 'mmTitle', ep.title, out)
+    pick(wanted, 'mmYear', ep.year, out)
+    if (wanted.has('mmKind')) out.mmKind = formatMediaMetadataKindLabel(ep.kind)
+    if (wanted.has('mmWatched')) out.mmWatched = ep.watched ? 'Watched' : 'Unwatched'
+    if (ep.genres?.length) pick(wanted, 'mmGenres', ep.genres.join('; '), out)
+    pick(wanted, 'mmSeason', ep.season, out)
+    pick(wanted, 'mmEpisode', ep.episode, out)
+    pick(wanted, 'mmShowTitle', ep.showTitle, out)
+    pick(wanted, 'mmLanguage', ep.originalLanguage, out)
+    if (ep.country?.length) pick(wanted, 'mmCountry', ep.country.join(', '), out)
+    if (ep.directors?.length) pick(wanted, 'mmDirectors', ep.directors.join(', '), out)
+    if (ep.actors?.length) pick(wanted, 'mmActors', ep.actors.join(', '), out)
+    if (wanted.has('mmRatings') && ep.ratings?.length) {
+      out.mmRatings = formatMediaRatingsColumnValue(ep.ratings)
+    }
+    if (ep.synopsis) pick(wanted, 'mmSynopsis', truncate(ep.synopsis, 400), out)
   } catch {
     /* soft-fail */
   }
@@ -481,6 +534,7 @@ export async function extractColumnValues(
     Object.assign(out, await extractAdsFieldColumns(file, wanted))
     Object.assign(out, await extractItemNoteColumns(file, wanted))
     Object.assign(out, await extractUserMetaColumns(file, wanted))
+    Object.assign(out, await extractMediaMetadataColumns(file, wanted))
   }
 
   if (st.isDirectory()) {

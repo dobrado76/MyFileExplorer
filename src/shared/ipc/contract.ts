@@ -59,6 +59,8 @@ export const IPC = {
 
   shellOpenPath: 'shell:openPath',
   shellShowItemInFolder: 'shell:showItemInFolder',
+  /** Open an http(s) URL in the system default browser. */
+  shellOpenExternal: 'shell:openExternal',
   /** Open cmd or PowerShell (Settings → Behavior) in a folder. */
   shellOpenCommandLine: 'shell:openCommandLine',
   /** Open the Windows Explorer property sheet (Security / Sharing / …). */
@@ -163,6 +165,8 @@ export const IPC = {
   /** Expand `%VAR%` using process env (Explorer address-bar parity). */
   appExpandPath: 'app:expandPath',
   appPickFolder: 'app:pickFolder',
+  /** Native open dialog for a local file or folder (user-metadata Link Browse). */
+  appPickPath: 'app:pickPath',
   /** Renderer finished boot — main may flush queued external-open requests. */
   appReady: 'app:ready',
   appGetVersion: 'app:getVersion',

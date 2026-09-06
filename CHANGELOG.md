@@ -9,6 +9,12 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Media Metadata Details columns** — in a media-library folder or recognized subfolder, the Details column picker adds a **Media Metadata** section (title, year, kind, watched, genres, season/episode, show, language, country, directors, actors, ratings with service icons, synopsis). Distinct from Tags and Audio/video technical columns.
+- **User metadata Icon tags** — multi-select visual tags (shared glyph picker). Preview / dialog / Details show every option icon in order (grey off / color on); click toggles. Power Search like multi-choice.
+- **User metadata option reorder** — ↑/↓ for Choice, Multi-choice, and Icon tags options in the manager.
+- **User metadata Link fields** — new field type for http(s) URLs, absolute paths, or paths relative to the item. **Browse…**, drop-to-fill (Shift = relative), **Open** / **Reveal**, soft missing-path hint; Details click = Open, middle-click = Reveal, context Open / Reveal / Copy.
+- **User metadata catalog safety** — one invalid field definition no longer clears the whole set (soft-parse keeps valid fields).
+
 ## [0.16.0] - 2026-09-06
 
 Sixteenth product release: **Power Rename Advanced** options, **multi-pack** glyphs (Lucide / Phosphor / Tabler), and polished **User Metadata** (manager dialog, Binary labels, child-folder bindings, stable preview / column refresh). See [RELEASE_NOTES.md](RELEASE_NOTES.md).

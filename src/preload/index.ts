@@ -74,6 +74,7 @@ const api: MyFileExplorerApi = {
   shell: {
     openPath: invoke(IPC.shellOpenPath),
     showItemInFolder: invoke(IPC.shellShowItemInFolder),
+    openExternal: invoke(IPC.shellOpenExternal),
     openCommandLine: invoke(IPC.shellOpenCommandLine),
     showProperties: invoke(IPC.shellShowProperties),
     openWindowsTool: invoke(IPC.shellOpenWindowsTool),
@@ -174,6 +175,7 @@ const api: MyFileExplorerApi = {
     getPath: invoke(IPC.appGetPath),
     expandPath: invoke(IPC.appExpandPath),
     pickFolder: invokeVoid(IPC.appPickFolder),
+    pickPath: invokeVoid(IPC.appPickPath),
     ready: invokeVoid(IPC.appReady),
     getVersion: invokeVoid(IPC.appGetVersion),
     devGate: invokeVoid(IPC.appDevGate),

@@ -7,6 +7,8 @@
 import type { UserMetadataDoc, UserMetadataField } from './schemas/userMetadata'
 import {
   fieldById,
+  fieldUsesChoiceOptions,
+  fieldUsesMultiOptionIds,
   fieldsBySearchKey,
   optionByKey,
   optionIdsForSearchKey,
@@ -103,7 +105,7 @@ function clauseMatchesOne(
 
   // eq
   const field = fieldById(catalog, fieldId)
-  if (field?.type === 'multiChoice') {
+  if (field && fieldUsesMultiOptionIds(field.type)) {
     if (!Array.isArray(raw)) return false
     const want = new Set(
       c.optionIds?.length ? c.optionIds : c.value != null ? [String(c.value)] : []
@@ -123,7 +125,7 @@ function clauseMatchesOne(
   if (field?.type === 'number') {
     return typeof raw === 'number' && typeof c.value === 'number' && raw === c.value
   }
-  // text / date / unknown — substring for text, exact for date-ish
+  // text / date / link / unknown — substring for text/link, exact for date-ish
   if (c.value == null) return fieldHasValue(doc, fieldId)
   const hay = String(raw ?? '').toLowerCase()
   const needle = String(c.value).toLowerCase()
@@ -182,20 +184,20 @@ export function buildMetaClauseFromValue(
     if (b == null) return null
     return { fieldId: field.id, mode: 'eq', value: b }
   }
-  if (field.type === 'choice' || field.type === 'multiChoice') {
+  if (fieldUsesChoiceOptions(field.type)) {
     const opt = optionByKey(field, t.toLowerCase()) ?? optionByKey(field, t)
     if (!opt) {
       const found = field.choices?.find((o) => o.key.toLowerCase() === t.toLowerCase())
       if (!found) return null
-      return field.type === 'multiChoice'
+      return fieldUsesMultiOptionIds(field.type)
         ? { fieldId: field.id, mode: 'eq', optionIds: [found.id] }
         : { fieldId: field.id, mode: 'eq', value: found.id, optionIds: [found.id] }
     }
-    return field.type === 'multiChoice'
+    return fieldUsesMultiOptionIds(field.type)
       ? { fieldId: field.id, mode: 'eq', optionIds: [opt.id] }
       : { fieldId: field.id, mode: 'eq', value: opt.id, optionIds: [opt.id] }
   }
-  // text / date
+  // text / date / link
   return { fieldId: field.id, mode: 'eq', value: t }
 }
 
@@ -214,7 +216,7 @@ export function buildMetaClauseFromCompatibleFields(
   if (!t) {
     return { fieldId: primary.id, fieldIds, mode: 'present' }
   }
-  if (primary.type === 'choice' || primary.type === 'multiChoice') {
+  if (fieldUsesChoiceOptions(primary.type)) {
     const optionIds = optionIdsForSearchKey(fields, t)
     if (optionIds.length === 0) return null
     return {

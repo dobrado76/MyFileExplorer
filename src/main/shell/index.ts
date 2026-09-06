@@ -34,6 +34,21 @@ export async function openPath(p: string): Promise<{ opened: boolean; message?: 
   return message ? { opened: false, message } : { opened: true }
 }
 
+/** Open http(s) only — never file: or other schemes. */
+export async function openExternalUrl(url: string): Promise<{ opened: true }> {
+  let parsed: URL
+  try {
+    parsed = new URL(url.trim())
+  } catch {
+    throw new AppError('validation', 'Invalid URL')
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new AppError('not-allowed', 'Only http(s) URLs can be opened externally')
+  }
+  await shell.openExternal(parsed.toString())
+  return { opened: true }
+}
+
 /**
  * Launch a user-configured external program with argv.
  * `.exe` / scripts spawn directly; `.bat` / `.cmd` go through `cmd.exe /d /s /c`

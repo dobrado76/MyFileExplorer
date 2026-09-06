@@ -4,14 +4,23 @@ import { metaRecordMatches } from '../shared/metaSearch'
 import {
   allUserMetadataFields,
   formatBooleanFieldValue,
+  formatIconTagsColumnValue,
   newUserMetadataFieldId,
   newUserMetadataOptionId,
   newUserMetadataSetId,
   parseBooleanFieldToken,
+  parseIconTagsColumnValue,
   type UserMetadataDoc,
   type UserMetadataField,
-  userMetadataFieldSchema
+  userMetadataFieldSchema,
+  userMetadataSettingsSchema
 } from '../shared/schemas/userMetadata'
+import {
+  canFollowUserMetadataLink,
+  classifyUserMetadataLink,
+  validateUserMetadataLinkValue,
+  windowsPathRelativeTo
+} from '../shared/userMetadataLink'
 import { compileWholeValuePattern, testWholeValueSync } from '../shared/userMetadataValidate'
 import { buildSearchQuery, defaultPowerSearchState } from '../shared/searchBuilder'
 import { defaultSettings, settingsSchema } from '../shared/schemas/settings'
@@ -113,6 +122,164 @@ describe('boolean field labels', () => {
       userMetadataFields: [doneField]
     })
     expect(q.metaClauses[0]?.value).toBe(true)
+  })
+})
+
+describe('link field values', () => {
+  it('accepts link type in field schema', () => {
+    const parsed = userMetadataFieldSchema.parse({
+      id: newUserMetadataFieldId(),
+      key: 'homepage',
+      name: 'Homepage',
+      type: 'link',
+      showAsColumn: true
+    })
+    expect(parsed.type).toBe('link')
+  })
+
+  it('classifies urls, absolute paths, and relatives', () => {
+    expect(classifyUserMetadataLink('https://example.com/a')).toEqual({
+      kind: 'url',
+      url: 'https://example.com/a'
+    })
+    expect(classifyUserMetadataLink('C:\\Projects\\readme.md')).toEqual({
+      kind: 'path',
+      path: 'C:\\Projects\\readme.md'
+    })
+    expect(classifyUserMetadataLink('docs\\a.md', 'C:\\Projects\\item')).toEqual({
+      kind: 'path',
+      path: 'C:\\Projects\\item\\docs\\a.md'
+    })
+    expect(classifyUserMetadataLink('file:///C:/foo/bar.txt')).toEqual({
+      kind: 'path',
+      path: 'C:\\foo\\bar.txt'
+    })
+  })
+
+  it('validates and rejects unsafe schemes', () => {
+    expect(validateUserMetadataLinkValue('https://ok').ok).toBe(true)
+    expect(validateUserMetadataLinkValue('C:\\a').ok).toBe(true)
+    expect(validateUserMetadataLinkValue('javascript:alert(1)').ok).toBe(false)
+    expect(canFollowUserMetadataLink('https://ok', null)).toBe(true)
+    expect(canFollowUserMetadataLink('rel\\x', null)).toBe(false)
+    expect(canFollowUserMetadataLink('rel\\x', 'D:\\root')).toBe(true)
+  })
+
+  it('computes relative paths for Shift+drop / Shift+Browse', () => {
+    expect(windowsPathRelativeTo('C:\\Proj', 'C:\\Proj\\docs\\a.md')).toBe('docs\\a.md')
+    expect(windowsPathRelativeTo('C:\\Proj\\src', 'C:\\Proj\\docs\\a.md')).toBe('..\\docs\\a.md')
+    expect(windowsPathRelativeTo('D:\\a', 'C:\\b')).toBeNull()
+  })
+
+  it('does not wipe sibling fields when one field is invalid', () => {
+    const keepId = newUserMetadataFieldId()
+    const setId = newUserMetadataSetId()
+    const parsed = userMetadataSettingsSchema.parse({
+      enabled: true,
+      showToolbarButton: false,
+      sets: [
+        {
+          id: setId,
+          name: 'Keep me',
+          fields: [
+            {
+              id: keepId,
+              key: 'title',
+              name: 'Title',
+              type: 'text',
+              showAsColumn: false
+            },
+            {
+              id: newUserMetadataFieldId(),
+              key: 'bad',
+              name: 'Bad',
+              type: 'not_a_real_type',
+              showAsColumn: false
+            },
+            {
+              id: newUserMetadataFieldId(),
+              key: 'site',
+              name: 'Site',
+              type: 'link',
+              showAsColumn: true
+            }
+          ]
+        }
+      ],
+      bindings: []
+    })
+    expect(parsed.sets).toHaveLength(1)
+    expect(parsed.sets[0]!.fields.map((f) => f.key).sort()).toEqual(['site', 'title'])
+  })
+})
+
+describe('icon tags', () => {
+  const tagA = {
+    id: newUserMetadataOptionId(),
+    key: 'star',
+    label: 'Star',
+    lucideName: 'Star',
+    lucideColor: '#fbbf24'
+  }
+  const tagB = {
+    id: newUserMetadataOptionId(),
+    key: 'flag',
+    label: 'Flag',
+    lucideName: 'Flag',
+    lucideColor: '#f87171'
+  }
+  const iconField: UserMetadataField = {
+    id: newUserMetadataFieldId(),
+    key: 'tags',
+    name: 'Tags',
+    type: 'iconTags',
+    choices: [tagA, tagB],
+    showAsColumn: true
+  }
+
+  it('requires lucideName on icon tag options', () => {
+    const bad = userMetadataFieldSchema.safeParse({
+      ...iconField,
+      choices: [{ id: tagA.id, key: 'star', label: 'Star' }]
+    })
+    expect(bad.success).toBe(false)
+  })
+
+  it('accepts iconTags with glyphs', () => {
+    expect(userMetadataFieldSchema.parse(iconField).type).toBe('iconTags')
+  })
+
+  it('encodes and parses Details column tokens', () => {
+    const raw = formatIconTagsColumnValue(iconField, [tagB.id])
+    expect(raw).toBe(`${tagA.id}:0;${tagB.id}:1`)
+    expect(parseIconTagsColumnValue(raw)).toEqual([
+      { id: tagA.id, on: false },
+      { id: tagB.id, on: true }
+    ])
+  })
+
+  it('matches Power Search like multi-choice', () => {
+    const q = parseEverythingQuery('meta.tags:flag', { userMetadataFields: [iconField] })
+    expect(q.metaClauses[0]?.optionIds).toEqual([tagB.id])
+    const doc: UserMetadataDoc = {
+      format: 'MyFileExplorer.UserMetadata',
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      values: { [iconField.id]: [tagB.id] }
+    }
+    expect(
+      metaRecordMatches(
+        doc,
+        {
+          hasMeta: false,
+          excludeHasMeta: false,
+          fieldPresent: [],
+          excludeFieldPresent: [],
+          clauses: q.metaClauses
+        },
+        [iconField]
+      )
+    ).toBe(true)
   })
 })
 

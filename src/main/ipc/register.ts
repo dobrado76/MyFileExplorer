@@ -7,6 +7,7 @@ import { expandWindowsEnvPath } from '../paths/expandEnv'
 import {
   listRequestSchema,
   pathRequestSchema,
+  openExternalUrlRequestSchema,
   calculateFolderStatisticsRequestSchema,
   pathsRequestSchema,
   clipboardWriteFilesRequestSchema,
@@ -170,6 +171,7 @@ import {
 } from '../slideshow/virtualPlaylist'
 import {
   openPath,
+  openExternalUrl,
   showItemInFolder,
   openCommandLineHere,
   showSystemProperties,
@@ -648,6 +650,7 @@ export function registerIpcHandlers(): void {
   // shell
   handle(IPC.shellOpenPath, pathRequestSchema, (req) => openPath(req.path))
   handle(IPC.shellShowItemInFolder, pathRequestSchema, (req) => showItemInFolder(req.path))
+  handle(IPC.shellOpenExternal, openExternalUrlRequestSchema, (req) => openExternalUrl(req.url))
   handle(
     IPC.shellOpenCommandLine,
     z.object({
@@ -1029,6 +1032,17 @@ export function registerIpcHandlers(): void {
     const result = win
       ? await dialog.showOpenDialog(win, { properties: ['openDirectory'] })
       : await dialog.showOpenDialog({ properties: ['openDirectory'] })
+    return { path: result.canceled ? null : (result.filePaths[0] ?? null) }
+  })
+  handle(IPC.appPickPath, emptySchema, async (_req, event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const opts = {
+      title: 'Choose file or folder',
+      properties: ['openFile', 'openDirectory'] as ('openFile' | 'openDirectory')[]
+    }
+    const result = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts)
     return { path: result.canceled ? null : (result.filePaths[0] ?? null) }
   })
   handle(IPC.appReady, emptySchema, () => {

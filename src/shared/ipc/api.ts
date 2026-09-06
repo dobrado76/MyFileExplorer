@@ -159,6 +159,8 @@ export type MyFileExplorerApi = {
   shell: {
     openPath(req: PathRequest): Promise<Result<{ opened: boolean; message?: string }>>
     showItemInFolder(req: PathRequest): Promise<Result<{ shown: true }>>
+    /** Open http(s) in the system default browser. */
+    openExternal(req: import('../schemas/fs').OpenExternalUrlRequest): Promise<Result<{ opened: true }>>
     /** Open cmd or PowerShell (Settings) in a folder. Shift = elevated (UAC). */
     openCommandLine(req: PathRequest & { elevated?: boolean }): Promise<Result<{ opened: true }>>
     /** Open Explorer’s property sheet (NTFS Security, Sharing, etc.). */
@@ -406,6 +408,8 @@ export type MyFileExplorerApi = {
     /** Expand Windows `%VARIABLE%` segments in a typed/pasted path. */
     expandPath(req: { path: string }): Promise<Result<{ path: string }>>
     pickFolder(): Promise<Result<{ path: string | null }>>
+    /** Pick a local file or folder (Link field Browse…). */
+    pickPath(): Promise<Result<{ path: string | null }>>
     /** Tell main the UI is ready for queued external-open requests. */
     ready(): Promise<Result<{ ok: true; platform: string }>>
     getVersion(): Promise<Result<{ version: string }>>

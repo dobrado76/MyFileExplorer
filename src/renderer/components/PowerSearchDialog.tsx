@@ -763,7 +763,11 @@ export function PowerSearchDialog(): JSX.Element {
                 const mf = builder.metaFilters[0]
                 const field = userMetadataFields.find((f) => f.id === mf?.fieldId)
                 if (!field || !mf) return null
-                if (field.type === 'choice' || field.type === 'multiChoice') {
+                if (
+                  field.type === 'choice' ||
+                  field.type === 'multiChoice' ||
+                  field.type === 'iconTags'
+                ) {
                   return (
                     <label className="power-search-field">
                       <span>Option</span>

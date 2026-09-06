@@ -48,7 +48,7 @@ Changing a field or option **`key`** requires a confirmation warning (raw typed 
 - Deleting a set confirms with the count of bindings referencing it, then drops those bindings. Never scans or deletes ADS values.
 - Legacy flat `fields[]` migrates into one **Default** set with **no bindings** (opt-in immediately).
 
-Types: `text` | `number` | `boolean` | `date` | `choice` | `multiChoice`.
+Types: `text` | `number` | `boolean` | `date` | `choice` | `multiChoice` | `link` | `iconTags`.
 
 ### Binary fields (`type: "boolean"`)
 
@@ -62,6 +62,23 @@ boolean?: {
 ```
 
 Examples: True/False, Todo/Done, Open/Closed. Power Search accepts `true`/`false`/`yes`/`no`/`1`/`0` and the field’s labels (`meta.done:Done`). Details columns show the labels.
+
+### Link fields (`type: "link"`)
+
+ADS stores a string. Allowed values:
+
+- **http(s) URL** — Open follows in the system default browser (`shell:openExternal`).
+- **Absolute path** — Windows drive (`C:\…`) or UNC (`\\server\share\…`). Folders navigate in-app; files open with the OS association.
+- **Relative path** — resolved against the item’s folder (or the folder itself when the item is a directory).
+- **`file://` URLs** — normalized to a path before open.
+
+Empty clears. Preview and the Metadata dialog: **Browse…** (file or folder; Shift = store relative), **Open**, **Reveal** (paths), drop a file/folder onto the field (Shift = relative). Soft amber **Path not found** when a path target is missing (still openable). Details: click = Open, middle-click = Reveal, context menu Open / Reveal / Copy. Power Search treats links like text (substring).
+
+### Icon tags (`type: "iconTags"`)
+
+Visual multi-select tags. ADS stores the same shape as multi-choice (`string[]` of option ids). Each option has a glyph (`lucideName` / `lucideColor` / optional `lucidePack`) plus label/key. Preview, Metadata dialog, and Details columns show **every** option icon in catalog order: muted when off, option color when on; click toggles. Power Search matches like multi-choice (`meta.<key>:<optionKey>`).
+
+Choice, multi-choice, and icon-tag **options** can be reordered (↑/↓) in the Metadata manager; that order is display order.
 
 ### Optional text validation
 

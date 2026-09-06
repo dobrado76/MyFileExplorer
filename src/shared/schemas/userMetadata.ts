@@ -4,6 +4,7 @@
  */
 
 import { z } from 'zod'
+import { iconPackIdSchema } from './iconPack'
 
 export const USER_METADATA_STREAM = 'mfe_meta'
 export const USER_METADATA_FORMAT = 'MyFileExplorer.UserMetadata'
@@ -27,12 +28,16 @@ export const MAX_VALIDATION_MESSAGE_LEN = 200
 export const MAX_BOOLEAN_LABEL_LEN = 40
 export const DEFAULT_BOOLEAN_TRUE_LABEL = 'Yes'
 export const DEFAULT_BOOLEAN_FALSE_LABEL = 'No'
+/** Default glyph color for Icon tags options (matches IconPicker). */
+export const DEFAULT_ICON_TAG_COLOR = '#60a5fa'
+export const DEFAULT_ICON_TAG_NAME = 'Tag'
 
 const FIELD_KEY_RE = /^[a-z][a-z0-9_]{0,63}$/
 const OPTION_KEY_RE = /^[a-z][a-z0-9_]{0,63}$/
 const FIELD_ID_RE = /^mf_[a-z0-9]{6,24}$/
 const OPTION_ID_RE = /^mo_[a-z0-9]{6,24}$/
 const SET_ID_RE = /^ms_[a-z0-9]{6,24}$/
+const ICON_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
 
 export function newUserMetadataFieldId(): string {
   return `mf_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`
@@ -52,7 +57,11 @@ export const userMetadataFieldTypeSchema = z.enum([
   'boolean',
   'date',
   'choice',
-  'multiChoice'
+  'multiChoice',
+  /** http(s) URL, absolute path, or path relative to the item. */
+  'link',
+  /** Multi-select visual tags (glyph per option). ADS = option id[]. */
+  'iconTags'
 ])
 export type UserMetadataFieldType = z.infer<typeof userMetadataFieldTypeSchema>
 
@@ -87,9 +96,35 @@ export type UserMetadataBooleanLabels = z.infer<typeof userMetadataBooleanLabels
 export const userMetadataChoiceOptionSchema = z.object({
   id: z.string().regex(OPTION_ID_RE),
   key: z.string().regex(OPTION_KEY_RE),
-  label: z.string().min(1).max(MAX_OPTION_LABEL_LEN)
+  label: z.string().min(1).max(MAX_OPTION_LABEL_LEN),
+  /** Glyph for iconTags (optional on choice/multiChoice). */
+  lucideName: z.string().min(1).max(80).optional(),
+  lucideColor: z.string().regex(ICON_COLOR_RE).optional(),
+  lucidePack: iconPackIdSchema
 })
 export type UserMetadataChoiceOption = z.infer<typeof userMetadataChoiceOptionSchema>
+
+export function defaultIconTagOptionGlyph(): Pick<
+  UserMetadataChoiceOption,
+  'lucideName' | 'lucideColor'
+> {
+  return { lucideName: DEFAULT_ICON_TAG_NAME, lucideColor: DEFAULT_ICON_TAG_COLOR }
+}
+
+export function iconTagOptionColor(option: Pick<UserMetadataChoiceOption, 'lucideColor'>): string {
+  const c = option.lucideColor?.trim()
+  return c && ICON_COLOR_RE.test(c) ? c : DEFAULT_ICON_TAG_COLOR
+}
+
+/** True for types that use the shared choices[] option catalog. */
+export function fieldUsesChoiceOptions(type: UserMetadataFieldType): boolean {
+  return type === 'choice' || type === 'multiChoice' || type === 'iconTags'
+}
+
+/** True for types whose ADS value is string[] of option ids. */
+export function fieldUsesMultiOptionIds(type: UserMetadataFieldType): boolean {
+  return type === 'multiChoice' || type === 'iconTags'
+}
 
 export const userMetadataFieldSchema = z
   .object({
@@ -104,17 +139,21 @@ export const userMetadataFieldSchema = z
     showAsColumn: z.boolean().catch(false)
   })
   .superRefine((f, ctx) => {
-    if (f.type === 'choice' || f.type === 'multiChoice') {
+    if (fieldUsesChoiceOptions(f.type)) {
       if (!f.choices || f.choices.length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Choice fields need at least one option',
+          message:
+            f.type === 'iconTags'
+              ? 'Icon tags need at least one option'
+              : 'Choice fields need at least one option',
           path: ['choices']
         })
       } else {
         const keys = new Set<string>()
         const ids = new Set<string>()
-        for (const o of f.choices) {
+        for (let oi = 0; oi < f.choices.length; oi++) {
+          const o = f.choices[oi]!
           if (keys.has(o.key)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
@@ -131,6 +170,13 @@ export const userMetadataFieldSchema = z
             })
           }
           ids.add(o.id)
+          if (f.type === 'iconTags' && !o.lucideName?.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: 'Icon tag options need an icon',
+              path: ['choices', oi, 'lucideName']
+            })
+          }
         }
       }
     }
@@ -145,6 +191,35 @@ export const userMetadataFieldSchema = z
     }
   })
 export type UserMetadataField = z.infer<typeof userMetadataFieldSchema>
+
+/**
+ * Details column encoding for iconTags: `mo_aaa:1;mo_bbb:0;…` (catalog order).
+ */
+export function formatIconTagsColumnValue(
+  field: Pick<UserMetadataField, 'choices'>,
+  selectedIds: string[]
+): string {
+  const on = new Set(selectedIds)
+  return (field.choices ?? [])
+    .map((o) => `${o.id}:${on.has(o.id) ? '1' : '0'}`)
+    .join(';')
+}
+
+export function parseIconTagsColumnValue(raw: string): { id: string; on: boolean }[] {
+  if (!raw.trim()) return []
+  const out: { id: string; on: boolean }[] = []
+  for (const part of raw.split(';')) {
+    const t = part.trim()
+    if (!t) continue
+    const colon = t.lastIndexOf(':')
+    if (colon <= 0) continue
+    const id = t.slice(0, colon)
+    const flag = t.slice(colon + 1)
+    if (!OPTION_ID_RE.test(id)) continue
+    out.push({ id, on: flag === '1' })
+  }
+  return out
+}
 
 function refineFieldsUnique(
   fields: UserMetadataField[],
@@ -178,7 +253,14 @@ export const userMetadataSetSchema = z
   .object({
     id: z.string().regex(SET_ID_RE),
     name: z.string().min(1).max(MAX_SET_NAME_LEN),
-    fields: z.array(userMetadataFieldSchema).max(MAX_USER_METADATA_FIELDS).catch([])
+    /**
+     * Soft-parse: keep valid fields, drop invalid ones.
+     * Never use `.catch([])` here — one bad field must not wipe the catalog.
+     */
+    fields: z.preprocess(
+      sanitizeUserMetadataFields,
+      z.array(userMetadataFieldSchema).max(MAX_USER_METADATA_FIELDS)
+    )
   })
   .superRefine((set, ctx) => {
     refineFieldsUnique(set.fields, ctx, ['fields'])
@@ -193,13 +275,75 @@ export const userMetadataBindingSchema = z.object({
 })
 export type UserMetadataBinding = z.infer<typeof userMetadataBindingSchema>
 
+/** Drop invalid bindings; never wipe the whole list because of one bad row. */
+export function sanitizeUserMetadataBindings(raw: unknown): UserMetadataBinding[] {
+  if (!Array.isArray(raw)) return []
+  const out: UserMetadataBinding[] = []
+  for (const item of raw) {
+    const p = userMetadataBindingSchema.safeParse(item)
+    if (!p.success) continue
+    out.push(p.data)
+    if (out.length >= MAX_USER_METADATA_BINDINGS) break
+  }
+  return out
+}
+
+/**
+ * Keep valid fields only. Used so schema evolution / one bad row cannot
+ * empty an entire set (the old `.catch([])` on the fields array did that).
+ */
+export function sanitizeUserMetadataFields(raw: unknown): UserMetadataField[] {
+  if (!Array.isArray(raw)) return []
+  const out: UserMetadataField[] = []
+  const seenIds = new Set<string>()
+  const seenKeys = new Set<string>()
+  for (const item of raw) {
+    const p = userMetadataFieldSchema.safeParse(item)
+    if (!p.success) continue
+    if (seenIds.has(p.data.id) || seenKeys.has(p.data.key)) continue
+    seenIds.add(p.data.id)
+    seenKeys.add(p.data.key)
+    out.push(p.data)
+    if (out.length >= MAX_USER_METADATA_FIELDS) break
+  }
+  return out
+}
+
+/** Soft-parse sets; invalid sets dropped, fields inside sanitized. */
+export function sanitizeUserMetadataSets(raw: unknown): UserMetadataSet[] {
+  if (!Array.isArray(raw)) return []
+  const out: UserMetadataSet[] = []
+  const seenIds = new Set<string>()
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue
+    const o = item as Record<string, unknown>
+    const id = typeof o.id === 'string' ? o.id : ''
+    const name = typeof o.name === 'string' ? o.name.trim() : ''
+    if (!SET_ID_RE.test(id) || !name || seenIds.has(id)) continue
+    seenIds.add(id)
+    out.push({
+      id,
+      name: name.slice(0, MAX_SET_NAME_LEN),
+      fields: sanitizeUserMetadataFields(o.fields)
+    })
+    if (out.length >= MAX_USER_METADATA_SETS) break
+  }
+  return out
+}
+
 export const userMetadataSettingsObjectSchema = z.object({
   /** Off by default — context menu / preview / columns stay hidden until enabled. */
   enabled: z.boolean().catch(false),
   /** Optional toolbar button opening the Metadata manager (left of Script Manager). */
   showToolbarButton: z.boolean().catch(false),
-  sets: z.array(userMetadataSetSchema).max(MAX_USER_METADATA_SETS).catch([]),
-  bindings: z.array(userMetadataBindingSchema).max(MAX_USER_METADATA_BINDINGS).catch([])
+  sets: z.preprocess(
+    sanitizeUserMetadataSets,
+    z.array(userMetadataSetSchema).max(MAX_USER_METADATA_SETS)
+  ),
+  bindings: z.preprocess(
+    sanitizeUserMetadataBindings,
+    z.array(userMetadataBindingSchema).max(MAX_USER_METADATA_BINDINGS)
+  )
 })
 
 /** Full settings parse — cross-set key/type compat, global field ids, binding refs. */
@@ -277,11 +421,11 @@ export function migrateUserMetadataSettings(raw: unknown): UserMetadataSettings 
     return {
       enabled,
       showToolbarButton,
-      sets: o.sets as UserMetadataSet[],
-      bindings: Array.isArray(o.bindings) ? (o.bindings as UserMetadataBinding[]) : []
+      sets: sanitizeUserMetadataSets(o.sets),
+      bindings: sanitizeUserMetadataBindings(o.bindings)
     }
   }
-  const legacyFields = Array.isArray(o.fields) ? (o.fields as UserMetadataField[]) : []
+  const legacyFields = sanitizeUserMetadataFields(o.fields)
   if (legacyFields.length === 0) return { ...defaultUserMetadataSettings, enabled, showToolbarButton }
   return {
     enabled,

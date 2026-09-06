@@ -38,11 +38,18 @@ import {
 import { resolveFolderViewForTab } from '@shared/folderViews'
 import {
   allUserMetadataFields,
+  fieldById,
+  formatIconTagsColumnValue,
+  parseIconTagsColumnValue,
   parseMetaColumnFieldId
 } from '@shared/schemas/userMetadata'
 import { resolveMetadataSet } from '@shared/userMetadataBindings'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
+import { linkBaseDirForItem } from '../lib/userMetadataLink'
+import { UserMetadataLinkCell } from './UserMetadataLinkCell'
+import { UserMetadataIconTagsCell } from './UserMetadataIconTagsToggle'
+import { api, call, IpcError } from '../lib/ipc'
 import { pathKey } from '@shared/paths'
 import { virtualFolderOpenCwdPath } from '@shared/virtualFolder'
 import {
@@ -72,15 +79,21 @@ import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { detailsTableMinWidth } from '../lib/detailsTable'
-import { episodeIconLabel, episodeIconTitle } from '@shared/mediaMetadata'
+import { episodeIconLabel, episodeIconTitle, parseMediaRatingsColumnValue } from '@shared/mediaMetadata'
+import {
+  formatMediaRatingCopyLine
+} from '@shared/mediaRatings'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import { searchResultsToEntries } from '../lib/searchEntries'
 import { recycleBinItemsToEntries } from '../lib/recycleBinEntries'
 import { visibleIndexRange } from '@shared/visibleIndexRange'
 import type { RecycleBinItem } from '@shared/schemas/recycle'
-import { api } from '../lib/ipc'
 import { ThumbImage } from './ThumbImage'
 import { MediaCardHoverActions } from './MediaCardHoverActions'
+import {
+  MediaMetadataGenresCell,
+  MediaMetadataRatingsCell
+} from './MediaMetadataRatingsCell'
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
 import { RenameInput } from './RenameInput'
@@ -199,6 +212,12 @@ function detailCellValue(
         return Number.isFinite(n) ? n.toLocaleString() : raw
       }
       if (id === 'itemNoteTodos') return noteChecklistPlainText(parseNoteChecklistColumn(raw))
+      if (id === 'mmRatings') {
+        const lines = parseMediaRatingsColumnValue(raw)
+          .map((r) => formatMediaRatingCopyLine(r))
+          .filter((x): x is string => Boolean(x))
+        return lines.join('  ·  ')
+      }
       return raw
     }
   }
@@ -255,6 +274,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const listing = useAppStore((s) => s.listingsByTabId[tabId] ?? s.listing)
   const settings = useAppStore((s) => s.settings)
   const userMetadataEnabled = settings.userMetadata?.enabled === true
+  const mediaMetadataEnabled = settings.mediaMetadata?.enabled === true
   const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
   const setSelectionRaw = useAppStore((s) => s.setSelection)
   const setSelection = useCallback(
@@ -313,6 +333,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const overlayMode = searchMode || recycleMode
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const columnMetaBump = useAppStore((s) => s.columnMetaBump)
+  const bumpColumnMeta = useAppStore((s) => s.bumpColumnMeta)
+  const notify = useAppStore((s) => s.notify)
   const hideNameExtensions = settings.hideNameExtensions
   const mediaLibrary = useAppStore((s) => s.mediaLibrary)
   const labelFor = (entry: DirEntry): string => {
@@ -418,6 +440,12 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     () => allUserMetadataFields(umSettings),
     [umSettings]
   )
+  /** Column picker Media Metadata section: library folder or recognized subfolder. */
+  const showMediaMetadataColumns =
+    mediaMetadataEnabled &&
+    Boolean(folderPath) &&
+    Boolean(mediaLibrary.folderPath) &&
+    samePath(folderPath, mediaLibrary.folderPath)
   const adsFieldCatalog = settings.adsFieldColumns
   /** Session-only width for the search Folder column (never written to settings). */
   const [searchFolderWidth, setSearchFolderWidth] = useState(
@@ -586,7 +614,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     ? 'details'
     : (owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons')
   const noFilenameView = viewMode === 'extraLargeIconsNoName'
-  const mediaMetadataEnabled = useAppStore((s) => s.settings.mediaMetadata.enabled)
 
   useEffect(() => {
     contentThumbPaths.current.clear()
@@ -2177,6 +2204,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           ) : null}
           {COLUMN_GROUP_ORDER.map((group) => {
             if (group === 'folderStats' && !showFolderStatistics) return null
+            if (group === 'mediaMetadata' && !showMediaMetadataColumns) return null
             if (group === 'adsFields') {
               return (
                 <div key={group}>
@@ -2584,6 +2612,62 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                                 showFolderStatistics
                               )
                     const raw = metaByPath[entry.path]?.[c.id] ?? ''
+                    const metaFieldId = parseMetaColumnFieldId(c.id)
+                    const metaField = metaFieldId
+                      ? fieldById(userMetaFieldsCatalog, metaFieldId)
+                      : undefined
+                    const cellBody =
+                      c.id === 'itemNoteTodos' && raw
+                        ? renderChecklistCell(raw)
+                        : c.id === 'mmRatings' && raw
+                          ? <MediaMetadataRatingsCell raw={raw} />
+                          : c.id === 'mmGenres' && text
+                            ? <MediaMetadataGenresCell text={text} />
+                          : metaField?.type === 'link' && text
+                          ? (
+                              <UserMetadataLinkCell
+                                text={text}
+                                baseDir={linkBaseDirForItem(entry.path, entry.kind === 'dir')}
+                              />
+                            )
+                          : metaField?.type === 'iconTags'
+                            ? (
+                                <UserMetadataIconTagsCell
+                                  field={metaField}
+                                  columnRaw={
+                                    raw || formatIconTagsColumnValue(metaField, [])
+                                  }
+                                  onToggle={(optionId) => {
+                                    const encoded =
+                                      raw || formatIconTagsColumnValue(metaField, [])
+                                    const selected = new Set(
+                                      parseIconTagsColumnValue(encoded)
+                                        .filter((x) => x.on)
+                                        .map((x) => x.id)
+                                    )
+                                    if (selected.has(optionId)) selected.delete(optionId)
+                                    else selected.add(optionId)
+                                    const next = selected.size ? [...selected] : null
+                                    void (async () => {
+                                      try {
+                                        await call(
+                                          api.userMetadata.setMany({
+                                            paths: [entry.path],
+                                            values: { [metaField.id]: next }
+                                          })
+                                        )
+                                        bumpColumnMeta(entry.path)
+                                      } catch (e) {
+                                        notify(
+                                          e instanceof IpcError ? e.message : String(e),
+                                          true
+                                        )
+                                      }
+                                    })()
+                                  }}
+                                />
+                              )
+                            : text
                     return (
                       <span
                         key={c.id}
@@ -2591,7 +2675,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                         style={{ width: colWidth(c.id) }}
                         title={text || undefined}
                       >
-                        {c.id === 'itemNoteTodos' && raw ? renderChecklistCell(raw) : text}
+                        {cellBody}
                       </span>
                     )
                   })}

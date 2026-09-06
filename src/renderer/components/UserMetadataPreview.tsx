@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import type { UserMetadataField } from '@shared/schemas/userMetadata'
 import { booleanFieldLabels } from '@shared/schemas/userMetadata'
+import { validateUserMetadataLinkValue } from '@shared/userMetadataLink'
 import { isRemoteLocation } from '@shared/remotePaths'
 import { resolveMetadataSetForItem } from '@shared/userMetadataBindings'
 import { testWholeValueSync } from '@shared/userMetadataValidate'
 import { useAppStore } from '../store/appStore'
 import { samePath } from '../lib/paths'
+import { linkBaseDirForItem } from '../lib/userMetadataLink'
 import { api, call, IpcError } from '../lib/ipc'
+import { UserMetadataLinkEditor } from './UserMetadataLinkEditor'
+import { UserMetadataIconTagsToggle } from './UserMetadataIconTagsToggle'
 
 /**
  * Editable user-metadata block pinned above Details.
@@ -110,12 +114,21 @@ export function UserMetadataPreview({
 
   if (!editable || !path) return null
 
+  const baseDir = linkBaseDirForItem(path, dirFlag)
+
   const commitField = async (field: UserMetadataField, next: unknown): Promise<void> => {
     if (field.type === 'text' && typeof next === 'string' && next) {
       const r = testWholeValueSync(next, field.text?.validation, {
         minLength: field.text?.minLength,
         maxLength: field.text?.maxLength
       })
+      if (!r.ok) {
+        setErrors((e) => ({ ...e, [field.id]: r.message }))
+        return
+      }
+    }
+    if (field.type === 'link' && typeof next === 'string' && next) {
+      const r = validateUserMetadataLinkValue(next)
       if (!r.ok) {
         setErrors((e) => ({ ...e, [field.id]: r.message }))
         return
@@ -156,6 +169,7 @@ export function UserMetadataPreview({
             value={values[field.id]}
             error={errors[field.id]}
             disabled={loading || savingId === field.id}
+            baseDir={baseDir}
             onCommit={(v) => void commitField(field, v)}
           />
         ))}
@@ -169,12 +183,14 @@ function PreviewFieldRow({
   value,
   error,
   disabled,
+  baseDir,
   onCommit
 }: {
   field: UserMetadataField
   value: unknown
   error?: string
   disabled: boolean
+  baseDir: string | null
   onCommit(v: unknown): void
 }): JSX.Element {
   if (field.type === 'boolean') {
@@ -242,6 +258,27 @@ function PreviewFieldRow({
       </div>
     )
   }
+  if (field.type === 'iconTags') {
+    const selected = Array.isArray(value)
+      ? value.filter((x): x is string => typeof x === 'string')
+      : []
+    return (
+      <div className="preview-user-meta-row preview-user-meta-row-icon-tags">
+        <span className="preview-user-meta-label">{field.name}</span>
+        <UserMetadataIconTagsToggle
+          field={field}
+          selectedIds={selected}
+          disabled={disabled}
+          onToggle={(optionId) => {
+            const next = new Set(selected)
+            if (next.has(optionId)) next.delete(optionId)
+            else next.add(optionId)
+            onCommit(next.size ? [...next] : null)
+          }}
+        />
+      </div>
+    )
+  }
   if (field.type === 'date') {
     return (
       <label className="preview-user-meta-row">
@@ -282,6 +319,24 @@ function PreviewFieldRow({
       </label>
     )
   }
+  if (field.type === 'link') {
+    return (
+      <div className="preview-user-meta-row preview-user-meta-row-link">
+        <span className="preview-user-meta-label">{field.name}</span>
+        <UserMetadataLinkEditor
+          value={typeof value === 'string' ? value : ''}
+          baseDir={baseDir}
+          disabled={disabled}
+          error={error}
+          compact
+          onChange={() => {
+            /* draft until commit */
+          }}
+          onCommit={onCommit}
+        />
+      </div>
+    )
+  }
   // text
   return (
     <label className="preview-user-meta-row">
@@ -299,3 +354,4 @@ function PreviewFieldRow({
     </label>
   )
 }
+

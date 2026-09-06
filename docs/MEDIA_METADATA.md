@@ -21,6 +21,7 @@ Locked choice: [DECISIONS.md](DECISIONS.md) **D50**. Streams: [ADS.md](ADS.md). 
 | **Change cover** | Context menu (single item) or the link under the preview title |
 | **Mark as Watched** / **Unwatched** | Context menu, and a button on the preview when metadata exists |
 | Toolbar **Watched** + **Genre** | You are inside a folder marked as a media container |
+| Details **Media Metadata** columns | Same folders (and recognized subfolders such as seasons): Title, Year, Kind, Watched, Genres, Season, Episode, Show, Language, Country, Directors, Actors, Ratings (service icons), Synopsis — distinct from Tags / Audio-video technical columns |
 
 Episode **files** keep `!VIDTHUMB_CACHE` strip thumbs — never the show poster. Details and List always show the real filename. The tooltip is always the filename.
 
@@ -116,6 +117,23 @@ A **Search as** (no match, or **Search as…** on **Which title?**) sends the ty
 | Tooltip | Always the filename | Always the folder name |
 
 Season defaults to **1** when the stored episode has a number but no season (some Plex rows omit it).
+
+---
+
+## Details columns
+
+When Media Metadata is **on** and you are inside a **media-library folder** (or a recognized subfolder such as a season under a show), the Details column-picker header menu includes a **Media Metadata** section. These columns read the `media_metadata` ADS (same card as Preview) and are separate from **Tags** (embedded file tags) and **Audio / video** (technical streams).
+
+| Column | Notes |
+| ------ | ----- |
+| Title, Year, Kind | Kind is Movie / Show / Episode |
+| Watched | Watched / Unwatched |
+| Genres | Chip-style, like Preview |
+| Season, Episode, Show | Episode rows |
+| Language, Country, Directors, Actors, Synopsis | Plain text |
+| Ratings | Service icons + scores (same brands as Preview) |
+
+Outside a media library the section is hidden from the picker; any columns already on the layout still resolve when an item has streams.
 
 ---
 

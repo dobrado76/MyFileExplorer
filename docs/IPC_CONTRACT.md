@@ -62,6 +62,8 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | --------------------------- | ------------------------------- |
 | `shell:openPath`            | OS default open                 |
 | `shell:showItemInFolder`    | System Explorer select          |
+| `shell:openExternal`        | Open http(s) URL in the system default browser (user-metadata Link fields) |
+| `app:pickPath`              | Native dialog: pick a local file or folder (Link Browse…) |
 | `shell:openCommandLine`     | Open cmd or PowerShell (Settings `commandLineShell`) in folder; `elevated` = UAC |
 | `shell:showProperties`      | Open Explorer’s property sheet (`ShellExecute` “properties” verb) |
 | `shell:openWindowsTool`     | Allowlisted This PC tools: Computer Management, Device Manager, Control Panel, This PC Properties |
@@ -166,7 +168,7 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 
 | Channel            | Purpose |
 | ------------------ | ------- |
-| `meta:getMany`     | `{ paths[], columns[] }` → `{ values: Record<path, EntryColumnValues> }` — async Details columns (image/A/V/tags/generation/**ads**) |
+| `meta:getMany`     | `{ paths[], columns[] }` → `{ values: Record<path, EntryColumnValues> }` — async Details columns (image/A/V/tags/generation/**ads**/user meta/**media metadata**) |
 | `meta:invalidate`  | `{ paths[] }` → `{ ok: true }` — drop column-meta cache for paths (e.g. after ADS edits) |
 
 ### `ads.*` (NTFS Alternate Data Streams — D38)

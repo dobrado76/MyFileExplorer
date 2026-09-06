@@ -9,6 +9,7 @@ import {
   type UserMetadataField,
   type UserMetadataSettings
 } from '@shared/schemas/userMetadata'
+import { validateUserMetadataLinkValue } from '@shared/userMetadataLink'
 import { isRemoteLocation } from '@shared/remotePaths'
 import { requireAbsolute } from '../fs/list'
 import {
@@ -68,7 +69,7 @@ async function validateValuesAgainstCatalog(
       if (typeof raw !== 'string' || !field.choices?.some((o) => o.id === raw)) {
         throw new AppError('validation', `${field.name}: unknown choice`)
       }
-    } else if (field.type === 'multiChoice') {
+    } else if (field.type === 'multiChoice' || field.type === 'iconTags') {
       if (!Array.isArray(raw) || !raw.every((id) => typeof id === 'string')) {
         throw new AppError('validation', `${field.name}: expected a list of options`)
       }
@@ -78,6 +79,12 @@ async function validateValuesAgainstCatalog(
           throw new AppError('validation', `${field.name}: unknown option`)
         }
       }
+    } else if (field.type === 'link') {
+      if (typeof raw !== 'string') {
+        throw new AppError('validation', `${field.name}: expected a link string`)
+      }
+      const r = validateUserMetadataLinkValue(raw)
+      if (!r.ok) throw new AppError('validation', `${field.name}: ${r.message}`)
     }
   }
 }

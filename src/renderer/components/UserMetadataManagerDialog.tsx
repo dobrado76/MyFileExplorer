@@ -7,8 +7,12 @@ import {
   MAX_BOOLEAN_LABEL_LEN,
   DEFAULT_BOOLEAN_TRUE_LABEL,
   DEFAULT_BOOLEAN_FALSE_LABEL,
+  DEFAULT_ICON_TAG_COLOR,
+  DEFAULT_ICON_TAG_NAME,
   booleanFieldLabels,
   defaultBooleanLabels,
+  defaultIconTagOptionGlyph,
+  fieldUsesChoiceOptions,
   newUserMetadataFieldId,
   newUserMetadataOptionId,
   newUserMetadataSetId,
@@ -21,6 +25,7 @@ import {
   type UserMetadataSet,
   userMetadataFieldSchema
 } from '@shared/schemas/userMetadata'
+import { normalizeIconPack } from '@shared/schemas/iconPack'
 import {
   countBindingsForSet,
   removeBindingsForSet,
@@ -31,8 +36,14 @@ import { compileWholeValuePattern, testWholeValueSync } from '@shared/userMetada
 import { useAppStore } from '../store/appStore'
 import { basename } from '../lib/paths'
 import { api, call, IpcError } from '../lib/ipc'
+import { packIconElement } from '../lib/iconPacks'
 import { ScriptModal } from './scriptUi'
 import { TrashIcon } from '../lib/icons'
+import {
+  glyphIsResolvable,
+  IconPicker,
+  type IconPickerGlyph
+} from './IconPicker'
 
 const FIELD_TYPES: { id: UserMetadataFieldType; label: string }[] = [
   { id: 'text', label: 'Text' },
@@ -40,7 +51,9 @@ const FIELD_TYPES: { id: UserMetadataFieldType; label: string }[] = [
   { id: 'boolean', label: 'Binary' },
   { id: 'date', label: 'Date' },
   { id: 'choice', label: 'Choice' },
-  { id: 'multiChoice', label: 'Multi-choice' }
+  { id: 'multiChoice', label: 'Multi-choice' },
+  { id: 'link', label: 'Link' },
+  { id: 'iconTags', label: 'Icon tags' }
 ]
 
 const TYPE_LABEL: Record<UserMetadataFieldType, string> = Object.fromEntries(
@@ -770,17 +783,26 @@ function FieldEditor({
             onChange={(e) => {
               const type = e.target.value as UserMetadataFieldType
               const patch: Partial<UserMetadataField> = { type }
-              if (type === 'choice' || type === 'multiChoice') {
-                patch.choices =
-                  field.choices && field.choices.length > 0
-                    ? field.choices
-                    : [
-                        {
-                          id: newUserMetadataOptionId(),
-                          key: 'option_1',
-                          label: 'Option 1'
-                        }
-                      ]
+              if (fieldUsesChoiceOptions(type)) {
+                if (field.choices && field.choices.length > 0) {
+                  patch.choices =
+                    type === 'iconTags'
+                      ? field.choices.map((o) =>
+                          o.lucideName?.trim()
+                            ? o
+                            : { ...o, ...defaultIconTagOptionGlyph() }
+                        )
+                      : field.choices
+                } else {
+                  patch.choices = [
+                    {
+                      id: newUserMetadataOptionId(),
+                      key: 'option_1',
+                      label: 'Option 1',
+                      ...(type === 'iconTags' ? defaultIconTagOptionGlyph() : {})
+                    }
+                  ]
+                }
               } else {
                 patch.choices = undefined
               }
@@ -815,9 +837,12 @@ function FieldEditor({
         Id <code>{field.id}</code>
       </p>
 
-      {(field.type === 'choice' || field.type === 'multiChoice') && (
+      {(field.type === 'choice' ||
+        field.type === 'multiChoice' ||
+        field.type === 'iconTags') && (
         <OptionsEditor
           options={field.choices ?? []}
+          iconMode={field.type === 'iconTags'}
           onChange={(choices) => void onChange({ choices })}
         />
       )}
@@ -851,6 +876,16 @@ function FieldEditor({
               />
             </label>
           </div>
+        </div>
+      )}
+
+      {field.type === 'link' && (
+        <div className="user-meta-subsection">
+          <div className="user-meta-section-label">Link targets</div>
+          <p className="settings-help">
+            Store an http(s) URL, an absolute file/folder path, or a path relative to the item. Preview
+            and Details columns can follow the link (browser / navigate / open).
+          </p>
         </div>
       )}
 
@@ -945,9 +980,11 @@ function FieldEditor({
 
 function OptionsEditor({
   options,
+  iconMode,
   onChange
 }: {
   options: UserMetadataChoiceOption[]
+  iconMode: boolean
   onChange(next: UserMetadataChoiceOption[]): void
 }): JSX.Element {
   const add = (): void => {
@@ -958,13 +995,28 @@ function OptionsEditor({
     while (taken.has(key)) key = `option_${++n}`
     onChange([
       ...options,
-      { id: newUserMetadataOptionId(), key, label: `Option ${options.length + 1}` }
+      {
+        id: newUserMetadataOptionId(),
+        key,
+        label: `Option ${options.length + 1}`,
+        ...(iconMode ? defaultIconTagOptionGlyph() : {})
+      }
     ])
+  }
+  const move = (id: string, dir: -1 | 1): void => {
+    const i = options.findIndex((o) => o.id === id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= options.length) return
+    const next = [...options]
+    const tmp = next[i]!
+    next[i] = next[j]!
+    next[j] = tmp
+    onChange(next)
   }
   return (
     <div className="user-meta-subsection">
       <div className="user-meta-options-head">
-        <span className="user-meta-section-label">Options</span>
+        <span className="user-meta-section-label">{iconMode ? 'Icon tags' : 'Options'}</span>
         <button
           type="button"
           className="btn btn-tiny"
@@ -974,13 +1026,28 @@ function OptionsEditor({
           Add option
         </button>
       </div>
-      <div className="user-meta-option-header" aria-hidden>
+      {iconMode ? (
+        <p className="settings-help">
+          Each option is a toggleable icon. Order here is column / preview order. Labels are tooltips
+          and Power Search names.
+        </p>
+      ) : null}
+      <div className={`user-meta-option-header${iconMode ? ' is-icon-tags' : ''}`} aria-hidden>
+        {iconMode ? <span>Icon</span> : null}
         <span>Label</span>
         <span>Query key</span>
         <span />
       </div>
-      {options.map((o) => (
-        <OptionRow key={o.id} option={o} options={options} onChange={onChange} />
+      {options.map((o, index) => (
+        <OptionRow
+          key={o.id}
+          option={o}
+          options={options}
+          index={index}
+          iconMode={iconMode}
+          onChange={onChange}
+          onMove={move}
+        />
       ))}
     </div>
   )
@@ -989,21 +1056,45 @@ function OptionsEditor({
 function OptionRow({
   option,
   options,
-  onChange
+  index,
+  iconMode,
+  onChange,
+  onMove
 }: {
   option: UserMetadataChoiceOption
   options: UserMetadataChoiceOption[]
+  index: number
+  iconMode: boolean
   onChange(next: UserMetadataChoiceOption[]): void
+  onMove(id: string, dir: -1 | 1): void
 }): JSX.Element {
   const [label, setLabel] = useState(option.label)
   const [key, setKey] = useState(option.key)
+  const [pickerOpen, setPickerOpen] = useState(false)
   useEffect(() => {
     setLabel(option.label)
     setKey(option.key)
   }, [option.label, option.key])
 
+  const pack = normalizeIconPack(option.lucidePack)
+  const glyphName = option.lucideName?.trim() || DEFAULT_ICON_TAG_NAME
+  const glyphColor = option.lucideColor || DEFAULT_ICON_TAG_COLOR
+
   return (
-    <div className="user-meta-option-row">
+    <div className={`user-meta-option-row${iconMode ? ' is-icon-tags' : ''}`}>
+      {iconMode ? (
+        <button
+          type="button"
+          className="btn btn-tiny user-meta-option-icon-btn"
+          title="Choose icon"
+          onClick={() => setPickerOpen(true)}
+        >
+          <span className="user-meta-option-icon-preview" style={{ color: glyphColor }}>
+            {packIconElement(pack, glyphName, { size: 16, color: glyphColor, strokeWidth: 2 })}
+          </span>
+          Icon…
+        </button>
+      ) : null}
       <input
         type="text"
         value={label}
@@ -1044,14 +1135,125 @@ function OptionRow({
           onChange(options.map((x) => (x.id === option.id ? { ...x, key: next } : x)))
         }}
       />
-      <button
-        type="button"
-        className="btn btn-tiny"
-        title="Remove option"
-        onClick={() => onChange(options.filter((x) => x.id !== option.id))}
+      <div className="user-meta-option-actions">
+        <button
+          type="button"
+          className="btn btn-tiny"
+          title="Move up"
+          disabled={index === 0}
+          onClick={() => onMove(option.id, -1)}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          className="btn btn-tiny"
+          title="Move down"
+          disabled={index >= options.length - 1}
+          onClick={() => onMove(option.id, 1)}
+        >
+          ↓
+        </button>
+        <button
+          type="button"
+          className="btn btn-tiny"
+          title="Remove option"
+          onClick={() => onChange(options.filter((x) => x.id !== option.id))}
+        >
+          ×
+        </button>
+      </div>
+      {pickerOpen ? (
+        <OptionIconPicker
+          initial={{
+            pack,
+            name: glyphName,
+            color: glyphColor
+          }}
+          onClose={() => setPickerOpen(false)}
+          onApply={(g) => {
+            onChange(
+              options.map((x) =>
+                x.id === option.id
+                  ? {
+                      ...x,
+                      lucideName: g.name,
+                      lucideColor: g.color,
+                      lucidePack: g.pack !== 'lucide' ? g.pack : undefined
+                    }
+                  : x
+              )
+            )
+            setPickerOpen(false)
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function OptionIconPicker({
+  initial,
+  onClose,
+  onApply
+}: {
+  initial: IconPickerGlyph
+  onClose(): void
+  onApply(g: IconPickerGlyph): void
+}): JSX.Element {
+  const [glyph, setGlyph] = useState<IconPickerGlyph>(initial)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [onClose])
+
+  return (
+    <div
+      className="modal-backdrop user-meta-option-icon-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="modal modal-wide modal-tab-icon"
+        role="dialog"
+        aria-label="Choose icon tag"
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        ×
-      </button>
+        <div className="modal-title">Icon tag</div>
+        <div className="modal-body modal-body-tab-icon">
+          <IconPicker
+            modes={['glyph']}
+            mode="glyph"
+            onModeChange={() => {}}
+            glyph={glyph}
+            onGlyphChange={setGlyph}
+            onGlyphActivate={(g) => {
+              if (!glyphIsResolvable(g)) return
+              onApply(g)
+            }}
+          />
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={!glyphIsResolvable(glyph)}
+            onClick={() => onApply(glyph)}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
