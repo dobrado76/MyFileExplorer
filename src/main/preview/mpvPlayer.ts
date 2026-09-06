@@ -5,7 +5,7 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
-import { app, BrowserWindow, type WebContents } from 'electron'
+import { app, BrowserWindow, type Event, type WebContents } from 'electron'
 import { AppError } from '@shared/result'
 import type { PreviewMpvBounds } from '@shared/schemas/preview'
 import { logMain } from '../logging'
@@ -38,7 +38,7 @@ type Session = {
   resizeHandler: () => void
   minimizeHandler: () => void
   restoreHandler: () => void
-  appFocusHandler: (win: BrowserWindow) => void
+  appFocusHandler: (event: Event, win: BrowserWindow) => void
 }
 
 let session: Session | null = null
@@ -204,7 +204,7 @@ export async function startMpvSession(
     showMpvOverlay(owner, session.mpvHwnd, session.lastRel)
   }
 
-  const appFocusHandler = (win: BrowserWindow): void => {
+  const appFocusHandler = (_event: Event, win: BrowserWindow): void => {
     if (!session || session.generation !== generation || !session.mpvHwnd) return
     if (session.chromeHidden) return
     if (win.id === session.ownerId) {
