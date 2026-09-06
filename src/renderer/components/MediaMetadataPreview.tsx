@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom'
 import { Eye, EyeOff, ImageIcon, Pencil } from 'lucide-react'
 import { formatEpisodeCode, formatMediaRating, type MediaMetadata } from '@shared/mediaMetadata'
+import { MEDIA_METADATA_COVER_HEIGHT_DEFAULT } from '@shared/schemas/mediaMetadata'
 import {
   classifyMediaRatingSource,
   formatMediaRatingCopyLine,
@@ -63,7 +64,7 @@ export function MediaMetadataProvider({
   path: string
   children: ReactNode
 }): JSX.Element {
-  const enabled = useAppStore((s) => s.settings.mediaMetadata.enabled)
+  const enabled = useAppStore((s) => s.settings?.mediaMetadata?.enabled === true)
   const bump = useAppStore((s) => s.thumbRevByPath[thumbPathKey(path)] ?? 0)
   const [view, setView] = useState<MediaMetaView | null>(null)
 
@@ -108,7 +109,9 @@ function episodeLabel(meta: MediaMetadata): string | null {
 
 export function MediaMetadataHero(): JSX.Element | null {
   const view = useContext(MediaMetaCtx)
-  const coverHeightPx = useAppStore((s) => s.settings.mediaMetadata.coverHeightPx)
+  const coverHeightPx = useAppStore(
+    (s) => s.settings?.mediaMetadata?.coverHeightPx ?? MEDIA_METADATA_COVER_HEIGHT_DEFAULT
+  )
   const openDialog = useAppStore((s) => s.openDialog)
   const mediaMetadataSetWatched = useAppStore((s) => s.mediaMetadataSetWatched)
   const [open, setOpen] = useState(false)

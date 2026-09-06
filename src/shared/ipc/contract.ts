@@ -138,6 +138,7 @@ export const IPC = {
   /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
   previewChmTopic: 'preview:chmTopic',
   previewOpenWindow: 'preview:openWindow',
+  previewCloseWindow: 'preview:closeWindow',
   previewSetTarget: 'preview:setTarget',
   previewGetTarget: 'preview:getTarget',
   /** Opt-in Rich player (mpv) — D33. */

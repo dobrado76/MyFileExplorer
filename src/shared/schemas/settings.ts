@@ -18,6 +18,10 @@ import {
 } from '../vidThumbCache'
 import { normalizeHideNameExtensions } from '../hideNameExtensions'
 import {
+  PREVIEW_WINDOW_SPLIT_RIGHT_MAX,
+  PREVIEW_WINDOW_SPLIT_RIGHT_MIN
+} from '../previewWindowSplit'
+import {
   MAX_POWER_SEARCH_SAVED,
   MAX_SEARCH_BOOKMARKS,
   MAX_SEARCH_FILTERS,
@@ -330,6 +334,17 @@ const settingsFieldsSchema = z.object({
   previewRichPlayerMpv: z.boolean().catch(false),
   /** Detached preview window: hide metadata / details and show only the visualization. */
   previewWindowZen: z.boolean().catch(false),
+  /**
+   * Detached landscape split: right-column width in px (`null` = 42% of the window).
+   * Clamped to the live window on use.
+   */
+  previewWindowSplitPx: z
+    .number()
+    .int()
+    .min(PREVIEW_WINDOW_SPLIT_RIGHT_MIN)
+    .max(PREVIEW_WINDOW_SPLIT_RIGHT_MAX)
+    .nullable()
+    .catch(null),
   /** Wrap long lines in text / code / markdown / HTML source preview. */
   previewTextWordWrap: z.boolean().catch(false),
   /**
@@ -771,6 +786,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   previewVideoAutoplay: false,
   previewRichPlayerMpv: false,
   previewWindowZen: false,
+  previewWindowSplitPx: null,
   previewTextWordWrap: false,
   searchExcludeDirNames: ['node_modules', '.git', '.hg', '.svn', 'Thumbs.db'],
   searchIndexedOnly: false,

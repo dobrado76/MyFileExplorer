@@ -14,19 +14,23 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 Preview **only reads** ADS — it never starts Calculate. Changing **Folder space map max files** requires a new Calculate (plain click).
 
-### Detached preview window
+### Docked or detached (not both)
 
-The docked pane header always shows **Open preview window** (right side). That opens a peer `BrowserWindow` with the same live preview (focused/selected file and image-version ADS override). A second click focuses the existing window.
+The docked pane header shows **Open preview window**. That opens a peer `BrowserWindow` with the **same** live preview (visualization, File/VIDEO tags, media metadata, notes, user metadata, details) and **hides the docked pane** (same as Panel / Ctrl+Shift+P). Only one preview is visible.
 
-While the pop-out is open, **video and audio play only there**. The docked pane keeps metadata (and a poster if one exists) and does not mount a second `<video>` / `<audio>` — two Chromium players on the same `mfe-media` URL can starve range requests and leave the pop-out blank for later files.
+**Dock** (window header) closes the window and **shows the docked pane again**. The toolbar Panel button and Ctrl+Shift+P do the same while the window is open. Closing the window with the OS title-bar button also restores the pane. A second Open focuses the existing window.
 
-**Zen mode** (header button, remembered in `settings.previewWindowZen`): hides the kind label, file details strip, metadata fields, warnings, and extra actions. The OS title bar and a slim header with the Zen toggle stay; the rest is just the visualization (image / text / player / …).
+The **docked pane layout is unchanged** (stacked: visualization, then metadata, then details).
+
+**Detached layout:** when the preview *window* is **wider than it is tall**, that window is two columns — visualization on the left (image / video / text / **Space usage** map / …), metadata / media info / folder-statistics details / notes / details on the right. Drag the splitter to resize; the last right-column width is remembered (`settings.previewWindowSplitPx`, default 42% until you drag). A tall detached window stays stacked (full folder-statistics card, same as the docked pane).
+
+**Zen mode** (detached header, remembered in `settings.previewWindowZen`): hides the kind label, file details strip, metadata fields, warnings, and extra actions. The OS title bar and a slim header with Dock + Zen stay; the rest is just the visualization.
 
 **Word wrap** (header button on text / Markdown / HTML, remembered in `settings.previewTextWordWrap`): wraps long lines in the source view. Off by default (horizontal scroll). Same control in the docked pane header and Settings → Preview.
 
-Hiding the docked pane (toolbar Panel / Ctrl+Shift+P, `splitters.previewCollapsed`) does not close or freeze the window. Image editor and version Drop stay in the docked pane; the pop-out is visualization, metadata, and copy.
+Hiding the docked pane (toolbar Panel / Ctrl+Shift+P, `splitters.previewCollapsed`) does not close or freeze the window. Image editor and version Drop stay in the docked pane (dock first).
 
-Geometry (`x` / `y` / `width` / `height` / `maximized`) is remembered in `settings.previewWindowBounds` and is **not** auto-reopened on launch. First ever open (bounds still `null`) is **90% of the primary work area**, centered. Settings export/import strips that key with the other window-like geometry. Closing the main app closes the preview window with it.
+Geometry (`x` / `y` / `width` / `height` / `maximized`) is remembered in `settings.previewWindowBounds` and is **not** auto-reopened on launch. First ever open (bounds still `null`) is **90% of the primary work area**, centered. Settings export/import strips that key with the other window-like geometry. The two-column splitter (`previewWindowSplitPx`) is a preference and **does** round-trip on export. Closing the main app closes the preview window with it.
 
 ---
 

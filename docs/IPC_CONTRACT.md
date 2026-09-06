@@ -143,6 +143,10 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `preview:mpvBounds` | `{ bounds }` → `{ ok }` — move/resize overlay; **owner-scoped** (sender must match the active session’s BrowserWindow) |
 | `preview:mpvVisible` | `{ visible }` → `{ ok }` — hide/show overlay without killing playback (dialogs / menus); owner-scoped |
 | `preview:mpvStop` | `{}` → `{ stopped }` — kill mpv session only if sender owns it |
+| `preview:openWindow` | `{}` → `{ opened }` — open or focus the detached preview window (docked pane becomes Dock-only) |
+| `preview:closeWindow` | `{}` → `{ closed }` — close the detached window and restore the docked pane |
+| `preview:setTarget` | `PreviewWindowTarget` → `{ ok }` — focused/selected file (+ optional ADS) for the preview window |
+| `preview:getTarget` | `{}` → `PreviewWindowTarget` |
 
 ### `search.*`
 

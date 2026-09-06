@@ -249,8 +249,7 @@ export function ExplorerShell(): JSX.Element {
       s.openDialog({ kind: 'power-search' })
     } else if (ctrl && shift && key.toLowerCase() === 'p') {
       e.preventDefault()
-      const sp = useAppStore.getState().splitters
-      useAppStore.getState().setSplitters({ previewCollapsed: !sp.previewCollapsed })
+      useAppStore.getState().togglePreviewSurface()
     } else if (ctrl && key.toLowerCase() === 'l') {
       e.preventDefault()
       s.setAddressEditing(true)

@@ -67,7 +67,7 @@ Explorer only answers “where is this stored?” Work often needs “what proje
 
 | Advantage | Why it beats Explorer |
 | --------- | --------------------- |
-| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detached preview window** (Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
+| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detachable** preview window (same content; landscape two-column with a remembered splitter in the window; Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
 | **WinDirStat-style folder space map (D66)** | After **Calculate Statistics**, the folder preview shows counts, categories, largest/recent, and a nested cushion **space-usage** treemap. Plain click = full retag; **Shift+click** skips already-tagged subtrees. Guide: [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md). |
 | **Drive free space at a glance** | Status bar `N GB free of M GB (P%)`; click **Drives** for pies on every volume, including mapped letters. Offline / empty media do not hide the rest. |
 | **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |

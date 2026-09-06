@@ -1,13 +1,19 @@
-import { Component, useEffect, useState, type ErrorInfo, type JSX, type ReactNode } from 'react'
+import { Component, useEffect, useMemo, useState, type ErrorInfo, type JSX, type ReactNode } from 'react'
 import type { PreviewWindowTarget } from '@shared/schemas/preview'
 import type { Settings } from '@shared/schemas/settings'
-import { basename } from '../lib/paths'
+import type { DriveInfo } from '@shared/schemas/fs'
+import { isVolumeRootPath } from '@shared/paths'
+import { basename, samePath } from '../lib/paths'
 import { api, call } from '../lib/ipc'
-import { CompressIcon, ExpandIcon } from '../lib/icons'
+import { CompressIcon, DockIcon, ExpandIcon, SpinnerIcon } from '../lib/icons'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
+import { lookupGitForPath } from '../lib/gitUi'
+import { useAppStore } from '../store/appStore'
 import { PreviewView } from './preview/PreviewView'
 import { ItemNotePreview } from './ItemNotePreview'
 import { UserMetadataPreview } from './UserMetadataPreview'
+import { EditMediaMetadataDialog } from './EditMediaMetadataDialog'
+import { CoverPickerDialog } from './CoverPickerDialog'
 import type { ItemNote } from '@shared/schemas/itemAds'
 
 class PreviewErrorBoundary extends Component<
@@ -60,6 +66,24 @@ function applyChromeSettings(settings: Settings): void {
   rootEl.style.setProperty('--icon-size', `${settings.iconSizePx}px`)
 }
 
+function PreviewWindowDialogs(): JSX.Element | null {
+  const dialog = useAppStore((s) => s.dialog)
+  if (!dialog) return null
+  if (dialog.kind === 'edit-media-metadata') return <EditMediaMetadataDialog path={dialog.path} />
+  if (dialog.kind === 'change-cover') return <CoverPickerDialog path={dialog.path} />
+  return null
+}
+
+function PreviewWindowNotice(): JSX.Element | null {
+  const notice = useAppStore((s) => s.notice)
+  if (!notice) return null
+  return (
+    <div className={`preview-window-notice${notice.isError ? ' is-error' : ''}`} role="status">
+      {notice.text}
+    </div>
+  )
+}
+
 /**
  * Detached preview window. Owns its own `preview:get` — do not call `app.ready()`
  * (that drains CLI/protocol opens meant for the main shell).
@@ -72,23 +96,36 @@ export function PreviewWindowApp(): JSX.Element {
   const [textWordWrap, setTextWordWrap] = useState(false)
   const [itemNote, setItemNote] = useState<ItemNote | null>(null)
   const [userMetadataEnabled, setUserMetadataEnabled] = useState(false)
+  const [gitEnabled, setGitEnabled] = useState(false)
+  const [drives, setDrives] = useState<DriveInfo[]>([])
+  const [booted, setBooted] = useState(false)
+  const gitByRoot = useAppStore((s) => s.gitByRoot)
+  const mergeGitStatus = useAppStore((s) => s.mergeGitStatus)
+  const notify = useAppStore((s) => s.notify)
 
   useEffect(() => {
     const load = (): void => {
       void call(api.settings.get())
         .then((s) => {
           applyChromeSettings(s)
+          useAppStore.setState({ settings: s })
           setAutoplay(s.previewVideoAutoplay)
           setRichPlayer(s.previewRichPlayerMpv === true)
           setZen(s.previewWindowZen === true)
           setTextWordWrap(s.previewTextWordWrap === true)
           setUserMetadataEnabled(s.userMetadata?.enabled === true)
+          setGitEnabled(s.git?.enabled === true)
+          setBooted(true)
         })
         .catch(() => {
           document.documentElement.dataset['theme'] = 'dark'
+          setBooted(true)
         })
     }
     load()
+    void call(api.fs.listDrives())
+      .then((r) => setDrives(r.drives))
+      .catch(() => {})
     const onFocus = (): void => load()
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
@@ -146,42 +183,123 @@ export function PreviewWindowApp(): JSX.Element {
     }
   }, [target.path, target.stamp])
 
+  useEffect(() => {
+    if (!gitEnabled || !target.path) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await call(api.git.getStatus({ path: target.path! }))
+        if (cancelled || !res.inRepo || !res.status) return
+        mergeGitStatus(res.status)
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [gitEnabled, target.path, mergeGitStatus])
+
+  const driveSpace = useMemo(
+    () =>
+      target.path && isVolumeRootPath(target.path) && drives.length > 0
+        ? { drives, focusPath: target.path }
+        : null,
+    [drives, target.path]
+  )
+
+  const gitLookup =
+    gitEnabled && target.path && !driveSpace ? lookupGitForPath(gitByRoot, target.path) : null
+  const gitRepo =
+    gitLookup && samePath(gitLookup.rootPath, target.path!)
+      ? {
+          repoRoot: gitLookup.rootPath,
+          status: gitLookup.status,
+          onRefreshStatus: () => {
+            void (async () => {
+              try {
+                const res = await call(api.git.refresh({ repoRoot: gitLookup.rootPath }))
+                mergeGitStatus(res.status)
+              } catch {
+                /* ignore */
+              }
+            })()
+          }
+        }
+      : null
+
   const resetKey = `${target.path ?? ''}|${target.ads ?? ''}|${target.stamp ?? ''}`
 
+  if (!booted) {
+    return (
+      <div className="preview">
+        <div className="preview-empty">
+          <SpinnerIcon size={20} className="spin" />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <PreviewErrorBoundary resetKey={resetKey}>
-      <PreviewView
-        model={model}
-        loading={loading}
-        previewPath={target.path}
-        previewVideoAutoplay={autoplay}
-        previewRichPlayerMpv={richPlayer}
-        zen={zen}
-        textWordWrap={textWordWrap}
-        onToggleTextWordWrap={toggleWordWrap}
-        headerActions={
-          <button
-            type="button"
-            className={`icon-btn preview-zen-btn${zen ? ' active' : ''}`}
-            aria-label={zen ? 'Exit Zen mode' : 'Zen mode'}
-            aria-pressed={zen}
-            title={zen ? 'Exit Zen mode' : 'Zen mode — hide details'}
-            onClick={toggleZen}
-          >
-            {zen ? <CompressIcon size={16} /> : <ExpandIcon size={16} />}
-          </button>
-        }
-        onOpenPath={(path) => void api.shell.openPath({ path })}
-        onRevealPath={(path) => void api.shell.showItemInFolder({ path })}
-        onExtractZip={(paths) => void api.fs.extractZip({ paths })}
-        onRetryPlayableForce={retryPlayableForce}
-        extraBeforeFields={
-          <>
-            {itemNote ? <ItemNotePreview note={itemNote} /> : null}
-            {userMetadataEnabled ? <UserMetadataPreview path={target.path} /> : null}
-          </>
-        }
-      />
-    </PreviewErrorBoundary>
+    <>
+      <PreviewErrorBoundary resetKey={resetKey}>
+        <PreviewView
+          model={model}
+          loading={loading}
+          previewPath={target.path}
+          driveSpace={driveSpace}
+          gitRepo={gitRepo}
+          detached
+          previewVideoAutoplay={autoplay}
+          previewRichPlayerMpv={richPlayer}
+          zen={zen}
+          textWordWrap={textWordWrap}
+          onToggleTextWordWrap={toggleWordWrap}
+          headerActions={
+            <>
+              <button
+                type="button"
+                className="icon-btn preview-dock-btn"
+                aria-label="Dock preview"
+                title="Dock preview"
+                onClick={() => void api.preview.closeWindow()}
+              >
+                <DockIcon size={16} />
+              </button>
+              <button
+                type="button"
+                className={`icon-btn preview-zen-btn${zen ? ' active' : ''}`}
+                aria-label={zen ? 'Exit Zen mode' : 'Zen mode'}
+                aria-pressed={zen}
+                title={zen ? 'Exit Zen mode' : 'Zen mode — hide details'}
+                onClick={toggleZen}
+              >
+                {zen ? <CompressIcon size={16} /> : <ExpandIcon size={16} />}
+              </button>
+            </>
+          }
+          onOpenPath={(path) => void api.shell.openPath({ path })}
+          onRevealPath={(path) => void api.shell.showItemInFolder({ path })}
+          onExtractZip={(paths) => void api.fs.extractZip({ paths })}
+          onNotify={notify}
+          onRetryPlayableForce={retryPlayableForce}
+          extraBeforeFields={
+            itemNote || userMetadataEnabled ? (
+              <>
+                {itemNote ? <ItemNotePreview note={itemNote} /> : null}
+                {userMetadataEnabled ? (
+                  <UserMetadataPreview
+                    path={target.path}
+                    isDirectory={model ? model.kind === 'directory' : undefined}
+                  />
+                ) : null}
+              </>
+            ) : null
+          }
+        />
+      </PreviewErrorBoundary>
+      <PreviewWindowDialogs />
+      <PreviewWindowNotice />
+    </>
   )
 }

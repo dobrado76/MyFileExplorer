@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import { usePreviewWideLayout } from '../../lib/usePreviewWideLayout'
+import { usePreviewWindowSplit } from '../../lib/usePreviewWindowSplit'
+import { Splitter } from '../Splitter'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
 import { highlightLanguage } from '../../lib/highlight'
 import { basename } from '../../lib/paths'
@@ -132,8 +135,10 @@ export type PreviewViewProps = {
   previewPath: string | null
   multiCount?: number
   mediaHold?: boolean
-  /** When the pop-out is open, the docked pane must not mount `<video>`/`<audio>`. */
+  /** Belt-and-suspenders: docked A/V stays off while the detached window is open. */
   previewWindowOpen?: boolean
+  /** Detached window only — docked pane keeps the original stacked layout. */
+  detached?: boolean
   previewVideoAutoplay?: boolean
   /** Settings → Preview → Rich player (mpv). */
   previewRichPlayerMpv?: boolean
@@ -179,6 +184,7 @@ function PreviewViewInner({
   multiCount = 0,
   mediaHold = false,
   previewWindowOpen = false,
+  detached = false,
   previewVideoAutoplay = false,
   previewRichPlayerMpv = false,
   captionPosterUrl = null,
@@ -197,6 +203,7 @@ function PreviewViewInner({
   onRevealPath
 }: PreviewViewProps): JSX.Element {
   const mediaMeta = useMediaMetadata()
+  const { rootRef, wide, width } = usePreviewWideLayout()
   const [repoTab, setRepoTab] = useState<'git' | 'folder'>('git')
   const [mediaFolderTab, setMediaFolderTab] = useState<'media' | 'folder'>('media')
   useEffect(() => {
@@ -269,9 +276,36 @@ function PreviewViewInner({
     ? model.fields.filter((f) => (f.group ?? 'other') === 'file')
     : []
 
+  const folderStatsHasMap = Boolean(model?.folderStats && model.folderStats.leaves.length > 0)
+  const useWide =
+    detached &&
+    wide &&
+    !zen &&
+    !showGitHistory &&
+    (!driveSpace || folderStatsHasMap) &&
+    (showFolderStatsCard
+      ? folderStatsHasMap
+      : fileDetailFields.length > 0 ||
+        Boolean(model?.warnings?.length) ||
+        Boolean(model?.fields.some((f) => (f.group ?? 'other') !== 'file')) ||
+        Boolean(mediaMeta) ||
+        folderStatsHasMap)
+
+  const split = usePreviewWindowSplit(width, useWide)
+
   return (
     <div
-      className={`preview${kindClass}${zen ? ' preview-zen' : ''}${textWordWrap ? ' preview-text-wrap' : ''}`}
+      ref={rootRef}
+      className={`preview${kindClass}${zen ? ' preview-zen' : ''}${textWordWrap ? ' preview-text-wrap' : ''}${
+        detached ? ' preview-detached' : ''
+      }${useWide ? ' preview-wide' : ''}`}
+      style={
+        useWide
+          ? {
+              gridTemplateColumns: `minmax(0, 1fr) ${split.gutterPx}px ${split.rightPx}px`
+            }
+          : undefined
+      }
     >
       <div className="preview-header preview-header-compact">
         {!zen ? (
@@ -353,21 +387,66 @@ function PreviewViewInner({
       {!zen ? banner : null}
 
       {driveSpace ? (
-        <DriveSpacePreview
-          drives={driveSpace.drives}
-          focusPath={driveSpace.focusPath}
-          folderStats={
-            driveSpace.focusPath && model?.kind === 'directory' ? model.folderStats : null
-          }
-          folderPath={driveSpace.focusPath && model?.kind === 'directory' ? model.path : null}
-          dateModifiedLabel={
-            model?.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
-          }
-          indexedLabel={model?.fields.find((f) => f.id === 'dir.indexed')?.value}
-          onRevealPath={onRevealPath}
-          onOpenPath={onOpenPath}
-          onNotify={onNotify}
-        />
+        useWide && model?.kind === 'directory' && model.folderStats ? (
+          <div className="preview-content">
+            <div className="preview-viz">
+              <FolderStatsCard
+                folderPath={model.path}
+                stats={model.folderStats}
+                dateModifiedLabel={
+                  model.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
+                }
+                indexedLabel={model.fields.find((f) => f.id === 'dir.indexed')?.value}
+                onRevealPath={onRevealPath ?? (() => {})}
+                onOpenPath={onOpenPath}
+                onNotify={onNotify}
+                part="map"
+              />
+            </div>
+            <div className="preview-rest">
+              <DriveSpacePreview
+                drives={driveSpace.drives}
+                focusPath={driveSpace.focusPath}
+                piesOnly
+              />
+              <FolderStatsCard
+                folderPath={model.path}
+                stats={model.folderStats}
+                dateModifiedLabel={
+                  model.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
+                }
+                indexedLabel={model.fields.find((f) => f.id === 'dir.indexed')?.value}
+                onRevealPath={onRevealPath ?? (() => {})}
+                onOpenPath={onOpenPath}
+                onNotify={onNotify}
+                suppressHero
+                part="details"
+              />
+              {extraBeforeFields ? (
+                <div className="preview-footer-extras">{extraBeforeFields}</div>
+              ) : null}
+              {fileDetailFields.length > 0 ? (
+                <DetailsStrip fields={fileDetailFields} onCopy={copyValue} />
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <DriveSpacePreview
+            drives={driveSpace.drives}
+            focusPath={driveSpace.focusPath}
+            folderStats={
+              driveSpace.focusPath && model?.kind === 'directory' ? model.folderStats : null
+            }
+            folderPath={driveSpace.focusPath && model?.kind === 'directory' ? model.path : null}
+            dateModifiedLabel={
+              model?.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
+            }
+            indexedLabel={model?.fields.find((f) => f.id === 'dir.indexed')?.value}
+            onRevealPath={onRevealPath}
+            onOpenPath={onOpenPath}
+            onNotify={onNotify}
+          />
+        )
       ) : showGitHistory && gitRepo ? (
         <GitRepoPreview
           repoRoot={gitRepo.repoRoot}
@@ -393,6 +472,9 @@ function PreviewViewInner({
           previewPath={previewPath ?? model.path}
           mediaHold={mediaHold}
           previewWindowOpen={previewWindowOpen}
+          wide={useWide}
+          extraBeforeFields={useWide ? extraBeforeFields : null}
+          fileDetailFields={useWide ? fileDetailFields : []}
           previewVideoAutoplay={previewVideoAutoplay}
           previewRichPlayerMpv={previewRichPlayerMpv}
           captionPosterUrl={captionPosterUrl}
@@ -407,16 +489,15 @@ function PreviewViewInner({
         />
       )}
 
-      {/* Notes + user metadata: pinned outside PreviewBody so selection changes don’t remount them. */}
-      {!zen &&
-      previewPath &&
-      !driveSpace &&
-      !showGitHistory &&
-      extraBeforeFields ? (
+      {/* Notes + details stay outside PreviewBody (docked / stacked) so selection changes don’t remount them. */}
+      {!useWide && !zen && previewPath && !driveSpace && !showGitHistory && extraBeforeFields ? (
         <div className="preview-footer-extras">{extraBeforeFields}</div>
       ) : null}
-      {!zen && model && fileDetailFields.length > 0 ? (
+      {!useWide && !zen && model && fileDetailFields.length > 0 ? (
         <DetailsStrip fields={fileDetailFields} onCopy={copyValue} />
+      ) : null}
+      {useWide ? (
+        <Splitter onDrag={split.onDrag} onDragEnd={split.onDragEnd} />
       ) : null}
     </div>
   )
@@ -427,6 +508,9 @@ function PreviewBody({
   previewPath: _previewPath,
   mediaHold,
   previewWindowOpen,
+  wide = false,
+  extraBeforeFields = null,
+  fileDetailFields = [],
   previewVideoAutoplay,
   previewRichPlayerMpv,
   captionPosterUrl,
@@ -443,6 +527,10 @@ function PreviewBody({
   previewPath: string
   mediaHold: boolean
   previewWindowOpen: boolean
+  /** Detached landscape only. Stacked detached matches the docked pane. */
+  wide?: boolean
+  extraBeforeFields?: ReactNode
+  fileDetailFields?: PreviewField[]
   previewVideoAutoplay: boolean
   previewRichPlayerMpv: boolean
   captionPosterUrl: string | null
@@ -460,6 +548,11 @@ function PreviewBody({
   void _onRetryPlayableForce
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
+  const media = useMediaMetadata()
+  const hasMediaDetails =
+    folderPane !== 'folder' &&
+    !!media &&
+    (mediaMetadataHasDetails(media.meta) || folderPane === 'media')
   const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
   /** Opt-in mpv overlay — only when Chromium has no mediaUrl (MKV/etc.). */
   const useRichPlayer = previewRichPlayerMpv === true && playAv && !model.mediaUrl
@@ -469,12 +562,69 @@ function PreviewBody({
   const audioCodecField = model.fields.find((f) => f.id === 'audioCodec')?.value
   const showMediaHero = !zen && folderPane !== 'folder'
   const showFolderStats = folderPane !== 'media'
+  /** Wide detached: file posters sit with the other metadata. Stacked matches docked (hero above player). */
+  const heroInViz =
+    showMediaHero &&
+    (!wide || model.kind === 'directory' || model.kind === 'virtualFolder')
+  const heroInRest = showMediaHero && wide && !heroInViz
+  const folderStatsDetailsInRest =
+    wide &&
+    showFolderStats &&
+    model.kind === 'directory' &&
+    !!model.folderStats &&
+    model.folderStats.leaves.length > 0
+  const restMeta =
+    !zen &&
+    (folderStatsDetailsInRest ||
+      heroInRest ||
+      Boolean(model.warnings && model.warnings.length > 0) ||
+      hasRichFields ||
+      hasMediaDetails ||
+      Boolean(extraBeforeFields) ||
+      fileDetailFields.length > 0)
+  const metaTabs = (
+    <PreviewMetaTabs
+      hasFile={hasRichFields}
+      metaMode={
+        folderPane === 'media' ? 'media-only' : folderPane === 'folder' ? 'file-only' : 'auto'
+      }
+      file={
+        <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
+          {CONTENT_GROUPS.map(({ key, label }) => {
+            const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
+            if (fields.length === 0) return null
+            const groupLabel =
+              key === 'generation' && model.subtitle?.startsWith('SafeTensors')
+                ? 'Training'
+                : key === 'other' && model.subtitle?.startsWith('SafeTensors')
+                  ? 'Weights'
+                  : key === 'other' && model.subtitle === '3ds Max UVW map'
+                    ? 'UVW map'
+                    : key === 'other' && model.subtitle === 'Radiance HDR'
+                      ? 'HDR'
+                      : label
+            return (
+              <div key={key}>
+                <div className="preview-group-title">{groupLabel}</div>
+                {key === 'generation' ? (
+                  <GenerationFields fields={fields} onCopy={onCopy} />
+                ) : (
+                  <CompactableFields fields={fields} onCopy={onCopy} />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      }
+      onCopy={onCopy}
+    />
+  )
 
   return (
     <>
       <div className="preview-content">
         <div className="preview-viz">
-        {showMediaHero ? <MediaMetadataHero /> : null}
+        {heroInViz ? <MediaMetadataHero /> : null}
         {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
         {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
           <div className="preview-media preview-media-fill">
@@ -620,7 +770,7 @@ function PreviewBody({
         )}
         {showFolderStats &&
           model.kind === 'directory' &&
-          (model.folderStats && onRevealPath ? (
+          (model.folderStats ? (
             <FolderStatsCard
               folderPath={model.path}
               stats={model.folderStats}
@@ -628,9 +778,10 @@ function PreviewBody({
                 model.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
               }
               indexedLabel={model.fields.find((f) => f.id === 'dir.indexed')?.value}
-              onRevealPath={onRevealPath}
+              onRevealPath={onRevealPath ?? (() => {})}
               onOpenPath={onOpenPath}
               onNotify={onNotify}
+              part={wide && model.folderStats.leaves.length > 0 ? 'map' : 'all'}
             />
           ) : (
             <div className="preview-icon">
@@ -716,46 +867,40 @@ function PreviewBody({
         {model.kind === 'missing' && <div className="preview-empty">File no longer exists</div>}
         </div>
 
-        {!zen && model.warnings && model.warnings.length > 0 && (
+        {!wide && !zen && model.warnings && model.warnings.length > 0 ? (
           <div className="preview-warnings">{model.warnings.join(' · ')}</div>
-        )}
+        ) : null}
 
-        {!zen ? (
-          <PreviewMetaTabs
-            hasFile={hasRichFields}
-            metaMode={
-              folderPane === 'media' ? 'media-only' : folderPane === 'folder' ? 'file-only' : 'auto'
-            }
-            file={
-              <div className={`preview-fields${model.kind === 'binary' ? ' preview-fields-flush' : ''}`}>
-                {CONTENT_GROUPS.map(({ key, label }) => {
-                  const fields = contentFields.filter((f) => (f.group ?? 'other') === key)
-                  if (fields.length === 0) return null
-                  const groupLabel =
-                    key === 'generation' && model.subtitle?.startsWith('SafeTensors')
-                      ? 'Training'
-                      : key === 'other' && model.subtitle?.startsWith('SafeTensors')
-                        ? 'Weights'
-                        : key === 'other' && model.subtitle === '3ds Max UVW map'
-                          ? 'UVW map'
-                          : key === 'other' && model.subtitle === 'Radiance HDR'
-                            ? 'HDR'
-                            : label
-                  return (
-                    <div key={key}>
-                      <div className="preview-group-title">{groupLabel}</div>
-                      {key === 'generation' ? (
-                        <GenerationFields fields={fields} onCopy={onCopy} />
-                      ) : (
-                        <CompactableFields fields={fields} onCopy={onCopy} />
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            }
-            onCopy={onCopy}
-          />
+        {!wide && !zen ? metaTabs : null}
+
+        {wide && restMeta ? (
+          <div className="preview-rest">
+            {folderStatsDetailsInRest && model.folderStats ? (
+              <FolderStatsCard
+                folderPath={model.path}
+                stats={model.folderStats}
+                dateModifiedLabel={
+                  model.fields.find((f) => f.id === 'file.modified')?.value ?? '—'
+                }
+                indexedLabel={model.fields.find((f) => f.id === 'dir.indexed')?.value}
+                onRevealPath={onRevealPath ?? (() => {})}
+                onOpenPath={onOpenPath}
+                onNotify={onNotify}
+                part="details"
+              />
+            ) : null}
+            {heroInRest ? <MediaMetadataHero /> : null}
+            {model.warnings && model.warnings.length > 0 ? (
+              <div className="preview-warnings">{model.warnings.join(' · ')}</div>
+            ) : null}
+            {metaTabs}
+            {extraBeforeFields ? (
+              <div className="preview-footer-extras">{extraBeforeFields}</div>
+            ) : null}
+            {fileDetailFields.length > 0 ? (
+              <DetailsStrip fields={fileDetailFields} onCopy={onCopy} />
+            ) : null}
+          </div>
         ) : null}
       </div>
     </>

@@ -455,6 +455,14 @@ export const PopOutIcon = svg(
     <path d="M10 14L21 3" />
   </>
 )
+/** Return the detached preview to the docked pane. */
+export const DockIcon = svg(
+  <>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <path d="M21 3h-6v6" />
+    <path d="M21 3L10 14" />
+  </>
+)
 
 const MODEL3D_EXTS = new Set(['obj', 'fbx', '3ds'])
 

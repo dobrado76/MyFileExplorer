@@ -360,3 +360,9 @@ export function stopMpvForSender(sender: WebContents): { stopped: boolean } {
   if (ownerId === null || ownerId !== session.ownerId) return { stopped: false }
   return stopMpvSession()
 }
+
+/** Stop if this BrowserWindow owns the active overlay (window closed / docked). */
+export function stopMpvForWindowId(windowId: number): { stopped: boolean } {
+  if (!session || session.ownerId !== windowId) return { stopped: false }
+  return stopMpvSession()
+}

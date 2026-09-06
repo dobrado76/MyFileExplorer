@@ -40,6 +40,8 @@ function pctOf(bytes: number, total: number): number {
   return Math.round((100 * bytes) / total)
 }
 
+export type FolderStatsCardPart = 'all' | 'map' | 'details'
+
 export type FolderStatsCardProps = {
   folderPath: string
   stats: FolderStatsPreviewModel
@@ -50,6 +52,8 @@ export type FolderStatsCardProps = {
   onNotify?: (text: string, isError?: boolean) => void
   /** Drive preview already shows free-space pie — skip the folder icon hero. */
   suppressHero?: boolean
+  /** `map` = Space usage only; `details` = everything except the map. */
+  part?: FolderStatsCardPart
 }
 
 export function FolderStatsCard({
@@ -60,7 +64,8 @@ export function FolderStatsCard({
   onRevealPath,
   onOpenPath,
   onNotify,
-  suppressHero = false
+  suppressHero = false,
+  part = 'all'
 }: FolderStatsCardProps): JSX.Element {
   const openContextMenu = useAppStore((s) => s.openContextMenu)
   const name = basename(folderPath) || folderPath
@@ -88,13 +93,19 @@ export function FolderStatsCard({
     openSpaceUsageMenu(resolveLeaf(relativePath), e.clientX, e.clientY)
   }
 
+  const showDetails = part !== 'map'
+  const showMap = part !== 'details' && hasMap
+
   return (
     <div
-      className={`folder-stats-card${hasMap ? ' folder-stats-card-with-map' : ''}${
+      className={`folder-stats-card${showMap ? ' folder-stats-card-with-map' : ''}${
         suppressHero ? ' folder-stats-card-drive' : ''
+      }${part === 'map' ? ' folder-stats-card-map-only' : ''}${
+        part === 'details' ? ' folder-stats-card-details-only' : ''
       }`}
     >
-      <div className="folder-stats-scroll">
+      {showDetails ? (
+        <div className="folder-stats-scroll">
         {!suppressHero ? (
           <div className="folder-stats-hero">
             <div className="preview-icon folder-stats-icon">
@@ -230,9 +241,10 @@ export function FolderStatsCard({
             </ul>
           </section>
         ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      {hasMap ? (
+      {showMap ? (
         <section className="folder-stats-section folder-stats-section-map">
           <div className="folder-stats-map-heading">
             <div className="folder-stats-section-title">Space usage</div>

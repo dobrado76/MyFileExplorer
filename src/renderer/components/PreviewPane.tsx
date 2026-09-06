@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
-import { EditImageIcon, PopOutIcon } from '../lib/icons'
+import { DockIcon, EditImageIcon, PopOutIcon } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
@@ -93,14 +93,14 @@ export function PreviewPane(): JSX.Element {
   }, [gitEnabled, previewPath, driveSpace, mergeGitStatus])
 
   const { model, loading, retryPlayableForce } = usePreviewFetch(
-    previewPath,
+    previewWindowOpen ? null : previewPath,
     versionOverrideAds,
     selectedStamp
   )
 
   const [versionMeta, setVersionMeta] = useState<{ count: number } | null>(null)
   useEffect(() => {
-    if (!previewPath || !isEditableImagePath(previewPath)) {
+    if (previewWindowOpen || !previewPath || !isEditableImagePath(previewPath)) {
       setVersionMeta(null)
       return
     }
@@ -116,10 +116,10 @@ export function PreviewPane(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [previewPath, selectedStamp])
+  }, [previewWindowOpen, previewPath, selectedStamp])
 
   useEffect(() => {
-    if (!drawCaption || !previewPath || model?.kind !== 'image' || !model.mediaUrl) {
+    if (previewWindowOpen || !drawCaption || !previewPath || model?.kind !== 'image' || !model.mediaUrl) {
       if (!drawCaption || !previewPath) setCaptionPosterUrl(null)
       return
     }
@@ -138,10 +138,10 @@ export function PreviewPane(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [drawCaption, previewPath, selectedStamp, model?.kind, model?.mediaUrl])
+  }, [previewWindowOpen, drawCaption, previewPath, selectedStamp, model?.kind, model?.mediaUrl])
 
   useEffect(() => {
-    if (!previewPath) {
+    if (previewWindowOpen || !previewPath) {
       setItemNote(null)
       return
     }
@@ -153,7 +153,7 @@ export function PreviewPane(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [previewPath, selectedStamp, columnMetaBump.rev, columnMetaBump.path])
+  }, [previewWindowOpen, previewPath, selectedStamp, columnMetaBump.rev, columnMetaBump.path])
 
   const versionBanner =
     versionOverrideAds !== undefined && versionMeta ? (
@@ -200,6 +200,30 @@ export function PreviewPane(): JSX.Element {
       </div>
     ) : null
 
+  if (previewWindowOpen) {
+    return (
+      <div className="preview preview-is-detached">
+        <div className="preview-header preview-header-compact">
+          <div className="preview-sub">Preview is in a window</div>
+          <div className="preview-header-actions">
+            <button
+              type="button"
+              className="icon-btn preview-dock-btn"
+              aria-label="Dock preview"
+              title="Dock preview"
+              onClick={() => void api.preview.closeWindow()}
+            >
+              <DockIcon size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="preview-empty">
+          Preview is open in a separate window. Dock to show it here.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <PreviewView
       model={model}
@@ -222,15 +246,17 @@ export function PreviewPane(): JSX.Element {
       onNotify={notify}
       onRetryPlayableForce={retryPlayableForce}
       extraBeforeFields={
-        <>
-          {itemNote ? <ItemNotePreview note={itemNote} /> : null}
-          {userMetadataEnabled ? (
-            <UserMetadataPreview
-              path={previewPath}
-              isDirectory={model ? model.kind === 'directory' : undefined}
-            />
-          ) : null}
-        </>
+        itemNote || userMetadataEnabled ? (
+          <>
+            {itemNote ? <ItemNotePreview note={itemNote} /> : null}
+            {userMetadataEnabled ? (
+              <UserMetadataPreview
+                path={previewPath}
+                isDirectory={model ? model.kind === 'directory' : undefined}
+              />
+            ) : null}
+          </>
+        ) : null
       }
       headerActions={
         <>

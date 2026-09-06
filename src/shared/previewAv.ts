@@ -1,7 +1,7 @@
 /**
- * Docked preview pane vs detached preview window: only one Chromium
- * `<video>` / `<audio>` may bind a given `mfe-media` URL. Two players
- * starve range requests and can leave the pop-out blank for later files.
+ * Docked vs detached preview is exclusive (one surface). This guard still
+ * blocks a docked `<video>` / `<audio>` if the pop-out is open so two
+ * Chromium players cannot share one `mfe-media` URL.
  */
 export function allowDockedAvPlayer(opts: {
   mediaHold: boolean

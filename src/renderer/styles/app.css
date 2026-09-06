@@ -2651,6 +2651,120 @@ body.right-dragging * {
   flex: 1 1 auto;
   overflow: hidden;
 }
+
+/* Detached landscape only: viz | stacked chrome (same stack as the docked pane, minus the file preview). */
+.preview-detached.preview-wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5px minmax(240px, 42%);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-height: 0;
+}
+.preview-detached.preview-wide .preview-header,
+.preview-detached.preview-wide .preview-version-banner {
+  grid-column: 1 / -1;
+}
+.preview-detached.preview-wide .preview-header {
+  grid-row: 1;
+}
+.preview-detached.preview-wide .preview-version-banner {
+  grid-row: 2;
+}
+.preview-detached.preview-wide .preview-content,
+.preview-detached.preview-wide.preview-kind-folder-stats .preview-content {
+  display: contents;
+}
+.preview-detached.preview-wide .preview-viz {
+  grid-column: 1;
+  grid-row: 3;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.preview-detached.preview-wide > .splitter {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: stretch;
+  min-height: 0;
+}
+.preview-detached.preview-wide .preview-rest {
+  grid-column: 3;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-left: none;
+  background: var(--bg);
+}
+.preview-detached.preview-wide .preview-rest > * {
+  flex: 0 0 auto;
+}
+.preview-detached.preview-wide .preview-rest .preview-meta {
+  border-top: none;
+  max-height: none;
+  overflow: visible;
+}
+.preview-detached.preview-wide .preview-rest .preview-footer-extras,
+.preview-detached.preview-wide .preview-rest .preview-details {
+  max-height: none;
+}
+.preview-detached.preview-wide .preview-meta,
+.preview-detached.preview-wide.preview-kind-image .preview-meta,
+.preview-detached.preview-wide.preview-kind-video .preview-meta,
+.preview-detached.preview-wide.preview-kind-model3d .preview-meta,
+.preview-detached.preview-wide.preview-kind-archive .preview-meta,
+.preview-detached.preview-wide.preview-kind-chm .preview-meta {
+  max-height: none;
+  overflow: visible;
+}
+.preview-detached.preview-wide .preview-media,
+.preview-detached.preview-wide .preview-media.preview-av {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.preview-detached.preview-wide.preview-kind-video .preview-video,
+.preview-detached.preview-wide.preview-kind-video .preview-video-poster {
+  max-height: 100%;
+  height: 100%;
+}
+.preview-detached.preview-wide .folder-stats-card-map-only {
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding: 10px 12px 12px;
+}
+.preview-detached.preview-wide .folder-stats-card-map-only .folder-stats-section-map {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: none;
+  padding-top: 0;
+}
+.preview-detached.preview-wide .folder-stats-card-details-only {
+  height: auto;
+  max-height: none;
+  padding: 10px 12px 8px;
+}
+.preview-detached.preview-wide .folder-stats-card-details-only .folder-stats-scroll {
+  flex: 0 0 auto;
+  overflow: visible;
+  min-height: 0;
+  max-height: none;
+  padding-bottom: 0;
+}
+.preview-detached.preview-wide .drive-space-preview.pies-only {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: 10px 12px 0;
+}
+.preview-detached.preview-wide .drive-space-preview.pies-only.empty {
+  display: none;
+}
 .preview.preview-kind-folder-stats .preview-content {
   overflow: hidden;
   display: flex;
@@ -2953,6 +3067,7 @@ body.right-dragging * {
 }
 .preview-edit-btn,
 .preview-popout-btn,
+.preview-dock-btn,
 .preview-zen-btn,
 .preview-wrap-btn {
   flex-shrink: 0;
@@ -4646,6 +4761,24 @@ button.media-metadata-hero-poster.is-clickable:hover {
   color: var(--text-dim);
   padding: 24px;
   text-align: center;
+}
+.preview-window-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 40;
+  max-width: min(480px, calc(100% - 24px));
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.preview-window-notice.is-error {
+  color: var(--danger, #ef4444);
 }
 .preview-warnings {
   margin: 0 12px;

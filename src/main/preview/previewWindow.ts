@@ -13,6 +13,7 @@ import {
 import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
+import { stopMpvForWindowId } from './mpvPlayer'
 
 let previewWin: BrowserWindow | null = null
 
@@ -147,6 +148,7 @@ export function openPreviewWindow(): { opened: true } {
   })
 
   const win = previewWin
+  const previewWindowId = win.id
   const save = (): void => persistBounds(win)
   win.on('resize', save)
   win.on('move', save)
@@ -158,6 +160,7 @@ export function openPreviewWindow(): { opened: true } {
   })
   win.on('close', () => persistBounds(win))
   win.on('closed', () => {
+    stopMpvForWindowId(previewWindowId)
     if (previewWin === win) previewWin = null
     // Skip if a newer pop-out already owns `previewWin` (close-then-reopen).
     if (previewWin == null) {

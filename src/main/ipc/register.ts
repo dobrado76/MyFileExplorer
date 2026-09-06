@@ -294,6 +294,7 @@ function assertRemoteReposEnabled(): void {
 import { ensurePlayablePreview, getChmTopicPreview, getImageDisplayUrl, getMediaPreviewMeta, getPreview } from '../preview'
 import { mpvProbe, setMpvBounds, setMpvVisible, startMpvSession, stopMpvForSender } from '../preview/mpvPlayer'
 import {
+  closePreviewWindow,
   getPreviewTarget,
   openPreviewWindow,
   setPreviewTarget
@@ -836,6 +837,7 @@ export function registerIpcHandlers(): void {
     getChmTopicPreview(req.path, req.topic)
   )
   handle(IPC.previewOpenWindow, emptySchema, () => openPreviewWindow())
+  handle(IPC.previewCloseWindow, emptySchema, () => closePreviewWindow())
   handle(IPC.previewSetTarget, previewWindowTargetSchema, (req) => setPreviewTarget(req))
   handle(IPC.previewGetTarget, emptySchema, () => getPreviewTarget())
   handle(IPC.previewMpvAvailable, emptySchema, () => mpvProbe())

@@ -92,6 +92,7 @@ Deleting a **file** live-patches tagged ancestor ADS (map updates without Calcul
 | **Git** repo root              | Header **Folder** tab ( **Git** is default)                         |
 | Media-tagged show/movie folder | Header **Folder** tab ( **Media** is default)                       |
 | **Volume root**                | Free-space pie stays; stats / map appear below when tagged          |
+| Detached preview, landscape    | **Space usage** map on the left; summary / Contents / lists (and the volume pie) on the right. Tall window keeps the stacked card |
 
 
 ---

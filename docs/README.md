@@ -147,7 +147,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Drive free space | Status bar `N GB free of M GB (P%)`; tree **Drives** header → pies for every volume; mapped letters included; offline / empty media do not stall the list |
-| Detached preview | **Open preview window** peer window; Zen mode; bounds remembered (stripped on settings export) — [PREVIEW.md](PREVIEW.md) |
+| Detached preview | **Open preview window** peer window (hides docked pane); landscape two-column in that window only (draggable splitter); Zen; bounds remembered (stripped on settings export) — [PREVIEW.md](PREVIEW.md) |
 | Calendar / email | `.ics` / `.ical` agenda; `.eml` headers + body (no remote images) — [PREVIEW_EXTENSIONS.md](PREVIEW_EXTENSIONS.md) |
 | NAS listing cache | D49 — session-only last listing for UNC / mapped / remotes; paint then revalidate — [NETWORKS.md](NETWORKS.md) |
 | More previews | 3D (`.obj` / `.fbx` / `.3ds`), `.hdr`, Unity / VS text, `.uvw`, subtitles, `.divx`; fixtures in [`samples/preview-extensions/`](../samples/preview-extensions/) |

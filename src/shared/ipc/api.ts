@@ -342,6 +342,7 @@ export type MyFileExplorerApi = {
     /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
     chmTopic(req: PreviewChmTopicRequest): Promise<Result<{ mediaUrl: string }>>
     openWindow(): Promise<Result<{ opened: true }>>
+    closeWindow(): Promise<Result<{ closed: boolean }>>
     setTarget(req: PreviewWindowTarget): Promise<Result<{ ok: true }>>
     getTarget(): Promise<Result<PreviewWindowTarget>>
     /** Opt-in Rich player (mpv) availability. */

@@ -91,7 +91,8 @@ export function DriveSpacePreview({
   indexedLabel,
   onRevealPath,
   onOpenPath,
-  onNotify
+  onNotify,
+  piesOnly = false
 }: {
   drives: DriveInfo[]
   focusPath?: string | null
@@ -103,6 +104,8 @@ export function DriveSpacePreview({
   onRevealPath?: (path: string) => void
   onOpenPath?: (path: string) => void
   onNotify?: (text: string, isError?: boolean) => void
+  /** Free-space pies only — Space usage lives in the wide left column. */
+  piesOnly?: boolean
 }): JSX.Element {
   const letter = focusPath ? /^([a-zA-Z]):/.exec(focusPath)?.[1]?.toUpperCase() : null
   const focused = letter
@@ -110,19 +113,37 @@ export function DriveSpacePreview({
     : undefined
   const list = focused ? [focused] : drives
   const showStats =
+    !piesOnly &&
     !!focused &&
     !!folderStats &&
     !!folderPath &&
-    !!onRevealPath &&
     !!onOpenPath
 
   if (list.length === 0) {
+    if (piesOnly) {
+      return <div className="drive-space-preview pies-only empty" />
+    }
+    if (folderStats && folderPath) {
+      return (
+        <FolderStatsCard
+          folderPath={folderPath}
+          stats={folderStats}
+          dateModifiedLabel={dateModifiedLabel ?? '—'}
+          indexedLabel={indexedLabel}
+          onRevealPath={onRevealPath ?? (() => {})}
+          onOpenPath={onOpenPath ?? (() => {})}
+          onNotify={onNotify}
+        />
+      )
+    }
     return <div className="preview-empty">No drives listed</div>
   }
 
   return (
     <div
-      className={`drive-space-preview${focused ? ' single' : ''}${showStats ? ' with-stats' : ''}`}
+      className={`drive-space-preview${focused ? ' single' : ''}${
+        showStats ? ' with-stats' : ''
+      }${piesOnly ? ' pies-only' : ''}`}
     >
       {list.map((d) => (
         <DriveSpaceCard

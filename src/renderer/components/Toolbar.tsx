@@ -44,7 +44,8 @@ export function Toolbar(): JSX.Element {
   const runSearch = useAppStore((s) => s.runSearch)
   const clearSearch = useAppStore((s) => s.clearSearch)
   const splitters = useAppStore((s) => s.splitters)
-  const setSplitters = useAppStore((s) => s.setSplitters)
+  const previewWindowOpen = useAppStore((s) => s.previewWindowOpen)
+  const togglePreviewSurface = useAppStore((s) => s.togglePreviewSurface)
   const openDialog = useAppStore((s) => s.openDialog)
   const settings = useAppStore((s) => s.settings)
   const applySettingsPatch = useAppStore((s) => s.applySettingsPatch)
@@ -325,10 +326,14 @@ export function Toolbar(): JSX.Element {
           {settings.viewFilterEnabled ? <EyeOffIcon /> : <EyeIcon />}
         </button>
         <button
-          className={`icon-btn${splitters.previewCollapsed ? '' : ' active'}`}
-          aria-label="Toggle preview pane"
-          title="Toggle preview (Ctrl+Shift+P)"
-          onClick={() => setSplitters({ previewCollapsed: !splitters.previewCollapsed })}
+          className={`icon-btn${splitters.previewCollapsed && !previewWindowOpen ? '' : ' active'}`}
+          aria-label={previewWindowOpen ? 'Dock preview' : 'Toggle preview pane'}
+          title={
+            previewWindowOpen
+              ? 'Dock preview (Ctrl+Shift+P)'
+              : 'Toggle preview (Ctrl+Shift+P)'
+          }
+          onClick={() => togglePreviewSurface()}
         >
           <PanelIcon />
         </button>

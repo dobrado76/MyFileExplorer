@@ -144,6 +144,7 @@ const api: MyFileExplorerApi = {
     getMediaMeta: invoke(IPC.previewGetMediaMeta),
     chmTopic: invoke(IPC.previewChmTopic),
     openWindow: invokeVoid(IPC.previewOpenWindow),
+    closeWindow: invokeVoid(IPC.previewCloseWindow),
     setTarget: invoke(IPC.previewSetTarget),
     getTarget: invokeVoid(IPC.previewGetTarget),
     mpvAvailable: invokeVoid(IPC.previewMpvAvailable),

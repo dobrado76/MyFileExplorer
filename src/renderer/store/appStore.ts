@@ -669,6 +669,8 @@ type AppState = {
   mediaHold: boolean
   /** Detached preview window is open — docked pane must not mount `<video>`/`<audio>`. */
   previewWindowOpen: boolean
+  /** Re-show the docked pane when the detached window closes (we hid it on open). */
+  previewRestoreOnDock: boolean
   contextMenu: ContextMenuState
   /** Hidden local gate — slideshow and related IPC (main reads DEV.cfg). */
   devGateActive: boolean
@@ -848,6 +850,8 @@ type AppState = {
   /** Collapse every expanded tree branch on the current tab (This PC default). */
   collapseAllTree(): void
   setSplitters(patch: Partial<Splitters>): void
+  /** Panel / Ctrl+Shift+P: hide/show docked pane, or dock if the window is open. */
+  togglePreviewSurface(): void
   /** Owning folder-view override for a path (exact or recursive ancestor). */
   owningFolderView(path?: string): FolderView | null
   customizeFolderView(path: string, recursive: boolean): Promise<void>
@@ -3258,6 +3262,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     imageVersionPreview: null,
     mediaHold: false,
     previewWindowOpen: false,
+    previewRestoreOnDock: false,
     contextMenu: null,
     devGateActive: false,
     devGatePresent: false,
@@ -3636,7 +3641,29 @@ export const useAppStore = create<AppState>()((set, get) => {
             get().applyCompiledPlaylist(p.paths, p.preferPath, p.rev)
           }
         } else if (event.type === 'preview-window') {
-          set({ previewWindowOpen: event.payload.open })
+          const open = event.payload.open
+          const cur = get()
+          if (open) {
+            if (!cur.splitters.previewCollapsed) {
+              set({
+                previewWindowOpen: true,
+                previewRestoreOnDock: true,
+                splitters: { ...cur.splitters, previewCollapsed: true }
+              })
+              scheduleSessionSave()
+            } else {
+              set({ previewWindowOpen: true, previewRestoreOnDock: false })
+            }
+          } else if (cur.previewRestoreOnDock) {
+            set({
+              previewWindowOpen: false,
+              previewRestoreOnDock: false,
+              splitters: { ...cur.splitters, previewCollapsed: false }
+            })
+            scheduleSessionSave()
+          } else {
+            set({ previewWindowOpen: false, previewRestoreOnDock: false })
+          }
         } else if (event.type === 'compiled-lists-window-closed') {
           const a = get().slideshow.active
           if (a?.compiledMode) void get().stopSlideshow()
@@ -5163,6 +5190,15 @@ export const useAppStore = create<AppState>()((set, get) => {
     setSplitters(patch) {
       set((s) => ({ splitters: { ...s.splitters, ...patch } }))
       scheduleSessionSave()
+    },
+
+    togglePreviewSurface() {
+      const s = get()
+      if (s.previewWindowOpen) {
+        void api.preview.closeWindow()
+        return
+      }
+      get().setSplitters({ previewCollapsed: !s.splitters.previewCollapsed })
     },
 
     setSelection(paths, anchor, focused, tabId) {
