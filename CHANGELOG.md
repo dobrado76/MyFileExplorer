@@ -9,6 +9,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Now Playing** — **Keep playing** on a video opens a sticky player window that does not follow selection, so you can browse while Chromium / Rich Player continues. Docked preview stays live for other files; same path shows a stub. Not a mini-bar. Guide: [docs/plans/NOW_PLAYING.md](docs/plans/NOW_PLAYING.md).
 - **Media preview chrome title** — with stored media metadata, the compact preview header uses `Show - S03E04` (or movie title + year) instead of the dotted release stem / embedded file title; full filename stays under File.
 - **Rich player vs Open with default app** — double-click / Open stops mpv and holds in-pane AV for that selection so the external player (e.g. VLC) stays foreground; overlay placement no longer uses `SWP_SHOWWINDOW` (which raised MFE over other apps).
 - **Image Edit preserves generation metadata** — after Filerobot Save / Save as / slideshow crop, A1111 and ComfyUI embeddings are re-attached onto every version tip and onto Commit-bound bytes (PNG tEXt/iTXt, JPEG COM, EXIF text). Cross-format Save as bridges gen text into the destination channel. Soft warning if re-attach fails; pixel save is never blocked (D27).

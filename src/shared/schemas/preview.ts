@@ -169,7 +169,9 @@ export type PreviewMpvBounds = z.infer<typeof previewMpvBoundsSchema>
 export const previewMpvStartSchema = z.object({
   path: z.string().min(1),
   bounds: previewMpvBoundsSchema,
-  autoplay: z.boolean().optional()
+  autoplay: z.boolean().optional(),
+  /** Resume from this offset (seconds) — Now Playing handoff. */
+  startAtSec: z.number().min(0).optional()
 })
 export type PreviewMpvStartRequest = z.infer<typeof previewMpvStartSchema>
 

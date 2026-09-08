@@ -3051,6 +3051,69 @@ body.right-dragging * {
   padding: 10px 12px 6px;
   border-bottom: 1px solid var(--border);
 }
+.now-playing-keep-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 12px 0;
+  flex-shrink: 0;
+}
+.now-playing-docked-stub {
+  margin: 8px 12px;
+  padding: 10px 12px;
+  color: var(--text-dim);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.now-playing {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+.now-playing-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.now-playing-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+.now-playing-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.now-playing-body .preview-media,
+.now-playing-body .preview-mpv-host {
+  flex: 1;
+  min-height: 0;
+}
+.now-playing-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-dim);
+  padding: 24px;
+  text-align: center;
+}
 .preview-header-compact {
   padding: 8px 12px;
   display: flex;

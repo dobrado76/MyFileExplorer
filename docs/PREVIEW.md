@@ -14,9 +14,11 @@ The preview pane shows a type-appropriate visualization plus a **metadata field 
 
 Preview **only reads** ADS — it never starts Calculate. Changing **Folder space map max files** requires a new Calculate (plain click).
 
-### Docked or detached (not both)
+### Docked or detached preview (not both)
 
-The docked pane header shows **Open preview window**. That opens a peer `BrowserWindow` with the **same** live preview (visualization, File/VIDEO tags, media metadata, notes, user metadata, details) and **hides the docked pane** (same as Panel / Ctrl+Shift+P). Only one preview is visible.
+The docked pane header shows **Open preview window**. That opens a peer `BrowserWindow` with the **same** live preview (visualization, File/VIDEO tags, media metadata, notes, user metadata, details) and **hides the docked pane** (same as Panel / Ctrl+Shift+P). Only one *preview* is visible.
+
+**Now Playing (sticky player):** on a video, **Keep playing** opens a separate **Now Playing** window that owns Chromium or Rich Player for that file and **does not** follow selection. Docked preview keeps following selection so you can browse; the same file shows a stub instead of a second player. **Dock** returns playback to the preview pane at the current time **only when that file is already the preview target** (no forced re-select or tab jump — Keep playing stays open otherwise). Title-bar Close ends the session. Delete/move of the playing path stops it. Not a mini-bar. Plan: [plans/NOW_PLAYING.md](plans/NOW_PLAYING.md).
 
 **Dock** (window header) closes the window and **shows the docked pane again**. The toolbar Panel button and Ctrl+Shift+P do the same while the window is open. Closing the window with the OS title-bar button also restores the pane. A second Open focuses the existing window.
 

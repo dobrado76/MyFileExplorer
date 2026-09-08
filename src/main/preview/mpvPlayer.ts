@@ -5,6 +5,7 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
+import net from 'node:net'
 import { app, BrowserWindow, type Event, type WebContents } from 'electron'
 import { AppError } from '@shared/result'
 import type { PreviewMpvBounds } from '@shared/schemas/preview'
@@ -24,6 +25,8 @@ let titleSeq = 0
 /** Monotonic token so a superseded start cannot install or orphan a session. */
 let sessionGeneration = 0
 
+const MPV_IPC_PIPE = `\\\\.\\pipe\\mfe-mpv-${process.pid}`
+
 type Session = {
   generation: number
   filePath: string
@@ -31,6 +34,7 @@ type Session = {
   /** Null while waiting for the mpv HWND. */
   mpvHwnd: unknown | null
   child: ChildProcess
+  ipcPipe: string
   lastRel: PreviewMpvBounds
   /** Dialog / menu asked to hide the overlay without killing playback. */
   chromeHidden: boolean
@@ -74,6 +78,50 @@ function detachOwnerListeners(cur: Session): void {
   app.off('browser-window-focus', cur.appFocusHandler)
 }
 
+/** Query live time-pos via mpv JSON IPC (before stop / for Now Playing handoff). */
+export async function getMpvTimePos(): Promise<{ seconds: number | null }> {
+  const cur = session
+  if (!cur?.mpvHwnd) return { seconds: null }
+  try {
+    const seconds = await mpvIpcGetNumber(cur.ipcPipe, 'time-pos')
+    return { seconds: seconds != null && Number.isFinite(seconds) ? Math.max(0, seconds) : null }
+  } catch {
+    return { seconds: null }
+  }
+}
+
+function mpvIpcGetNumber(pipePath: string, property: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const socket = net.connect(pipePath)
+    let buf = ''
+    const timer = setTimeout(() => {
+      socket.destroy()
+      resolve(null)
+    }, 400)
+    socket.on('connect', () => {
+      socket.write(JSON.stringify({ command: ['get_property', property] }) + '\n')
+    })
+    socket.on('data', (chunk) => {
+      buf += chunk.toString('utf8')
+      const line = buf.split('\n').find((l) => l.trim().length > 0)
+      if (!line) return
+      clearTimeout(timer)
+      socket.end()
+      try {
+        const parsed = JSON.parse(line) as { data?: unknown; error?: string }
+        if (typeof parsed.data === 'number') resolve(parsed.data)
+        else resolve(null)
+      } catch {
+        resolve(null)
+      }
+    })
+    socket.on('error', () => {
+      clearTimeout(timer)
+      resolve(null)
+    })
+  })
+}
+
 export function stopMpvSession(): { stopped: boolean } {
   const cur = session
   session = null
@@ -105,7 +153,8 @@ export async function startMpvSession(
   sender: WebContents,
   filePath: string,
   bounds: PreviewMpvBounds,
-  autoplay: boolean
+  autoplay: boolean,
+  startAtSec?: number
 ): Promise<{ started: true }> {
   if (process.platform !== 'win32') {
     throw new AppError('not-allowed', 'Rich player (mpv) is only supported on Windows')
@@ -145,6 +194,10 @@ export async function startMpvSession(
 
   const oscScript = ensureMpvOscScript()
   const spawnRect = screenRectFor(owner, bounds)
+  const startArg =
+    startAtSec != null && Number.isFinite(startAtSec) && startAtSec > 0.05
+      ? [`--start=${startAtSec.toFixed(3)}`]
+      : []
   const args = [
     '--no-terminal',
     '--force-window=immediate',
@@ -159,10 +212,12 @@ export async function startMpvSession(
     '--cursor-autohide=no',
     '--input-default-bindings=yes',
     '--input-vo-keyboard=yes',
+    `--input-ipc-server=${MPV_IPC_PIPE}`,
     `--title=${title}`,
     '--vo=gpu',
     '--hwdec=auto-safe',
     overlayGeometryArg(spawnRect),
+    ...startArg,
     ...(autoplay ? [] : ['--pause']),
     resolved
   ]
@@ -207,14 +262,14 @@ export async function startMpvSession(
   const appFocusHandler = (_event: Event, win: BrowserWindow): void => {
     if (!session || session.generation !== generation || !session.mpvHwnd) return
     if (session.chromeHidden) return
-    if (win.id === session.ownerId) {
-      if (!owner.isDestroyed() && !owner.isMinimized()) {
-        showMpvOverlay(owner, session.mpvHwnd, session.lastRel)
-      }
-      return
+    // Only re-show when the *owner* is focused (e.g. after a dialog hid the overlay).
+    // Never hide on other MFE windows gaining focus — that blanks a still-visible
+    // detached preview / Now Playing host while audio keeps playing.
+    // Dialogs/menus already hide via setMpvVisible (chromeHidden); minimize uses hide.
+    if (win.id !== session.ownerId) return
+    if (!owner.isDestroyed() && !owner.isMinimized()) {
+      showMpvOverlay(owner, session.mpvHwnd, session.lastRel)
     }
-    // Another MFE window (Properties, pop-out, …) — do not cover it.
-    hideMpvOverlay(session.mpvHwnd)
   }
 
   // Provisional session immediately so concurrent stop/start can kill this child.
@@ -224,6 +279,7 @@ export async function startMpvSession(
     ownerId: owner.id,
     mpvHwnd: null,
     child,
+    ipcPipe: MPV_IPC_PIPE,
     lastRel: { ...bounds },
     chromeHidden: false,
     moveHandler,

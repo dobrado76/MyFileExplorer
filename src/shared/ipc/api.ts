@@ -369,6 +369,29 @@ export type MyFileExplorerApi = {
       req: import('../schemas/preview').PreviewMpvVisibleRequest
     ): Promise<Result<{ ok: true }>>
     mpvStop(): Promise<Result<{ stopped: boolean }>>
+    /** Live Rich Player time-pos (seconds), or null if idle. */
+    mpvTimePos(): Promise<Result<{ seconds: number | null }>>
+  }
+  nowPlaying: {
+    start(req: {
+      path: string
+      startAtSec?: number
+      paused?: boolean
+    }): Promise<Result<{ path: string; open: true }>>
+    stop(): Promise<Result<{ stopped: boolean }>>
+    get(): Promise<
+      Result<{
+        path: string | null
+        open: boolean
+        startAtSec?: number
+        paused?: boolean
+      }>
+    >
+    /** Ask explorer to dock into preview (accepted only if that file is already previewed). */
+    dock(req?: {
+      startAtSec?: number
+      paused?: boolean
+    }): Promise<Result<{ requested: boolean; path: string | null }>>
   }
   properties: {
     /** One peer OS window (combined multi-select) or one per path when `separate`. */

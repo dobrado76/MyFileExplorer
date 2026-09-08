@@ -86,9 +86,11 @@ import {
 } from '@shared/layouts'
 import { api, call, IpcError } from '../lib/ipc'
 import { IPC } from '@shared/ipc/contract'
+import { captureDockedChromiumPlayback } from '../lib/dockedAvPlayback'
 import { formatBytes } from '../lib/format'
 import { clampFolderStatsTreemapMaxLeaves } from '@shared/folderStatsPreview'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { resolvePreviewTargetPath } from '@shared/previewTarget'
 import { pathKey } from '@shared/paths'
 import {
   patchDirEntriesForRename,
@@ -674,6 +676,19 @@ type AppState = {
   previewExternalHoldPath: string | null
   /** Detached preview window is open — docked pane must not mount `<video>`/`<audio>`. */
   previewWindowOpen: boolean
+  /** Sticky Now Playing window is open. */
+  nowPlayingOpen: boolean
+  /** Absolute path owned by Now Playing (null when closed). */
+  nowPlayingPath: string | null
+  /**
+   * After Dock from Now Playing: resume this path in the docked preview once.
+   * Cleared after Preview applies the handoff.
+   */
+  avDockResume: {
+    path: string
+    startAtSec?: number
+    paused?: boolean
+  } | null
   /** Re-show the docked pane when the detached window closes (we hid it on open). */
   previewRestoreOnDock: boolean
   contextMenu: ContextMenuState
@@ -1022,6 +1037,10 @@ type AppState = {
   openFileInNewTab(path: string): Promise<void>
   openImageViewer(path: string, siblings?: string[]): void
   closeImageViewer(): void
+  /** Sticky Now Playing window for the given video path. */
+  startNowPlaying(path: string): Promise<void>
+  stopNowPlaying(): Promise<void>
+  clearAvDockResume(): void
   openImageEditor(path: string, mediaUrl: string): void
   closeImageEditor(): void
   /** Save Filerobot output as tip ADS (pristine `$DATA` kept on first save). */
@@ -1895,7 +1914,18 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
         }
         const movedSrc = r.movePairs.map((p) => p.from)
-        if (movedSrc.length > 0) pruneListingRemoved(movedSrc)
+        if (movedSrc.length > 0) {
+          pruneListingRemoved(movedSrc)
+          const np = get().nowPlayingPath
+          if (np) {
+            const playing = np.replace(/\//g, '\\').toLowerCase()
+            const hit = movedSrc.some((r) => {
+              const p = r.replace(/\//g, '\\').toLowerCase()
+              return playing === p || playing.startsWith(p + '\\')
+            })
+            if (hit) void get().stopNowPlaying()
+          }
+        }
         if (r.issues.length > 0) {
           get().notify(
             `Moved ${r.moved.toLocaleString()} · ${r.issues.length.toLocaleString()} need review`
@@ -2714,6 +2744,12 @@ export const useAppStore = create<AppState>()((set, get) => {
   async function holdPreviewForExternalOpen(path: string): Promise<void> {
     set({ mediaHold: true, previewExternalHoldPath: path })
     void api.preview.mpvStop()
+    // External Open should not fight a sticky Now Playing session on the same file.
+    const np = get().nowPlayingPath
+    if (np && np.replace(/\//g, '\\').toLowerCase() === path.replace(/\//g, '\\').toLowerCase()) {
+      void api.nowPlaying.stop()
+      set({ nowPlayingOpen: false, nowPlayingPath: null })
+    }
     await new Promise<void>((resolve) => {
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => resolve())
@@ -2956,6 +2992,17 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     }
     syncImageViewerAfterDelete(removed)
+    if (removed.length > 0) {
+      const np = get().nowPlayingPath
+      if (np) {
+        const playing = np.replace(/\//g, '\\').toLowerCase()
+        const hit = removed.some((r) => {
+          const p = r.replace(/\//g, '\\').toLowerCase()
+          return playing === p || playing.startsWith(p + '\\')
+        })
+        if (hit) void get().stopNowPlaying()
+      }
+    }
     // Deleting a projected `.mfevirtual` must also drop the sibling mount path from the
     // tree — otherwise WinFsp's folder remains visible as a "ghost" under the parent.
     const projected = get().projectedVirtualFolders
@@ -3281,6 +3328,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     mediaHold: false,
     previewExternalHoldPath: null,
     previewWindowOpen: false,
+    nowPlayingOpen: false,
+    nowPlayingPath: null,
+    avDockResume: null,
     previewRestoreOnDock: false,
     contextMenu: null,
     devGateActive: false,
@@ -3682,6 +3732,45 @@ export const useAppStore = create<AppState>()((set, get) => {
             scheduleSessionSave()
           } else {
             set({ previewWindowOpen: false, previewRestoreOnDock: false })
+          }
+        } else if (event.type === 'now-playing') {
+          if (event.payload.open === true) {
+            set({
+              nowPlayingOpen: true,
+              nowPlayingPath: event.payload.path,
+              avDockResume: null
+            })
+          } else {
+            set({ nowPlayingOpen: false, nowPlayingPath: null })
+          }
+        } else if (event.type === 'now-playing-dock-request') {
+          const resumePath = event.payload.path
+          const tab = get().activeTab()
+          const sel = tab?.selected ?? []
+          const folderFallback =
+            !get().search.active && !get().recycleBin.active && get().listing.path.trim()
+              ? get().listing.path
+              : null
+          const previewPath = resolvePreviewTargetPath(sel, get().focusedPath, folderFallback)
+          if (previewPath && samePath(previewPath, resumePath)) {
+            set({
+              avDockResume: {
+                path: resumePath,
+                ...(event.payload.startAtSec != null
+                  ? { startAtSec: event.payload.startAtSec }
+                  : {}),
+                paused: event.payload.paused === true
+              }
+            })
+            void call(api.nowPlaying.stop())
+              .then(() => set({ nowPlayingOpen: false, nowPlayingPath: null }))
+              .catch((e) =>
+                get().notify(e instanceof IpcError ? e.message : String(e), true)
+              )
+          } else {
+            get().notify(
+              `Select “${basename(resumePath)}” in the file list to dock into the preview pane`
+            )
           }
         } else if (event.type === 'compiled-lists-window-closed') {
           const a = get().slideshow.active
@@ -7481,6 +7570,57 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     closeImageViewer() {
       set({ imageViewer: null })
+    },
+
+    async startNowPlaying(path) {
+      try {
+        const { nowPlayingOpen, nowPlayingPath } = get()
+        // Already sticky on this path — focus only (do not restart from 0).
+        if (nowPlayingOpen && nowPlayingPath != null && samePath(nowPlayingPath, path)) {
+          await call(api.nowPlaying.start({ path }))
+          return
+        }
+        if (get().avDockResume) set({ avDockResume: null })
+        // Capture docked position BEFORE tearing down players.
+        const chrome = captureDockedChromiumPlayback()
+        let startAtSec = chrome?.startAtSec
+        let paused = chrome?.paused
+        if (startAtSec == null || startAtSec <= 0) {
+          try {
+            const mpv = await call(api.preview.mpvTimePos())
+            if (mpv.seconds != null && mpv.seconds > 0) {
+              startAtSec = mpv.seconds
+              if (paused == null) paused = false
+            }
+          } catch {
+            /* no live mpv */
+          }
+        }
+        void api.preview.mpvStop()
+        const res = await call(
+          api.nowPlaying.start({
+            path,
+            ...(startAtSec != null && startAtSec > 0 ? { startAtSec } : {}),
+            ...(paused != null ? { paused } : {})
+          })
+        )
+        set({ nowPlayingOpen: true, nowPlayingPath: res.path })
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async stopNowPlaying() {
+      try {
+        await call(api.nowPlaying.stop())
+        set({ nowPlayingOpen: false, nowPlayingPath: null })
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    clearAvDockResume() {
+      if (get().avDockResume) set({ avDockResume: null })
     },
 
     openImageEditor(path, mediaUrl) {

@@ -3,6 +3,7 @@ import { usePreviewWideLayout } from '../../lib/usePreviewWideLayout'
 import { usePreviewWindowSplit } from '../../lib/usePreviewWindowSplit'
 import { Splitter } from '../Splitter'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
+import { allowDockedAvPlayer, allowDockedRichPlayer } from '@shared/previewAv'
 import { mediaPreviewChromeTitle } from '@shared/mediaMetadata'
 import { highlightLanguage } from '../../lib/highlight'
 import { basename } from '../../lib/paths'
@@ -13,8 +14,10 @@ import {
   AudioFileIcon,
   PdfFileIcon,
   SpinnerIcon,
+  PlayIcon,
   WrapTextIcon
 } from '../../lib/icons'
+import { useAppStore } from '../../store/appStore'
 import { ShellIcon } from '../ShellIcon'
 import {
   AudioPreview,
@@ -29,7 +32,6 @@ import {
   VideoPreview,
   VideoStripPreview
 } from './RichPreviews'
-import { allowDockedAvPlayer } from '@shared/previewAv'
 import { CodePreview } from './CodePreview'
 import { ZipArchivePreview } from './ZipArchivePreview'
 import { ChmPreview } from './ChmPreview'
@@ -509,7 +511,7 @@ function PreviewViewInner({
 
 function PreviewBody({
   model,
-  previewPath: _previewPath,
+  previewPath,
   mediaHold,
   previewWindowOpen,
   wide = false,
@@ -548,8 +550,57 @@ function PreviewBody({
   onRevealPath?: (path: string) => void
   onNotify?: (text: string, isError?: boolean) => void
 }): JSX.Element {
-  void _previewPath
   void _onRetryPlayableForce
+  const nowPlayingPath = useAppStore((s) => s.nowPlayingPath)
+  const nowPlayingOpen = useAppStore((s) => s.nowPlayingOpen)
+  const startNowPlaying = useAppStore((s) => s.startNowPlaying)
+  const avDockResume = useAppStore((s) => s.avDockResume)
+  const clearAvDockResume = useAppStore((s) => s.clearAvDockResume)
+  // Latch once so store clears / remounts cannot flip autoplay off mid-playback.
+  const [dockResume, setDockResume] = useState<{
+    path: string
+    startAtSec?: number
+    paused?: boolean
+  } | null>(null)
+  useEffect(() => {
+    if (!avDockResume) return
+    if (
+      avDockResume.path.replace(/\//g, '\\').toLowerCase() !==
+      model.path.replace(/\//g, '\\').toLowerCase()
+    ) {
+      return
+    }
+    setDockResume(avDockResume)
+  }, [avDockResume, model.path])
+  useEffect(() => {
+    if (nowPlayingOpen) setDockResume(null)
+  }, [nowPlayingOpen])
+  useEffect(() => {
+    setDockResume((prev) => {
+      if (!prev) return prev
+      if (
+        prev.path.replace(/\//g, '\\').toLowerCase() ===
+        model.path.replace(/\//g, '\\').toLowerCase()
+      ) {
+        return prev
+      }
+      return null
+    })
+    if (!avDockResume) return
+    if (
+      avDockResume.path.replace(/\//g, '\\').toLowerCase() ===
+      model.path.replace(/\//g, '\\').toLowerCase()
+    ) {
+      return
+    }
+    clearAvDockResume()
+  }, [model.path, avDockResume, clearAvDockResume])
+  const playAv = allowDockedAvPlayer({
+    mediaHold,
+    previewWindowOpen,
+    nowPlayingPath,
+    previewPath
+  })
   const contentFields = model.fields.filter((f) => (f.group ?? 'other') !== 'file')
   const hasRichFields = contentFields.length > 0
   const media = useMediaMetadata()
@@ -557,9 +608,31 @@ function PreviewBody({
     folderPane !== 'folder' &&
     !!media &&
     (mediaMetadataHasDetails(media.meta) || folderPane === 'media')
-  const playAv = allowDockedAvPlayer({ mediaHold, previewWindowOpen })
+  const playRich = allowDockedRichPlayer({
+    mediaHold,
+    previewWindowOpen,
+    nowPlayingOpen
+  })
   /** Opt-in mpv overlay — only when Chromium has no mediaUrl (MKV/etc.). */
-  const useRichPlayer = previewRichPlayerMpv === true && playAv && !model.mediaUrl
+  const useRichPlayer =
+    previewRichPlayerMpv === true && playRich && playAv && !model.mediaUrl
+  const sameAsNowPlaying =
+    nowPlayingOpen &&
+    nowPlayingPath != null &&
+    nowPlayingPath.replace(/\//g, '\\').toLowerCase() ===
+      previewPath.replace(/\//g, '\\').toLowerCase()
+  const keepPlayingBtn =
+    !zen && model.kind === 'video' ? (
+      <button
+        type="button"
+        className="btn now-playing-keep-btn"
+        title="Keep playing in a sticky window while you browse"
+        onClick={() => void startNowPlaying(model.path)}
+      >
+        <PlayIcon size={14} />
+        {sameAsNowPlaying ? 'Show Now Playing' : 'Keep playing'}
+      </button>
+    ) : null
   const videoCodecField = model.fields.find(
     (f) => f.id === 'videoCodec' || f.id === 'codec'
   )?.value
@@ -629,6 +702,12 @@ function PreviewBody({
       <div className="preview-content">
         <div className="preview-viz">
         {heroInViz ? <MediaMetadataHero /> : null}
+        {keepPlayingBtn}
+        {sameAsNowPlaying ? (
+          <div className="now-playing-docked-stub">
+            Playing in Now Playing window
+          </div>
+        ) : null}
         {/* Images stay mounted during mediaHold — mfe-media does not lock the source (D7). */}
         {model.kind === 'image' && (captionPosterUrl || model.mediaUrl) && (
           <div className="preview-media preview-media-fill">
@@ -669,8 +748,10 @@ function PreviewBody({
           <VideoPreview
             url={model.mediaUrl}
             posterUrl={model.posterUrl}
-            autoplay={previewVideoAutoplay}
+            autoplay={dockResume ? dockResume.paused !== true : previewVideoAutoplay}
             active={playAv}
+            startAtSec={dockResume?.startAtSec}
+            startPaused={dockResume ? dockResume.paused === true : undefined}
             videoCodec={videoCodecField}
             audioCodec={audioCodecField}
             onOpenExternal={() => onOpenPath(model.path)}
@@ -681,8 +762,9 @@ function PreviewBody({
           <MpvPreview
             path={model.path}
             posterUrl={model.posterUrl ?? model.stripFrames?.[0]}
-            autoplay={previewVideoAutoplay}
+            autoplay={dockResume ? dockResume.paused !== true : previewVideoAutoplay}
             active={playAv}
+            startAtSec={dockResume?.startAtSec}
             onOpenExternal={() => onOpenPath(model.path)}
           />
         )}

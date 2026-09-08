@@ -707,6 +707,17 @@ const settingsFieldsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Now Playing sticky player window geometry. */
+  nowPlayingWindowBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(320).max(10000),
+      height: z.number().min(240).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
   /** Detached Ask AI chat window geometry. */
   aiChatWindowBounds: z
     .object({
@@ -851,6 +862,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   remoteConnectionBounds: null,
   compiledListsWindowBounds: null,
   previewWindowBounds: null,
+  nowPlayingWindowBounds: null,
   aiChatWindowBounds: null,
   scriptManagerBounds: null,
   scriptGenerateBounds: null,

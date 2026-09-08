@@ -50,6 +50,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [AI_CHAT.md](AI_CHAT.md)                         | Ask AI chat window + starters (D51) |
 | [plans/AI_SEMANTIC_WORKBENCH.md](plans/AI_SEMANTIC_WORKBENCH.md) | Parked future plan — document Ask AI, explicit share consent, history stewardship (not implementing now) |
 | [plans/P2P_FOLDER_SHARING.md](plans/P2P_FOLDER_SHARING.md) | Parked DEV-gated plan — LAN P2P folder sharing (invite / host:port; per-peer write elevate) |
+| [plans/NOW_PLAYING.md](plans/NOW_PLAYING.md) | Sticky Now Playing window — browse while video keeps playing (not mini-bar) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [POWER_RENAME.md](POWER_RENAME.md)               | Power Rename — search/replace, DOS wildcards, Advanced options (D40) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |

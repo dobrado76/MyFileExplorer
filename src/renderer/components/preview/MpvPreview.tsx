@@ -11,6 +11,7 @@ export function MpvPreview({
   posterUrl,
   autoplay,
   active = true,
+  startAtSec,
   onOpenExternal,
   onFailed
 }: {
@@ -18,6 +19,8 @@ export function MpvPreview({
   posterUrl?: string
   autoplay?: boolean
   active?: boolean
+  /** Resume offset (seconds) for Now Playing handoff. */
+  startAtSec?: number
   onOpenExternal(): void
   onFailed?: (message: string) => void
 }): JSX.Element {
@@ -25,6 +28,12 @@ export function MpvPreview({
   const [status, setStatus] = useState<'starting' | 'playing' | 'error'>('starting')
   const [error, setError] = useState<string | null>(null)
   const startedFor = useRef<string | null>(null)
+  // Latch handoff opts for the session — prop churn (dock resume clear) must not
+  // tear down a live mpv and restart paused.
+  const autoplayRef = useRef(autoplay)
+  const startAtSecRef = useRef(startAtSec)
+  autoplayRef.current = autoplay
+  startAtSecRef.current = startAtSec
   const overlayBlocked = useAppStore(
     (s) => s.dialog != null || s.contextMenu != null || s.imageViewer != null
   )
@@ -89,10 +98,12 @@ export function MpvPreview({
         onFailed?.(msg)
         return
       }
+      const handoffAt = startAtSecRef.current
       const res = await api.preview.mpvStart({
         path,
         bounds,
-        autoplay: Boolean(autoplay)
+        autoplay: Boolean(autoplayRef.current),
+        ...(handoffAt != null && handoffAt > 0 ? { startAtSec: handoffAt } : {})
       })
       if (cancelled) {
         void api.preview.mpvStop()
@@ -136,8 +147,9 @@ export function MpvPreview({
         void api.preview.mpvStop()
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- path/autoplay/active drive the session
-  }, [path, autoplay, active])
+    // path/active only — startAtSec/autoplay are latched at start via refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handoff props must not restart mpv
+  }, [path, active])
 
   if (!active) {
     if (!posterUrl) return <div className="preview-mpv-host preview-mpv-host-idle" />

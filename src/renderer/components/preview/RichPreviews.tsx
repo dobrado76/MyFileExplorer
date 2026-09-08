@@ -419,6 +419,8 @@ export function VideoPreview({
   posterUrl,
   autoplay,
   active = true,
+  startAtSec,
+  startPaused,
   videoCodec,
   audioCodec,
   onOpenExternal
@@ -428,6 +430,10 @@ export function VideoPreview({
   autoplay?: boolean
   /** False: poster only (pop-out owns the live player). */
   active?: boolean
+  /** Seek here once metadata is ready (Now Playing handoff). */
+  startAtSec?: number
+  /** When set with startAtSec, honor pause instead of autoplay. */
+  startPaused?: boolean
   /** From preview meta (`videoCodec` / `codec`) when known. */
   videoCodec?: string
   audioCodec?: string
@@ -435,10 +441,12 @@ export function VideoPreview({
 }): JSX.Element | null {
   const [failed, setFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const seekApplied = useRef(false)
 
   useEffect(() => {
     setFailed(false)
-  }, [url])
+    seekApplied.current = false
+  }, [url, startAtSec])
 
   // Only tear down on unmount — clearing `src` while the node stays mounted
   // leaves a dead <video> because React will not re-apply the same src prop.
@@ -483,6 +491,12 @@ export function VideoPreview({
   }
 
   if (url && !failed) {
+    // Dock / Keep-playing handoff: continue unless explicitly paused.
+    const shouldAutoplay = startPaused === true ? false : Boolean(autoplay)
+    const needsHandoffSeek =
+      startAtSec != null && Number.isFinite(startAtSec) && startAtSec > 0
+    // Avoid autoPlay-from-0 racing the handoff seek (sounds like a restart).
+    const autoPlayAttr = shouldAutoplay && !needsHandoffSeek
     return (
       <div className="preview-media preview-av">
         <video
@@ -496,10 +510,42 @@ export function VideoPreview({
           disablePictureInPicture
           controlsList="nofullscreen nodownload noremoteplayback"
           preload="auto"
-          autoPlay={Boolean(autoplay)}
+          autoPlay={autoPlayAttr}
           onError={() => setFailed(true)}
           onLoadedMetadata={(e) => {
-            if (e.currentTarget.videoWidth === 0) setFailed(true)
+            if (e.currentTarget.videoWidth === 0) {
+              setFailed(true)
+              return
+            }
+            const el = e.currentTarget
+            const resumePlay = (): void => {
+              if (startPaused === true) {
+                el.pause()
+                return
+              }
+              if (shouldAutoplay) void el.play().catch(() => undefined)
+            }
+            if (!seekApplied.current && needsHandoffSeek && startAtSec != null) {
+              seekApplied.current = true
+              let settled = false
+              const finish = (): void => {
+                if (settled) return
+                settled = true
+                el.removeEventListener('seeked', finish)
+                resumePlay()
+              }
+              el.addEventListener('seeked', finish)
+              try {
+                el.currentTime = startAtSec
+              } catch {
+                finish()
+                return
+              }
+              // seeked can be skipped when already near the target.
+              window.setTimeout(finish, 350)
+            } else if (shouldAutoplay) {
+              resumePlay()
+            }
           }}
         />
       </div>

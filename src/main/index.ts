@@ -30,6 +30,7 @@ import { logMain } from './logging'
 import { dispatchFromArgv, focusMainWindow, setMainWindow } from './externalOpen'
 import { closeCompiledListsWindow } from './slideshow/compiledListsWindow'
 import { closePreviewWindow } from './preview/previewWindow'
+import { stopNowPlaying } from './preview/nowPlayingWindow'
 import { closeAllPropertiesWindows } from './properties/propertiesWindow'
 import { configureUserData } from './userData'
 import { parseUsnRecentCli, runUsnRecentCli } from './fs/usnRecentCli'
@@ -62,6 +63,14 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
   if (!gotLock) {
     app.quit()
   } else {
+    // Preview / Now Playing handoffs call video.play() without a gesture in the
+    // receiving window — allow continue-on-dock (Keep playing ↔ Dock cycles).
+    try {
+      app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
+    } catch {
+      /* ignore */
+    }
+
     // Before ready: prefer OS HEVC decoder for <video> (MP4/MOV). No-op if already default.
     // Soft-decode is not bundled — Windows still needs HEVC Video Extensions for many files.
     try {
@@ -116,6 +125,7 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
     win.on('close', () => {
       closeCompiledListsWindow()
       closePreviewWindow()
+      stopNowPlaying()
       closeAllPropertiesWindows()
     })
 

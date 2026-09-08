@@ -50,6 +50,7 @@ export default defineConfig({
           index: resolve(__dirname, 'src/renderer/index.html'),
           compiledLists: resolve(__dirname, 'src/renderer/compiledLists.html'),
           previewWindow: resolve(__dirname, 'src/renderer/previewWindow.html'),
+          nowPlaying: resolve(__dirname, 'src/renderer/nowPlaying.html'),
           propertiesWindow: resolve(__dirname, 'src/renderer/propertiesWindow.html'),
           aiChatWindow: resolve(__dirname, 'src/renderer/aiChatWindow.html')
         },

@@ -147,6 +147,15 @@ export const IPC = {
   previewMpvBounds: 'preview:mpvBounds',
   previewMpvVisible: 'preview:mpvVisible',
   previewMpvStop: 'preview:mpvStop',
+  /** Current playback time of the live Rich Player session (if any). */
+  previewMpvTimePos: 'preview:mpvTimePos',
+
+  /** Sticky Now Playing window (selection-independent). */
+  nowPlayingStart: 'nowPlaying:start',
+  nowPlayingStop: 'nowPlaying:stop',
+  nowPlayingGet: 'nowPlaying:get',
+  /** End sticky session and resume in the docked preview at the given offset. */
+  nowPlayingDock: 'nowPlaying:dock',
 
   /** Open one detached Properties window per path (peer of the shell). */
   propertiesOpenWindows: 'properties:openWindows',
@@ -505,6 +514,25 @@ export type MfeEvent =
   | {
       type: 'preview-window'
       payload: { open: boolean }
+    }
+  | {
+      type: 'now-playing'
+      payload: {
+        path: string | null
+        open: boolean
+        /** Resume offset in seconds (Chromium / mpv handoff). */
+        startAtSec?: number
+        /** When true, open paused at startAtSec. */
+        paused?: boolean
+      }
+    }
+  | {
+      type: 'now-playing-dock-request'
+      payload: {
+        path: string
+        startAtSec?: number
+        paused?: boolean
+      }
     }
   | {
       type: 'ai-chat-focus'

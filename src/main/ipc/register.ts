@@ -292,13 +292,19 @@ function assertRemoteReposEnabled(): void {
   }
 }
 import { ensurePlayablePreview, getChmTopicPreview, getImageDisplayUrl, getMediaPreviewMeta, getPreview } from '../preview'
-import { mpvProbe, setMpvBounds, setMpvVisible, startMpvSession, stopMpvForSender } from '../preview/mpvPlayer'
+import { mpvProbe, setMpvBounds, setMpvVisible, startMpvSession, stopMpvForSender, getMpvTimePos } from '../preview/mpvPlayer'
 import {
   closePreviewWindow,
   getPreviewTarget,
   openPreviewWindow,
   setPreviewTarget
 } from '../preview/previewWindow'
+import {
+  getNowPlaying,
+  requestDockNowPlaying,
+  startNowPlaying,
+  stopNowPlaying
+} from '../preview/nowPlayingWindow'
 import { openPropertiesWindows, getPropertiesWindowArgs } from '../properties/propertiesWindow'
 import { getThumbUrl, clearThumbCache } from '../thumbs'
 import { generateVidThumbStrips } from '../thumbs/generateVidThumbs'
@@ -846,7 +852,13 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewGetTarget, emptySchema, () => getPreviewTarget())
   handle(IPC.previewMpvAvailable, emptySchema, () => mpvProbe())
   handle(IPC.previewMpvStart, previewMpvStartSchema, (req, event) =>
-    startMpvSession(event.sender, req.path, req.bounds, req.autoplay === true)
+    startMpvSession(
+      event.sender,
+      req.path,
+      req.bounds,
+      req.autoplay === true,
+      req.startAtSec
+    )
   )
   handle(IPC.previewMpvBounds, previewMpvBoundsRequestSchema, (req, event) =>
     setMpvBounds(event.sender, req.bounds)
@@ -855,6 +867,30 @@ export function registerIpcHandlers(): void {
     setMpvVisible(event.sender, req.visible)
   )
   handle(IPC.previewMpvStop, emptySchema, (_req, event) => stopMpvForSender(event.sender))
+  handle(IPC.previewMpvTimePos, emptySchema, () => getMpvTimePos())
+  handle(
+    IPC.nowPlayingStart,
+    z.object({
+      path: z.string().min(1),
+      startAtSec: z.number().min(0).optional(),
+      paused: z.boolean().optional()
+    }),
+    (req) =>
+      startNowPlaying(req.path, {
+        startAtSec: req.startAtSec,
+        paused: req.paused
+      })
+  )
+  handle(IPC.nowPlayingStop, emptySchema, () => stopNowPlaying())
+  handle(IPC.nowPlayingGet, emptySchema, () => getNowPlaying())
+  handle(
+    IPC.nowPlayingDock,
+    z.object({
+      startAtSec: z.number().min(0).optional(),
+      paused: z.boolean().optional()
+    }),
+    (req) => requestDockNowPlaying({ startAtSec: req.startAtSec, paused: req.paused })
+  )
   handle(IPC.propertiesOpenWindows, openPropertiesWindowsRequestSchema, (req) =>
     openPropertiesWindows(req.paths, { separate: req.separate === true })
   )

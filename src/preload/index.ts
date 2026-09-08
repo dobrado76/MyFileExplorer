@@ -151,7 +151,14 @@ const api: MyFileExplorerApi = {
     mpvStart: invoke(IPC.previewMpvStart),
     mpvBounds: invoke(IPC.previewMpvBounds),
     mpvVisible: invoke(IPC.previewMpvVisible),
-    mpvStop: invokeVoid(IPC.previewMpvStop)
+    mpvStop: invokeVoid(IPC.previewMpvStop),
+    mpvTimePos: invokeVoid(IPC.previewMpvTimePos)
+  },
+  nowPlaying: {
+    start: invoke(IPC.nowPlayingStart),
+    stop: invokeVoid(IPC.nowPlayingStop),
+    get: invokeVoid(IPC.nowPlayingGet),
+    dock: invoke(IPC.nowPlayingDock)
   },
   properties: {
     openWindows: invoke(IPC.propertiesOpenWindows),
