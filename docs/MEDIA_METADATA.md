@@ -144,10 +144,11 @@ When the selected file or folder has streams — or you are inside a show/movie 
 
 1. **Show/movie folders — Media | Folder** — header tabs like Git | Folder (**Media** by default). **Media** = poster hero + cast/synopsis; **Folder** = directory / Calculate Statistics card (space map, largest files, …).
 2. **Hero** (Media tab / media files) — poster + title, year / SxxExx / show name. Click the poster for a fullscreen view of the **stored** image (not a web URL).
-3. Icon actions under the title (same glyphs as media-card hover): **Edit metadata…**, **Change cover**, **Mark as Watched** — labels are tooltips.
-4. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
-5. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills. Details are read-only — use **Edit metadata…** to change them.
-6. **Media / File tabs** (episode and other media **files** only) — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs. Folders use the header Media | Folder split instead.
+3. **Preview chrome title** (compact header above the hero) — when stored media metadata exists, episodes show `Show - S03E04` (not the dotted release stem / embedded file title). Movies/shows use the title (+ year). Without metadata, keep the existing subtitle / kind fallback. The full filename stays in File details.
+4. Icon actions under the title (same glyphs as media-card hover): **Edit metadata…**, **Change cover**, **Mark as Watched** — labels are tooltips.
+5. **Player** (if it is a video). Hero and player stay above the metadata; fields never overlay the still.
+6. **Details** — language, country, genres (pills), directors, actors, ratings (source mark + score: Plex, Plex audience, TMDB, IMDb, Rotten Tomatoes, Metacritic; tooltip is the name), synopsis. Field values use the same boxed rows as file metadata; genres stay pills. Details are read-only — use **Edit metadata…** to change them.
+7. **Media / File tabs** (episode and other media **files** only) — when both movie/TV details and extracted file metadata (duration, codec, …) exist, they share a tab strip under the player. One source only: no tabs. Folders use the header Media | Folder split instead.
 
 Cover height is **Cover art size**.
 

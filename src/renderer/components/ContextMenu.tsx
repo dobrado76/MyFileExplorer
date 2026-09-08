@@ -302,14 +302,19 @@ function metadataSetFolderMenu(
 function sharedMetadataSetId(
   paths: string[],
   entries: { path: string; kind: string }[] | undefined,
-  s: ReturnType<typeof useAppStore.getState>
+  s: ReturnType<typeof useAppStore.getState>,
+  opts?: { treatAsFolders?: boolean }
 ): string | null {
   const um = s.settings.userMetadata ?? { enabled: false, sets: [], bindings: [] }
   if (um.sets.length === 0 || paths.length === 0) return null
   let setId: string | null | undefined
   for (const p of paths) {
     const e = entries?.find((en) => samePath(en.path, p))
-    const isDir = e?.kind === 'dir' || e?.kind === 'directory'
+    // Tree targets are always folders. They often are not rows in listing.entries
+    // (cwd, ancestors, Quick access) — without this, isDir is false and resolution
+    // treats the path as a file (parent binding only), greying out Metadata.
+    const isDir =
+      opts?.treatAsFolders === true || e?.kind === 'dir' || e?.kind === 'directory'
     const set = resolveMetadataSetForItem(p, !!isDir, um)
     if (!set) return null
     if (setId === undefined) setId = set.id
@@ -322,12 +327,13 @@ function userMetadataEditMenu(
   paths: string[],
   close: () => void,
   s: ReturnType<typeof useAppStore.getState>,
-  entries: { path: string; kind: string }[] | undefined
+  entries: { path: string; kind: string }[] | undefined,
+  opts?: { treatAsFolders?: boolean }
 ): MenuItem[] {
   if (s.settings.userMetadata?.enabled !== true) return []
   const targets = paths.filter((p) => itemAdsAvailable(s.platform, p, s.recycleBin.active))
   if (targets.length === 0) return []
-  const setId = sharedMetadataSetId(targets, entries, s)
+  const setId = sharedMetadataSetId(targets, entries, s, opts)
   const clip = getUserMetadataClipboard()
   const pasteOk =
     clip != null && setId != null && clip.setId === setId && targets.length > 0
@@ -2887,7 +2893,8 @@ export function ContextMenu(): JSX.Element | null {
                 : [single],
               close,
               s,
-              entries
+              entries,
+              { treatAsFolders: menu.inTree === true }
             ),
             {
               type: 'item' as const,

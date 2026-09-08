@@ -41,6 +41,17 @@ export function PreviewPane(): JSX.Element {
   const drivesOverview = useAppStore((s) => s.drivesOverview)
   const listingPath = useAppStore((s) => s.listing.path)
   const { previewPath, selectedStamp, versionOverrideAds, selected } = usePreviewTarget()
+
+  // After Open with default app, keep mediaHold until the preview target changes
+  // so Rich Player does not restart and steal focus from VLC/etc.
+  useEffect(() => {
+    const hold = useAppStore.getState().previewExternalHoldPath
+    if (!hold) return
+    if (!previewPath || !samePath(hold, previewPath)) {
+      useAppStore.setState({ mediaHold: false, previewExternalHoldPath: null })
+    }
+  }, [previewPath])
+
   const driveSpace = useMemo(
     () =>
       drivesOverview

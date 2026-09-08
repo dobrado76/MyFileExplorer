@@ -121,7 +121,14 @@ export type MyFileExplorerApi = {
     saveEditedImage(req: {
       path: string
       dataBase64: string
-    }): Promise<Result<{ path: string; preservedOriginal: boolean; versionCount: number }>>
+    }): Promise<
+      Result<{
+        path: string
+        preservedOriginal: boolean
+        versionCount: number
+        metadataPreserved: boolean
+      }>
+    >
     /** Version Control state (`VER_COUNT` / tip). */
     imageEditState(req: PathRequest): Promise<
       Result<{ versionCount: number; tipVer: number; hasVersions: boolean }>
@@ -143,14 +150,19 @@ export type MyFileExplorerApi = {
     }): Promise<Result<{ dataBase64: string; mime: string }>>
     /** Slideshow numpad crop — single encode from pristine `$DATA`. */
     cropSlideshowImage(req: import('../schemas/imageEdit').CropSlideshowImageRequest): Promise<
-      Result<{ path: string; preservedOriginal: boolean; versionCount: number }>
+      Result<{
+        path: string
+        preservedOriginal: boolean
+        versionCount: number
+        metadataPreserved: boolean
+      }>
     >
     /** Save dialog + write; no original backup (Save As). */
     saveEditedImageAs(req: {
       dataBase64: string
       defaultPath: string
       sourcePath: string
-    }): Promise<Result<{ path: string | null; cancelled: boolean }>>
+    }): Promise<Result<{ path: string | null; cancelled: boolean; metadataPreserved?: boolean }>>
     /** Ensure LaMa ONNX is cached; returns path + fetchable modelUrl for ORT. */
     ensureLamaModel(): Promise<
       Result<{ path: string; downloaded: boolean; modelUrl: string }>

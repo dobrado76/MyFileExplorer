@@ -667,6 +667,11 @@ type AppState = {
    * (D7) and stay painted to avoid a black flash on delete.
    */
   mediaHold: boolean
+  /**
+   * Path opened with the system default app — keep `mediaHold` until preview
+   * target changes so Rich Player (mpv) does not restart and steal focus from VLC.
+   */
+  previewExternalHoldPath: string | null
   /** Detached preview window is open — docked pane must not mount `<video>`/`<audio>`. */
   previewWindowOpen: boolean
   /** Re-show the docked pane when the detached window closes (we hid it on open). */
@@ -2700,7 +2705,20 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   function clearMediaHold(): void {
-    if (get().mediaHold) set({ mediaHold: false })
+    if (get().mediaHold || get().previewExternalHoldPath) {
+      set({ mediaHold: false, previewExternalHoldPath: null })
+    }
+  }
+
+  /** Stop in-pane / Rich Player media before shell-open so external apps stay foreground. */
+  async function holdPreviewForExternalOpen(path: string): Promise<void> {
+    set({ mediaHold: true, previewExternalHoldPath: path })
+    void api.preview.mpvStop()
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => resolve())
+      })
+    })
   }
 
   function viewOrderFilterKey(s: {
@@ -3261,6 +3279,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     imageEditor: null,
     imageVersionPreview: null,
     mediaHold: false,
+    previewExternalHoldPath: null,
     previewWindowOpen: false,
     previewRestoreOnDock: false,
     contextMenu: null,
@@ -7356,6 +7375,10 @@ export const useAppStore = create<AppState>()((set, get) => {
             message: `Opening ${label}…`
           }
         })
+      } else {
+        // Double-click / Open: stop Rich Player before VLC (etc.) so mpv overlay
+        // placement cannot pull MFE above the external player.
+        await holdPreviewForExternalOpen(path)
       }
       try {
         const res = await call(api.shell.openPath({ path }))
@@ -7374,7 +7397,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           set({ remoteBusyDialog: null })
           return
         }
-        if (!res.opened) get().notify(res.message ?? 'Could not open file', true)
+        if (!res.opened) {
+          clearMediaHold()
+          get().notify(res.message ?? 'Could not open file', true)
+        }
       } catch (e) {
         const detail = e instanceof IpcError ? e.message : String(e)
         if (remote) {
@@ -7388,6 +7414,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
           return
         }
+        clearMediaHold()
         get().notify(detail, true)
       }
     },
@@ -7471,8 +7498,15 @@ export const useAppStore = create<AppState>()((set, get) => {
     async saveEditedImage(path, dataBase64) {
       await releaseMediaLocks()
       try {
-        await call(api.fs.saveEditedImage({ path, dataBase64 }))
-        get().notify('Image saved')
+        const res = await call(api.fs.saveEditedImage({ path, dataBase64 }))
+        if (res.metadataPreserved === false) {
+          get().notify(
+            'Image saved — generation metadata (prompt) could not be preserved',
+            true
+          )
+        } else {
+          get().notify('Image saved')
+        }
         set({ imageEditor: null, imageVersionPreview: null })
         get().slideshowInvalidateImage(path)
         await api.meta.invalidate({ paths: [path] })
@@ -7502,7 +7536,14 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
         )
         if (res.cancelled || !res.path) return null
-        get().notify(`Saved as ${basename(res.path)}`)
+        if (res.metadataPreserved === false) {
+          get().notify(
+            `Saved as ${basename(res.path)} — generation metadata could not be preserved`,
+            true
+          )
+        } else {
+          get().notify(`Saved as ${basename(res.path)}`)
+        }
         await get().refresh()
         return res.path
       } catch (e) {

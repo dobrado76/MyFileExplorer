@@ -102,6 +102,7 @@ export function PreviewWindowApp(): JSX.Element {
   const gitByRoot = useAppStore((s) => s.gitByRoot)
   const mergeGitStatus = useAppStore((s) => s.mergeGitStatus)
   const notify = useAppStore((s) => s.notify)
+  const mediaHold = useAppStore((s) => s.mediaHold)
 
   useEffect(() => {
     const load = (): void => {
@@ -200,6 +201,14 @@ export function PreviewWindowApp(): JSX.Element {
     }
   }, [gitEnabled, target.path, mergeGitStatus])
 
+  useEffect(() => {
+    const hold = useAppStore.getState().previewExternalHoldPath
+    if (!hold) return
+    if (!target.path || !samePath(hold, target.path)) {
+      useAppStore.setState({ mediaHold: false, previewExternalHoldPath: null })
+    }
+  }, [target.path])
+
   const driveSpace = useMemo(
     () =>
       target.path && isVolumeRootPath(target.path) && drives.length > 0
@@ -252,6 +261,7 @@ export function PreviewWindowApp(): JSX.Element {
           detached
           previewVideoAutoplay={autoplay}
           previewRichPlayerMpv={richPlayer}
+          mediaHold={mediaHold}
           zen={zen}
           textWordWrap={textWordWrap}
           onToggleTextWordWrap={toggleWordWrap}
@@ -278,7 +288,7 @@ export function PreviewWindowApp(): JSX.Element {
               </button>
             </>
           }
-          onOpenPath={(path) => void api.shell.openPath({ path })}
+          onOpenPath={(path) => void useAppStore.getState().openPath(path)}
           onRevealPath={(path) => void api.shell.showItemInFolder({ path })}
           onExtractZip={(paths) => void api.fs.extractZip({ paths })}
           onNotify={notify}

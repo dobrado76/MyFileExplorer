@@ -3,6 +3,7 @@ import { usePreviewWideLayout } from '../../lib/usePreviewWideLayout'
 import { usePreviewWindowSplit } from '../../lib/usePreviewWindowSplit'
 import { Splitter } from '../Splitter'
 import type { PreviewModel, PreviewField } from '@shared/schemas/preview'
+import { mediaPreviewChromeTitle } from '@shared/mediaMetadata'
 import { highlightLanguage } from '../../lib/highlight'
 import { basename } from '../../lib/paths'
 import {
@@ -227,15 +228,18 @@ function PreviewViewInner({
     ? mediaFolderTab
     : 'combined'
 
+  const mediaChromeTitle = mediaMeta ? mediaPreviewChromeTitle(mediaMeta.meta) : null
   const headerSub = driveSpace
     ? driveSpace.focusPath
       ? 'Local disk'
       : 'Drives'
     : showRepoTabs || showMediaFolderTabs
       ? null
-      : model
-        ? (model.subtitle ?? kindLabel(model.kind))
-        : null
+      : mediaChromeTitle
+        ? mediaChromeTitle
+        : model
+          ? (model.subtitle ?? kindLabel(model.kind))
+          : null
   const multiHint = multiCount > 1 ? `${multiCount} selected` : null
 
   const copyValue = async (value: string): Promise<void> => {

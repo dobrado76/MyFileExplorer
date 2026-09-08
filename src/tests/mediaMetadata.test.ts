@@ -14,6 +14,7 @@ import {
   normalizeEpisodeFields,
   episodeIconLabel,
   episodeIconTitle,
+  mediaPreviewChromeTitle,
   isEpisodeListEntry,
   isGenericMediaFolderName,
   isMediaTitleFolder,
@@ -464,6 +465,37 @@ describe('episode icon labels', () => {
     expect(episodeIconLabel({ kind: 'show', season: 1, episode: 7 })).toBeNull()
     expect(episodeIconLabel({ kind: 'episode' })).toBeNull()
     expect(episodeIconLabel(undefined)).toBeNull()
+  })
+
+  it('mediaPreviewChromeTitle prefers show + SxxExx for episodes', () => {
+    expect(
+      mediaPreviewChromeTitle({
+        kind: 'episode',
+        title: 'A Space Adventure Hour',
+        showTitle: 'Star Trek Strange New Worlds',
+        season: 3,
+        episode: 4,
+        year: 2025
+      })
+    ).toBe('Star Trek Strange New Worlds - S03E04')
+    expect(
+      mediaPreviewChromeTitle({
+        kind: 'episode',
+        title: 'Untitled',
+        showTitle: 'Dexter',
+        season: 1,
+        episode: 7
+      })
+    ).toBe('Dexter - S01E07')
+    expect(
+      mediaPreviewChromeTitle({
+        kind: 'movie',
+        title: 'Dune',
+        year: 2021
+      })
+    ).toBe('Dune (2021)')
+    expect(mediaPreviewChromeTitle({ kind: 'show', title: 'Babylon 5' })).toBe('Babylon 5')
+    expect(mediaPreviewChromeTitle(null)).toBeNull()
   })
 
   it('shows a real episode title under SxxExx, not the show name', () => {

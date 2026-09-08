@@ -3,6 +3,8 @@
  * ComfyUI image-savers typically store them in UserComment (and Windows shows that as Comments).
  */
 
+const JPEG_COM_MAX_PAYLOAD = 65533 // marker length field includes 2 length bytes
+
 /** JPEG COM (0xFFFE) comment segments. */
 export function extractJpegComComments(buf: Buffer): string[] {
   const out: string[] = []
@@ -31,6 +33,44 @@ export function extractJpegComComments(buf: Buffer): string[] {
     i += len
   }
   return out
+}
+
+function encodeJpegComPayload(text: string): Buffer {
+  // Prefer UTF-8; fall back to latin1 if somehow needed for length (always utf8 for gen text).
+  return Buffer.from(text, 'utf8')
+}
+
+function buildJpegComSegment(payload: Buffer): Buffer {
+  const len = 2 + payload.length
+  const seg = Buffer.alloc(2 + len)
+  seg[0] = 0xff
+  seg[1] = 0xfe
+  seg.writeUInt16BE(len, 2)
+  payload.copy(seg, 4)
+  return seg
+}
+
+/**
+ * Insert JPEG COM segments immediately after SOI (FF D8).
+ * Splits oversized comments across multiple COM markers.
+ * Does not remove existing COM — callers usually re-encode first (no COM left).
+ */
+export function insertJpegComComments(jpegBuf: Buffer, comments: readonly string[]): Buffer {
+  const texts = comments.map((c) => c.trim()).filter(Boolean)
+  if (texts.length === 0) return jpegBuf
+  if (jpegBuf.length < 2 || jpegBuf[0] !== 0xff || jpegBuf[1] !== 0xd8) return jpegBuf
+
+  const segments: Buffer[] = []
+  for (const text of texts) {
+    let payload = encodeJpegComPayload(text)
+    while (payload.length > 0) {
+      const chunk = payload.subarray(0, Math.min(payload.length, JPEG_COM_MAX_PAYLOAD))
+      segments.push(buildJpegComSegment(chunk))
+      payload = payload.subarray(chunk.length)
+    }
+  }
+  if (segments.length === 0) return jpegBuf
+  return Buffer.concat([jpegBuf.subarray(0, 2), ...segments, jpegBuf.subarray(2)])
 }
 
 function decodeLatin1OrUtf8(buf: Buffer): string {

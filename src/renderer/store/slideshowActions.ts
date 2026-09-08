@@ -700,10 +700,17 @@ export function createSlideshowActions(get: Get, set: Set) {
     async slideshowCropSave(imagePath: string, crop: import('@shared/slideshow/crop').SlideshowAccumulatedCrop) {
       if (!gateOn(get)) return false
       try {
-        await call(api.fs.cropSlideshowImage({ path: imagePath, crop }))
+        const cropRes = await call(api.fs.cropSlideshowImage({ path: imagePath, crop }))
         actions.slideshowInvalidateImage(imagePath)
         get().bumpColumnMeta(imagePath)
-        get().notify('Crop saved')
+        if (cropRes.metadataPreserved === false) {
+          get().notify(
+            'Crop saved — generation metadata (prompt) could not be preserved',
+            true
+          )
+        } else {
+          get().notify('Crop saved')
+        }
         return true
       } catch (e) {
         get().notify(e instanceof IpcError ? e.message : String(e), true)

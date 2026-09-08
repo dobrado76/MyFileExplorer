@@ -195,7 +195,9 @@ export function placeMpvOverlay(
     r.y,
     r.width,
     r.height,
-    SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED
+    // Match move/show: never SWP_SHOWWINDOW — that re-raises the owned overlay
+    // (and often the MFE owner) above external players like VLC.
+    SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED
   )
   u.ShowWindow(mpvHwnd, SW_SHOWNA)
 }

@@ -645,7 +645,7 @@ export function registerIpcHandlers(): void {
         ? await dialog.showSaveDialog(win, opts)
         : await dialog.showSaveDialog(opts)
       if (result.canceled || !result.filePath) {
-        return { path: null as string | null, cancelled: true }
+        return { path: null as string | null, cancelled: true as const }
       }
       muteWatchers()
       const written = await writeEditedImageToPath(
@@ -653,7 +653,11 @@ export function registerIpcHandlers(): void {
         req.dataBase64,
         req.sourcePath
       )
-      return { path: written.path, cancelled: false }
+      return {
+        path: written.path,
+        cancelled: false as const,
+        metadataPreserved: written.metadataPreserved
+      }
     }
   )
 

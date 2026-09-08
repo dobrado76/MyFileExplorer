@@ -438,6 +438,35 @@ export function episodeIconLabel(
 }
 
 /**
+ * Compact preview chrome title when D50 media metadata is present.
+ * Episodes: `Show - S03E04` (episode title stays in the hero).
+ * Movies / shows: title, with `(year)` when known.
+ * Returns null when nothing cleaner than the file/stem fallback is available.
+ */
+export function mediaPreviewChromeTitle(
+  meta: Pick<
+    MediaMetadata,
+    'kind' | 'title' | 'showTitle' | 'season' | 'episode' | 'year'
+  > | null
+  | undefined
+): string | null {
+  if (!meta) return null
+  if (meta.kind === 'episode') {
+    const show = meta.showTitle?.trim() || null
+    const code = formatEpisodeCode(meta.season, meta.episode)
+    if (show && code) return `${show} - ${code}`
+    if (show) return show
+    if (code) return code
+    const title = meta.title?.trim()
+    return title || null
+  }
+  const title = meta.title?.trim()
+  if (!title) return null
+  if (meta.year != null && meta.year > 0) return `${title} (${meta.year})`
+  return title
+}
+
+/**
  * Episode title for icon tiles. Skips empty, “Untitled”, show-name duplicates,
  * and labels that are only an SxxExx code.
  */
