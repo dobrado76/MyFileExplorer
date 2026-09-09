@@ -1,5 +1,6 @@
 /**
- * Detached Compiled Lists BrowserWindow.
+ * Detached Compiled Lists BrowserWindow — peer of the explorer (no parent).
+ * Owned children (`parent: main`) drift on Windows when bounds are restored.
  */
 import path from 'node:path'
 import { BrowserWindow, screen } from 'electron'
@@ -7,11 +8,13 @@ import appIcon from '../../../resources/icon.png?asset'
 import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
-import { getMainWindow } from '../externalOpen'
 import { isDevGateActive } from '../devGate'
 import { AppError } from '@shared/result'
 
 let listsWin: BrowserWindow | null = null
+
+const MIN_WIDTH = 480
+const MIN_HEIGHT = 360
 
 function defaultBounds(): { x: number; y: number; width: number; height: number } {
   const wa = screen.getPrimaryDisplay().workArea
@@ -25,9 +28,39 @@ function defaultBounds(): { x: number; y: number; width: number; height: number 
   }
 }
 
+function clampOntoDisplay(saved: {
+  x: number
+  y: number
+  width: number
+  height: number
+}): { x: number; y: number; width: number; height: number } {
+  const width = Math.max(MIN_WIDTH, Math.round(saved.width))
+  const height = Math.max(MIN_HEIGHT, Math.round(saved.height))
+  const onScreen = screen.getAllDisplays().some((d) => {
+    const b = d.workArea
+    return (
+      saved.x >= b.x - 50 &&
+      saved.y >= b.y - 50 &&
+      saved.x < b.x + b.width &&
+      saved.y < b.y + b.height
+    )
+  })
+  if (onScreen) {
+    return { x: Math.round(saved.x), y: Math.round(saved.y), width, height }
+  }
+  const wa = screen.getPrimaryDisplay().workArea
+  return {
+    x: wa.x + Math.max(0, Math.floor((wa.width - width) / 2)),
+    y: wa.y + Math.max(0, Math.floor((wa.height - height) / 2)),
+    width: Math.min(width, wa.width),
+    height: Math.min(height, wa.height)
+  }
+}
+
 function persistBounds(win: BrowserWindow): void {
   if (win.isDestroyed() || win.isMinimized()) return
-  const b = win.getBounds()
+  const maximized = win.isMaximized()
+  const b = maximized ? win.getNormalBounds() : win.getBounds()
   try {
     patchSettings({
       compiledListsWindowBounds: {
@@ -50,17 +83,15 @@ export function openCompiledListsWindow(): { opened: true } {
   }
 
   const saved = settingsStore().get().compiledListsWindowBounds
-  const bounds = saved ?? defaultBounds()
-  const parent = getMainWindow() ?? undefined
+  const bounds = saved ? clampOntoDisplay(saved) : defaultBounds()
 
   listsWin = new BrowserWindow({
-    parent,
     x: bounds.x,
     y: bounds.y,
     width: bounds.width,
     height: bounds.height,
-    minWidth: 480,
-    minHeight: 360,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     show: false,
     icon: appIcon,
     autoHideMenuBar: true,
@@ -75,7 +106,15 @@ export function openCompiledListsWindow(): { opened: true } {
   })
 
   const win = listsWin
-  win.once('ready-to-show', () => win.show())
+  // Re-apply after create — constructor x/y can disagree with the final frame on Windows.
+  win.setBounds(bounds)
+  const save = (): void => persistBounds(win)
+  win.on('resize', save)
+  win.on('move', save)
+  win.once('ready-to-show', () => {
+    win.setBounds(bounds)
+    win.show()
+  })
   win.on('close', () => persistBounds(win))
   win.on('closed', () => {
     // If a newer lists window already replaced this one, do not pair-stop the slideshow.
