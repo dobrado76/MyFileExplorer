@@ -91,6 +91,7 @@ import { CloseIcon } from '../lib/icons'
 import { CoverPickerDialog } from './CoverPickerDialog'
 import { ScriptManagerDialog } from './ScriptManagerDialog'
 import { ScriptRunnerDialog } from './ScriptRunnerDialog'
+import { ScriptQueueDialog } from './ScriptQueueDialog'
 import { ScriptGenerateDialog } from './ScriptGenerateDialog'
 import { AiSettingsPanel } from './AiSettingsPanel'
 import { SettingsClampedNumber } from './SettingsClampedNumber'
@@ -434,8 +435,12 @@ export function Dialogs(): JSX.Element | null {
           paths={dialog.paths}
           recursive={dialog.recursive}
           dryRun={dialog.dryRun}
+          editJobId={dialog.editJobId}
+          params={dialog.params}
         />
       )
+    case 'script-queue':
+      return <ScriptQueueDialog />
     case 'script-generate':
       return (
         <ScriptGenerateDialog

@@ -759,6 +759,16 @@ const settingsFieldsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Last Script Queue manager geometry. */
+  scriptQueueBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(420).max(10000),
+      height: z.number().min(320).max(10000)
+    })
+    .nullable()
+    .catch(null),
   /**
    * User-defined external context-menu commands + optional hidden built-ins (D41).
    */
@@ -867,6 +877,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   scriptManagerBounds: null,
   scriptGenerateBounds: null,
   scriptRunnerBounds: null,
+  scriptQueueBounds: null,
   scripts: defaultScriptsSettings,
   ai: defaultAiSettings,
   git: defaultGitSettings,

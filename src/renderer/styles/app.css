@@ -5054,6 +5054,90 @@ button.media-metadata-hero-poster.is-clickable:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
+.statusbar .status-script {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-right: 10px;
+  padding-right: 10px;
+  border-right: 1px solid var(--border);
+}
+.statusbar .status-script-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.statusbar .status-script-expand,
+.statusbar .status-script-queue {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  padding: 1px 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9em;
+}
+.statusbar .status-script-expand:hover,
+.statusbar .status-script-queue:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.script-queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.script-queue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+}
+.script-queue-row.is-active {
+  border-color: var(--accent);
+}
+.script-queue-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.script-queue-badge {
+  font-size: 0.8em;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+.script-queue-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.script-queue-dry {
+  font-size: 0.8em;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.script-queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.script-queue-empty {
+  opacity: 0.75;
+  margin: 12px 0;
+}
 @keyframes status-op-indeterminate {
   0% {
     transform: translateX(-120%);

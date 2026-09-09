@@ -25,7 +25,8 @@ describe('settings export / import', () => {
       aiChatWindowBounds: { x: 11, y: 12, width: 900, height: 700, maximized: false },
       scriptManagerBounds: { x: 11, y: 12, width: 800, height: 600, maximized: false },
       scriptGenerateBounds: { x: 13, y: 14, width: 720, height: 520, maximized: false },
-      scriptRunnerBounds: { x: 15, y: 16, width: 760, height: 640 }
+      scriptRunnerBounds: { x: 15, y: 16, width: 760, height: 640 },
+      scriptQueueBounds: { x: 20, y: 21, width: 560, height: 480 }
     }
     const portable = settingsForPortableExport(withBounds)
     for (const key of windowLikeSettingsKeys()) {
@@ -492,6 +493,7 @@ describe('settings export / import', () => {
     expect(parsed.settings.scriptManagerBounds).toBeNull()
     expect(parsed.settings.scriptGenerateBounds).toBeNull()
     expect(parsed.settings.scriptRunnerBounds).toBeNull()
+    expect(parsed.settings.scriptQueueBounds).toBeNull()
   })
 
   it('round-trips mediaMetadata nested prefs via full settingsSchema', () => {

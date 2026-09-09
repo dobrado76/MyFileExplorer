@@ -32,7 +32,8 @@ const WINDOW_LIKE_KEYS = [
   'aiChatWindowBounds',
   'scriptManagerBounds',
   'scriptGenerateBounds',
-  'scriptRunnerBounds'
+  'scriptRunnerBounds',
+  'scriptQueueBounds'
 ] as const
 
 /**
@@ -56,7 +57,8 @@ export function settingsForPortableExport(settings: Settings): Settings {
     aiChatWindowBounds: null,
     scriptManagerBounds: null,
     scriptGenerateBounds: null,
-    scriptRunnerBounds: null
+    scriptRunnerBounds: null,
+    scriptQueueBounds: null
   })
 }
 

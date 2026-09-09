@@ -70,7 +70,7 @@ export function beginOp(kind: FileOpKind, total: number, label?: string): OpRepo
       phase === 'running' &&
       done > 0 &&
       done < safeTotal &&
-      now - lastEmitMs < 50
+      now - lastEmitMs < 100
     ) {
       pendingCurrent = current ?? pendingCurrent
       return

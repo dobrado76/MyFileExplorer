@@ -21,7 +21,13 @@ describe('script dialog stack', () => {
 
   it('recognizes script dialog kinds', () => {
     expect(isScriptDialogKind('script-run')).toBe(true)
+    expect(isScriptDialogKind('script-queue')).toBe(true)
     expect(isScriptDialogKind('confirm')).toBe(false)
+  })
+
+  it('stacks queue with manager and run', () => {
+    expect(shouldPushScriptDialog('script-manager', 'script-queue')).toBe(true)
+    expect(shouldPushScriptDialog('script-queue', 'script-run')).toBe(true)
   })
 
   it('does not stack Properties (detached windows) with USN', () => {

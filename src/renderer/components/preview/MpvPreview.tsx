@@ -29,11 +29,14 @@ export function MpvPreview({
   const [error, setError] = useState<string | null>(null)
   const startedFor = useRef<string | null>(null)
   // Latch handoff opts for the session — prop churn (dock resume clear) must not
-  // tear down a live mpv and restart paused.
+  // tear down a live mpv and restart paused. Sync in an effect (not render) for
+  // react-hooks/refs; keep this effect above the start effect so latches are fresh.
   const autoplayRef = useRef(autoplay)
   const startAtSecRef = useRef(startAtSec)
-  autoplayRef.current = autoplay
-  startAtSecRef.current = startAtSec
+  useEffect(() => {
+    autoplayRef.current = autoplay
+    startAtSecRef.current = startAtSec
+  }, [autoplay, startAtSec])
   const overlayBlocked = useAppStore(
     (s) => s.dialog != null || s.contextMenu != null || s.imageViewer != null
   )

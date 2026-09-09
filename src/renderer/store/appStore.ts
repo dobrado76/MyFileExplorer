@@ -381,7 +381,11 @@ export type DialogState =
       paths?: string[]
       recursive?: boolean
       dryRun?: boolean
+      /** When set, Save updates this pending queue job instead of enqueueing. */
+      editJobId?: string
+      params?: Record<string, string | number | boolean>
     }
+  | { kind: 'script-queue' }
   | {
       kind: 'script-generate'
       mode?: import('@shared/schemas/scripts').ScriptRunMode
@@ -654,6 +658,23 @@ type AppState = {
   /** Previous script dialogs (Manager / Generate / Run) so Close returns to the caller. */
   dialogStack: Exclude<DialogState, null>[]
   scriptLibrary: import('@shared/schemas/scripts').ScriptDefinition[]
+  /** Live script run queue (session-only; from main `script-queue` events). */
+  scriptQueue: import('@shared/scriptRunQueue').ScriptQueueJob[]
+  /**
+   * Minimized / background script runner UI — keeps log while the dialog is closed.
+   */
+  scriptRunnerUi: {
+    minimized: boolean
+    jobId: string | null
+    runId: string | null
+    label: string
+    output: string
+    status: 'idle' | 'running' | 'done'
+    exitCode: number | null
+    startedAt: number | null
+    dryRun: boolean
+    dialog: Extract<DialogState, { kind: 'script-run' }> | null
+  } | null
   /** In-app full-size image viewer (double-click / Enter on images). */
   imageViewer: { path: string; siblings: string[] } | null
   /** In-app Filerobot image editor (preview Edit button / context menu). */
@@ -1093,6 +1114,21 @@ type AppState = {
   // dialogs / menus
   openDialog(dialog: DialogState): void
   closeDialog(): void
+  /** Collapse the script runner to the status bar without cancelling. */
+  minimizeScriptRunner(snapshot: {
+    jobId: string | null
+    runId: string | null
+    label: string
+    output: string
+    status: 'idle' | 'running' | 'done'
+    exitCode: number | null
+    startedAt: number | null
+    dryRun: boolean
+    dialog: Extract<DialogState, { kind: 'script-run' }>
+  }): void
+  expandScriptRunner(): void
+  openScriptQueue(): void
+  clearScriptRunnerUi(): void
   /** Open detached Properties windows (combined multi-select; Shift = one per path). */
   openPropertiesWindows(paths: string[], opts?: { separate?: boolean }): Promise<void>
   openContextMenu(menu: ContextMenuState): void
@@ -1915,7 +1951,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
         const movedSrc = r.movePairs.map((p) => p.from)
         if (movedSrc.length > 0) {
-          pruneListingRemoved(movedSrc)
+          // Same as delete: prune + selection in place — never full-refresh the source folder.
+          selectAfterDelete(movedSrc)
           const np = get().nowPlayingPath
           if (np) {
             const playing = np.replace(/\//g, '\\').toLowerCase()
@@ -1947,7 +1984,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (op2 === 'move' && r.movePairs.length > 0) {
         await syncOpenVirtualFoldersAfterRenames(r.movePairs)
       }
-      await get().refresh()
+      // Soft-reload destination if open (arrivals). Source folder already pruned for moves.
+      await softReloadIfOpen(dest)
+      if (op2 === 'move') armWatchesForVisiblePanes()
       // After same-folder Keep both (and any successful copy into the open folder),
       // select the new paths so the user can see/rename the duplicates.
       if (op2 === 'copy' && r.copyPaths.length > 0 && samePath(dest, get().activeTab().path)) {
@@ -2090,6 +2129,25 @@ export const useAppStore = create<AppState>()((set, get) => {
       const n = s.listingsByTabId[tab.id]?.entries.length ?? 0
       armWatchesForPath(tab.path, n)
     }
+  }
+
+  /**
+   * Soft-reload any open listing that shows `folderPath` (no loading overlay).
+   * Used after copy/move into a visible folder so arrivals appear without F5 flash.
+   */
+  async function softReloadIfOpen(folderPath: string): Promise<void> {
+    if (!folderPath) return
+    const s = get()
+    const tasks: Promise<void>[] = []
+    for (const tab of s.tabs) {
+      const listing = s.listingsByTabId[tab.id]
+      if (!listing?.path || !samePath(listing.path, folderPath)) continue
+      // Visible panes first; also soft-reload background tabs on that path (cheap vs F5 flash).
+      tasks.push(
+        loadListing(folderPath, { soft: true, preserveSelection: true, tabId: tab.id })
+      )
+    }
+    if (tasks.length > 0) await Promise.all(tasks)
   }
 
   function currentListingFoldersFirst(listingPath?: string): boolean {
@@ -3322,6 +3380,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     dialog: null,
     dialogStack: [],
     scriptLibrary: [],
+    scriptQueue: [],
+    scriptRunnerUi: null,
     imageViewer: null,
     imageEditor: null,
     imageVersionPreview: null,
@@ -3651,6 +3711,44 @@ export const useAppStore = create<AppState>()((set, get) => {
           // Scripts can create/rename/delete anywhere under the folder or selection.
           // Watchers only cover the current listing, so do a full F5 (list + tree).
           if (!event.payload.dryRun) void get().refresh()
+          const ui = get().scriptRunnerUi
+          if (ui && ui.runId === event.payload.runId) {
+            set({
+              scriptRunnerUi: {
+                ...ui,
+                status: 'done',
+                exitCode: event.payload.exitCode,
+                minimized: ui.minimized
+              }
+            })
+          }
+        } else if (event.type === 'script-queue') {
+          set({ scriptQueue: event.payload.jobs })
+          const ui = get().scriptRunnerUi
+          if (ui?.jobId) {
+            const job = event.payload.jobs.find((j) => j.jobId === ui.jobId)
+            if (job?.status === 'running' && job.runId && job.runId !== ui.runId) {
+              set({
+                scriptRunnerUi: {
+                  ...get().scriptRunnerUi!,
+                  runId: job.runId,
+                  status: 'running',
+                  startedAt: get().scriptRunnerUi!.startedAt ?? Date.now(),
+                  label: job.label
+                }
+              })
+            }
+          }
+        } else if (event.type === 'script-output') {
+          const ui = get().scriptRunnerUi
+          if (ui && ui.runId === event.payload.runId) {
+            set({
+              scriptRunnerUi: {
+                ...ui,
+                output: ui.output + event.payload.text
+              }
+            })
+          }
         } else if (event.type === 'index-progress') {
           set((state) => ({
             indexProgress: {
@@ -7015,12 +7113,15 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
           get().notify(`Moved ${moved}, skipped ${skipped}`)
           if (dialog.clearCutAfter) set({ clipboard: null })
+          const movedSrc = [...replaceSources, ...renameSources]
+          if (movedSrc.length > 0) selectAfterDelete(movedSrc)
           notifyTreeMutation({
-            removed: [...replaceSources, ...renameSources],
+            removed: movedSrc,
             reloadParents: [dialog.destinationDir]
           })
         }
-        await get().refresh()
+        await softReloadIfOpen(dialog.destinationDir)
+        if (dialog.op === 'move') armWatchesForVisiblePanes()
       } catch (e) {
         reportOperationError(dialog.op === 'move' ? 'Move failed' : 'Copy failed', e)
       }
@@ -7126,7 +7227,7 @@ export const useAppStore = create<AppState>()((set, get) => {
               label: basename(res.moves[0]!.to)
             })
             const movedSrc = res.moves.map((p) => p.from)
-            pruneListingRemoved(movedSrc)
+            selectAfterDelete(movedSrc)
             notifyTreeMutation({
               removed: movedSrc,
               reloadParents: dialog.destinationDir ? [dialog.destinationDir] : []
@@ -7173,7 +7274,8 @@ export const useAppStore = create<AppState>()((set, get) => {
                     : 'Deleted'
           get().notify(`${verb} ${done.toLocaleString()}`)
         }
-        await get().refresh()
+        if (dialog.destinationDir) await softReloadIfOpen(dialog.destinationDir)
+        else armWatchesForVisiblePanes()
       } catch (e) {
         openOpIssuesReview({
           op: dialog.op,
@@ -8037,6 +8139,50 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       set({ dialog: null, dialogStack: [] })
+    },
+
+    minimizeScriptRunner(snapshot) {
+      set({
+        scriptRunnerUi: {
+          minimized: true,
+          jobId: snapshot.jobId,
+          runId: snapshot.runId,
+          label: snapshot.label,
+          output: snapshot.output,
+          status: snapshot.status,
+          exitCode: snapshot.exitCode,
+          startedAt: snapshot.startedAt,
+          dryRun: snapshot.dryRun,
+          dialog: snapshot.dialog
+        }
+      })
+      // Pop without stopping — do not call stop on the process.
+      const stack = get().dialogStack
+      if (stack.length > 0) {
+        set({ dialog: stack[stack.length - 1]!, dialogStack: stack.slice(0, -1) })
+      } else {
+        set({ dialog: null, dialogStack: [] })
+      }
+    },
+
+    expandScriptRunner() {
+      const ui = get().scriptRunnerUi
+      if (!ui?.dialog) {
+        get().openDialog({ kind: 'script-queue' })
+        return
+      }
+      set({
+        scriptRunnerUi: { ...ui, minimized: false }
+      })
+      get().openDialog({ ...ui.dialog })
+    },
+
+    openScriptQueue() {
+      get().openDialog({ kind: 'script-queue' })
+    },
+
+    clearScriptRunnerUi() {
+      if (get().scriptRunnerUi) set({ scriptRunnerUi: null })
     },
 
     openContextMenu(menu) {

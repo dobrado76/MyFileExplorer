@@ -1,4 +1,9 @@
-const SCRIPT_DIALOG_KINDS = new Set(['script-manager', 'script-run', 'script-generate'])
+const SCRIPT_DIALOG_KINDS = new Set([
+  'script-manager',
+  'script-run',
+  'script-generate',
+  'script-queue'
+])
 
 export function isScriptDialogKind(kind: string): boolean {
   return SCRIPT_DIALOG_KINDS.has(kind)

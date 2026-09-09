@@ -201,6 +201,10 @@ Toolbar **Scripts** (manager), a global script’s toolbar button (right-click),
 
 **Run** / **Dry run** opens the execution dialog: live stdout/stderr, elapsed time, **Stop**, copy output. Drag the title to move; drag edges to resize. Size and position are remembered. Folder runs can still toggle **Recursive** here even if the script’s default is off. **Close** on the run window returns to Script Manager (or Generate) instead of dropping you back on the file list. After a real **Run** (or Stop mid-run), the file list and folder tree refresh like F5 so created, renamed, or deleted items show up. Dry run does not refresh.
 
+**Queue (sequential, session-only):** every Run / Dry run goes through one FIFO queue — never parallel. If another job is active, the new one is queued (toast shows position). The status bar shows the active script and pending count. **Queue…** opens a manager: view pending jobs, edit params / Recursive / Dry-run, reorder, remove, or clear pending. The queue is discarded when the app quits (not saved in settings).
+
+**Minimize:** collapses the Run window to the status-bar chip while the process keeps running; **Expand** restores the floating runner with the live log. Prefer Minimize when you want to keep browsing. Closing the runner while a script is running stops it (confirm when needed).
+
 Output is capped (~400 000 characters) so a chatty walk cannot freeze the UI.
 
 ### Context menu

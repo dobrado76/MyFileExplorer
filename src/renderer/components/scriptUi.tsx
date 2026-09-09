@@ -28,6 +28,8 @@ type ScriptModalProps = {
   actions: ReactNode
   className?: string
   onClose(): void
+  /** Collapse to status bar without cancelling a run. */
+  onMinimize?: () => void
   busy?: boolean
   busyTitle?: string
   busyHint?: string
@@ -66,6 +68,7 @@ function CenteredScriptModal({
   actions,
   className,
   onClose,
+  onMinimize,
   busy,
   busyTitle,
   busyHint
@@ -82,7 +85,13 @@ function CenteredScriptModal({
         aria-label={title}
         aria-busy={busy || undefined}
       >
-        <ScriptModalChrome title={title} titleHint={titleHint} onClose={onClose} busy={busy} />
+        <ScriptModalChrome
+          title={title}
+          titleHint={titleHint}
+          onClose={onClose}
+          onMinimize={onMinimize}
+          busy={busy}
+        />
         <div className="modal-body modal-body-scripts">{children}</div>
         <div className="modal-actions">{actions}</div>
         {busy && <AiBusyOverlay title={busyTitle ?? 'Working…'} hint={busyHint} />}
@@ -98,6 +107,7 @@ function FloatingScriptModal({
   actions,
   className,
   onClose,
+  onMinimize,
   busy,
   busyTitle,
   busyHint,
@@ -130,6 +140,7 @@ function FloatingScriptModal({
           title={title}
           titleHint={titleHint}
           onClose={onClose}
+          onMinimize={onMinimize}
           busy={busy}
           onMove={maximized ? undefined : (e) => beginDrag('move', e)}
           onMaximize={floating.allowMaximize ? toggleMaximize : undefined}
@@ -147,6 +158,7 @@ function ScriptModalChrome({
   title,
   titleHint,
   onClose,
+  onMinimize,
   busy,
   onMove,
   onMaximize,
@@ -155,6 +167,7 @@ function ScriptModalChrome({
   title: string
   titleHint?: string
   onClose(): void
+  onMinimize?: () => void
   busy?: boolean
   onMove?: (e: ReactPointerEvent) => void
   onMaximize?: () => void
@@ -176,6 +189,24 @@ function ScriptModalChrome({
       <span className="modal-title-text" title={titleHint}>
         {title}
       </span>
+      {onMinimize ? (
+        <button
+          type="button"
+          className="modal-title-btn"
+          aria-label="Minimize to status bar"
+          title="Minimize to status bar (keeps running)"
+          disabled={busy}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMinimize()
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+            <path d="M2 9.5h8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+        </button>
+      ) : null}
       {onMaximize ? (
         <button
           type="button"

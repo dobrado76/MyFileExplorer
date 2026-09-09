@@ -41,7 +41,8 @@ export function replaceSettings(raw: unknown): Settings {
     aiChatWindowBounds: null,
     scriptManagerBounds: null,
     scriptGenerateBounds: null,
-    scriptRunnerBounds: null
+    scriptRunnerBounds: null,
+    scriptQueueBounds: null
   })
   settingsStore().replace(next)
   settingsStore().flush()

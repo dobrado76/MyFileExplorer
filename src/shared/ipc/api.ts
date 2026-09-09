@@ -909,6 +909,33 @@ export type MyFileExplorerApi = {
       }>
     >
     cancel(req: { runId: string }): Promise<Result<{ cancelled: boolean }>>
+    queueList(): Promise<Result<{ jobs: import('../scriptRunQueue').ScriptQueueJob[] }>>
+    queueEnqueue(req: {
+      label?: string
+      request: Omit<import('../schemas/scripts').ScriptRunRequest, 'runId'> & { runId?: string }
+    }): Promise<
+      Result<{
+        jobId: string
+        started: boolean
+        queuePosition: number
+        jobs: import('../scriptRunQueue').ScriptQueueJob[]
+      }>
+    >
+    queueReorder(req: {
+      pendingJobIds: string[]
+    }): Promise<Result<{ jobs: import('../scriptRunQueue').ScriptQueueJob[] }>>
+    queueRemove(req: {
+      jobId: string
+    }): Promise<Result<{ jobs: import('../scriptRunQueue').ScriptQueueJob[]; cancelled: boolean }>>
+    queueClear(req?: {
+      stopActive?: boolean
+    }): Promise<Result<{ jobs: import('../scriptRunQueue').ScriptQueueJob[] }>>
+    queueUpdate(req: {
+      jobId: string
+      params?: Record<string, string | number | boolean>
+      recursive?: boolean
+      dryRun?: boolean
+    }): Promise<Result<{ jobs: import('../scriptRunQueue').ScriptQueueJob[] }>>
     importFile(): Promise<
       Result<{ imported: boolean; script?: import('../schemas/scripts').ScriptDefinition }>
     >

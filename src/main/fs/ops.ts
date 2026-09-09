@@ -238,6 +238,21 @@ function yieldEventLoop(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve))
 }
 
+/**
+ * Yield the Electron main thread often during bulk copy/move/delete so
+ * list/thumb/preview IPC is not starved (same courtesy as liveWalk, D15/D28).
+ * Sync work (SetFileTime, ADS strip) between awaits otherwise freezes the UI.
+ */
+const OP_YIELD_MS = 12
+let lastOpYieldMs = 0
+
+async function maybeYieldMain(): Promise<void> {
+  const now = Date.now()
+  if (now - lastOpYieldMs < OP_YIELD_MS) return
+  lastOpYieldMs = now
+  await yieldEventLoop()
+}
+
 async function ensureLocalDir(dir: string): Promise<void> {
   if (dir.toLowerCase().startsWith('mfe-remote://')) return
   await fsp.mkdir(dir, { recursive: true }).catch((e: unknown) => {
@@ -769,7 +784,7 @@ async function planTransfer(
   const items: TransferPlanItem[] = []
   for (let i = 0; i < sources.length; i++) {
     progress?.throwIfCancelled()
-    if (i > 0 && i % 16 === 0) await yieldEventLoop()
+    await maybeYieldMain()
     const raw = sources[i]!
     const source = requireAbsolute(raw)
     assertTransferLegal(source, dest)
@@ -811,6 +826,7 @@ async function countWorkUnits(roots: string[], progress?: OpReporter | null): Pr
   const seen = new Set<string>()
   while (stack.length > 0) {
     progress?.throwIfCancelled()
+    await maybeYieldMain()
     const p = stack.pop()!
     const key = p.toLowerCase()
     if (seen.has(key)) continue
@@ -865,6 +881,8 @@ async function copyFileWithProgress(
     if (preserveTimestamps) copyHostFileTimes(source, target)
     if (!preserveAds) await stripAlternateStreams(target)
     progress?.tick(displayName)
+    // Timestamps/ADS are sync native — yield so UI IPC can run between files.
+    await maybeYieldMain()
   }
 
   // Versioned NTFS image → non-ADS volume: write tip as the file body
@@ -974,6 +992,7 @@ async function copyTree(
       if (discover) progress?.addToTotal(1, source)
       if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
       progress?.tick(source)
+      await maybeYieldMain()
       return
     }
     const files: string[] = []
@@ -985,6 +1004,7 @@ async function copyTree(
     if (discover && files.length > 0) progress?.addToTotal(files.length, source)
     for (const name of files) {
       progress?.throwIfCancelled()
+      await maybeYieldMain()
       await copyTree(path.join(source, name), path.join(target, name), progress, {
         ...opts,
         discover: false
@@ -992,12 +1012,14 @@ async function copyTree(
     }
     for (const name of dirs) {
       progress?.throwIfCancelled()
+      await maybeYieldMain()
       await copyTree(path.join(source, name), path.join(target, name), progress, {
         ...opts,
         discover
       })
     }
     if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
+    await maybeYieldMain()
     return
   }
 
@@ -1037,6 +1059,7 @@ async function deleteTree(target: string, progress: OpReporter | null): Promise<
     }
     for (const name of ents) {
       progress?.throwIfCancelled()
+      await maybeYieldMain()
       await deleteTree(path.join(target, name), progress)
     }
     try {
@@ -1254,7 +1277,7 @@ export async function copyEntries(
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
-      if (i > 0 && i % 16 === 0) await yieldEventLoop()
+      await maybeYieldMain()
       if (!('conflict' in item)) i++
       if (fatal) {
         const src = item.source
@@ -1405,7 +1428,7 @@ export async function relocateEntries(
   try {
     for (let i = 0; i < pairs.length; i++) {
       progress.throwIfCancelled()
-      if (i > 0 && i % 16 === 0) await yieldEventLoop()
+      await maybeYieldMain()
       const pair = pairs[i]!
       const source = requireAbsolute(pair.from)
       const target = requireAbsolute(pair.to)
@@ -1509,7 +1532,7 @@ export async function moveEntries(
         })
         continue
       }
-      if (i > 0 && i % 16 === 0) await yieldEventLoop()
+      await maybeYieldMain()
       i++
       try {
         if (policy === 'replace') {
@@ -1621,6 +1644,7 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
   try {
     for (const p of absolute) {
       progress.throwIfCancelled()
+      await maybeYieldMain()
       progress.pulse(p)
       try {
         await unprojectVirtualFolderIfNeeded(p)
@@ -1707,6 +1731,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
   try {
     for (const p of locals) {
       progress.throwIfCancelled()
+      await maybeYieldMain()
       let isDir = false
       try {
         isDir = (await fsp.stat(p)).isDirectory()

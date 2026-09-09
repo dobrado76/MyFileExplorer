@@ -311,6 +311,12 @@ export const IPC = {
   scriptDuplicate: 'script:duplicate',
   scriptRun: 'script:run',
   scriptCancel: 'script:cancel',
+  scriptQueueList: 'script:queueList',
+  scriptQueueEnqueue: 'script:queueEnqueue',
+  scriptQueueReorder: 'script:queueReorder',
+  scriptQueueRemove: 'script:queueRemove',
+  scriptQueueClear: 'script:queueClear',
+  scriptQueueUpdate: 'script:queueUpdate',
   scriptImportFile: 'script:importFile',
   scriptExportFile: 'script:exportFile',
   scriptPickExternal: 'script:pickExternal',
@@ -550,6 +556,12 @@ export type MfeEvent =
         cancelled: boolean
         elapsedMs: number
         dryRun: boolean
+      }
+    }
+  | {
+      type: 'script-queue'
+      payload: {
+        jobs: import('../scriptRunQueue').ScriptQueueJob[]
       }
     }
   | {

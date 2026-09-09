@@ -52,6 +52,10 @@ export function StatusBar(): JSX.Element {
   const clearSearch = useAppStore((s) => s.clearSearch)
   const drives = useAppStore((s) => s.drives)
   const drivesOverview = useAppStore((s) => s.drivesOverview)
+  const scriptQueue = useAppStore((s) => s.scriptQueue)
+  const scriptRunnerUi = useAppStore((s) => s.scriptRunnerUi)
+  const expandScriptRunner = useAppStore((s) => s.expandScriptRunner)
+  const openScriptQueue = useAppStore((s) => s.openScriptQueue)
 
   const mediaLibrary = useAppStore((s) => s.mediaLibrary)
   const hiddenCount = useMemo(() => {
@@ -141,8 +145,59 @@ export function StatusBar(): JSX.Element {
         ? 'Loading…'
         : `${listing.entries.length - hiddenCount} item${listing.entries.length - hiddenCount === 1 ? '' : 's'}${hiddenCount > 0 ? ` (${hiddenCount} hidden by filter)` : ''}${listing.virtualFolder?.readOnly ? ' · Read-only' : ''}`
 
+  const scriptActive = scriptQueue.find((j) => j.status === 'running') ?? null
+  const scriptPending = scriptQueue.filter((j) => j.status === 'pending').length
+  const showScriptChip =
+    settings.scripts.enabled &&
+    (scriptActive != null || scriptPending > 0 || Boolean(scriptRunnerUi?.minimized))
+
+  const stopActiveScript = (): void => {
+    const runId = scriptActive?.runId ?? scriptRunnerUi?.runId
+    if (!runId) return
+    notify('Stopping script…')
+    void api.script.cancel({ runId }).catch(() => undefined)
+  }
+
   return (
     <div className="statusbar">
+      {showScriptChip ? (
+        <div className="status-script" role="status" aria-live="polite">
+          <button
+            type="button"
+            className="status-op-cancel"
+            title="Stop the active script"
+            disabled={!scriptActive && scriptRunnerUi?.status !== 'running'}
+            onClick={stopActiveScript}
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            className="status-script-expand"
+            title="Expand the script runner"
+            onClick={() => expandScriptRunner()}
+          >
+            Expand
+          </button>
+          <button
+            type="button"
+            className="status-script-queue"
+            title="Manage the script queue"
+            onClick={() => openScriptQueue()}
+          >
+            Queue{scriptPending > 0 ? ` (${scriptPending})` : ''}
+          </button>
+          <span className="status-script-title">
+            {scriptActive
+              ? `Script: ${scriptActive.label} · running`
+              : scriptRunnerUi?.minimized
+                ? `Script: ${scriptRunnerUi.label}${scriptRunnerUi.status === 'done' ? ' · done' : ''}`
+                : scriptPending > 0
+                  ? `Script: ${scriptPending} queued`
+                  : 'Script'}
+          </span>
+        </div>
+      ) : null}
       {fileOp ? (
         <div className="status-op" role="status" aria-live="polite">
           <button

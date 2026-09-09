@@ -2,11 +2,25 @@ import { dialog, BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import fsp from 'node:fs/promises'
 import { z } from 'zod'
 import { IPC } from '@shared/ipc/contract'
+import { assertScriptingEnabled, cancelScriptRun, executeScriptRun } from './execute'
+import {
+  clearScriptQueue,
+  enqueueScriptJob,
+  listScriptQueue,
+  removeScriptQueueJobById,
+  reorderScriptQueue,
+  updateScriptQueueJob
+} from './runQueue'
 import {
   scriptCancelRequestSchema,
   scriptDuplicateRequestSchema,
   scriptExportRequestSchema,
   scriptIdRequestSchema,
+  scriptQueueClearRequestSchema,
+  scriptQueueEnqueueRequestSchema,
+  scriptQueueJobIdSchema,
+  scriptQueueReorderRequestSchema,
+  scriptQueueUpdateRequestSchema,
   scriptRunRequestSchema,
   scriptUpsertRequestSchema
 } from '@shared/schemas/scripts'
@@ -24,7 +38,6 @@ import {
   revertScriptSource,
   upsertScript
 } from './library'
-import { assertScriptingEnabled, cancelScriptRun, executeScriptRun } from './execute'
 
 const emptySchema = z.union([z.undefined(), z.null(), z.object({}).strict()]).optional()
 
@@ -68,6 +81,24 @@ export function registerScriptIpc(handle: Handle): void {
   })
   handle(IPC.scriptRun, scriptRunRequestSchema, (req) => executeScriptRun(req))
   handle(IPC.scriptCancel, scriptCancelRequestSchema, (req) => cancelScriptRun(req.runId))
+  handle(IPC.scriptQueueList, emptySchema, () => listScriptQueue())
+  handle(IPC.scriptQueueEnqueue, scriptQueueEnqueueRequestSchema, (req) =>
+    enqueueScriptJob({ label: req.label, request: req.request })
+  )
+  handle(IPC.scriptQueueReorder, scriptQueueReorderRequestSchema, (req) =>
+    reorderScriptQueue(req.pendingJobIds)
+  )
+  handle(IPC.scriptQueueRemove, scriptQueueJobIdSchema, (req) => removeScriptQueueJobById(req.jobId))
+  handle(IPC.scriptQueueClear, scriptQueueClearRequestSchema, (req) =>
+    clearScriptQueue({ stopActive: req.stopActive === true })
+  )
+  handle(IPC.scriptQueueUpdate, scriptQueueUpdateRequestSchema, (req) =>
+    updateScriptQueueJob(req.jobId, {
+      params: req.params,
+      recursive: req.recursive,
+      dryRun: req.dryRun
+    })
+  )
   handle(IPC.scriptImportFile, emptySchema, async (_req, event) => {
     assertScriptingEnabled()
     const win = BrowserWindow.fromWebContents(event.sender)

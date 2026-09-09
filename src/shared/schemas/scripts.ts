@@ -179,6 +179,38 @@ export const scriptCancelRequestSchema = z.object({
   runId: z.string().min(1).max(80)
 })
 
+/** Enqueue without a final runId — assigned when the job starts. */
+export const scriptQueueEnqueueRequestSchema = z.object({
+  label: z.string().min(1).max(200).optional(),
+  request: scriptRunRequestSchema.omit({ runId: true }).extend({
+    /** Placeholder; overwritten when the job starts. */
+    runId: z.string().min(1).max(80).optional()
+  })
+})
+
+export const scriptQueueJobIdSchema = z.object({
+  jobId: z.string().min(1).max(80)
+})
+
+export const scriptQueueReorderRequestSchema = z.object({
+  pendingJobIds: z.array(z.string().min(1).max(80)).max(50)
+})
+
+export const scriptQueueClearRequestSchema = z.object({
+  /** When true, also cancel the active run. Default: pending only. */
+  stopActive: z.boolean().optional()
+})
+
+export const scriptQueueUpdateRequestSchema = z.object({
+  jobId: z.string().min(1).max(80),
+  params: z.record(z.string(), scriptParamValueSchema).optional(),
+  recursive: z.boolean().optional(),
+  dryRun: z.boolean().optional()
+})
+
+export type ScriptQueueEnqueueRequest = z.infer<typeof scriptQueueEnqueueRequestSchema>
+export type ScriptQueueUpdateRequest = z.infer<typeof scriptQueueUpdateRequestSchema>
+
 export const scriptIdRequestSchema = z.object({
   id: z.string().min(1).max(80)
 })
