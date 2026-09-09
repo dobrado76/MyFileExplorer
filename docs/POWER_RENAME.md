@@ -1,6 +1,6 @@
 # Power Rename (D40)
 
-**Version:** 0.16.0 · **Status:** shipped · Decision **D40** · Inspired by [PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename) and [Bulk Rename Utility](https://www.bulkrenameutility.co.uk/) panels
+**Version:** 0.17.0 · **Status:** shipped · Decision **D40** · Inspired by [PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename) and [Bulk Rename Utility](https://www.bulkrenameutility.co.uk/) panels
 
 Batch-rename the **current selection** (files and/or folders) with a live preview. The dialog always shows a simple Search / Replace strip (PowerToys-style). Collapsible **Advanced options** add Bulk Rename Utility–style panels for case, remove, numbering, dates, and more — without leaving MyFileExplorer.
 

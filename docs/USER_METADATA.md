@@ -2,7 +2,7 @@
 
 > **Opt-in, off by default.** Settings → **Metadata** → **Enable user metadata**. When off, context / preview / columns / Power Search meta UI stay hidden and `userMetadata:*` IPC rejects. Distinct from Media Metadata (D50) and notes (D61).
 
-**Status:** shipped in **v0.16.0**; Unreleased adds catalog Undo, Hygiene, Pack dry-run, field extras, bulk Leave/Set/Clear, full Details click-edit, Copy/Paste, in-folder facets, icon badge, scripts bridge, and Power Search set-first picker · Decision **D70** · **Windows / NTFS only**
+**Status:** shipped in **v0.16.0**; expanded in **v0.17.0** with catalog Undo, Hygiene, Pack dry-run, field extras, bulk Leave/Set/Clear, full Details click-edit, Copy/Paste, in-folder facets, icon badge, scripts bridge, and Power Search set-first picker · Decision **D70** · **Windows / NTFS only**
 
 MyFileExplorer is a **local file workbench**: richer meaning on ordinary files without relocating them into a proprietary database. User-defined metadata is a **project-local semantic schema** — not a global app feature:
 

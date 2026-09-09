@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.16.0** — Power Rename Advanced options; multi-pack glyphs (Lucide / Phosphor / Tabler); User Metadata manager + Binary labels + preview/column polish (**D70**). Prior: **D72** shell redirect, **D71** GPL-3.0. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.17.0** — Now Playing / opt-in Rich player (mpv), Ask AI chat, expanded User Metadata (**D70**), Media Metadata columns, and paired-folder/file-operation safety fixes. Prior: **v0.16.0** Power Rename Advanced + multi-pack glyphs. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -59,6 +59,16 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.17.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Now Playing / Rich player | Keep video playing while browsing; opt-in mpv for non-Chromium containers; safer detached/overlay behavior — [PREVIEW.md](PREVIEW.md) |
+| Ask AI chat | Local Markdown conversation library with editable folders; Media Metadata seeds title metadata only — [AI_CHAT.md](AI_CHAT.md) |
+| User metadata (D70) | Undo, Hygiene, Pack dry-run, field extras, bulk/Details editing, Copy/Paste, facets, badges, Link fields, scripts bridge — [USER_METADATA.md](USER_METADATA.md) |
+| Media metadata (D50) | Details columns, watched card badge, show/season watched propagation, compact stored-title header — [MEDIA_METADATA.md](MEDIA_METADATA.md) |
+| Sync / file-op safety | Concrete conflict validation, outcome-aware counts, staged folder replacement recovery, ADS preservation, realpath-only preview allowlist — [PAIRED_FOLDERS.md](PAIRED_FOLDERS.md), [SECURITY.md](SECURITY.md) |
 
 ## Recent behavior (v0.16.0)
 

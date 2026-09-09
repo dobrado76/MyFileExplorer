@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-09
+
+Seventeenth product release: **Now Playing** and opt-in **Rich player (mpv)**, **Ask AI chat**, expanded **User Metadata**, Media Metadata columns/actions, and safety fixes for paired-folder sync, folder replacement, NTFS ADS copying, and preview path allowlisting. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 - **Paired folders sync** — conflict choices now match their labels: **Use left** / **Use right** copy that side onto the other with replace; **Keep most recent** picks the newer side by mtime (equal → rename like Keep both). Approved conflicts resolve to concrete transfers before stale-plan validation, which checks both comparison snapshots. Completion counts come from real copy/trash/delete outcomes (`issues` / `aborted`), not blind success after await (D69 / [PAIRED_FOLDERS.md](docs/PAIRED_FOLDERS.md)).
 - **Folder merge Replace** — no longer deletes the destination child before rename. Conflicting children use staged temp + dest-aside replace; cross-volume (`EXDEV`) falls back to copy-then-delete. If replacement and source rollback both fail, the incoming item remains at a reported recovery path instead of being deleted.
 - **NTFS ADS on stream copy** — large-file / verified copies (`mfe-media`-style `$DATA` pipeline) and fresh directory copies now transfer named alternate streams when `preserveAds` is on (D38 / [ADS.md](docs/ADS.md)).
