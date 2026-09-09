@@ -18,7 +18,7 @@
 
 - Normalize and resolve paths in **main** before any IO
 - Reject path segments that escape intended roots for protocol serving
-- Symlinks: `stat` carefully; do not follow symlinks out of allowlisted roots for **protocol** reads without explicit policy (v1: resolve realpath and re-check allowlist)
+- Symlinks: `stat` carefully; do not follow symlinks out of allowlisted roots for **protocol** reads. Allowlist checks the **resolved realpath only** (a link whose target lies outside every approved root is denied even when the link path sits under an open tab)
 - UNC paths allowed when user navigates to them; still validated as absolute
 
 ---

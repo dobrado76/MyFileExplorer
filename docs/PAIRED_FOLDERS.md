@@ -635,13 +635,13 @@ Filters:
 
 Reuse existing conflict comparison cards and policies where possible:
 
-- Use left.
-- Use right.
-- Keep both.
-- Keep most recent, only when timestamps establish a winner beyond tolerance.
-- Skip.
+- **Use left** — copy the left path onto the right with replace (left is source).
+- **Use right** — copy the right path onto the left with replace (right is source).
+- **Keep both** — rename policy so both sides keep a distinct name.
+- **Keep most recent** — newer mtime wins and replaces the other side; when timestamps are equal (within tolerance), behave like Keep both.
+- **Skip** — leave both sides unchanged.
 
-Support `Apply to similar` with careful grouping by conflict kind, not merely file extension.
+Do not invert sides relative to the chosen label. Support `Apply to similar` with careful grouping by conflict kind, not merely file extension.
 
 ### 14.6 Execution controls
 
@@ -680,6 +680,7 @@ New unrelated items discovered after comparison are not automatically added to a
 - Reuse progress events and status bar.
 - Cancellation stops between items and during supported large-file streams.
 - Queue issues and use the existing grouped end-of-operation review.
+- Count **copied** / **replaced** / **removed** only when the underlying copy, trash, or delete envelope reports success (no abort; empty `issues`; expected result length). Do not increment from a bare await.
 - Undo should be available to the extent already supported by the constituent operations.
 - At completion show a concise summary and recompare affected paths or the full pair.
 
@@ -970,7 +971,7 @@ If a drive disconnects or root disappears:
 ### Partial synchronization
 
 - Existing operation progress and issue review remain authoritative.
-- Completion summary distinguishes succeeded, skipped, failed, cancelled, and unresolved.
+- Completion summary distinguishes succeeded, skipped, failed, cancelled, and unresolved from real operation envelopes (not assumed success).
 - Recompare after partial completion; do not pretend the pair is synchronized.
 
 ---

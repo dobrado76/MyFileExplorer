@@ -172,7 +172,7 @@ flowchart TB
 
 **Non-NTFS:** There is no `$DATA` / no ADS — only the file body. Save overwrites that file in place (no warning, no version history).
 
-**Copy / move NTFS → non-ADS volume:** Destination gets the **tip** bytes as the file body (keep the latest edit; original + `VER_*` history cannot travel). NTFS→NTFS relies on normal Win32 copy preserving streams.
+**Copy / move NTFS → non-ADS volume:** Destination gets the **tip** bytes as the file body (keep the latest edit; original + `VER_*` history cannot travel). NTFS→NTFS: same-volume / simple `CopyFile` paths may preserve streams via Win32; **streamed** copies (large files with progress, SHA-256 verify) and **fresh directory** copies explicitly transfer named streams when `preserveAds` is on (see D38).
 
 **Backup / sync:** Most backup products copy the file body only and drop ADS. For folder trees that use MyFileExplorer streams (or any other ADS), prefer an ADS-aware tool such as **[MyFileSync](https://github.com/dobrado76/MyFileSync)** — see the README section *Backing up NTFS metadata (ADS)*.
 
