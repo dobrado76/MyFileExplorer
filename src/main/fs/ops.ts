@@ -1273,12 +1273,10 @@ export async function copyEntries(
       if ('skip' in item) skipped.push(item.skip)
     }
     progress.setTotal(plannedWork(plan).length)
-    let i = 0
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
       await maybeYieldMain()
-      if (!('conflict' in item)) i++
       if (fatal) {
         const src = item.source
         const dest = item.target
@@ -1506,7 +1504,6 @@ export async function moveEntries(
     }
     await ensureLocalDir(dest)
     progress.setTotal(plannedWork(plan).length)
-    let i = 0
     for (const item of plan) {
       progress.throwIfCancelled()
       if ('skip' in item) continue
@@ -1533,7 +1530,6 @@ export async function moveEntries(
         continue
       }
       await maybeYieldMain()
-      i++
       try {
         if (policy === 'replace') {
           const prep = await prepareReplaceTarget(item.source, item.target, 'move')

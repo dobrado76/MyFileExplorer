@@ -1344,9 +1344,79 @@ function selectablePathsForTab(s: AppState, tabId: string): string[] {
     .map((e) => e.path)
 }
 
+/** Cache selectable count so Toolbar `isAllSelected` is not O(listing) on every click. */
+let selectableCountCache: {
+  tabId: string
+  entriesRef: unknown
+  viewFilterEnabled: boolean
+  viewFilterKey: string
+  searchShowHidden: boolean
+  searchActive: boolean
+  recycleActive: boolean
+  mediaKey: string
+  count: number
+} | null = null
+
+function selectableCountForTab(s: AppState, tabId: string): number {
+  const listingPath = s.listingsByTabId[tabId]?.path ?? ''
+  const searchActive = s.tabs.find((t) => t.id === tabId)?.search.active === true
+  const recycleActive = s.recycleBin.active && tabId === s.activeTabId
+  const applyMedia =
+    !searchActive &&
+    !recycleActive &&
+    s.mediaLibrary.isContainer &&
+    listingPath &&
+    samePath(listingPath, s.mediaLibrary.folderPath)
+  const pool = poolEntriesForTab(s, tabId)
+  const viewFilterKey = s.settings.viewFilterPatterns.join('\0')
+  const mediaKey = applyMedia
+    ? `${s.mediaLibrary.folderPath}|${Object.keys(s.mediaLibrary.items).length}`
+    : ''
+  const hit = selectableCountCache
+  if (
+    hit &&
+    hit.tabId === tabId &&
+    hit.entriesRef === pool &&
+    hit.viewFilterEnabled === s.settings.viewFilterEnabled &&
+    hit.viewFilterKey === viewFilterKey &&
+    hit.searchShowHidden === s.settings.searchShowHidden &&
+    hit.searchActive === searchActive &&
+    hit.recycleActive === recycleActive &&
+    hit.mediaKey === mediaKey
+  ) {
+    return hit.count
+  }
+  let count = 0
+  for (const e of pool) {
+    const skipViewFilter =
+      recycleActive || (searchActive && s.settings.searchShowHidden === true)
+    if (
+      !skipViewFilter &&
+      isExcludedByViewFilter(e, s.settings.viewFilterPatterns, s.settings.viewFilterEnabled)
+    ) {
+      continue
+    }
+    if (applyMedia && isExcludedByMediaLibrary(e.path, s.mediaLibrary)) continue
+    count++
+  }
+  selectableCountCache = {
+    tabId,
+    entriesRef: pool,
+    viewFilterEnabled: s.settings.viewFilterEnabled,
+    viewFilterKey,
+    searchShowHidden: s.settings.searchShowHidden,
+    searchActive,
+    recycleActive,
+    mediaKey,
+    count
+  }
+  return count
+}
+
 function tabHasAllSelected(s: AppState, tabId: string): boolean {
   const selectedCount = s.tabs.find((t) => t.id === tabId)?.selected.length ?? 0
-  return listingHasAllSelected(selectedCount, selectablePathsForTab(s, tabId).length)
+  if (selectedCount === 0) return false
+  return listingHasAllSelected(selectedCount, selectableCountForTab(s, tabId))
 }
 
 export const useAppStore = create<AppState>()((set, get) => {
@@ -5425,14 +5495,42 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setSelection(paths, anchor, focused, tabId) {
       const id = tabId ?? get().activeTabId
-      updateTab(id, { selected: paths })
-      if (id === get().activeTabId) {
-        set({
-          selectionAnchor: anchor === undefined ? get().selectionAnchor : anchor,
-          focusedPath: focused === undefined ? get().focusedPath : focused,
-          ...(paths.length > 0 ? { drivesOverview: false } : {})
-        })
+      const s0 = get()
+      const tab = s0.tabs.find((t) => t.id === id)
+      if (!tab) return
+      const nextAnchor = anchor === undefined ? s0.selectionAnchor : anchor
+      const nextFocused = focused === undefined ? s0.focusedPath : focused
+      const sameSel =
+        tab.selected.length === paths.length &&
+        tab.selected.every((p, i) => samePath(p, paths[i]!))
+      const isActive = id === s0.activeTabId
+      if (
+        sameSel &&
+        (!isActive ||
+          (nextAnchor === s0.selectionAnchor &&
+            nextFocused === s0.focusedPath &&
+            (paths.length === 0 || !s0.drivesOverview) &&
+            s0.treeFocusPath == null))
+      ) {
+        return
       }
+      set((s) => {
+        const tabs = s.tabs.map((t) => (t.id === id ? { ...t, selected: paths } : t))
+        const active = tabs.find((t) => t.id === s.activeTabId)
+        return {
+          tabs,
+          search: active?.search ?? s.search,
+          ...(isActive
+            ? {
+                selectionAnchor: nextAnchor,
+                focusedPath: nextFocused,
+                ...(paths.length > 0 ? { drivesOverview: false } : {}),
+                ...(s.treeFocusPath != null ? { treeFocusPath: null } : {})
+              }
+            : {})
+        }
+      })
+      scheduleSessionSave()
     },
 
     requestFileListScrollTo(path) {

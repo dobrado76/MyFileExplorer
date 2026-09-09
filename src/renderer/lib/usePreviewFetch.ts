@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { PreviewModel } from '@shared/schemas/preview'
 import { api } from './ipc'
 import { basename, samePath } from './paths'
-import { isAudioExt, isVideoExt } from './icons'
+import { isAudioExt, isImageExt, isVideoExt } from './icons'
 
 let previewSeq = 0
 
@@ -20,6 +20,26 @@ function mergeAvTags(
     subtitle: meta.subtitle ?? model.subtitle,
     posterUrl: model.kind === 'audio' && meta.coverUrl ? meta.coverUrl : model.posterUrl,
     mediaMetaPending: false
+  }
+}
+
+function mergeImageMeta(
+  model: PreviewModel,
+  meta: { fields: PreviewModel['fields']; warnings?: string[] }
+): PreviewModel {
+  const replaceIds = new Set(meta.fields.map((f) => f.id))
+  const kept = model.fields.filter(
+    (f) => !replaceIds.has(f.id) && f.group !== 'generation'
+  )
+  const baseWarnings = (model.warnings ?? []).filter(
+    (w) => w !== 'Could not read image metadata' && w !== 'Generation metadata parse incomplete'
+  )
+  const warnings = [...baseWarnings, ...(meta.warnings ?? [])]
+  return {
+    ...model,
+    fields: [...kept, ...meta.fields],
+    mediaMetaPending: false,
+    warnings: warnings.length > 0 ? warnings : undefined
   }
 }
 
@@ -69,8 +89,11 @@ export function usePreviewFetch(
     const dot = base.lastIndexOf('.')
     const ext = dot > 0 ? base.slice(dot + 1).toLowerCase() : ''
     const likelyAv = isVideoExt(ext) || isAudioExt(ext)
-
-    const metaPromise = likelyAv ? api.preview.getMediaMeta({ path: previewPath }) : null
+    const likelyImage = isImageExt(ext)
+    const metaPromise =
+      likelyAv || likelyImage
+        ? api.preview.getMediaMeta({ path: previewPath, ...adsArg })
+        : null
 
     const applyMediaMeta = (
       metaRes: Awaited<ReturnType<typeof api.preview.getMediaMeta>>
@@ -78,6 +101,7 @@ export function usePreviewFetch(
       if (seq !== previewSeq || !metaRes.ok) return
       setModel((prev) => {
         if (!prev || !samePath(prev.path, previewPath)) return prev
+        if (prev.kind === 'image') return mergeImageMeta(prev, metaRes.value)
         if (prev.kind !== 'video' && prev.kind !== 'audio') return prev
         return mergeAvTags(prev, metaRes.value)
       })
@@ -88,6 +112,15 @@ export function usePreviewFetch(
       .then(async (res) => {
         if (seq !== previewSeq) return
         const next = res.ok ? res.value : null
+
+        // Images: paint mediaUrl immediately — never wait on Sharp/gen parse.
+        if (next?.kind === 'image' && next.mediaMetaPending && metaPromise) {
+          setLoading(false)
+          setModel(next)
+          void metaPromise.then(applyMediaMeta, () => undefined)
+          return
+        }
+
         const wantTags =
           Boolean(metaPromise) &&
           next?.mediaMetaPending === true &&
@@ -106,7 +139,11 @@ export function usePreviewFetch(
 
         setLoading(false)
         setModel(next)
-        if (metaPromise && next?.mediaMetaPending && (next.kind === 'video' || next.kind === 'audio')) {
+        if (
+          metaPromise &&
+          next?.mediaMetaPending &&
+          (next.kind === 'video' || next.kind === 'audio' || next.kind === 'image')
+        ) {
           void metaPromise.then(applyMediaMeta, () => undefined)
         }
       })

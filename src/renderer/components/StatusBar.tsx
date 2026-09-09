@@ -78,27 +78,33 @@ export function StatusBar(): JSX.Element {
     mediaLibrary
   ])
 
+  const sizePool = useMemo(
+    () =>
+      recycleBin.active
+        ? recycleBinItemsToEntries(recycleBin.items)
+        : search.active
+          ? searchResultsToEntries(search.results)
+          : listing.entries,
+    [recycleBin.active, recycleBin.items, search.active, search.results, listing.entries]
+  )
+
+  // Built once per listing — selection size is O(|sel|), not O(folder).
+  const entrySizeByPath = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const e of sizePool) {
+      if (e.kind !== 'dir') m.set(e.path.toLowerCase(), e.size)
+    }
+    return m
+  }, [sizePool])
+
   const selectionSize = useMemo(() => {
     if (selected.length === 0) return 0
-    const sel = new Set(selected.map((p) => p.toLowerCase()))
-    const pool = recycleBin.active
-      ? recycleBinItemsToEntries(recycleBin.items)
-      : search.active
-        ? searchResultsToEntries(search.results)
-        : listing.entries
     let total = 0
-    for (const e of pool) {
-      if (e.kind !== 'dir' && sel.has(e.path.toLowerCase())) total += e.size
+    for (const p of selected) {
+      total += entrySizeByPath.get(p.toLowerCase()) ?? 0
     }
     return total
-  }, [
-    selected,
-    listing.entries,
-    search.active,
-    search.results,
-    recycleBin.active,
-    recycleBin.items
-  ])
+  }, [selected, entrySizeByPath])
 
   const indexingRoot = indexRoots.find((r) => r.status === 'indexing')
 

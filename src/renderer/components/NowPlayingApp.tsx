@@ -42,7 +42,9 @@ export function NowPlayingApp(): JSX.Element {
   const [path, setPath] = useState<string | null>(null)
   const [handoff, setHandoff] = useState<Handoff>({})
   const pathRef = useRef(path)
-  pathRef.current = path
+  useEffect(() => {
+    pathRef.current = path
+  }, [path])
   const [model, setModel] = useState<PreviewModel | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -137,7 +139,7 @@ export function NowPlayingApp(): JSX.Element {
         // Peek only — dock may be rejected if preview is another file; keep playing.
         const chrome = peekNowPlayingChromiumPlayback()
         let startAtSec = chrome?.startAtSec
-        let paused = chrome?.paused === true
+        const paused = chrome?.paused === true
         if (startAtSec == null || startAtSec <= 0) {
           try {
             const mpv = await call(api.preview.mpvTimePos())

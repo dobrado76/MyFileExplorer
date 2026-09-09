@@ -114,8 +114,42 @@ import {
 import { ItemGlyph, lookupItemAds } from './ItemGlyph'
 import { warmGenericFolderShellIcons, warmShellIcon } from './ShellIcon'
 import { useItemAdsOverlays } from '../lib/useItemAdsOverlays'
+import { useItemHighlight } from '../lib/useItemHighlight'
 import { RenameInput } from './RenameInput'
 import { noteFileViewScroll } from '../lib/fileViewScroll'
+
+/** Cell-level selection/focus so large folders do not re-render every visible thumb on click. */
+function FileItemHighlight({
+  tabId,
+  path,
+  isActiveTab,
+  children
+}: {
+  tabId: string
+  path: string
+  isActiveTab: boolean
+  children: (h: { isSel: boolean; isFocus: boolean }) => ReactNode
+}): JSX.Element {
+  const h = useItemHighlight(tabId, path, isActiveTab)
+  return <>{children(h)}</>
+}
+
+/** Stable when only `selected` changes — avoids remounting the virtualizer parent. */
+function tabUiSig(tab: ReturnType<typeof useAppStore.getState>['tabs'][number] | undefined): string {
+  if (!tab) return ''
+  return [
+    tab.path,
+    tab.viewMode,
+    tab.sort.key,
+    tab.sort.dir,
+    String(tab.scrollOffset),
+    tab.rootPath ?? '',
+    tab.search.active ? '1' : '0',
+    tab.search.query,
+    String(tab.search.results.length),
+    tab.virtualFolderGroupStack.join('\0')
+  ].join('\u0001')
+}
 
 /** Details columns only while browsing the Recycle Bin (not part of folder column layout). */
 type RecycleDetailsColId = 'origin' | 'dateDeleted' | 'size' | 'type'
@@ -293,7 +327,15 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const settings = useAppStore((s) => s.settings)
   const userMetadataEnabled = settings.userMetadata?.enabled === true
   const mediaMetadataEnabled = settings.mediaMetadata?.enabled === true
-  const tab = useAppStore((s) => s.tabs.find((t) => t.id === tabId))
+  // Ignore selection-only tab updates (sig omits `selected`) so clicks do not
+  // re-render every visible thumb — cells subscribe via FileItemHighlight.
+  const tabSig = useAppStore((s) => tabUiSig(s.tabs.find((t) => t.id === tabId)))
+  const tab = useMemo(
+    () => useAppStore.getState().tabs.find((t) => t.id === tabId),
+    // selection omitted from tabUiSig on purpose (per-cell highlight)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tabSig gates non-selection updates
+    [tabId, tabSig]
+  )
   const setSelectionRaw = useAppStore((s) => s.setSelection)
   const setSelection = useCallback(
     (paths: string[], anchor?: string | null, focused?: string | null) => {
@@ -304,11 +346,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const selectionAnchor = useAppStore((s) =>
     s.activeTabId === tabId ? s.selectionAnchor : null
   )
-  const focusedPath = useAppStore((s) =>
-    s.activeTabId === tabId
-      ? s.focusedPath
-      : (s.tabs.find((t) => t.id === tabId)?.selected.slice(-1)[0] ?? null)
-  )
+  // focusedPath / selected are read per-cell (FileItemHighlight) and via getState in handlers
+  // so a 25k folder does not re-render every visible thumb on each click.
   const fileListScrollRequest = useAppStore((s) => s.fileListScrollRequest)
   const clearFileListScrollRequest = useAppStore((s) => s.clearFileListScrollRequest)
   const openEntry = useAppStore((s) => s.openEntry)
@@ -391,7 +430,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     const idx = paneTabIds.indexOf(tabId)
     if (idx >= 0) focusPane(idx)
     // Leave tree keyboard focus so Ctrl+C/X/Delete operate on the file-list selection.
-    setTreeFocusPath(null)
+    // Skip the write when already clear — every click used to churn the whole store.
+    if (useAppStore.getState().treeFocusPath != null) setTreeFocusPath(null)
     const el = scrollEl ?? scrollRef.current
     el?.focus({ preventScroll: true })
   }, [paneTabIds, tabId, focusPane, setTreeFocusPath, scrollEl])
@@ -1140,10 +1180,21 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     return () => clearTimeout(timer)
   }, [shouldShowLoadingOverlay, loadingSurfaceVisible])
 
-  const selected = useMemo(
-    () => new Set((tab?.selected ?? []).map((p) => p.toLowerCase())),
-    [tab?.selected]
+  // Selection highlight is per-cell (FileItemHighlight); handlers use getState().
+  // O(1) path → index for keyboard / shift-range (never findIndex over 25k).
+  const entryIndexByPath = useMemo(() => {
+    const m = new Map<string, number>()
+    for (let i = 0; i < entries.length; i++) {
+      m.set(entries[i]!.path.toLowerCase(), i)
+    }
+    return m
+  }, [entries])
+
+  const indexOfPath = useCallback(
+    (p: string): number => entryIndexByPath.get(p.toLowerCase()) ?? -1,
+    [entryIndexByPath]
   )
+
   const cutSet = useMemo(
     () => new Set(clipboard?.mode === 'cut' ? clipboard.paths.map((p) => p.toLowerCase()) : []),
     [clipboard]
@@ -1395,19 +1446,19 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   // Keep the item being renamed in view (F2, new folder/file, tree rename…).
   useLayoutEffect(() => {
     if (!renamingPath) return
-    const idx = entries.findIndex((en) => samePath(en.path, renamingPath))
+    const idx = indexOfPath(renamingPath)
     if (idx < 0) return
     ensureRowVisible(spec ? Math.floor(idx / columns) : idx, { programmatic: true })
-  }, [renamingPath, entries, spec, columns, ensureRowVisible])
+  }, [renamingPath, indexOfPath, spec, columns, ensureRowVisible])
 
   // Reveal / open-location / any finished rename: follow the item after it re-sorts.
   useLayoutEffect(() => {
     if (!fileListScrollRequest) return
-    const idx = entries.findIndex((en) => samePath(en.path, fileListScrollRequest.path))
+    const idx = indexOfPath(fileListScrollRequest.path)
     if (idx < 0) return
     ensureRowVisible(spec ? Math.floor(idx / columns) : idx, { programmatic: true })
     clearFileListScrollRequest()
-  }, [fileListScrollRequest, entries, spec, columns, ensureRowVisible, clearFileListScrollRequest])
+  }, [fileListScrollRequest, indexOfPath, spec, columns, ensureRowVisible, clearFileListScrollRequest])
 
   // Explorer-style keyboard navigation: arrows, Home/End, PageUp/Down (+ Shift range),
   // and letter typeahead (next name starting with typed prefix).
@@ -1437,13 +1488,18 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       }
 
       const focusIdx = ((): number => {
-        if (focusedPath) {
-          const i = entries.findIndex((en) => samePath(en.path, focusedPath))
+        const st = useAppStore.getState()
+        const focused =
+          st.activeTabId === tabId
+            ? st.focusedPath
+            : (st.tabs.find((t) => t.id === tabId)?.selected.slice(-1)[0] ?? null)
+        if (focused) {
+          const i = indexOfPath(focused)
           if (i >= 0) return i
         }
-        const sel = tab?.selected ?? []
+        const sel = st.tabs.find((t) => t.id === tabId)?.selected ?? []
         for (let i = sel.length - 1; i >= 0; i--) {
-          const idx = entries.findIndex((en) => samePath(en.path, sel[i]!))
+          const idx = indexOfPath(sel[i]!)
           if (idx >= 0) return idx
         }
         return -1
@@ -1553,7 +1609,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
       if (e.shiftKey) {
         const anchorPath = selectionAnchor ?? (focusIdx >= 0 ? entries[focusIdx]!.path : targetPath)
-        const anchorIdx = entries.findIndex((en) => samePath(en.path, anchorPath))
+        const anchorIdx = indexOfPath(anchorPath)
         const a = anchorIdx >= 0 ? anchorIdx : target
         const [from, to] = a < target ? [a, target] : [target, a]
         setSelection(
@@ -1573,8 +1629,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }, [
     isFocusedSurface,
     entries,
-    focusedPath,
-    tab?.selected,
+    tabId,
+    indexOfPath,
     selectionAnchor,
     setSelection,
     spec,
@@ -1788,27 +1844,32 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       mods: { ctrlKey: boolean; shiftKey: boolean }
     ): { paths: string[]; anchor: string; focused: string } => {
       const path = entry.path
-      const current = tab?.selected ?? []
+      const current =
+        useAppStore.getState().tabs.find((t) => t.id === tabId)?.selected ?? []
       if (mods.ctrlKey) {
         const has = current.some((p) => samePath(p, path))
         const paths = has ? current.filter((p) => !samePath(p, path)) : [...current, path]
         return { paths, anchor: path, focused: path }
       }
-      if (mods.shiftKey && selectionAnchor) {
-        const anchorIdx = entries.findIndex((en) => samePath(en.path, selectionAnchor))
-        const idx = entries.findIndex((en) => samePath(en.path, path))
+      const anchor =
+        useAppStore.getState().activeTabId === tabId
+          ? useAppStore.getState().selectionAnchor
+          : null
+      if (mods.shiftKey && anchor) {
+        const anchorIdx = indexOfPath(anchor)
+        const idx = indexOfPath(path)
         if (anchorIdx >= 0 && idx >= 0) {
           const [from, to] = anchorIdx < idx ? [anchorIdx, idx] : [idx, anchorIdx]
           return {
             paths: entries.slice(from, to + 1).map((en) => en.path),
-            anchor: selectionAnchor,
+            anchor,
             focused: path
           }
         }
       }
       return { paths: [path], anchor: path, focused: path }
     },
-    [tab?.selected, selectionAnchor, entries]
+    [tabId, indexOfPath, entries]
   )
 
   const selectWithModifiers = useCallback(
@@ -1886,7 +1947,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
 
       ensurePaneFocus()
 
-      const alreadySelected = selected.has(entry.path.toLowerCase())
+      const selNow =
+        useAppStore.getState().tabs.find((t) => t.id === tabId)?.selected ?? []
+      const alreadySelected = selNow.some((p) => samePath(p, entry.path))
 
       // Recycle Bin: selection only (no left/right file-drag from bin rows).
       if (recycleMode) {
@@ -1907,7 +1970,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       if (e.button === 2) {
         e.preventDefault()
         e.stopPropagation()
-        const dragPathsNow = alreadySelected ? (tab?.selected ?? [entry.path]) : [entry.path]
+        const dragPathsNow = alreadySelected ? (selNow.length > 0 ? selNow : [entry.path]) : [entry.path]
         if (!alreadySelected) {
           setSelection([entry.path], entry.path, entry.path)
         }
@@ -1948,7 +2011,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       // same gesture can drag that set (no release + second click).
       let dragPathsNow: string[]
       if (!e.ctrlKey && !e.shiftKey && alreadySelected) {
-        dragPathsNow = tab?.selected ?? [entry.path]
+        dragPathsNow = selNow.length > 0 ? selNow : [entry.path]
       } else {
         const next = selectionForModifiers(entry, e)
         setSelection(next.paths, next.anchor, next.focused)
@@ -1999,10 +2062,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       recycleMode,
       renameSource,
       renamingPath,
-      selected,
+      tabId,
       setSelection,
       selectionForModifiers,
-      tab?.selected,
       setDragPaths,
       highlightDropDest,
       clearDragVisuals,
@@ -2021,7 +2083,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         suppressClickRef.current = true
         return
       }
-      if (selected.has(entry.path.toLowerCase())) {
+      const selNow =
+        useAppStore.getState().tabs.find((t) => t.id === tabId)?.selected ?? []
+      if (selNow.some((p) => samePath(p, entry.path))) {
         // defer to click so dragging a multi-selection works
         suppressClickRef.current = false
         return
@@ -2029,7 +2093,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       // Plain click on unselected: selection already set in pointerdown.
       suppressClickRef.current = true
     },
-    [selected]
+    [tabId]
   )
 
   const onItemClick = useCallback(
@@ -2047,8 +2111,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         selectWithModifiers(entry, e)
         return
       }
-      const sel = tab?.selected ?? []
-      const alreadySelected = selected.has(entry.path.toLowerCase())
+      const sel =
+        useAppStore.getState().tabs.find((t) => t.id === tabId)?.selected ?? []
+      const alreadySelected = sel.some((p) => samePath(p, entry.path))
       const onlyThis =
         alreadySelected && sel.length === 1 && samePath(sel[0]!, entry.path)
       // Explorer: select click, pause, click name again, hover ~500ms → rename.
@@ -2065,7 +2130,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       noteItemClick(entry.path)
       selectWithModifiers(entry, e)
     },
-    [recycleMode, selected, tab, selectWithModifiers, startRename]
+    [recycleMode, tabId, selectWithModifiers, startRename]
   )
 
   const onItemDoubleClick = useCallback(
@@ -2083,12 +2148,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       e.stopPropagation()
       cancelDoubleSingleClick()
       if (shouldSuppressContextMenu() || getLiveRightDragSession()) return
-      const paths = selected.has(entry.path.toLowerCase()) ? (tab?.selected ?? []) : [entry.path]
-      if (!selected.has(entry.path.toLowerCase()))
-        setSelection([entry.path], entry.path, entry.path)
+      const sel =
+        useAppStore.getState().tabs.find((t) => t.id === tabId)?.selected ?? []
+      const already = sel.some((p) => samePath(p, entry.path))
+      const paths = already ? sel : [entry.path]
+      if (!already) setSelection([entry.path], entry.path, entry.path)
       openContextMenu({ x: e.clientX, y: e.clientY, paths })
     },
-    [selected, tab?.selected, setSelection, openContextMenu]
+    [tabId, setSelection, openContextMenu]
   )
 
   const onItemDragEnd = useCallback((): void => {
@@ -2544,8 +2611,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
               const start = vRow.index * columns
               const rowEntries = entries.slice(start, start + columns)
               return rowEntries.map((entry, i) => {
-                const isSel = selected.has(entry.path.toLowerCase())
-                const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
                 const iconPx = Math.min(spec.thumb, 48)
                 const flags = mediaLibrary.items[entry.path.toLowerCase()]
                 const gridName = gridNameFor(entry)
@@ -2558,8 +2623,14 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                   hasContentPreview &&
                   !(showEpisodeIconLabels && Boolean(episodeIconLabel(flags)))
                 return (
-                  <div
+                  <FileItemHighlight
                     key={entry.path}
+                    tabId={tabId}
+                    path={entry.path}
+                    isActiveTab={isFocusedSurface}
+                  >
+                    {({ isSel, isFocus }) => (
+                  <div
                     className={`grid-cell${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}${hideName ? ' no-filename' : ''}${hasContentPreview ? ' has-preview' : ' icon-only'}${virtualMembership(entry.path)?.state === 'missing' || virtualMembership(entry.path)?.state === 'inaccessible' ? ' virtual-missing' : ''}`}
                     style={{
                       top: vRow.start,
@@ -2663,17 +2734,23 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       </div>
                     )}
                   </div>
+                    )}
+                  </FileItemHighlight>
                 )
               })
             }
 
             const entry = entries[vRow.index]
             if (!entry) return null
-            const isSel = selected.has(entry.path.toLowerCase())
-            const isFocus = focusedPath !== null && samePath(focusedPath, entry.path)
             return (
-              <div
+              <FileItemHighlight
                 key={entry.path}
+                tabId={tabId}
+                path={entry.path}
+                isActiveTab={isFocusedSurface}
+              >
+                {({ isSel, isFocus }) => (
+              <div
                 className={`row${isSel ? ' selected' : ''}${cutSet.has(entry.path.toLowerCase()) ? ' cut' : ''}${entry.isHidden ? ' fs-hidden' : ''}${isFocus ? ' focused' : ''}${dropHighlightPath && samePath(dropHighlightPath, entry.path) ? ' drop-target' : ''}${(() => {
                   const st = virtualMembership(entry.path)?.state
                   return st === 'missing' || st === 'inaccessible' ? ' virtual-missing' : ''
@@ -2994,6 +3071,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     )
                   })}
               </div>
+                )}
+              </FileItemHighlight>
             )
           })}
         </div>

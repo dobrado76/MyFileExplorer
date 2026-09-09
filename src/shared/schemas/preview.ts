@@ -94,9 +94,10 @@ export type PreviewModel = {
    */
   needsPlayable?: boolean
   /**
-   * When true, A/V tag fields (duration, codecs, …) are still loading via
-   * `preview.getMediaMeta`. Main does not block `mediaUrl` on the parse; the renderer
-   * waits to paint the player until tags are merged so the File/VIDEO strip does not jump.
+   * When true, deferred fields are still loading via `preview.getMediaMeta`:
+   * A/V tags (duration, codecs, …) or image dimensions / generation metadata.
+   * Main does not block `mediaUrl` on the parse; the renderer paints the media
+   * immediately for images, and for A/V may briefly wait so the File strip does not jump.
    */
   mediaMetaPending?: boolean
   /**
@@ -185,9 +186,11 @@ export const previewMpvVisibleSchema = z.object({
 })
 export type PreviewMpvVisibleRequest = z.infer<typeof previewMpvVisibleSchema>
 
-/** Async A/V tag fields after a fast `preview:get` (duration/codecs/cover). */
+/** Async deferred fields after a fast `preview:get` (A/V tags, image dimensions/gen). */
 export const previewMediaMetaSchema = z.object({
-  path: z.string().min(1)
+  path: z.string().min(1),
+  /** Image ADS stream override (Version Control preview). */
+  ads: z.string().nullable().optional()
 })
 export type PreviewMediaMetaRequest = z.infer<typeof previewMediaMetaSchema>
 
@@ -196,6 +199,7 @@ export type PreviewMediaMetaResponse = {
   subtitle?: string
   /** Embedded cover URL for audio only. */
   coverUrl?: string
+  warnings?: string[]
 }
 
 /** Load a topic HTML URL from a `.chm` after `preview:get`. */

@@ -32,6 +32,15 @@ export function usePreviewTarget(): {
     [recycleBin.active, recycleBin.items, search.active, search.results, listingEntries]
   )
 
+  // O(1) stamp lookup — never scan 25k entries on every click.
+  const entryByPath = useMemo(() => {
+    const m = new Map<string, { mtimeMs: number; size: number }>()
+    for (const e of entries) {
+      m.set(e.path.toLowerCase(), { mtimeMs: e.mtimeMs, size: e.size })
+    }
+    return m
+  }, [entries])
+
   const folderFallback =
     !search.active && !recycleBin.active && listingPath.trim() ? listingPath : null
   const previewPath = useMemo(
@@ -41,7 +50,7 @@ export function usePreviewTarget(): {
 
   const selectedStamp = useMemo(() => {
     if (!previewPath) return null
-    const e = entries.find((en) => samePath(en.path, previewPath))
+    const e = entryByPath.get(previewPath.toLowerCase())
     const base = e ? `${e.mtimeMs}:${e.size}` : ''
     const contentBump =
       columnMetaBump.path && isUnderPath(previewPath, columnMetaBump.path)
@@ -49,7 +58,7 @@ export function usePreviewTarget(): {
         : ''
     if (!base && !contentBump) return null
     return contentBump ? `${base}:${contentBump}` : base
-  }, [previewPath, entries, columnMetaBump.path, columnMetaBump.rev])
+  }, [previewPath, entryByPath, columnMetaBump.path, columnMetaBump.rev])
 
   const versionOverrideAds =
     imageVersionPreview && previewPath && samePath(previewPath, imageVersionPreview.path)

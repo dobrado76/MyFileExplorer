@@ -842,7 +842,9 @@ export function registerIpcHandlers(): void {
   handle(IPC.previewEnsurePlayable, previewEnsurePlayableSchema, (req) =>
     ensurePlayablePreview(req.path, { force: req.force })
   )
-  handle(IPC.previewGetMediaMeta, previewMediaMetaSchema, (req) => getMediaPreviewMeta(req.path))
+  handle(IPC.previewGetMediaMeta, previewMediaMetaSchema, (req) =>
+    getMediaPreviewMeta(req.path, req.ads)
+  )
   handle(IPC.previewChmTopic, previewChmTopicSchema, (req) =>
     getChmTopicPreview(req.path, req.topic)
   )

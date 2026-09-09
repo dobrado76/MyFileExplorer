@@ -290,7 +290,7 @@ export function ScriptRunnerDialog(props: {
       props.root,
       props.scriptId,
       recursive,
-      script?.name,
+      script,
       settings.scripts.acknowledgedRisk,
       source
     ]

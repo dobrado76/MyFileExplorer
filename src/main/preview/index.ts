@@ -551,15 +551,13 @@ async function buildImagePreview(
     /* fall back to $DATA */
   }
 
-  let bytes: Buffer | null = null
-  let exifBuf: Buffer | null = null
-  let mediaUrl = mediaUrlFor(
-    file,
-    effectiveCacheKey,
-    mediaAds !== undefined ? { ads: mediaAds } : undefined
-  )
-
+  // TIFF/TGA/HDR-style formats must rasterize before Chromium can paint.
   if (needsWebRaster(ext)) {
+    let mediaUrl = mediaUrlFor(
+      file,
+      effectiveCacheKey,
+      mediaAds !== undefined ? { ads: mediaAds } : undefined
+    )
     const raster = await rasterizeWebImage(openPath)
     if (raster) {
       mediaUrl = raster.mediaUrl
@@ -574,24 +572,66 @@ async function buildImagePreview(
     } else {
       warnings.push('Could not decode image for preview (TIFF/TGA)')
     }
-  } else {
-    try {
-      bytes = await fsp.readFile(openPath)
-      const { default: sharp } = await import('sharp')
-      // Read then close — sharp(path) can keep a Win32 handle on some builds.
-      const meta = await sharp(bytes).metadata()
-      if (meta.width && meta.height) {
-        fields.push({
-          id: 'image.dimensions',
-          label: 'Dimensions',
-          value: `${meta.width} × ${meta.height}`,
-          group: 'file'
-        })
-      }
-      if (meta.exif) exifBuf = Buffer.from(meta.exif)
-    } catch {
-      warnings.push('Could not read image metadata')
+    return {
+      path: file,
+      kind: 'image',
+      mediaUrl,
+      fields,
+      warnings
     }
+  }
+
+  // Fast path (same idea as slideshow / A/V): return a paintable mediaUrl without
+  // reading the whole file for Sharp metadata or generation parse. Dimensions +
+  // A1111/Comfy fields load via preview.getMediaMeta so selection feels instant.
+  return {
+    path: file,
+    kind: 'image',
+    mediaUrl: mediaUrlFor(
+      file,
+      effectiveCacheKey,
+      mediaAds !== undefined ? { ads: mediaAds } : undefined
+    ),
+    mediaMetaPending: true,
+    fields,
+    warnings
+  }
+}
+
+async function loadImagePreviewMeta(
+  file: string,
+  ads?: string | null
+): Promise<{ fields: PreviewField[]; warnings: string[] }> {
+  const fields: PreviewField[] = []
+  const warnings: string[] = []
+  const ext = path.extname(file).replace(/^\./, '').toLowerCase()
+
+  let openPath = file
+  try {
+    const { resolveImageAdsStream } = await import('../fs/imageEdit')
+    const resolved = await resolveImageAdsStream(file, ads)
+    openPath = resolved.openPath
+  } catch {
+    /* $DATA */
+  }
+
+  let bytes: Buffer | null = null
+  let exifBuf: Buffer | null = null
+  try {
+    bytes = await fsp.readFile(openPath)
+    const { default: sharp } = await import('sharp')
+    const meta = await sharp(bytes).metadata()
+    if (meta.width && meta.height) {
+      fields.push({
+        id: 'image.dimensions',
+        label: 'Dimensions',
+        value: `${meta.width} × ${meta.height}`,
+        group: 'file'
+      })
+    }
+    if (meta.exif) exifBuf = Buffer.from(meta.exif)
+  } catch {
+    warnings.push('Could not read image metadata')
   }
 
   if (bytes) {
@@ -601,14 +641,7 @@ async function buildImagePreview(
       warnings.push('Generation metadata parse incomplete')
     }
   }
-
-  return {
-    path: file,
-    kind: 'image',
-    mediaUrl,
-    fields,
-    warnings
-  }
+  return { fields, warnings }
 }
 
 /**
@@ -1229,13 +1262,17 @@ export async function ensurePlayablePreview(
 }
 
 /**
- * Load A/V format/tag fields for the preview pane (async follow-up after fast get).
- * May scan large files for duration — must not block `preview:get` / mediaUrl.
+ * Load deferred preview fields after a fast `preview:get` (A/V tags, image
+ * dimensions + generation metadata). Must not block mediaUrl / the image paint.
  */
-export async function getMediaPreviewMeta(rawPath: string): Promise<{
+export async function getMediaPreviewMeta(
+  rawPath: string,
+  ads?: string | null
+): Promise<{
   fields: PreviewField[]
   subtitle?: string
   coverUrl?: string
+  warnings?: string[]
 }> {
   let file = requireAbsolute(rawPath)
   if (file.toLowerCase().startsWith('mfe-remote://')) {
@@ -1245,6 +1282,13 @@ export async function getMediaPreviewMeta(rawPath: string): Promise<{
   const st = await statPath(file)
   if (!st.exists || st.kind === 'dir') return { fields: [] }
   const ext = path.extname(file).replace(/^\./, '').toLowerCase()
+  if (IMAGE_EXTS.has(ext) && !needsWebRaster(ext)) {
+    try {
+      return await loadImagePreviewMeta(file, ads)
+    } catch {
+      return { fields: [] }
+    }
+  }
   if (AUDIO_EXTS.has(ext)) {
     try {
       const meta = await loadAudioPreviewMeta(file, st.mtimeMs, st.size)

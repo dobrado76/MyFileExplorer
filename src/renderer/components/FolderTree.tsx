@@ -168,7 +168,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
   const showDrivesOverview = useAppStore((s) => s.showDrivesOverview)
   const network = useAppStore((s) => s.network)
   const loadNetworkShares = useAppStore((s) => s.loadNetworkShares)
-  const tabs = useAppStore((s) => s.tabs)
+  const tabIdsKey = useAppStore((s) => s.tabs.map((t) => t.id).join('\0'))
   const activePath = useAppStore((s) => s.tabs.find((t) => t.id === tabId)?.path ?? '')
   const groupStack = useAppStore(
     (s) => s.tabs.find((t) => t.id === tabId)?.virtualFolderGroupStack ?? EMPTY_GROUP_STACK
@@ -492,7 +492,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
 
   // Drop closed tabs' tree caches.
   useEffect(() => {
-    const live = new Set(tabs.map((t) => t.id))
+    const live = new Set(tabIdsKey.split('\0').filter(Boolean))
     setNodesByTab((prev) => {
       let changed = false
       const next: Record<string, NodesMap> = {}
@@ -502,7 +502,7 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
       }
       return changed ? next : prev
     })
-  }, [tabs])
+  }, [tabIdsKey])
 
   // Clear the drop highlight when the drag ends anywhere (incl. cancelled).
   useEffect(() => {

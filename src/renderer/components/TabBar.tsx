@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
-import { useAppStore, dropOperation } from '../store/appStore'
+import { useAppStore, dropOperation, type Tab } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
 import type { ClosedTabEntry } from '@shared/schemas/session'
 import {
@@ -14,6 +14,13 @@ import { recycleBinShowsInToolbar } from '@shared/recycleBinTree'
 import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
+
+/** Stable when only selection changes — TabBar ignores `selected`. */
+function tabBarChromeSig(tabs: Tab[]): string {
+  return tabs
+    .map((t) => `${t.id}\0${t.path}\0${t.title ?? ''}\0${t.rootPath ?? ''}\0${JSON.stringify(t.icon)}`)
+    .join('\n')
+}
 
 type TabBarMenu =
   | { kind: 'tab'; tabId: string; x: number; y: number }
@@ -35,7 +42,14 @@ const EDGE_SCROLL_PX = 28
 const EDGE_SCROLL_STEP = 18
 
 export function TabBar(): JSX.Element {
-  const tabs = useAppStore((s) => s.tabs)
+  // Ignore selection churn — tabs only need path/title/icon for chrome.
+  const tabsSig = useAppStore((s) => tabBarChromeSig(s.tabs))
+  const tabs = useMemo(
+    () => useAppStore.getState().tabs,
+    // selection omitted from chrome sig on purpose
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tabsSig gates structural updates
+    [tabsSig]
+  )
   const activeTabId = useAppStore((s) => s.activeTabId)
   const listingOffline = useAppStore((s) => s.listing.offline)
   const listingPath = useAppStore((s) => s.listing.path)
