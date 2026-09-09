@@ -96,4 +96,22 @@ describe('copy/move Replace merges folders (Explorer parity)', () => {
       await expect(fsp.readFile(path.join(existing, 'added.txt'), 'utf8')).resolves.toBe('src')
     }
   )
+
+  it('move merge overwrites a conflicting file without losing dest on failure path', async () => {
+    // Staged replace: dest content is replaced atomically; prior dest survives until success.
+    const root = await tempDir()
+    const destParent = path.join(root, 'dest')
+    const srcParent = path.join(root, 'src')
+    await fsp.mkdir(destParent)
+    await fsp.mkdir(srcParent)
+    const existing = path.join(destParent, 'Show')
+    const incoming = path.join(srcParent, 'Show')
+    await fsp.mkdir(existing)
+    await fsp.mkdir(incoming)
+    await fsp.writeFile(path.join(existing, 'clip.txt'), 'old-dest')
+    await fsp.writeFile(path.join(incoming, 'clip.txt'), 'new-src')
+    const res = await moveEntries([incoming], destParent, 'replace')
+    expect(res.issues).toEqual([])
+    await expect(fsp.readFile(path.join(existing, 'clip.txt'), 'utf8')).resolves.toBe('new-src')
+  })
 })

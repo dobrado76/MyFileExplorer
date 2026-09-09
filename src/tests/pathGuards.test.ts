@@ -100,6 +100,55 @@ describe('ProtocolAllowlist', () => {
     list.allowDirPermanently(TMP)
     expect(list.isFileAllowed(path.join(TMP, 'secret', 'no.txt'))).toBe(true)
   })
+
+  it('rejects symlink whose path is under allowlist but target is outside', () => {
+    const list = new ProtocolAllowlist()
+    const allowed = path.join(TMP, 'allowed')
+    const secret = path.join(TMP, 'secret', 'no.txt')
+    const link = path.join(allowed, 'escape-link.txt')
+    list.allowDir(allowed)
+    try {
+      fs.unlinkSync(link)
+    } catch {
+      /* missing */
+    }
+    try {
+      fs.symlinkSync(secret, link, 'file')
+    } catch {
+      // Host may lack symlink privilege (Windows without Developer Mode)
+      return
+    }
+    expect(list.isFileAllowed(link)).toBe(false)
+    try {
+      fs.unlinkSync(link)
+    } catch {
+      /* ignore */
+    }
+  })
+
+  it('allows symlink when resolved target is also under allowlist', () => {
+    const list = new ProtocolAllowlist()
+    const allowed = path.join(TMP, 'allowed')
+    const ok = path.join(allowed, 'ok.txt')
+    const link = path.join(allowed, 'ok-link.txt')
+    list.allowDir(allowed)
+    try {
+      fs.unlinkSync(link)
+    } catch {
+      /* missing */
+    }
+    try {
+      fs.symlinkSync(ok, link, 'file')
+    } catch {
+      return
+    }
+    expect(list.isFileAllowed(link)).toBe(true)
+    try {
+      fs.unlinkSync(link)
+    } catch {
+      /* ignore */
+    }
+  })
 })
 
 describe('media protocol URL parsing', () => {

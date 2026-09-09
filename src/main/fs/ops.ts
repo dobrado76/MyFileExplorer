@@ -491,6 +491,64 @@ async function renameRemoteEntry(
   return { path: await remoteRename(source, finalName) }
 }
 
+function isExdevError(e: unknown): boolean {
+  return Boolean(
+    e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'EXDEV'
+  )
+}
+
+/**
+ * Move/copy `from` onto existing `to` without deleting `to` first.
+ * Stages to a sibling temp, moves dest aside, then renames into place.
+ * On failure, restores dest and leaves the prior file recoverable.
+ */
+async function stageThenReplace(from: string, to: string, fromDir: boolean): Promise<void> {
+  const parent = path.dirname(to)
+  const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const base = path.basename(to)
+  const temp = path.join(parent, `.mfe-partial-${token}-${base}`)
+  const backup = path.join(parent, `.mfe-bak-${token}-${base}`)
+
+  let stagedByRename = false
+  try {
+    await fsp.rename(from, temp)
+    stagedByRename = true
+  } catch (e) {
+    if (!isExdevError(e)) {
+      throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: fromDir })
+    }
+    await copyTree(from, temp, null)
+  }
+
+  let destAside = false
+  try {
+    try {
+      await fsp.rename(to, backup)
+      destAside = true
+    } catch {
+      /* dest missing — ok */
+    }
+    await fsp.rename(temp, to)
+  } catch (e) {
+    if (destAside) {
+      await fsp.rename(backup, to).catch(() => undefined)
+    }
+    if (stagedByRename) {
+      await fsp.rename(temp, from).catch(async () => {
+        await fsp.rm(temp, { recursive: true, force: true }).catch(() => undefined)
+      })
+    } else {
+      await fsp.rm(temp, { recursive: true, force: true }).catch(() => undefined)
+    }
+    throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: fromDir })
+  }
+
+  await fsp.rm(backup, { recursive: true, force: true }).catch(() => undefined)
+  if (!stagedByRename) {
+    await deleteTree(from, null)
+  }
+}
+
 /** Explorer-style folder merge: move children into dest, then remove the empty source. */
 export async function mergeDirectoryInto(source: string, target: string): Promise<void> {
   const src = requireAbsolute(source)
@@ -527,14 +585,20 @@ export async function mergeDirectoryInto(source: string, target: string): Promis
       await mergeDirectoryInto(from, to)
       continue
     }
-    if (toExists) {
-      await fsp.rm(to, { recursive: true, force: true })
+    if (!toExists) {
+      try {
+        await fsp.rename(from, to)
+      } catch (e) {
+        if (!isExdevError(e)) {
+          throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: fromDir })
+        }
+        await copyTree(from, to, null)
+        await deleteTree(from, null)
+      }
+      continue
     }
-    try {
-      await fsp.rename(from, to)
-    } catch (e) {
-      throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: fromDir })
-    }
+    // Dest exists (file or kind mismatch): staged replace — never rm dest first.
+    await stageThenReplace(from, to, fromDir)
   }
   try {
     await fsp.rmdir(src)
@@ -876,10 +940,17 @@ async function copyFileWithProgress(
   const preserveTimestamps = opts?.preserveTimestamps !== false
   const preserveAds = opts?.preserveAds !== false
   const verify = opts?.verify === true
+  /** True when body was written without CopyFile (streams / writeFile) — ADS must be copied. */
+  let needsAdsCopy = false
 
   const finishFile = async (): Promise<void> => {
     if (preserveTimestamps) copyHostFileTimes(source, target)
-    if (!preserveAds) await stripAlternateStreams(target)
+    if (!preserveAds) {
+      await stripAlternateStreams(target)
+    } else if (needsAdsCopy && process.platform === 'win32') {
+      const { copyStreams } = await import('./adsWin32')
+      await copyStreams(source, target)
+    }
     progress?.tick(displayName)
     // Timestamps/ADS are sync native — yield so UI IPC can run between files.
     await maybeYieldMain()
@@ -891,6 +962,7 @@ async function copyFileWithProgress(
     const { tipBytesForNonAdsDest } = await import('./imageEdit')
     const tip = await tipBytesForNonAdsDest(source, target)
     if (tip) {
+      // Tip write is the whole body on a non-ADS volume — do not copyStreams.
       if (!progress || tip.length < LARGE_FILE_COPY_BYTES) {
         await fsp.writeFile(target, tip)
         if (verify) {
@@ -945,12 +1017,17 @@ async function copyFileWithProgress(
   }
 
   if (!progress || size < LARGE_FILE_COPY_BYTES) {
-    if (verify) await streamCopy(false)
-    else await fsp.copyFile(source, target)
+    if (verify) {
+      needsAdsCopy = true
+      await streamCopy(false)
+    } else {
+      await fsp.copyFile(source, target)
+    }
     await finishFile()
     return
   }
 
+  needsAdsCopy = true
   progress.reportBytes(0, size, displayName)
   await streamCopy(true)
   progress.reportBytes(size, size, displayName)
@@ -991,6 +1068,10 @@ async function copyTree(
     if (ents.length === 0) {
       if (discover) progress?.addToTotal(1, source)
       if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
+      if (copyOpts.preserveAds !== false && process.platform === 'win32') {
+        const { copyStreams } = await import('./adsWin32')
+        await copyStreams(source, target)
+      }
       progress?.tick(source)
       await maybeYieldMain()
       return
@@ -1019,6 +1100,10 @@ async function copyTree(
       })
     }
     if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
+    if (copyOpts.preserveAds !== false && process.platform === 'win32') {
+      const { copyStreams } = await import('./adsWin32')
+      await copyStreams(source, target)
+    }
     await maybeYieldMain()
     return
   }

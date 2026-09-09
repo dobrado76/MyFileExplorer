@@ -4,7 +4,7 @@ import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import { AppError } from '@shared/result'
 import { buildSyncPlan } from '@shared/pairCompare/plan'
-import { isPathUnder } from '@shared/pairCompare/pathUtils'
+import { isPathUnder, joinUnderRoot } from '@shared/pairCompare/pathUtils'
 import type {
   PairComparisonResult,
   PairSyncPlan,
@@ -19,7 +19,10 @@ import { requireAbsolute } from '../fs/list'
 import { copyEntries, trashEntries, deletePermanently } from '../fs/ops'
 import { runPairCompare, type ScanProgress } from './scan'
 import { revalidatePlan } from './revalidate'
+import { resolveConflictTransfer } from './conflictResolve'
 
+export { resolveConflictTransfer } from './conflictResolve'
+export type { ResolvedConflictTransfer } from './conflictResolve'
 type Session = {
   result: PairComparisonResult | null
   controller: AbortController
@@ -190,6 +193,23 @@ function assertDestUnderRoot(dest: string, root: string): void {
   }
 }
 
+function rootForPath(plan: PairSyncPlan, absPath: string): string {
+  if (isPathUnder(plan.leftRoot, absPath, false)) return plan.leftRoot
+  if (isPathUnder(plan.rightRoot, absPath, false)) return plan.rightRoot
+  throw new AppError('validation', `Path escapes pair roots: ${absPath}`)
+}
+
+function opSucceeded(res: {
+  aborted?: string
+  issues?: unknown[]
+  successCount: number
+}): boolean {
+  if (res.aborted) return false
+  if ((res.issues?.length ?? 0) > 0) return false
+  if (res.successCount <= 0) return false
+  return true
+}
+
 export async function executePairPlan(req: {
   planId: string
   approvedEntryIds?: string[]
@@ -241,49 +261,81 @@ export async function executePairPlan(req: {
       skipped++
       continue
     }
-    let action = e.action
-    const decision = decisionMap.get(e.id)
-    if (action === 'conflict') {
-      if (!decision || decision === 'skip') {
+
+    try {
+      if (e.action === 'conflict') {
+        const decision = decisionMap.get(e.id)
+        if (!decision || decision === 'skip') {
+          skipped++
+          continue
+        }
+        let times: { leftMtimeMs: number; rightMtimeMs: number } | undefined
+        if (decision === 'keep_recent') {
+          const left = joinUnderRoot(plan.leftRoot, e.relativePath)
+          const right = joinUnderRoot(plan.rightRoot, e.relativePath)
+          const [ls, rs] = await Promise.all([fsp.stat(left), fsp.stat(right)])
+          times = { leftMtimeMs: ls.mtimeMs, rightMtimeMs: rs.mtimeMs }
+        }
+        const resolved = resolveConflictTransfer(plan, e, decision, times)
+        if (resolved.kind === 'skip') {
+          skipped++
+          continue
+        }
+        assertDestUnderRoot(resolved.dest, rootForPath(plan, resolved.dest))
+        assertDestUnderRoot(resolved.source, rootForPath(plan, resolved.source))
+        const destDir = path.dirname(resolved.dest)
+        await fsp.mkdir(destDir, { recursive: true })
+        const res = await copyEntries([resolved.source], destDir, resolved.policy)
+        if (
+          opSucceeded({
+            aborted: res.aborted,
+            issues: res.issues,
+            successCount: res.copied.length
+          })
+        ) {
+          if (resolved.countAs === 'replaced') replaced++
+          else copied++
+        } else {
+          failed++
+        }
+        continue
+      }
+
+      if (e.action === 'skip') {
         skipped++
         continue
       }
-      if (decision === 'use_left') {
-        action = e.sourcePath && plan.direction !== 'right_to_left' ? 'replace' : 'replace'
-      } else if (decision === 'use_right') {
-        action = 'replace'
-      } else if (decision === 'keep_both' || decision === 'keep_recent') {
-        action = 'copy'
-      }
-    }
-    if (action === 'skip') {
-      skipped++
-      continue
-    }
 
-    try {
-      if (action === 'create_folder' && e.destinationPath) {
-        assertDestUnderRoot(
-          e.destinationPath,
-          e.destinationPath.toLowerCase().startsWith(plan.leftRoot.toLowerCase())
-            ? plan.leftRoot
-            : plan.rightRoot
-        )
+      if (e.action === 'create_folder' && e.destinationPath) {
+        assertDestUnderRoot(e.destinationPath, rootForPath(plan, e.destinationPath))
         await fsp.mkdir(e.destinationPath, { recursive: true })
         created++
-      } else if ((action === 'copy' || action === 'replace') && e.sourcePath && e.destinationPath) {
+      } else if (
+        (e.action === 'copy' || e.action === 'replace') &&
+        e.sourcePath &&
+        e.destinationPath
+      ) {
         const destDir = path.dirname(e.destinationPath)
-        assertDestUnderRoot(
-          e.destinationPath,
-          e.destinationPath.toLowerCase().startsWith(plan.leftRoot.toLowerCase())
-            ? plan.leftRoot
-            : plan.rightRoot
-        )
+        assertDestUnderRoot(e.destinationPath, rootForPath(plan, e.destinationPath))
         await fsp.mkdir(destDir, { recursive: true })
-        await copyEntries([e.sourcePath], destDir, action === 'replace' ? 'replace' : 'rename')
-        if (action === 'replace') replaced++
-        else copied++
-      } else if (action === 'trash' && e.destinationPath) {
+        const res = await copyEntries(
+          [e.sourcePath],
+          destDir,
+          e.action === 'replace' ? 'replace' : 'rename'
+        )
+        if (
+          opSucceeded({
+            aborted: res.aborted,
+            issues: res.issues,
+            successCount: res.copied.length
+          })
+        ) {
+          if (e.action === 'replace') replaced++
+          else copied++
+        } else {
+          failed++
+        }
+      } else if (e.action === 'trash' && e.destinationPath) {
         const underRight = isPathUnder(plan.rightRoot, e.destinationPath, false)
         const underLeft = isPathUnder(plan.leftRoot, e.destinationPath, false)
         if (!underRight && !underLeft) throw new AppError('validation', 'Delete outside roots')
@@ -294,14 +346,34 @@ export async function executePairPlan(req: {
         ) {
           throw new AppError('validation', 'Refusing to delete pair root')
         }
-        await trashEntries([e.destinationPath])
-        removed++
-      } else if (action === 'delete_permanent' && e.destinationPath) {
+        const res = await trashEntries([e.destinationPath])
+        if (
+          opSucceeded({
+            aborted: res.aborted,
+            issues: res.issues,
+            successCount: res.trashed.length
+          })
+        ) {
+          removed++
+        } else {
+          failed++
+        }
+      } else if (e.action === 'delete_permanent' && e.destinationPath) {
         const underRight = isPathUnder(plan.rightRoot, e.destinationPath, false)
         const underLeft = isPathUnder(plan.leftRoot, e.destinationPath, false)
         if (!underRight && !underLeft) throw new AppError('validation', 'Delete outside roots')
-        await deletePermanently([e.destinationPath])
-        removed++
+        const res = await deletePermanently([e.destinationPath])
+        if (
+          opSucceeded({
+            aborted: res.aborted,
+            issues: res.issues,
+            successCount: res.deleted.length
+          })
+        ) {
+          removed++
+        } else {
+          failed++
+        }
       } else {
         skipped++
       }

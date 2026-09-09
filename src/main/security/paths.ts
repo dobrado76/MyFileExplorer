@@ -152,20 +152,18 @@ export class ProtocolAllowlist {
     const n = normalizeAbsolute(filePath)
     if (!n) return false
     // Re-check against realpath so symlinks cannot escape approved roots.
+    // Only the resolved target may pass — a link inside an allowlisted dir must
+    // not grant access when its target lies outside.
     let real: string
     try {
       real = fs.realpathSync.native(n)
     } catch {
       return false
     }
-    for (const candidate of [n, real]) {
-      for (const dir of this.permanent) {
-        if (isSameOrUnder(pathKey(candidate), dir)) return true
-      }
-      if (this.dirs.has(pathKey(path.dirname(candidate)))) return true
+    for (const dir of this.permanent) {
+      if (isSameOrUnder(pathKey(real), dir)) return true
     }
-    return false
+    return this.dirs.has(pathKey(path.dirname(real)))
   }
 }
-
 export const protocolAllowlist = new ProtocolAllowlist()

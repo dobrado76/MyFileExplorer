@@ -3,7 +3,13 @@ import { classifyPair, buildRow } from '../shared/pairCompare/classify'
 import { computePairActionAvailability } from '../shared/pairCompare/availability'
 import { buildSyncPlan } from '../shared/pairCompare/plan'
 import { isPathUnder, normalizeRelativePath } from '../shared/pairCompare/pathUtils'
-import type { CompareEntrySnapshot, PairCompareRow } from '../shared/pairCompare/types'
+import type {
+  CompareEntrySnapshot,
+  PairCompareRow,
+  PairSyncPlan,
+  PairSyncPlanEntry
+} from '../shared/pairCompare/types'
+import { resolveConflictTransfer } from '../main/pairCompare/conflictResolve'
 
 function file(
   side: 'L' | 'R',
@@ -206,5 +212,100 @@ describe('buildSyncPlan', () => {
       incompleteSource: true
     })
     expect(plan.entries).toHaveLength(0)
+  })
+})
+
+describe('resolveConflictTransfer', () => {
+  const plan: PairSyncPlan = {
+    planId: 'p',
+    sessionId: 's',
+    direction: 'two_way',
+    policy: 'update',
+    scope: 'entire',
+    leftRoot: 'C:\\L',
+    rightRoot: 'D:\\R',
+    createdAt: 0,
+    incompleteSource: false,
+    entries: [],
+    summary: {
+      copy: 0,
+      replace: 0,
+      createFolder: 0,
+      remove: 0,
+      conflicts: 0,
+      excluded: 0,
+      bytes: 0
+    }
+  }
+  const entry: PairSyncPlanEntry = {
+    id: 'conflict:a.txt',
+    action: 'conflict',
+    relativePath: 'a.txt',
+    sourcePath: 'C:\\L\\a.txt',
+    destinationPath: 'D:\\R\\a.txt',
+    reason: 'conflict',
+    bytes: 1,
+    requiredDecision: true,
+    rowId: 'a.txt'
+  }
+
+  it('use_left copies left → right with replace', () => {
+    const r = resolveConflictTransfer(plan, entry, 'use_left')
+    expect(r).toEqual({
+      kind: 'copy',
+      source: 'C:\\L\\a.txt',
+      dest: 'D:\\R\\a.txt',
+      policy: 'replace',
+      countAs: 'replaced'
+    })
+  })
+
+  it('use_right copies right → left with replace (reverses direction)', () => {
+    const r = resolveConflictTransfer(plan, entry, 'use_right')
+    expect(r).toEqual({
+      kind: 'copy',
+      source: 'D:\\R\\a.txt',
+      dest: 'C:\\L\\a.txt',
+      policy: 'replace',
+      countAs: 'replaced'
+    })
+  })
+
+  it('keep_both uses rename policy', () => {
+    const r = resolveConflictTransfer(plan, entry, 'keep_both')
+    expect(r.kind).toBe('copy')
+    if (r.kind === 'copy') {
+      expect(r.policy).toBe('rename')
+      expect(r.source).toBe('C:\\L\\a.txt')
+      expect(r.dest).toBe('D:\\R\\a.txt')
+    }
+  })
+
+  it('keep_recent picks the newer side (not always rename)', () => {
+    const leftWins = resolveConflictTransfer(plan, entry, 'keep_recent', {
+      leftMtimeMs: 200,
+      rightMtimeMs: 100
+    })
+    expect(leftWins).toMatchObject({
+      kind: 'copy',
+      source: 'C:\\L\\a.txt',
+      dest: 'D:\\R\\a.txt',
+      policy: 'replace'
+    })
+    const rightWins = resolveConflictTransfer(plan, entry, 'keep_recent', {
+      leftMtimeMs: 100,
+      rightMtimeMs: 200
+    })
+    expect(rightWins).toMatchObject({
+      kind: 'copy',
+      source: 'D:\\R\\a.txt',
+      dest: 'C:\\L\\a.txt',
+      policy: 'replace'
+    })
+    const equal = resolveConflictTransfer(plan, entry, 'keep_recent', {
+      leftMtimeMs: 100,
+      rightMtimeMs: 100
+    })
+    expect(equal).toMatchObject({ kind: 'copy', policy: 'rename' })
   })
 })

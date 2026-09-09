@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Paired folders sync** — conflict choices now match their labels: **Use left** / **Use right** copy that side onto the other with replace; **Keep most recent** picks the newer side by mtime (equal → rename like Keep both). Completion counts come from real copy/trash/delete outcomes (`issues` / `aborted`), not blind success after await (D69 / [PAIRED_FOLDERS.md](docs/PAIRED_FOLDERS.md)).
+- **Folder merge Replace** — no longer deletes the destination child before rename. Conflicting children use staged temp + dest-aside replace; cross-volume (`EXDEV`) falls back to copy-then-delete so a failed merge cannot erase the prior dest file.
+- **NTFS ADS on stream copy** — large-file / verified copies (`mfe-media`-style `$DATA` pipeline) and fresh directory copies now transfer named alternate streams when `preserveAds` is on (D38 / [ADS.md](docs/ADS.md)).
+- **Preview allowlist** — `mfe-media` allowlist checks the **realpath only**, so a symlink inside an approved folder cannot serve a target outside that folder ([SECURITY.md](docs/SECURITY.md)).
 - **Now Playing** — **Keep playing** on a video opens a sticky player window that does not follow selection, so you can browse while Chromium / Rich Player continues. Docked preview stays live for other files; same path shows a stub. Not a mini-bar. Guide: [docs/plans/NOW_PLAYING.md](docs/plans/NOW_PLAYING.md).
 - **Media preview chrome title** — with stored media metadata, the compact preview header uses `Show - S03E04` (or movie title + year) instead of the dotted release stem / embedded file title; full filename stays under File.
 - **Rich player vs Open with default app** — double-click / Open stops mpv and holds in-pane AV for that selection so the external player (e.g. VLC) stays foreground; overlay placement no longer uses `SWP_SHOWWINDOW` (which raised MFE over other apps).
