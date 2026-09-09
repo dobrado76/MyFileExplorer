@@ -497,6 +497,16 @@ function isExdevError(e: unknown): boolean {
   )
 }
 
+function isNotFoundError(e: unknown): boolean {
+  return Boolean(
+    e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'ENOENT'
+  )
+}
+
+function errorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
+}
+
 /**
  * Move/copy `from` onto existing `to` without deleting `to` first.
  * Stages to a sibling temp, moves dest aside, then renames into place.
@@ -525,22 +535,53 @@ async function stageThenReplace(from: string, to: string, fromDir: boolean): Pro
     try {
       await fsp.rename(to, backup)
       destAside = true
-    } catch {
-      /* dest missing — ok */
+    } catch (e) {
+      if (!isNotFoundError(e)) throw e
+      /* dest disappeared after lstat — installing the staged item is still safe */
     }
     await fsp.rename(temp, to)
   } catch (e) {
+    const rollbackErrors: unknown[] = []
+    const recoveryPaths: string[] = []
+
     if (destAside) {
-      await fsp.rename(backup, to).catch(() => undefined)
+      try {
+        await fsp.rename(backup, to)
+      } catch (rollbackError) {
+        rollbackErrors.push(rollbackError)
+        recoveryPaths.push(backup)
+      }
     }
     if (stagedByRename) {
-      await fsp.rename(temp, from).catch(async () => {
-        await fsp.rm(temp, { recursive: true, force: true }).catch(() => undefined)
-      })
+      try {
+        await fsp.rename(temp, from)
+      } catch (rollbackError) {
+        // `temp` is now the only copy of the incoming item. Never delete it.
+        rollbackErrors.push(rollbackError)
+        recoveryPaths.push(temp)
+      }
     } else {
       await fsp.rm(temp, { recursive: true, force: true }).catch(() => undefined)
     }
-    throw await appErrorFromFsFailure(e, { action: 'rename', path: from, isDir: fromDir })
+
+    const primary = await appErrorFromFsFailure(e, {
+      action: 'rename',
+      path: from,
+      isDir: fromDir
+    })
+    if (rollbackErrors.length === 0) throw primary
+
+    const recoveryList = recoveryPaths.map((p) => `"${p}"`).join(', ')
+    const rollbackDetail = rollbackErrors.map(errorMessage).join('; ')
+    const recoveryError = new AppError(
+      primary.code,
+      `${primary.message} Rollback also failed: ${rollbackDetail}. Recovery data was retained at ${recoveryList}.`,
+      `Do not delete the recovery path${recoveryPaths.length === 1 ? '' : 's'}; close programs using the files, then move the retained data back manually.`,
+      recoveryPaths[0],
+      primary.lockers
+    )
+    recoveryError.cause = new AggregateError([e, ...rollbackErrors], 'Replace and rollback failed')
+    throw recoveryError
   }
 
   await fsp.rm(backup, { recursive: true, force: true }).catch(() => undefined)

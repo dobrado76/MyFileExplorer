@@ -31,7 +31,8 @@ export type ResolvedConflictTransfer =
 
 /**
  * Map a conflict decision to a concrete copy (or skip).
- * `leftMtimeMs` / `rightMtimeMs` required for `keep_recent` (re-stat at execute time).
+ * `leftMtimeMs` / `rightMtimeMs` are captured comparison values for `keep_recent`;
+ * execution revalidates both paths before using the resolved transfer.
  */
 export function resolveConflictTransfer(
   plan: PairSyncPlan,

@@ -1,25 +1,42 @@
 import fsp from 'node:fs/promises'
-import type { CompareEntrySnapshot, PairSyncPlan, PairPlanValidation } from '@shared/pairCompare/types'
+import type {
+  CompareEntryKind,
+  CompareEntrySnapshot,
+  PairSyncPlan,
+  PairPlanValidation
+} from '@shared/pairCompare/types'
 
-async function statSnap(
-  abs: string | null
-): Promise<{ exists: boolean; size: number | null; modifiedMs: number | null; isDir: boolean }> {
-  if (!abs) return { exists: false, size: null, modifiedMs: null, isDir: false }
+type LiveSnapshot = {
+  exists: boolean
+  size: number | null
+  modifiedMs: number | null
+  kind: CompareEntryKind | null
+}
+
+async function statSnap(abs: string | null): Promise<LiveSnapshot> {
+  if (!abs) return { exists: false, size: null, modifiedMs: null, kind: null }
   try {
     const st = await fsp.lstat(abs)
+    const kind: CompareEntryKind = st.isFile()
+      ? 'file'
+      : st.isDirectory()
+        ? 'directory'
+        : st.isSymbolicLink()
+          ? 'symlink'
+          : 'other'
     return {
       exists: true,
       size: st.isFile() ? st.size : null,
       modifiedMs: st.mtimeMs,
-      isDir: st.isDirectory()
+      kind
     }
   } catch {
-    return { exists: false, size: null, modifiedMs: null, isDir: false }
+    return { exists: false, size: null, modifiedMs: null, kind: null }
   }
 }
 
 function matchesSnapshot(
-  live: { exists: boolean; size: number | null; modifiedMs: number | null },
+  live: LiveSnapshot,
   snap: CompareEntrySnapshot | null | undefined,
   expectExists: boolean
 ): boolean {
@@ -37,6 +54,21 @@ function matchesSnapshot(
   return true
 }
 
+function kindMatches(live: LiveSnapshot, snap: CompareEntrySnapshot): boolean {
+  if (!live.exists || !live.kind) return false
+  if (snap.kind === 'junction') return live.kind === 'symlink'
+  return live.kind === snap.kind
+}
+
+function snapshotAtPath(
+  snapshots: { left: CompareEntrySnapshot | null; right: CompareEntrySnapshot | null } | undefined,
+  absPath: string
+): CompareEntrySnapshot | null {
+  if (snapshots?.left?.absolutePath === absPath) return snapshots.left
+  if (snapshots?.right?.absolutePath === absPath) return snapshots.right
+  return null
+}
+
 /** Re-stat plan sources/destinations against comparison-time expectations. */
 export async function revalidatePlan(
   plan: PairSyncPlan,
@@ -45,60 +77,62 @@ export async function revalidatePlan(
     { left: CompareEntrySnapshot | null; right: CompareEntrySnapshot | null }
   >
 ): Promise<PairPlanValidation> {
-  const staleEntryIds: string[] = []
-  const missingSourceIds: string[] = []
-  const typeChangedIds: string[] = []
+  const staleEntryIds = new Set<string>()
+  const missingSourceIds = new Set<string>()
+  const typeChangedIds = new Set<string>()
 
   for (const e of plan.entries) {
-    if (e.action === 'skip' || e.action === 'conflict') continue
+    if (e.action === 'skip') continue
     const snaps = rowSnapshots.get(e.rowId)
+
+    // An unresolved conflict can copy in either direction. Validate both captured
+    // sides so the UI preflight cannot report a changed conflict row as safe.
+    if (e.action === 'conflict') {
+      for (const snap of [snaps?.left, snaps?.right]) {
+        if (!snap) continue
+        const live = await statSnap(snap.absolutePath)
+        if (!live.exists || !matchesSnapshot(live, snap, true)) {
+          staleEntryIds.add(e.id)
+        } else if (!kindMatches(live, snap)) {
+          typeChangedIds.add(e.id)
+        }
+      }
+      continue
+    }
 
     if (e.sourcePath) {
       const live = await statSnap(e.sourcePath)
       if (!live.exists) {
-        missingSourceIds.push(e.id)
+        missingSourceIds.add(e.id)
         continue
       }
-      const srcSnap =
-        snaps?.left?.absolutePath === e.sourcePath
-          ? snaps.left
-          : snaps?.right?.absolutePath === e.sourcePath
-            ? snaps.right
-            : null
+      const srcSnap = snapshotAtPath(snaps, e.sourcePath)
       if (srcSnap && !matchesSnapshot(live, srcSnap, true)) {
-        staleEntryIds.push(e.id)
+        staleEntryIds.add(e.id)
+      } else if (srcSnap && !kindMatches(live, srcSnap)) {
+        typeChangedIds.add(e.id)
       }
     }
 
-    if (
-      (e.action === 'replace' || e.action === 'trash' || e.action === 'delete_permanent') &&
-      e.destinationPath
-    ) {
+    if (e.destinationPath) {
       const live = await statSnap(e.destinationPath)
-      const dstSnap =
-        snaps?.left?.absolutePath === e.destinationPath
-          ? snaps.left
-          : snaps?.right?.absolutePath === e.destinationPath
-            ? snaps.right
-            : null
-      if (!live.exists && (e.action === 'trash' || e.action === 'delete_permanent')) {
-        staleEntryIds.push(e.id)
-      } else if (dstSnap && live.exists && !matchesSnapshot(live, dstSnap, true)) {
-        staleEntryIds.push(e.id)
-      } else if (dstSnap && live.exists && dstSnap.kind === 'file' && live.isDir) {
-        typeChangedIds.push(e.id)
+      const dstSnap = snapshotAtPath(snaps, e.destinationPath)
+      if (!matchesSnapshot(live, dstSnap, Boolean(dstSnap))) {
+        staleEntryIds.add(e.id)
+      } else if (dstSnap && live.exists && !kindMatches(live, dstSnap)) {
+        typeChangedIds.add(e.id)
       }
     }
   }
 
+  const stale = [...staleEntryIds]
+  const missing = [...missingSourceIds]
+  const typeChanged = [...typeChangedIds]
   return {
     planId: plan.planId,
-    ok:
-      staleEntryIds.length === 0 &&
-      missingSourceIds.length === 0 &&
-      typeChangedIds.length === 0,
-    staleEntryIds,
-    missingSourceIds,
-    typeChangedIds
+    ok: stale.length === 0 && missing.length === 0 && typeChanged.length === 0,
+    staleEntryIds: stale,
+    missingSourceIds: missing,
+    typeChangedIds: typeChanged
   }
 }

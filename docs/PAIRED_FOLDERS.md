@@ -663,11 +663,12 @@ Use Recycle Bin where the existing operation model supports it. Permanent deleti
 
 Immediately before execution:
 
-1. Re-stat every operation source and existing destination.
-2. Compare against the captured snapshots.
-3. Mark changed rows stale.
-4. Do not proceed silently with stale destructive or overwrite operations.
-5. Offer:
+1. Resolve every approved conflict decision into its concrete source, destination, and copy policy.
+2. Re-stat every operation source and destination. For unresolved conflict preflight, re-stat both compared sides.
+3. Compare both paths against their captured snapshots, including an expected-absent destination.
+4. Mark changed rows stale.
+5. Do not proceed silently with stale destructive or overwrite operations.
+6. Offer:
    - Rebuild plan.
    - Skip stale items and continue.
    - Cancel.

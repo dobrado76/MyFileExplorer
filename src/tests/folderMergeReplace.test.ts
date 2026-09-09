@@ -1,13 +1,15 @@
 import fsp from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import { copyEntries, moveEntries } from '../main/fs/ops'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AppError } from '../shared/result'
+import { copyEntries, mergeDirectoryInto, moveEntries } from '../main/fs/ops'
 
 describe('copy/move Replace merges folders (Explorer parity)', () => {
   const dirs: string[] = []
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await Promise.all(dirs.splice(0).map((d) => fsp.rm(d, { recursive: true, force: true })))
   })
 
@@ -97,8 +99,12 @@ describe('copy/move Replace merges folders (Explorer parity)', () => {
     }
   )
 
-  it('move merge overwrites a conflicting file without losing dest on failure path', async () => {
-    // Staged replace: dest content is replaced atomically; prior dest survives until success.
+  async function replacementFixture(): Promise<{
+    existing: string
+    incoming: string
+    destFile: string
+    sourceFile: string
+  }> {
     const root = await tempDir()
     const destParent = path.join(root, 'dest')
     const srcParent = path.join(root, 'src')
@@ -108,10 +114,62 @@ describe('copy/move Replace merges folders (Explorer parity)', () => {
     const incoming = path.join(srcParent, 'Show')
     await fsp.mkdir(existing)
     await fsp.mkdir(incoming)
-    await fsp.writeFile(path.join(existing, 'clip.txt'), 'old-dest')
-    await fsp.writeFile(path.join(incoming, 'clip.txt'), 'new-src')
-    const res = await moveEntries([incoming], destParent, 'replace')
-    expect(res.issues).toEqual([])
-    await expect(fsp.readFile(path.join(existing, 'clip.txt'), 'utf8')).resolves.toBe('new-src')
+    const destFile = path.join(existing, 'clip.txt')
+    const sourceFile = path.join(incoming, 'clip.txt')
+    await fsp.writeFile(destFile, 'old-dest')
+    await fsp.writeFile(sourceFile, 'new-src')
+    return { existing, incoming, destFile, sourceFile }
+  }
+
+  function denyStagedInstall(destFile: string, sourceFile?: string): void {
+    const realRename = fsp.rename.bind(fsp)
+    vi.spyOn(fsp, 'rename').mockImplementation(async (from, to) => {
+      const fromPath = String(from)
+      const toPath = String(to)
+      const staged = path.basename(fromPath).startsWith('.mfe-partial-')
+      if (staged && toPath === destFile) {
+        throw Object.assign(new Error('replacement install denied'), { code: 'EACCES' })
+      }
+      if (staged && sourceFile && toPath === sourceFile) {
+        throw Object.assign(new Error('source rollback denied'), { code: 'EACCES' })
+      }
+      await realRename(from, to)
+    })
+  }
+
+  it('restores both files when installing a staged replacement fails', async () => {
+    const { existing, incoming, destFile, sourceFile } = await replacementFixture()
+    denyStagedInstall(destFile)
+
+    await expect(mergeDirectoryInto(incoming, existing)).rejects.toBeInstanceOf(AppError)
+    await expect(fsp.readFile(destFile, 'utf8')).resolves.toBe('old-dest')
+    await expect(fsp.readFile(sourceFile, 'utf8')).resolves.toBe('new-src')
+    expect((await fsp.readdir(existing)).filter((name) => name.startsWith('.mfe-'))).toEqual([])
+  })
+
+  it('retains and reports staged incoming data when source rollback also fails', async () => {
+    const { existing, incoming, destFile, sourceFile } = await replacementFixture()
+    denyStagedInstall(destFile, sourceFile)
+
+    let thrown: unknown
+    try {
+      await mergeDirectoryInto(incoming, existing)
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).toBeInstanceOf(AppError)
+    expect((thrown as AppError).message).toContain('source rollback denied')
+    expect((thrown as AppError).message).toContain('Recovery data was retained')
+    await expect(fsp.readFile(destFile, 'utf8')).resolves.toBe('old-dest')
+    await expect(fsp.access(sourceFile)).rejects.toBeTruthy()
+
+    const recoveryName = (await fsp.readdir(existing)).find((name) =>
+      name.startsWith('.mfe-partial-')
+    )
+    expect(recoveryName).toBeTruthy()
+    const recoveryPath = path.join(existing, recoveryName!)
+    expect((thrown as AppError).path).toBe(recoveryPath)
+    await expect(fsp.readFile(recoveryPath, 'utf8')).resolves.toBe('new-src')
   })
 })

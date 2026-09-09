@@ -4,10 +4,12 @@ import path from 'node:path'
 import { BrowserWindow } from 'electron'
 import { AppError } from '@shared/result'
 import { buildSyncPlan } from '@shared/pairCompare/plan'
-import { isPathUnder, joinUnderRoot } from '@shared/pairCompare/pathUtils'
+import { isPathUnder } from '@shared/pairCompare/pathUtils'
 import type {
+  CompareEntrySnapshot,
   PairComparisonResult,
   PairSyncPlan,
+  PairSyncPlanEntry,
   PairSyncDirection,
   PairSyncPolicy,
   PairSyncScope,
@@ -20,6 +22,7 @@ import { copyEntries, trashEntries, deletePermanently } from '../fs/ops'
 import { runPairCompare, type ScanProgress } from './scan'
 import { revalidatePlan } from './revalidate'
 import { resolveConflictTransfer } from './conflictResolve'
+import type { ResolvedConflictTransfer } from './conflictResolve'
 
 export { resolveConflictTransfer } from './conflictResolve'
 export type { ResolvedConflictTransfer } from './conflictResolve'
@@ -33,6 +36,11 @@ type PlanRecord = {
   plan: PairSyncPlan
   sessionId: string
 }
+
+type RowSnapshotMap = Map<
+  string,
+  { left: CompareEntrySnapshot | null; right: CompareEntrySnapshot | null }
+>
 
 const sessions = new Map<string, Session>()
 const plans = new Map<string, PlanRecord>()
@@ -187,6 +195,51 @@ export async function revalidatePairPlan(planId: string) {
   return revalidatePlan(rec.plan, map)
 }
 
+function resolvePlanForExecution(
+  plan: PairSyncPlan,
+  rowSnapshots: RowSnapshotMap,
+  decisions: ReadonlyMap<string, string>,
+  approved: ReadonlySet<string> | null
+): {
+  concretePlan: PairSyncPlan
+  resolvedConflicts: Map<string, ResolvedConflictTransfer>
+} {
+  const resolvedConflicts = new Map<string, ResolvedConflictTransfer>()
+  const entries: PairSyncPlanEntry[] = plan.entries.map((entry) => {
+    if ((approved && !approved.has(entry.id)) || entry.action === 'skip') {
+      return { ...entry, action: 'skip' }
+    }
+    if (entry.action !== 'conflict') return entry
+
+    const decision = decisions.get(entry.id)
+    if (!decision || decision === 'skip') return { ...entry, action: 'skip' }
+
+    let times: { leftMtimeMs: number; rightMtimeMs: number } | undefined
+    if (decision === 'keep_recent') {
+      const snapshots = rowSnapshots.get(entry.rowId)
+      const leftMtimeMs = snapshots?.left?.modifiedMs
+      const rightMtimeMs = snapshots?.right?.modifiedMs
+      if (leftMtimeMs == null || rightMtimeMs == null) {
+        throw new AppError('validation', 'Keep most recent requires both comparison timestamps')
+      }
+      times = { leftMtimeMs, rightMtimeMs }
+    }
+
+    const resolved = resolveConflictTransfer(plan, entry, decision, times)
+    resolvedConflicts.set(entry.id, resolved)
+    if (resolved.kind === 'skip') return { ...entry, action: 'skip' }
+    return {
+      ...entry,
+      action: resolved.policy === 'replace' ? 'replace' : 'copy',
+      sourcePath: resolved.source,
+      destinationPath: resolved.dest,
+      requiredDecision: false
+    }
+  })
+
+  return { concretePlan: { ...plan, entries }, resolvedConflicts }
+}
+
 function assertDestUnderRoot(dest: string, root: string): void {
   if (!isPathUnder(root, dest, false)) {
     throw new AppError('validation', `Destination escapes root: ${dest}`)
@@ -231,16 +284,28 @@ export async function executePairPlan(req: {
     throw new AppError('validation', 'Mirror requires acknowledgement')
   }
 
-  const validation = await revalidatePairPlan(req.planId)
+  const s = sessions.get(rec.sessionId)
+  if (!s?.result) throw new AppError('not-found', 'Session gone')
+  const rowSnapshots: RowSnapshotMap = new Map(
+    s.result.rows.map((r) => [r.id, { left: r.left, right: r.right }] as const)
+  )
+  const decisionMap = new Map((req.decisions ?? []).map((d) => [d.entryId, d.decision]))
+  const approved = req.approvedEntryIds ? new Set(req.approvedEntryIds) : null
+  // Resolve approved conflict choices first, then validate their concrete source
+  // and destination against the comparison snapshots.
+  const { concretePlan, resolvedConflicts } = resolvePlanForExecution(
+    plan,
+    rowSnapshots,
+    decisionMap,
+    approved
+  )
+  const validation = await revalidatePlan(concretePlan, rowSnapshots)
   if (!validation.ok) {
     throw new AppError(
       'conflict',
       `Plan stale (${validation.staleEntryIds.length} stale, ${validation.missingSourceIds.length} missing)`
     )
   }
-
-  const decisionMap = new Map((req.decisions ?? []).map((d) => [d.entryId, d.decision]))
-  const approved = req.approvedEntryIds ? new Set(req.approvedEntryIds) : null
 
   let copied = 0
   let replaced = 0
@@ -264,20 +329,8 @@ export async function executePairPlan(req: {
 
     try {
       if (e.action === 'conflict') {
-        const decision = decisionMap.get(e.id)
-        if (!decision || decision === 'skip') {
-          skipped++
-          continue
-        }
-        let times: { leftMtimeMs: number; rightMtimeMs: number } | undefined
-        if (decision === 'keep_recent') {
-          const left = joinUnderRoot(plan.leftRoot, e.relativePath)
-          const right = joinUnderRoot(plan.rightRoot, e.relativePath)
-          const [ls, rs] = await Promise.all([fsp.stat(left), fsp.stat(right)])
-          times = { leftMtimeMs: ls.mtimeMs, rightMtimeMs: rs.mtimeMs }
-        }
-        const resolved = resolveConflictTransfer(plan, e, decision, times)
-        if (resolved.kind === 'skip') {
+        const resolved = resolvedConflicts.get(e.id)
+        if (!resolved || resolved.kind === 'skip') {
           skipped++
           continue
         }
