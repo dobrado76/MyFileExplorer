@@ -52,6 +52,7 @@ import { normalizeIconPack } from '@shared/schemas/iconPack'
 import { packIconElement } from '../lib/iconPacks'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
+import { entrySizeSortBytes } from '../lib/sizeSort'
 import { linkBaseDirForItem } from '../lib/userMetadataLink'
 import { UserMetadataLinkCell } from './UserMetadataLinkCell'
 import { UserMetadataIconTagsCell } from './UserMetadataIconTagsToggle'
@@ -1042,7 +1043,11 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   }, [folderPath, searchMode, recycleMode, metaFetchColumns])
 
   const metaForSort =
-    !recycleMode && !SYNC_SORT_KEYS.has(effectiveSort.key) ? metaByPath : EMPTY_META_BY_PATH
+    !recycleMode &&
+    (!SYNC_SORT_KEYS.has(effectiveSort.key) ||
+      (showFolderStatistics && effectiveSort.key === 'size'))
+      ? metaByPath
+      : EMPTY_META_BY_PATH
   const entries = useMemo(() => {
     // Avoid copying 20k entries when the filter cannot hide anything.
     // Recycle Bin always shows the full bin (paths live under $Recycle.Bin —
@@ -1116,6 +1121,25 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       })
     }
     const sort = effectiveSort
+    // Size display for folders uses async TotalSize ADS, but DirEntry.size is always 0.
+    // Re-sort here with meta bytes so asc/desc matches the Size column (not name order).
+    if (sort.key === 'size' && showFolderStatistics) {
+      const dirMul = sort.dir === 'asc' ? 1 : -1
+      return [...filtered].sort((a, b) => {
+        if (foldersFirst) {
+          const ad = a.kind === 'dir' ? 0 : 1
+          const bd = b.kind === 'dir' ? 0 : 1
+          if (ad !== bd) return ad - bd
+        }
+        let cmp =
+          entrySizeSortBytes(a, metaForSort[a.path]?.size) -
+          entrySizeSortBytes(b, metaForSort[b.path]?.size)
+        if (cmp === 0) {
+          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        }
+        return cmp * dirMul
+      })
+    }
     if (SYNC_SORT_KEYS.has(sort.key)) {
       // Normal folder browsing: store keeps listing sorted (loadListing / setSort).
       if (!searchMode) return filtered

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { api } from '../../lib/ipc'
+import { usePointerIdle } from '../../lib/usePointerIdle'
 import { useAppStore } from '../../store/appStore'
 
 /**
@@ -12,6 +13,7 @@ export function MpvPreview({
   autoplay,
   active = true,
   startAtSec,
+  autoHideControls = false,
   onOpenExternal,
   onFailed
 }: {
@@ -21,6 +23,11 @@ export function MpvPreview({
   active?: boolean
   /** Resume offset (seconds) for Now Playing handoff. */
   startAtSec?: number
+  /**
+   * Detached preview / Now Playing: hide mpv OSC after idle; Chromium owns
+   * the mouse, so we drive OSC via IPC instead of mpv auto mode.
+   */
+  autoHideControls?: boolean
   onOpenExternal(): void
   onFailed?: (message: string) => void
 }): JSX.Element {
@@ -40,11 +47,29 @@ export function MpvPreview({
   const overlayBlocked = useAppStore(
     (s) => s.dialog != null || s.contextMenu != null || s.imageViewer != null
   )
+  const controlsIdle = usePointerIdle(
+    Boolean(autoHideControls && active && status === 'playing'),
+    3000,
+    { listenMpvPointer: autoHideControls }
+  )
 
   useEffect(() => {
     if (status !== 'playing') return
     void api.preview.mpvVisible({ visible: !overlayBlocked })
   }, [overlayBlocked, status])
+
+  useEffect(() => {
+    if (!autoHideControls || status !== 'playing') return
+    void api.preview.mpvOscVisible({ visible: !controlsIdle })
+  }, [autoHideControls, controlsIdle, status])
+
+  useEffect(() => {
+    if (!autoHideControls || status !== 'playing') return
+    void api.preview.mpvPointerWatch({ enabled: true })
+    return () => {
+      void api.preview.mpvPointerWatch({ enabled: false })
+    }
+  }, [autoHideControls, status])
 
   useEffect(() => {
     if (!active) {

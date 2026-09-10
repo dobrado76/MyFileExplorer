@@ -368,6 +368,12 @@ export type MyFileExplorerApi = {
     mpvVisible(
       req: import('../schemas/preview').PreviewMpvVisibleRequest
     ): Promise<Result<{ ok: true }>>
+    mpvOscVisible(
+      req: import('../schemas/preview').PreviewMpvOscVisibleRequest
+    ): Promise<Result<{ ok: true }>>
+    mpvPointerWatch(
+      req: import('../schemas/preview').PreviewMpvPointerWatchRequest
+    ): Promise<Result<{ ok: true }>>
     mpvStop(): Promise<Result<{ stopped: boolean }>>
     /** Live Rich Player time-pos (seconds), or null if idle. */
     mpvTimePos(): Promise<Result<{ seconds: number | null }>>

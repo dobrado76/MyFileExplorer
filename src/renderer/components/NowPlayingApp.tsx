@@ -214,6 +214,7 @@ export function NowPlayingApp(): JSX.Element {
             active
             startAtSec={handoff.startAtSec}
             startPaused={handoff.paused === true}
+            autoHideControls
             onOpenExternal={() => void api.shell.openPath({ path })}
           />
         ) : useRich && path ? (
@@ -224,6 +225,7 @@ export function NowPlayingApp(): JSX.Element {
             autoplay={resumePlaying}
             active
             startAtSec={handoff.startAtSec}
+            autoHideControls
             onOpenExternal={() => void api.shell.openPath({ path })}
           />
         ) : model?.stripFrames && model.stripFrames.length > 0 ? (

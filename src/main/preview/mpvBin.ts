@@ -116,7 +116,7 @@ export function mpvAvailable(): boolean {
   return resolveMpvPath() !== null
 }
 
-/** OSC always on while windowed; auto-hide in fullscreen (mouse over video hits Chromium, not mpv). */
+/** OSC always on while windowed in the docked pane; detached/Now Playing toggle via IPC. Auto in fullscreen. */
 const OSC_WINDOWED_LUA = `-- MFE Rich player (D33)
 local function apply(fs)
   mp.commandv('script-message', 'osc-visibility', fs and 'auto' or 'always', 'no-osd')

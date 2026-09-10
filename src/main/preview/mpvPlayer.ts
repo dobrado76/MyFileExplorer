@@ -6,8 +6,9 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import net from 'node:net'
-import { app, BrowserWindow, type Event, type WebContents } from 'electron'
+import { app, BrowserWindow, screen, type Event, type WebContents } from 'electron'
 import { AppError } from '@shared/result'
+import { EVENT_CHANNEL, type MfeEvent } from '@shared/ipc/contract'
 import type { PreviewMpvBounds } from '@shared/schemas/preview'
 import { logMain } from '../logging'
 import { ensureMpvOscScript, resolveMpvPath } from './mpvBin'
@@ -38,6 +39,9 @@ type Session = {
   lastRel: PreviewMpvBounds
   /** Dialog / menu asked to hide the overlay without killing playback. */
   chromeHidden: boolean
+  /** Poll cursor so idle chrome sees moves over the mpv overlay. */
+  pointerWatchTimer: ReturnType<typeof setInterval> | null
+  lastPointer: { x: number; y: number } | null
   moveHandler: () => void
   resizeHandler: () => void
   minimizeHandler: () => void
@@ -76,6 +80,52 @@ function detachOwnerListeners(cur: Session): void {
     owner.off('restore', cur.restoreHandler)
   }
   app.off('browser-window-focus', cur.appFocusHandler)
+}
+
+function stopPointerWatch(cur: Session): void {
+  if (cur.pointerWatchTimer != null) {
+    clearInterval(cur.pointerWatchTimer)
+    cur.pointerWatchTimer = null
+  }
+  cur.lastPointer = null
+}
+
+function emitToOwner(cur: Session, event: MfeEvent): void {
+  const owner = BrowserWindow.fromId(cur.ownerId)
+  if (!owner || owner.isDestroyed()) return
+  owner.webContents.send(EVENT_CHANNEL, event)
+}
+
+function startPointerWatch(cur: Session): void {
+  stopPointerWatch(cur)
+  cur.pointerWatchTimer = setInterval(() => {
+    if (!session || session.generation !== cur.generation) {
+      stopPointerWatch(cur)
+      return
+    }
+    const owner = BrowserWindow.fromId(cur.ownerId)
+    if (!owner || owner.isDestroyed() || owner.isMinimized()) return
+    const pt = screen.getCursorScreenPoint()
+    const b = owner.getBounds()
+    const inside =
+      pt.x >= b.x && pt.x < b.x + b.width && pt.y >= b.y && pt.y < b.y + b.height
+    if (!inside) return
+    if (cur.lastPointer && cur.lastPointer.x === pt.x && cur.lastPointer.y === pt.y) return
+    cur.lastPointer = { x: pt.x, y: pt.y }
+    emitToOwner(cur, { type: 'preview-mpv-pointer', payload: {} })
+  }, 100)
+}
+
+export function stopMpvSession(): { stopped: boolean } {
+  const cur = session
+  session = null
+  // Invalidate in-flight starts so they cannot assign after we stop.
+  sessionGeneration += 1
+  if (!cur) return { stopped: false }
+  stopPointerWatch(cur)
+  detachOwnerListeners(cur)
+  killChild(cur.child)
+  return { stopped: true }
 }
 
 /** Query live time-pos via mpv JSON IPC (before stop / for Now Playing handoff). */
@@ -122,15 +172,18 @@ function mpvIpcGetNumber(pipePath: string, property: string): Promise<number | n
   })
 }
 
-export function stopMpvSession(): { stopped: boolean } {
-  const cur = session
-  session = null
-  // Invalidate in-flight starts so they cannot assign after we stop.
-  sessionGeneration += 1
-  if (!cur) return { stopped: false }
-  detachOwnerListeners(cur)
-  killChild(cur.child)
-  return { stopped: true }
+/** Fire-and-forget mpv JSON IPC command (best-effort). */
+function mpvIpcCommand(pipePath: string, command: unknown[]): void {
+  const socket = net.connect(pipePath)
+  const timer = setTimeout(() => socket.destroy(), 400)
+  socket.on('connect', () => {
+    socket.write(JSON.stringify({ command }) + '\n')
+    socket.end()
+  })
+  socket.on('close', () => clearTimeout(timer))
+  socket.on('error', () => {
+    clearTimeout(timer)
+  })
 }
 
 export function mpvProbe(): { available: boolean; path: string | null } {
@@ -282,6 +335,8 @@ export async function startMpvSession(
     ipcPipe: MPV_IPC_PIPE,
     lastRel: { ...bounds },
     chromeHidden: false,
+    pointerWatchTimer: null,
+    lastPointer: null,
     moveHandler,
     resizeHandler: moveHandler,
     minimizeHandler,
@@ -406,6 +461,38 @@ export function setMpvVisible(sender: WebContents, visible: boolean): { ok: true
   if (!owner || owner.isDestroyed()) return { ok: true }
   if (!visible || owner.isMinimized()) hideMpvOverlay(cur.mpvHwnd)
   else showMpvOverlay(owner, cur.mpvHwnd, cur.lastRel)
+  return { ok: true }
+}
+
+/**
+ * Show/hide mpv OSC for detached / Now Playing idle chrome.
+ * Mouse hits Chromium, not mpv, so auto OSC mode cannot work — host drives this.
+ */
+export function setMpvOscVisible(sender: WebContents, visible: boolean): { ok: true } {
+  const cur = session
+  if (!cur?.mpvHwnd) return { ok: true }
+  const ownerId = ownerWindowId(sender)
+  if (ownerId === null || ownerId !== cur.ownerId) return { ok: true }
+  mpvIpcCommand(cur.ipcPipe, [
+    'script-message',
+    'osc-visibility',
+    visible ? 'always' : 'never',
+    'no-osd'
+  ])
+  return { ok: true }
+}
+
+/**
+ * Poll cursor over the owner BrowserWindow (including the mpv overlay) and
+ * emit `preview-mpv-pointer` so idle chrome can wake on video-area moves.
+ */
+export function setMpvPointerWatch(sender: WebContents, enabled: boolean): { ok: true } {
+  const cur = session
+  if (!cur) return { ok: true }
+  const ownerId = ownerWindowId(sender)
+  if (ownerId === null || ownerId !== cur.ownerId) return { ok: true }
+  if (enabled) startPointerWatch(cur)
+  else stopPointerWatch(cur)
   return { ok: true }
 }
 

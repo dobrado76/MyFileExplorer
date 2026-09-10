@@ -146,6 +146,8 @@ export const IPC = {
   previewMpvStart: 'preview:mpvStart',
   previewMpvBounds: 'preview:mpvBounds',
   previewMpvVisible: 'preview:mpvVisible',
+  previewMpvOscVisible: 'preview:mpvOscVisible',
+  previewMpvPointerWatch: 'preview:mpvPointerWatch',
   previewMpvStop: 'preview:mpvStop',
   /** Current playback time of the live Rich Player session (if any). */
   previewMpvTimePos: 'preview:mpvTimePos',
@@ -531,6 +533,11 @@ export type MfeEvent =
         /** When true, open paused at startAtSec. */
         paused?: boolean
       }
+    }
+  | {
+      /** Cursor moved inside the Rich player owner window (incl. over the mpv overlay). */
+      type: 'preview-mpv-pointer'
+      payload: Record<string, never>
     }
   | {
       type: 'now-playing-dock-request'

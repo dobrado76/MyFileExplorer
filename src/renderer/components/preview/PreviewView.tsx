@@ -478,6 +478,7 @@ function PreviewViewInner({
           previewPath={previewPath ?? model.path}
           mediaHold={mediaHold}
           previewWindowOpen={previewWindowOpen}
+          detached={detached}
           wide={useWide}
           extraBeforeFields={useWide ? extraBeforeFields : null}
           fileDetailFields={useWide ? fileDetailFields : []}
@@ -514,6 +515,7 @@ function PreviewBody({
   previewPath,
   mediaHold,
   previewWindowOpen,
+  detached = false,
   wide = false,
   extraBeforeFields = null,
   fileDetailFields = [],
@@ -533,6 +535,8 @@ function PreviewBody({
   previewPath: string
   mediaHold: boolean
   previewWindowOpen: boolean
+  /** Detached preview / Now Playing-style chrome: idle-hide video controls. */
+  detached?: boolean
   /** Detached landscape only. Stacked detached matches the docked pane. */
   wide?: boolean
   extraBeforeFields?: ReactNode
@@ -754,6 +758,7 @@ function PreviewBody({
             startPaused={dockResume ? dockResume.paused === true : undefined}
             videoCodec={videoCodecField}
             audioCodec={audioCodecField}
+            autoHideControls={detached}
             onOpenExternal={() => onOpenPath(model.path)}
           />
         )}
@@ -765,6 +770,7 @@ function PreviewBody({
             autoplay={dockResume ? dockResume.paused !== true : previewVideoAutoplay}
             active={playAv}
             startAtSec={dockResume?.startAtSec}
+            autoHideControls={detached}
             onOpenExternal={() => onOpenPath(model.path)}
           />
         )}

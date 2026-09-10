@@ -186,6 +186,18 @@ export const previewMpvVisibleSchema = z.object({
 })
 export type PreviewMpvVisibleRequest = z.infer<typeof previewMpvVisibleSchema>
 
+/** Show/hide Rich player OSC (detached / Now Playing idle chrome). */
+export const previewMpvOscVisibleSchema = z.object({
+  visible: z.boolean()
+})
+export type PreviewMpvOscVisibleRequest = z.infer<typeof previewMpvOscVisibleSchema>
+
+/** Watch cursor over the owner window so idle chrome sees moves on the mpv overlay. */
+export const previewMpvPointerWatchSchema = z.object({
+  enabled: z.boolean()
+})
+export type PreviewMpvPointerWatchRequest = z.infer<typeof previewMpvPointerWatchSchema>
+
 /** Async deferred fields after a fast `preview:get` (A/V tags, image dimensions/gen). */
 export const previewMediaMetaSchema = z.object({
   path: z.string().min(1),

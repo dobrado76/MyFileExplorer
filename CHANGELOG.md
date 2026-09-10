@@ -9,6 +9,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Size column sort with folder statistics** — Details Size sort uses each folder’s calculated `TotalSize` (bytes), not the listing size of `0`, so ascending/descending matches the displayed TB/GB/MB values after Calculate Statistics.
+- **Detached video controls auto-hide** — in the detached preview and Now Playing windows, the video control bar hides after 3 seconds without pointer activity in that window and returns on mouse move / click / wheel (including over the Rich player overlay). Docked preview keeps controls always visible.
+
 ## [0.17.0] - 2026-09-09
 
 Seventeenth product release: **Now Playing** and opt-in **Rich player (mpv)**, **Ask AI chat**, expanded **User Metadata**, Media Metadata columns/actions, and safety fixes for paired-folder sync, folder replacement, NTFS ADS copying, and preview path allowlisting. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

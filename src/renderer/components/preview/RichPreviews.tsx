@@ -7,6 +7,7 @@ import { formatEmlHeaders, parseEml } from '@shared/eml'
 import { pdfPreviewSrc } from '../../lib/pdfPreview'
 import { DEFAULT_VID_THUMB_FRAME_MS } from '@shared/vidThumbCache'
 import { useAppStore } from '../../store/appStore'
+import { usePointerIdle } from '../../lib/usePointerIdle'
 import { CodePreview } from './CodePreview'
 import {
   chromiumReportsHevcSupport,
@@ -423,6 +424,7 @@ export function VideoPreview({
   startPaused,
   videoCodec,
   audioCodec,
+  autoHideControls = false,
   onOpenExternal
 }: {
   url?: string
@@ -437,11 +439,18 @@ export function VideoPreview({
   /** From preview meta (`videoCodec` / `codec`) when known. */
   videoCodec?: string
   audioCodec?: string
+  /**
+   * Detached preview / Now Playing: hide native controls after ~3s without
+   * pointer activity in this window; show again on move/click/wheel.
+   */
+  autoHideControls?: boolean
   onOpenExternal(): void
 }): JSX.Element | null {
   const [failed, setFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const seekApplied = useRef(false)
+  const controlsIdle = usePointerIdle(Boolean(autoHideControls && active && url && !failed), 3000)
+  const showControls = !autoHideControls || !controlsIdle
 
   useEffect(() => {
     setFailed(false)
@@ -505,7 +514,7 @@ export function VideoPreview({
           className="preview-video"
           src={url}
           poster={posterUrl}
-          controls
+          controls={showControls}
           playsInline
           disablePictureInPicture
           controlsList="nofullscreen nodownload noremoteplayback"

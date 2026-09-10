@@ -33,6 +33,8 @@ import {
   previewEnsurePlayableSchema,
   previewMediaMetaSchema,
   previewMpvBoundsRequestSchema,
+  previewMpvOscVisibleSchema,
+  previewMpvPointerWatchSchema,
   previewMpvStartSchema,
   previewMpvVisibleSchema,
   previewRequestSchema,
@@ -292,7 +294,7 @@ function assertRemoteReposEnabled(): void {
   }
 }
 import { ensurePlayablePreview, getChmTopicPreview, getImageDisplayUrl, getMediaPreviewMeta, getPreview } from '../preview'
-import { mpvProbe, setMpvBounds, setMpvVisible, startMpvSession, stopMpvForSender, getMpvTimePos } from '../preview/mpvPlayer'
+import { mpvProbe, setMpvBounds, setMpvOscVisible, setMpvPointerWatch, setMpvVisible, startMpvSession, stopMpvForSender, getMpvTimePos } from '../preview/mpvPlayer'
 import {
   closePreviewWindow,
   getPreviewTarget,
@@ -867,6 +869,12 @@ export function registerIpcHandlers(): void {
   )
   handle(IPC.previewMpvVisible, previewMpvVisibleSchema, (req, event) =>
     setMpvVisible(event.sender, req.visible)
+  )
+  handle(IPC.previewMpvOscVisible, previewMpvOscVisibleSchema, (req, event) =>
+    setMpvOscVisible(event.sender, req.visible)
+  )
+  handle(IPC.previewMpvPointerWatch, previewMpvPointerWatchSchema, (req, event) =>
+    setMpvPointerWatch(event.sender, req.enabled)
   )
   handle(IPC.previewMpvStop, emptySchema, (_req, event) => stopMpvForSender(event.sender))
   handle(IPC.previewMpvTimePos, emptySchema, () => getMpvTimePos())
