@@ -79,6 +79,7 @@ import {
 } from '@shared/userMetadataBindings'
 import {
   buildLayoutFromSnapshot,
+  moveLayout,
   previousLayoutToAutoSave,
   removeLayout as removeLayoutFromList,
   renameLayout as renameLayoutInList,
@@ -920,6 +921,7 @@ type AppState = {
   updateLayout(id: string, opts?: { silent?: boolean }): Promise<void>
   renameLayout(id: string, name: string): Promise<void>
   removeLayout(id: string): Promise<void>
+  reorderLayout(fromIndex: number, toIndex: number): Promise<void>
   /** Replace live tabs/splitters with a saved layout (regenerates tab ids). */
   applyLayout(id: string): Promise<void>
 
@@ -5392,6 +5394,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       get().notify(`Removed layout “${existing.name}”`)
     },
 
+    async reorderLayout(fromIndex, toIndex) {
+      const next = moveLayout(get().settings.layouts, fromIndex, toIndex)
+      if (!next) return
+      await get().applySettingsPatch({ layouts: next })
+    },
+
     async applyLayout(id) {
       const s0 = get()
       const layout = s0.settings.layouts.find((l) => l.id === id)
@@ -5492,8 +5500,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       get().notify(
         prevName
-          ? `Saved “${prevName}” · applied “${layout.name}”`
-          : `Applied layout “${layout.name}”`
+          ? `Saved “${prevName}” · selected “${layout.name}”`
+          : `Selected layout “${layout.name}”`
       )
     },
 

@@ -41,7 +41,7 @@ import { formatBytes, formatDate } from '../lib/format'
 import { folderViewSummary } from '@shared/folderViews'
 import { addFolderStatsSkipPath, removeFolderStatsSkipPath } from '@shared/folderStatsSkip'
 import { samePath } from '@shared/paths'
-import { formatLayoutUpdatedAt, layoutSummary } from '@shared/layouts'
+import { layoutSummary } from '@shared/layouts'
 import { VID_THUMB_FRAME_MS_MAX, VID_THUMB_FRAME_MS_MIN } from '@shared/vidThumbCache'
 import {
   MEDIA_METADATA_COVER_HEIGHT_MAX,
@@ -87,7 +87,7 @@ import { CloneGitRepoDialog } from './git/CloneGitRepoDialog'
 import { ContextMenuSettingsPanel } from './ContextMenuSettingsPanel'
 import { WindowsIntegrationSettingsPanel } from './WindowsIntegrationSettingsPanel'
 import { QuickLaunchSettingsPanel } from './QuickLaunchSettingsPanel'
-import { CloseIcon } from '../lib/icons'
+import { CloseIcon, ArrowUp, ArrowDown, EditImageIcon, TrashIcon } from '../lib/icons'
 import { CoverPickerDialog } from './CoverPickerDialog'
 import { ScriptManagerDialog } from './ScriptManagerDialog'
 import { ScriptRunnerDialog } from './ScriptRunnerDialog'
@@ -2397,6 +2397,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const applyLayout = useAppStore((s) => s.applyLayout)
   const updateLayout = useAppStore((s) => s.updateLayout)
   const removeLayoutAction = useAppStore((s) => s.removeLayout)
+  const reorderLayout = useAppStore((s) => s.reorderLayout)
   const navigate = useAppStore((s) => s.navigate)
   const platform = useAppStore((s) => s.platform)
   const startNetworkDiscovery = useAppStore((s) => s.startNetworkDiscovery)
@@ -3828,13 +3829,13 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 Each layout stores the full tab set — folders, custom titles, view/sort, tree
                 expand, scoped roots — plus tree/preview widths, multi-pane mode (1 / 2 / 3 / 4), which
                 tab sits in each pane, and the 2- and 4-pane splitter positions. Switching a layout
-                replaces the current tabs. Per-folder Details customizations (Folder views) stay
-                separate.
+                replaces the current tabs. The list order is the Layouts menu order. Per-folder
+                Details customizations (Folder views) stay separate.
               </p>
               <SettingsToggle
                 id="set-layouts-autosave"
                 label="Auto-save when switching layouts"
-                hint="On by default. Switching to another named layout overwrites the one you were on with the live tabs and panes. Save as… still creates a new layout. Turn off to keep snapshots frozen until you Update."
+                hint="Switching to another named layout overwrites the one you were on with the live tabs and panes. Turn off to keep snapshots frozen until you Update."
                 checked={settings.layoutsAutoSave !== false}
                 onChange={(v) => void applySettingsPatch({ layoutsAutoSave: v })}
               />
@@ -3858,32 +3859,28 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 <p className="settings-help">No saved layouts yet.</p>
               ) : (
                 <div className="settings-qa-list">
-                  {[...layouts]
-                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-                    .map((entry) => (
+                  {layouts.map((entry, index) => (
                       <div className="settings-qa-row" key={entry.id}>
                         <div className="settings-qa-meta">
-                          <span className="settings-qa-label">
-                            {entry.name}
-                            {entry.id === activeLayoutId ? ' · current' : ''}
-                          </span>
+                          <span className="settings-qa-label">{entry.name}</span>
                           <span className="settings-field-hint">{layoutSummary(entry)}</span>
-                          {formatLayoutUpdatedAt(entry.updatedAt) && (
-                            <span className="settings-qa-path">
-                              Updated {formatLayoutUpdatedAt(entry.updatedAt)}
-                            </span>
-                          )}
                         </div>
                         <div className="settings-qa-actions">
                           <button
                             type="button"
                             className="btn primary"
+                            disabled={entry.id === activeLayoutId}
+                            title={
+                              entry.id === activeLayoutId
+                                ? undefined
+                                : 'Switch to this layout'
+                            }
                             onClick={() => {
                               closeDialog()
                               void applyLayout(entry.id)
                             }}
                           >
-                            Apply
+                            {entry.id === activeLayoutId ? 'Selected' : 'Select'}
                           </button>
                           <button
                             type="button"
@@ -3895,7 +3892,29 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                           </button>
                           <button
                             type="button"
-                            className="btn"
+                            className="icon-btn"
+                            title="Move up"
+                            aria-label={`Move ${entry.name} up`}
+                            disabled={index === 0}
+                            onClick={() => void reorderLayout(index, index - 1)}
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title="Move down"
+                            aria-label={`Move ${entry.name} down`}
+                            disabled={index >= layouts.length - 1}
+                            onClick={() => void reorderLayout(index, index + 1)}
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            title="Rename"
+                            aria-label={`Rename ${entry.name}`}
                             onClick={() =>
                               openDialog({
                                 kind: 'layout-name',
@@ -3906,14 +3925,16 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                               })
                             }
                           >
-                            Rename
+                            <EditImageIcon size={14} />
                           </button>
                           <button
                             type="button"
-                            className="btn"
+                            className="icon-btn"
+                            title="Remove"
+                            aria-label={`Remove ${entry.name}`}
                             onClick={() => void removeLayoutAction(entry.id)}
                           >
-                            Remove
+                            <TrashIcon size={14} />
                           </button>
                         </div>
                       </div>

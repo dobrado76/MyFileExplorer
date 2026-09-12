@@ -61,7 +61,7 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 
 Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable glyph `{ name, color, pack? }` or custom `{ kind: 'custom', id, showLabel, sizePx }`), `treeExpanded` (folder-tree expand/collapse paths).
 
-**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant) under a name (“AI training”, “Book editing”, backup/sync pairs, …), apply it later (replaces open tabs), update, rename, or remove. **Switching layouts auto-saves** the one you were on (Settings → Layouts, on by default). Toolbar Layouts menu for quick switch; Settings → Layouts for management. Orthogonal to per-folder view overrides.
+**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant) under a name (“AI training”, “Book editing”, backup/sync pairs, …), apply it later (replaces open tabs), update, rename, reorder, or remove. **Switching layouts auto-saves** the one you were on (Settings → Layouts, on by default). Toolbar Layouts menu for quick switch (same order as Settings); Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 
@@ -198,7 +198,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 | Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
 | Quick access | Manage tree shortcuts                                                              |
 | Quick Launch | Toolbar apps: add / name / path / arguments / show (icon, label, both) / icon (app, glyph pack, custom) / order (D63) |
-| Layouts      | Named workspaces: save current as…, auto-save on switch (default on), apply, update, rename, remove (D25)    |
+| Layouts      | Named workspaces: save current as…, auto-save on switch (default on), apply, update, reorder, rename, remove (D25) |
 | Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
 | View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
 | Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |

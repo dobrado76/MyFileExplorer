@@ -58,10 +58,6 @@ export function LayoutsMenu(): JSX.Element {
     }
   }, [open])
 
-  const sorted = [...layouts].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  )
-
   const menu =
     open && menuPos
       ? createPortal(
@@ -93,11 +89,11 @@ export function LayoutsMenu(): JSX.Element {
             >
               Manage layouts…
             </button>
-            {sorted.length > 0 && <div className="menu-sep" />}
-            {sorted.length === 0 ? (
+            {layouts.length > 0 && <div className="menu-sep" />}
+            {layouts.length === 0 ? (
               <div className="menu-hint">No saved layouts yet</div>
             ) : (
-              sorted.map((layout) => (
+              layouts.map((layout) => (
                 <button
                   key={layout.id}
                   type="button"

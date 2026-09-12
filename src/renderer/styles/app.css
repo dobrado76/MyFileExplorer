@@ -9714,6 +9714,11 @@ html.idle-cursor-hidden * {
   opacity: 0.35;
   cursor: default;
 }
+.settings-qa-actions .icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+}
 .settings-qa-builtins {
   display: flex;
   flex-wrap: wrap;

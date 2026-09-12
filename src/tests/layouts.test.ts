@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildLayoutFromSnapshot,
   layoutSummary,
+  moveLayout,
   previousLayoutToAutoSave,
   removeLayout,
   renameLayout,
@@ -100,6 +101,23 @@ describe('layouts', () => {
     expect(list.find((l) => l.id === a.id)?.name).toBe('Alpha')
     list = removeLayout(list, b.id)
     expect(list.map((l) => l.id)).toEqual([a.id])
+  })
+
+  it('upsert keeps existing order; moveLayout reorders', () => {
+    const a = buildLayoutFromSnapshot('A', sampleSource)
+    const b = buildLayoutFromSnapshot('B', sampleSource)
+    const c = buildLayoutFromSnapshot('C', sampleSource)
+    let list = upsertLayout([], a)
+    list = upsertLayout(list, b)
+    list = upsertLayout(list, c)
+    expect(list.map((l) => l.id)).toEqual([a.id, b.id, c.id])
+    list = upsertLayout(list, { ...a, name: 'Alpha' })
+    expect(list.map((l) => l.id)).toEqual([a.id, b.id, c.id])
+    expect(list[0]?.name).toBe('Alpha')
+    list = moveLayout(list, 0, 2)!
+    expect(list.map((l) => l.id)).toEqual([b.id, c.id, a.id])
+    expect(moveLayout(list, 1, 1)).toBeNull()
+    expect(moveLayout(list, -1, 0)).toBeNull()
   })
 
   it('settings schema keeps layouts and drops invalid ones', () => {

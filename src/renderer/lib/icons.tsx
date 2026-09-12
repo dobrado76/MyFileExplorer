@@ -106,6 +106,7 @@ export const ChevronDown = svg(<path d="M6 9l6 6 6-6" />)
 export const ArrowLeft = svg(<path d="M19 12H5m6-7l-7 7 7 7" />)
 export const ArrowRight = svg(<path d="M5 12h14m-6-7l7 7-7 7" />)
 export const ArrowUp = svg(<path d="M12 19V5m-7 6l7-7 7 7" />)
+export const ArrowDown = svg(<path d="M12 5v14m-7-6l7 7 7-7" />)
 export const RefreshIcon = svg(<path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6" />)
 export const CloseIcon = svg(<path d="M6 6l12 12M18 6L6 18" />)
 export const EditImageIcon = svg(

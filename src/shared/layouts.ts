@@ -182,8 +182,9 @@ export function buildLayoutFromSnapshot(
 }
 
 export function upsertLayout(list: WorkspaceLayout[], layout: WorkspaceLayout): WorkspaceLayout[] {
-  const without = list.filter((l) => l.id !== layout.id)
-  const next = [...without, layout]
+  const idx = list.findIndex((l) => l.id === layout.id)
+  const next =
+    idx >= 0 ? list.map((l, i) => (i === idx ? layout : l)) : [...list, layout]
   if (next.length <= MAX_LAYOUTS) return next
   // Drop oldest by updatedAt (keep the one we just upserted).
   const sorted = [...next].sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
@@ -194,6 +195,28 @@ export function upsertLayout(list: WorkspaceLayout[], layout: WorkspaceLayout): 
       .map((l) => l.id)
   )
   return next.filter((l) => !dropIds.has(l.id))
+}
+
+/** Swap a layout to a new index. Null if the indexes are invalid or a no-op. */
+export function moveLayout(
+  list: WorkspaceLayout[],
+  fromIndex: number,
+  toIndex: number
+): WorkspaceLayout[] | null {
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= list.length ||
+    toIndex >= list.length ||
+    fromIndex === toIndex
+  ) {
+    return null
+  }
+  const next = [...list]
+  const [moved] = next.splice(fromIndex, 1)
+  if (!moved) return null
+  next.splice(toIndex, 0, moved)
+  return next
 }
 
 export function removeLayout(list: WorkspaceLayout[], id: string): WorkspaceLayout[] {
@@ -246,17 +269,4 @@ export function layoutSummary(layout: WorkspaceLayout): string {
   const more = n > 3 ? ` +${n - 3}` : ''
   const panes = layout.viewLayout > 1 ? ` · ${layout.viewLayout}-pane` : ''
   return `${n} tab${n === 1 ? '' : 's'}${panes}: ${titles.join(', ')}${more}`
-}
-
-export function formatLayoutUpdatedAt(iso: string): string {
-  const d = Date.parse(iso)
-  if (!Number.isFinite(d)) return ''
-  try {
-    return new Date(d).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    })
-  } catch {
-    return ''
-  }
 }

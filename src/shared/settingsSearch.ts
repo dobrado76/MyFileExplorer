@@ -63,7 +63,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   {
     id: 'layouts',
     label: 'Layouts',
-    keywords: 'layout workspace named tabs panes splitters save apply rename workspace 1 2 3 4 split autosave auto-save switch'
+    keywords: 'layout workspace named tabs panes splitters save apply rename remove reorder order workspace 1 2 3 4 split autosave auto-save switch'
   },
   {
     id: 'folderviews',
