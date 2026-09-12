@@ -463,12 +463,27 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   const suppressClickRef = useRef(false)
   /** Paths with a content thumb (image / video strip / folder cover) — hide names in no-filename view. */
   const contentThumbPaths = useRef(new Map<string, boolean>())
+  const contentThumbRaf = useRef(0)
   const [, setContentThumbTick] = useState(0)
   const noteContentThumb = useCallback((filePath: string, has: boolean) => {
     const k = filePath.toLowerCase()
     if (contentThumbPaths.current.get(k) === has) return
+    // Default is icon-only — don't re-render the whole grid for the initial false.
+    if (!has && !contentThumbPaths.current.has(k)) {
+      contentThumbPaths.current.set(k, false)
+      return
+    }
     contentThumbPaths.current.set(k, has)
-    setContentThumbTick((n) => n + 1)
+    if (contentThumbRaf.current) return
+    contentThumbRaf.current = requestAnimationFrame(() => {
+      contentThumbRaf.current = 0
+      setContentThumbTick((n) => n + 1)
+    })
+  }, [])
+  useEffect(() => {
+    return () => {
+      if (contentThumbRaf.current) cancelAnimationFrame(contentThumbRaf.current)
+    }
   }, [])
 
   // details-view column customization
@@ -2696,6 +2711,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                           path={entry.path}
                           mtimeMs={entry.mtimeMs}
                           size={spec.thumb}
+                          scrollRoot={scrollEl}
                           fallback={
                             <ItemGlyph
                               path={entry.path}

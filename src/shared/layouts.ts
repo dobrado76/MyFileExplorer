@@ -216,6 +216,24 @@ export function renameLayout(
   return found ? next : null
 }
 
+/**
+ * When switching layouts, overwrite this saved workspace first (the one the
+ * live tabs currently belong to). Null = nothing to write (auto-save off,
+ * never applied a layout, or applying the same id).
+ */
+export function previousLayoutToAutoSave(
+  autoSave: boolean,
+  activeLayoutId: string | null,
+  nextLayoutId: string,
+  knownIds: Iterable<string>
+): string | null {
+  if (!autoSave || !activeLayoutId || activeLayoutId === nextLayoutId) return null
+  for (const id of knownIds) {
+    if (id === activeLayoutId) return activeLayoutId
+  }
+  return null
+}
+
 export function layoutSummary(layout: WorkspaceLayout): string {
   const n = layout.tabs.length
   const titles = layout.tabs

@@ -109,6 +109,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 ## Concurrency
 
 - Directory list: cancel/supersede stale requests when path changes quickly.
+- Content thumbs: renderer throttles `thumbs:get` (LIFO; drop waiters for unmounted tiles). Main Sharp encode is capped at two jobs; disk-cache hits skip that queue so scrolling an icon view cannot starve preview.
 - Search: single active query per window; cancel previous.
 - Indexer: background queue; one writer; progress events.
 - File ops / video-preview generation: throttled `op-progress` events to the status bar (D28); renderer 1 s busy fallback when main is still silent.

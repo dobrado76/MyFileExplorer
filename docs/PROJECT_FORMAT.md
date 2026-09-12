@@ -79,6 +79,7 @@ Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow
   "hideNameExtensions": ["lnk"],
   "searchExcludeDirNames": ["node_modules", ".git", ".hg", ".svn", "Thumbs.db"],
   "searchIndexedOnly": false,
+  "layoutsAutoSave": true,
   "layouts": [],
   "templates": [],
   "folderViews": [],
@@ -97,6 +98,7 @@ Notes:
 - `folderStatsSkipPaths`: absolute paths skipped after Calculate Skip folder / Skip all.
 - `searchExcludeDirNames`: search/index exclude patterns (view-filter language — folder names, file names, `.tmp` / `*.log`, wildcards, or an absolute path)
 - `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
+- `layoutsAutoSave`: when switching named layouts, overwrite the layout the live workspace was last applied from or saved as (default **true**; D25).
 - `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, pairCompareVisibleStatuses?, tabs: [{ path, title, icon, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. Optional `pairCompareVisibleStatuses` restores the paired-folders compare filter (D69). `paneTabIndexes` are indices into `tabs` (or null). `icon` is `{ name, color }`, `{ kind: 'custom', id, showLabel, sizePx }` (D54; PNG stays in `tab-icons/`), or `null` (D32).
 - `templates`: new-file templates (D57) — `{ id, name, suggestedStem, inputName, sourceFile }` (`name` = menu + default stem; `inputName` = original picked file; stored copy is `Templates/{sourceFile}`). Cap 40. Order in the array is the menu order.
 - `quickLaunch`: toolbar apps (D63) — `{ id, name, path, args, show: 'icon' \| 'label' \| 'both', iconSizePx (12–48, default 24), iconKind: 'shell' \| 'custom' \| 'lucide', iconId?, lucideName?, lucideColor }`. Cap 24. Custom PNGs are `quick-launch/{iconId}.png` (not in Settings export).
@@ -144,7 +146,8 @@ Notes:
   "focusedPaneIndex": 0,
   "paneSplitCols": 0.5,
   "paneSplitRows": 0.5,
-  "closedTabs": []
+  "closedTabs": [],
+  "activeLayoutId": null
 }
 ```
 
@@ -156,6 +159,7 @@ Notes:
 - `paneTreeCollapsed` — per-pane folder-tree hidden flags (length matches `viewLayout`)
 - `paneSplitCols` / `paneSplitRows` — fraction for column/row splitters in multi-pane (0–1)
 - `closedTabs` — last-closed-first stack (D55, cap 25): `{ tab: TabState, paneIndex }`. Missing → `[]`.
+- `activeLayoutId` — named layout the live tabs were last applied from or saved as (D25 auto-save). Missing / unknown id → `null`.
 - Write debounced on change; flush on `before-quit`
 
 ---

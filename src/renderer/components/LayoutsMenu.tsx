@@ -6,6 +6,8 @@ import { LayoutsIcon } from '../lib/icons'
 /** Toolbar control: apply / save / manage named workspace layouts. */
 export function LayoutsMenu(): JSX.Element {
   const layouts = useAppStore((s) => s.settings.layouts)
+  const activeLayoutId = useAppStore((s) => s.activeLayoutId)
+  const layoutsAutoSave = useAppStore((s) => s.settings.layoutsAutoSave !== false)
   const applyLayout = useAppStore((s) => s.applyLayout)
   const openDialog = useAppStore((s) => s.openDialog)
   const [open, setOpen] = useState(false)
@@ -78,7 +80,7 @@ export function LayoutsMenu(): JSX.Element {
                 openDialog({ kind: 'layout-name', mode: 'save' })
               }}
             >
-              Save current layout as…
+              Save current as…
             </button>
             <button
               type="button"
@@ -101,12 +103,14 @@ export function LayoutsMenu(): JSX.Element {
                   type="button"
                   className="menu-item"
                   role="menuitem"
+                  aria-current={layout.id === activeLayoutId ? 'true' : undefined}
                   title={layout.tabs.map((t) => t.path).join('\n')}
                   onClick={() => {
                     setOpen(false)
                     void applyLayout(layout.id)
                   }}
                 >
+                  <span className="menu-check">{layout.id === activeLayoutId ? '✓' : ''}</span>
                   {layout.name}
                   <span className="menu-hint">
                     {layout.tabs.length} tab{layout.tabs.length === 1 ? '' : 's'}
@@ -128,7 +132,11 @@ export function LayoutsMenu(): JSX.Element {
         aria-label="Layouts"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Layouts — save or switch workspace tabs"
+        title={
+          layoutsAutoSave
+            ? 'Layouts — switch workspaces (current layout auto-saves)'
+            : 'Layouts — switch workspaces'
+        }
         onClick={() => setOpen((v) => !v)}
       >
         <LayoutsIcon />

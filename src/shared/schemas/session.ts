@@ -243,7 +243,9 @@ export const sessionSchema = z.preprocess(
     closedTabs: z
       .array(closedTabEntrySchema)
       .catch([])
-      .transform((arr) => arr.slice(0, MAX_CLOSED_TABS))
+      .transform((arr) => arr.slice(0, MAX_CLOSED_TABS)),
+    /** Layout the live tabs were last applied from or saved as (D25 auto-save). */
+    activeLayoutId: z.string().min(1).nullable().catch(null)
   })
 )
 export type SessionState = z.infer<typeof sessionSchema>
@@ -264,5 +266,6 @@ export const defaultSession: SessionState = {
   focusedPaneIndex: 0,
   paneSplitCols: 0.5,
   paneSplitRows: 0.5,
-  closedTabs: []
+  closedTabs: [],
+  activeLayoutId: null
 }

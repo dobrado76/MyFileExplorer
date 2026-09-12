@@ -6,6 +6,7 @@ import { mediaUrlFor } from '../media/protocol'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
 import { resolveVidThumbFrames } from './vidCache'
+import { enqueueThumbGenerate } from './generateQueue'
 import { isEditableImagePath } from '@shared/imageEdit'
 
 const THUMB_EXTS = new Set([
@@ -173,7 +174,7 @@ export async function getThumbUrl(
     return { url: result }
   }
 
-  const job = (async (): Promise<string | null> => {
+  const job = enqueueThumbGenerate(async (): Promise<string | null> => {
     try {
       const { default: sharp } = await import('sharp')
       await fsp.mkdir(thumbCacheDir(), { recursive: true })
@@ -203,10 +204,10 @@ export async function getThumbUrl(
       return mediaUrlFor(cacheFile)
     } catch {
       return null
-    } finally {
-      inFlight.delete(key)
     }
-  })()
+  }).finally(() => {
+    inFlight.delete(key)
+  })
   inFlight.set(key, job)
   return { url: await job }
 }

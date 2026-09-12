@@ -496,6 +496,11 @@ const settingsFieldsSchema = z.object({
   /** Named view chrome presets (D60) — not path/selection/scroll. Cap 30. */
   viewPresets: z.preprocess(sanitizeViewPresets, z.array(viewPresetSchema).catch([])),
   /**
+   * When switching named layouts, overwrite the layout the live workspace was
+   * last applied/saved as (D25). Off = Apply leaves the previous snapshot unchanged.
+   */
+  layoutsAutoSave: z.boolean().catch(true),
+  /**
    * Named workspace layouts: tab set + per-tab view/sort/tree + chrome splitters.
    * Cap enforced on parse/write.
    */
@@ -846,6 +851,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   adsFieldColumns: [],
   folderViews: [] satisfies FolderView[],
   viewPresets: [] satisfies ViewPreset[],
+  layoutsAutoSave: true,
   layouts: [] satisfies WorkspaceLayout[],
   templates: [] satisfies FileTemplate[],
   quickAccess: [] satisfies QuickAccessItem[],

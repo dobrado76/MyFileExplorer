@@ -79,6 +79,7 @@ import {
 } from '@shared/userMetadataBindings'
 import {
   buildLayoutFromSnapshot,
+  previousLayoutToAutoSave,
   removeLayout as removeLayoutFromList,
   renameLayout as renameLayoutInList,
   upsertLayout,
@@ -624,6 +625,8 @@ type AppState = {
   focusedPaneIndex: number
   paneSplitCols: number
   paneSplitRows: number
+  /** Named layout the live tabs were last applied from or saved as (D25). */
+  activeLayoutId: string | null
   /** Per-tab directory listings for visible panes. */
   listingsByTabId: Record<string, Listing>
   /** Listing for the active (focused) tab — mirrors listingsByTabId[activeTabId]. */
@@ -914,7 +917,7 @@ type AppState = {
   /** Save current tabs + chrome as a new named layout (or overwrite via updateLayout). */
   saveLayout(name: string): Promise<WorkspaceLayout | null>
   /** Overwrite an existing layout with the current workspace. */
-  updateLayout(id: string): Promise<void>
+  updateLayout(id: string, opts?: { silent?: boolean }): Promise<void>
   renameLayout(id: string, name: string): Promise<void>
   removeLayout(id: string): Promise<void>
   /** Replace live tabs/splitters with a saved layout (regenerates tab ids). */
@@ -1434,9 +1437,41 @@ export const useAppStore = create<AppState>()((set, get) => {
       focusedPaneIndex: s.focusedPaneIndex,
       paneSplitCols: s.paneSplitCols,
       paneSplitRows: s.paneSplitRows,
-      closedTabs: s.closedTabs.slice(0, MAX_CLOSED_TABS)
+      closedTabs: s.closedTabs.slice(0, MAX_CLOSED_TABS),
+      activeLayoutId: s.activeLayoutId
     }
     void api.session.set(session)
+  }
+
+  async function workspaceLayoutFromLive(
+    name: string,
+    existingId?: string
+  ): Promise<WorkspaceLayout> {
+    const s = get()
+    const activeIdx = Math.max(
+      0,
+      s.tabs.findIndex((t) => t.id === s.activeTabId)
+    )
+    const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
+    const pairCompareVisibleStatuses = [
+      ...usePairCompareStore.getState().visibleStatuses
+    ] as PairFoldersVisibleStatus[]
+    return buildLayoutFromSnapshot(
+      name,
+      {
+        tabs: s.tabs,
+        activeTabIndex: activeIdx,
+        splitters: s.splitters,
+        viewLayout: s.viewLayout,
+        paneTabIds: s.paneTabIds,
+        paneTreeCollapsed: s.paneTreeCollapsed,
+        tabIds: s.tabs.map((t) => t.id),
+        paneSplitCols: s.paneSplitCols,
+        paneSplitRows: s.paneSplitRows,
+        pairCompareVisibleStatuses
+      },
+      existingId
+    )
   }
 
   function scheduleSessionSave(): void {
@@ -3431,6 +3466,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     focusedPaneIndex: 0,
     paneSplitCols: 0.5,
     paneSplitRows: 0.5,
+    activeLayoutId: null,
     listingsByTabId: {},
     listing: { path: '', entries: [], loading: false, error: null, offline: false },
     gitByRoot: {},
@@ -3670,6 +3706,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         focusedPaneIndex,
         paneSplitCols: clampPaneRatio(session.paneSplitCols ?? 0.5),
         paneSplitRows: clampPaneRatio(session.paneSplitRows ?? 0.5),
+        activeLayoutId:
+          session.activeLayoutId &&
+          settings.layouts.some((l) => l.id === session.activeLayoutId)
+            ? session.activeLayoutId
+            : null,
         listingsByTabId: {},
         selectionAnchor: focus.selectionAnchor,
         focusedPath: focus.focusedPath,
@@ -5291,29 +5332,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     async saveLayout(name) {
       const s = get()
       try {
-        const activeIdx = Math.max(
-          0,
-          s.tabs.findIndex((t) => t.id === s.activeTabId)
-        )
-        const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
-        const pairCompareVisibleStatuses = [
-          ...usePairCompareStore.getState().visibleStatuses
-        ] as PairFoldersVisibleStatus[]
-        const layout = buildLayoutFromSnapshot(name, {
-          tabs: s.tabs,
-          activeTabIndex: activeIdx,
-          splitters: s.splitters,
-          viewLayout: s.viewLayout,
-          paneTabIds: s.paneTabIds,
-          paneTreeCollapsed: s.paneTreeCollapsed,
-          tabIds: s.tabs.map((t) => t.id),
-          paneSplitCols: s.paneSplitCols,
-          paneSplitRows: s.paneSplitRows,
-          pairCompareVisibleStatuses
-        })
+        const layout = await workspaceLayoutFromLive(name)
         await get().applySettingsPatch({
           layouts: upsertLayout(s.settings.layouts, layout)
         })
+        set({ activeLayoutId: layout.id })
+        scheduleSessionSave()
         get().notify(`Saved layout “${layout.name}”`)
         return layout
       } catch (e) {
@@ -5322,7 +5346,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
     },
 
-    async updateLayout(id) {
+    async updateLayout(id, opts) {
       const s = get()
       const existing = s.settings.layouts.find((l) => l.id === id)
       if (!existing) {
@@ -5330,34 +5354,13 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       try {
-        const activeIdx = Math.max(
-          0,
-          s.tabs.findIndex((t) => t.id === s.activeTabId)
-        )
-        const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
-        const pairCompareVisibleStatuses = [
-          ...usePairCompareStore.getState().visibleStatuses
-        ] as PairFoldersVisibleStatus[]
-        const layout = buildLayoutFromSnapshot(
-          existing.name,
-          {
-            tabs: s.tabs,
-            activeTabIndex: activeIdx,
-            splitters: s.splitters,
-            viewLayout: s.viewLayout,
-            paneTabIds: s.paneTabIds,
-            paneTreeCollapsed: s.paneTreeCollapsed,
-            tabIds: s.tabs.map((t) => t.id),
-            paneSplitCols: s.paneSplitCols,
-            paneSplitRows: s.paneSplitRows,
-            pairCompareVisibleStatuses
-          },
-          existing.id
-        )
+        const layout = await workspaceLayoutFromLive(existing.name, existing.id)
         await get().applySettingsPatch({
           layouts: upsertLayout(s.settings.layouts, layout)
         })
-        get().notify(`Updated layout “${layout.name}”`)
+        set({ activeLayoutId: layout.id })
+        scheduleSessionSave()
+        if (!opts?.silent) get().notify(`Updated layout “${layout.name}”`)
       } catch (e) {
         get().notify(e instanceof Error ? e.message : String(e), true)
       }
@@ -5382,16 +5385,37 @@ export const useAppStore = create<AppState>()((set, get) => {
       await get().applySettingsPatch({
         layouts: removeLayoutFromList(s.settings.layouts, id)
       })
+      if (get().activeLayoutId === id) {
+        set({ activeLayoutId: null })
+        scheduleSessionSave()
+      }
       get().notify(`Removed layout “${existing.name}”`)
     },
 
     async applyLayout(id) {
-      const s = get()
-      const layout = s.settings.layouts.find((l) => l.id === id)
+      const s0 = get()
+      const layout = s0.settings.layouts.find((l) => l.id === id)
       if (!layout || layout.tabs.length === 0) {
         get().notify('Layout not found', true)
         return
       }
+      const autoSave = s0.settings.layoutsAutoSave !== false
+      if (autoSave && s0.activeLayoutId === id) {
+        await get().updateLayout(id, { silent: true })
+        get().notify(`Saved layout “${layout.name}”`)
+        return
+      }
+      const prevId = previousLayoutToAutoSave(
+        autoSave,
+        s0.activeLayoutId,
+        id,
+        s0.settings.layouts.map((l) => l.id)
+      )
+      const prevName = prevId
+        ? s0.settings.layouts.find((l) => l.id === prevId)?.name
+        : undefined
+      if (prevId) await get().updateLayout(prevId, { silent: true })
+
       const tabs: Tab[] = layout.tabs.map((t) => ({
         id: newTabId(),
         path: t.path,
@@ -5429,6 +5453,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       set({
         tabs,
         activeTabId: active.id,
+        activeLayoutId: layout.id,
         search: active.search,
         splitters: { ...layout.splitters },
         viewLayout,
@@ -5465,7 +5490,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         const { usePairCompareStore } = await import('../pairCompare/pairCompareStore')
         usePairCompareStore.getState().applyVisibleStatuses(statuses as PairCompareStatus[])
       }
-      get().notify(`Applied layout “${layout.name}”`)
+      get().notify(
+        prevName
+          ? `Saved “${prevName}” · applied “${layout.name}”`
+          : `Applied layout “${layout.name}”`
+      )
     },
 
     setScrollOffset(offset, tabId) {

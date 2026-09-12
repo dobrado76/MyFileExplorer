@@ -147,6 +147,14 @@ describe('session schema migration', () => {
     expect(sessionSchema.parse(defaultSession)).toEqual(defaultSession)
   })
 
+  it('defaults missing activeLayoutId', () => {
+    const parsed = sessionSchema.parse({ version: 1, tabs: [] })
+    expect(parsed.activeLayoutId).toBeNull()
+    expect(
+      sessionSchema.parse({ version: 1, tabs: [], activeLayoutId: 'layout_abc' }).activeLayoutId
+    ).toBe('layout_abc')
+  })
+
   it('defaults closedTabs to empty and caps at 25 (D55)', () => {
     const empty = sessionSchema.parse({
       version: 1,

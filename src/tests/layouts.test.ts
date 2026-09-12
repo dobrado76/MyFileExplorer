@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildLayoutFromSnapshot,
   layoutSummary,
+  previousLayoutToAutoSave,
   removeLayout,
   renameLayout,
   sanitizeLayoutName,
@@ -110,6 +111,17 @@ describe('layouts', () => {
     expect(parsed.layouts[0]?.name).toBe('Coding')
     expect(settingsSchema.parse({}).layouts).toEqual([])
     expect(defaultSettings.layouts).toEqual([])
+    expect(defaultSettings.layoutsAutoSave).toBe(true)
+    expect(settingsSchema.parse({}).layoutsAutoSave).toBe(true)
+    expect(settingsSchema.parse({ layoutsAutoSave: false }).layoutsAutoSave).toBe(false)
+  })
+
+  it('picks the previous layout to auto-save when switching', () => {
+    expect(previousLayoutToAutoSave(true, 'a', 'b', ['a', 'b'])).toBe('a')
+    expect(previousLayoutToAutoSave(false, 'a', 'b', ['a', 'b'])).toBeNull()
+    expect(previousLayoutToAutoSave(true, 'a', 'a', ['a'])).toBeNull()
+    expect(previousLayoutToAutoSave(true, null, 'b', ['b'])).toBeNull()
+    expect(previousLayoutToAutoSave(true, 'gone', 'b', ['b'])).toBeNull()
   })
 
   it('workspaceLayoutSchema rejects empty tabs', () => {

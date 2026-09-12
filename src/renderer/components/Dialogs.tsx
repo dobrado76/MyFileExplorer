@@ -2405,6 +2405,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
   const networkStatus = useAppStore((s) => s.network.status)
   const folderViews = useAppStore((s) => s.settings.folderViews)
   const layouts = useAppStore((s) => s.settings.layouts)
+  const activeLayoutId = useAppStore((s) => s.activeLayoutId)
 
   const [localComputerName, setLocalComputerName] = useState('')
   const devGateActive = useAppStore((s) => s.devGateActive)
@@ -3826,10 +3827,17 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 Named workspaces for different tasks (AI training, book editing, a coding project…).
                 Each layout stores the full tab set — folders, custom titles, view/sort, tree
                 expand, scoped roots — plus tree/preview widths, multi-pane mode (1 / 2 / 3 / 4), which
-                tab sits in each pane, and the 2- and 4-pane splitter positions. Applying a layout
+                tab sits in each pane, and the 2- and 4-pane splitter positions. Switching a layout
                 replaces the current tabs. Per-folder Details customizations (Folder views) stay
                 separate.
               </p>
+              <SettingsToggle
+                id="set-layouts-autosave"
+                label="Auto-save when switching layouts"
+                hint="On by default. Switching to another named layout overwrites the one you were on with the live tabs and panes. Save as… still creates a new layout. Turn off to keep snapshots frozen until you Update."
+                checked={settings.layoutsAutoSave !== false}
+                onChange={(v) => void applySettingsPatch({ layoutsAutoSave: v })}
+              />
               <div className="settings-qa-actions" style={{ justifyContent: 'flex-start' }}>
                   <button
                     type="button"
@@ -3855,7 +3863,10 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                     .map((entry) => (
                       <div className="settings-qa-row" key={entry.id}>
                         <div className="settings-qa-meta">
-                          <span className="settings-qa-label">{entry.name}</span>
+                          <span className="settings-qa-label">
+                            {entry.name}
+                            {entry.id === activeLayoutId ? ' · current' : ''}
+                          </span>
                           <span className="settings-field-hint">{layoutSummary(entry)}</span>
                           {formatLayoutUpdatedAt(entry.updatedAt) && (
                             <span className="settings-qa-path">
