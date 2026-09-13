@@ -3970,7 +3970,11 @@ export const useAppStore = create<AppState>()((set, get) => {
                 ...(event.payload.startAtSec != null
                   ? { startAtSec: event.payload.startAtSec }
                   : {}),
-                paused: event.payload.paused === true
+                ...(event.payload.paused === true
+                  ? { paused: true }
+                  : event.payload.paused === false
+                    ? { paused: false }
+                    : {})
               }
             })
             void call(api.nowPlaying.stop())
@@ -7818,22 +7822,26 @@ export const useAppStore = create<AppState>()((set, get) => {
           return
         }
         if (get().avDockResume) set({ avDockResume: null })
-        // Capture docked position BEFORE tearing down players.
+        // Capture docked position + pause BEFORE tearing down players.
         const chrome = captureDockedChromiumPlayback()
         let startAtSec = chrome?.startAtSec
         let paused = chrome?.paused
-        if (startAtSec == null || startAtSec <= 0) {
+        if (startAtSec == null || startAtSec <= 0 || paused == null) {
           try {
             const mpv = await call(api.preview.mpvTimePos())
-            if (mpv.seconds != null && mpv.seconds > 0) {
+            if ((startAtSec == null || startAtSec <= 0) && mpv.seconds != null && mpv.seconds > 0) {
               startAtSec = mpv.seconds
-              if (paused == null) paused = false
             }
+            if (paused == null && mpv.paused != null) paused = mpv.paused
           } catch {
             /* no live mpv */
           }
         }
-        void api.preview.mpvStop()
+        try {
+          await call(api.preview.mpvStop())
+        } catch {
+          /* already gone */
+        }
         const res = await call(
           api.nowPlaying.start({
             path,

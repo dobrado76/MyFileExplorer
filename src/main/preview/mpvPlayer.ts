@@ -10,23 +10,29 @@ import { app, BrowserWindow, screen, type Event, type WebContents } from 'electr
 import { AppError } from '@shared/result'
 import { EVENT_CHANNEL, type MfeEvent } from '@shared/ipc/contract'
 import type { PreviewMpvBounds } from '@shared/schemas/preview'
+import { foldMpvPlaybackReplies, takeMpvIpcMessages } from '@shared/mpvIpc'
 import { logMain } from '../logging'
 import { ensureMpvOscScript, resolveMpvPath } from './mpvBin'
 import {
+  dipRectFor,
   findMpvWindow,
   hideMpvOverlay,
+  hwndAtCursor,
+  hwndIsMpvSurface,
+  isLeftMouseDown,
   moveMpvOverlay,
   overlayGeometryArg,
   placeMpvOverlay,
   screenRectFor,
   showMpvOverlay
 } from './mpvSurfaceWin32'
+import { mpvDipClickIsVideoToggle } from '@shared/mpvClickPause'
 
 let titleSeq = 0
 /** Monotonic token so a superseded start cannot install or orphan a session. */
 let sessionGeneration = 0
 
-const MPV_IPC_PIPE = `\\\\.\\pipe\\mfe-mpv-${process.pid}`
+const MPV_IPC_PIPE_PREFIX = `\\\\.\\pipe\\mfe-mpv-${process.pid}`
 
 type Session = {
   generation: number
@@ -41,6 +47,11 @@ type Session = {
   chromeHidden: boolean
   /** Poll cursor so idle chrome sees moves over the mpv overlay. */
   pointerWatchTimer: ReturnType<typeof setInterval> | null
+  clickPauseTimer: ReturnType<typeof setInterval> | null
+  clickPauseArmedAt: number
+  lastLeftDown: boolean
+  /** Detached / Now Playing hid the OSC via IPC. Docked stays false (bar always on). */
+  oscHidden: boolean
   lastPointer: { x: number; y: number } | null
   moveHandler: () => void
   resizeHandler: () => void
@@ -50,6 +61,66 @@ type Session = {
 }
 
 let session: Session | null = null
+/** Skip video click-to-pause while Keep playing / Dock / pop-out reads time-pos. */
+let playbackQueryDepth = 0
+/** Applied on the next `startMpvSession` if the renderer omits `--start`. */
+let resumeHint: { path: string; startAtSec: number; paused?: boolean } | null = null
+
+/** Remember a resume offset so a remounted overlay cannot start at 0. */
+export function setMpvResumeHint(
+  filePath: string,
+  opts?: { startAtSec?: number; paused?: boolean }
+): void {
+  const startAtSec = opts?.startAtSec
+  const hasTime = startAtSec != null && Number.isFinite(startAtSec) && startAtSec > 0
+  const hasPause = opts?.paused === true || opts?.paused === false
+  if (!hasTime && !hasPause) {
+    resumeHint = null
+    return
+  }
+  resumeHint = {
+    path: filePath,
+    startAtSec: hasTime ? Math.max(0, startAtSec!) : 0,
+    ...(hasPause ? { paused: opts!.paused } : {})
+  }
+}
+
+function sameMpvPath(a: string, b: string): boolean {
+  return a.replace(/\//g, '\\').toLowerCase() === b.replace(/\//g, '\\').toLowerCase()
+}
+
+function consumeResumeHint(
+  requested: string,
+  resolved: string,
+  startAtSec: number | undefined,
+  autoplay: boolean
+): { startAtSec: number | undefined; autoplay: boolean } {
+  const hint = resumeHint
+  if (!hint || (!sameMpvPath(hint.path, requested) && !sameMpvPath(hint.path, resolved))) {
+    return { startAtSec, autoplay }
+  }
+  resumeHint = null
+  const sec =
+    startAtSec != null && Number.isFinite(startAtSec) && startAtSec > 0.05
+      ? startAtSec
+      : hint.startAtSec > 0.05
+        ? hint.startAtSec
+        : startAtSec
+  const nextAutoplay =
+    hint.paused === true ? false : hint.paused === false ? true : autoplay
+  return { startAtSec: sec, autoplay: nextAutoplay }
+}
+
+function waitChildExit(child: ChildProcess, ms: number): Promise<void> {
+  if (child.exitCode != null || child.signalCode != null) return Promise.resolve()
+  return new Promise((resolve) => {
+    const t = setTimeout(resolve, ms)
+    child.once('exit', () => {
+      clearTimeout(t)
+      resolve()
+    })
+  })
+}
 
 function killChild(child: ChildProcess): void {
   if (child.killed) return
@@ -90,6 +161,44 @@ function stopPointerWatch(cur: Session): void {
   cur.lastPointer = null
 }
 
+function stopClickPauseWatch(cur: Session): void {
+  if (cur.clickPauseTimer != null) {
+    clearInterval(cur.clickPauseTimer)
+    cur.clickPauseTimer = null
+  }
+}
+
+/**
+ * Video-picture left-click toggles pause (Chromium `<video>` parity).
+ * Gate on mpv’s HWND so caption / header / drag-to-move never count.
+ * Hit-test overlay in DIP — never mix `getCursorScreenPoint()` with physical `screenRectFor`.
+ */
+function startClickPauseWatch(cur: Session): void {
+  stopClickPauseWatch(cur)
+  cur.clickPauseArmedAt = Date.now() + 400
+  cur.lastLeftDown = isLeftMouseDown()
+  cur.clickPauseTimer = setInterval(() => {
+    if (!session || session.generation !== cur.generation || !cur.mpvHwnd) {
+      stopClickPauseWatch(cur)
+      return
+    }
+    const down = isLeftMouseDown()
+    const edge = down && !cur.lastLeftDown
+    cur.lastLeftDown = down
+    if (!edge || cur.chromeHidden) return
+    if (playbackQueryDepth > 0) return
+    if (Date.now() < cur.clickPauseArmedAt) return
+    const owner = BrowserWindow.fromId(cur.ownerId)
+    if (!owner || owner.isDestroyed() || owner.isMinimized()) return
+    // Caption, in-page header, and other Electron chrome are not mpv.
+    if (!hwndIsMpvSurface(hwndAtCursor(), cur.mpvHwnd)) return
+    const pt = screen.getCursorScreenPoint()
+    const overlay = dipRectFor(owner, cur.lastRel)
+    if (!mpvDipClickIsVideoToggle(pt, overlay, !cur.oscHidden)) return
+    mpvIpcCommand(cur.ipcPipe, ['cycle', 'pause'])
+  }, 32)
+}
+
 function emitToOwner(cur: Session, event: MfeEvent): void {
   const owner = BrowserWindow.fromId(cur.ownerId)
   if (!owner || owner.isDestroyed()) return
@@ -123,52 +232,77 @@ export function stopMpvSession(): { stopped: boolean } {
   sessionGeneration += 1
   if (!cur) return { stopped: false }
   stopPointerWatch(cur)
+  stopClickPauseWatch(cur)
   detachOwnerListeners(cur)
   killChild(cur.child)
   return { stopped: true }
 }
 
-/** Query live time-pos via mpv JSON IPC (before stop / for Now Playing handoff). */
-export async function getMpvTimePos(): Promise<{ seconds: number | null }> {
+/** Query live time-pos + pause via mpv JSON IPC (Now Playing / Dock / pop-out). */
+export async function getMpvTimePos(): Promise<{
+  seconds: number | null
+  paused: boolean | null
+}> {
   const cur = session
-  if (!cur?.mpvHwnd) return { seconds: null }
+  if (!cur) return { seconds: null, paused: null }
+  playbackQueryDepth += 1
   try {
-    const seconds = await mpvIpcGetNumber(cur.ipcPipe, 'time-pos')
-    return { seconds: seconds != null && Number.isFinite(seconds) ? Math.max(0, seconds) : null }
+    let result = await mpvIpcGetPlayback(cur.ipcPipe)
+    if (result.seconds == null && session === cur) {
+      result = await mpvIpcGetPlayback(cur.ipcPipe)
+    }
+    return result
   } catch {
-    return { seconds: null }
+    return { seconds: null, paused: null }
+  } finally {
+    playbackQueryDepth = Math.max(0, playbackQueryDepth - 1)
   }
 }
 
-function mpvIpcGetNumber(pipePath: string, property: string): Promise<number | null> {
+/**
+ * Wait for get_property replies. mpv emits events on every new IPC client; the
+ * first line is often `{"event":...}` — treating that as time-pos yields null
+ * and the detached player starts at 0.
+ */
+function mpvIpcGetPlayback(
+  pipePath: string
+): Promise<{ seconds: number | null; paused: boolean | null }> {
+  const TIME_ID = 1
+  const PAUSE_ID = 2
   return new Promise((resolve) => {
     const socket = net.connect(pipePath)
     let buf = ''
-    const timer = setTimeout(() => {
+    const into = {
+      seconds: null as number | null,
+      paused: null as boolean | null,
+      haveTime: false,
+      havePause: false
+    }
+    let settled = false
+    const finish = (): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
       socket.destroy()
-      resolve(null)
-    }, 400)
+      resolve({ seconds: into.seconds, paused: into.paused })
+    }
+    const timer = setTimeout(finish, 700)
     socket.on('connect', () => {
-      socket.write(JSON.stringify({ command: ['get_property', property] }) + '\n')
+      socket.write(
+        JSON.stringify({ command: ['get_property', 'time-pos'], request_id: TIME_ID }) +
+          '\n' +
+          JSON.stringify({ command: ['get_property', 'pause'], request_id: PAUSE_ID }) +
+          '\n'
+      )
     })
     socket.on('data', (chunk) => {
       buf += chunk.toString('utf8')
-      const line = buf.split('\n').find((l) => l.trim().length > 0)
-      if (!line) return
-      clearTimeout(timer)
-      socket.end()
-      try {
-        const parsed = JSON.parse(line) as { data?: unknown; error?: string }
-        if (typeof parsed.data === 'number') resolve(parsed.data)
-        else resolve(null)
-      } catch {
-        resolve(null)
-      }
+      const taken = takeMpvIpcMessages(buf)
+      buf = taken.rest
+      foldMpvPlaybackReplies(taken.messages, into, { time: TIME_ID, pause: PAUSE_ID })
+      if (into.haveTime && into.havePause) finish()
     })
-    socket.on('error', () => {
-      clearTimeout(timer)
-      resolve(null)
-    })
+    socket.on('error', finish)
   })
 }
 
@@ -237,9 +371,14 @@ export async function startMpvSession(
     throw new AppError('io', 'No BrowserWindow for Rich player')
   }
 
+  const resume = consumeResumeHint(filePath, resolved, startAtSec, autoplay)
+
   // Tear down any live / provisional session, then claim a generation for this start.
+  const prevChild = session?.child ?? null
   stopMpvSession()
+  if (prevChild) await waitChildExit(prevChild, 800)
   const generation = ++sessionGeneration
+  const ipcPipe = `${MPV_IPC_PIPE_PREFIX}-${generation}`
 
   titleSeq += 1
   // Literal title (no ${…} template) so FindWindowW can match it.
@@ -248,8 +387,8 @@ export async function startMpvSession(
   const oscScript = ensureMpvOscScript()
   const spawnRect = screenRectFor(owner, bounds)
   const startArg =
-    startAtSec != null && Number.isFinite(startAtSec) && startAtSec > 0.05
-      ? [`--start=${startAtSec.toFixed(3)}`]
+    resume.startAtSec != null && Number.isFinite(resume.startAtSec) && resume.startAtSec > 0.05
+      ? [`--start=${resume.startAtSec.toFixed(3)}`]
       : []
   const args = [
     '--no-terminal',
@@ -265,13 +404,13 @@ export async function startMpvSession(
     '--cursor-autohide=no',
     '--input-default-bindings=yes',
     '--input-vo-keyboard=yes',
-    `--input-ipc-server=${MPV_IPC_PIPE}`,
+    `--input-ipc-server=${ipcPipe}`,
     `--title=${title}`,
     '--vo=gpu',
     '--hwdec=auto-safe',
     overlayGeometryArg(spawnRect),
     ...startArg,
-    ...(autoplay ? [] : ['--pause']),
+    ...(resume.autoplay ? [] : ['--pause']),
     resolved
   ]
 
@@ -332,10 +471,14 @@ export async function startMpvSession(
     ownerId: owner.id,
     mpvHwnd: null,
     child,
-    ipcPipe: MPV_IPC_PIPE,
+    ipcPipe,
     lastRel: { ...bounds },
     chromeHidden: false,
     pointerWatchTimer: null,
+    clickPauseTimer: null,
+    clickPauseArmedAt: 0,
+    lastLeftDown: false,
+    oscHidden: false,
     lastPointer: null,
     moveHandler,
     resizeHandler: moveHandler,
@@ -418,6 +561,7 @@ export async function startMpvSession(
   app.on('browser-window-focus', appFocusHandler)
 
   session.mpvHwnd = mpvHwnd
+  startClickPauseWatch(session)
 
   // File-open can still nudge the VO once; re-assert the host rect.
   for (const ms of [50, 160, 400]) {
@@ -473,12 +617,23 @@ export function setMpvOscVisible(sender: WebContents, visible: boolean): { ok: t
   if (!cur?.mpvHwnd) return { ok: true }
   const ownerId = ownerWindowId(sender)
   if (ownerId === null || ownerId !== cur.ownerId) return { ok: true }
+  cur.oscHidden = !visible
   mpvIpcCommand(cur.ipcPipe, [
     'script-message',
     'osc-visibility',
     visible ? 'always' : 'never',
     'no-osd'
   ])
+  return { ok: true }
+}
+
+/** Cycle pause/play. Owner-scoped. Used when Chromium receives the click (detached). */
+export function cycleMpvPause(sender: WebContents): { ok: true } {
+  const cur = session
+  if (!cur?.mpvHwnd) return { ok: true }
+  const ownerId = ownerWindowId(sender)
+  if (ownerId === null || ownerId !== cur.ownerId) return { ok: true }
+  mpvIpcCommand(cur.ipcPipe, ['cycle', 'pause'])
   return { ok: true }
 }
 

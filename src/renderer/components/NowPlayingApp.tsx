@@ -41,6 +41,7 @@ type Handoff = { startAtSec?: number; paused?: boolean }
 export function NowPlayingApp(): JSX.Element {
   const [path, setPath] = useState<string | null>(null)
   const [handoff, setHandoff] = useState<Handoff>({})
+  const [epoch, setEpoch] = useState(0)
   const pathRef = useRef(path)
   useEffect(() => {
     pathRef.current = path
@@ -69,6 +70,7 @@ export function NowPlayingApp(): JSX.Element {
       if (st.open && st.path) {
         setPath(st.path)
         setHandoff({ startAtSec: st.startAtSec, paused: st.paused })
+        if (st.epoch != null) setEpoch(st.epoch)
       }
     })
     const off = api.onEvent((ev) => {
@@ -80,11 +82,17 @@ export function NowPlayingApp(): JSX.Element {
             !prev ||
             prev.replace(/\//g, '\\').toLowerCase() !== next.replace(/\//g, '\\').toLowerCase()
           setPath(next)
-          if (pathChanged || ev.payload.startAtSec != null || ev.payload.paused != null) {
+          if (ev.payload.epoch != null) setEpoch(ev.payload.epoch)
+          if (pathChanged) {
             setHandoff({
               startAtSec: ev.payload.startAtSec,
               paused: ev.payload.paused
             })
+          } else if (ev.payload.startAtSec != null || ev.payload.paused != null) {
+            setHandoff((prevHandoff) => ({
+              startAtSec: ev.payload.startAtSec ?? prevHandoff.startAtSec,
+              paused: ev.payload.paused ?? prevHandoff.paused
+            }))
           }
         } else {
           setPath(null)
@@ -139,13 +147,14 @@ export function NowPlayingApp(): JSX.Element {
         // Peek only — dock may be rejected if preview is another file; keep playing.
         const chrome = peekNowPlayingChromiumPlayback()
         let startAtSec = chrome?.startAtSec
-        const paused = chrome?.paused === true
-        if (startAtSec == null || startAtSec <= 0) {
+        let paused = chrome?.paused
+        if (startAtSec == null || startAtSec <= 0 || paused == null) {
           try {
             const mpv = await call(api.preview.mpvTimePos())
-            if (mpv.seconds != null && mpv.seconds > 0) {
+            if ((startAtSec == null || startAtSec <= 0) && mpv.seconds != null && mpv.seconds > 0) {
               startAtSec = mpv.seconds
             }
+            if (paused == null && mpv.paused != null) paused = mpv.paused
           } catch {
             /* no live mpv */
           }
@@ -153,7 +162,7 @@ export function NowPlayingApp(): JSX.Element {
         await call(
           api.nowPlaying.dock({
             ...(startAtSec != null && startAtSec > 0 ? { startAtSec } : {}),
-            paused
+            ...(paused != null ? { paused } : {})
           })
         )
       } catch (e) {
@@ -176,7 +185,7 @@ export function NowPlayingApp(): JSX.Element {
     richPlayer && model?.kind === 'video' && !model.mediaUrl && Boolean(path)
   const resumePlaying = handoff.paused !== true
   // Remount player when handoff offset changes so seek applies once.
-  const playerKey = `${path ?? ''}|${handoff.startAtSec ?? 0}|${handoff.paused === true ? 1 : 0}`
+  const playerKey = `${path ?? ''}|${handoff.startAtSec ?? 0}|${handoff.paused === true ? 1 : 0}|${epoch}`
 
   return (
     <div className="now-playing">

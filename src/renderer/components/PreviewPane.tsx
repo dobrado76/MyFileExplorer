@@ -13,6 +13,7 @@ import { isVolumeRootPath } from '../lib/rightDrag'
 import type { ItemNote } from '@shared/schemas/itemAds'
 import { lookupGitForPath } from '../lib/gitUi'
 import { samePath } from '../lib/paths'
+import { captureDockedChromiumPlayback } from '../lib/dockedAvPlayback'
 
 export function PreviewPane(): JSX.Element {
   const notify = useAppStore((s) => s.notify)
@@ -290,7 +291,34 @@ export function PreviewPane(): JSX.Element {
             className="icon-btn preview-popout-btn"
             aria-label="Open preview window"
             title="Open preview window"
-            onClick={() => void api.preview.openWindow()}
+            onClick={() => {
+              void (async () => {
+                const chrome = captureDockedChromiumPlayback()
+                let startAtSec = chrome?.startAtSec
+                let paused = chrome?.paused
+                if (startAtSec == null || startAtSec <= 0 || paused == null) {
+                  try {
+                    const mpv = await call(api.preview.mpvTimePos())
+                    if (
+                      (startAtSec == null || startAtSec <= 0) &&
+                      mpv.seconds != null &&
+                      mpv.seconds > 0
+                    ) {
+                      startAtSec = mpv.seconds
+                    }
+                    if (paused == null && mpv.paused != null) paused = mpv.paused
+                  } catch {
+                    /* no live mpv — main still queries before tearing down */
+                  }
+                }
+                await call(
+                  api.preview.openWindow({
+                    ...(startAtSec != null && startAtSec > 0 ? { startAtSec } : {}),
+                    ...(paused != null ? { paused } : {})
+                  })
+                )
+              })()
+            }}
           >
             <PopOutIcon size={16} />
           </button>

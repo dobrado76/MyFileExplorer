@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useRef, useState, type JSX, type MouseEvent, type PointerEvent } from 'react'
 import { api } from '../../lib/ipc'
 import { usePointerIdle } from '../../lib/usePointerIdle'
 import { useAppStore } from '../../store/appStore'
+import { mpvPointerInVideoToggleZone } from '@shared/mpvClickPause'
 
 /**
  * Host for opt-in Rich player (mpv). Reports DIP bounds to main; main places
@@ -35,23 +36,40 @@ export function MpvPreview({
   const [status, setStatus] = useState<'starting' | 'playing' | 'error'>('starting')
   const [error, setError] = useState<string | null>(null)
   const startedFor = useRef<string | null>(null)
-  // Latch handoff opts for the session — prop churn (dock resume clear) must not
-  // tear down a live mpv and restart paused. Sync in an effect (not render) for
-  // react-hooks/refs; keep this effect above the start effect so latches are fresh.
   const autoplayRef = useRef(autoplay)
   const startAtSecRef = useRef(startAtSec)
-  useEffect(() => {
-    autoplayRef.current = autoplay
-    startAtSecRef.current = startAtSec
-  }, [autoplay, startAtSec])
+  autoplayRef.current = autoplay
+  startAtSecRef.current = startAtSec
   const overlayBlocked = useAppStore(
     (s) => s.dialog != null || s.contextMenu != null || s.imageViewer != null
   )
+  const playingSinceRef = useRef(0)
+  const pressRef = useRef<{ x: number; y: number } | null>(null)
   const controlsIdle = usePointerIdle(
     Boolean(autoHideControls && active && status === 'playing'),
     3000,
     { listenMpvPointer: autoHideControls }
   )
+
+  const onVideoPointerDown = (e: PointerEvent<HTMLDivElement>): void => {
+    if (e.button !== 0) return
+    pressRef.current = { x: e.clientX, y: e.clientY }
+  }
+
+  const onVideoClick = (e: MouseEvent<HTMLDivElement>): void => {
+    if (status !== 'playing') return
+    // Docked: mpv HWND owns the click (main-process watch). Detached: Chromium may.
+    if (!autoHideControls) return
+    // Ignore the mouseup that opened Keep playing / Dock.
+    if (Date.now() - playingSinceRef.current < 400) return
+    const p = pressRef.current
+    pressRef.current = null
+    // Caption drag / click-drag is not “click the video”.
+    if (!p || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6) return
+    const r = e.currentTarget.getBoundingClientRect()
+    if (!mpvPointerInVideoToggleZone(e.clientY - r.top, r.height, !controlsIdle)) return
+    void api.preview.mpvCyclePause()
+  }
 
   useEffect(() => {
     if (status !== 'playing') return
@@ -147,6 +165,7 @@ export function MpvPreview({
       }
       startedFor.current = path
       lastSent = `${bounds.x},${bounds.y},${bounds.width},${bounds.height}`
+      playingSinceRef.current = Date.now()
       setStatus('playing')
       pushBounds()
     }
@@ -203,7 +222,13 @@ export function MpvPreview({
   }
 
   return (
-    <div className="preview-mpv-host" ref={hostRef} data-mpv-status={status}>
+    <div
+      className="preview-mpv-host"
+      ref={hostRef}
+      data-mpv-status={status}
+      onPointerDown={onVideoPointerDown}
+      onClick={onVideoClick}
+    >
       {status === 'starting' ? (
         <>
           {posterUrl ? (

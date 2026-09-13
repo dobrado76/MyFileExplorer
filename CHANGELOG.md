@@ -9,6 +9,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Rich player click-to-pause** — clicking the video picture (not the OSC bar, not the window caption) play/pauses like Chromium’s `<video>` player, in the docked preview and in detached / Now Playing.
+- **Rich player Keep playing / pop-out resume** — detaching a playing Rich player no longer races to 0: mpv IPC skips event lines when reading `time-pos`, and pop-out captures position before the docked overlay is torn down. Repeated Keep playing → Dock no longer restarts from 0 (stale window-close must not wipe the next session; each mpv gets its own IPC pipe).
 - **Named layouts auto-save when switching** — leaving a layout via the Layouts menu overwrites that saved workspace with the live tabs and panes (on by default). **Save as…** still creates a new layout. Settings → Layouts can turn auto-save off; Update still writes without switching. Settings list order is the Layouts menu order (↑↓); Rename/Remove are icon buttons.
 - **Icon-view thumbnails no longer stall after scrolling** — fast-scrolling Extra large / Large / Medium / Small icons queued unbounded Sharp encodes on main, which also blocked preview. `thumbs:get` is throttled (newest visible tiles first; off-screen waiters dropped) and Sharp generate is capped; already-cached thumbs still skip the encode queue.
 - **Size column sort with folder statistics** — Details Size sort uses each folder’s calculated `TotalSize` (bytes), not the listing size of `0`, so ascending/descending matches the displayed TB/GB/MB values after Calculate Statistics.

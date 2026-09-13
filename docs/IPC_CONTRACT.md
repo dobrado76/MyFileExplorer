@@ -142,11 +142,13 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | `preview:mpvStart` | `{ path, bounds, autoplay? }` → `{ started }` — spawn mpv and place an **owned borderless overlay** over the sender’s preview host (not `--wid` / not `WS_CHILD`) |
 | `preview:mpvBounds` | `{ bounds }` → `{ ok }` — move/resize overlay; **owner-scoped** (sender must match the active session’s BrowserWindow) |
 | `preview:mpvVisible` | `{ visible }` → `{ ok }` — hide/show overlay without killing playback (dialogs / menus); owner-scoped |
+| `preview:mpvOscVisible` | `{ visible }` → `{ ok }` — show/hide OSC (detached / Now Playing idle chrome); owner-scoped |
+| `preview:mpvCyclePause` | `{}` → `{ ok }` — cycle pause/play; owner-scoped (click on the video picture only — not caption / OSC) |
 | `preview:mpvStop` | `{}` → `{ stopped }` — kill mpv session only if sender owns it |
-| `preview:openWindow` | `{}` → `{ opened }` — open or focus the detached preview window (docked pane becomes Dock-only) |
+| `preview:openWindow` | `{ startAtSec?, paused? }` → `{ opened }` — open or focus the detached preview window (docked pane becomes Dock-only). Captures mpv position **before** tearing down the docked overlay. |
 | `preview:closeWindow` | `{}` → `{ closed }` — close the detached window and restore the docked pane |
 | `preview:setTarget` | `PreviewWindowTarget` → `{ ok }` — focused/selected file (+ optional ADS) for the preview window |
-| `preview:getTarget` | `{}` → `PreviewWindowTarget` |
+| `preview:getTarget` | `{}` → `PreviewWindowTarget` (+ one-shot `startAtSec` / `paused` after pop-out) |
 
 ### `search.*`
 

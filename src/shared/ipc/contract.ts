@@ -148,6 +148,7 @@ export const IPC = {
   previewMpvVisible: 'preview:mpvVisible',
   previewMpvOscVisible: 'preview:mpvOscVisible',
   previewMpvPointerWatch: 'preview:mpvPointerWatch',
+  previewMpvCyclePause: 'preview:mpvCyclePause',
   previewMpvStop: 'preview:mpvStop',
   /** Current playback time of the live Rich Player session (if any). */
   previewMpvTimePos: 'preview:mpvTimePos',
@@ -532,6 +533,8 @@ export type MfeEvent =
         startAtSec?: number
         /** When true, open paused at startAtSec. */
         paused?: boolean
+        /** Increments on each Keep playing so the player remounts. */
+        epoch?: number
       }
     }
   | {

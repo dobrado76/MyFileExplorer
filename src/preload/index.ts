@@ -143,7 +143,7 @@ const api: MyFileExplorerApi = {
     ensurePlayable: invoke(IPC.previewEnsurePlayable),
     getMediaMeta: invoke(IPC.previewGetMediaMeta),
     chmTopic: invoke(IPC.previewChmTopic),
-    openWindow: invokeVoid(IPC.previewOpenWindow),
+    openWindow: invoke(IPC.previewOpenWindow),
     closeWindow: invokeVoid(IPC.previewCloseWindow),
     setTarget: invoke(IPC.previewSetTarget),
     getTarget: invokeVoid(IPC.previewGetTarget),
@@ -153,6 +153,7 @@ const api: MyFileExplorerApi = {
     mpvVisible: invoke(IPC.previewMpvVisible),
     mpvOscVisible: invoke(IPC.previewMpvOscVisible),
     mpvPointerWatch: invoke(IPC.previewMpvPointerWatch),
+    mpvCyclePause: invokeVoid(IPC.previewMpvCyclePause),
     mpvStop: invokeVoid(IPC.previewMpvStop),
     mpvTimePos: invokeVoid(IPC.previewMpvTimePos)
   },

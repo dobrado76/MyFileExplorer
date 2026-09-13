@@ -13,13 +13,15 @@ import {
 import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
-import { stopMpvForWindowId } from './mpvPlayer'
+import { stopMpvForWindowId, setMpvResumeHint } from './mpvPlayer'
 import { requireAbsolute } from '../fs/list'
 
 let nowPlayingWin: BrowserWindow | null = null
 let sessionPath: string | null = null
 let sessionStartAtSec: number | undefined
 let sessionPaused: boolean | undefined
+/** Bumps every Keep playing so a reused renderer remounts the player. */
+let sessionEpoch = 0
 
 function defaultBounds(): { x: number; y: number; width: number; height: number } {
   const work = screen.getPrimaryDisplay().workArea
@@ -120,13 +122,15 @@ function attachGuards(win: BrowserWindow): void {
 }
 
 function broadcastState(): void {
+  const open = sessionPath != null && nowPlayingWin != null && !nowPlayingWin.isDestroyed()
   broadcast({
     type: 'now-playing',
     payload: {
-      path: sessionPath,
-      open: sessionPath != null && nowPlayingWin != null,
-      ...(sessionStartAtSec != null ? { startAtSec: sessionStartAtSec } : {}),
-      ...(sessionPaused != null ? { paused: sessionPaused } : {})
+      path: open ? sessionPath : null,
+      open,
+      epoch: sessionEpoch,
+      ...(open && sessionStartAtSec != null ? { startAtSec: sessionStartAtSec } : {}),
+      ...(open && sessionPaused != null ? { paused: sessionPaused } : {})
     }
   })
 }
@@ -173,7 +177,9 @@ function ensureWindow(): BrowserWindow {
   win.on('close', () => persistBounds(win))
   win.on('closed', () => {
     stopMpvForWindowId(windowId)
-    if (nowPlayingWin === win) nowPlayingWin = null
+    // A newer Keep playing may already own `nowPlayingWin` / sessionPath.
+    if (nowPlayingWin !== win) return
+    nowPlayingWin = null
     sessionPath = null
     sessionStartAtSec = undefined
     sessionPaused = undefined
@@ -191,11 +197,13 @@ export function getNowPlaying(): {
   open: boolean
   startAtSec?: number
   paused?: boolean
+  epoch?: number
 } {
   const open = sessionPath != null && nowPlayingWin != null && !nowPlayingWin.isDestroyed()
   return {
     path: open ? sessionPath : null,
     open,
+    epoch: sessionEpoch,
     ...(open && sessionStartAtSec != null ? { startAtSec: sessionStartAtSec } : {}),
     ...(open && sessionPaused != null ? { paused: sessionPaused } : {})
   }
@@ -230,6 +238,11 @@ export function startNowPlaying(
       ? opts.startAtSec
       : undefined
   sessionPaused = opts?.paused === true ? true : opts?.paused === false ? false : undefined
+  sessionEpoch += 1
+  setMpvResumeHint(file, {
+    ...(sessionStartAtSec != null ? { startAtSec: sessionStartAtSec } : {}),
+    ...(sessionPaused != null ? { paused: sessionPaused } : {})
+  })
   win.setTitle(`Now Playing — ${path.basename(file)}`)
   // Broadcast handoff so Now Playing seeks once; path change resets the player.
   broadcast({
@@ -237,6 +250,7 @@ export function startNowPlaying(
     payload: {
       path: file,
       open: true,
+      epoch: sessionEpoch,
       ...(sessionStartAtSec != null ? { startAtSec: sessionStartAtSec } : {}),
       ...(sessionPaused != null ? { paused: sessionPaused } : {})
     }
@@ -252,6 +266,7 @@ export function startNowPlaying(
 export function stopNowPlaying(): { stopped: boolean } {
   if (!nowPlayingWin || nowPlayingWin.isDestroyed()) {
     const had = sessionPath != null
+    nowPlayingWin = null
     sessionPath = null
     sessionStartAtSec = undefined
     sessionPaused = undefined
@@ -259,10 +274,14 @@ export function stopNowPlaying(): { stopped: boolean } {
     return { stopped: had }
   }
   const win = nowPlayingWin
+  const windowId = win.id
+  nowPlayingWin = null
   sessionPath = null
   sessionStartAtSec = undefined
   sessionPaused = undefined
-  win.close()
+  stopMpvForWindowId(windowId)
+  broadcastState()
+  if (!win.isDestroyed()) win.close()
   return { stopped: true }
 }
 
@@ -277,6 +296,12 @@ export function requestDockNowPlaying(opts?: {
 }): { requested: boolean; path: string | null } {
   const file = sessionPath
   if (!file) return { requested: false, path: null }
+  setMpvResumeHint(file, {
+    ...(opts?.startAtSec != null && Number.isFinite(opts.startAtSec) && opts.startAtSec > 0
+      ? { startAtSec: opts.startAtSec }
+      : {}),
+    ...(opts?.paused === true || opts?.paused === false ? { paused: opts.paused } : {})
+  })
   broadcast({
     type: 'now-playing-dock-request',
     payload: {

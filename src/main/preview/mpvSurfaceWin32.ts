@@ -48,6 +48,9 @@ type Api = {
   ) => number
   ShowWindow: (hWnd: unknown, nCmdShow: number) => number
   IsWindow: (hWnd: unknown) => number
+  GetAsyncKeyState: (nVirtKey: number) => number
+  WindowFromPoint: (pt: bigint | number) => unknown
+  GetAncestor: (hWnd: unknown, gaFlags: number) => unknown
 }
 
 let api: Api | null = null
@@ -75,7 +78,19 @@ function loadApi(): Api {
       'bool __stdcall SetWindowPos(void *hWnd, void *hWndInsertAfter, int X, int Y, int cx, int cy, uint32 uFlags)'
     ) as Api['SetWindowPos'],
     ShowWindow: user32.func('bool __stdcall ShowWindow(void *hWnd, int nCmdShow)') as Api['ShowWindow'],
-    IsWindow: user32.func('bool __stdcall IsWindow(void *hWnd)') as Api['IsWindow']
+    IsWindow: user32.func('bool __stdcall IsWindow(void *hWnd)') as Api['IsWindow'],
+    GetAsyncKeyState: user32.func(
+      'int16 __stdcall GetAsyncKeyState(int nVirtKey)'
+    ) as Api['GetAsyncKeyState'],
+    // x64: POINT is 8 bytes in RCX (x in low dword, y in high). Not two int32 args.
+    WindowFromPoint: user32.func(
+      is64
+        ? 'void * __stdcall WindowFromPoint(uint64 pt)'
+        : 'void * __stdcall WindowFromPoint(int32 x, int32 y)'
+    ) as Api['WindowFromPoint'],
+    GetAncestor: user32.func(
+      'void * __stdcall GetAncestor(void *hWnd, uint32 gaFlags)'
+    ) as Api['GetAncestor']
   }
   return api
 }
@@ -108,23 +123,78 @@ export async function findMpvWindow(title: string, _pid: number, timeoutMs = 500
   throw new Error(`No mpv window for title “${title}”`)
 }
 
-export function screenRectFor(
+/** Overlay in screen DIP — same space as `screen.getCursorScreenPoint()`. */
+export function dipRectFor(
   owner: BrowserWindow,
   bounds: PreviewMpvBounds
 ): { x: number; y: number; width: number; height: number } {
   const content = owner.getContentBounds()
-  const dip = {
+  return {
     x: content.x + bounds.x,
     y: content.y + bounds.y,
     width: Math.max(32, bounds.width),
     height: Math.max(32, bounds.height)
   }
+}
+
+export function screenRectFor(
+  owner: BrowserWindow,
+  bounds: PreviewMpvBounds
+): { x: number; y: number; width: number; height: number } {
+  const dip = dipRectFor(owner, bounds)
   const scr = screen.dipToScreenRect(owner, dip)
   return {
     x: Math.round(scr.x),
     y: Math.round(scr.y),
     width: Math.max(32, Math.round(scr.width)),
     height: Math.max(32, Math.round(scr.height))
+  }
+}
+
+const GA_ROOT = 2
+
+function packPoint(x: number, y: number): bigint {
+  const buf = Buffer.alloc(8)
+  buf.writeInt32LE(Math.round(x), 0)
+  buf.writeInt32LE(Math.round(y), 4)
+  return buf.readBigUInt64LE(0)
+}
+
+function hwndEquals(a: unknown, b: unknown): boolean {
+  try {
+    return toBigInt(a) === toBigInt(b)
+  } catch {
+    return false
+  }
+}
+
+/** HWND under the cursor (physical screen pixels). */
+export function hwndAtCursor(): unknown {
+  try {
+    const dip = screen.getCursorScreenPoint()
+    const phys = screen.dipToScreenPoint(dip)
+    const u = loadApi()
+    if (process.arch === 'x64' || process.arch === 'arm64') {
+      return u.WindowFromPoint(packPoint(phys.x, phys.y))
+    }
+    return (u.WindowFromPoint as unknown as (x: number, y: number) => unknown)(
+      Math.round(phys.x),
+      Math.round(phys.y)
+    )
+  } catch {
+    return null
+  }
+}
+
+/** True when the hit is mpv’s overlay (or a child VO HWND), not Electron chrome. */
+export function hwndIsMpvSurface(hit: unknown, mpvHwnd: unknown): boolean {
+  if (!isHwnd(hit) || !isHwnd(mpvHwnd)) return false
+  if (hwndEquals(hit, mpvHwnd)) return true
+  try {
+    const root = loadApi().GetAncestor(hit, GA_ROOT)
+    return isHwnd(root) && hwndEquals(root, mpvHwnd)
+  } catch {
+    return false
   }
 }
 
@@ -246,4 +316,15 @@ export function moveMpvOverlay(
     r.height,
     SWP_NOACTIVATE | SWP_NOZORDER | (opts?.hide === true ? SWP_HIDEWINDOW : 0)
   )
+}
+
+const VK_LBUTTON = 0x01
+
+/** Current left-button state (Win32). Used for video-area click-to-pause. */
+export function isLeftMouseDown(): boolean {
+  try {
+    return (loadApi().GetAsyncKeyState(VK_LBUTTON) & 0x8000) !== 0
+  } catch {
+    return false
+  }
 }

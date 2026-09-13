@@ -13,11 +13,13 @@ import {
 import { patchSettings, settingsStore } from '../settings/store'
 import { broadcast } from '../ipc/events'
 import { logMain } from '../logging'
-import { stopMpvForWindowId } from './mpvPlayer'
+import { stopMpvForWindowId, getMpvTimePos, setMpvResumeHint } from './mpvPlayer'
 
 let previewWin: BrowserWindow | null = null
 
 let lastTarget: PreviewWindowTarget = { path: null, ads: undefined, stamp: null }
+/** One-shot resume for the pop-out (captured while docked mpv is still alive). */
+let previewAvHandoff: { startAtSec?: number; paused?: boolean } | null = null
 
 function defaultBounds(): { x: number; y: number; width: number; height: number } {
   return previewWindowDefaultBounds(screen.getPrimaryDisplay().workArea)
@@ -106,19 +108,54 @@ function attachPreviewWindowGuards(win: BrowserWindow): void {
 
 export function setPreviewTarget(next: PreviewWindowTarget): { ok: true } {
   if (sameTarget(lastTarget, next)) return { ok: true }
+  if (lastTarget.path !== next.path) previewAvHandoff = null
   lastTarget = next
   broadcast({ type: 'preview-target', payload: next })
   return { ok: true }
 }
 
-export function getPreviewTarget(): PreviewWindowTarget {
-  return lastTarget
+export function getPreviewTarget(): PreviewWindowTarget & {
+  startAtSec?: number
+  paused?: boolean
+} {
+  const h = previewAvHandoff
+  return {
+    ...lastTarget,
+    ...(h?.startAtSec != null ? { startAtSec: h.startAtSec } : {}),
+    ...(h?.paused === true || h?.paused === false ? { paused: h.paused } : {})
+  }
 }
 
-export function openPreviewWindow(): { opened: true } {
+export async function openPreviewWindow(opts?: {
+  startAtSec?: number
+  paused?: boolean
+}): Promise<{ opened: true }> {
   if (previewWin && !previewWin.isDestroyed()) {
     previewWin.focus()
     return { opened: true }
+  }
+
+  let startAtSec =
+    opts?.startAtSec != null && Number.isFinite(opts.startAtSec) && opts.startAtSec > 0
+      ? opts.startAtSec
+      : undefined
+  let paused = opts?.paused === true ? true : opts?.paused === false ? false : undefined
+  if (startAtSec == null || paused == null) {
+    const mpv = await getMpvTimePos()
+    if (startAtSec == null && mpv.seconds != null && mpv.seconds > 0) startAtSec = mpv.seconds
+    if (paused == null && mpv.paused != null) paused = mpv.paused
+  }
+  if (lastTarget.path && (startAtSec != null || paused != null)) {
+    previewAvHandoff = {
+      ...(startAtSec != null ? { startAtSec } : {}),
+      ...(paused != null ? { paused } : {})
+    }
+    setMpvResumeHint(lastTarget.path, {
+      ...(startAtSec != null ? { startAtSec } : {}),
+      ...(paused != null ? { paused } : {})
+    })
+  } else {
+    previewAvHandoff = null
   }
 
   // Unmount the docked <video> before this window starts the same media URL.
@@ -160,6 +197,7 @@ export function openPreviewWindow(): { opened: true } {
   })
   win.on('close', () => persistBounds(win))
   win.on('closed', () => {
+    previewAvHandoff = null
     stopMpvForWindowId(previewWindowId)
     if (previewWin === win) previewWin = null
     // Skip if a newer pop-out already owns `previewWin` (close-then-reopen).

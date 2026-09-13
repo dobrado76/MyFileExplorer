@@ -353,10 +353,15 @@ export type MyFileExplorerApi = {
     getMediaMeta(req: PreviewMediaMetaRequest): Promise<Result<PreviewMediaMetaResponse>>
     /** Topic HTML URL for Compiled HTML Help (`.chm`) preview. */
     chmTopic(req: PreviewChmTopicRequest): Promise<Result<{ mediaUrl: string }>>
-    openWindow(): Promise<Result<{ opened: true }>>
+    openWindow(req?: {
+      startAtSec?: number
+      paused?: boolean
+    }): Promise<Result<{ opened: true }>>
     closeWindow(): Promise<Result<{ closed: boolean }>>
     setTarget(req: PreviewWindowTarget): Promise<Result<{ ok: true }>>
-    getTarget(): Promise<Result<PreviewWindowTarget>>
+    getTarget(): Promise<
+      Result<PreviewWindowTarget & { startAtSec?: number; paused?: boolean }>
+    >
     /** Opt-in Rich player (mpv) availability. */
     mpvAvailable(): Promise<Result<{ available: boolean; path: string | null }>>
     mpvStart(
@@ -374,9 +379,11 @@ export type MyFileExplorerApi = {
     mpvPointerWatch(
       req: import('../schemas/preview').PreviewMpvPointerWatchRequest
     ): Promise<Result<{ ok: true }>>
+    /** Toggle pause/play (detached host click; docked uses mpv input). */
+    mpvCyclePause(): Promise<Result<{ ok: true }>>
     mpvStop(): Promise<Result<{ stopped: boolean }>>
-    /** Live Rich Player time-pos (seconds), or null if idle. */
-    mpvTimePos(): Promise<Result<{ seconds: number | null }>>
+    /** Live Rich Player time-pos (seconds) and pause flag, or nulls if idle. */
+    mpvTimePos(): Promise<Result<{ seconds: number | null; paused: boolean | null }>>
   }
   nowPlaying: {
     start(req: {
@@ -391,6 +398,7 @@ export type MyFileExplorerApi = {
         open: boolean
         startAtSec?: number
         paused?: boolean
+        epoch?: number
       }>
     >
     /** Ask explorer to dock into preview (accepted only if that file is already previewed). */

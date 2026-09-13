@@ -89,6 +89,10 @@ const CONTENT_GROUPS: { key: string; label: string }[] = [
   { key: 'image', label: 'Image' }
 ]
 
+function sameAvPath(a: string, b: string): boolean {
+  return a.replace(/\//g, '\\').toLowerCase() === b.replace(/\//g, '\\').toLowerCase()
+}
+
 export function kindLabel(kind: PreviewModel['kind']): string {
   switch (kind) {
     case 'image':
@@ -142,6 +146,8 @@ export type PreviewViewProps = {
   previewWindowOpen?: boolean
   /** Detached window only — docked pane keeps the original stacked layout. */
   detached?: boolean
+  /** Pop-out handoff: resume at this offset (one-shot from `preview:getTarget`). */
+  playbackResume?: { startAtSec?: number; paused?: boolean } | null
   previewVideoAutoplay?: boolean
   /** Settings → Preview → Rich player (mpv). */
   previewRichPlayerMpv?: boolean
@@ -188,6 +194,7 @@ function PreviewViewInner({
   mediaHold = false,
   previewWindowOpen = false,
   detached = false,
+  playbackResume = null,
   previewVideoAutoplay = false,
   previewRichPlayerMpv = false,
   captionPosterUrl = null,
@@ -479,6 +486,7 @@ function PreviewViewInner({
           mediaHold={mediaHold}
           previewWindowOpen={previewWindowOpen}
           detached={detached}
+          playbackResume={playbackResume}
           wide={useWide}
           extraBeforeFields={useWide ? extraBeforeFields : null}
           fileDetailFields={useWide ? fileDetailFields : []}
@@ -516,6 +524,7 @@ function PreviewBody({
   mediaHold,
   previewWindowOpen,
   detached = false,
+  playbackResume = null,
   wide = false,
   extraBeforeFields = null,
   fileDetailFields = [],
@@ -537,6 +546,7 @@ function PreviewBody({
   previewWindowOpen: boolean
   /** Detached preview / Now Playing-style chrome: idle-hide video controls. */
   detached?: boolean
+  playbackResume?: { startAtSec?: number; paused?: boolean } | null
   /** Detached landscape only. Stacked detached matches the docked pane. */
   wide?: boolean
   extraBeforeFields?: ReactNode
@@ -565,20 +575,34 @@ function PreviewBody({
     path: string
     startAtSec?: number
     paused?: boolean
-  } | null>(null)
+  } | null>(() =>
+    playbackResume
+      ? {
+          path: model.path,
+          ...(playbackResume.startAtSec != null ? { startAtSec: playbackResume.startAtSec } : {}),
+          ...(playbackResume.paused === true || playbackResume.paused === false
+            ? { paused: playbackResume.paused }
+            : {})
+        }
+      : null
+  )
   useEffect(() => {
-    if (!avDockResume) return
-    if (
-      avDockResume.path.replace(/\//g, '\\').toLowerCase() !==
-      model.path.replace(/\//g, '\\').toLowerCase()
-    ) {
+    if (avDockResume && sameAvPath(avDockResume.path, model.path)) {
+      setDockResume(avDockResume)
       return
     }
-    setDockResume(avDockResume)
-  }, [avDockResume, model.path])
-  useEffect(() => {
     if (nowPlayingOpen) setDockResume(null)
-  }, [nowPlayingOpen])
+  }, [avDockResume, nowPlayingOpen, model.path])
+  useEffect(() => {
+    if (!playbackResume || !model) return
+    setDockResume({
+      path: model.path,
+      ...(playbackResume.startAtSec != null ? { startAtSec: playbackResume.startAtSec } : {}),
+      ...(playbackResume.paused === true || playbackResume.paused === false
+        ? { paused: playbackResume.paused }
+        : {})
+    })
+  }, [playbackResume, model])
   useEffect(() => {
     setDockResume((prev) => {
       if (!prev) return prev
@@ -750,6 +774,7 @@ function PreviewBody({
         {/* Chromium-native video — unchanged path (MP4/M4V/WebM/MOV). */}
         {model.kind === 'video' && model.mediaUrl && !mediaHold && (
           <VideoPreview
+            key={`${model.path}|${dockResume?.startAtSec ?? 0}|${dockResume?.paused === true ? 1 : 0}`}
             url={model.mediaUrl}
             posterUrl={model.posterUrl}
             autoplay={dockResume ? dockResume.paused !== true : previewVideoAutoplay}
@@ -765,6 +790,7 @@ function PreviewBody({
         {/* Opt-in Rich player for containers without mediaUrl. */}
         {model.kind === 'video' && useRichPlayer && !mediaHold && (
           <MpvPreview
+            key={`${model.path}|${dockResume?.startAtSec ?? 0}|${dockResume?.paused === true ? 1 : 0}`}
             path={model.path}
             posterUrl={model.posterUrl ?? model.stripFrames?.[0]}
             autoplay={dockResume ? dockResume.paused !== true : previewVideoAutoplay}

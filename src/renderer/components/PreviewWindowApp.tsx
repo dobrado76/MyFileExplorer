@@ -90,6 +90,10 @@ function PreviewWindowNotice(): JSX.Element | null {
  */
 export function PreviewWindowApp(): JSX.Element {
   const [target, setTarget] = useState<PreviewWindowTarget>({ path: null })
+  const [playbackResume, setPlaybackResume] = useState<{
+    startAtSec?: number
+    paused?: boolean
+  } | null>(null)
   const [autoplay, setAutoplay] = useState(false)
   const [richPlayer, setRichPlayer] = useState(false)
   const [zen, setZen] = useState(false)
@@ -147,10 +151,22 @@ export function PreviewWindowApp(): JSX.Element {
   useEffect(() => {
     let cancelled = false
     void api.preview.getTarget().then((res) => {
-      if (!cancelled && res.ok) setTarget(res.value)
+      if (!cancelled && res.ok) {
+        const v = res.value as PreviewWindowTarget & { startAtSec?: number; paused?: boolean }
+        setTarget({ path: v.path, ads: v.ads, stamp: v.stamp })
+        if (v.startAtSec != null || v.paused === true || v.paused === false) {
+          setPlaybackResume({
+            ...(v.startAtSec != null ? { startAtSec: v.startAtSec } : {}),
+            ...(v.paused === true || v.paused === false ? { paused: v.paused } : {})
+          })
+        }
+      }
     })
     const unsub = api.onEvent((event) => {
-      if (event.type === 'preview-target') setTarget(event.payload)
+      if (event.type === 'preview-target') {
+        setTarget(event.payload)
+        setPlaybackResume(null)
+      }
     })
     return () => {
       cancelled = true
@@ -259,6 +275,7 @@ export function PreviewWindowApp(): JSX.Element {
           driveSpace={driveSpace}
           gitRepo={gitRepo}
           detached
+          playbackResume={playbackResume}
           previewVideoAutoplay={autoplay}
           previewRichPlayerMpv={richPlayer}
           mediaHold={mediaHold}
