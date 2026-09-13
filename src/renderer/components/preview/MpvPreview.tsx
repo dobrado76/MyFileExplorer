@@ -38,8 +38,12 @@ export function MpvPreview({
   const startedFor = useRef<string | null>(null)
   const autoplayRef = useRef(autoplay)
   const startAtSecRef = useRef(startAtSec)
-  autoplayRef.current = autoplay
-  startAtSecRef.current = startAtSec
+  // Latch in an effect (not render) for react-hooks/refs. Keep this above the
+  // start effect so `--start=` is current before mpvStart (start awaits rAF).
+  useEffect(() => {
+    autoplayRef.current = autoplay
+    startAtSecRef.current = startAtSec
+  }, [autoplay, startAtSec])
   const overlayBlocked = useAppStore(
     (s) => s.dialog != null || s.contextMenu != null || s.imageViewer != null
   )
