@@ -1,16 +1,11 @@
-# Check on every PR/push. Build the NSIS installer only for version tags and
-# attach it to a GitHub Release — no Actions artifact storage (quota-free).
+# Check + ship the NSIS installer only for version tags (GitHub Release).
+# Branch / PR pushes do not run CI — local pre-push hook covers check.
 name: Build Windows
 
 on:
   push:
-    branches: [main, master]
     tags: ['v*']
   workflow_dispatch:
-  pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
 
 concurrency:
   group: build-windows-${{ github.workflow }}-${{ github.ref }}
@@ -65,7 +60,7 @@ jobs:
   release:
     name: Windows installer → GitHub Release
     needs: check
-    # Only tagged releases ship an installer (no Actions artifacts).
+    # Tags ship an installer; workflow_dispatch is check-only (no release attach).
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: windows-latest
     permissions:
