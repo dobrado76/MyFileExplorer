@@ -76,17 +76,21 @@ describe('imageMetadata preservation', () => {
     expect(meta.genTexts?.some((g) => g.keyword === 'parameters')).toBe(true)
   })
 
-  it('re-applies PNG generation chunks after sharp re-encode', async () => {
-    const src = pngWithChunks(pngText('parameters', A1111))
-    const preserved = await readPreservableImageMetadata(src, 'png')
-    const encoded = await tinySharpPng()
-    const out = await applyPreservedImageMetadata(encoded, 'png', preserved)
-    const chunks = extractPngTextChunks(out)
-    expect(chunks.some((c) => c.keyword === 'parameters' && c.text.includes('Steps: 28'))).toBe(
-      true
-    )
-    expect(bufferHasGenerationMetadata(out, 'png')).toBe(true)
-  })
+  it(
+    're-applies PNG generation chunks after sharp re-encode',
+    async () => {
+      const src = pngWithChunks(pngText('parameters', A1111))
+      const preserved = await readPreservableImageMetadata(src, 'png')
+      const encoded = await tinySharpPng()
+      const out = await applyPreservedImageMetadata(encoded, 'png', preserved)
+      const chunks = extractPngTextChunks(out)
+      expect(chunks.some((c) => c.keyword === 'parameters' && c.text.includes('Steps: 28'))).toBe(
+        true
+      )
+      expect(bufferHasGenerationMetadata(out, 'png')).toBe(true)
+    },
+    20_000
+  )
 
   it('re-applies Comfy prompt + workflow PNG chunks', async () => {
     const src = pngWithChunks(

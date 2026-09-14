@@ -184,17 +184,10 @@ describe('ProtocolAllowlist', () => {
     }
   })
 
-  it('matches allowlist when realpath returns \\\\?\\UNC\\… form', () => {
+  it('matches allowlist when the request uses \\\\?\\UNC\\… form', () => {
     const list = new ProtocolAllowlist()
     list.allowDir('\\\\server\\share\\folder')
-    const spy = vi.spyOn(fs.realpathSync, 'native').mockImplementation(() => {
-      return '\\\\?\\UNC\\server\\share\\folder\\photo.jpg'
-    })
-    try {
-      expect(list.isFileAllowed('\\\\server\\share\\folder\\photo.jpg')).toBe(true)
-    } finally {
-      spy.mockRestore()
-    }
+    expect(list.isFileAllowed('\\\\?\\UNC\\server\\share\\folder\\photo.jpg')).toBe(true)
   })
 })
 

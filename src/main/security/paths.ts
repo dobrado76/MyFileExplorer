@@ -42,7 +42,8 @@ export function stripWinLongPathPrefix(input: string): string {
     // `\\?\UNC\server\share` → `\\server\share`
     return '\\\\' + p.slice('\\\\?\\UNC\\'.length)
   }
-  if (/^\\\\\?[A-Za-z]:\\/.test(p)) return p.slice(4)
+  // `\\?\C:\Users\x` — backslash after `?`, then drive letter
+  if (/^\\\\\?\\[A-Za-z]:\\/.test(p)) return p.slice(4)
   return p
 }
 
@@ -180,8 +181,9 @@ export class ProtocolAllowlist {
       const oldest = this.dirs.keys().next().value
       if (oldest !== undefined) this.dirs.delete(oldest)
     }
-    // Skip realpath for bare UNC hosts — they are not filesystem dirs.
-    if (parseUnc(n)?.kind === 'host') return
+    // Never realpath UNC — bare hosts are not dirs, and share/path realpath can
+    // hang for seconds on unreachable SMB (breaks list + tests).
+    if (parseUnc(n)) return
     // Also allow the realpath in case the listed dir is a symlink/junction.
     try {
       const real = allowlistPathForm(fs.realpathSync.native(n))
@@ -189,7 +191,7 @@ export class ProtocolAllowlist {
         this.dirs.set(pathKey(real), real)
       }
     } catch {
-      // unreadable — leave as-is (common on SMB/UNC)
+      // unreadable — leave as-is
     }
   }
 
@@ -198,18 +200,19 @@ export class ProtocolAllowlist {
     if (!n) return false
 
     // Prefer realpath so a symlink inside an allowlisted dir cannot escape.
-    // On SMB/UNC, GetFinalPathNameByHandle often fails even when the file is
-    // readable — fall back to the lexical path (still must match allowlisted dirs).
+    // UNC/SMB: skip realpath (hangs or fails) — lexical parent match only.
     let candidate = n
     let resolved = false
-    try {
-      const real = allowlistPathForm(fs.realpathSync.native(n))
-      if (real) {
-        candidate = real
-        resolved = true
+    if (!parseUnc(n)) {
+      try {
+        const real = allowlistPathForm(fs.realpathSync.native(n))
+        if (real) {
+          candidate = real
+          resolved = true
+        }
+      } catch {
+        // lexical fallback
       }
-    } catch {
-      // lexical fallback
     }
 
     for (const dir of this.permanent) {
