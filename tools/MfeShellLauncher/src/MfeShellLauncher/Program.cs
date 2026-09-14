@@ -5,7 +5,7 @@ namespace MfeShellLauncher;
 
 internal static class Program
 {
-    private const string LauncherVersion = "1.0.1";
+    private const string LauncherVersion = "1.0.2";
     private const int InvocationsMaxLines = 500;
 
     public static int Main(string[] args)

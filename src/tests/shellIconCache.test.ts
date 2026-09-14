@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { shouldUseExtIconCache } from '../main/icons/shell'
+import {
+  attributeDirIconProbePath,
+  isDeferredShellIconPath,
+  shouldUseExtIconCache
+} from '../main/icons/shell'
 
 describe('shouldUseExtIconCache', () => {
   it('never shares extension cache for directories', () => {
@@ -21,5 +25,27 @@ describe('shouldUseExtIconCache', () => {
   it('keeps per-file types out of the shared cache', () => {
     expect(shouldUseExtIconCache('exe', false)).toBe(false)
     expect(shouldUseExtIconCache('lnk', undefined)).toBe(false)
+  })
+})
+
+describe('isDeferredShellIconPath', () => {
+  it('treats all UNC directories as deferred (host, share, and children)', () => {
+    expect(isDeferredShellIconPath('\\\\server', true)).toBe(true)
+    expect(isDeferredShellIconPath('\\\\server\\share', true)).toBe(true)
+    expect(isDeferredShellIconPath('\\\\server\\share\\folder', true)).toBe(true)
+    expect(isDeferredShellIconPath('\\\\server\\share\\a\\b', true)).toBe(true)
+  })
+
+  it('does not defer UNC files or non-dir hints', () => {
+    expect(isDeferredShellIconPath('\\\\server\\share\\file.txt', false)).toBe(false)
+    expect(isDeferredShellIconPath('\\\\server\\share\\folder', undefined)).toBe(false)
+  })
+})
+
+describe('attributeDirIconProbePath', () => {
+  it('returns a non-UNC local path for attribute folder glyphs', () => {
+    const probe = attributeDirIconProbePath()
+    expect(probe.replace(/\//g, '\\').startsWith('\\\\')).toBe(false)
+    expect(probe.length).toBeGreaterThan(0)
   })
 })

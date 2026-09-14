@@ -39,14 +39,20 @@ The log records **full filesystem paths** on this PC for diagnostics. It is not 
 
 ## Uninstall
 
-The NSIS uninstaller runs `MfeShellLauncher.exe --restore-shell-redirect` **before** removing app files:
+The NSIS uninstaller runs `MfeShellLauncher.exe --restore-shell-redirect` **before** removing app files (the launcher is always shipped; that does **not** mean redirect was enabled):
 
 1. Prefer `$INSTDIR\MfeShellLauncher.exe`
 2. Else `%APPDATA%\MyFileExplorer\shell-redirect\MfeShellLauncher.exe`
-3. Else if `backup.json` still exists → **Abort** uninstall (restore required)
-4. Restore failures (non-zero exit) also **Abort**
+3. Else best-effort `reg import` of any leftover `Directory-shell-*.reg` fragments
+4. **Never Abort** uninstall/upgrade — never ask the user to open MyFileExplorer
 
-The restorer checks `reg.exe` exit codes, uses delete-then-import, refuses to wipe keys without a valid backup, and verifies managed commands no longer point at `MfeShellLauncher.exe`.
+The restorer gates on the **live registry**, not Settings / leftover files:
+
+- If HKCU `Directory\shell\open|explore\command` does **not** reference `MfeShellLauncher.exe` → exit 0 (and delete stale `backup.json`). Incomplete/corrupt backups must not fail uninstall when integration was never on.
+- If still hooked → exact delete-then-import restore from a complete backup; if that fails → emergency detach (delete the managed verb trees that still point at us) so Explorer falls back to the system default.
+- Only a hard failure to clear a live hook returns non-zero; NSIS warns and **continues**.
+
+In-app Restore (Settings → Windows integration) stays fail-closed when the backup is missing — that path is interactive and not mid-uninstall.
 
 ## Manual test matrix
 
@@ -59,8 +65,9 @@ The restorer checks `reg.exe` exit codes, uses delete-then-import, refuses to wi
 - Network / UNC paths; missing paths
 - Win+E; `explorer.exe /select`
 - Uninstall while redirect enabled
-- Uninstall after deleting `$INSTDIR\MfeShellLauncher.exe` (sidecar / Abort paths)
-- Restore with missing/corrupt `backup.json` (must not delete registry)
+- Uninstall / upgrade when redirect was **never** enabled (must not Abort on stale `backup.json`)
+- Uninstall after deleting `$INSTDIR\MfeShellLauncher.exe` (sidecar / continue paths)
+- Restore with missing/corrupt `backup.json` (must not delete registry **in-app**; uninstall may emergency-detach if still hooked)
 - Enable → Restore → third-party changes handler → Enable → Restore (must not revive stale baseline)
 - Reinstall to different directory + Repair
 - Settings export/import does not affect redirect

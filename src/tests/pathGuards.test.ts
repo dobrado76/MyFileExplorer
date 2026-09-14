@@ -7,7 +7,14 @@ vi.mock('electron', () => ({
   net: { fetch: vi.fn() }
 }))
 
-import { normalizeAbsolute, ProtocolAllowlist, isSameOrUnder } from '../main/security/paths'
+import {
+  allowlistPathForm,
+  normalizeAbsolute,
+  ProtocolAllowlist,
+  isSameOrUnder,
+  stripTrailingSep,
+  stripWinLongPathPrefix
+} from '../main/security/paths'
 import {
   chmMediaUrlFor,
   mediaPathFromUrl,
@@ -148,6 +155,63 @@ describe('ProtocolAllowlist', () => {
     } catch {
       /* ignore */
     }
+  })
+
+  it('allows UNC files when realpath fails (SMB) if the parent dir is allowlisted', () => {
+    const list = new ProtocolAllowlist()
+    list.allowDir('\\\\server\\share\\folder')
+    const spy = vi.spyOn(fs.realpathSync, 'native').mockImplementation(() => {
+      throw Object.assign(new Error('UNKNOWN'), { code: 'UNKNOWN' })
+    })
+    try {
+      expect(list.isFileAllowed('\\\\server\\share\\folder\\photo.jpg')).toBe(true)
+      expect(list.isFileAllowed('\\\\server\\share\\other\\photo.jpg')).toBe(false)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('matches share-root files despite path.dirname trailing separator', () => {
+    const list = new ProtocolAllowlist()
+    list.allowDir('\\\\server\\share')
+    const spy = vi.spyOn(fs.realpathSync, 'native').mockImplementation(() => {
+      throw Object.assign(new Error('UNKNOWN'), { code: 'UNKNOWN' })
+    })
+    try {
+      expect(list.isFileAllowed('\\\\server\\share\\file.jpg')).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('matches allowlist when realpath returns \\\\?\\UNC\\… form', () => {
+    const list = new ProtocolAllowlist()
+    list.allowDir('\\\\server\\share\\folder')
+    const spy = vi.spyOn(fs.realpathSync, 'native').mockImplementation(() => {
+      return '\\\\?\\UNC\\server\\share\\folder\\photo.jpg'
+    })
+    try {
+      expect(list.isFileAllowed('\\\\server\\share\\folder\\photo.jpg')).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})
+
+describe('allowlist path forms', () => {
+  it('strips Windows long-path UNC and drive prefixes', () => {
+    expect(stripWinLongPathPrefix('\\\\?\\UNC\\server\\share\\a')).toBe('\\\\server\\share\\a')
+    expect(stripWinLongPathPrefix('\\\\?\\C:\\Users\\x')).toBe('C:\\Users\\x')
+  })
+
+  it('strips trailing separators except drive roots', () => {
+    expect(stripTrailingSep('\\\\server\\share\\')).toBe('\\\\server\\share')
+    expect(stripTrailingSep('C:\\')).toBe('C:\\')
+    expect(stripTrailingSep('C:\\Users\\')).toBe('C:\\Users')
+  })
+
+  it('allowlistPathForm normalizes long UNC', () => {
+    expect(allowlistPathForm('\\\\?\\UNC\\server\\share\\folder\\')).toBe('\\\\server\\share\\folder')
   })
 })
 

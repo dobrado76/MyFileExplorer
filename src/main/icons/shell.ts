@@ -7,7 +7,6 @@ import { app } from 'electron'
 import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
 import { enqueueShellIconExtract } from './extractQueue'
-import { isNetworkHostUnc, isNetworkShareUnc } from '@shared/networkPaths'
 import {
   DRIVE_NO_ROOT_DIR,
   DRIVE_REMOTE,
@@ -119,16 +118,32 @@ function deferredRichCacheKey(file: string, px: number): string {
 /**
  * Paths where live SHGetFileInfo on the UI thread often freezes Electron.
  * Still get rich icons — just via a worker + optional fast placeholder first.
+ * Must stay aligned with renderer `pathNeedsDeferredRichIcon` (all UNC dirs).
  */
 export function isDeferredShellIconPath(file: string, isDirHint?: boolean): boolean {
   if (isDirHint !== true) return false
   const n = file.replace(/\//g, '\\')
-  if (isNetworkHostUnc(n) || isNetworkShareUnc(n)) return true
+  // Host, share, *and* paths under a share — SHGetFileInfo on UNC can hang.
+  if (n.startsWith('\\\\')) return true
   if (/(?:^|\\)(Dropbox|OneDrive|Google Drive|iCloud Drive)(?:\\|$)/i.test(n)) return true
   const m = /^([a-zA-Z]:)(?:\\|\/|$)/i.exec(n)
   if (!m) return false
   const dt = getDriveTypeWin32(`${m[1]}\\`)
   return dt === DRIVE_REMOTE || dt <= DRIVE_NO_ROOT_DIR || dt === DRIVE_UNKNOWN
+}
+
+/**
+ * Local probe for `SHGFI_USEFILEATTRIBUTES` folder glyphs.
+ * Passing a UNC host/share path still returns the network computer/share icon
+ * even with FILE_ATTRIBUTE_DIRECTORY — that poisoned the shared attr-dir cache.
+ */
+export function attributeDirIconProbePath(): string {
+  if (process.platform === 'win32') {
+    const root = process.env['SystemRoot']?.trim()
+    if (root) return root
+    return 'C:\\Windows'
+  }
+  return path.sep
 }
 
 // —— Deferred rich icon worker (Dropbox / mapped drives) ——
@@ -338,10 +353,11 @@ async function getAttributeIconUrl(
     if (hit) return { url: hit }
   }
   // Stable cache key — not path-mtime based (file may not exist).
+  // v4: dir probe is always local (UNC attr extracts returned share/computer glyphs).
   const key = crypto
     .createHash('sha1')
     .update(
-      kindHint === 'dir' ? `attr|dir|${px}|v3` : `attr|e|${ext || '_none'}|${px}|v3`
+      kindHint === 'dir' ? `attr|dir|${px}|v4` : `attr|e|${ext || '_none'}|${px}|v4`
     )
     .digest('hex')
   const cacheFile = path.join(shellIconCacheDir(), `${key}.png`)
@@ -356,10 +372,11 @@ async function getAttributeIconUrl(
   const pending = inFlight.get(key)
   if (pending) return { url: await pending }
 
+  const extractPath = kindHint === 'dir' ? attributeDirIconProbePath() : file
   const job = enqueueShellIconExtract(async () => {
     try {
       await fsp.mkdir(shellIconCacheDir(), { recursive: true })
-      const png = await extractPng(file, px, kindHint)
+      const png = await extractPng(extractPath, px, kindHint)
       if (!png) return null
       const tmp = cacheFile + '.tmp'
       await fsp.writeFile(tmp, png)

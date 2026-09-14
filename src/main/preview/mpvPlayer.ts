@@ -356,14 +356,28 @@ export async function startMpvSession(
     )
   }
 
-  let resolved: string
+  // Prefer realpath; on SMB/UNC it often fails even when the file is readable —
+  // fall back to the lexical path (same soft gate as mfe-media allowlist).
+  let resolved = filePath
   try {
     resolved = fs.realpathSync(filePath)
   } catch {
-    throw new AppError('not-found', 'Video file not found', undefined, filePath)
+    try {
+      if (!fs.statSync(filePath).isFile()) {
+        throw new AppError('not-found', 'Video path is not a file', undefined, filePath)
+      }
+    } catch (e) {
+      if (e instanceof AppError) throw e
+      throw new AppError('not-found', 'Video file not found', undefined, filePath)
+    }
   }
-  if (!fs.statSync(resolved).isFile()) {
-    throw new AppError('not-found', 'Video path is not a file', undefined, filePath)
+  try {
+    if (!fs.statSync(resolved).isFile()) {
+      throw new AppError('not-found', 'Video path is not a file', undefined, filePath)
+    }
+  } catch (e) {
+    if (e instanceof AppError) throw e
+    throw new AppError('not-found', 'Video file not found', undefined, filePath)
   }
 
   const owner = BrowserWindow.fromWebContents(sender)

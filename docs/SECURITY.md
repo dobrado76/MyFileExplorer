@@ -18,7 +18,7 @@
 
 - Normalize and resolve paths in **main** before any IO
 - Reject path segments that escape intended roots for protocol serving
-- Symlinks: `stat` carefully; do not follow symlinks out of allowlisted roots for **protocol** reads. Allowlist checks the **resolved realpath only** (a link whose target lies outside every approved root is denied even when the link path sits under an open tab)
+- Symlinks: `stat` carefully; do not follow symlinks out of allowlisted roots for **protocol** reads. Allowlist prefers the **resolved realpath** when available (a link whose target lies outside every approved root is denied even when the link path sits under an open tab). On **UNC/SMB**, `realpath` often fails even for readable files — then the allowlist falls back to the **lexical** absolute path (still must sit in an approved dir). Long-path (`\\?\UNC\…`) and trailing-separator forms are normalized so mapped-drive vs Network-share browsing both work.
 - UNC paths allowed when user navigates to them; still validated as absolute
 
 ---

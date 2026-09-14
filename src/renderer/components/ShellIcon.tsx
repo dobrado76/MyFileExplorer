@@ -43,8 +43,10 @@ const memoryCache = new Map<string, string>()
 /** Same glyph for every file of an extension (matches main's extUrlCache). */
 const extMemoryCache = new Map<string, string>()
 /**
- * First successful shell folder glyph per pixel size — synchronous stand-in so
- * remounts do not flash the empty Lucide placeholder while per-path IPC runs.
+ * First successful *local* shell folder glyph per pixel size — synchronous
+ * stand-in so remounts do not flash the empty Lucide placeholder while
+ * per-path IPC runs. Never seed from UNC (share/host icons look like folders
+ * in the tree but must not replace yellow folder placeholders).
  */
 const genericDirUrlByPx = new Map<number, string>()
 /** In-flight fetches keyed like memoryCache — remounts join instead of requeue. */
@@ -64,6 +66,15 @@ const PER_FILE_EXTS = new Set([
   'msix',
   'msc'
 ])
+
+function isUncFilePath(filePath: string): boolean {
+  return filePath.replace(/\//g, '\\').startsWith('\\\\')
+}
+
+function seedGenericDirUrl(px: number, url: string, filePath: string): void {
+  if (isUncFilePath(filePath)) return
+  genericDirUrlByPx.set(px, url)
+}
 
 /** LRU: Map insertion order — re-set on hit/write; drop oldest when over cap. */
 function memoryCacheSet(map: Map<string, string>, key: string, url: string, max: number): void {
@@ -144,7 +155,7 @@ export function warmShellIcon(path: string, size: number, isDir: boolean): void 
     const url = res.ok && res.value.url && isInstantPaintUrl(res.value.url) ? res.value.url : null
     if (url) {
       memoryCacheSet(memoryCache, key, url, MAX_CACHE)
-      if (isDir) genericDirUrlByPx.set(px, url)
+      if (isDir) seedGenericDirUrl(px, url, path)
     }
     return url
   })().finally(() => {
@@ -153,13 +164,15 @@ export function warmShellIcon(path: string, size: number, isDir: boolean): void 
   inflightByKey.set(key, pending)
 }
 
-/** Warm 16px + 32px generic folder glyphs once (tree + list). */
+/** Warm 16px + 32px generic folder glyphs once (tree + list). Prefer a local path. */
 let genericWarmStarted = false
 export function warmGenericFolderShellIcons(probePath: string): void {
   if (genericWarmStarted || !probePath) return
   genericWarmStarted = true
-  warmShellIcon(probePath, 16, true)
-  warmShellIcon(probePath, 32, true)
+  // UNC share/host glyphs must not become the session-wide folder stand-in.
+  const localProbe = isUncFilePath(probePath) ? 'C:\\Windows' : probePath
+  warmShellIcon(localProbe, 16, true)
+  warmShellIcon(localProbe, 32, true)
 }
 
 function extOf(filePath: string): string {
@@ -247,7 +260,7 @@ export function ShellIcon({ path, size, isDir, className, renaming }: Props): JS
     if (!isInstantPaintUrl(next)) return
     memoryCacheSet(memoryCache, key, next, MAX_CACHE)
     if (extKey && iconIsDir !== true) memoryCacheSet(extMemoryCache, extKey, next, MAX_EXT_CACHE)
-    if (iconIsDir === true) genericDirUrlByPx.set(px, next)
+    if (iconIsDir === true) seedGenericDirUrl(px, next, iconPath)
     setUrl(next)
     setFailed(false)
   }

@@ -9,6 +9,10 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Network folder icons** — folders under a UNC share (and mapped remote letters using the fast placeholder) no longer show the network computer/share glyph. Attribute folder probes use a local path, the shared attr-dir cache is invalidated, and UNC children get the same deferred rich-icon upgrade as hosts/shares.
+- **UNC / Network preview** — `mfe-media` no longer 403s when Windows `realpath` fails on SMB (common for `\\server\share\…` even though the same folder works via a mapped letter). Allowlist falls back to the lexical path, normalizes `\\?\UNC\` / trailing-`\` forms, and Rich player uses the same soft realpath gate.
+- **Shell redirect uninstall** — upgrade/uninstall no longer Aborts with “open MyFileExplorer and Restore…”. Restorer succeeds when the launcher is not the live HKCU handler (stale `backup.json` ignored); NSIS never blocks install on cleanup failure.
+
 ## [0.18.0] - 2026-09-14
 
 Eighteenth product release: Rich player play/pause and resume polish, detached video chrome auto-hide, named-layout auto-save, smoother icon-view thumbnails, and correct Size sorting after folder statistics. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

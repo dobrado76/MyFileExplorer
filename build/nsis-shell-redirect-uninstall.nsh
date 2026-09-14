@@ -1,25 +1,27 @@
 !macro customUnInstall
-  ; Restore shell redirect registry before app files are removed (D72).
-  ; Prefer $INSTDIR launcher; fall back to userData sidecar written on Enable.
-  ; If redirect still appears active (backup present) and neither launcher exists, Abort.
+  ; Shell redirect cleanup (D72) — never Abort uninstall/upgrade.
+  ; MfeShellLauncher.exe is always shipped; running restore is fine when inactive
+  ; (restorer exits 0 if HKCU does not point at the launcher). Never tell the
+  ; user to open MyFileExplorer — that is a catch-22 during uninstall.
   StrCpy $R9 ""
   IfFileExists "$INSTDIR\MfeShellLauncher.exe" 0 shell_redirect_try_sidecar
     StrCpy $R9 "$INSTDIR\MfeShellLauncher.exe"
     Goto shell_redirect_run
   shell_redirect_try_sidecar:
-  IfFileExists "$APPDATA\MyFileExplorer\shell-redirect\MfeShellLauncher.exe" 0 shell_redirect_check_backup
+  IfFileExists "$APPDATA\MyFileExplorer\shell-redirect\MfeShellLauncher.exe" 0 shell_redirect_no_launcher
     StrCpy $R9 "$APPDATA\MyFileExplorer\shell-redirect\MfeShellLauncher.exe"
     Goto shell_redirect_run
-  shell_redirect_check_backup:
-  ; No restorer binary — refuse uninstall only when a backup proves redirect was enabled.
-  IfFileExists "$APPDATA\MyFileExplorer\shell-redirect\backup.json" 0 shell_redirect_done
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Shell redirect is still active but MfeShellLauncher.exe is missing.$\r$\n$\r$\nReinstall MyFileExplorer (or restore the launcher), then open Settings → Windows integration → Restore previous folder-opening configuration, and run uninstall again."
-    Abort "Shell redirect registry restore required (launcher missing)"
+  shell_redirect_no_launcher:
+  ; No restorer binary. Best-effort: import .reg fragments if present, then continue.
+  IfFileExists "$APPDATA\MyFileExplorer\shell-redirect\Directory-shell-open.reg" 0 shell_redirect_try_explore_reg
+    ExecWait 'reg.exe import "$APPDATA\MyFileExplorer\shell-redirect\Directory-shell-open.reg"' $1
+  shell_redirect_try_explore_reg:
+  IfFileExists "$APPDATA\MyFileExplorer\shell-redirect\Directory-shell-explore.reg" 0 shell_redirect_done
+    ExecWait 'reg.exe import "$APPDATA\MyFileExplorer\shell-redirect\Directory-shell-explore.reg"' $1
+  Goto shell_redirect_done
   shell_redirect_run:
     ExecWait '"$R9" --restore-shell-redirect' $0
-    IntCmp $0 0 shell_redirect_done shell_redirect_failed shell_redirect_failed
-  shell_redirect_failed:
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Could not restore your previous folder-opening configuration.$\r$\n$\r$\nOpen MyFileExplorer → Settings → Windows integration → Restore previous folder-opening configuration, then run uninstall again."
-    Abort "Shell redirect registry restore failed"
+    IntCmp $0 0 shell_redirect_done 0 0
+    MessageBox MB_OK|MB_ICONINFORMATION "Folder-open registry cleanup did not finish cleanly.$\r$\n$\r$\nUninstall will continue. Windows Explorer should still open folders. After reinstalling, use Settings → Windows integration only if you had that feature enabled."
   shell_redirect_done:
 !macroend

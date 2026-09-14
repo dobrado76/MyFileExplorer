@@ -4,8 +4,9 @@ using System.Text.Json;
 namespace MfeShellLauncher;
 
 /// <summary>
-/// Standalone registry restore for uninstall — reads the same backup manifest as MFE main process.
-/// Fail-closed: never deletes open/explore without a valid backup; verifies reg.exe; delete-then-import.
+/// Standalone registry restore for uninstall — reads the same backup manifest as MFE main.
+/// Uninstall must never trap the user: if redirect is not active in the registry, succeed
+/// even when a stale/incomplete backup.json is left under AppData.
 /// </summary>
 internal static class RestoreShellRedirect
 {
@@ -25,25 +26,54 @@ internal static class RestoreShellRedirect
                 "shell-redirect");
             var manifestPath = Path.Combine(dir, "backup.json");
 
-            var launcherStillReferenced = ManagedCommandsReferenceLauncher();
-            if (!File.Exists(manifestPath))
+            // Gate on the live registry — not Settings UI / leftover backup files.
+            // Windows integration "off" means our launcher is not the handler; uninstall
+            // must succeed even if backup.json is stale, incomplete, or corrupt.
+            if (!ManagedCommandsReferenceLauncher())
             {
-                // Nothing to restore — only OK when we are not still the handler.
-                return launcherStillReferenced ? 1 : 0;
+                if (File.Exists(manifestPath))
+                    ClearBackupArtifacts(dir);
+                return 0;
             }
 
+            if (TryExactRestore(dir, manifestPath))
+                return 0;
+
+            // Backup missing/broken but we are still the handler — detach so Explorer works.
+            EmergencyDetachLauncher();
+            if (!ManagedCommandsReferenceLauncher())
+            {
+                ClearBackupArtifacts(dir);
+                return 0;
+            }
+
+            return 1;
+        }
+        catch
+        {
+            try { EmergencyDetachLauncher(); } catch { /* ignore */ }
+            return ManagedCommandsReferenceLauncher() ? 1 : 0;
+        }
+    }
+
+    private static bool TryExactRestore(string dir, string manifestPath)
+    {
+        if (!File.Exists(manifestPath)) return false;
+
+        try
+        {
             var json = File.ReadAllText(manifestPath);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             if (!root.TryGetProperty("version", out var ver) || ver.GetInt32() != 1)
-                return FailClosed(launcherStillReferenced);
+                return false;
             if (!root.TryGetProperty("subtrees", out var subtrees))
-                return FailClosed(launcherStillReferenced);
+                return false;
 
             foreach (var subtree in Subtrees)
             {
                 if (!subtrees.TryGetProperty(subtree, out var entry))
-                    return 1;
+                    return false;
 
                 var existed = entry.TryGetProperty("existedBefore", out var eb) && eb.GetBoolean();
                 var regFile = entry.TryGetProperty("regFile", out var rf) ? rf.GetString() ?? "" : "";
@@ -52,32 +82,41 @@ internal static class RestoreShellRedirect
                 if (existed)
                 {
                     if (string.IsNullOrWhiteSpace(regFile) || !File.Exists(regFile))
-                        return 1;
-                    // Exact restore: wipe live subtree, then import snapshot.
+                        return false;
                     TryDeleteTree(key);
                     RunReg("import", regFile);
                 }
                 else
                 {
-                    // Backup recorded that this key did not exist — only then delete.
                     TryDeleteTree(key);
                 }
             }
 
             if (ManagedCommandsReferenceLauncher())
-                return 1;
+                return false;
 
             ClearBackupArtifacts(dir);
-            return 0;
+            return true;
         }
         catch
         {
-            return 1;
+            return false;
         }
     }
 
-    private static int FailClosed(bool launcherStillReferenced) =>
-        launcherStillReferenced ? 1 : 0;
+    /// <summary>
+    /// Last resort: remove managed HKCU verb trees that still point at us.
+    /// Explorer then uses the system default for Directory open/explore.
+    /// </summary>
+    private static void EmergencyDetachLauncher()
+    {
+        foreach (var subtree in Subtrees)
+        {
+            var commandKey = $@"HKCU\Software\Classes\{subtree}\command";
+            if (!CommandDefaultReferencesLauncher(commandKey)) continue;
+            TryDeleteTree($@"HKCU\Software\Classes\{subtree}");
+        }
+    }
 
     private static bool ManagedCommandsReferenceLauncher()
     {
