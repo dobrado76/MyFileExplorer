@@ -1,66 +1,37 @@
-# MyFileExplorer v0.17.0 — release notes
+# MyFileExplorer v0.18.0 — release notes
 
-**Date:** 2026-09-09  
-**Tag:** `v0.17.0` (package **0.17.0**)  
-**Previous product baseline:** [v0.16.0](CHANGELOG.md#0160---2026-09-06)
+**Date:** 2026-09-14  
+**Tag:** `v0.18.0` (package **0.18.0**)  
+**Previous product baseline:** [v0.17.0](CHANGELOG.md#0170---2026-09-09)
 
-Seventeenth product release (**v0.17**): keep video playing while you browse, use the optional mpv-backed rich preview, organize local AI chats, work with substantially richer user-defined metadata, and run safer paired-folder/file operations.
+Eighteenth product release (**v0.18**): smoother video handoffs and chrome, named layouts that keep up as you switch, and icon-view / Size-sort fixes that keep large folders responsive.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Paired folders: [docs/PAIRED_FOLDERS.md](docs/PAIRED_FOLDERS.md) · user metadata: [docs/USER_METADATA.md](docs/USER_METADATA.md) · preview: [docs/PREVIEW.md](docs/PREVIEW.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Preview / Now Playing: [docs/PREVIEW.md](docs/PREVIEW.md) · layouts: [docs/DECISIONS.md](docs/DECISIONS.md) **D25** · thumbs: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · folder Size: [docs/FOLDER_STATISTICS.md](docs/FOLDER_STATISTICS.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Now Playing and richer video preview
+### Rich player and detached video polish
 
-- **Keep playing** moves the current video into a sticky Now Playing window that does not follow file selection, leaving the docked preview free for browsing.
-- Optional **Rich player (mpv)** handles MKV, WMV, AVI, and other containers that Chromium cannot play directly. It remains off by default.
-- Standard MP4/M4V/WebM/MOV playback stays in Chromium; unsupported media gets a clear **Open with default app** fallback without ffmpeg remux/transcode locks.
-- Detached preview and external-player behavior are more predictable, including responsive wide-window layout and safer overlay z-order.
+- **Click the video picture** to play/pause (same idea as Chromium’s `<video>`). The OSC bar stays for seeking and volume; the window caption / drag chrome do not toggle pause.
+- **Keep playing → Dock** and **pop-out** resume at the real position instead of restarting from 0 (mpv IPC reads `time-pos` correctly; each session uses its own pipe; a stale Now Playing close cannot wipe the next session).
+- In **detached preview** and **Now Playing**, the control bar **auto-hides after 3 seconds** of idle pointer activity and returns on move / click / wheel (including over the Rich player overlay). Docked preview keeps controls always visible.
 
-### Ask AI chat
+### Named layouts auto-save
 
-The new Ask AI window provides Markdown conversations organized in editable local folders. Chats can be nested, renamed, deleted, and dragged between folders. Media Metadata can seed a chat from title metadata only—never file contents or paths. Scripting and AI must be enabled.
+Switching layouts from the Layouts menu **overwrites the layout you left** with the live tabs and panes (on by default). **Save as…** still creates a new layout. Settings → Layouts can turn auto-save off; Update still writes without switching. The Settings list order is the menu order (↑↓).
 
-Guide: [docs/AI_CHAT.md](docs/AI_CHAT.md).
+### Faster icon views and correct Size sort
 
-### Expanded User Metadata (D70)
-
-- Catalog Undo, Hygiene orphan recovery, and Pack Preview/Apply with conflict-safe dry runs
-- Required/default values, width hints, icon badges, and reordered Choice/Icon tag options
-- Bulk Leave/Set/Clear, in-column editing, metadata Copy/Paste, and in-folder facets
-- Link fields, multi-icon tags, script manifests, and set-first Power Search selection
-
-Existing `mfe_meta` values remain on the selected NTFS files/folders; no browsed-folder sidecar database is introduced.
-
-Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
-
-### Media library improvements
-
-- Details columns for title, year, kind, watched, genres, episodes, people, ratings, synopsis, and other stored Media Metadata
-- Watched eye badges on media cards
-- Marking a show or season watched/unwatched also updates episode files that already have metadata
-- Cleaner compact preview titles from stored movie/episode metadata
-
-### Safer synchronization and replacement
-
-- Paired-folder conflict choices now execute the named side/direction, validate both comparison snapshots immediately before execution, and count only confirmed operation outcomes.
-- Folder merge Replace stages incoming and existing items instead of deleting the destination first. Failed rollback retains and reports recovery data.
-- Large/verified and fresh-directory copies preserve named NTFS alternate streams when requested.
-- The preview protocol checks resolved realpaths only, preventing allowlisted symlinks from escaping approved roots.
-
-### Also in this release
-
-- Image Edit re-attaches A1111/ComfyUI generation metadata after Save, Save as, and slideshow crop.
-- User Metadata catalog parsing keeps valid fields when one definition is invalid.
-- Ask AI splitters no longer snap back after release.
+- Fast-scrolling Extra large / Large / Medium / Small icons no longer queues unbounded thumbnail encodes that stall preview. Newest visible tiles win; off-screen waiters are dropped; disk-cache hits skip the Sharp queue.
+- After **Calculate Statistics**, Details **Size** sort uses each folder’s calculated `TotalSize`, so ascending/descending matches the displayed TB/GB/MB values (not the listing size of `0`).
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.17.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.18.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
 3. Before a PC swap, use **Settings → About → Export…**.
 4. **Optional OS projection:** install [WinFsp](https://winfsp.dev/), then `MfeVirtualFolderService-win-x64.zip` from the same Release.
@@ -70,6 +41,6 @@ Guide: [docs/USER_METADATA.md](docs/USER_METADATA.md).
 
 - Fully quit and relaunch; IPC/preload changes require a cold start.
 - **Rich player (mpv)** remains opt-in under Settings → Preview.
-- **Ask AI** requires Scripting and AI to be enabled; it does not send files or paths.
-- User Metadata, shell redirect, Git, Scripts, and Media Metadata remain opt-in.
+- Layout auto-save is **on** by default; turn it off in Settings → Layouts if you prefer manual Update only.
+- User Metadata, shell redirect, Git, Scripts, Media Metadata, and Ask AI remain opt-in.
 - Notes, item icons, folder statistics, user metadata, and ADS-preserving workflows require local NTFS.

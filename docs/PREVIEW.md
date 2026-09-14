@@ -1,6 +1,6 @@
 # Preview & metadata
 
-**Version:** 0.17.0
+**Version:** 0.18.0
 
 The preview pane shows a type-appropriate visualization plus a **metadata field list** that grows based on what can be parsed. Missing fields are omitted (never show empty placeholder rows for AI params). Short File-tab values (duration, bitrate, channels, Yes/No, …) share a row; titles, comments, and other long values stay full-width boxed rows.
 
@@ -16,9 +16,11 @@ Preview **only reads** ADS — it never starts Calculate. Changing **Folder spac
 
 ### Docked or detached preview (not both)
 
-The docked pane header shows **Open preview window**. That opens a peer `BrowserWindow` with the **same** live preview (visualization, File/VIDEO tags, media metadata, notes, user metadata, details) and **hides the docked pane** (same as Panel / Ctrl+Shift+P). Only one *preview* is visible. Playing video resumes at the docked time (Chromium `currentTime` or mpv `time-pos`), not from 0.
+The docked pane header shows **Open preview window**. That opens a peer `BrowserWindow` with the **same** live preview (visualization, File/VIDEO tags, media metadata, notes, user metadata, details) and **hides the docked pane** (same as Panel / Ctrl+Shift+P). Only one *preview* is visible. Playing video resumes at the docked time (Chromium `currentTime` or mpv `time-pos`), not from 0 — capture happens **before** the docked Rich player overlay is torn down; mpv IPC skips event lines when reading `time-pos`.
 
-**Now Playing (sticky player):** on a video, **Keep playing** opens a separate **Now Playing** window that owns Chromium or Rich Player for that file and **does not** follow selection. Docked preview keeps following selection so you can browse; the same file shows a stub instead of a second player. **Dock** returns playback to the preview pane at the current time **only when that file is already the preview target** (no forced re-select or tab jump — Keep playing stays open otherwise). Title-bar Close ends the session. Delete/move of the playing path stops it. Not a mini-bar. Plan: [plans/NOW_PLAYING.md](plans/NOW_PLAYING.md).
+**Now Playing (sticky player):** on a video, **Keep playing** opens a separate **Now Playing** window that owns Chromium or Rich Player for that file and **does not** follow selection. Docked preview keeps following selection so you can browse; the same file shows a stub instead of a second player. **Dock** returns playback to the preview pane at the current time **only when that file is already the preview target** (no forced re-select or tab jump — Keep playing stays open otherwise). Repeated Keep playing → Dock keeps the real offset (each mpv session uses its own IPC pipe; a stale window-close must not wipe the next session). Title-bar Close ends the session. Delete/move of the playing path stops it. Not a mini-bar. Plan: [plans/NOW_PLAYING.md](plans/NOW_PLAYING.md).
+
+**Detached / Now Playing chrome:** the video control bar **auto-hides after ~3 seconds** without pointer activity in that window and returns on mouse move / click / wheel (including over the Rich player overlay). Docked preview keeps controls always visible.
 
 **Dock** (window header) closes the window and **shows the docked pane again**. The toolbar Panel button and Ctrl+Shift+P do the same while the window is open. Closing the window with the OS title-bar button also restores the pane. A second Open focuses the existing window.
 

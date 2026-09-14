@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.17.0** — Now Playing / opt-in Rich player (mpv), Ask AI chat, expanded User Metadata (**D70**), Media Metadata columns, and paired-folder/file-operation safety fixes. Prior: **v0.16.0** Power Rename Advanced + multi-pack glyphs. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.18.0** — Rich player click-to-pause / resume polish, detached video chrome auto-hide, named-layout auto-save, icon-view thumb throttle, Size sort from folder statistics. Prior: **v0.17.0** Now Playing / Rich player, Ask AI, expanded User Metadata. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -59,6 +59,15 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.18.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Rich player / Now Playing | Click picture to pause; Keep playing / pop-out resume at real time; detached / Now Playing controls auto-hide after idle — [PREVIEW.md](PREVIEW.md) |
+| Named layouts (D25) | Auto-save on switch (default on); Settings list order = menu order — [DECISIONS.md](DECISIONS.md) |
+| Icon thumbs (D21) | Renderer LIFO `thumbs:get` + capped Sharp encode so scrolling cannot stall preview — [ARCHITECTURE.md](ARCHITECTURE.md) |
+| Folder Size sort (D66) | Details Size uses calculated `TotalSize` after Calculate Statistics — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) |
 
 ## Recent behavior (v0.17.0)
 
