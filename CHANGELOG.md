@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-## [Unreleased]
-
 ## [0.18.0] - 2026-09-14
 
 Eighteenth product release: Rich player play/pause and resume polish, detached video chrome auto-hide, named-layout auto-save, smoother icon-view thumbnails, and correct Size sorting after folder statistics. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
