@@ -9,14 +9,13 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
-- **Network folder icons** — folders under a UNC share (and mapped remote letters using the fast placeholder) no longer show the network computer/share glyph. Attribute folder probes use a local path, the shared attr-dir cache is invalidated, and UNC children get the same deferred rich-icon upgrade as hosts/shares.
-- **UNC / Network preview** — `mfe-media` no longer 403s when Windows `realpath` fails on SMB (common for `\\server\share\…` even though the same folder works via a mapped letter). Allowlist falls back to the lexical path, normalizes `\\?\UNC\` / trailing-`\` forms, and Rich player uses the same soft realpath gate.
-- **Shell redirect uninstall** — upgrade/uninstall no longer Aborts with “open MyFileExplorer and Restore…”. Restorer succeeds when the launcher is not the live HKCU handler (stale `backup.json` ignored); NSIS never blocks install on cleanup failure.
-
 ## [0.18.0] - 2026-09-14
 
 Eighteenth product release: Rich player play/pause and resume polish, detached video chrome auto-hide, named-layout auto-save, smoother icon-view thumbnails, and correct Size sorting after folder statistics. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
+- **Network folder icons** — folders under a UNC share (and mapped remote letters using the fast placeholder) no longer show the network computer/share glyph. Attribute folder probes use a local path, the shared attr-dir cache is invalidated, and UNC children get the same deferred rich-icon upgrade as hosts/shares.
+- **UNC / Network preview** — `mfe-media` no longer 403s when Windows `realpath` fails on SMB (common for `\\server\share\…` even though the same folder works via a mapped letter). Allowlist falls back to the lexical path, normalizes `\\?\UNC\` / trailing-`\` forms, and Rich player uses the same soft realpath gate.
+- **Shell redirect uninstall** — upgrade/uninstall no longer Aborts with “open MyFileExplorer and Restore…”. Restorer succeeds when the launcher is not the live HKCU handler (stale `backup.json` ignored); NSIS never blocks install on cleanup failure.
 - **Rich player click-to-pause** — clicking the video picture (not the OSC bar, not the window caption) play/pauses like Chromium’s `<video>` player, in the docked preview and in detached / Now Playing.
 - **Rich player Keep playing / pop-out resume** — detaching a playing Rich player no longer races to 0: mpv IPC skips event lines when reading `time-pos`, and pop-out captures position before the docked overlay is torn down. Repeated Keep playing → Dock no longer restarts from 0 (stale window-close must not wipe the next session; each mpv gets its own IPC pipe).
 - **Named layouts auto-save when switching** — leaving a layout via the Layouts menu overwrites that saved workspace with the live tabs and panes (on by default). **Save as…** still creates a new layout. Settings → Layouts can turn auto-save off; Update still writes without switching. Settings list order is the Layouts menu order (↑↓); Rename/Remove are icon buttons.
