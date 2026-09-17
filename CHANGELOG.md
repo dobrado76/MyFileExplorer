@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
+## [Unreleased]
+
+- **Startup splash** — a small branded window (icon + “Starting…”) appears as soon as Electron is ready and closes when the main shell shows, so a slow cold start is visibly working.
+
 ## [0.18.0] - 2026-09-14
 
 Eighteenth product release: Rich player play/pause and resume polish, detached video chrome auto-hide, named-layout auto-save, smoother icon-view thumbnails, and correct Size sorting after folder statistics. See [RELEASE_NOTES.md](RELEASE_NOTES.md).

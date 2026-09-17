@@ -21,6 +21,8 @@ Windows-first desktop file manager: Explorer-familiar core, curated UX, rich pre
 
 ## Shell layout
 
+Cold start shows a small branded splash (icon + “Starting…”) until the main window is ready to show, so a slow launch is visibly working.
+
 ```
 ┌─ Tab bar (reorder, rename, icon, close, new) ───────────────────┐
 ├─ New · Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤

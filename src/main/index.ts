@@ -34,6 +34,7 @@ import { stopNowPlaying } from './preview/nowPlayingWindow'
 import { closeAllPropertiesWindows } from './properties/propertiesWindow'
 import { configureUserData } from './userData'
 import { parseUsnRecentCli, runUsnRecentCli } from './fs/usnRecentCli'
+import { closeSplash, showSplash } from './splash'
 
 // ============================================================================
 // SAFELY ISOLATE CRASHING WINDOWS INITIALIZATIONS ON LINUX
@@ -135,6 +136,7 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
     win.once('ready-to-show', () => {
       if (state.isMaximized) win.maximize()
       win.show()
+      closeSplash()
     })
 
     // Never navigate the shell window; open external links via OS browser.
@@ -186,6 +188,8 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
 
   app.whenReady().then(() => {
     app.setAppUserModelId('com.myfileexplorer.app')
+    // Visible immediately while protocols / IPC / renderer warm up.
+    showSplash(app.getVersion())
 
     // Register mfe:// for deep links from other apps.
     if (process.defaultApp) {
@@ -253,6 +257,7 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
   })
 
   app.on('before-quit', () => {
+    closeSplash()
     try {
       void import('./preview/mpvPlayer').then((m) => m.stopMpvSession())
     } catch {
