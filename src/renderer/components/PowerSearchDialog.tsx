@@ -1019,7 +1019,7 @@ export function PowerSearchDialog(): JSX.Element {
                     <option value="">(none)</option>
                     {metaSetFields.map((f) => (
                       <option key={f.id} value={f.id}>
-                        {f.label}
+                        {f.name}
                       </option>
                     ))}
                   </select>
