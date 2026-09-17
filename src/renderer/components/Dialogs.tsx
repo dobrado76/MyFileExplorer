@@ -104,6 +104,7 @@ import {
   type SettingsSection
 } from '@shared/settingsSearch'
 import { applySettingsPaneFilter } from '../lib/settingsSearchDom'
+import { SETTINGS_NAV_CHROME } from '../lib/settingsNavChrome'
 import { isValidAdsStreamName } from '@shared/ads/paths'
 import {
   ADS_FIELD_COLUMN_DEFAULT_WIDTH,
@@ -2632,16 +2633,26 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
         </div>
         <div className="settings-shell-main">
         <nav className="settings-nav" aria-label="Settings sections">
-          {visibleNav.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`settings-nav-item${section === item.id ? ' active' : ''}`}
-              onClick={() => setSection(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
+          {visibleNav.map((item) => {
+            const chrome = SETTINGS_NAV_CHROME[item.id]
+            const Icon = chrome.Icon
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={`settings-nav-item${section === item.id ? ' active' : ''}${
+                  item.id === 'about' ? ' settings-nav-item-about' : ''
+                }`}
+                style={{ ['--nav-icon' as string]: chrome.color }}
+                onClick={() => setSection(item.id)}
+              >
+                <span className="settings-nav-icon" aria-hidden="true">
+                  <Icon size={15} strokeWidth={1.9} />
+                </span>
+                <span className="settings-nav-label">{item.label}</span>
+              </button>
+            )
+          })}
         </nav>
         <div className="settings-pane" ref={paneRef}>
           {visibleNav.length === 0 ? (

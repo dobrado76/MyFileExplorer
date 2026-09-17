@@ -47,7 +47,8 @@ const VIDEO_EXTS = new Set([
   'mpeg',
   'flv',
   'm2ts',
-  'ts',
+  // Not bare `.ts` / `.mts` — those are overwhelmingly TypeScript in modern trees
+  // (MPEG transport streams more often use `.m2ts` / `.mpg` / `.mpeg`).
   '3gp'
 ])
 const DOCUMENT_EXTS = new Set([
@@ -72,8 +73,38 @@ const DOCUMENT_EXTS = new Set([
   'json',
   'xml',
   'yml',
-  'yaml'
+  'yaml',
+  'tsx',
+  'js',
+  'jsx',
+  'mjs',
+  'cjs',
+  'py',
+  'rb',
+  'go',
+  'rs',
+  'java',
+  'cs',
+  'c',
+  'h',
+  'cpp',
+  'hpp',
+  'cc',
+  'hh',
+  'css',
+  'scss',
+  'less',
+  'vue',
+  'svelte',
+  'sql',
+  'sh',
+  'ps1',
+  'bat',
+  'cmd'
 ])
+/** `.ts` / `.mts` — TypeScript vs MPEG-TS. At/above this size → Videos; below → Documents. */
+export const FOLDER_STATS_TS_VIDEO_MIN_BYTES = 1024 * 1024
+const AMBIGUOUS_TS_VIDEO_EXTS = new Set(['ts', 'mts'])
 const ARCHIVE_EXTS = new Set([
   'zip',
   '7z',
@@ -121,10 +152,18 @@ export function fileExtOf(name: string): string {
   return base.slice(i + 1).toLowerCase()
 }
 
-export function classifyFolderStatsExt(ext: string): FolderStatsCategoryKey {
+export function classifyFolderStatsExt(
+  ext: string,
+  sizeBytes?: number
+): FolderStatsCategoryKey {
   const e = ext.startsWith('.') ? ext.slice(1).toLowerCase() : ext.toLowerCase()
   if (IMAGE_EXTS.has(e)) return 'images'
   if (VIDEO_EXTS.has(e)) return 'videos'
+  // Bare `.ts` / `.mts`: tiny files are TypeScript; ≥1 MiB is treated as MPEG-TS.
+  if (AMBIGUOUS_TS_VIDEO_EXTS.has(e)) {
+    if (sizeBytes != null && sizeBytes >= FOLDER_STATS_TS_VIDEO_MIN_BYTES) return 'videos'
+    return 'documents'
+  }
   if (DOCUMENT_EXTS.has(e)) return 'documents'
   if (ARCHIVE_EXTS.has(e)) return 'archives'
   return 'other'
@@ -135,7 +174,7 @@ export function addFileToCategories(
   ext: string,
   size: number
 ): void {
-  const key = classifyFolderStatsExt(ext)
+  const key = classifyFolderStatsExt(ext, size)
   const row = categories[key]
   row.count += 1
   row.bytes += size > 0 ? size : 0
@@ -632,7 +671,7 @@ export function subtractFileFromPreview(
   for (const key of FOLDER_STATS_CATEGORY_KEYS) {
     categories[key] = { ...preview.categories[key] }
   }
-  const catKey = classifyFolderStatsExt(ext)
+  const catKey = classifyFolderStatsExt(ext, size)
   const cat = categories[catKey]
   cat.count = Math.max(0, cat.count - 1)
   cat.bytes = Math.max(0, cat.bytes - size)

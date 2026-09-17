@@ -9,7 +9,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Settings sidebar** — slightly wider nav with a colored Lucide icon per section, light borders, and a clearer active state.
 - **Startup splash** — a small branded window (icon + “Starting…”) appears as soon as Electron is ready and closes when the main shell shows, so a slow cold start is visibly working.
+- **Folder statistics `.ts`** — Contents treats bare `.ts` / `.mts` by size: under 1 MiB as Documents (TypeScript), 1 MiB+ as Videos (MPEG-TS). `.tsx` stays Documents; Blu-ray `.m2ts` stays Videos. Re-run **Calculate Statistics** to refresh stored ADS.
 
 ## [0.18.0] - 2026-09-14
 

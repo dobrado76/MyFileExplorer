@@ -9240,9 +9240,9 @@ html.idle-cursor-hidden * {
   min-height: 0;
 }
 .settings-nav {
-  width: 180px;
+  width: 228px;
   flex-shrink: 0;
-  padding: 10px 8px;
+  padding: 8px 8px;
   border-right: 1px solid var(--border);
   background: var(--bg-panel);
   display: flex;
@@ -9251,19 +9251,54 @@ html.idle-cursor-hidden * {
   overflow-y: auto;
 }
 .settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   text-align: left;
-  padding: 7px 10px;
+  padding: 5px 8px;
   border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 35%, transparent);
   color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
 }
 .settings-nav-item:hover {
   background: var(--bg-elevated);
+  border-color: var(--border);
   color: var(--text);
 }
 .settings-nav-item.active {
   background: var(--accent-dim);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
   color: var(--text);
   font-weight: 600;
+  box-shadow: none;
+}
+.settings-nav-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--nav-icon, var(--text-dim));
+  opacity: 0.92;
+}
+.settings-nav-item:hover .settings-nav-icon,
+.settings-nav-item.active .settings-nav-icon {
+  opacity: 1;
+}
+.settings-nav-label {
+  min-width: 0;
+  line-height: 1.2;
+  font-size: 0.95em;
+}
+.settings-nav-item-about {
+  margin-top: 4px;
 }
 .settings-pane {
   flex: 1;

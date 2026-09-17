@@ -68,7 +68,7 @@ After a successful Calculate, selecting the folder shows a card (not a bare fold
 | Section                             | Content                                                                                                                                                                           |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Summary**                         | Folder/file totals · size; host **Date modified** vs **Newest content** (rolled max mtime); “Statistics calculated …” / may be out of date; map leaf count                        |
-| **Contents**                        | Category rows (count · bytes · %); top extensions                                                                                                                                 |
+| **Contents**                        | Category rows (count · bytes · %); top extensions. **Videos** are containers such as `.mp4` / `.mkv` / `.m2ts`. Bare `.ts` / `.mts` use size: **&lt; 1 MiB → Documents** (TypeScript); **≥ 1 MiB → Videos** (MPEG-TS) |
 | **Largest** / **Recently modified** | Clickable paths (reveal); right-click → Space usage context menu                                                                                                                  |
 | **Space usage**                     | Nested cushion treemap of the **largest** files (tile size ∝ bytes, color by extension, hover folder outlines). Remainder: **Other N · size** on the heading — **not** a map tile |
 
