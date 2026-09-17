@@ -102,6 +102,14 @@ export const powerSearchStateSchema = z.object({
     .enum(['', 'today', 'yesterday', 'thisweek', 'thismonth', 'custom'])
     .catch(''),
   dateCustom: z.string().catch(''),
+  dateCreated: z
+    .enum(['', 'today', 'yesterday', 'thisweek', 'thismonth', 'custom'])
+    .catch(''),
+  dateCreatedCustom: z.string().catch(''),
+  dateAccessed: z
+    .enum(['', 'today', 'yesterday', 'thisweek', 'thismonth', 'custom'])
+    .catch(''),
+  dateAccessedCustom: z.string().catch(''),
   extensions: z.string().catch(''),
   inFolder: z.string().catch(''),
   parentName: z.string().catch(''),
@@ -116,6 +124,9 @@ export const powerSearchStateSchema = z.object({
   noteStatus: z.string().catch(''),
   hasNote: z.boolean().catch(false),
   openTodos: z.boolean().catch(false),
+  /** ADS stream filter: `Name` or `Name=value` → `stream:…` */
+  adsStream: z.string().catch(''),
+  hasStream: z.boolean().catch(false),
   hasMeta: z.boolean().catch(false),
   /** Opaque field/option ids; emit regenerates current keys (D70). */
   metaFilters: z

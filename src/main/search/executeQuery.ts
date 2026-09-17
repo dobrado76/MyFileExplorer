@@ -12,12 +12,14 @@ import {
   queryHasIndexableConstraint,
   queryHasNoteFilter,
   queryHasMetaFilter,
+  queryHasStreamFilter,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
 import { filterItemsByNote } from './noteFilter'
 import { filterItemsByMeta } from './metaFilter'
+import { filterItemsByAdsStream } from './adsFilter'
 import { noteIndexReady } from './noteIndex'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit, normalizeSearchPathKey } from '@shared/searchHidden'
@@ -31,6 +33,8 @@ type FileRow = {
   name: string
   size: number
   mtime_ms: number
+  birthtime_ms?: number
+  atime_ms?: number
   is_dir: number
   attrs: number | null
   ext: string | null
@@ -142,12 +146,22 @@ export async function queryIndexStructured(
   const pull = Math.min(
     20000,
     effectiveLimit *
-      (q.dupe || q.content || queryHasNoteFilter(q) || queryHasMetaFilter(q) || q.regex || q.textGroups.some((g) => g.length > 1)
+      (q.dupe ||
+      q.content ||
+      queryHasNoteFilter(q) ||
+      queryHasMetaFilter(q) ||
+      queryHasStreamFilter(q) ||
+      q.regex ||
+      q.textGroups.some((g) => g.length > 1)
         ? 8
         : 2)
   )
 
-  const noteOnly = queryHasNoteFilter(q) && !queryHasIndexableConstraint(q) && !queryHasMetaFilter(q)
+  const noteOnly =
+    queryHasNoteFilter(q) &&
+    !queryHasIndexableConstraint(q) &&
+    !queryHasMetaFilter(q) &&
+    !queryHasStreamFilter(q)
   if (noteOnly) noteIndexReady()
   const { sql, params } = noteOnly
     ? buildNoteIndexSql(q, pathPrefix)
@@ -160,8 +174,18 @@ export async function queryIndexStructured(
   const showHidden = settings.searchShowHidden === true || q.attrib?.hidden === true
   const hiddenDirs = showHidden ? undefined : loadHiddenDirKeys(pathPrefix)
   const attrsByPath = new Map(rows.map((r) => [r.path, r.attrs]))
+  const timesByPath = new Map(
+    rows.map((r) => [
+      r.path,
+      {
+        birthtimeMs: Number(r.birthtime_ms ?? 0),
+        atimeMs: Number(r.atime_ms ?? 0)
+      }
+    ])
+  )
   let items = rowsToItems(rows, hiddenDirs).filter((it) => {
     if (isSkippedBySearchExclude(it.path, excluded, query, q, basic)) return false
+    const times = timesByPath.get(it.path)
     const structuredOk = basic
       ? nameMatches(it.name, query)
       : rowMatchesStructured(
@@ -170,6 +194,8 @@ export async function queryIndexStructured(
             name: it.name,
             size: it.size,
             mtimeMs: it.mtimeMs,
+            birthtimeMs: times?.birthtimeMs,
+            atimeMs: times?.atimeMs,
             isDir: it.isDir,
             attrs: attrsByPath.get(it.path) ?? null
           },
@@ -214,6 +240,11 @@ export async function queryIndexStructured(
 
   if (queryHasMetaFilter(q)) {
     items = await filterItemsByMeta(items, q)
+  }
+
+  if (queryHasStreamFilter(q)) {
+    contentSlow = true
+    items = await filterItemsByAdsStream(items, q)
   }
 
   const partial = items.length > effectiveLimit

@@ -25,8 +25,8 @@ export type SizePred =
   | { op: 'range'; min: number; max: number }
 
 export type DatePred =
-  | { field: 'mtime' | 'ctime'; op: 'eq' | 'gt' | 'lt' | 'ge' | 'le'; ms: number }
-  | { field: 'mtime' | 'ctime'; op: 'range'; min: number; max: number }
+  | { field: 'mtime' | 'birthtime' | 'atime'; op: 'eq' | 'gt' | 'lt' | 'ge' | 'le'; ms: number }
+  | { field: 'mtime' | 'birthtime' | 'atime'; op: 'range'; min: number; max: number }
 
 export type StructuredQuery = {
   /** AND of OR-groups of text predicates (applied to name or path). */
@@ -66,6 +66,14 @@ export type StructuredQuery = {
   noteStatus: string | null
   openTodo: boolean
   openTodoNeedle: string | null
+  /**
+   * Named NTFS ADS (D38) — `stream:Name`, `stream:Name=value`, `hasstream:`.
+   * Read-only at search time; value match is a case-insensitive substring of stream text.
+   */
+  hasStream: boolean
+  excludeHasStream: boolean
+  streamClauses: AdsStreamClause[]
+  excludeStreamNames: string[]
   /** User metadata (D70) — ADS `mfe_meta`. */
   hasMeta: boolean
   excludeHasMeta: boolean
@@ -77,6 +85,13 @@ export type StructuredQuery = {
   countLimit: number | null
   /** True when query used Everything operators beyond plain tokens. */
   advanced: boolean
+}
+
+/** One ADS predicate from `stream:Name` or `stream:Name=value`. */
+export type AdsStreamClause = {
+  name: string
+  /** When set, stream UTF-8 text must contain this (case-insensitive). */
+  value: string | null
 }
 
 const MACROS: Record<string, string[]> = {
@@ -111,6 +126,8 @@ const QUERY_FN_KEYS = new Set([
   'datemodified',
   'dc',
   'datecreated',
+  'da',
+  'dateaccessed',
   'ext',
   'parent',
   'infolder',
@@ -134,6 +151,10 @@ const QUERY_FN_KEYS = new Set([
   'notestatus',
   'todo',
   'hasmeta',
+  'stream',
+  'ads',
+  'hasstream',
+  'hasads',
   'path',
   'nopath',
   'regex',
@@ -181,6 +202,8 @@ export function queryHasPositiveConstraint(q: StructuredQuery): boolean {
     q.noteText != null ||
     q.noteStatus != null ||
     q.openTodo ||
+    q.hasStream ||
+    q.streamClauses.length > 0 ||
     q.hasMeta ||
     q.metaFieldPresent.length > 0 ||
     q.metaClauses.length > 0
@@ -189,6 +212,15 @@ export function queryHasPositiveConstraint(q: StructuredQuery): boolean {
 
 export function queryHasNoteFilter(q: StructuredQuery): boolean {
   return q.hasNote || q.excludeHasNote || q.noteText != null || q.noteStatus != null || q.openTodo
+}
+
+export function queryHasStreamFilter(q: StructuredQuery): boolean {
+  return (
+    q.hasStream ||
+    q.excludeHasStream ||
+    q.streamClauses.length > 0 ||
+    q.excludeStreamNames.length > 0
+  )
 }
 
 export function queryHasMetaFilter(q: StructuredQuery): boolean {
@@ -260,6 +292,10 @@ function queryHasStructuredFilters(q: StructuredQuery): boolean {
     q.noteText != null ||
     q.noteStatus != null ||
     q.openTodo ||
+    q.hasStream ||
+    q.excludeHasStream ||
+    q.streamClauses.length > 0 ||
+    q.excludeStreamNames.length > 0 ||
     q.hasMeta ||
     q.excludeHasMeta ||
     q.metaFieldPresent.length > 0 ||
@@ -359,6 +395,10 @@ function emptyQuery(opts: ParseOptions): StructuredQuery {
     noteStatus: null,
     openTodo: false,
     openTodoNeedle: null,
+    hasStream: false,
+    excludeHasStream: false,
+    streamClauses: [],
+    excludeStreamNames: [],
     hasMeta: false,
     excludeHasMeta: false,
     metaFieldPresent: [],
@@ -411,7 +451,7 @@ function startOfDay(d = new Date()): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
 }
 
-function parseDateToken(field: 'mtime' | 'ctime', raw: string): DatePred | null {
+function parseDateToken(field: 'mtime' | 'birthtime' | 'atime', raw: string): DatePred | null {
   const v = raw.trim().toLowerCase()
   const now = Date.now()
   const today = startOfDay()
@@ -557,7 +597,12 @@ function applyFunction(q: StructuredQuery, key: string, val: string, macros: Rec
     return
   }
   if (k === 'dc' || k === 'datecreated') {
-    const d = parseDateToken('ctime', v)
+    const d = parseDateToken('birthtime', v)
+    if (d) q.dates.push(d)
+    return
+  }
+  if (k === 'da' || k === 'dateaccessed') {
+    const d = parseDateToken('atime', v)
     if (d) q.dates.push(d)
     return
   }
@@ -696,6 +741,24 @@ function applyFunction(q: StructuredQuery, key: string, val: string, macros: Rec
     q.hasMeta = true
     return
   }
+  if (k === 'hasstream' || k === 'hasads') {
+    const spec = parseAdsStreamSpec(v)
+    if (spec.name) {
+      q.streamClauses.push({ name: spec.name, value: spec.value })
+    } else {
+      q.hasStream = true
+    }
+    return
+  }
+  if (k === 'stream' || k === 'ads') {
+    const spec = parseAdsStreamSpec(v)
+    if (!spec.name) {
+      q.hasStream = true
+      return
+    }
+    q.streamClauses.push({ name: spec.name, value: spec.value })
+    return
+  }
   if (k === 'path') {
     q.pathContains.push(v)
     q.matchPath = true
@@ -735,10 +798,34 @@ function applyExcludeFunction(q: StructuredQuery, key: string, val: string, macr
     q.excludeHasMeta = true
     return
   }
+  if (k === 'hasstream' || k === 'hasads' || ((k === 'stream' || k === 'ads') && !val.trim())) {
+    q.excludeHasStream = true
+    return
+  }
+  if (k === 'stream' || k === 'ads') {
+    const spec = parseAdsStreamSpec(val)
+    if (spec.name) q.excludeStreamNames.push(spec.name)
+    else q.excludeHasStream = true
+    return
+  }
   const macroExts = macros[k] ?? MACROS[k]
   if (macroExts) {
     q.excludeExts.push(...macroExts)
   }
+}
+
+/** `stream:Name`, `stream:Name=value` (also `ads:`). Empty → any named stream. */
+export function parseAdsStreamSpec(raw: string): { name: string | null; value: string | null } {
+  const t = raw.trim().replace(/^["']|["']$/g, '')
+  if (!t) return { name: null, value: null }
+  const eq = t.indexOf('=')
+  if (eq > 0) {
+    const name = t.slice(0, eq).trim()
+    const value = t.slice(eq + 1).trim()
+    if (!name) return { name: null, value: null }
+    return { name, value: value || null }
+  }
+  return { name: t, value: null }
 }
 
 export function parseEverythingQuery(input: string, opts: ParseOptions = {}): StructuredQuery {
@@ -958,7 +1045,10 @@ function hasNotOperatorAnchor(q: StructuredQuery, orGroup: TextPred[]): boolean 
     q.hasNote ||
     q.noteText != null ||
     q.noteStatus != null ||
-    q.openTodo
+    q.openTodo ||
+    q.hasStream ||
+    q.streamClauses.length > 0 ||
+    q.hasMeta
   )
 }
 
@@ -1037,6 +1127,8 @@ export function rowMatchesStructured(
     name: string
     size: number
     mtimeMs: number
+    birthtimeMs?: number
+    atimeMs?: number
     isDir: boolean
     attrs?: number | null
   },
@@ -1056,11 +1148,24 @@ export function rowMatchesStructured(
     : row.name.includes('.')
       ? row.name.slice(row.name.lastIndexOf('.') + 1).toLowerCase()
       : ''
+  if (q.exts.length && !q.exts.map((e) => e.toLowerCase()).includes(ext)) return false
+  if (q.excludeExts.length && q.excludeExts.map((e) => e.toLowerCase()).includes(ext)) return false
 
-  if (q.exts.length) {
-    if (row.isDir || !q.exts.includes(ext)) return false
+  if (
+    !matchTextGroups(
+      q.textGroups,
+      row.name,
+      row.path,
+      q.matchPath,
+      q.matchCase
+    )
+  ) {
+    return false
   }
-  if (q.excludeExts.length && !row.isDir && q.excludeExts.includes(ext)) return false
+  for (const pred of q.notText) {
+    const targets = q.matchPath ? [row.name, row.path] : [row.name]
+    if (targets.some((t) => matchTextPred(pred, t, q.matchCase))) return false
+  }
 
   for (const p of q.pathPrefixes) {
     if (!row.path.toLowerCase().startsWith(p.toLowerCase())) return false
@@ -1070,14 +1175,6 @@ export function rowMatchesStructured(
   }
   for (const c of q.excludePathContains) {
     if (row.path.toLowerCase().includes(c.toLowerCase())) return false
-  }
-
-  if (!matchTextGroups(q.textGroups, row.name, row.path, q.matchPath, q.matchCase)) {
-    return false
-  }
-  for (const n of q.notText) {
-    const targets = q.matchPath ? [row.name, row.path] : [row.name]
-    if (targets.some((t) => matchTextPred(n, t, q.matchCase))) return false
   }
 
   if (q.size) {
@@ -1094,8 +1191,14 @@ export function rowMatchesStructured(
   }
 
   for (const d of q.dates) {
-    // ctime not stored — approximate with mtime
-    const ms = row.mtimeMs
+    const ms =
+      d.field === 'birthtime'
+        ? (row.birthtimeMs ?? 0)
+        : d.field === 'atime'
+          ? (row.atimeMs ?? 0)
+          : row.mtimeMs
+    // Missing / unknown FS times fail closed (do not fall back to mtime).
+    if (!Number.isFinite(ms) || ms <= 0) return false
     if (d.op === 'range') {
       if (ms < d.min || ms > d.max) return false
     } else {

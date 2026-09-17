@@ -67,16 +67,18 @@ export async function bootstrapVolumeUsn(
       }
       let size = 0
       let mtime = 0
-      if (!isDir) {
-        try {
-          const st = await fsp.stat(full)
-          size = st.size
-          mtime = st.mtimeMs
-        } catch {
-          continue
-        }
+      let birthtime = 0
+      let atime = 0
+      try {
+        const st = await fsp.stat(full)
+        size = isDir ? 0 : st.size
+        mtime = st.mtimeMs
+        birthtime = st.birthtimeMs
+        atime = st.atimeMs
+      } catch {
+        if (!isDir) continue
       }
-      rows.push(fileRowFromPath(full, isDir, size, mtime))
+      rows.push(fileRowFromPath(full, isDir, size, mtime, null, birthtime, atime))
       if (rows.length >= 500) {
         upsertFileRows(rootId, rows)
         flushed += rows.length
@@ -154,7 +156,15 @@ export async function pollVolumeUsn(
       try {
         const st = await fsp.stat(mapped.path)
         upserts.push(
-          fileRowFromPath(mapped.path, st.isDirectory(), st.size, st.mtimeMs)
+          fileRowFromPath(
+            mapped.path,
+            st.isDirectory(),
+            st.size,
+            st.mtimeMs,
+            null,
+            st.birthtimeMs,
+            st.atimeMs
+          )
         )
         changed++
       } catch {

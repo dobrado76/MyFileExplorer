@@ -110,6 +110,45 @@ import {
 /** Settings → Appearance font size (px). */
 export const FONT_SIZE_PX_MIN = 9
 export const FONT_SIZE_PX_MAX = 28
+
+/**
+ * Curated shell UI fonts for Settings → Appearance (Windows-first).
+ * Schema still accepts any string so import/legacy values are not wiped.
+ */
+export const FONT_FAMILY_OPTIONS = [
+  'Segoe UI',
+  'Segoe UI Variable',
+  'Aptos',
+  'Calibri',
+  'Candara',
+  'Arial',
+  'Verdana',
+  'Tahoma',
+  'Trebuchet MS',
+  'Georgia',
+  'Times New Roman',
+  'Consolas',
+  'Cascadia Code',
+  'Cascadia Mono',
+  'Courier New',
+  'Lucida Console'
+] as const
+
+export type FontFamilyOption = (typeof FONT_FAMILY_OPTIONS)[number]
+
+/** Dropdown choices: curated list, plus the current value if it is not already listed. */
+export function fontFamilySelectOptions(current: string): string[] {
+  const cur = current.trim() || 'Segoe UI'
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const name of [cur, ...FONT_FAMILY_OPTIONS]) {
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(name)
+  }
+  return out
+}
 /** Settings → Appearance chrome / toolbar icon size (px). */
 export const ICON_SIZE_PX_MIN = 12
 export const ICON_SIZE_PX_MAX = 40

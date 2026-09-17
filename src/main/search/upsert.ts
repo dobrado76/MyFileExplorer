@@ -9,6 +9,8 @@ export type FileUpsert = {
   ext: string
   size: number
   mtimeMs: number
+  birthtimeMs: number
+  atimeMs: number
   isDir: boolean
   attrs?: number | null
 }
@@ -17,11 +19,13 @@ export function upsertFileRows(rootId: number, rows: FileUpsert[]): void {
   if (rows.length === 0) return
   const db = searchDb()
   const insert = db.prepare(
-    `INSERT INTO files (root_id, path, name, ext, size, mtime_ms, is_dir, attrs)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO files (root_id, path, name, ext, size, mtime_ms, birthtime_ms, atime_ms, is_dir, attrs)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(path) DO UPDATE SET
        root_id = excluded.root_id, name = excluded.name, ext = excluded.ext,
-       size = excluded.size, mtime_ms = excluded.mtime_ms, is_dir = excluded.is_dir,
+       size = excluded.size, mtime_ms = excluded.mtime_ms,
+       birthtime_ms = excluded.birthtime_ms, atime_ms = excluded.atime_ms,
+       is_dir = excluded.is_dir,
        attrs = COALESCE(excluded.attrs, files.attrs)`
   )
   db.exec('BEGIN')
@@ -34,6 +38,8 @@ export function upsertFileRows(rootId: number, rows: FileUpsert[]): void {
         r.ext,
         r.size,
         r.mtimeMs,
+        r.birthtimeMs,
+        r.atimeMs,
         r.isDir ? 1 : 0,
         r.attrs ?? null
       )
@@ -77,7 +83,9 @@ export function fileRowFromPath(
   isDir: boolean,
   size: number,
   mtimeMs: number,
-  attrs?: number | null
+  attrs?: number | null,
+  birthtimeMs = 0,
+  atimeMs = 0
 ): FileUpsert {
   const name = path.basename(full)
   return {
@@ -86,6 +94,8 @@ export function fileRowFromPath(
     ext: isDir ? '' : path.extname(name).slice(1).toLowerCase(),
     size: isDir ? 0 : size,
     mtimeMs,
+    birthtimeMs,
+    atimeMs,
     isDir,
     attrs
   }

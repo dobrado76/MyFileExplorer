@@ -55,6 +55,8 @@ CREATE TABLE files (
   ext TEXT,
   size INTEGER NOT NULL DEFAULT 0,
   mtime_ms INTEGER NOT NULL DEFAULT 0,
+  birthtime_ms INTEGER NOT NULL DEFAULT 0,  -- Date created (Windows birthtime)
+  atime_ms INTEGER NOT NULL DEFAULT 0,      -- Last accessed
   is_dir INTEGER NOT NULL DEFAULT 0,
   attrs INTEGER                          -- Win32 attributes when known
 );
@@ -72,12 +74,13 @@ Versioned subset; grows over releases. Parser: `everythingQuery.ts`.
 | AND / OR / NOT | `foo bar`, `foo\|bar`, `!tmp` (NOT only after a name/filter), `!ext:tmp;bak`. A leading `!Name` (e.g. `!Thumbnails`, `folder:!Thumbnails`) is a literal name. `!!Thumbs.db` is also literal. |
 | Phrases / groups | `"my file"`, `<a\|b> c` |
 | Modifiers | `case:`, `path:` / `nopath:`, `file:` / `folder:`, `regex:`, `ww:` |
-| Functions | `size:>1mb`, `size:large`, `dm:today`, `dc:thisweek`, `ext:jpg;png`, `parent:`, `infolder:`, `startwith:`, `endwith:`, `len:`, `empty:`, `count:` |
+| Functions | `size:>1mb`, `size:large`, `dm:today`, `dc:thisweek`, `da:today` / `dateaccessed:`, `ext:jpg;png`, `parent:`, `infolder:`, `startwith:`, `endwith:`, `len:`, `empty:`, `count:` — `dc:` = created (birthtime), `dm:` = modified, `da:` = last accessed; missing times fail closed (no mtime stand-in) |
 | Macros | `pic:`, `video:`, `audio:`, `doc:`, `exe:`, `zip:` |
 | Path tokens | `d:`, `d:\folder\` |
 | Advanced | `attrib:h`, `dupe:`, `sizedupe:`, `child:`, `childcount:`, `depth:` |
 | Content (slow) | `content:`, `utf8content:` — unindexed scan of name/path hits only; hard size/time caps; banner (D15) |
 | Notes (D61) | `note:`, `hasnote:`, `notestatus:`, `todo:` / `todo:buy` — read-only ADS `mfe_note` (does not change host times). Current-folder walk is complete; indexed uses notes saved in this app. `!hasnote:` excludes items that have a note. |
+| ADS streams (D38) | `stream:Name`, `stream:Name=value` (text substring), `hasstream:` / `hasads:`; aliases `ads:`. `!stream:Name` / `!hasstream:`. Read-only; value match skips streams &gt; 64 KiB. |
 | User metadata (D70) | Opt-in (`settings.userMetadata.enabled`). `meta.<key>:`, `hasmeta:`, … when enabled and a set applies. Spec: [USER_METADATA.md](USER_METADATA.md). |
 
 Toolbar toggles (persisted): **Match path**, **Match case**, **Whole word**, **Regex**. Type chips map to macros.
@@ -113,7 +116,8 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 ## UI
 
 - **As-you-type** search (500 ms debounce — typing `.obj` is usually one walk). A lone `.` does not search. Extra characters **narrow** the current hits (`.o` ⊃ `.ob` ⊃ `.obj`) instead of restarting. Enter searches immediately. Use `*.jpg` when you need “ends with this extension.”
-- Toolbar **Power Search…** — visual query builder synced with the search box (scope, match, name/text, type, size, dates, location, advanced including note / status / open checklist). **Saved searches** (named designs) store the builder + match flags + query — not the target. Run again against the current folder or indexed roots. Cap 80; included in Settings export (D45).
+- Toolbar **Power Search…** — visual query builder with **Scope** / **Match** always visible, then rounded tabs: **Name & Text**, **Type**, **Attributes**, **Size**, **Date** (created / modified / last accessed), **Location**, **Advanced** (duplicates, depth, content, notes), **Metadata** (ADS stream + user metadata). Syncs with the search box. **Saved searches** (named designs) store the builder + match flags + query — not the target. Cap 80; included in Settings export (D45).
+- **ADS / stream search** (Windows NTFS, read-only): `stream:Name`, `stream:Name=value` (substring in stream text), `hasstream:` (any named stream). Aliases `ads:` / `hasads:`. Exclude with `!stream:Name` / `!hasstream:`. Power Search → **Metadata** → **ADS stream**. Value match skips streams larger than 64 KiB.
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
 - Results in normal **FileView** (D29); **always shown as Details** while search is active (display overlay only — does **not** change the folder’s saved view mode; Clear / exit search restores thumbnails/list/etc.). Folder column; banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
 - **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results pushes the search onto Back; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.

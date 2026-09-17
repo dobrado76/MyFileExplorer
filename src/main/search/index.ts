@@ -195,17 +195,21 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
       if (!showHidden && hidden) continue
       let size = 0
       let mtimeMs = 0
+      let birthtimeMs = 0
+      let atimeMs = 0
       try {
         const st = await fsp.stat(full)
         size = isDir ? 0 : st.size
         mtimeMs = st.mtimeMs
+        birthtimeMs = st.birthtimeMs
+        atimeMs = st.atimeMs
       } catch {
         /* zeros */
       }
       const hit = basic
         ? nameMatches(d.name, query)
         : rowMatchesStructured(
-            { path: full, name: d.name, size, mtimeMs, isDir },
+            { path: full, name: d.name, size, mtimeMs, birthtimeMs, atimeMs, isDir },
             q!,
             { rootPrefix: dir, childCount: isDir ? undefined : undefined }
           )

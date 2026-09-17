@@ -30,7 +30,8 @@ import {
   ICON_SIZE_PX_MAX,
   ICON_SIZE_PX_MIN,
   NETWORK_DISCOVERY_INTERVAL_MAX_MINUTES,
-  NETWORK_DISCOVERY_INTERVAL_MIN_MINUTES
+  NETWORK_DISCOVERY_INTERVAL_MIN_MINUTES,
+  fontFamilySelectOptions
 } from '@shared/schemas/settings'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
@@ -2687,15 +2688,20 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <label
                 className="settings-field"
                 htmlFor="set-font"
-                title="CSS font-family for the shell (e.g. Segoe UI, Consolas)"
+                title="UI font for the shell. Common Windows families are listed; a custom imported value stays available if it is not in the list."
               >
                 <span>Font family</span>
-                <input
+                <select
                   id="set-font"
-                  type="text"
                   value={settings.fontFamily}
                   onChange={(e) => void applySettingsPatch({ fontFamily: e.target.value })}
-                />
+                >
+                  {fontFamilySelectOptions(settings.fontFamily).map((name) => (
+                    <option key={name} value={name} style={{ fontFamily: `"${name}", system-ui, sans-serif` }}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label
                 className="settings-field settings-field-narrow"

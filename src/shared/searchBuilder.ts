@@ -8,6 +8,8 @@ export type PowerSearchItemKind = 'any' | 'file' | 'folder'
 
 export type PowerSearchDupe = '' | 'name' | 'size' | 'namepart'
 
+export type PowerSearchDatePreset = '' | 'today' | 'yesterday' | 'thisweek' | 'thismonth' | 'custom'
+
 export type PowerSearchState = {
   /** Free-text name/path terms (space = AND). */
   terms: string
@@ -20,8 +22,12 @@ export type PowerSearchState = {
   types: string[]
   sizePreset: '' | 'empty' | 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'custom'
   sizeCustom: string
-  dateModified: '' | 'today' | 'yesterday' | 'thisweek' | 'thismonth' | 'custom'
+  dateModified: PowerSearchDatePreset
   dateCustom: string
+  dateCreated: PowerSearchDatePreset
+  dateCreatedCustom: string
+  dateAccessed: PowerSearchDatePreset
+  dateAccessedCustom: string
   extensions: string
   inFolder: string
   parentName: string
@@ -36,6 +42,9 @@ export type PowerSearchState = {
   noteStatus: string
   hasNote: boolean
   openTodos: boolean
+  /** ADS stream: `Name` or `Name=value` (emits `stream:…`). */
+  adsStream: string
+  hasStream: boolean
   hasMeta: boolean
   metaFilters: Array<{ fieldId: string; optionId?: string; value?: string }>
   dupe: PowerSearchDupe
@@ -63,14 +72,26 @@ export const SIZE_PRESET_OPTIONS = [
   { id: 'custom' as const, label: 'Custom…' }
 ]
 
-export const DATE_MODIFIED_OPTIONS = [
-  { id: '' as const, label: 'Any date' },
-  { id: 'today' as const, label: 'Modified today', token: 'dm:today' },
-  { id: 'yesterday' as const, label: 'Modified yesterday', token: 'dm:yesterday' },
-  { id: 'thisweek' as const, label: 'Modified this week', token: 'dm:thisweek' },
-  { id: 'thismonth' as const, label: 'Modified this month', token: 'dm:thismonth' },
-  { id: 'custom' as const, label: 'Custom…' }
-]
+/** Shared presets for Created / Modified / Last accessed (prefix = dc | dm | da). */
+export function datePresetOptions(prefix: 'dc' | 'dm' | 'da'): {
+  id: PowerSearchDatePreset
+  label: string
+  token?: string
+}[] {
+  const noun =
+    prefix === 'dc' ? 'Created' : prefix === 'da' ? 'Accessed' : 'Modified'
+  return [
+    { id: '', label: 'Any date' },
+    { id: 'today', label: `${noun} today`, token: `${prefix}:today` },
+    { id: 'yesterday', label: `${noun} yesterday`, token: `${prefix}:yesterday` },
+    { id: 'thisweek', label: `${noun} this week`, token: `${prefix}:thisweek` },
+    { id: 'thismonth', label: `${noun} this month`, token: `${prefix}:thismonth` },
+    { id: 'custom', label: 'Custom…' }
+  ]
+}
+
+/** @deprecated Prefer datePresetOptions('dm') — kept for older imports. */
+export const DATE_MODIFIED_OPTIONS = datePresetOptions('dm')
 
 export const DUPE_OPTIONS = [
   { id: '' as const, label: 'No duplicate filter' },
@@ -102,6 +123,10 @@ export function defaultPowerSearchState(): PowerSearchState {
     sizeCustom: '',
     dateModified: '',
     dateCustom: '',
+    dateCreated: '',
+    dateCreatedCustom: '',
+    dateAccessed: '',
+    dateAccessedCustom: '',
     extensions: '',
     inFolder: '',
     parentName: '',
@@ -116,6 +141,8 @@ export function defaultPowerSearchState(): PowerSearchState {
     noteStatus: '',
     hasNote: false,
     openTodos: false,
+    adsStream: '',
+    hasStream: false,
     hasMeta: false,
     metaFilters: [],
     dupe: '',
@@ -134,6 +161,23 @@ function quoteToken(raw: string): string {
 function pushParts(out: string[], part: string | undefined): void {
   const p = part?.trim()
   if (p) out.push(p)
+}
+
+function pushDateFilter(
+  out: string[],
+  prefix: 'dc' | 'dm' | 'da',
+  preset: PowerSearchDatePreset,
+  custom: string
+): void {
+  const options = datePresetOptions(prefix)
+  if (preset === 'custom' && custom.trim()) {
+    const raw = custom.trim()
+    out.push(raw.startsWith(`${prefix}:`) ? raw : `${prefix}:${raw}`)
+    return
+  }
+  if (!preset) return
+  const hit = options.find((o) => o.id === preset)
+  if (hit && 'token' in hit && hit.token) out.push(hit.token)
 }
 
 /** Build an Everything-style query from visual builder state. */
@@ -187,13 +231,9 @@ export function buildSearchQuery(
     if (preset && 'token' in preset && preset.token) out.push(preset.token)
   }
 
-  if (state.dateModified === 'custom' && state.dateCustom.trim()) {
-    const raw = state.dateCustom.trim()
-    out.push(raw.startsWith('dm:') ? raw : `dm:${raw}`)
-  } else if (state.dateModified) {
-    const preset = DATE_MODIFIED_OPTIONS.find((o) => o.id === state.dateModified)
-    if (preset && 'token' in preset && preset.token) out.push(preset.token)
-  }
+  pushDateFilter(out, 'dc', state.dateCreated ?? '', state.dateCreatedCustom ?? '')
+  pushDateFilter(out, 'dm', state.dateModified ?? '', state.dateCustom ?? '')
+  pushDateFilter(out, 'da', state.dateAccessed ?? '', state.dateAccessedCustom ?? '')
 
   pushParts(out, state.inFolder ? `infolder:${quoteToken(state.inFolder)}` : '')
   pushParts(out, state.parentName ? `parent:${quoteToken(state.parentName)}` : '')
@@ -224,6 +264,12 @@ export function buildSearchQuery(
   }
   if (state.openTodos) {
     out.push('todo:')
+  }
+
+  if ((state.adsStream ?? '').trim()) {
+    out.push(`stream:${quoteToken(state.adsStream)}`)
+  } else if (state.hasStream) {
+    out.push('hasstream:')
   }
 
   if (state.hasMeta && state.metaFilters.length === 0) {

@@ -127,6 +127,28 @@ describe('parseEverythingQuery', () => {
     expect(none.excludeHasNote).toBe(true)
   })
 
+  it('parses stream / hasstream ADS filters', () => {
+    const named = parseEverythingQuery('stream:AUTOV2')
+    expect(named.streamClauses).toEqual([{ name: 'AUTOV2', value: null }])
+    expect(searchDecodeMessage('stream:AUTOV2', named)).toBeNull()
+
+    const valued = parseEverythingQuery('stream:AUTOV2=4fd822d0a1')
+    expect(valued.streamClauses).toEqual([{ name: 'AUTOV2', value: '4fd822d0a1' }])
+
+    const any = parseEverythingQuery('hasstream:')
+    expect(any.hasStream).toBe(true)
+    expect(searchDecodeMessage('hasstream:', any)).toBeNull()
+
+    const adsAlias = parseEverythingQuery('ads:Caption=hello')
+    expect(adsAlias.streamClauses).toEqual([{ name: 'Caption', value: 'hello' }])
+
+    const none = parseEverythingQuery('!hasstream:')
+    expect(none.excludeHasStream).toBe(true)
+
+    const excl = parseEverythingQuery('!stream:AUTOV2')
+    expect(excl.excludeStreamNames).toEqual(['AUTOV2'])
+  })
+
   it('treats todo: as a valid search by itself', () => {
     const q = parseEverythingQuery('todo:')
     expect(searchDecodeMessage('todo:', q)).toBeNull()
@@ -137,6 +159,33 @@ describe('parseEverythingQuery', () => {
     expect(q.dates).toHaveLength(2)
     expect(q.dates[0]?.field).toBe('mtime')
     expect(q.dates[1]?.op).toBe('gt')
+  })
+
+  it('parses dc: / da: / dateaccessed as birthtime and atime', () => {
+    const created = parseEverythingQuery('dc:today')
+    expect(created.dates).toHaveLength(1)
+    expect(created.dates[0]?.field).toBe('birthtime')
+    const accessed = parseEverythingQuery('da:today')
+    expect(accessed.dates).toHaveLength(1)
+    expect(accessed.dates[0]?.field).toBe('atime')
+    const alias = parseEverythingQuery('dateaccessed:yesterday')
+    expect(alias.dates[0]?.field).toBe('atime')
+  })
+
+  it('date predicates fail closed when birthtime/atime are missing', () => {
+    const q = parseEverythingQuery('da:today')
+    expect(
+      rowMatchesStructured(
+        row({ path: 'C:\\a\\f.txt', name: 'f.txt', mtimeMs: Date.now(), atimeMs: 0 }),
+        q
+      )
+    ).toBe(false)
+    expect(
+      rowMatchesStructured(
+        row({ path: 'C:\\a\\f.txt', name: 'f.txt', mtimeMs: Date.now(), atimeMs: Date.now() }),
+        q
+      )
+    ).toBe(true)
   })
 
   it('parses location functions', () => {

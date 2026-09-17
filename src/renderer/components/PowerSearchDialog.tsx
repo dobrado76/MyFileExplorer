@@ -10,13 +10,14 @@ import { CloseIcon } from '../lib/icons'
 import { useAppStore } from '../store/appStore'
 import {
   ATTRIBUTE_OPTIONS,
-  DATE_MODIFIED_OPTIONS,
   DUPE_OPTIONS,
   SIZE_PRESET_OPTIONS,
   TYPE_MACRO_OPTIONS,
   buildSearchQuery,
+  datePresetOptions,
   defaultPowerSearchState,
   sanitizePowerSearchState,
+  type PowerSearchDatePreset,
   type PowerSearchScope,
   type PowerSearchState
 } from '@shared/searchBuilder'
@@ -72,6 +73,76 @@ function toggleInList<T extends string>(list: readonly T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
 }
 
+type PowerSearchTabId =
+  | 'name'
+  | 'type'
+  | 'attributes'
+  | 'size'
+  | 'date'
+  | 'location'
+  | 'advanced'
+  | 'metadata'
+
+const POWER_SEARCH_TABS: { id: PowerSearchTabId; label: string }[] = [
+  { id: 'name', label: 'Name & Text' },
+  { id: 'type', label: 'Type' },
+  { id: 'attributes', label: 'Attributes' },
+  { id: 'size', label: 'Size' },
+  { id: 'date', label: 'Date' },
+  { id: 'location', label: 'Location' },
+  { id: 'advanced', label: 'Advanced' },
+  { id: 'metadata', label: 'Metadata' }
+]
+
+function tabIsDirty(id: PowerSearchTabId, b: PowerSearchState): boolean {
+  switch (id) {
+    case 'name':
+      return Boolean(
+        b.terms.trim() ||
+          b.exclude.trim() ||
+          b.excludeExtensions.trim() ||
+          b.itemKind !== 'any'
+      )
+    case 'type':
+      return b.types.length > 0 || Boolean(b.extensions.trim())
+    case 'attributes':
+      return b.attributes.length > 0 || b.emptyOnly
+    case 'size':
+      return Boolean(b.sizePreset)
+    case 'date':
+      return Boolean(b.dateCreated || b.dateModified || b.dateAccessed)
+    case 'location':
+      return Boolean(
+        b.inFolder.trim() ||
+          b.pathContains.trim() ||
+          b.pathPrefix.trim() ||
+          b.parentName.trim() ||
+          b.startsWith.trim() ||
+          b.endsWith.trim()
+      )
+    case 'advanced':
+      return Boolean(
+        b.dupe ||
+          b.depth.trim() ||
+          b.childName.trim() ||
+          b.content.trim() ||
+          b.noteText.trim() ||
+          b.noteStatus.trim() ||
+          b.hasNote ||
+          b.openTodos
+      )
+    case 'metadata':
+      return Boolean(
+        (b.adsStream ?? '').trim() ||
+          b.hasStream ||
+          b.hasMeta ||
+          b.metaFilters.length > 0
+      )
+    default:
+      return false
+  }
+}
+
 /** Full-screen builder for Everything-style search — no syntax cheat sheet required. */
 export function PowerSearchDialog(): JSX.Element {
   const closeDialog = useAppStore((s) => s.closeDialog)
@@ -114,6 +185,7 @@ export function PowerSearchDialog(): JSX.Element {
   const [regex, setRegex] = useState(settings.searchRegex)
   const [saveName, setSaveName] = useState('')
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null)
+  const [tab, setTab] = useState<PowerSearchTabId>('name')
 
   useEffect(() => {
     const fid = builder.metaFilters[0]?.fieldId
@@ -387,127 +459,161 @@ export function PowerSearchDialog(): JSX.Element {
         </button>
       ) : null}
 
-      <div className="power-search-grid">
+      <div className="power-search-chrome">
         <section className="power-search-section">
           <div className="form-section">Scope</div>
-          <label className="power-search-radio">
-            <input
-              type="radio"
-              name="power-search-scope"
-              checked={scope === 'indexed'}
-              onChange={() => setScope('indexed')}
-            />
-            <span>
-              <strong>Indexed roots</strong>
-              <span className="power-search-hint">Fast — all folders/drives in your search index</span>
-            </span>
-          </label>
-          <label className="power-search-radio">
-            <input
-              type="radio"
-              name="power-search-scope"
-              checked={scope === 'folder'}
-              onChange={() => setScope('folder')}
-            />
-            <span>
-              <strong>Current folder</strong>
-              <span className="power-search-hint">
-                Recursive under <code>{activePath}</code>
-              </span>
-            </span>
-          </label>
+          <div className="power-search-radio-row" role="radiogroup" aria-label="Search scope">
+            <label className="power-search-radio">
+              <input
+                type="radio"
+                name="power-scope"
+                checked={scope === 'folder'}
+                onChange={() => setScope('folder')}
+              />
+              Current folder
+              {activePath ? (
+                <span className="power-search-scope-path" title={activePath}>
+                  ({activePath})
+                </span>
+              ) : null}
+            </label>
+            <label className="power-search-radio">
+              <input
+                type="radio"
+                name="power-scope"
+                checked={scope === 'indexed'}
+                onChange={() => setScope('indexed')}
+              />
+              Indexed folders
+            </label>
+          </div>
         </section>
 
         <section className="power-search-section">
           <div className="form-section">Match</div>
-          <div className="power-search-checks">
-            <label>
-              <input type="checkbox" checked={matchPath} onChange={(e) => setMatchPath(e.target.checked)} />
+          <div className="power-search-check-row">
+            <label className="power-search-check">
+              <input
+                type="checkbox"
+                checked={matchPath}
+                onChange={(e) => setMatchPath(e.target.checked)}
+              />
               Match path
             </label>
-            <label>
-              <input type="checkbox" checked={matchCase} onChange={(e) => setMatchCase(e.target.checked)} />
+            <label className="power-search-check">
+              <input
+                type="checkbox"
+                checked={matchCase}
+                onChange={(e) => setMatchCase(e.target.checked)}
+              />
               Match case
             </label>
-            <label>
-              <input type="checkbox" checked={wholeWord} onChange={(e) => setWholeWord(e.target.checked)} />
+            <label className="power-search-check">
+              <input
+                type="checkbox"
+                checked={wholeWord}
+                onChange={(e) => setWholeWord(e.target.checked)}
+              />
               Whole word
             </label>
-            <label>
-              <input type="checkbox" checked={regex} onChange={(e) => setRegex(e.target.checked)} />
-              Regular expression
+            <label className="power-search-check">
+              <input
+                type="checkbox"
+                checked={regex}
+                onChange={(e) => setRegex(e.target.checked)}
+              />
+              Regex
             </label>
           </div>
         </section>
+      </div>
 
-        <section className="power-search-section power-search-section-wide">
-          <div className="form-section">Name &amp; text</div>
-          <div className="power-search-fields">
-            <label className="power-search-field">
-              <span>Name contains</span>
-              <input
-                type="text"
-                value={builder.terms}
-                onChange={(e) => patchBuilder({ terms: e.target.value })}
-                placeholder="words separated by spaces (AND)"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Exclude</span>
-              <input
-                type="text"
-                value={builder.exclude}
-                onChange={(e) => patchBuilder({ exclude: e.target.value })}
-                placeholder="name/path text — adds !term"
-              />
-            </label>
-          </div>
-          <div className="power-search-fields">
-            <label className="power-search-field">
-              <span>Exclude extensions</span>
-              <input
-                type="text"
-                value={builder.excludeExtensions}
-                onChange={(e) => patchBuilder({ excludeExtensions: e.target.value })}
-                placeholder="tmp;bak or .log — adds !ext:"
-              />
-            </label>
-          </div>
-          <div className="power-search-kind">
-            <span className="power-search-kind-label">Item kind</span>
-            {(
-              [
-                ['any', 'Any'],
-                ['file', 'Files only'],
-                ['folder', 'Folders only']
-              ] as const
-            ).map(([id, label]) => (
-              <label key={id} className="power-search-radio-inline">
-                <input
-                  type="radio"
-                  name="power-search-kind"
-                  checked={builder.itemKind === id}
-                  onChange={() => patchBuilder({ itemKind: id })}
-                />
-                {label}
-              </label>
-            ))}
-          </div>
+      <div className="power-search-tabs" role="tablist" aria-label="Search filters">
+        {POWER_SEARCH_TABS.map((t) => {
+          const dirty = tabIsDirty(t.id, builder)
+          const active = tab === t.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              className={`power-search-tab${active ? ' active' : ''}${dirty ? ' dirty' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+              {dirty ? <span className="power-search-tab-dot" aria-hidden /> : null}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="power-search-tab-panel">
+        <section
+          className={`power-search-section power-search-tab-pane${tab === 'name' ? ' active' : ''}`}
+          role="tabpanel"
+          aria-hidden={tab !== 'name'}
+        >
+          <label className="power-search-field">
+            <span>Name contains</span>
+            <input
+              type="text"
+              value={builder.terms}
+              onChange={(e) => patchBuilder({ terms: e.target.value })}
+              placeholder="words or phrases"
+              autoFocus={tab === 'name'}
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Exclude</span>
+            <input
+              type="text"
+              value={builder.exclude}
+              onChange={(e) => patchBuilder({ exclude: e.target.value })}
+              placeholder="terms to exclude"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Exclude extensions</span>
+            <input
+              type="text"
+              value={builder.excludeExtensions}
+              onChange={(e) => patchBuilder({ excludeExtensions: e.target.value })}
+              placeholder="tmp, bak"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Item kind</span>
+            <select
+              value={builder.itemKind}
+              onChange={(e) =>
+                patchBuilder({
+                  itemKind: e.target.value as PowerSearchState['itemKind']
+                })
+              }
+            >
+              <option value="any">Any</option>
+              <option value="file">Files only</option>
+              <option value="folder">Folders only</option>
+            </select>
+          </label>
         </section>
 
-        <section className="power-search-section">
-          <div className="form-section">Type</div>
+        <section
+          className={`power-search-section power-search-tab-pane${tab === 'type' ? ' active' : ''}`}
+          role="tabpanel"
+          aria-hidden={tab !== 'type'}
+        >
           <div className="search-options-chips">
-            {TYPE_MACRO_OPTIONS.map((t) => (
+            {TYPE_MACRO_OPTIONS.map((opt) => (
               <button
-                key={t.id}
+                key={opt.id}
                 type="button"
-                className={`search-options-chip${builder.types.includes(t.id) ? ' active' : ''}`}
-                onClick={() =>
-                  patchBuilder({ types: toggleInList(builder.types, t.id) })
-                }
+                className={`search-options-chip${builder.types.includes(opt.id) ? ' active' : ''}`}
+                onClick={() => patchBuilder({ types: toggleInList(builder.types, opt.id) })}
+                tabIndex={tab === 'type' ? 0 : -1}
               >
-                {t.label}
+                {opt.label}
               </button>
             ))}
           </div>
@@ -517,373 +623,475 @@ export function PowerSearchDialog(): JSX.Element {
               type="text"
               value={builder.extensions}
               onChange={(e) => patchBuilder({ extensions: e.target.value })}
-              placeholder="jpg;png;webp or pdf"
+              placeholder="png, jpg, webp"
             />
           </label>
         </section>
 
-        <section className="power-search-section">
-          <div className="form-section">Attributes</div>
+        <section
+          className={`power-search-section power-search-tab-pane${
+            tab === 'attributes' ? ' active' : ''
+          }`}
+          role="tabpanel"
+          aria-hidden={tab !== 'attributes'}
+        >
           <div className="search-options-chips">
-            {ATTRIBUTE_OPTIONS.map((a) => (
+            {ATTRIBUTE_OPTIONS.map((opt) => (
               <button
-                key={a.id}
+                key={opt.id}
                 type="button"
-                className={`search-options-chip${builder.attributes.includes(a.id) ? ' active' : ''}`}
+                className={`search-options-chip${
+                  builder.attributes.includes(opt.id) ? ' active' : ''
+                }`}
                 onClick={() =>
-                  patchBuilder({ attributes: toggleInList(builder.attributes, a.id) })
+                  patchBuilder({ attributes: toggleInList(builder.attributes, opt.id) })
                 }
+                tabIndex={tab === 'attributes' ? 0 : -1}
               >
-                {a.label}
+                {opt.label}
               </button>
             ))}
           </div>
-          <label className="power-search-check-inline">
+          <label className="power-search-check">
             <input
               type="checkbox"
               checked={builder.emptyOnly}
               onChange={(e) => patchBuilder({ emptyOnly: e.target.checked })}
             />
-            Empty files / folders only
+            Empty only
           </label>
         </section>
 
-        <section className="power-search-section">
-          <div className="form-section">Size</div>
-          <select
-            value={builder.sizePreset}
-            onChange={(e) => {
-              const v = e.target.value as PowerSearchState['sizePreset']
-              patchBuilder({
-                sizePreset: v,
-                sizeCustom: v === 'custom' ? builder.sizeCustom : ''
-              })
-            }}
+        <section
+          className={`power-search-section power-search-tab-pane${tab === 'size' ? ' active' : ''}`}
+          role="tabpanel"
+          aria-hidden={tab !== 'size'}
+        >
+          <label className="power-search-field">
+            <span>Size</span>
+            <select
+              value={builder.sizePreset ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === 'custom') {
+                  patchBuilder({
+                    sizePreset: 'custom',
+                    sizeCustom: builder.sizeCustom || '>1mb'
+                  })
+                } else {
+                  patchBuilder({
+                    sizePreset: (v || undefined) as PowerSearchState['sizePreset']
+                  })
+                }
+              }}
+            >
+              {SIZE_PRESET_OPTIONS.map((opt) => (
+                <option key={opt.id || 'any'} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label
+            className={`power-search-field${
+              builder.sizePreset === 'custom' ? '' : ' power-search-field-slot'
+            }`}
+            aria-hidden={builder.sizePreset !== 'custom'}
           >
-            {SIZE_PRESET_OPTIONS.map((o) => (
-              <option key={o.id || 'any'} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {builder.sizePreset === 'custom' ? (
-            <label className="power-search-field">
-              <span>Size expression</span>
-              <input
-                type="text"
-                value={builder.sizeCustom}
-                onChange={(e) => patchBuilder({ sizeCustom: e.target.value })}
-                placeholder=">10mb, <1gb, large"
-              />
-            </label>
-          ) : null}
+            <span>Custom size</span>
+            <input
+              type="text"
+              value={builder.sizeCustom}
+              onChange={(e) => patchBuilder({ sizeCustom: e.target.value })}
+              placeholder=">10mb  &lt;1gb"
+              tabIndex={builder.sizePreset === 'custom' ? 0 : -1}
+            />
+          </label>
         </section>
 
-        <section className="power-search-section">
-          <div className="form-section">Date modified</div>
-          <select
-            value={builder.dateModified}
-            onChange={(e) => {
-              const v = e.target.value as PowerSearchState['dateModified']
-              patchBuilder({
-                dateModified: v,
-                dateCustom: v === 'custom' ? builder.dateCustom : ''
-              })
-            }}
-          >
-            {DATE_MODIFIED_OPTIONS.map((o) => (
-              <option key={o.id || 'any'} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          {builder.dateModified === 'custom' ? (
-            <label className="power-search-field">
-              <span>Date expression</span>
-              <input
-                type="text"
-                value={builder.dateCustom}
-                onChange={(e) => patchBuilder({ dateCustom: e.target.value })}
-                placeholder="today, yesterday, 2024-01-01"
-              />
-            </label>
-          ) : null}
-        </section>
-
-        <section className="power-search-section power-search-section-wide">
-          <div className="form-section">Location</div>
-          <div className="power-search-fields power-search-fields-3">
-            <label className="power-search-field">
-              <span>In folder</span>
-              <input
-                type="text"
-                value={builder.inFolder}
-                onChange={(e) => patchBuilder({ inFolder: e.target.value })}
-                placeholder="Projects\2024"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Path contains</span>
-              <input
-                type="text"
-                value={builder.pathContains}
-                onChange={(e) => patchBuilder({ pathContains: e.target.value })}
-                placeholder="backup"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Drive / path prefix</span>
-              <input
-                type="text"
-                value={builder.pathPrefix}
-                onChange={(e) => patchBuilder({ pathPrefix: e.target.value })}
-                placeholder="D:\ or D:\Photos\"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Parent folder name</span>
-              <input
-                type="text"
-                value={builder.parentName}
-                onChange={(e) => patchBuilder({ parentName: e.target.value })}
-                placeholder="Screenshots"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Starts with</span>
-              <input
-                type="text"
-                value={builder.startsWith}
-                onChange={(e) => patchBuilder({ startsWith: e.target.value })}
-                placeholder="IMG_"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Ends with</span>
-              <input
-                type="text"
-                value={builder.endsWith}
-                onChange={(e) => patchBuilder({ endsWith: e.target.value })}
-                placeholder="_final"
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="power-search-section power-search-section-wide">
-          <div className="form-section">Advanced</div>
-          <div className="power-search-fields power-search-fields-3">
-            <label className="power-search-field">
-              <span>Duplicates</span>
-              <select
-                value={builder.dupe}
-                onChange={(e) => patchBuilder({ dupe: e.target.value as PowerSearchState['dupe'] })}
+        <section
+          className={`power-search-section power-search-tab-pane${tab === 'date' ? ' active' : ''}`}
+          role="tabpanel"
+          aria-hidden={tab !== 'date'}
+        >
+          {(
+            [
+              {
+                key: 'created' as const,
+                label: 'Date created',
+                preset: builder.dateCreated,
+                custom: builder.dateCreatedCustom,
+                options: datePresetOptions('dc'),
+                setPreset: (v: PowerSearchDatePreset) => patchBuilder({ dateCreated: v }),
+                setCustom: (v: string) => patchBuilder({ dateCreatedCustom: v })
+              },
+              {
+                key: 'modified' as const,
+                label: 'Date modified',
+                preset: builder.dateModified,
+                custom: builder.dateCustom,
+                options: datePresetOptions('dm'),
+                setPreset: (v: PowerSearchDatePreset) => patchBuilder({ dateModified: v }),
+                setCustom: (v: string) => patchBuilder({ dateCustom: v })
+              },
+              {
+                key: 'accessed' as const,
+                label: 'Date last accessed',
+                preset: builder.dateAccessed,
+                custom: builder.dateAccessedCustom,
+                options: datePresetOptions('da'),
+                setPreset: (v: PowerSearchDatePreset) => patchBuilder({ dateAccessed: v }),
+                setCustom: (v: string) => patchBuilder({ dateAccessedCustom: v })
+              }
+            ] as const
+          ).map((field) => (
+            <div key={field.key} className="power-search-date-field">
+              <label className="power-search-field">
+                <span>{field.label}</span>
+                <select
+                  value={field.preset ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value as PowerSearchDatePreset
+                    field.setPreset(v)
+                    if (v === 'custom' && !field.custom) field.setCustom('today')
+                  }}
+                >
+                  {field.options.map((opt) => (
+                    <option key={opt.id || 'any'} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label
+                className={`power-search-field${
+                  field.preset === 'custom' ? '' : ' power-search-field-slot'
+                }`}
+                aria-hidden={field.preset !== 'custom'}
               >
-                {DUPE_OPTIONS.map((o) => (
-                  <option key={o.id || 'none'} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="power-search-field">
-              <span>Folder depth</span>
-              <input
-                type="text"
-                value={builder.depth}
-                onChange={(e) => patchBuilder({ depth: e.target.value })}
-                placeholder="=2, &gt;3, &lt;=5"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Child name</span>
-              <input
-                type="text"
-                value={builder.childName}
-                onChange={(e) => patchBuilder({ childName: e.target.value })}
-                placeholder="file inside folder"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>File content</span>
-              <input
-                type="text"
-                value={builder.content}
-                onChange={(e) => patchBuilder({ content: e.target.value })}
-                placeholder="slow — scans matching files"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Note</span>
-              <input
-                type="text"
-                value={builder.noteText}
-                onChange={(e) => patchBuilder({ noteText: e.target.value })}
-                placeholder="text in the attached note"
-                title="Searches note text, status, and checklist (NTFS stream; read-only)"
-              />
-            </label>
-            <label className="power-search-field">
-              <span>Note status</span>
-              <input
-                type="text"
-                value={builder.noteStatus}
-                onChange={(e) => patchBuilder({ noteStatus: e.target.value })}
-                placeholder="Needs review"
-              />
-            </label>
-          </div>
-          <div className="power-search-checks">
-            <label className="power-search-check-inline">
-              <input
-                type="checkbox"
-                checked={builder.hasNote}
-                onChange={(e) => patchBuilder({ hasNote: e.target.checked })}
-              />
-              Has a note
-            </label>
-            <label className="power-search-check-inline">
-              <input
-                type="checkbox"
-                checked={builder.openTodos}
-                onChange={(e) => patchBuilder({ openTodos: e.target.checked })}
-              />
-              Open checklist items
-            </label>
-            <label className="power-search-check-inline">
-              <input
-                type="checkbox"
-                checked={builder.hasMeta}
-                onChange={(e) => patchBuilder({ hasMeta: e.target.checked })}
-              />
-              Has user metadata
-            </label>
-          </div>
-          {userMetadataSets.length > 0 && (
-            <div className="power-search-fields power-search-fields-3" style={{ marginTop: 8 }}>
-              <label className="power-search-field">
-                <span>Metadata set</span>
-                <select
-                  value={metaSetId}
-                  onChange={(e) => {
-                    const next = e.target.value
-                    setMetaSetId(next)
-                    patchBuilder({ metaFilters: [] })
-                  }}
-                >
-                  <option value="">—</option>
-                  {userMetadataSets.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <span>Custom</span>
+                <input
+                  type="text"
+                  value={field.custom}
+                  onChange={(e) => field.setCustom(e.target.value)}
+                  placeholder="today, yesterday, 2024…"
+                  tabIndex={field.preset === 'custom' ? 0 : -1}
+                />
               </label>
-              <label className="power-search-field">
-                <span>Metadata field</span>
-                <select
-                  value={builder.metaFilters[0]?.fieldId ?? ''}
-                  disabled={!metaSetId}
-                  onChange={(e) => {
-                    const fieldId = e.target.value
-                    if (!fieldId) {
-                      patchBuilder({ metaFilters: [] })
-                      return
-                    }
-                    patchBuilder({
-                      metaFilters: [{ fieldId, optionId: undefined, value: undefined }]
-                    })
-                  }}
-                >
-                  <option value="">{metaSetId ? '—' : 'Select a set first'}</option>
-                  {metaSetFields.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {(() => {
-                const mf = builder.metaFilters[0]
-                const field = metaSetFields.find((f) => f.id === mf?.fieldId)
-                if (!field || !mf) return null
-                if (
-                  field.type === 'choice' ||
-                  field.type === 'multiChoice' ||
-                  field.type === 'iconTags'
-                ) {
-                  return (
-                    <label className="power-search-field">
-                      <span>Option</span>
-                      <select
-                        value={mf.optionId ?? ''}
-                        onChange={(e) =>
-                          patchBuilder({
-                            metaFilters: [
-                              { fieldId: field.id, optionId: e.target.value || undefined }
-                            ]
-                          })
-                        }
-                      >
-                        <option value="">(any / present)</option>
-                        {(field.choices ?? []).map((o) => (
-                          <option key={o.id} value={o.id}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )
-                }
-                if (field.type === 'boolean') {
-                  const labels = booleanFieldLabels(field)
-                  const sel =
-                    mf.value === 'true' || mf.value === 'false' ? mf.value : ''
-                  return (
-                    <label className="power-search-field">
-                      <span>Value</span>
-                      <select
-                        value={sel}
-                        onChange={(e) =>
-                          patchBuilder({
-                            metaFilters: [
-                              {
-                                fieldId: field.id,
-                                value: e.target.value || undefined
-                              }
-                            ]
-                          })
-                        }
-                      >
-                        <option value="">(any / present)</option>
-                        <option value="true">{labels.trueLabel}</option>
-                        <option value="false">{labels.falseLabel}</option>
-                      </select>
-                    </label>
-                  )
-                }
-                return (
-                  <label className="power-search-field">
-                    <span>Value</span>
-                    <input
-                      type="text"
-                      value={mf.value ?? ''}
-                      onChange={(e) =>
-                        patchBuilder({
-                          metaFilters: [{ fieldId: field.id, value: e.target.value }]
-                        })
-                      }
-                      placeholder={field.type === 'number' ? '>=4' : 'match…'}
-                    />
-                  </label>
-                )
-              })()}
             </div>
-          )}
-          {builder.content.trim() ? (
-            <p className="power-search-warn">Content search can be slow on large folders.</p>
-          ) : null}
+          ))}
         </section>
+
+        <section
+          className={`power-search-section power-search-tab-pane${
+            tab === 'location' ? ' active' : ''
+          }`}
+          role="tabpanel"
+          aria-hidden={tab !== 'location'}
+        >
+          <label className="power-search-field">
+            <span>In folder</span>
+            <input
+              type="text"
+              value={builder.inFolder}
+              onChange={(e) => patchBuilder({ inFolder: e.target.value })}
+              placeholder="folder name segment"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Path contains</span>
+            <input
+              type="text"
+              value={builder.pathContains}
+              onChange={(e) => patchBuilder({ pathContains: e.target.value })}
+              placeholder="path substring"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Path prefix</span>
+            <input
+              type="text"
+              value={builder.pathPrefix}
+              onChange={(e) => patchBuilder({ pathPrefix: e.target.value })}
+              placeholder="C:\\Projects"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Parent name</span>
+            <input
+              type="text"
+              value={builder.parentName}
+              onChange={(e) => patchBuilder({ parentName: e.target.value })}
+              placeholder="parent folder"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Name starts with</span>
+            <input
+              type="text"
+              value={builder.startsWith}
+              onChange={(e) => patchBuilder({ startsWith: e.target.value })}
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Name ends with</span>
+            <input
+              type="text"
+              value={builder.endsWith}
+              onChange={(e) => patchBuilder({ endsWith: e.target.value })}
+            />
+          </label>
+        </section>
+
+        <section
+          className={`power-search-section power-search-tab-pane${
+            tab === 'advanced' ? ' active' : ''
+          }`}
+          role="tabpanel"
+          aria-hidden={tab !== 'advanced'}
+        >
+          <label className="power-search-field">
+            <span>Duplicates</span>
+            <select
+              value={builder.dupe ?? ''}
+              onChange={(e) =>
+                patchBuilder({
+                  dupe: (e.target.value || undefined) as PowerSearchState['dupe']
+                })
+              }
+            >
+              {DUPE_OPTIONS.map((opt) => (
+                <option key={opt.id || 'off'} value={opt.id}>
+                  {opt.id ? opt.label : 'Off'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="power-search-field">
+            <span>Folder depth</span>
+            <input
+              type="text"
+              value={builder.depth}
+              onChange={(e) => patchBuilder({ depth: e.target.value })}
+              placeholder="3 or &lt;5"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Child name</span>
+            <input
+              type="text"
+              value={builder.childName}
+              onChange={(e) => patchBuilder({ childName: e.target.value })}
+              placeholder="name inside folder"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>File content</span>
+            <input
+              type="text"
+              value={builder.content}
+              onChange={(e) => patchBuilder({ content: e.target.value })}
+              placeholder="text inside file"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Note</span>
+            <input
+              type="text"
+              value={builder.noteText}
+              onChange={(e) => patchBuilder({ noteText: e.target.value })}
+              placeholder="note text"
+            />
+          </label>
+          <label className="power-search-field">
+            <span>Note status</span>
+            <input
+              type="text"
+              value={builder.noteStatus}
+              onChange={(e) => patchBuilder({ noteStatus: e.target.value })}
+              placeholder="status tag"
+            />
+          </label>
+          <label className="power-search-check">
+            <input
+              type="checkbox"
+              checked={builder.hasNote}
+              onChange={(e) => patchBuilder({ hasNote: e.target.checked })}
+            />
+            Has a note
+          </label>
+          <label className="power-search-check">
+            <input
+              type="checkbox"
+              checked={builder.openTodos}
+              onChange={(e) => patchBuilder({ openTodos: e.target.checked })}
+            />
+            Open checklist
+          </label>
+          <p
+            className={`power-search-warn${
+              builder.content.trim() ? '' : ' power-search-field-slot'
+            }`}
+            aria-hidden={!builder.content.trim()}
+          >
+            Content search can be slow on large folders.
+          </p>
+        </section>
+
+        <section
+          className={`power-search-section power-search-tab-pane${
+            tab === 'metadata' ? ' active' : ''
+          }`}
+          role="tabpanel"
+          aria-hidden={tab !== 'metadata'}
+        >
+          <label className="power-search-field">
+            <span>ADS stream</span>
+            <input
+              type="text"
+              value={builder.adsStream ?? ''}
+              onChange={(e) => patchBuilder({ adsStream: e.target.value })}
+              placeholder="Zone.Identifier or Name=value"
+              spellCheck={false}
+            />
+          </label>
+          <label className="power-search-check">
+            <input
+              type="checkbox"
+              checked={builder.hasStream}
+              onChange={(e) => patchBuilder({ hasStream: e.target.checked })}
+            />
+            Has any ADS
+          </label>
+          <div className="power-search-meta-block">
+            <div className="form-section">User metadata</div>
+            {userMetadataSets.length > 0 ? (
+              <>
+                <label className="power-search-check">
+                  <input
+                    type="checkbox"
+                    checked={builder.hasMeta}
+                    onChange={(e) => patchBuilder({ hasMeta: e.target.checked })}
+                  />
+                  Has any user metadata
+                </label>
+                <label className="power-search-field">
+                  <span>Set</span>
+                  <select
+                    value={metaSetId}
+                    onChange={(e) => {
+                      setMetaSetId(e.target.value)
+                      patchBuilder({ metaFilters: [] })
+                    }}
+                  >
+                    <option value="">(none)</option>
+                    {userMetadataSets.map((set) => (
+                      <option key={set.id} value={set.id}>
+                        {set.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label
+                  className={`power-search-field${metaSetId ? '' : ' power-search-field-slot'}`}
+                  aria-hidden={!metaSetId}
+                >
+                  <span>Field</span>
+                  <select
+                    value={builder.metaFilters[0]?.fieldId ?? ''}
+                    onChange={(e) => {
+                      const fieldId = e.target.value
+                      if (!fieldId) {
+                        patchBuilder({ metaFilters: [] })
+                        return
+                      }
+                      patchBuilder({
+                        metaFilters: [
+                          {
+                            fieldId,
+                            value: builder.metaFilters[0]?.value
+                          }
+                        ]
+                      })
+                    }}
+                    tabIndex={metaSetId ? 0 : -1}
+                  >
+                    <option value="">(none)</option>
+                    {metaSetFields.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {(() => {
+                  const mf = builder.metaFilters[0]
+                  const field = mf?.fieldId
+                    ? metaSetFields.find((f) => f.id === mf.fieldId)
+                    : undefined
+                  const show = Boolean(field)
+                  if (field?.type === 'boolean') {
+                    const labels = booleanFieldLabels(field)
+                    const sel =
+                      mf!.value === 'true' || mf!.value === 'false' ? mf!.value : ''
+                    return (
+                      <label
+                        className={`power-search-field${show ? '' : ' power-search-field-slot'}`}
+                        aria-hidden={!show}
+                      >
+                        <span>Value</span>
+                        <select
+                          value={sel}
+                          onChange={(e) =>
+                            patchBuilder({
+                              metaFilters: [
+                                {
+                                  fieldId: field.id,
+                                  value: e.target.value || undefined
+                                }
+                              ]
+                            })
+                          }
+                          tabIndex={show ? 0 : -1}
+                        >
+                          <option value="">(any / present)</option>
+                          <option value="true">{labels.trueLabel}</option>
+                          <option value="false">{labels.falseLabel}</option>
+                        </select>
+                      </label>
+                    )
+                  }
+                  return (
+                    <label
+                      className={`power-search-field${show ? '' : ' power-search-field-slot'}`}
+                      aria-hidden={!show}
+                    >
+                      <span>Value</span>
+                      <input
+                        type="text"
+                        value={mf?.value ?? ''}
+                        onChange={(e) =>
+                          field
+                            ? patchBuilder({
+                                metaFilters: [{ fieldId: field.id, value: e.target.value }]
+                              })
+                            : undefined
+                        }
+                        placeholder={field?.type === 'number' ? '>=4' : 'match…'}
+                        tabIndex={show ? 0 : -1}
+                      />
+                    </label>
+                  )
+                })()}
+              </>
+            ) : (
+              <p className="power-search-hint">
+                Enable user metadata in Settings to filter by custom fields.
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
 
         {(bookmarks.length > 0 || filters.length > 0) && (
           <section className="power-search-section power-search-section-wide">
@@ -926,7 +1134,6 @@ export function PowerSearchDialog(): JSX.Element {
             ) : null}
           </section>
         )}
-      </div>
         </div>
       </div>
     </ModalShell>

@@ -7,12 +7,14 @@ import {
   parseEverythingQuery,
   queryHasNoteFilter,
   queryHasMetaFilter,
+  queryHasStreamFilter,
   rowMatchesStructured,
   type ParseOptions,
   type StructuredQuery
 } from './everythingQuery'
 import { pathMatchesNoteFilter } from './noteFilter'
 import { pathMatchesMetaFilter } from './metaFilter'
+import { pathMatchesAdsStreamFilter } from './adsFilter'
 import { compilePathPatterns } from '@shared/pathPatterns'
 import { isHiddenSearchHit } from '@shared/searchHidden'
 import { VID_THUMB_CACHE_DIR } from '@shared/vidThumbCache'
@@ -108,12 +110,16 @@ export async function liveWalkSearch(
       // Basic name search: skip stat on misses so the walk does not monopolize main.
       let size = 0
       let mtimeMs = 0
+      let birthtimeMs = 0
+      let atimeMs = 0
       const needStat = !basic || nameHit
       if (needStat) {
         try {
           const st = await fsp.stat(full)
           size = isDir ? 0 : st.size
           mtimeMs = st.mtimeMs
+          birthtimeMs = st.birthtimeMs
+          atimeMs = st.atimeMs
         } catch {
           /* zeros */
         }
@@ -122,7 +128,16 @@ export async function liveWalkSearch(
       const hit = basic
         ? Boolean(nameHit)
         : rowMatchesStructured(
-            { path: full, name: d.name, size, mtimeMs, isDir, attrs: null },
+            {
+              path: full,
+              name: d.name,
+              size,
+              mtimeMs,
+              birthtimeMs,
+              atimeMs,
+              isDir,
+              attrs: null
+            },
             q!,
             { rootPrefix: rootDir, childCount: isDir ? dirents.length : undefined }
           )
@@ -131,6 +146,8 @@ export async function liveWalkSearch(
         if (q && queryHasNoteFilter(q) && !(await pathMatchesNoteFilter(full, q))) {
           /* ADS read-only; host $DATA times unchanged */
         } else if (q && queryHasMetaFilter(q) && !(await pathMatchesMetaFilter(full, q))) {
+          /* ADS read-only */
+        } else if (q && queryHasStreamFilter(q) && !(await pathMatchesAdsStreamFilter(full, q))) {
           /* ADS read-only */
         } else {
           items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })

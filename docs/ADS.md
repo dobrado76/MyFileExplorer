@@ -28,6 +28,8 @@ Decision lock: [DECISIONS.md](DECISIONS.md) **D38**. IPC: [IPC_CONTRACT.md](IPC_
 
 Do **not** enumerate ADS inside `fs:list` — that would slow every browse.
 
+**Search:** `stream:Name`, `stream:Name=value` (text substring), `hasstream:` / `hasads:` (aliases `ads:`). Exclude with `!stream:Name` / `!hasstream:`. Power Search → **Metadata** → **ADS stream**. Read-only; value match skips streams larger than 64 KiB. See [SEARCH.md](SEARCH.md).
+
 ### Context menu
 
 **Alternate streams…** on a single file or the current folder opens the ADS Manager for that path.

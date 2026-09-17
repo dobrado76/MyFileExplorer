@@ -5965,10 +5965,126 @@ html.idle-cursor-hidden * {
   margin-top: -2px;
   font-size: 12px;
 }
-.power-search-grid {
+.power-search-chrome {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 14px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 12px 18px;
+  align-items: start;
+}
+@media (max-width: 760px) {
+  .power-search-chrome {
+    grid-template-columns: 1fr;
+  }
+}
+.power-search-radio-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.power-search-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 13px;
+}
+.power-search-scope-path {
+  color: var(--text-dim);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.power-search-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: flex-end;
+  margin-top: 14px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--border);
+}
+.power-search-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 12px 8px;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+  margin-bottom: -1px;
+  position: relative;
+}
+.power-search-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.power-search-tab.active {
+  color: var(--text);
+  background: var(--bg-elevated, var(--bg));
+  border-color: var(--border);
+  font-weight: 600;
+}
+.power-search-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent, #3b82f6);
+  opacity: 0.9;
+}
+.power-search-tab.active .power-search-tab-dot {
+  background: var(--accent, #3b82f6);
+}
+.power-search-tab-panel {
+  display: grid;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  padding: 12px 12px 10px;
+  background: var(--bg-elevated, var(--bg));
+}
+.power-search-tab-pane {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.power-search-tab-pane.active {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+.power-search-field-slot {
+  visibility: hidden;
+  pointer-events: none;
+}
+.power-search-date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.power-search-date-field:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+.power-search-meta-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 .power-search-section {
   display: flex;
@@ -5977,7 +6093,7 @@ html.idle-cursor-hidden * {
   min-width: 0;
 }
 .power-search-section-wide {
-  grid-column: 1 / -1;
+  margin-top: 4px;
 }
 .power-search-hint {
   display: block;
@@ -6002,12 +6118,14 @@ html.idle-cursor-hidden * {
   gap: 10px 16px;
   font-size: 13px;
 }
+.power-search-check,
 .power-search-checks label,
 .power-search-check-inline {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  font-size: 13px;
 }
 .power-search-fields {
   display: grid;
@@ -6018,7 +6136,6 @@ html.idle-cursor-hidden * {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 @media (max-width: 760px) {
-  .power-search-grid,
   .power-search-fields,
   .power-search-fields-3 {
     grid-template-columns: 1fr;

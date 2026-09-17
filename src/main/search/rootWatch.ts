@@ -44,7 +44,15 @@ async function applyChange(root: RootDbRow, fullPath: string): Promise<void> {
     const st = await fsp.stat(fullPath)
     const isDir = st.isDirectory()
     upsertFileRows(root.id, [
-      fileRowFromPath(fullPath, isDir, st.size, st.mtimeMs)
+      fileRowFromPath(
+        fullPath,
+        isDir,
+        st.size,
+        st.mtimeMs,
+        null,
+        st.birthtimeMs,
+        st.atimeMs
+      )
     ])
   } catch {
     deletePathTree(fullPath)

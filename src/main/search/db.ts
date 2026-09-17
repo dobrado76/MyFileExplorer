@@ -30,6 +30,12 @@ function migrateRoots(database: DatabaseSync): void {
   if (!columnExists(database, 'files', 'attrs')) {
     database.exec(`ALTER TABLE files ADD COLUMN attrs INTEGER`)
   }
+  if (!columnExists(database, 'files', 'birthtime_ms')) {
+    database.exec(`ALTER TABLE files ADD COLUMN birthtime_ms INTEGER NOT NULL DEFAULT 0`)
+  }
+  if (!columnExists(database, 'files', 'atime_ms')) {
+    database.exec(`ALTER TABLE files ADD COLUMN atime_ms INTEGER NOT NULL DEFAULT 0`)
+  }
   // Folder roots that were never monitored → watch after migration.
   database.exec(`
     UPDATE roots SET monitor = 'watch'
@@ -64,6 +70,8 @@ export function searchDb(): DatabaseSync {
       ext TEXT,
       size INTEGER NOT NULL DEFAULT 0,
       mtime_ms INTEGER NOT NULL DEFAULT 0,
+      birthtime_ms INTEGER NOT NULL DEFAULT 0,
+      atime_ms INTEGER NOT NULL DEFAULT 0,
       is_dir INTEGER NOT NULL DEFAULT 0,
       attrs INTEGER
     );

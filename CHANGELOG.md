@@ -9,6 +9,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Power Search tabs + full dates** — builder uses rounded tabs (Name & Text default; Date = created / modified / last accessed). Emits `dc:` / `dm:` / `da:` (alias `dateaccessed:`). Index stores `birthtime_ms` / `atime_ms`; missing times fail closed. ADS + user metadata live on the **Metadata** tab.
+- **Power Search ADS streams** — `stream:Name`, `stream:Name=value`, `hasstream:` (aliases `ads:` / `hasads:`) filter by NTFS alternate data streams; Power Search → **Metadata** → **ADS stream**.
+- **Settings Font family** — Appearance uses a dropdown of common Windows UI fonts (Segoe UI, Calibri, Consolas, Cascadia, …) instead of a free-text box; an imported custom family stays listed if it is not in the curated set.
 - **Settings sidebar** — slightly wider nav with a colored Lucide icon per section, light borders, and a clearer active state.
 - **Startup splash** — a small branded window (icon + “Starting…”) appears as soon as Electron is ready and closes when the main shell shows, so a slow cold start is visibly working.
 - **Folder statistics `.ts`** — Contents treats bare `.ts` / `.mts` by size: under 1 MiB as Documents (TypeScript), 1 MiB+ as Videos (MPEG-TS). `.tsx` stays Documents; Blu-ray `.m2ts` stays Videos. Re-run **Calculate Statistics** to refresh stored ADS.

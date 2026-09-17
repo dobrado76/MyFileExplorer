@@ -57,7 +57,7 @@ export function isBasicNameQuery(raw: string): boolean {
   if (/[<|"]/.test(t)) return false
   if (/^[a-zA-Z]:[\\/]?/i.test(t)) return false
   if (
-    /(?:^|\s)(!?)(size|ext|dm|dc|datemodified|datecreated|path|nopath|file|folder|pic|video|audio|doc|exe|zip|content|utf8content|note|hasnote|notestatus|todo|hasmeta|attrib|attributes|depth|parent|infolder|startwith|endwith|len|empty|count|dupe|sizedupe|namepartdupe|child|childcount|regex|case|nocase|ww|wholeword|noww):/i.test(
+    /(?:^|\s)(!?)(size|ext|dm|dc|da|datemodified|datecreated|dateaccessed|path|nopath|file|folder|pic|video|audio|doc|exe|zip|content|utf8content|note|hasnote|notestatus|todo|hasmeta|stream|ads|hasstream|hasads|attrib|attributes|depth|parent|infolder|startwith|endwith|len|empty|count|dupe|sizedupe|namepartdupe|child|childcount|regex|case|nocase|ww|wholeword|noww):/i.test(
       t
     )
   ) {

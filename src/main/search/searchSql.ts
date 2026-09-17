@@ -70,13 +70,17 @@ export function buildSearchSql(
     params.push(q.lenMax)
   }
   for (const d of q.dates) {
+    const col =
+      d.field === 'birthtime' ? 'birthtime_ms' : d.field === 'atime' ? 'atime_ms' : 'mtime_ms'
+    // Fail closed when the column was never filled (legacy rows stay 0).
+    clauses.push(`${col} > 0`)
     if (d.op === 'range') {
-      clauses.push('mtime_ms >= ? AND mtime_ms <= ?')
+      clauses.push(`${col} >= ? AND ${col} <= ?`)
       params.push(d.min, d.max)
     } else {
       const op =
         d.op === 'eq' ? '=' : d.op === 'gt' ? '>' : d.op === 'lt' ? '<' : d.op === 'ge' ? '>=' : '<='
-      clauses.push(`mtime_ms ${op} ?`)
+      clauses.push(`${col} ${op} ?`)
       params.push(d.ms)
     }
   }
@@ -108,7 +112,7 @@ export function buildSearchSql(
   }
 
   const sql = `
-    SELECT path, name, size, mtime_ms, is_dir, attrs, ext
+    SELECT path, name, size, mtime_ms, birthtime_ms, atime_ms, is_dir, attrs, ext
     FROM files
     WHERE ${clauses.join(' AND ')}
     ORDER BY name
@@ -148,7 +152,7 @@ export function buildNoteIndexSql(
   if (q.openTodo) clauses.push('n.open_todo = 1')
 
   const sql = `
-    SELECT f.path, f.name, f.size, f.mtime_ms, f.is_dir, f.attrs, f.ext
+    SELECT f.path, f.name, f.size, f.mtime_ms, f.birthtime_ms, f.atime_ms, f.is_dir, f.attrs, f.ext
     FROM files f
     INNER JOIN item_notes n ON n.path = f.path
     WHERE ${clauses.join(' AND ')}

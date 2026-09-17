@@ -229,16 +229,29 @@ async function walkIndex(
       if (excluded(full)) continue
       let size = 0
       let mtime = 0
+      let birthtime = 0
+      let atime = 0
       if (!isDir) {
         try {
           const st = await fsp.stat(full)
           size = st.size
           mtime = st.mtimeMs
+          birthtime = st.birthtimeMs
+          atime = st.atimeMs
         } catch {
           continue
         }
+      } else {
+        try {
+          const st = await fsp.stat(full)
+          mtime = st.mtimeMs
+          birthtime = st.birthtimeMs
+          atime = st.atimeMs
+        } catch {
+          /* dirs still indexed with zero times if unreadable */
+        }
       }
-      batch.push(fileRowFromPath(full, isDir, size, mtime))
+      batch.push(fileRowFromPath(full, isDir, size, mtime, null, birthtime, atime))
       processed++
       if (batch.length >= 500) {
         flush()

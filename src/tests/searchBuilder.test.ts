@@ -98,6 +98,35 @@ describe('buildSearchQuery', () => {
     expect(parsed.childName).toBe('readme')
     expect(parsed.depthMax).toBe(3)
   })
+
+  it('emits stream: from ADS stream builder fields', () => {
+    expect(
+      buildSearchQuery({
+        ...defaultPowerSearchState(),
+        adsStream: 'AUTOV2=4fd822d0a1'
+      })
+    ).toContain('stream:AUTOV2=4fd822d0a1')
+    expect(
+      buildSearchQuery({
+        ...defaultPowerSearchState(),
+        hasStream: true
+      })
+    ).toContain('hasstream:')
+  })
+
+  it('emits dc: / dm: / da: for created, modified, and accessed', () => {
+    const q = buildSearchQuery({
+      ...defaultPowerSearchState(),
+      dateCreated: 'today',
+      dateModified: 'thisweek',
+      dateAccessed: 'yesterday'
+    })
+    expect(q).toContain('dc:today')
+    expect(q).toContain('dm:thisweek')
+    expect(q).toContain('da:yesterday')
+    const parsed = parseEverythingQuery(q)
+    expect(parsed.dates.map((d) => d.field).sort()).toEqual(['atime', 'birthtime', 'mtime'])
+  })
 })
 
 describe('Power Search → query → match pipeline', () => {
