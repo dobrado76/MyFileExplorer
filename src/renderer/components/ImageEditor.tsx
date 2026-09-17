@@ -1,13 +1,37 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
-import FilerobotImageEditor, { TABS, TOOLS } from 'react-filerobot-image-editor'
+import FilerobotImageEditor, {
+  TABS,
+  TOOLS,
+  type getCurrentImgDataFunction
+} from 'react-filerobot-image-editor'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { ImageRemoveOverlay } from './ImageRemoveOverlay'
 
+/** Minimal design snapshot — Crop forces live rotation to 0 in Filerobot. */
+type DesignSnap = {
+  adjustments?: {
+    rotation?: number
+    isFlippedX?: boolean
+    isFlippedY?: boolean
+  }
+}
+
+function needsTransformBake(state: DesignSnap | null | undefined): boolean {
+  const adj = state?.adjustments
+  if (!adj) return false
+  if (Math.abs(adj.rotation ?? 0) > 0.01) return true
+  if (adj.isFlippedX || adj.isFlippedY) return true
+  return false
+}
+
 /**
- * Full-window Filerobot host. Image bytes come from main via IPC.
+ * Full-window Filerobot host. Image bytes come from main via IPC once;
+ * subsequent ops stay in memory until Save.
  * Remove mode runs local LaMa ONNX inpainting, then remounts Filerobot.
+ * Entering Crop after rotate/flip bakes the canvas into a new in-memory source
+ * (Filerobot Crop forces live rotation to 0 — without bake it looks like undo).
  * Save writes tip ADS (`VER_n`); `$DATA` stays the pristine original (D27).
  */
 export function ImageEditor(): JSX.Element | null {
@@ -22,17 +46,23 @@ export function ImageEditor(): JSX.Element | null {
   const [saving, setSaving] = useState(false)
   const [removeMode, setRemoveMode] = useState(false)
   const [removeBusy, setRemoveBusy] = useState(false)
+  const [baking, setBaking] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const getCurrentImgDataFnRef = useRef<getCurrentImgDataFunction | null>(null)
+  const designRef = useRef<DesignSnap | null>(null)
+  const bakingRef = useRef(false)
 
   useEffect(() => {
     if (!editor) {
       setSrc(null)
       setRemoveMode(false)
+      designRef.current = null
       return
     }
     let alive = true
     setSrc(null)
     setRemoveMode(false)
+    designRef.current = null
     void (async () => {
       try {
         const res = await call(api.fs.readImageForEdit({ path: editor.path }))
@@ -50,6 +80,39 @@ export function ImageEditor(): JSX.Element | null {
       alive = false
     }
   }, [editor, notify, closeImageEditor])
+
+  const bakeTransformsIntoSource = (): boolean => {
+    if (bakingRef.current) return false
+    const fn = getCurrentImgDataFnRef.current
+    if (typeof fn !== 'function') return false
+    if (!needsTransformBake(designRef.current)) return false
+    bakingRef.current = true
+    setBaking(true)
+    try {
+      // 2nd arg false → use config savingPixelRatio; 3rd keeps spinner until we hide.
+      const { imageData, hideLoadingSpinner } = fn({ extension: 'png' }, false, true)
+      try {
+        hideLoadingSpinner?.()
+      } catch {
+        /* ignore */
+      }
+      const raw = imageData.imageBase64
+      if (!raw) return false
+      const dataUrl = raw.startsWith('data:')
+        ? raw
+        : `data:${imageData.mimeType ?? 'image/png'};base64,${raw}`
+      designRef.current = null
+      setSrc(dataUrl)
+      setSrcKey((k) => k + 1)
+      return true
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not apply transform before crop', true)
+      return false
+    } finally {
+      bakingRef.current = false
+      setBaking(false)
+    }
+  }
 
   // Filename in topbar + Remove tab under Resize (same Filerobot tab chrome).
   useEffect(() => {
@@ -108,6 +171,10 @@ export function ImageEditor(): JSX.Element | null {
       removeTab.onclick = (e) => {
         e.preventDefault()
         e.stopPropagation()
+        // Bake pending rotate/flip before leaving Adjust (same as Crop).
+        if (needsTransformBake(designRef.current)) {
+          bakeTransformsIntoSource()
+        }
         setRemoveMode(true)
       }
     }
@@ -119,13 +186,35 @@ export function ImageEditor(): JSX.Element | null {
       window.clearInterval(id)
       window.clearTimeout(stop)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bake uses refs
   }, [src, editor, removeMode, srcKey])
+
+  // Crop tool zeros live rotation in Filerobot — bake first when transforms are pending.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root || !src || removeMode) return
+
+    const onPointerDownCapture = (e: PointerEvent): void => {
+      const el = e.target as Element | null
+      if (!el?.closest) return
+      const cropBtn = el.closest('[data-testid="FIE-tools-bar-item-button-crop"]')
+      if (!cropBtn) return
+      if (!needsTransformBake(designRef.current)) return
+      e.preventDefault()
+      e.stopPropagation()
+      bakeTransformsIntoSource()
+    }
+
+    root.addEventListener('pointerdown', onPointerDownCapture, true)
+    return () => root.removeEventListener('pointerdown', onPointerDownCapture, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bake uses refs
+  }, [src, srcKey, removeMode])
 
   useEffect(() => {
     if (!editor) return
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return
-      if (removeBusy || saving) {
+      if (removeBusy || saving || baking) {
         e.preventDefault()
         e.stopPropagation()
         return
@@ -140,7 +229,7 @@ export function ImageEditor(): JSX.Element | null {
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [editor, saving, removeMode, removeBusy, closeImageEditor])
+  }, [editor, saving, baking, removeMode, removeBusy, closeImageEditor])
 
   const runSaveAs = async (dataBase64: string | undefined): Promise<void> => {
     if (!editor || !dataBase64) {
@@ -183,6 +272,7 @@ export function ImageEditor(): JSX.Element | null {
               setSrc(dataUrl)
               setSrcKey((k) => k + 1)
               setRemoveMode(false)
+              designRef.current = null
               notify('Remove applied — Save when ready', false)
             }}
           />
@@ -202,6 +292,10 @@ export function ImageEditor(): JSX.Element | null {
             defaultSavedImageType={extToSavedType(editor.path)}
             savingPixelRatio={Math.min(2, window.devicePixelRatio || 1)}
             previewPixelRatio={Math.min(2, window.devicePixelRatio || 1)}
+            getCurrentImgDataFnRef={getCurrentImgDataFnRef}
+            onModify={(state) => {
+              designRef.current = state as DesignSnap
+            }}
             Crop={{
               // Free-form: corner moves two adjacent sides (patched in postinstall).
               ratio: 'custom',
@@ -247,7 +341,7 @@ export function ImageEditor(): JSX.Element | null {
               }
             }}
             onClose={() => {
-              if (!saving) closeImageEditor()
+              if (!saving && !baking) closeImageEditor()
             }}
           />
         )}
