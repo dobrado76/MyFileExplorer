@@ -159,7 +159,7 @@ export function classifyFolderStatsExt(
   const e = ext.startsWith('.') ? ext.slice(1).toLowerCase() : ext.toLowerCase()
   if (IMAGE_EXTS.has(e)) return 'images'
   if (VIDEO_EXTS.has(e)) return 'videos'
-  // Bare `.ts` / `.mts`: tiny files are TypeScript; ≥1 MiB is treated as MPEG-TS.
+  // Bare `.ts` / `.mts`: tiny files are TypeScript; >= 1 MiB is treated as MPEG-TS.
   if (AMBIGUOUS_TS_VIDEO_EXTS.has(e)) {
     if (sizeBytes != null && sizeBytes >= FOLDER_STATS_TS_VIDEO_MIN_BYTES) return 'videos'
     return 'documents'
