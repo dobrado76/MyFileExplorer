@@ -1,6 +1,7 @@
 import { AppError } from '@shared/result'
 import { isMediaApiLimitPayload, mediaApiLimitMessage } from '@shared/mediaApiLimit'
 import {
+  assertSafeMediaMetadataOutboundTitle,
   decideNamedMatches,
   NeedsMediaPickError,
   type MediaMetadata,
@@ -568,6 +569,7 @@ export async function listTmdbPosterPaths(opts: {
     kind = 'tv'
     id = Number(tv[1])
   } else if (opts.title) {
+    assertSafeMediaMetadataOutboundTitle(opts.title)
     const q = encodeURIComponent(opts.title)
     const yearQ = opts.year ? `&year=${opts.year}` : ''
     try {
@@ -619,6 +621,8 @@ export async function downloadFromInternet(
   queryKind?: MediaQueryKind,
   pickId?: string
 ): Promise<NetHit> {
+  // Privacy: title/year/kind (and optional remote ids) only — never paths or file bytes.
+  assertSafeMediaMetadataOutboundTitle(parsed.title)
   const s = getSettings().mediaMetadata
   const preferred = s.internetSource
   const tmdb = s.tmdbApiKey.trim()
@@ -643,6 +647,8 @@ export async function downloadFromInternet(
 }
 
 export async function downloadImage(url: string): Promise<Buffer | null> {
+  // Pull posters only — never read or upload local file paths.
+  if (!/^https?:\/\//i.test(url.trim())) return null
   try {
     const ac = new AbortController()
     const t = setTimeout(() => ac.abort(), 20000)

@@ -18,6 +18,7 @@ import {
   resolveMediaAskAiKind
 } from '@shared/mediaAskAi'
 import { requireAbsolute } from '../fs/list'
+import { requireMediaMetadataNetworkTarget } from '../mediaMetadata/outboundPrivacy'
 import { readMediaMetadata } from '../mediaMetadata/store'
 import { normalizeEpisodeFields } from '@shared/mediaMetadata'
 import { completeChatMessages, resolveProviderForUi } from './provider'
@@ -132,6 +133,8 @@ export async function startMediaAskAi(input: {
   if (abs.toLowerCase().startsWith('mfe-remote://')) {
     throw new AppError('validation', 'Ask AI is not available on remote paths')
   }
+  // Privacy: only video files / folders with videos; prompts use title/year/kind only (never paths or bytes).
+  await requireMediaMetadataNetworkTarget(abs)
   let st
   try {
     st = await fsp.stat(abs)

@@ -12,6 +12,7 @@ import {
   tmdbPosterOriginalUrl,
   tmdbPosterPreviewUrl
 } from './internet'
+import { requireMediaMetadataNetworkTarget } from './outboundPrivacy'
 import {
   downloadPlexThumb,
   extractFromPlex,
@@ -442,6 +443,7 @@ export async function listMediaCovers(rawPath: string): Promise<{
   covers: MediaCoverChoice[]
 }> {
   const file = requireAbsolute(rawPath)
+  await requireMediaMetadataNetworkTarget(file)
   pruneSessions()
   const fileKey = sessionKey(file)
   const job = ++coverListJob
@@ -486,6 +488,7 @@ export async function loadCustomCover(
   rawImagePath: string
 ): Promise<MediaCoverChoice> {
   const file = requireAbsolute(rawMediaPath)
+  await requireMediaMetadataNetworkTarget(file)
   const imagePath = requireAbsolute(rawImagePath)
   const buf = usableImage(await fsp.readFile(imagePath))
   if (!buf) {
@@ -528,6 +531,7 @@ export async function setMediaCover(
   previewBase64?: string
 ): Promise<void> {
   const file = requireAbsolute(rawPath)
+  await requireMediaMetadataNetworkTarget(file)
   const key = sessionKey(file)
   const session = sessions.get(key) ?? sessions.get(file.toLowerCase())
   const buf =

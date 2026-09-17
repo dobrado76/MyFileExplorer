@@ -28,6 +28,7 @@ import {
 } from '@shared/mediaMetadata'
 import { isUnderPath, samePath } from '@shared/paths'
 import { requireAbsolute } from '../fs/list'
+import { requireMediaMetadataNetworkTarget } from './outboundPrivacy'
 import { beginOp } from '../fs/opProgress'
 import { invalidateColumnMetaPaths } from '../meta/columns'
 import { firstPortraitCover, isPortraitCoverBuffer } from './coverImage'
@@ -331,6 +332,7 @@ async function extractOnePlex(
   queryKind: MediaQueryKind,
   nameHint?: string
 ): Promise<void> {
+  await requireMediaMetadataNetworkTarget(target)
   const st = await fsp.stat(target)
   const plexOpts = { prefer: queryKind }
   if (st.isFile()) {
@@ -371,6 +373,7 @@ async function downloadOneInternet(
   pickId?: string,
   nameHint?: string
 ): Promise<void> {
+  await requireMediaMetadataNetworkTarget(target)
   const st = await fsp.stat(target)
   const parsed = nameHint
     ? parseMediaSearchAs(nameHint)

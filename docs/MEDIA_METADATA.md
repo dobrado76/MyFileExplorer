@@ -6,6 +6,10 @@ Opt-in movie and TV cards for a local library. Title, year, genres, cast, rating
 
 A first install stays a plain file manager. Nothing of this appears until you turn the feature on.
 
+### Privacy (outbound)
+
+TMDB, OMDb, Plex HTTP, cover fetches, and Media **Ask AI** never upload file **content**. Network queries use **titles** only — stems parsed from **video/movie filenames**, show/movie **folder** names after the folder is confirmed to contain videos, typed **Search as** text, or already-stored metadata titles. Images, subtitles, documents, and other non-video files are refused at the lookup boundary.
+
 Locked choice: [DECISIONS.md](DECISIONS.md) **D50**. Streams: [ADS.md](ADS.md). Settings keys: [PROJECT_FORMAT.md](PROJECT_FORMAT.md). IPC: [IPC_CONTRACT.md](IPC_CONTRACT.md).
 
 ---

@@ -32,7 +32,7 @@ Renderer must not read arbitrary files via `file://`. Use `mfe-media://` (name T
 - Thumb cache directory inside userData
 - Custom tab icons directory `userData/tab-icons` (D54)
 
-**Media metadata (D50)** writes NTFS streams on the **user-selected** file/folder (and its parent container flag) only after a context-menu or preview action. Paths go through `requireAbsolute` like other FS IPC. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
+**Media metadata (D50)** writes NTFS streams on the **user-selected** file/folder (and its parent container flag) only after a context-menu or preview action. Paths go through `requireAbsolute` like other FS IPC. **Outbound** TMDB / OMDb / Plex / Ask AI calls send **titles** (parsed from video filenames, folder titles after videos are confirmed, or typed Search-as text) — never file bytes, and never non-video basenames. See [MEDIA_METADATA.md](MEDIA_METADATA.md).
 
 ---
 

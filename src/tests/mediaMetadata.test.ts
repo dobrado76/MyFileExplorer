@@ -24,6 +24,8 @@ import {
   isMoviePartVideoName,
   isMultipartMovieFolder,
   isMediaMetadataVideoName,
+  isSafeMediaMetadataOutboundTitle,
+  assertSafeMediaMetadataOutboundTitle,
   matchesMediaLibraryFilter,
   mediaContainerIgnoresFoldersFirst,
   preferredMediaDownloadSource,
@@ -76,6 +78,18 @@ describe('parseMediaFileName', () => {
     expect(p.title).toBe('The Matrix')
     expect(p.year).toBe(1999)
     expect(p.kind).toBe('movie')
+  })
+
+  it('outbound titles reject paths and non-video filenames', () => {
+    expect(isSafeMediaMetadataOutboundTitle('The Matrix')).toBe(true)
+    expect(isSafeMediaMetadataOutboundTitle('Breaking Bad (2008)')).toBe(true)
+    expect(isSafeMediaMetadataOutboundTitle('C:\\Movies\\foo.mkv')).toBe(false)
+    expect(isSafeMediaMetadataOutboundTitle('\\\\nas\\share\\show')).toBe(false)
+    expect(isSafeMediaMetadataOutboundTitle('vacation.jpg')).toBe(false)
+    expect(isSafeMediaMetadataOutboundTitle('notes.txt')).toBe(false)
+    expect(isSafeMediaMetadataOutboundTitle('subs.srt')).toBe(false)
+    expect(isSafeMediaMetadataOutboundTitle('')).toBe(false)
+    expect(() => assertSafeMediaMetadataOutboundTitle('poster.png')).toThrow(/Refusing/)
   })
 
   it('parses SxxExx episodes', () => {

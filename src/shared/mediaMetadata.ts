@@ -143,6 +143,35 @@ export function isMediaMetadataVideoName(name: string): boolean {
   return VIDEO_EXT_RE.test(name)
 }
 
+/**
+ * Extensions that must never seed TMDB/OMDb/Plex title search (images, subs, docs, audio, …).
+ * Video extensions are allowed only as a basename we strip before querying.
+ */
+const NON_VIDEO_OUTBOUND_EXT_RE =
+  /\.(jpe?g|png|gif|webp|bmp|tiff?|heic|svg|ico|srt|ass|ssa|vtt|sub|idx|txt|nfo|json|xml|html?|pdf|docx?|xlsx?|pptx?|zip|rar|7z|gz|mp3|flac|wav|aac|m4a|ogg|opus|iso|exe|dll|msi|bat|cmd|ps1|js|ts|css)$/i
+
+/**
+ * Privacy: strings that may leave the machine for media lookup APIs.
+ * Titles / Search-as text only — never paths, never non-video filenames, never file bytes.
+ */
+export function isSafeMediaMetadataOutboundTitle(title: string): boolean {
+  const t = title.trim()
+  if (!t || t.length > 400) return false
+  if (/[\\/\0]/.test(t)) return false
+  if (/^[a-zA-Z]:/.test(t)) return false
+  if (/^\\\\/.test(t)) return false
+  if (NON_VIDEO_OUTBOUND_EXT_RE.test(t)) return false
+  return true
+}
+
+export function assertSafeMediaMetadataOutboundTitle(title: string): void {
+  if (!isSafeMediaMetadataOutboundTitle(title)) {
+    throw new Error(
+      'Refusing to send a path or non-video filename to a media lookup service (titles only)'
+    )
+  }
+}
+
 const JUNK_RE =
   /\b(1080p|720p|2160p|480p|4k|uhd|bluray|blu-?ray|webrip|web-?dl|webdl|hdtv|dvdrip|brrip|bdrip|x264|x265|h\.?264|h\.?265|hevc|avc|aac|ac3|dts|truehd|atmos|hdr10|hdr|dv|dolby|remux|proper|repack|extended|unrated|directors?\.?cut|multi|yify|rarbg|etrg|sparks|amiable|internal|limited|complete|season|disc\d+|cd\d+|part\s*\d+)\b/gi
 

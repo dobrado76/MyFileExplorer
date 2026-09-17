@@ -3,11 +3,14 @@ import { existsSync } from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import {
+  assertSafeMediaMetadataOutboundTitle,
+  isMediaMetadataVideoName,
   parseMediaSearchAs,
   type MediaMetadata,
   type MediaMetadataRating,
   type MediaQueryKind
 } from '@shared/mediaMetadata'
+import { AppError } from '@shared/result'
 import { logMain } from '../logging'
 import { getSettings } from '../settings/store'
 import {
@@ -348,9 +351,11 @@ async function lookupShowByTitle(
   title: string,
   prefer?: MediaQueryKind
 ): Promise<PlexHit | null> {
+  assertSafeMediaMetadataOutboundTitle(title)
   try {
     const parsed = parseMediaSearchAs(title)
     const query = parsed.title || title
+    assertSafeMediaMetadataOutboundTitle(query)
     const payload = await plexGet(
       resolved.url,
       resolved.token,
@@ -953,6 +958,7 @@ export async function extractFromPlex(
   if (!plexLooksInstalled(resolved.dataDir) && !resolved.token) {
     throw new Error('Plex Media Server was not found on this PC')
   }
+  if (hintTitle) assertSafeMediaMetadataOutboundTitle(hintTitle)
   const finish = (hit: PlexHit): Promise<PlexHit> | PlexHit =>
     hit.meta.kind === 'episode' || opts?.skipPoster ? hit : withPoster(resolved, hit)
 
@@ -969,6 +975,14 @@ export async function extractFromPlex(
     }
     throw new Error(
       `No Plex match for ${path.basename(filePath)}${resolved.token ? '' : ' (no Plex token; is the server signed in?)'}`
+    )
+  }
+
+  // Privacy: only video basenames participate in Plex file matching (never images/subs/text).
+  if (!isMediaMetadataVideoName(path.basename(filePath))) {
+    throw new AppError(
+      'validation',
+      'Plex media lookup only runs for video files (never images, subtitles, or other files)'
     )
   }
 
