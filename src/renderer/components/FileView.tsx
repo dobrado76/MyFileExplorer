@@ -985,7 +985,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     () => [...new Set([...fileMetaColumns, ...dirMetaColumns])],
     [fileMetaColumns, dirMetaColumns]
   )
-  const requestedMetaRef = useRef(new Set<string>())
+  const requestedMetaRef = useRef(new Map<string, string>())
+  const entryMetaStamp = (e: { mtimeMs: number; size: number }): string =>
+    `${e.mtimeMs}:${e.size}`
 
   const recycleByPath = useMemo(() => {
     const m = new Map<string, RecycleBinItem>()
@@ -1355,7 +1357,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       }
       return next
     })
-    for (const k of [...requestedMetaRef.current]) {
+    for (const k of [...requestedMetaRef.current.keys()]) {
       if (samePath(k, target)) requestedMetaRef.current.delete(k)
     }
   }, [columnMetaBump.rev, columnMetaBump.path, folderPath, metaFetchColumns, clearUserMetadataSessionPath])
@@ -1364,26 +1366,36 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
   useEffect(() => {
     if (metaFetchColumns.length === 0 || visibleRangeEnd < visibleRangeStart) return
     const needed: string[] = []
+    const stale: string[] = []
+    const consider = (e: (typeof entries)[number] | undefined): void => {
+      if (!e) return
+      const want = e.kind === 'dir' ? dirMetaColumns.length > 0 : fileMetaColumns.length > 0
+      if (!want) return
+      const stamp = entryMetaStamp(e)
+      const prev = requestedMetaRef.current.get(e.path)
+      if (prev === stamp) return
+      if (prev !== undefined) stale.push(e.path)
+      requestedMetaRef.current.set(e.path, stamp)
+      needed.push(e.path)
+    }
     for (let row = visibleRangeStart; row <= visibleRangeEnd; row++) {
       if (spec) {
         const start = row * columns
-        for (let i = 0; i < columns; i++) {
-          const e = entries[start + i]
-          if (!e || requestedMetaRef.current.has(e.path)) continue
-          const want =
-            e.kind === 'dir' ? dirMetaColumns.length > 0 : fileMetaColumns.length > 0
-          if (!want) continue
-          requestedMetaRef.current.add(e.path)
-          needed.push(e.path)
-        }
+        for (let i = 0; i < columns; i++) consider(entries[start + i])
       } else {
-        const e = entries[row]
-        if (!e || requestedMetaRef.current.has(e.path)) continue
-        const want = e.kind === 'dir' ? dirMetaColumns.length > 0 : fileMetaColumns.length > 0
-        if (!want) continue
-        requestedMetaRef.current.add(e.path)
-        needed.push(e.path)
+        consider(entries[row])
       }
+    }
+    if (stale.length > 0) {
+      setMetaByPath((prev) => {
+        let next: Record<string, EntryColumnValues> | null = null
+        for (const p of stale) {
+          if (prev[p] === undefined) continue
+          if (!next) next = { ...prev }
+          delete next[p]
+        }
+        return next ?? prev
+      })
     }
     if (needed.length === 0) return
     void (async () => {
