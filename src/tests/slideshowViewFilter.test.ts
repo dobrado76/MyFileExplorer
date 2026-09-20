@@ -52,7 +52,8 @@ describe('listSlideshowImages view filter', () => {
       const { paths } = await listSlideshowImages({
         roots: [root],
         order: 'name',
-        ascending: true
+        ascending: true,
+        recursive: true
       })
       expect(paths.map((p) => path.basename(p))).toEqual(['keep.jpg'])
     } finally {
@@ -71,7 +72,8 @@ describe('listSlideshowImages view filter', () => {
       const { paths } = await listSlideshowImages({
         roots: [root],
         order: 'name',
-        ascending: true
+        ascending: true,
+        recursive: true
       })
       expect(paths.map((p) => path.basename(p)).sort()).toEqual(['keep.jpg', 'skip.jpg'])
     } finally {
@@ -109,7 +111,8 @@ describe('listSlideshowImages view filter', () => {
       const { paths } = await listSlideshowImages({
         roots: [root],
         order: 'name',
-        ascending: true
+        ascending: true,
+        recursive: true
       })
       expect(paths.map((p) => path.basename(p))).toEqual(['keep.jpg'])
     } finally {
