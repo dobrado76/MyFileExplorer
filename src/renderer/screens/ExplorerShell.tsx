@@ -75,6 +75,8 @@ export function ExplorerShell(): JSX.Element {
     s.slideshow.active ? slideshowCurrentPath(s.slideshow.active) : null
   )
   const titleFilename = useAppStore((s) => s.settings.slideshow.titleFilename === true)
+  const shellClosePrompt = useAppStore((s) => s.shellClosePrompt)
+  const resolveShellClose = useAppStore((s) => s.resolveShellClose)
   const [appVersion, setAppVersion] = useState<string | null>(null)
   const previewTarget = usePreviewTarget()
 
@@ -326,6 +328,7 @@ export function ExplorerShell(): JSX.Element {
     window.addEventListener('auxclick', onMouseHistoryNav)
     const unsub = window.myFileExplorer.onEvent((event) => {
       if (event.type !== 'history-nav') return
+      if (!document.hasFocus()) return
       tryHistoryNav(event.payload.dir)
     })
     return () => {
@@ -418,6 +421,31 @@ export function ExplorerShell(): JSX.Element {
       <ContextMenu />
       <GitFileHistoryHost />
       <Dialogs />
+      {shellClosePrompt ? (
+        <div className="modal-backdrop" role="presentation">
+          <div className="modal" role="dialog" aria-label="Close window">
+            <div className="modal-title">Close window</div>
+            <div className="modal-body">
+              <p>Merge this window’s tabs into the main window, or close them?</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn" onClick={() => void resolveShellClose('cancel')}>
+                Cancel
+              </button>
+              <button type="button" className="btn" onClick={() => void resolveShellClose('discard')}>
+                Close tabs
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => void resolveShellClose('merge')}
+              >
+                Merge into main window
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <ImageViewer />
       <SlideshowOverlay />
       {imageEditorOpen ? (

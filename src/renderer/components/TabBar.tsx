@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation, type Tab } from '../store/appStore'
 import { basename, samePath, parentOf } from '../lib/paths'
-import type { ClosedTabEntry } from '@shared/schemas/session'
+import type { ClosedTabEntry, ClosedWindowEntry } from '@shared/schemas/session'
 import {
   findDropDirAt,
   getLiveRightDragSession,
@@ -60,6 +60,12 @@ export function TabBar(): JSX.Element {
   const reopenClosedTab = useAppStore((s) => s.reopenClosedTab)
   const clearClosedTabs = useAppStore((s) => s.clearClosedTabs)
   const closedTabs = useAppStore((s) => s.closedTabs)
+  const closedWindows = useAppStore((s) => s.closedWindows)
+  const shellId = useAppStore((s) => s.shellId)
+  const moveTabToNewWindow = useAppStore((s) => s.moveTabToNewWindow)
+  const mergeShellIntoMain = useAppStore((s) => s.mergeShellIntoMain)
+  const reopenClosedWindow = useAppStore((s) => s.reopenClosedWindow)
+  const clearClosedWindows = useAppStore((s) => s.clearClosedWindows)
   const newTab = useAppStore((s) => s.newTab)
   const duplicateTab = useAppStore((s) => s.duplicateTab)
   const renameTab = useAppStore((s) => s.renameTab)
@@ -610,9 +616,35 @@ export function TabBar(): JSX.Element {
               <div className="menu-sep" />
               <button
                 type="button"
-                className="menu-item danger"
+                className="menu-item"
                 role="menuitem"
                 disabled={tabs.length <= 1}
+                onClick={() => {
+                  setMenu(null)
+                  void moveTabToNewWindow(menuTab.id)
+                }}
+              >
+                Move to new window
+              </button>
+              {shellId !== 'main' ? (
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenu(null)
+                    void mergeShellIntoMain()
+                  }}
+                >
+                  Merge into main window
+                </button>
+              ) : null}
+              <div className="menu-sep" />
+              <button
+                type="button"
+                className="menu-item danger"
+                role="menuitem"
+                disabled={tabs.length <= 1 && shellId === 'main'}
                 onClick={() => {
                   setMenu(null)
                   void closeTab(menuTab.id)
@@ -630,6 +662,17 @@ export function TabBar(): JSX.Element {
                 onClear={() => {
                   setMenu(null)
                   clearClosedTabs()
+                }}
+              />
+              <TabReopenWindowItems
+                closedWindows={closedWindows}
+                onReopen={(i) => {
+                  setMenu(null)
+                  void reopenClosedWindow(i)
+                }}
+                onClear={() => {
+                  setMenu(null)
+                  clearClosedWindows()
                 }}
               />
             </div>,
@@ -656,11 +699,69 @@ export function TabBar(): JSX.Element {
                   clearClosedTabs()
                 }}
               />
+              <TabReopenWindowItems
+                closedWindows={closedWindows}
+                onReopen={(i) => {
+                  setMenu(null)
+                  void reopenClosedWindow(i)
+                }}
+                onClear={() => {
+                  setMenu(null)
+                  clearClosedWindows()
+                }}
+              />
             </div>,
             document.body
           )
         : null}
     </div>
+  )
+}
+
+function closedWindowLabel(entry: ClosedWindowEntry): string {
+  const first = entry.tabs[0]
+  const name = first ? closedTabLabel(first) : 'Window'
+  return entry.tabs.length > 1 ? `${name} (+${entry.tabs.length - 1})` : name
+}
+
+function TabReopenWindowItems(props: {
+  closedWindows: ClosedWindowEntry[]
+  onReopen: (index: number) => void
+  onClear: () => void
+}): JSX.Element {
+  const empty = props.closedWindows.length === 0
+  return (
+    <>
+      <button
+        type="button"
+        className="menu-item"
+        role="menuitem"
+        disabled={empty}
+        onClick={() => props.onReopen(0)}
+      >
+        Reopen closed window
+      </button>
+      {props.closedWindows.slice(0, 8).map((entry, i) => (
+        <button
+          key={`${entry.closedAt}-${i}`}
+          type="button"
+          className="menu-item"
+          role="menuitem"
+          onClick={() => props.onReopen(i)}
+        >
+          {closedWindowLabel(entry)}
+        </button>
+      ))}
+      <button
+        type="button"
+        className="menu-item"
+        role="menuitem"
+        disabled={empty}
+        onClick={props.onClear}
+      >
+        Clear recently closed windows
+      </button>
+    </>
   )
 }
 

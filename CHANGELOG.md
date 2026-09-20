@@ -9,6 +9,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Detachable explorer windows** — tab menu **Move to new window** opens another shell (same app, own monitor). **Merge into main window** sends those tabs back. Closing that window asks Merge or Close tabs. **Reopen closed window** restores the last closed one. Dragging a tab off the bar is not in this version.
+- **Slideshow Include subfolders** — Settings → Slideshow toggle (on by default). Off limits Start Slideshow to images in the selected folder; on keeps the previous recursive walk.
 - **Power Search tabs + full dates** — builder uses rounded tabs (Name & Text default; Date = created / modified / last accessed). Emits `dc:` / `dm:` / `da:` (alias `dateaccessed:`). Index stores `birthtime_ms` / `atime_ms`; missing times fail closed. ADS + user metadata live on the **Metadata** tab.
 - **Power Search ADS streams** — `stream:Name`, `stream:Name=value`, `hasstream:` (aliases `ads:` / `hasads:`) filter by NTFS alternate data streams; Power Search → **Metadata** → **ADS stream**.
 - **Settings Font family** — Appearance uses a dropdown of common Windows UI fonts (Segoe UI, Calibri, Consolas, Cascadia, …) instead of a free-text box; an imported custom family stays listed if it is not in the curated set.

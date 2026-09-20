@@ -52,8 +52,8 @@ Cold start shows a small branded splash (icon + “Starting…”) until the mai
 | Persist          | Tabs + active index restored on launch                                                     |
 | Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
 | Icon             | Optional **Lucide / Phosphor / Tabler** icon + color (optional `pack`, default Lucide), or a **custom** .png/.jpg/.ico (cover-cropped square). Right-click → Set icon → Custom icon… for image, label on/off, and size. Icon-only tabs use tight chrome so they work as categorizer drop bins. Session/layouts (D32 / D54) |
-| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Close**, **Reopen closed tab** / **Recently closed** / **Clear recently closed** |
-| Reopen           | `Ctrl+Shift+T` restores the last closed tab (stack in `session.json`, cap 25). **Clear recently closed** empties the stack (persisted). Empty tab-bar context has the same items (D55) |
+| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Move to new window**, **Merge into main window** (floating shell), **Close**, **Reopen closed tab** / **Recently closed**, **Reopen closed window** / **Clear recently closed windows** |
+| Reopen           | `Ctrl+Shift+T` restores the last closed tab (stack in `session.json`, cap 25). **Reopen closed window** restores the last closed floating explorer window (cap 10, D73). **Clear recently closed** empties the tab stack (persisted). Empty tab-bar context has the same items (D55 / D73) |
 | Reorder          | Drag tabs to reorder; order persisted                                                      |
 | Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
 | Close            | Middle-click / close button / context menu; confirm if that tab has an in-progress destructive op (rare) |

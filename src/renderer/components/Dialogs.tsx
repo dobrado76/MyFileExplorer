@@ -3018,6 +3018,14 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                   checked={settings.slideshow.loop}
                   onChange={(v) => void applySettingsPatch({ slideshow: { loop: v } })}
                 />
+                <SettingsToggle
+                  id="set-ss-recursive"
+                  label="Include subfolders"
+                  hint="Off = images in the selected folder only"
+                  hintAsTooltip
+                  checked={settings.slideshow.recursive !== false}
+                  onChange={(v) => void applySettingsPatch({ slideshow: { recursive: v } })}
+                />
               </div>
               <SettingsToggle
                 id="set-ss-title-filename"

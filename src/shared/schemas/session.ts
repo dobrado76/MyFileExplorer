@@ -130,18 +130,51 @@ export const tabStateSchema = z.object({
    * In-document Virtual Folder group stack (entry ids). Empty = document root.
    * `Tab.path` stays the `.mfevirtual` file; this is only the nested group cwd.
    */
-  virtualFolderGroupStack: z.array(z.string().min(1)).catch([])
+  virtualFolderGroupStack: z.array(z.string().min(1)).catch([]),
+  /** Explorer shell that shows this tab. `main` is the primary window (D73). */
+  windowId: z.string().min(1).catch('main')
 })
 export type TabState = z.infer<typeof tabStateSchema>
 
 /** Cap recently-closed tab stack in session.json (D55). */
 export const MAX_CLOSED_TABS = 25
 
+/** Cap recently-closed floating explorer windows (D73). */
+export const MAX_CLOSED_WINDOWS = 10
+
+export const MAIN_SHELL_ID = 'main'
+
 export const closedTabEntrySchema = z.object({
   tab: tabStateSchema,
   paneIndex: z.number().int().min(0).nullable().catch(null)
 })
 export type ClosedTabEntry = z.infer<typeof closedTabEntrySchema>
+
+export const explorerWindowBoundsSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number().catch(1100),
+  height: z.number().catch(700)
+})
+export type ExplorerWindowBounds = z.infer<typeof explorerWindowBoundsSchema>
+
+/** Secondary explorer shell (layout is always a single pane). */
+export const explorerWindowSchema = z.object({
+  id: z.string().min(1),
+  kind: z.literal('float').catch('float'),
+  bounds: explorerWindowBoundsSchema.nullable().catch(null),
+  maximized: z.boolean().catch(false),
+  activeTabId: z.string().nullable().catch(null)
+})
+export type ExplorerWindowState = z.infer<typeof explorerWindowSchema>
+
+export const closedWindowEntrySchema = z.object({
+  closedAt: z.number().catch(() => Date.now()),
+  bounds: explorerWindowBoundsSchema.nullable().catch(null),
+  maximized: z.boolean().catch(false),
+  tabs: z.array(closedTabEntrySchema).min(1)
+})
+export type ClosedWindowEntry = z.infer<typeof closedWindowEntrySchema>
 
 export const splittersSchema = z.object({
   treeWidthPx: z.number().min(0).catch(240),
@@ -244,6 +277,13 @@ export const sessionSchema = z.preprocess(
       .array(closedTabEntrySchema)
       .catch([])
       .transform((arr) => arr.slice(0, MAX_CLOSED_TABS)),
+    /** Floating explorer windows (D73). The primary shell is implicit (`main`). */
+    explorerWindows: z.array(explorerWindowSchema).catch([]),
+    /** Last-closed-first floating windows (cap 10). */
+    closedWindows: z
+      .array(closedWindowEntrySchema)
+      .catch([])
+      .transform((arr) => arr.slice(0, MAX_CLOSED_WINDOWS)),
     /** Layout the live tabs were last applied from or saved as (D25 auto-save). */
     activeLayoutId: z.string().min(1).nullable().catch(null)
   })
@@ -267,5 +307,22 @@ export const defaultSession: SessionState = {
   paneSplitCols: 0.5,
   paneSplitRows: 0.5,
   closedTabs: [],
+  explorerWindows: [],
+  closedWindows: [],
   activeLayoutId: null
 }
+
+export const explorerShellRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('detach'), tab: tabStateSchema }),
+  z.object({ action: z.literal('merge') }),
+  z.object({ action: z.literal('discard'), tabs: z.array(tabStateSchema) }),
+  z.object({ action: z.literal('reopen'), index: z.number().int().min(0).optional() }),
+  z.object({ action: z.literal('clearClosedWindows') }),
+  z.object({
+    action: z.literal('saveTabs'),
+    tabs: z.array(tabStateSchema),
+    activeTabId: z.string().nullable(),
+    closedTabs: z.array(closedTabEntrySchema).optional()
+  })
+])
+export type ExplorerShellRequest = z.infer<typeof explorerShellRequestSchema>

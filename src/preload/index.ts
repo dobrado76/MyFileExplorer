@@ -23,7 +23,13 @@ function invokeRaw(channel: string, req?: unknown): Promise<unknown> {
   return ipcRenderer.invoke(channel, req)
 }
 
+function shellIdFromArgv(): string {
+  const hit = process.argv.find((a) => a.startsWith('--mfe-shell='))
+  return hit && hit.length > '--mfe-shell='.length ? hit.slice('--mfe-shell='.length) : 'main'
+}
+
 const api: MyFileExplorerApi = {
+  shellId: shellIdFromArgv(),
   fs: {
     list: invoke(IPC.fsList),
     stat: invoke(IPC.fsStat),
@@ -129,6 +135,9 @@ const api: MyFileExplorerApi = {
   session: {
     get: invokeVoid(IPC.sessionGet),
     set: invoke(IPC.sessionSet)
+  },
+  explorer: {
+    command: invoke(IPC.explorerShell)
   },
   settings: {
     get: invokeVoid(IPC.settingsGet),

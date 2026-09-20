@@ -21,7 +21,13 @@ import type {
   Splitters,
   ClosedTabEntry
 } from '@shared/schemas/session'
-import { coerceViewLayout, sanitizePaneTreeCollapsed, MAX_CLOSED_TABS } from '@shared/schemas/session'
+import {
+  coerceViewLayout,
+  sanitizePaneTreeCollapsed,
+  MAX_CLOSED_TABS,
+  MAIN_SHELL_ID,
+  type ClosedWindowEntry
+} from '@shared/schemas/session'
 import { issueKey } from '@shared/opIssues'
 import { defaultTabIcon } from '@shared/tabIcons'
 import type { HistoryEntry } from '@shared/tabHistory'
@@ -616,6 +622,12 @@ type AppState = {
   activeTabId: string
   /** Last-closed first; persisted in session.json (D55). */
   closedTabs: ClosedTabEntry[]
+  /** Last-closed floating explorer windows (D73). */
+  closedWindows: ClosedWindowEntry[]
+  /** This renderer’s shell (`main` or a float id). */
+  shellId: string
+  /** Float window close: Merge vs Close tabs. */
+  shellClosePrompt: boolean
   splitters: Splitters
   /** Multi-pane layout (D31): 1 | 2 side-by-side | 3 wide-top | 4 (2×2). */
   viewLayout: ViewLayout
@@ -855,6 +867,13 @@ type AppState = {
   /** Open/reveal a path from CLI or another app (new or existing tab). */
   openExternalTarget(path: string, reveal: boolean): Promise<void>
   closeTab(id: string): Promise<void>
+  /** Move this tab into a new explorer window (D73). No-op if it is the only tab. */
+  moveTabToNewWindow(id: string): Promise<void>
+  /** Float only: send every tab back to the main window and close. */
+  mergeShellIntoMain(): Promise<void>
+  reopenClosedWindow(index?: number): Promise<void>
+  clearClosedWindows(): void
+  resolveShellClose(choice: 'merge' | 'discard' | 'cancel'): Promise<void>
   /** Restore a closed tab (0 = most recent). No-op when the stack is empty. */
   reopenClosedTab(index?: number): Promise<void>
   /** Drop the closed-tab stack (session persist). */
@@ -1428,10 +1447,19 @@ export const useAppStore = create<AppState>()((set, get) => {
   function persistSession(): void {
     const s = get()
     if (!s.booted) return
+    if (s.shellId !== MAIN_SHELL_ID) {
+      void api.explorer.command({
+        action: 'saveTabs',
+        tabs: s.tabs.map((t) => ({ ...tabToSessionTab(t), windowId: s.shellId })),
+        activeTabId: s.activeTabId,
+        closedTabs: s.closedTabs.slice(0, MAX_CLOSED_TABS)
+      })
+      return
+    }
     const session: SessionState = {
       version: 1,
       activeTabId: s.activeTabId,
-      tabs: s.tabs.map(tabToSessionTab),
+      tabs: s.tabs.map((t) => ({ ...tabToSessionTab(t), windowId: MAIN_SHELL_ID })),
       splitters: s.splitters,
       viewLayout: s.viewLayout,
       paneTabIds: s.paneTabIds,
@@ -1440,6 +1468,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       paneSplitCols: s.paneSplitCols,
       paneSplitRows: s.paneSplitRows,
       closedTabs: s.closedTabs.slice(0, MAX_CLOSED_TABS),
+      explorerWindows: [],
+      closedWindows: s.closedWindows,
       activeLayoutId: s.activeLayoutId
     }
     void api.session.set(session)
@@ -3439,6 +3469,69 @@ export const useAppStore = create<AppState>()((set, get) => {
     set as unknown as Parameters<typeof createSlideshowActions>[1]
   )
 
+  async function dropTab(id: string, recordClosed: boolean): Promise<void> {
+    const s = get()
+    if (s.tabs.length <= 1) {
+      if (!recordClosed || s.shellId === MAIN_SHELL_ID) return
+      const closing = s.tabs.find((t) => t.id === id)
+      if (!closing) return
+      await call(
+        api.explorer.command({
+          action: 'discard',
+          tabs: [{ ...tabToSessionTab(closing), windowId: s.shellId }]
+        })
+      )
+      return
+    }
+    const closing = s.tabs.find((t) => t.id === id)
+    if (!closing) return
+    clearFileViewScroll(id)
+    const idx = s.tabs.findIndex((t) => t.id === id)
+    const tabs = s.tabs.filter((t) => t.id !== id)
+    const tabIds = tabs.map((t) => t.id)
+    const closedPane = s.paneTabIds.indexOf(id)
+    const closedTabs: ClosedTabEntry[] = recordClosed
+      ? [
+          {
+            tab: tabToSessionTab(closing),
+            paneIndex: closedPane >= 0 ? closedPane : null
+          },
+          ...s.closedTabs
+        ].slice(0, MAX_CLOSED_TABS)
+      : s.closedTabs
+    let paneTabIds = s.paneTabIds.map((pid) => (pid === id ? null : pid))
+    let activeTabId = s.activeTabId
+    let focusedPaneIndex = s.focusedPaneIndex
+    if (id === s.activeTabId) {
+      const nextIdx = Math.min(idx, tabs.length - 1)
+      activeTabId = tabs[nextIdx]!.id
+      const paneIdx = paneTabIds.indexOf(activeTabId)
+      if (paneIdx >= 0) focusedPaneIndex = paneIdx
+      else {
+        paneTabIds = [...paneTabIds]
+        paneTabIds[focusedPaneIndex] = activeTabId
+      }
+    }
+    paneTabIds = fillPaneSlots(s.viewLayout, paneTabIds, tabIds, activeTabId)
+    const focus = focusFromSelection(tabs.find((t) => t.id === activeTabId)?.selected ?? [])
+    const listingsByTabId = { ...s.listingsByTabId }
+    delete listingsByTabId[id]
+    set({
+      tabs,
+      activeTabId,
+      closedTabs,
+      search: tabs.find((t) => t.id === activeTabId)?.search ?? emptyTabSearch(),
+      paneTabIds,
+      focusedPaneIndex,
+      listingsByTabId,
+      listing: syncActiveListing(listingsByTabId, activeTabId),
+      selectionAnchor: focus.selectionAnchor,
+      focusedPath: focus.focusedPath
+    })
+    scheduleSessionSave()
+    await loadVisiblePaneListings({ preserveSelection: true })
+  }
+
   return {
     ...slideshowActions,
     booted: false,
@@ -3456,6 +3549,9 @@ export const useAppStore = create<AppState>()((set, get) => {
     tabs: [],
     activeTabId: '',
     closedTabs: [],
+    closedWindows: [],
+    shellId: 'main',
+    shellClosePrompt: false,
     splitters: {
       treeWidthPx: 240,
       previewWidthPx: 320,
@@ -3635,10 +3731,13 @@ export const useAppStore = create<AppState>()((set, get) => {
 
       // Keep session tabs even when a drive is unmounted (encrypted volumes after reboot).
       // loadListing will show Offline and poll until the path is reachable again.
-      let tabs = session.tabs.map(sessionTabToTab)
+      const shellId = api.shellId || MAIN_SHELL_ID
+      let tabs = session.tabs
+        .filter((t) => (t.windowId || MAIN_SHELL_ID) === shellId)
+        .map(sessionTabToTab)
 
       const defaultPath = settings.defaultNewTabPath || home.path
-      if (tabs.length === 0) {
+      if (tabs.length === 0 && shellId === MAIN_SHELL_ID) {
         tabs = [
           {
             id: newTabId(),
@@ -3658,16 +3757,23 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         ]
       }
-      const activeTabId = tabs.find((t) => t.id === session.activeTabId)?.id ?? tabs[0]!.id
-      const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0]!
-      const focus = focusFromSelection(activeTab.selected)
+      const floatMeta =
+        shellId === MAIN_SHELL_ID
+          ? null
+          : (session.explorerWindows.find((w) => w.id === shellId) ?? null)
+      const preferredActive =
+        shellId === MAIN_SHELL_ID ? session.activeTabId : floatMeta?.activeTabId
+      const activeTabId =
+        tabs.find((t) => t.id === preferredActive)?.id ?? tabs[0]?.id ?? ''
+      const activeTab = tabs.find((t) => t.id === activeTabId) ?? tabs[0]
+      const focus = focusFromSelection(activeTab?.selected ?? [])
 
       const splitters =
-        session.tabs.length === 0
+        session.tabs.length === 0 && shellId === MAIN_SHELL_ID
           ? { ...session.splitters, previewCollapsed: !settings.previewVisibleDefault }
           : session.splitters
 
-      const viewLayout = coerceViewLayout(session.viewLayout)
+      const viewLayout = shellId === MAIN_SHELL_ID ? coerceViewLayout(session.viewLayout) : 1
       const paneTreeCollapsed = sanitizePaneTreeCollapsed(
         session.paneTreeCollapsed,
         viewLayout,
@@ -3691,6 +3797,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         }
       }
 
+      if (shellId !== MAIN_SHELL_ID) {
+        paneTabIds = activeTabId ? [activeTabId] : [null]
+        focusedPaneIndex = 0
+      }
+
       set({
         booted: true,
         platform: ready.platform,
@@ -3701,6 +3812,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         tabs,
         activeTabId,
         closedTabs: session.closedTabs ?? [],
+        closedWindows: session.closedWindows ?? [],
+        shellId,
+        shellClosePrompt: false,
         splitters,
         viewLayout,
         paneTabIds,
@@ -3889,7 +4003,23 @@ export const useAppStore = create<AppState>()((set, get) => {
             })
           }
         } else if (event.type === 'external-open') {
+          if (get().shellId !== MAIN_SHELL_ID) return
           void get().openExternalTarget(event.payload.path, event.payload.reveal)
+        } else if (event.type === 'shell-close-request') {
+          if (event.payload.windowId === get().shellId) set({ shellClosePrompt: true })
+        } else if (event.type === 'shell-roster') {
+          set({ closedWindows: event.payload.closedWindows })
+        } else if (event.type === 'shell-tabs-arrived') {
+          if (get().shellId !== MAIN_SHELL_ID) return
+          const incoming = event.payload.tabs.map(sessionTabToTab)
+          if (incoming.length === 0) return
+          const ids = new Set(incoming.map((t) => t.id))
+          set((cur) => ({
+            tabs: [...cur.tabs.filter((t) => !ids.has(t.id)), ...incoming],
+            activeTabId: incoming[0]!.id
+          }))
+          scheduleSessionSave()
+          for (const t of incoming) void loadListing(t.path, { tabId: t.id })
         } else if (event.type === 'slideshow-list-progress') {
           const a = get().slideshow.active
           if (a?.status === 'building') {
@@ -4708,53 +4838,54 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async closeTab(id) {
+      await dropTab(id, true)
+    },
+
+    async moveTabToNewWindow(id) {
       const s = get()
       if (s.tabs.length <= 1) return
-      const closing = s.tabs.find((t) => t.id === id)
-      if (!closing) return
-      clearFileViewScroll(id)
-      const idx = s.tabs.findIndex((t) => t.id === id)
-      const tabs = s.tabs.filter((t) => t.id !== id)
-      const tabIds = tabs.map((t) => t.id)
-      const closedPane = s.paneTabIds.indexOf(id)
-      const closedTabs: ClosedTabEntry[] = [
-        {
-          tab: tabToSessionTab(closing),
-          paneIndex: closedPane >= 0 ? closedPane : null
-        },
-        ...s.closedTabs
-      ].slice(0, MAX_CLOSED_TABS)
-      let paneTabIds = s.paneTabIds.map((pid) => (pid === id ? null : pid))
-      let activeTabId = s.activeTabId
-      let focusedPaneIndex = s.focusedPaneIndex
-      if (id === s.activeTabId) {
-        const nextIdx = Math.min(idx, tabs.length - 1)
-        activeTabId = tabs[nextIdx]!.id
-        const paneIdx = paneTabIds.indexOf(activeTabId)
-        if (paneIdx >= 0) focusedPaneIndex = paneIdx
-        else {
-          paneTabIds = [...paneTabIds]
-          paneTabIds[focusedPaneIndex] = activeTabId
-        }
-      }
-      paneTabIds = fillPaneSlots(s.viewLayout, paneTabIds, tabIds, activeTabId)
-      const focus = focusFromSelection(tabs.find((t) => t.id === activeTabId)?.selected ?? [])
-      const listingsByTabId = { ...s.listingsByTabId }
-      delete listingsByTabId[id]
-      set({
-        tabs,
-        activeTabId,
-        closedTabs,
-        search: tabs.find((t) => t.id === activeTabId)?.search ?? emptyTabSearch(),
-        paneTabIds,
-        focusedPaneIndex,
-        listingsByTabId,
-        listing: syncActiveListing(listingsByTabId, activeTabId),
-        selectionAnchor: focus.selectionAnchor,
-        focusedPath: focus.focusedPath
+      const tab = s.tabs.find((t) => t.id === id)
+      if (!tab) return
+      await call(
+        api.explorer.command({
+          action: 'detach',
+          tab: { ...tabToSessionTab(tab), windowId: s.shellId }
+        })
+      )
+      await dropTab(id, false)
+    },
+
+    async mergeShellIntoMain() {
+      if (get().shellId === MAIN_SHELL_ID) return
+      await call(api.explorer.command({ action: 'merge' }))
+    },
+
+    async reopenClosedWindow(index = 0) {
+      const res = await call(api.explorer.command({ action: 'reopen', index }))
+      if (res.closedWindows) set({ closedWindows: res.closedWindows })
+    },
+
+    clearClosedWindows() {
+      if (get().closedWindows.length === 0) return
+      void call(api.explorer.command({ action: 'clearClosedWindows' })).then((res) => {
+        if (res.closedWindows) set({ closedWindows: res.closedWindows })
       })
-      scheduleSessionSave()
-      await loadVisiblePaneListings({ preserveSelection: true })
+    },
+
+    async resolveShellClose(choice) {
+      set({ shellClosePrompt: false })
+      if (choice === 'cancel') return
+      if (choice === 'merge') {
+        await call(api.explorer.command({ action: 'merge' }))
+        return
+      }
+      const s = get()
+      await call(
+        api.explorer.command({
+          action: 'discard',
+          tabs: s.tabs.map((t) => ({ ...tabToSessionTab(t), windowId: s.shellId }))
+        })
+      )
     },
 
     async reopenClosedTab(index = 0) {
@@ -4836,6 +4967,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async setViewLayout(mode) {
       const s = get()
+      if (s.shellId !== MAIN_SHELL_ID) return
       if (mode === s.viewLayout) return
       if (mode !== 2) {
         void import('../pairCompare/pairCompareStore').then(({ usePairCompareStore }) => {

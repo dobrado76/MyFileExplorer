@@ -91,7 +91,8 @@ All invoke handlers return `Result<T>` (see [ARCHITECTURE.md](ARCHITECTURE.md)).
 | Channel       | Purpose                               |
 | ------------- | ------------------------------------- |
 | `session:get` | Load `session.json`                   |
-| `session:set` | Replace/patch session (Zod-validated) |
+| `session:set` | Replace/patch session (Zod-validated). Main writes keep float-owned tabs. |
+| `explorer:shell` | Detach, merge, discard, reopen, or save a floating explorer window (D73) |
 
 ### `templates.*` (D57)
 
@@ -352,7 +353,9 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/media-metadata; byte fields for large streaming copies |
 | `cover-list`              | `{ path, done, cover? }` — Change cover tiles as previews load |
 | `git-status`              | `{ status: GitRepositoryStatus }` — repo cache update (D64) |
-| `session-external-change` | rare: multi-window later                      |
+| `shell-close-request`    | Float window close — renderer asks Merge / Close tabs / Cancel (D73) |
+| `shell-roster`           | `{ closedWindows }` |
+| `shell-tabs-arrived`     | `{ tabs }` — merged back into the main window |
 
 ---
 

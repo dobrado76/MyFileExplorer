@@ -66,7 +66,8 @@ async function walkImages(
   out: ImageEntry[],
   gen: number,
   needSize: boolean,
-  filter: WalkFilter
+  filter: WalkFilter,
+  recursive: boolean
 ): Promise<void> {
   if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
   let dirents
@@ -83,7 +84,7 @@ async function walkImages(
     // or include those files (e.g. Hidden `!Thumbnails`).
     if (skipByViewFilter(full, filter)) continue
     if (d.isDirectory()) {
-      dirs.push(full)
+      if (recursive) dirs.push(full)
       continue
     }
     if (!d.isFile() || !isSlideshowImagePath(full)) continue
@@ -102,7 +103,7 @@ async function walkImages(
   for (let i = 0; i < dirs.length; i += CONC) {
     if (isSlideshowListStale(gen) || out.length >= LIST_CAP) return
     const batch = dirs.slice(i, i + CONC)
-    await Promise.all(batch.map((dir) => walkImages(dir, out, gen, needSize, filter)))
+    await Promise.all(batch.map((dir) => walkImages(dir, out, gen, needSize, filter, recursive)))
   }
 }
 
@@ -232,7 +233,7 @@ export async function listSlideshowImages(
   }
   for (const root of roots) {
     throwIfListStale(gen)
-    await walkImages(root, entries, gen, needSize, filter)
+    await walkImages(root, entries, gen, needSize, filter, req.recursive !== false)
   }
   const truncated = entries.length >= LIST_CAP
 

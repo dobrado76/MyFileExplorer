@@ -94,6 +94,8 @@ export const IPC = {
 
   sessionGet: 'session:get',
   sessionSet: 'session:set',
+  /** Detach / merge / discard explorer shells and float tab saves (D73). */
+  explorerShell: 'explorer:shell',
 
   templatesImport: 'templates:import',
   templatesDelete: 'templates:delete',
@@ -608,4 +610,16 @@ export type MfeEvent =
         filesHashed?: number
         bytesHashed?: number
       }
+    }
+  | {
+      type: 'shell-close-request'
+      payload: { windowId: string }
+    }
+  | {
+      type: 'shell-roster'
+      payload: { closedWindows: import('../schemas/session').ClosedWindowEntry[] }
+    }
+  | {
+      type: 'shell-tabs-arrived'
+      payload: { tabs: import('../schemas/session').TabState[] }
     }

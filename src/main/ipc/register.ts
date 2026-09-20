@@ -226,6 +226,18 @@ import {
   setItemNote
 } from '../itemAds/store'
 import { sessionStore } from '../session/store'
+import { mergeMainSessionWrite } from '@shared/explorerSession'
+import {
+  clearClosedWindows,
+  detachTab,
+  discardShell,
+  mergeShellToMain,
+  reopenClosedWindow,
+  saveFloatTabs,
+  sessionWritesLocked,
+  shellIdFromContents
+} from '../shell/explorerWindows'
+import { explorerShellRequestSchema } from '@shared/schemas/session'
 import { getSettings, patchSettings, replaceSettings } from '../settings/store'
 import {
   listRemoteConnections,
@@ -763,7 +775,23 @@ export function registerIpcHandlers(): void {
 
   // session
   handle(IPC.sessionGet, emptySchema, () => sessionStore().get())
-  handle(IPC.sessionSet, sessionSchema, (session) => sessionStore().set(session))
+  handle(IPC.sessionSet, sessionSchema, (session) => {
+    if (sessionWritesLocked()) return sessionStore().get()
+    const prev = sessionStore().get()
+    const next = mergeMainSessionWrite(prev, session)
+    sessionStore().set(next)
+    return next
+  })
+  handle(IPC.explorerShell, explorerShellRequestSchema, (req, event) => {
+    const shellId = shellIdFromContents(event.sender)
+    if (req.action === 'detach') return detachTab(req.tab, shellId)
+    if (req.action === 'merge') return mergeShellToMain(shellId)
+    if (req.action === 'discard') return discardShell(shellId, req.tabs)
+    if (req.action === 'reopen') return reopenClosedWindow(req.index ?? 0)
+    if (req.action === 'clearClosedWindows') return clearClosedWindows()
+    saveFloatTabs(shellId, req.tabs, req.activeTabId, req.closedTabs)
+    return { ok: true as const }
+  })
 
   // settings
   handle(IPC.settingsGet, emptySchema, () => getSettings())

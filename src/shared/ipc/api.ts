@@ -51,6 +51,8 @@ import type { SlideshowListRequest } from '../schemas/slideshow'
 import type { MfeEvent } from './contract'
 
 export type MyFileExplorerApi = {
+  /** `main` or a floating explorer window id (D73). */
+  shellId: string
   fs: {
     list(req: ListRequest): Promise<Result<ListResponse>>
     stat(req: PathRequest): Promise<Result<StatResult>>
@@ -328,6 +330,19 @@ export type MyFileExplorerApi = {
   session: {
     get(): Promise<Result<SessionState>>
     set(session: SessionState): Promise<Result<SessionState>>
+  }
+  /** Extra explorer windows (D73). */
+  explorer: {
+    command(
+      req: import('../schemas/session').ExplorerShellRequest
+    ): Promise<
+      Result<{
+        windowId?: string
+        closedWindows?: import('../schemas/session').ClosedWindowEntry[]
+        tabs?: import('../schemas/session').TabState[]
+        ok?: true
+      }>
+    >
   }
   settings: {
     get(): Promise<Result<Settings>>

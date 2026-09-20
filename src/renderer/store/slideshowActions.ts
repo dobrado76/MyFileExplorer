@@ -429,7 +429,8 @@ export function createSlideshowActions(get: Get, set: Set) {
             api.slideshow.listImages({
               roots,
               order: ss.order,
-              ascending: ss.ascending
+              ascending: ss.ascending,
+              recursive: ss.recursive !== false
             })
           )
           if (seq !== slideshowBuildSeq) return

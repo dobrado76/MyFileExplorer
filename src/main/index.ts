@@ -18,7 +18,7 @@ import { clearSessionTempDirs, clearSessionTempDirsSync } from './sessionTemp'
 import { registerOrtProtocolHandler } from './media/ortProtocol'
 import { registerModelProtocolHandler } from './media/modelProtocol'
 import { registerIpcHandlers } from './ipc/register'
-import { broadcast } from './ipc/events'
+import { broadcast, sendToWindow } from './ipc/events'
 import { loadWindowState, trackWindowState } from './windowState'
 import { sessionStore } from './session/store'
 import { settingsStore } from './settings/store'
@@ -35,6 +35,12 @@ import { closeAllPropertiesWindows } from './properties/propertiesWindow'
 import { configureUserData } from './userData'
 import { parseUsnRecentCli, runUsnRecentCli } from './fs/usnRecentCli'
 import { closeSplash, showSplash } from './splash'
+import {
+  hasOpenFloats,
+  mergeAllFloatsIntoMain,
+  registerMainShell,
+  restoreExplorerFloats
+} from './shell/explorerWindows'
 
 // ============================================================================
 // SAFELY ISOLATE CRASHING WINDOWS INITIALIZATIONS ON LINUX
@@ -116,14 +122,24 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
         preload: path.join(__dirname, '../preload/index.js'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true
+        sandbox: true,
+        additionalArguments: ['--mfe-shell=main']
       }
     })
 
     trackWindowState(win)
     setMainWindow(win)
+    registerMainShell(win)
+    let mainCloseMerged = false
     // Compiled lists is a child of the shell — closing main must not leave it dangling.
-    win.on('close', () => {
+    win.on('close', (e) => {
+      if (!mainCloseMerged && hasOpenFloats()) {
+        e.preventDefault()
+        mainCloseMerged = true
+        mergeAllFloatsIntoMain()
+        win.close()
+        return
+      }
       closeCompiledListsWindow()
       closePreviewWindow()
       stopNowPlaying()
@@ -162,9 +178,9 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
       ): Electron.WebContents
     }).on('app-command', (_e, cmd) => {
       if (cmd === 'browser-backward') {
-        broadcast({ type: 'history-nav', payload: { dir: 'back' } })
+        sendToWindow(win, { type: 'history-nav', payload: { dir: 'back' } })
       } else if (cmd === 'browser-forward') {
-        broadcast({ type: 'history-nav', payload: { dir: 'forward' } })
+        sendToWindow(win, { type: 'history-nav', payload: { dir: 'forward' } })
       }
     })
 
@@ -173,6 +189,7 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
     } else {
       void win.loadFile(path.join(__dirname, '../renderer/index.html'))
     }
+    restoreExplorerFloats()
   }
 
   app.on('second-instance', (_event, argv) => {

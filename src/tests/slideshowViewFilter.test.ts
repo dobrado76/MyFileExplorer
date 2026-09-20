@@ -79,6 +79,25 @@ describe('listSlideshowImages view filter', () => {
     }
   })
 
+  it('lists only the selected folder when recursive is off', async () => {
+    const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-ss-norec-'))
+    try {
+      await fsp.writeFile(path.join(root, 'keep.jpg'), 'x')
+      await fsp.mkdir(path.join(root, 'sub'), { recursive: true })
+      await fsp.writeFile(path.join(root, 'sub', 'nested.jpg'), 'x')
+
+      const { paths } = await listSlideshowImages({
+        roots: [root],
+        order: 'name',
+        ascending: true,
+        recursive: false
+      })
+      expect(paths.map((p) => path.basename(p))).toEqual(['keep.jpg'])
+    } finally {
+      await fsp.rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('skips view-filter pattern folders when the eye is on', async () => {
     settings.viewFilterPatterns = ['cache']
     const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'mfe-ss-vf-pat-'))

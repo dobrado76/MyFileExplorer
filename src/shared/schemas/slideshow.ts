@@ -24,6 +24,8 @@ export const slideshowSettingsSchema = z.object({
     .catch(SLIDESHOW_DELAY_MS_DEFAULT),
   order: slideshowOrderSchema.catch('name'),
   ascending: z.boolean().catch(true),
+  /** Folder Start Slideshow: include images in subfolders. Off = selected folder only. */
+  recursive: z.boolean().catch(true),
   loop: z.boolean().catch(true),
   drawCaption: z.boolean().catch(false),
   /** Show current image full path in the window title bar (Alt toggles during slideshow). */
@@ -78,6 +80,7 @@ export const defaultSlideshowSettings: SlideshowSettings = {
   delayMs: SLIDESHOW_DELAY_MS_DEFAULT,
   order: 'name',
   ascending: true,
+  recursive: true,
   loop: true,
   drawCaption: false,
   titleFilename: false,
@@ -95,7 +98,9 @@ export const defaultSlideshowSettings: SlideshowSettings = {
 export const slideshowListRequestSchema = z.object({
   roots: z.array(z.string().min(1)).min(1),
   order: slideshowOrderSchema,
-  ascending: z.boolean()
+  ascending: z.boolean(),
+  /** Missing → include subfolders (matches the settings default). */
+  recursive: z.boolean().catch(true)
 })
 export type SlideshowListRequest = z.infer<typeof slideshowListRequestSchema>
 

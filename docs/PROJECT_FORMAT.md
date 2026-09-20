@@ -159,6 +159,9 @@ Notes:
 - `paneTreeCollapsed` — per-pane folder-tree hidden flags (length matches `viewLayout`)
 - `paneSplitCols` / `paneSplitRows` — fraction for column/row splitters in multi-pane (0–1)
 - `closedTabs` — last-closed-first stack (D55, cap 25): `{ tab: TabState, paneIndex }`. Missing → `[]`.
+- `windowId` on each tab — `main` or a float id (D73). Missing → `main`.
+- `explorerWindows` — floating shells `{ id, kind: "float", bounds, maximized, activeTabId }`. Missing → `[]`.
+- `closedWindows` — last-closed-first floats (cap 10): `{ closedAt, bounds, maximized, tabs }`. Missing → `[]`.
 - `activeLayoutId` — named layout the live tabs were last applied from or saved as (D25 auto-save). Missing / unknown id → `null`.
 - Write debounced on change; flush on `before-quit`
 

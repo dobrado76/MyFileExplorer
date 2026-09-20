@@ -10,3 +10,11 @@ export function broadcast(event: MfeEvent): void {
     // No Electron app in unit tests — progress events are best-effort.
   }
 }
+
+export function sendToWindow(win: BrowserWindow, event: MfeEvent): void {
+  try {
+    if (!win.isDestroyed()) win.webContents.send(EVENT_CHANNEL, event)
+  } catch {
+    /* tests */
+  }
+}
