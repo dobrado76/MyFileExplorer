@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { BrowserWindow, screen, type WebContents } from 'electron'
 import appIcon from '../../../resources/icon.png?asset'
 import { mergeFloatTabs, tabWindowId } from '@shared/explorerSession'
+import { layoutTabSchema, type LayoutFloatWire, type LayoutWindowFrame } from '@shared/layouts'
 import {
   MAIN_SHELL_ID,
   MAX_CLOSED_TABS,
@@ -24,7 +25,11 @@ import { getMainWindow } from '../externalOpen'
 
 const shells = new Map<string, BrowserWindow>()
 const allowClose = new Set<string>()
+/** Shell ids closed by a layout replace. Late saveTabs from those windows are ignored. */
+const retiredShellIds = new Set<string>()
 let ignoreSessionWrites = false
+const flushWaiters = new Map<string, () => void>()
+let layoutOpWaiter: ((layout: unknown) => void) | null = null
 
 export function sessionWritesLocked(): boolean {
   return ignoreSessionWrites
@@ -336,6 +341,7 @@ export function saveFloatTabs(
   closedTabs?: SessionState['closedTabs']
 ): void {
   if (shellId === MAIN_SHELL_ID || ignoreSessionWrites) return
+  if (retiredShellIds.has(shellId) || allowClose.has(shellId) || !shells.has(shellId)) return
   const session = sessionStore().get()
   const merged = mergeFloatTabs(session, shellId, tabs, activeTabId)
   sessionStore().set(
@@ -358,6 +364,217 @@ export function mergeAllFloatsIntoMain(): void {
   for (const [id, win] of [...shells]) {
     if (id === MAIN_SHELL_ID) continue
     allowClose.add(id)
+    retiredShellIds.add(id)
     if (!win.isDestroyed()) win.close()
   }
+}
+
+function frameOf(win: BrowserWindow): LayoutWindowFrame | null {
+  if (win.isDestroyed() || win.isMinimized()) return null
+  const maximized = win.isMaximized()
+  const b = maximized ? win.getNormalBounds() : win.getBounds()
+  if (!(b.width > 0) || !(b.height > 0)) return null
+  return { x: b.x, y: b.y, width: b.width, height: b.height, maximized }
+}
+
+function applyFrame(win: BrowserWindow, frame: LayoutWindowFrame): void {
+  if (win.isDestroyed()) return
+  const bounds = {
+    x: Math.round(frame.x),
+    y: Math.round(frame.y),
+    width: Math.max(640, Math.round(frame.width)),
+    height: Math.max(400, Math.round(frame.height))
+  }
+  if (win.isMaximized() && !frame.maximized) win.unmaximize()
+  win.setBounds(bounds)
+  if (frame.maximized && !win.isMaximized()) win.maximize()
+}
+
+function layoutTabFromState(tab: TabState): LayoutFloatWire['tabs'][number] {
+  return layoutTabSchema.parse({
+    path: tab.path,
+    title: tab.title,
+    icon: tab.icon,
+    viewMode: tab.viewMode,
+    sort: tab.sort,
+    rootPath: tab.rootPath,
+    treeExpanded: tab.treeExpanded
+  })
+}
+
+function stateFromLayoutTab(
+  tab: LayoutFloatWire['tabs'][number],
+  id: string,
+  windowId: string
+): TabState {
+  return {
+    id,
+    path: tab.path,
+    title: tab.title,
+    icon: tab.icon,
+    viewMode: tab.viewMode,
+    sort: tab.sort,
+    historyBack: [],
+    historyForward: [],
+    search: { active: false, query: '', indexedOnly: false },
+    selectedPaths: [],
+    scrollOffset: 0,
+    rootPath: tab.rootPath,
+    treeExpanded: tab.treeExpanded,
+    virtualFolderGroupStack: [],
+    windowId
+  }
+}
+
+export type LayoutWorkspaceCapture = {
+  mainWindow: LayoutWindowFrame | null
+  windows: LayoutFloatWire[]
+}
+
+/** Ask every other shell to write its tabs, then read live frames + float tabs. */
+export function captureWorkspace(exceptShellId: string): Promise<LayoutWorkspaceCapture> {
+  const pending = [...shells.keys()].filter((id) => {
+    if (id === exceptShellId) return false
+    const win = shells.get(id)
+    return win != null && !win.isDestroyed()
+  })
+  const done = new Promise<void>((resolve) => {
+    if (pending.length === 0) {
+      resolve()
+      return
+    }
+    const left = new Set(pending)
+    const timer = setTimeout(() => {
+      for (const id of left) flushWaiters.delete(id)
+      resolve()
+    }, 1500)
+    for (const id of pending) {
+      flushWaiters.set(id, () => {
+        left.delete(id)
+        flushWaiters.delete(id)
+        if (left.size === 0) {
+          clearTimeout(timer)
+          resolve()
+        }
+      })
+      const win = shells.get(id)
+      if (win) sendToWindow(win, { type: 'shell-layout-flush' })
+    }
+  })
+  return done.then(() => {
+    const session = sessionStore().get()
+    const mainWin = shells.get(MAIN_SHELL_ID)
+    const mainWindow = mainWin ? frameOf(mainWin) : null
+    const windows: LayoutFloatWire[] = []
+    for (const meta of session.explorerWindows) {
+      const tabs = session.tabs.filter((t) => tabWindowId(t) === meta.id)
+      if (tabs.length === 0) continue
+      const live = shells.get(meta.id)
+      const frame =
+        (live ? frameOf(live) : null) ??
+        (meta.bounds
+          ? {
+              x: meta.bounds.x,
+              y: meta.bounds.y,
+              width: meta.bounds.width,
+              height: meta.bounds.height,
+              maximized: meta.maximized === true
+            }
+          : null)
+      if (!frame) continue
+      const activeIdx = tabs.findIndex((t) => t.id === meta.activeTabId)
+      windows.push({
+        frame,
+        activeTabIndex: activeIdx >= 0 ? activeIdx : 0,
+        tabs: tabs.map(layoutTabFromState)
+      })
+    }
+    return { mainWindow, windows }
+  })
+}
+
+export function ackLayoutFlush(shellId: string): void {
+  flushWaiters.get(shellId)?.()
+}
+
+export function forwardLayoutToMain(req: {
+  op: 'saveLayout' | 'updateLayout' | 'applyLayout'
+  name?: string
+  id?: string
+}): Promise<{ layout: unknown | null }> {
+  const main = shells.get(MAIN_SHELL_ID)
+  if (!main || main.isDestroyed()) return Promise.resolve({ layout: null })
+  if (req.op !== 'saveLayout') {
+    sendToWindow(main, {
+      type: 'shell-layout-op',
+      payload: { op: req.op, name: req.name, id: req.id }
+    })
+    return Promise.resolve({ layout: null })
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      layoutOpWaiter = null
+      resolve({ layout: null })
+    }, 8000)
+    layoutOpWaiter = (layout) => {
+      clearTimeout(timer)
+      layoutOpWaiter = null
+      resolve({ layout })
+    }
+    sendToWindow(main, {
+      type: 'shell-layout-op',
+      payload: { op: req.op, name: req.name, id: req.id }
+    })
+  })
+}
+
+export function completeLayoutOp(layout: unknown): void {
+  layoutOpWaiter?.(layout)
+}
+
+/**
+ * Close every float (not recorded as a recently closed window) and open the
+ * layout's secondary windows. Main-shell tabs already in the session are kept.
+ */
+export function replaceLayoutWindows(
+  mainWindow: LayoutWindowFrame | null,
+  windows: LayoutFloatWire[]
+): { ok: true } {
+  for (const [id, win] of [...shells]) {
+    if (id === MAIN_SHELL_ID) continue
+    retiredShellIds.add(id)
+    allowClose.add(id)
+    if (!win.isDestroyed()) win.close()
+  }
+  const session = sessionStore().get()
+  const mainTabs = session.tabs.filter((t) => tabWindowId(t) === MAIN_SHELL_ID)
+  const explorerWindows: ExplorerWindowState[] = []
+  const floatTabs: TabState[] = []
+  for (const spec of windows) {
+    const windowId = `float_${randomUUID().slice(0, 8)}`
+    const tabs = spec.tabs.map((t) => stateFromLayoutTab(t, freshTabId(), windowId))
+    const active = tabs[Math.min(spec.activeTabIndex, tabs.length - 1)]
+    floatTabs.push(...tabs)
+    explorerWindows.push({
+      id: windowId,
+      kind: 'float',
+      bounds: {
+        x: spec.frame.x,
+        y: spec.frame.y,
+        width: spec.frame.width,
+        height: spec.frame.height
+      },
+      maximized: spec.frame.maximized === true,
+      activeTabId: active?.id ?? null
+    })
+  }
+  sessionStore().set({
+    ...session,
+    tabs: [...mainTabs, ...floatTabs],
+    explorerWindows
+  })
+  for (const meta of explorerWindows) openFloat(meta)
+  const main = shells.get(MAIN_SHELL_ID)
+  if (main && mainWindow) applyFrame(main, mainWindow)
+  return { ok: true as const }
 }

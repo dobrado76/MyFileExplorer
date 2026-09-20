@@ -1,37 +1,34 @@
-# MyFileExplorer v0.18.0 — release notes
+# MyFileExplorer v0.19.0 — release notes
 
-**Date:** 2026-09-14  
-**Tag:** `v0.18.0` (package **0.18.0**)  
-**Previous product baseline:** [v0.17.0](CHANGELOG.md#0170---2026-09-09)
+**Date:** 2026-09-20  
+**Tag:** `v0.19.0` (package **0.19.0**)  
+**Previous product baseline:** [v0.18.0](CHANGELOG.md#0180---2026-09-14)
 
-Eighteenth product release (**v0.18**): smoother video handoffs and chrome, named layouts that keep up as you switch, and icon-view / Size-sort fixes that keep large folders responsive.
+Nineteenth product release (**v0.19**): extra explorer windows on another monitor, Power Search filters for created / accessed dates and NTFS streams, and a slideshow that can stay in one folder.
 
-Full detail: [CHANGELOG.md](CHANGELOG.md). Preview / Now Playing: [docs/PREVIEW.md](docs/PREVIEW.md) · layouts: [docs/DECISIONS.md](docs/DECISIONS.md) **D25** · thumbs: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · folder Size: [docs/FOLDER_STATISTICS.md](docs/FOLDER_STATISTICS.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
+Full detail: [CHANGELOG.md](CHANGELOG.md). Windows: [docs/DECISIONS.md](docs/DECISIONS.md) **D73** · search: [docs/SEARCH.md](docs/SEARCH.md) · slideshow: [docs/SLIDESHOW.md](docs/SLIDESHOW.md). Why switch from Explorer: [docs/ADVANTAGES.md](docs/ADVANTAGES.md).
 
 ---
 
 ## Highlights
 
-### Rich player and detached video polish
+### Detachable explorer windows
 
-- **Click the video picture** to play/pause (same idea as Chromium’s `<video>`). The OSC bar stays for seeking and volume; the window caption / drag chrome do not toggle pause.
-- **Keep playing → Dock** and **pop-out** resume at the real position instead of restarting from 0 (mpv IPC reads `time-pos` correctly; each session uses its own pipe; a stale Now Playing close cannot wipe the next session).
-- In **detached preview** and **Now Playing**, the control bar **auto-hides after 3 seconds** of idle pointer activity and returns on move / click / wheel (including over the Rich player overlay). Docked preview keeps controls always visible.
+Tab menu **Move to new window** opens another shell of the same app (its own monitor, same settings). **Merge into main window** sends those tabs back. Closing that window asks **Merge**, **Close tabs**, or Cancel. **Reopen closed window** restores the last closed one. Dragging a tab off the bar is not in this version. Closing the main window folds extra windows back in with no extra prompt.
 
-### Named layouts auto-save
+### Power Search dates and ADS
 
-Switching layouts from the Layouts menu **overwrites the layout you left** with the live tabs and panes (on by default). **Save as…** still creates a new layout. Settings → Layouts can turn auto-save off; Update still writes without switching. The Settings list order is the menu order (↑↓).
+The builder uses tabs. **Date** covers created, modified, and last accessed (`dc:` / `dm:` / `da:`, alias `dateaccessed:`). **Metadata** covers ADS streams (`stream:`, `hasstream:`) and user metadata. Missing created or accessed times do not fall back to modified time.
 
-### Faster icon views and correct Size sort
+### Slideshow: one folder or the tree
 
-- Fast-scrolling Extra large / Large / Medium / Small icons no longer queues unbounded thumbnail encodes that stall preview. Newest visible tiles win; off-screen waiters are dropped; disk-cache hits skip the Sharp queue.
-- After **Calculate Statistics**, Details **Size** sort uses each folder’s calculated `TotalSize`, so ascending/descending matches the displayed TB/GB/MB values (not the listing size of `0`).
+Settings → Slideshow → **Include subfolders** stays on, so Start Slideshow still walks child folders. Turn it off to use only the folder you selected.
 
 ---
 
 ## Install
 
-1. Run `MyFileExplorer-0.18.0.exe` (GitHub Release or your Updates folder).
+1. Run `MyFileExplorer-0.19.0.exe` (GitHub Release or your Updates folder).
 2. Settings stay in `%APPDATA%\MyFileExplorer`.
 3. Before a PC swap, use **Settings → About → Export…**.
 4. **Optional OS projection:** install [WinFsp](https://winfsp.dev/), then `MfeVirtualFolderService-win-x64.zip` from the same Release.
@@ -40,7 +37,8 @@ Switching layouts from the Layouts menu **overwrites the layout you left** with 
 ## Upgrade notes
 
 - Fully quit and relaunch; IPC/preload changes require a cold start.
-- **Rich player (mpv)** remains opt-in under Settings → Preview.
-- Layout auto-save is **on** by default; turn it off in Settings → Layouts if you prefer manual Update only.
+- **Include subfolders** is on by default, so existing slideshow walks stay recursive until you turn it off.
+- Created and last-accessed Power Search need a **reindex** of existing roots. Until then those times are missing and the date filters match nothing for them.
+- Re-run **Calculate Statistics** if you want `.ts` / `.mts` sizes reclassified (small TypeScript vs large MPEG-TS).
 - User Metadata, shell redirect, Git, Scripts, Media Metadata, and Ask AI remain opt-in.
 - Notes, item icons, folder statistics, user metadata, and ADS-preserving workflows require local NTFS.

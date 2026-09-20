@@ -1,6 +1,6 @@
 # Project / app data format
 
-**Version:** 0.18.0
+**Version:** 0.19.0
 
 MyFileExplorer browses the **real filesystem**. App-owned state lives only under Electron **`userData`** — always **`%APPDATA%\MyFileExplorer`** for both `npm run dev` and packaged installs (D17). Optional overrides: `MFE_USER_DATA`, or `MFE_ISOLATED_USER_DATA=1` for a repo-local `.dev-user-data/`.
 
@@ -99,7 +99,7 @@ Notes:
 - `searchExcludeDirNames`: search/index exclude patterns (view-filter language — folder names, file names, `.tmp` / `*.log`, wildcards, or an absolute path)
 - `searchIndexedOnly`: toolbar **indexed** search toggle (default `false` = current folder walk; `true` = indexed roots only)
 - `layoutsAutoSave`: when switching named layouts, overwrite the layout the live workspace was last applied from or saved as (default **true**; D25).
-- `layouts`: named workspace snapshots (D25) — `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, pairCompareVisibleStatuses?, tabs: [{ path, title, icon, viewMode, sort, rootPath, treeExpanded }] }`. Cap 50. Applying replaces the live session tabs. Optional `pairCompareVisibleStatuses` restores the paired-folders compare filter (D69). `paneTabIndexes` are indices into `tabs` (or null). `icon` is `{ name, color }`, `{ kind: 'custom', id, showLabel, sizePx }` (D54; PNG stays in `tab-icons/`), or `null` (D32).
+- `layouts`: named workspace snapshots (D25) — main window `{ id, name, updatedAt, activeTabIndex, splitters, viewLayout, paneTabIndexes, paneSplitCols, paneSplitRows, pairCompareVisibleStatuses?, mainWindow?, tabs }` plus `windows[]` for each secondary explorer window `{ frame: { x, y, width, height, maximized }, activeTabIndex, tabs }`. `tabs` entries are `{ path, title, icon, viewMode, sort, rootPath, treeExpanded }`. Cap 50. Applying replaces the live workspace and closes floats that are not in the snapshot (not added to Reopen closed window). Older layouts with no `windows` / `mainWindow` restore the main window’s tabs only and do not move that window. Optional `pairCompareVisibleStatuses` restores the paired-folders compare filter (D69). `paneTabIndexes` are indices into the main window’s `tabs` (or null). `icon` is `{ name, color }`, `{ kind: 'custom', id, showLabel, sizePx }` (D54; PNG stays in `tab-icons/`), or `null` (D32). `mainWindow` is the same frame shape as `windows[].frame`.
 - `templates`: new-file templates (D57) — `{ id, name, suggestedStem, inputName, sourceFile }` (`name` = menu + default stem; `inputName` = original picked file; stored copy is `Templates/{sourceFile}`). Cap 40. Order in the array is the menu order.
 - `quickLaunch`: toolbar apps (D63) — `{ id, name, path, args, show: 'icon' \| 'label' \| 'both', iconSizePx (12–48, default 24), iconKind: 'shell' \| 'custom' \| 'lucide', iconId?, lucideName?, lucideColor }`. Cap 24. Custom PNGs are `quick-launch/{iconId}.png` (not in Settings export).
 - `folderViews`: per-folder view overrides (D22); orthogonal to layouts

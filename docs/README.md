@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.18.0** — Rich player click-to-pause / resume polish, detached video chrome auto-hide, named-layout auto-save, icon-view thumb throttle, Size sort from folder statistics. Prior: **v0.17.0** Now Playing / Rich player, Ask AI, expanded User Metadata. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D72**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.19.0** — detachable explorer windows, Power Search created / accessed dates and ADS stream filters, slideshow Include subfolders. Prior: **v0.18.0** Rich player polish, named-layout auto-save, icon-view thumb throttle, Size sort from folder statistics. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D73**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D72               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D73               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
@@ -59,6 +59,14 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.19.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Explorer windows (D73) | Tab menu **Move to new window** / **Merge into main window**; float close asks Merge or Close tabs; **Reopen closed window** (cap 10). Named layouts store every window’s tabs and geometry (D25). Drag tear-off is not in this version — [DECISIONS.md](DECISIONS.md) |
+| Power Search dates / ADS | Builder tabs; `dc:` / `dm:` / `da:` and `stream:` / `hasstream:`. Missing created or accessed times fail closed — [SEARCH.md](SEARCH.md) |
+| Slideshow (D37) | **Include subfolders** default on; off = selected folder only — [SLIDESHOW.md](SLIDESHOW.md) |
 
 ## Recent behavior (v0.18.0)
 

@@ -158,6 +158,39 @@ export const explorerWindowBoundsSchema = z.object({
 })
 export type ExplorerWindowBounds = z.infer<typeof explorerWindowBoundsSchema>
 
+/** Position and size of an explorer window inside a named layout (D25 / D73). */
+export const layoutWindowFrameSchema = z.object({
+  x: z.number().finite(),
+  y: z.number().finite(),
+  width: z.number().finite().positive(),
+  height: z.number().finite().positive(),
+  maximized: z.boolean().catch(false)
+})
+export type LayoutWindowFrame = z.infer<typeof layoutWindowFrameSchema>
+
+const layoutTabWireSchema = z.object({
+  path: z.string().min(1),
+  title: z.string().nullable().catch(null),
+  icon: tabIconSchema,
+  viewMode: viewModeSchema.catch('largeIcons'),
+  sort: sortSchema.catch({ key: 'name', dir: 'asc' }),
+  rootPath: z.string().nullable().catch(null),
+  treeExpanded: z
+    .array(z.string())
+    .catch([])
+    .transform((arr) =>
+      arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED)
+    )
+})
+
+/** One secondary explorer window stored in a named layout. */
+export const layoutFloatWireSchema = z.object({
+  frame: layoutWindowFrameSchema,
+  activeTabIndex: z.number().int().min(0).catch(0),
+  tabs: z.array(layoutTabWireSchema).min(1)
+})
+export type LayoutFloatWire = z.infer<typeof layoutFloatWireSchema>
+
 /** Secondary explorer shell (layout is always a single pane). */
 export const explorerWindowSchema = z.object({
   id: z.string().min(1),
@@ -323,6 +356,23 @@ export const explorerShellRequestSchema = z.discriminatedUnion('action', [
     tabs: z.array(tabStateSchema),
     activeTabId: z.string().nullable(),
     closedTabs: z.array(closedTabEntrySchema).optional()
+  }),
+  z.object({ action: z.literal('captureWorkspace') }),
+  z.object({ action: z.literal('layoutFlushAck') }),
+  z.object({
+    action: z.literal('forwardToMain'),
+    op: z.enum(['saveLayout', 'updateLayout', 'applyLayout']),
+    name: z.string().min(1).max(80).optional(),
+    id: z.string().min(1).optional()
+  }),
+  z.object({
+    action: z.literal('layoutOpResult'),
+    layout: z.unknown().nullable()
+  }),
+  z.object({
+    action: z.literal('replaceLayoutWindows'),
+    mainWindow: layoutWindowFrameSchema.nullable(),
+    windows: z.array(layoutFloatWireSchema)
   })
 ])
 export type ExplorerShellRequest = z.infer<typeof explorerShellRequestSchema>

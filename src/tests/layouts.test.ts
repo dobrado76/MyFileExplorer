@@ -171,6 +171,8 @@ describe('layouts', () => {
       tabs: [{ path: 'D:\\x' }]
     })
     expect(old.pairCompareVisibleStatuses).toBeUndefined()
+    expect(old.windows).toEqual([])
+    expect(old.mainWindow).toBeUndefined()
   })
 
   it('keeps a custom tab icon on a layout tab', () => {
@@ -214,5 +216,37 @@ describe('layouts', () => {
       color: '#34d399',
       pack: 'phosphor'
     })
+  })
+
+  it('snapshots secondary windows and the main window frame', () => {
+    const layout = buildLayoutFromSnapshot('Two screens', {
+      ...sampleSource,
+      mainWindow: { x: 10, y: 20, width: 1400, height: 900, maximized: false },
+      windows: [
+        {
+          frame: { x: 1600, y: 0, width: 1200, height: 800, maximized: true },
+          activeTabIndex: 0,
+          tabs: [
+            {
+              path: 'E:\\Media',
+              title: 'Media',
+              icon: null,
+              viewMode: 'largeIcons',
+              sort: { key: 'name', dir: 'asc' },
+              rootPath: null,
+              treeExpanded: []
+            }
+          ]
+        }
+      ]
+    })
+    expect(layout.windows).toHaveLength(1)
+    expect(layout.windows[0]?.tabs[0]?.title).toBe('Media')
+    expect(layout.mainWindow).toMatchObject({ x: 10, width: 1400, maximized: false })
+    expect(layoutSummary(layout)).toContain('3 tabs')
+    expect(layoutSummary(layout)).toContain('2 windows')
+    const again = workspaceLayoutSchema.parse(JSON.parse(JSON.stringify(layout)))
+    expect(again.windows[0]?.frame.maximized).toBe(true)
+    expect(again.windows[0]?.tabs[0]?.path).toBe('E:\\Media')
   })
 })

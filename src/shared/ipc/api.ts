@@ -341,6 +341,9 @@ export type MyFileExplorerApi = {
         closedWindows?: import('../schemas/session').ClosedWindowEntry[]
         tabs?: import('../schemas/session').TabState[]
         ok?: true
+        mainWindow?: import('../schemas/session').LayoutWindowFrame | null
+        windows?: import('../schemas/session').LayoutFloatWire[]
+        layout?: import('../layouts').WorkspaceLayout | null
       }>
     >
   }

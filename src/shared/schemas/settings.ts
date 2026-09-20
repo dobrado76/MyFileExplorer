@@ -540,8 +540,8 @@ const settingsFieldsSchema = z.object({
    */
   layoutsAutoSave: z.boolean().catch(true),
   /**
-   * Named workspace layouts: tab set + per-tab view/sort/tree + chrome splitters.
-   * Cap enforced on parse/write.
+   * Named workspace layouts: every explorer window (tabs + position/size) and
+   * the main window's pane chrome. Cap enforced on parse/write.
    */
   layouts: z.preprocess((raw) => {
     if (!Array.isArray(raw)) return []

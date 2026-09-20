@@ -8,11 +8,15 @@ import {
   viewModeSchema,
   coerceViewLayout,
   sanitizePaneTreeCollapsed,
+  layoutWindowFrameSchema,
+  layoutFloatWireSchema,
   type SortSpec,
   type Splitters,
   type TabIcon,
   type ViewLayout,
-  type ViewMode
+  type ViewMode,
+  type LayoutWindowFrame,
+  type LayoutFloatWire
 } from './schemas/session'
 import {
   pairFoldersVisibleStatusSchema,
@@ -84,9 +88,21 @@ export const workspaceLayoutSchema = z.object({
     sanitizeLayoutVisibleStatuses,
     z.array(pairFoldersVisibleStatusSchema).optional()
   ),
+  /**
+   * Main window position/size. Missing on layouts saved before multi-window
+   * snapshots — applying those leaves the main window where it is.
+   */
+  mainWindow: layoutWindowFrameSchema.optional().catch(undefined),
+  /**
+   * Secondary explorer windows, in order. Empty = main window only.
+   * Older layouts omit this and apply as a single window.
+   */
+  windows: z.array(layoutFloatWireSchema).catch([]),
   tabs: z.array(layoutTabSchema).min(1)
 })
 export type WorkspaceLayout = z.infer<typeof workspaceLayoutSchema>
+
+export type { LayoutWindowFrame, LayoutFloatWire }
 
 /** Snapshot input from the live session (tabs already validated by the store). */
 export type LayoutSnapshotSource = {
@@ -111,6 +127,10 @@ export type LayoutSnapshotSource = {
   tabIds: string[]
   /** Current paired-folders filter (saved into backup/sync layouts). */
   pairCompareVisibleStatuses?: PairFoldersVisibleStatus[]
+  /** Live main-window geometry. Omit when unknown. */
+  mainWindow?: LayoutWindowFrame | null
+  /** Secondary explorer windows (tabs + frame). */
+  windows?: LayoutFloatWire[]
 }
 
 export function newLayoutId(): string {
@@ -177,6 +197,8 @@ export function buildLayoutFromSnapshot(
     paneSplitCols: clampRatio(source.paneSplitCols),
     paneSplitRows: clampRatio(source.paneSplitRows),
     pairCompareVisibleStatuses: source.pairCompareVisibleStatuses,
+    mainWindow: source.mainWindow ?? undefined,
+    windows: source.windows ?? [],
     tabs
   })
 }
@@ -257,9 +279,15 @@ export function previousLayoutToAutoSave(
   return null
 }
 
+export function layoutCounts(layout: WorkspaceLayout): { tabs: number; windows: number } {
+  const tabs =
+    layout.tabs.length + layout.windows.reduce((n, w) => n + w.tabs.length, 0)
+  return { tabs, windows: 1 + layout.windows.length }
+}
+
 export function layoutSummary(layout: WorkspaceLayout): string {
-  const n = layout.tabs.length
-  const titles = layout.tabs
+  const { tabs: n, windows } = layoutCounts(layout)
+  const titles = [...layout.tabs, ...layout.windows.flatMap((w) => w.tabs)]
     .slice(0, 3)
     .map((t) => {
       if (t.title?.trim()) return t.title.trim()
@@ -268,5 +296,6 @@ export function layoutSummary(layout: WorkspaceLayout): string {
     })
   const more = n > 3 ? ` +${n - 3}` : ''
   const panes = layout.viewLayout > 1 ? ` · ${layout.viewLayout}-pane` : ''
-  return `${n} tab${n === 1 ? '' : 's'}${panes}: ${titles.join(', ')}${more}`
+  const winPart = windows > 1 ? ` · ${windows} windows` : ''
+  return `${n} tab${n === 1 ? '' : 's'}${panes}${winPart}: ${titles.join(', ')}${more}`
 }

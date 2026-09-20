@@ -9,6 +9,12 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Layouts include every window** — a named layout stores each explorer window’s tabs plus that window’s position, size, and maximized state. Applying it restores that set and closes extra windows. Layouts saved before this only restore the main window.
+
+## [0.19.0] - 2026-09-20
+
+Nineteenth product release: detachable explorer windows, Power Search date and ADS filters, and a slideshow folder-only walk. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 - **Detachable explorer windows** — tab menu **Move to new window** opens another shell (same app, own monitor). **Merge into main window** sends those tabs back. Closing that window asks Merge or Close tabs. **Reopen closed window** restores the last closed one. Dragging a tab off the bar is not in this version.
 - **Slideshow Include subfolders** — Settings → Slideshow toggle (on by default). Off limits Start Slideshow to images in the selected folder; on keeps the previous recursive walk.
 - **Power Search tabs + full dates** — builder uses rounded tabs (Name & Text default; Date = created / modified / last accessed). Emits `dc:` / `dm:` / `da:` (alias `dateaccessed:`). Index stores `birthtime_ms` / `atime_ms`; missing times fail closed. ADS + user metadata live on the **Metadata** tab.

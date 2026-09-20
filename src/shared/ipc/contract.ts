@@ -623,3 +623,19 @@ export type MfeEvent =
       type: 'shell-tabs-arrived'
       payload: { tabs: import('../schemas/session').TabState[] }
     }
+  | { type: 'shell-layout-flush' }
+  | {
+      type: 'shell-layout-op'
+      payload: {
+        op: 'saveLayout' | 'updateLayout' | 'applyLayout'
+        name?: string
+        id?: string
+      }
+    }
+  | {
+      type: 'settings-layouts'
+      payload: {
+        layouts: import('../layouts').WorkspaceLayout[]
+        layoutsAutoSave: boolean
+      }
+    }

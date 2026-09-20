@@ -228,11 +228,16 @@ import {
 import { sessionStore } from '../session/store'
 import { mergeMainSessionWrite } from '@shared/explorerSession'
 import {
+  ackLayoutFlush,
+  captureWorkspace,
   clearClosedWindows,
+  completeLayoutOp,
   detachTab,
   discardShell,
+  forwardLayoutToMain,
   mergeShellToMain,
   reopenClosedWindow,
+  replaceLayoutWindows,
   saveFloatTabs,
   sessionWritesLocked,
   shellIdFromContents
@@ -782,20 +787,42 @@ export function registerIpcHandlers(): void {
     sessionStore().set(next)
     return next
   })
-  handle(IPC.explorerShell, explorerShellRequestSchema, (req, event) => {
+  handle(IPC.explorerShell, explorerShellRequestSchema, async (req, event) => {
     const shellId = shellIdFromContents(event.sender)
     if (req.action === 'detach') return detachTab(req.tab, shellId)
     if (req.action === 'merge') return mergeShellToMain(shellId)
     if (req.action === 'discard') return discardShell(shellId, req.tabs)
     if (req.action === 'reopen') return reopenClosedWindow(req.index ?? 0)
     if (req.action === 'clearClosedWindows') return clearClosedWindows()
+    if (req.action === 'captureWorkspace') return captureWorkspace(shellId)
+    if (req.action === 'layoutFlushAck') {
+      ackLayoutFlush(shellId)
+      return { ok: true as const }
+    }
+    if (req.action === 'forwardToMain') return forwardLayoutToMain(req)
+    if (req.action === 'layoutOpResult') {
+      completeLayoutOp(req.layout)
+      return { ok: true as const }
+    }
+    if (req.action === 'replaceLayoutWindows') {
+      return replaceLayoutWindows(req.mainWindow, req.windows)
+    }
     saveFloatTabs(shellId, req.tabs, req.activeTabId, req.closedTabs)
     return { ok: true as const }
   })
 
   // settings
   handle(IPC.settingsGet, emptySchema, () => getSettings())
-  handle(IPC.settingsSet, settingsPatchSchema, (patch) => patchSettings(patch))
+  handle(IPC.settingsSet, settingsPatchSchema, (patch) => {
+    const next = patchSettings(patch)
+    if (patch != null && ('layouts' in patch || 'layoutsAutoSave' in patch)) {
+      broadcast({
+        type: 'settings-layouts',
+        payload: { layouts: next.layouts, layoutsAutoSave: next.layoutsAutoSave }
+      })
+    }
+    return next
+  })
   handle(IPC.settingsClearThumbCache, emptySchema, async () => {
     await clearThumbCache()
     return { cleared: true as const }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useAppStore } from '../store/appStore'
+import { layoutCounts } from '@shared/layouts'
 import { LayoutsIcon } from '../lib/icons'
 
 /** Toolbar control: apply / save / manage named workspace layouts. */
@@ -93,14 +94,21 @@ export function LayoutsMenu(): JSX.Element {
             {layouts.length === 0 ? (
               <div className="menu-hint">No saved layouts yet</div>
             ) : (
-              layouts.map((layout) => (
+              layouts.map((layout) => {
+                const c = layoutCounts(layout)
+                const tabs = `${c.tabs} tab${c.tabs === 1 ? '' : 's'}`
+                const hint = c.windows > 1 ? `${tabs} · ${c.windows} windows` : tabs
+                return (
                 <button
                   key={layout.id}
                   type="button"
                   className="menu-item"
                   role="menuitem"
                   aria-current={layout.id === activeLayoutId ? 'true' : undefined}
-                  title={layout.tabs.map((t) => t.path).join('\n')}
+                  title={[
+                    ...layout.tabs.map((t) => t.path),
+                    ...layout.windows.flatMap((w) => w.tabs.map((t) => t.path))
+                  ].join('\n')}
                   onClick={() => {
                     setOpen(false)
                     void applyLayout(layout.id)
@@ -108,11 +116,10 @@ export function LayoutsMenu(): JSX.Element {
                 >
                   <span className="menu-check">{layout.id === activeLayoutId ? '✓' : ''}</span>
                   {layout.name}
-                  <span className="menu-hint">
-                    {layout.tabs.length} tab{layout.tabs.length === 1 ? '' : 's'}
-                  </span>
+                  <span className="menu-hint">{hint}</span>
                 </button>
-              ))
+                )
+              })
             )}
           </div>,
           document.body

@@ -1,6 +1,6 @@
 # Product specification
 
-**Version:** 0.18.0
+**Version:** 0.19.0
 **App:** MyFileExplorer
 
 Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](LINUX.md)).
@@ -58,12 +58,12 @@ Cold start shows a small branded splash (icon + “Starting…”) until the mai
 | Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
 | Close            | Middle-click / close button / context menu; confirm if that tab has an in-progress destructive op (rare) |
 | New tab          | Clone current path or open profile default (This PC / home — Settings); **Duplicate** copies path/view/title/icon |
-| Named layouts    | Save/load the whole tab set + chrome as a named workspace (see Settings → Layouts)         |
+| Named layouts    | Save/load the whole workspace — every window’s tabs, position, and size — as a named layout (see Settings → Layouts) |
 | Drop onto pane   | Drag a tab onto a multi-view pane to assign it (moves if already in another pane)          |
 
 Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable glyph `{ name, color, pack? }` or custom `{ kind: 'custom', id, showLabel, sizePx }`), `treeExpanded` (folder-tree expand/collapse paths).
 
-**Named layouts (D25):** user can save the current workspace (all tabs’ paths/titles/icons/view/sort/rootPath/treeExpanded + tree/preview splitter chrome + multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant) under a name (“AI training”, “Book editing”, backup/sync pairs, …), apply it later (replaces open tabs), update, rename, reorder, or remove. **Switching layouts auto-saves** the one you were on (Settings → Layouts, on by default). Toolbar Layouts menu for quick switch (same order as Settings); Settings → Layouts for management. Orthogonal to per-folder view overrides.
+**Named layouts (D25):** user can save the current workspace under a name (“AI training”, “Book editing”, backup/sync pairs, …) and apply it later. The snapshot is **every explorer window**, not only the main one: each window’s tabs (paths/titles/icons/view/sort/rootPath/treeExpanded) plus that window’s **position, size, and maximized state**. The main window also stores tree/preview splitter chrome, multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant. Apply replaces the open workspace (new tab ids; history/selection/scroll cleared) and closes float windows that are not in the layout. **Switching layouts auto-saves** the one you were on (Settings → Layouts, on by default). Toolbar Layouts menu for quick switch (same order as Settings); Settings → Layouts for management. Orthogonal to per-folder view overrides.
 
 ---
 

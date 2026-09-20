@@ -1445,11 +1445,15 @@ function tabHasAllSelected(s: AppState, tabId: string): boolean {
 }
 
 export const useAppStore = create<AppState>()((set, get) => {
-  function persistSession(): void {
+  async function flushSessionNow(): Promise<void> {
+    if (sessionSaveTimer) {
+      clearTimeout(sessionSaveTimer)
+      sessionSaveTimer = null
+    }
     const s = get()
     if (!s.booted) return
     if (s.shellId !== MAIN_SHELL_ID) {
-      void api.explorer.command({
+      await api.explorer.command({
         action: 'saveTabs',
         tabs: s.tabs.map((t) => ({ ...tabToSessionTab(t), windowId: s.shellId })),
         activeTabId: s.activeTabId,
@@ -1473,13 +1477,19 @@ export const useAppStore = create<AppState>()((set, get) => {
       closedWindows: s.closedWindows,
       activeLayoutId: s.activeLayoutId
     }
-    void api.session.set(session)
+    await api.session.set(session)
+  }
+
+  function persistSession(): void {
+    void flushSessionNow()
   }
 
   async function workspaceLayoutFromLive(
     name: string,
     existingId?: string
   ): Promise<WorkspaceLayout> {
+    await flushSessionNow()
+    const cap = await call(api.explorer.command({ action: 'captureWorkspace' }))
     const s = get()
     const activeIdx = Math.max(
       0,
@@ -1501,7 +1511,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         tabIds: s.tabs.map((t) => t.id),
         paneSplitCols: s.paneSplitCols,
         paneSplitRows: s.paneSplitRows,
-        pairCompareVisibleStatuses
+        pairCompareVisibleStatuses,
+        mainWindow: cap.mainWindow ?? null,
+        windows: cap.windows ?? []
       },
       existingId
     )
@@ -4010,6 +4022,31 @@ export const useAppStore = create<AppState>()((set, get) => {
           if (event.payload.windowId === get().shellId) set({ shellClosePrompt: true })
         } else if (event.type === 'shell-roster') {
           set({ closedWindows: event.payload.closedWindows })
+        } else if (event.type === 'shell-layout-flush') {
+          void flushSessionNow().then(() => {
+            void api.explorer.command({ action: 'layoutFlushAck' }).catch(() => undefined)
+          })
+        } else if (event.type === 'shell-layout-op') {
+          if (get().shellId !== MAIN_SHELL_ID) return
+          const p = event.payload
+          if (p.op === 'saveLayout' && p.name) {
+            void get()
+              .saveLayout(p.name)
+              .then((layout) => {
+                void api.explorer
+                  .command({ action: 'layoutOpResult', layout })
+                  .catch(() => undefined)
+              })
+          } else if (p.op === 'updateLayout' && p.id) {
+            void get().updateLayout(p.id)
+          } else if (p.op === 'applyLayout' && p.id) {
+            void get().applyLayout(p.id)
+          }
+        } else if (event.type === 'settings-layouts') {
+          const { layouts, layoutsAutoSave } = event.payload
+          set((state) => ({
+            settings: { ...state.settings, layouts, layoutsAutoSave }
+          }))
         } else if (event.type === 'shell-tabs-arrived') {
           if (get().shellId !== MAIN_SHELL_ID) return
           const incoming = event.payload.tabs.map(sessionTabToTab)
@@ -5469,6 +5506,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async saveLayout(name) {
+      if (get().shellId !== MAIN_SHELL_ID) {
+        await flushSessionNow()
+        const res = await call(
+          api.explorer.command({ action: 'forwardToMain', op: 'saveLayout', name })
+        )
+        if (res.layout) set({ activeLayoutId: res.layout.id })
+        return res.layout ?? null
+      }
       const s = get()
       try {
         const layout = await workspaceLayoutFromLive(name)
@@ -5486,6 +5531,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async updateLayout(id, opts) {
+      if (get().shellId !== MAIN_SHELL_ID) {
+        await flushSessionNow()
+        await call(api.explorer.command({ action: 'forwardToMain', op: 'updateLayout', id }))
+        return
+      }
       const s = get()
       const existing = s.settings.layouts.find((l) => l.id === id)
       if (!existing) {
@@ -5538,6 +5588,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async applyLayout(id) {
+      if (get().shellId !== MAIN_SHELL_ID) {
+        await flushSessionNow()
+        await call(api.explorer.command({ action: 'forwardToMain', op: 'applyLayout', id }))
+        return
+      }
       const s0 = get()
       const layout = s0.settings.layouts.find((l) => l.id === id)
       if (!layout || layout.tabs.length === 0) {
@@ -5622,7 +5677,14 @@ export const useAppStore = create<AppState>()((set, get) => {
         dialogStack: [],
         contextMenu: null
       })
-      scheduleSessionSave()
+      await flushSessionNow()
+      await call(
+        api.explorer.command({
+          action: 'replaceLayoutWindows',
+          mainWindow: layout.mainWindow ?? null,
+          windows: layout.windows ?? []
+        })
+      )
       await loadVisiblePaneListings()
       if (layout.pairCompareVisibleStatuses && layout.pairCompareVisibleStatuses.length > 0) {
         const statuses = layout.pairCompareVisibleStatuses
