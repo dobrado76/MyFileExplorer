@@ -1287,7 +1287,8 @@ function tabToSessionTab(t: Tab): TabState {
     selectedPaths: t.selected,
     scrollOffset: t.scrollOffset,
     treeExpanded: t.treeExpanded,
-    virtualFolderGroupStack: t.virtualFolderGroupStack
+    virtualFolderGroupStack: t.virtualFolderGroupStack,
+    windowId: MAIN_SHELL_ID
   }
 }
 
@@ -3833,7 +3834,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         devGateActive: devGateRes.active === true,
         devGatePresent: devGateRes.present === true,
         devGateEnable: devGateRes.enable === true,
-        search: activeTab.search,
+        search: activeTab?.search ?? emptyTabSearch(),
         slideshow: {
           ...emptySlideshowSession(),
           cacheActive: settings.slideshow.cacheActive === true,

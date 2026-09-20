@@ -60,6 +60,7 @@ export type SlideshowHost = {
       order: 'random' | 'name' | 'size' | 'dimensions'
       ascending: boolean
       loop: boolean
+      recursive: boolean
       drawCaption: boolean
       titleFilename: boolean
       categorizerMapPath: string
