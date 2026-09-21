@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import FilerobotImageEditor, {
   TABS,
   TOOLS,
@@ -71,7 +71,7 @@ export function ImageEditor(): JSX.Element | null {
     }
   }, [editor, notify, closeImageEditor])
 
-  function bakeWorkingSource(nextToolId?: CropToolId): boolean {
+  const bakeWorkingSource = useCallback((nextToolId?: CropToolId): boolean => {
     if (bakingRef.current) return false
     const fn = getCurrentImgDataFnRef.current
     if (typeof fn !== 'function' || !dirtyRef.current) {
@@ -114,13 +114,15 @@ export function ImageEditor(): JSX.Element | null {
       bakingRef.current = false
       setBaking(false)
     }
-  }
+  }, [fileName, notify])
 
   const openRemoveRef = useRef<() => void>(() => undefined)
-  openRemoveRef.current = () => {
-    bakeWorkingSource()
-    setRemoveMode(true)
-  }
+  useEffect(() => {
+    openRemoveRef.current = () => {
+      bakeWorkingSource()
+      setRemoveMode(true)
+    }
+  }, [bakeWorkingSource])
 
   // Filename in topbar + Remove tab under Resize (same Filerobot tab chrome).
   useEffect(() => {
@@ -210,7 +212,7 @@ export function ImageEditor(): JSX.Element | null {
 
     root.addEventListener('pointerdown', onPointerDownCapture, true)
     return () => root.removeEventListener('pointerdown', onPointerDownCapture, true)
-  }, [src, srcKey, removeMode])
+  }, [src, srcKey, removeMode, bakeWorkingSource])
 
   useEffect(() => {
     if (!editor) return
