@@ -758,11 +758,8 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     () => owningView?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const },
     [owningView, tab?.sort]
   )
-  // Search is a separate overlay (D29): always Details for results. Never read as
-  // mutating the folder/tab viewMode — that stays whatever was set before search.
-  const viewMode = searchMode
-    ? 'details'
-    : (owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons')
+  // Search uses the same view as the folder (D29). Details still adds the Folder column.
+  const viewMode = owningView?.viewMode ?? tab?.viewMode ?? 'largeIcons'
   const noFilenameView = viewMode === 'extraLargeIconsNoName'
 
   useEffect(() => {
@@ -2778,9 +2775,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                             {gridName.fallback}
                           </span>
                         )}
-                        {recycleMode && viewMode !== 'details' ? (
+                        {(recycleMode || searchMode) && viewMode !== 'details' ? (
                           <span className="cell-name-path" title={entry.path}>
-                            {entry.path}
+                            {searchMode ? (parentOf(entry.path) ?? entry.path) : entry.path}
                           </span>
                         ) : null}
                       </div>
@@ -2861,9 +2858,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                     : (
                         <span className="row-name-text" title={entry.name}>
                           <span className="cell-name-primary">{labelFor(entry)}</span>
-                          {recycleMode && viewMode !== 'details' ? (
+                          {(recycleMode || searchMode) && viewMode !== 'details' ? (
                             <span className="cell-name-path" title={entry.path}>
-                              {entry.path}
+                              {searchMode ? (parentOf(entry.path) ?? entry.path) : entry.path}
                             </span>
                           ) : null}
                         </span>

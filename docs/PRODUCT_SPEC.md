@@ -182,7 +182,7 @@ See [SEARCH.md](SEARCH.md).
 - **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
 - Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
 - Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
-- Results use Details with a temporary **Folder** column (sortable; search-only, not saved); context **Open File Path** / **Open File in new tab** open locations in-app.
+- Results use the **current view** (thumbnails, icons, list, or Details). Details adds a temporary **Folder** column (sortable; search-only, not saved); other views show the parent folder under the name. Context **Open File Path** / **Open File in new tab** open locations in-app.
 - Search is a **tab history location** (D29): Back/Forward restore folder or search (and the file-list scroll for that folder); each tab keeps its own query/results; switching tabs does not clear. Delete / move prunes those hits (and children of a removed folder).
 - Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
 

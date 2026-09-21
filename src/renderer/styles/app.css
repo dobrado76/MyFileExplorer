@@ -2602,6 +2602,13 @@ body.right-dragging * {
   user-select: text;
 }
 
+/* Body is user-select:none. While dragging a rename selection past the box,
+   keep the gesture a text selection instead of a file-list click. */
+body.rename-selecting,
+body.rename-selecting * {
+  user-select: text !important;
+}
+
 /* ---------- search results ---------- */
 
 .search-banner {

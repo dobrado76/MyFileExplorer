@@ -20,6 +20,7 @@ import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/v
 import { api, call } from '../lib/ipc'
 import { usePreviewTarget } from '../lib/usePreviewTarget'
 import { clipboardActionPaths, isFolderTreeEventTarget } from '../lib/clipboardActionPaths'
+import { nextTextAfterDeleteKey, textEditingElement } from '../lib/textEditKey'
 import {
   FONT_SIZE_PX_MAX,
   FONT_SIZE_PX_MIN,
@@ -41,9 +42,7 @@ function maxPreviewWidthPx(): number {
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+  return textEditingElement(target) != null
 }
 
 /** True when the user highlighted text (e.g. preview) — let the browser handle Ctrl+C. */
@@ -140,14 +139,38 @@ export function ExplorerShell(): JSX.Element {
   const onKeyDown = useCallback((e: KeyboardEvent): void => {
     const s = useAppStore.getState()
     if (s.dialog || s.contextMenu) return
-    const editing = isEditingTarget(e.target) || s.renamingPath !== null || s.addressEditing
 
     const key = e.key
     const ctrl = e.ctrlKey
     const shift = e.shiftKey
     const alt = e.altKey
+    const textTarget = textEditingElement(e.target) ?? textEditingElement(document.activeElement)
+    const renameField = document.querySelector<HTMLInputElement>('input.rename-input')
+    const renaming = s.renamingPath !== null || (renameField != null && textTarget === renameField)
 
-    // shortcuts that also work while editing are none — bail early
+    // Rename box: Del/Backspace edits the name (selected text or one character).
+    // The file-list shortcut must not send that folder to the Recycle Bin.
+    if (
+      renaming &&
+      renameField &&
+      (key === 'Delete' || key === 'Backspace') &&
+      !ctrl &&
+      !alt &&
+      !e.metaKey
+    ) {
+      const start = renameField.selectionStart ?? renameField.value.length
+      const end = renameField.selectionEnd ?? renameField.value.length
+      const next = nextTextAfterDeleteKey(renameField.value, start, end, key)
+      renameField.value = next.value
+      renameField.setSelectionRange(next.caret, next.caret)
+      if (document.activeElement !== renameField) renameField.focus()
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      return
+    }
+
+    const editing = textTarget != null || renaming || s.addressEditing
+    // No file shortcuts while a text field is open — Del stays a text edit.
     if (editing) return
 
     if (ctrl && shift && !alt && key.toLowerCase() === 't') {

@@ -9,6 +9,9 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Rename keeps Del in the name box** — while a file or folder is being renamed, Del and Backspace edit the text (selected name or one character). They no longer send that item to the Recycle Bin.
+- **Rename selection drag** — highlighting part of a name and releasing the mouse outside the box stays in rename. That release is not treated as a click away.
+- **Search keeps the current view** — results no longer force Details. Thumbnails, icons, and list stay as they are; Details still shows the Folder column.
 - **Layouts include every window** — a named layout stores each explorer window’s tabs plus that window’s position, size, and maximized state. Applying it restores that set and closes extra windows. Layouts saved before this only restore the main window.
 - **Git chrome after `.git` removed** — deleting a repository’s `.git` folder clears the cached status so the toolbar and Git preview tab disappear instead of staying up and showing `fatal: not a git repository`.
 - **Image thumbs follow ADS tip edits** — thumbnail cache keys include a tip content stamp (D27 `VER_*`), folder watches pass changed filenames, and F5 refreshes image thumbs even when `$DATA` mtime/size did not change.

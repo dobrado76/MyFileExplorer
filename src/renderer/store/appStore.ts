@@ -7678,6 +7678,13 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     async deleteSelection(permanent, paths, planMode = false) {
       const s = get()
+      // Inline rename owns Del. Never recycle the item whose name is being edited.
+      if (
+        s.renamingPath !== null ||
+        (typeof document !== 'undefined' && document.querySelector('input.rename-input'))
+      ) {
+        return
+      }
       if (s.recycleBin.active) {
         // In the bin: Del / Shift+Del permanently remove from the Recycle Bin.
         get().deleteFromRecycleBinView(paths)
@@ -9660,8 +9667,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       const seq = ++searchSeq
       const indexedOnly = tab.search.indexedOnly
       const settings = get().settings
-      // Search results always *display* as Details (FileView overlay). Never mutate
-      // tab/folder viewMode — clearing search must restore the prior folder view.
+      // Results use the folder's current view (icons, thumbnails, list, or Details).
       const entering = !tab.search.active
       const last = tab.back[tab.back.length - 1]
       const folderHere = folderHistory(tab.path, liveFileViewScroll(tab.id) ?? tab.scrollOffset)

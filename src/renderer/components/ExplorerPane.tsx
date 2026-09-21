@@ -139,8 +139,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
   }
 
   const owning = resolveFolderViewForTab(tab, folderViews)
-  const searchActive = tab.search.active
-  const viewMode = searchActive ? 'details' : (owning?.viewMode ?? tab.viewMode)
+  const viewMode = owning?.viewMode ?? tab.viewMode
   const treeWidth = splitters.treeWidthPx
 
   return (
@@ -249,12 +248,7 @@ export function ExplorerPane({ paneIndex }: Props): JSX.Element {
         <select
           aria-label="View mode"
           value={viewMode}
-          title={
-            searchActive
-              ? 'Search results always use Details. Clear search to return to the folder view.'
-              : 'View mode'
-          }
-          disabled={searchActive}
+          title="View mode"
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => {
             focusPane(paneIndex)
