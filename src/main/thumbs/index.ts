@@ -7,6 +7,7 @@ import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute } from '../fs/list'
 import { resolveVidThumbFrames } from './vidCache'
 import { enqueueThumbGenerate } from './generateQueue'
+import { tipContentStamp } from './tipStamp'
 import { isEditableImagePath } from '@shared/imageEdit'
 
 const THUMB_EXTS = new Set([
@@ -134,6 +135,7 @@ export async function getThumbUrl(
   let tipOpenPath = file
   let tipSize = st.size
   let tipVer = 0
+  let tipStamp = ''
   if (isEditableImagePath(file) && process.platform === 'win32') {
     try {
       const { resolveImageAdsStream } = await import('../fs/imageEdit')
@@ -147,6 +149,9 @@ export async function getThumbUrl(
       } catch {
         /* keep default size */
       }
+      if (tipAds) {
+        tipStamp = await tipContentStamp(tipOpenPath, tipSize)
+      }
     } catch {
       /* tip = $DATA */
     }
@@ -156,7 +161,7 @@ export async function getThumbUrl(
   const key = crypto
     .createHash('sha1')
     .update(
-      `${file.toLowerCase()}|${st.mtimeMs}|${st.size}|v${tipVer}|${tipAds ?? 'data'}|${tipSize}|${target}`
+      `${file.toLowerCase()}|${st.mtimeMs}|${st.size}|v${tipVer}|${tipAds ?? 'data'}|${tipSize}|${tipStamp}|${target}`
     )
     .digest('hex')
   const cacheFile = path.join(thumbCacheDir(), `${key}.webp`)

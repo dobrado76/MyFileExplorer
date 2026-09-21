@@ -5,6 +5,8 @@ export {
   getOrRefreshStatus,
   ensureStatusForPath,
   invalidateRepo,
+  forgetRepo,
+  forgetReposCoveringPath,
   clearAllGitCache,
   scheduleRefresh,
   notifyPathChanged

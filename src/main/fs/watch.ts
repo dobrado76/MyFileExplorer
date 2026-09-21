@@ -6,7 +6,13 @@ import { isSameOrUnder, pathKey } from '../security/paths'
 import { broadcast } from '../ipc/events'
 import { requireAbsolute } from './list'
 
-type WatcherEntry = { watcher: fs.FSWatcher; timer: NodeJS.Timeout | null; path: string }
+type WatcherEntry = {
+  watcher: fs.FSWatcher
+  timer: NodeJS.Timeout | null
+  path: string
+  /** Filenames from coalesced `fs.watch` events (Windows usually provides them). */
+  pendingNames: Set<string>
+}
 
 /** Per-webContents map of watched dirs. */
 const watchers = new Map<number, Map<string, WatcherEntry>>()
@@ -67,16 +73,32 @@ export function watchDirectory(wc: WebContents, rawPath: string): { watching: tr
   }
   if (byPath.has(key)) return { watching: true }
 
-  const entry: WatcherEntry = { watcher: fs.watch(dir), timer: null, path: dir }
-  entry.watcher.on('change', (eventType) => {
+  const entry: WatcherEntry = {
+    watcher: fs.watch(dir),
+    timer: null,
+    path: dir,
+    pendingNames: new Set()
+  }
+  entry.watcher.on('change', (eventType, filename) => {
     if (Date.now() < mutedUntil) return
+    if (typeof filename === 'string' && filename.length > 0) {
+      entry.pendingNames.add(filename)
+    } else if (Buffer.isBuffer(filename) && filename.length > 0) {
+      entry.pendingNames.add(filename.toString('utf8'))
+    }
     if (entry.timer) clearTimeout(entry.timer)
     entry.timer = setTimeout(() => {
       entry.timer = null
+      const names = [...entry.pendingNames]
+      entry.pendingNames.clear()
       if (!wc.isDestroyed()) {
         wc.send(EVENT_CHANNEL, {
           type: 'fs-changed',
-          payload: { path: dir, reason: String(eventType) }
+          payload: {
+            path: dir,
+            reason: String(eventType),
+            ...(names.length > 0 ? { names } : {})
+          }
         })
       }
     }, 250)

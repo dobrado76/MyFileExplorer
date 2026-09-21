@@ -14,6 +14,7 @@ Do **not** confuse with image ADS **Version Control** (D27).
 - Status: one `git status --porcelain=v2 -z --branch` per repo → path map + folder aggregates.
 - Listing: do **not** extend `DirEntry`; enrich via cache + FileView lookup (same pattern as notes/icons).
 - Multi-pane: cache keyed by canonical repo root; toolbar follows the **active pane**.
+- When `git` reports **not a git repository** (e.g. `.git` deleted), the root is dropped from the cache and a `git-status-cleared` event removes toolbar / Git preview chrome — no lingering fatal error UI.
 - Network remotes (`mfe-remote://`): skipped in v1.
 - Auth: system Git Credential Manager / SSH only — never store tokens.
 - Temps: commit `-F` message files and HEAD blobs for external diff under `userData/git-scratch`.

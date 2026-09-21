@@ -10,6 +10,8 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 ## [Unreleased]
 
 - **Layouts include every window** — a named layout stores each explorer window’s tabs plus that window’s position, size, and maximized state. Applying it restores that set and closes extra windows. Layouts saved before this only restore the main window.
+- **Git chrome after `.git` removed** — deleting a repository’s `.git` folder clears the cached status so the toolbar and Git preview tab disappear instead of staying up and showing `fatal: not a git repository`.
+- **Image thumbs follow ADS tip edits** — thumbnail cache keys include a tip content stamp (D27 `VER_*`), folder watches pass changed filenames, and F5 refreshes image thumbs even when `$DATA` mtime/size did not change.
 
 ## [0.19.0] - 2026-09-20
 

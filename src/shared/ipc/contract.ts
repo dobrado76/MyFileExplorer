@@ -406,7 +406,7 @@ export type IpcChannel = (typeof IPC)[keyof typeof IPC]
 export const EVENT_CHANNEL = 'mfe-event'
 
 export type MfeEvent =
-  | { type: 'fs-changed'; payload: { path: string; reason: string } }
+  | { type: 'fs-changed'; payload: { path: string; reason: string; names?: string[] } }
   /** Watcher closed unexpectedly — renderer should re-arm if the path is still visible. */
   | { type: 'fs-watch-lost'; payload: { path: string } }
   | {
@@ -599,6 +599,10 @@ export type MfeEvent =
   | {
       type: 'git-status'
       payload: { status: import('../schemas/git').GitRepositoryStatus }
+    }
+  | {
+      type: 'git-status-cleared'
+      payload: { rootPath: string }
     }
   | {
       type: 'pair-compare-progress'

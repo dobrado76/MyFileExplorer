@@ -4,11 +4,12 @@ import type { Settings } from '@shared/schemas/settings'
 import type { DriveInfo } from '@shared/schemas/fs'
 import { isVolumeRootPath } from '@shared/paths'
 import { basename, samePath } from '../lib/paths'
-import { api, call } from '../lib/ipc'
 import { CompressIcon, DockIcon, ExpandIcon, SpinnerIcon } from '../lib/icons'
 import { usePreviewFetch } from '../lib/usePreviewFetch'
 import { lookupGitForPath } from '../lib/gitUi'
+import { isGitMissingRepoMessage } from '@shared/gitErrors'
 import { useAppStore } from '../store/appStore'
+import { api, call, IpcError } from '../lib/ipc'
 import { PreviewView } from './preview/PreviewView'
 import { ItemNotePreview } from './ItemNotePreview'
 import { UserMetadataPreview } from './UserMetadataPreview'
@@ -206,7 +207,11 @@ export function PreviewWindowApp(): JSX.Element {
     void (async () => {
       try {
         const res = await call(api.git.getStatus({ path: target.path! }))
-        if (cancelled || !res.inRepo || !res.status) return
+        if (cancelled) return
+        if (!res.inRepo || !res.status) {
+          useAppStore.getState().clearGitForPath(target.path!)
+          return
+        }
         mergeGitStatus(res.status)
       } catch {
         /* ignore */
@@ -245,8 +250,11 @@ export function PreviewWindowApp(): JSX.Element {
               try {
                 const res = await call(api.git.refresh({ repoRoot: gitLookup.rootPath }))
                 mergeGitStatus(res.status)
-              } catch {
-                /* ignore */
+              } catch (e) {
+                const msg = e instanceof IpcError ? e.message : e instanceof Error ? e.message : String(e)
+                if (isGitMissingRepoMessage(msg)) {
+                  useAppStore.getState().clearGitRoot(gitLookup.rootPath)
+                }
               }
             })()
           }

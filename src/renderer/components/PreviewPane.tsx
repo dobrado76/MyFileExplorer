@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
-import { api, call } from '../lib/ipc'
+import { api, call, IpcError } from '../lib/ipc'
 import { DockIcon, EditImageIcon, PopOutIcon } from '../lib/icons'
 import { isEditableImagePath } from '@shared/imageEdit'
 import { tryCaptionPosterUrl, decodeImageUrl } from '../lib/captionPoster'
@@ -12,6 +12,7 @@ import { UserMetadataPreview } from './UserMetadataPreview'
 import { isVolumeRootPath } from '../lib/rightDrag'
 import type { ItemNote } from '@shared/schemas/itemAds'
 import { lookupGitForPath } from '../lib/gitUi'
+import { isGitMissingRepoMessage } from '@shared/gitErrors'
 import { samePath } from '../lib/paths'
 import { captureDockedChromiumPlayback } from '../lib/dockedAvPlayback'
 
@@ -79,8 +80,11 @@ export function PreviewPane(): JSX.Element {
               try {
                 const res = await call(api.git.refresh({ repoRoot: gitLookup.rootPath }))
                 mergeGitStatus(res.status)
-              } catch {
-                /* ignore */
+              } catch (e) {
+                const msg = e instanceof IpcError ? e.message : e instanceof Error ? e.message : String(e)
+                if (isGitMissingRepoMessage(msg)) {
+                  useAppStore.getState().clearGitRoot(gitLookup.rootPath)
+                }
               }
             })()
           }
@@ -93,7 +97,11 @@ export function PreviewPane(): JSX.Element {
     void (async () => {
       try {
         const res = await call(api.git.getStatus({ path: previewPath }))
-        if (cancelled || !res.inRepo || !res.status) return
+        if (cancelled) return
+        if (!res.inRepo || !res.status) {
+          useAppStore.getState().clearGitForPath(previewPath)
+          return
+        }
         mergeGitStatus(res.status)
       } catch {
         /* ignore */

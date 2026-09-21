@@ -346,13 +346,14 @@ Broadcast on `mfe-event` (or per-channel `webContents.send`):
 | Event                     | Payload                                       |
 | ------------------------- | --------------------------------------------- |
 | `ai-chat-focus` | `{ conversationId }` — Ask AI window: show this chat |
-| `fs-changed`              | `{ path, reason }`                            |
+| `fs-changed`              | `{ path, reason, names? }` — optional changed filenames from the watcher |
 | `fs-watch-lost`           | `{ path }` — watcher closed; renderer may re-arm |
 | `search-progress`         | `{ phase, current?, total?, message? }`       |
 | `index-progress`          | `{ rootPath, processed, total? }`             |
 | `op-progress`             | `{ opId, kind, done, total, current?, label?, bytesDone?, bytesTotal?, phase }` — `kind`: copy/move/trash/delete/relocate/vid-thumbs/zip/media-metadata; byte fields for large streaming copies |
 | `cover-list`              | `{ path, done, cover? }` — Change cover tiles as previews load |
 | `git-status`              | `{ status: GitRepositoryStatus }` — repo cache update (D64) |
+| `git-status-cleared`      | `{ rootPath }` — repo cache dropped (`.git` gone / not a repo) |
 | `shell-close-request`    | Float window close — renderer asks Merge / Close tabs / Cancel (D73) |
 | `shell-roster`           | `{ closedWindows }` |
 | `shell-tabs-arrived`     | `{ tabs }` — merged back into the main window |
@@ -380,7 +381,7 @@ window.myFileExplorer = {
 }
 ```
 
-`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history), `network-discovery` (D44), `git-status` (D64).
+`onEvent` receives `fs-changed`, `fs-watch-lost`, `search-progress`, `index-progress`, `op-progress`, `external-open`, `history-nav` (mouse Back/Forward → tab history), `network-discovery` (D44), `git-status` / `git-status-cleared` (D64).
 
 ### `git.*` (D64 — opt-in; no work when Settings → Git is off)
 

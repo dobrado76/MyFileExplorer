@@ -4,6 +4,7 @@ import { GitBranch, MoreHorizontal, RefreshCw, Terminal } from 'lucide-react'
 import type { GitBranchInfo, GitRepositoryStatus } from '@shared/schemas/git'
 import { useAppStore } from '../../store/appStore'
 import { api, call, IpcError } from '../../lib/ipc'
+import { isGitMissingRepoMessage } from '@shared/gitErrors'
 import { ChevronDown } from '../../lib/icons'
 import {
   GitBranchCreateDialog,
@@ -64,7 +65,12 @@ export function GitRepoPreviewToolbar({
       const res = await call(api.git.refresh({ repoRoot }))
       mergeGitStatus(res.status)
     } catch (e) {
-      notify(e instanceof IpcError ? e.message : String(e), true)
+      const msg = e instanceof IpcError ? e.message : String(e)
+      if (isGitMissingRepoMessage(msg)) {
+        useAppStore.getState().clearGitRoot(repoRoot)
+      } else {
+        notify(msg, true)
+      }
     }
     onRefresh()
   }

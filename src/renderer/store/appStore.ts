@@ -98,6 +98,7 @@ import { captureDockedChromiumPlayback } from '../lib/dockedAvPlayback'
 import { formatBytes } from '../lib/format'
 import { clampFolderStatsTreemapMaxLeaves } from '@shared/folderStatsPreview'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
+import { isEditableImagePath } from '@shared/imageEdit'
 import { resolvePreviewTargetPath } from '@shared/previewTarget'
 import { pathKey } from '@shared/paths'
 import {
@@ -841,6 +842,10 @@ type AppState = {
   ensureGitForActivePane(): Promise<void>
   /** Merge a status snapshot into `gitByRoot`. */
   mergeGitStatus(status: GitRepositoryStatus): void
+  /** Drop a repo root from the renderer cache (`.git` gone, discover miss, …). */
+  clearGitRoot(rootPath: string): void
+  /** Drop every cached root that covers this path. */
+  clearGitForPath(path: string): void
   setAddressEditing(v: boolean): void
   /** Clear Back/Forward stacks for a tab (address-bar Recent locations). */
   clearHistory(tabId?: string): void
@@ -3882,6 +3887,13 @@ export const useAppStore = create<AppState>()((set, get) => {
             if (under) pair.markStale()
           })
           const changed = event.payload.path
+          const changedNames = event.payload.names
+          if (changedNames && changedNames.length > 0) {
+            const thumbPaths = changedNames
+              .map((name) => joinPath(changed, name))
+              .filter((p) => isEditableImagePath(p))
+            if (thumbPaths.length > 0) get().invalidateContentThumbs(thumbPaths)
+          }
           dropRemoteListingCaches([changed])
           // Soft-reload any visible pane whose folder matches.
           const paneTabs = s.tabs.filter((t) => s.paneTabIds.includes(t.id))
@@ -4210,6 +4222,8 @@ export const useAppStore = create<AppState>()((set, get) => {
           })
         } else if (event.type === 'git-status') {
           get().mergeGitStatus(event.payload.status)
+        } else if (event.type === 'git-status-cleared') {
+          get().clearGitRoot(event.payload.rootPath)
         }
       })
 
@@ -4470,6 +4484,32 @@ export const useAppStore = create<AppState>()((set, get) => {
       }))
     },
 
+    clearGitRoot(rootPath) {
+      const key = gitRootKey(rootPath)
+      set((s) => {
+        if (!(key in s.gitByRoot)) return {}
+        const next = { ...s.gitByRoot }
+        delete next[key]
+        return { gitByRoot: next }
+      })
+    },
+
+    clearGitForPath(path) {
+      if (!path) return
+      set((s) => {
+        let changed = false
+        const next = { ...s.gitByRoot }
+        for (const [key, status] of Object.entries(s.gitByRoot)) {
+          const root = status.info.rootPath
+          if (samePath(path, root) || isUnderPath(path, root)) {
+            delete next[key]
+            changed = true
+          }
+        }
+        return changed ? { gitByRoot: next } : {}
+      })
+    },
+
     async refreshGitForPath(path) {
       if (!get().settings.git?.enabled) return
       if (!path || isRemoteLocation(path)) return
@@ -4477,6 +4517,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         const res = await call(api.git.getStatus({ path }))
         if (res.inRepo && res.status) {
           get().mergeGitStatus(res.status)
+        } else {
+          get().clearGitForPath(path)
         }
       } catch (e) {
         // Soft-fail: Git optional; avoid spamming notices on every navigate.
@@ -4619,6 +4661,18 @@ export const useAppStore = create<AppState>()((set, get) => {
           .map((t) => t.path)
       )
       await loadVisiblePaneListings({ preserveSelection: true, force: true })
+      // ADS tip edits often leave listing mtime/size alone — force image thumbs to re-ask main.
+      const imageThumbPaths: string[] = []
+      const after = get()
+      for (const id of after.paneTabIds) {
+        if (!id) continue
+        const listing = after.listingsByTabId[id]
+        if (!listing) continue
+        for (const e of listing.entries) {
+          if (e.kind === 'file' && isEditableImagePath(e.path)) imageThumbPaths.push(e.path)
+        }
+      }
+      if (imageThumbPaths.length > 0) get().invalidateContentThumbs(imageThumbPaths)
       // File list and tree keep separate caches — always refresh both.
       set((s) => ({ treeRefreshRev: s.treeRefreshRev + 1 }))
     },

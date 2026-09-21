@@ -5,6 +5,7 @@ import type { GitBranchInfo, GitRepositoryStatus } from '@shared/schemas/git'
 import { useAppStore } from '../store/appStore'
 import { api, call, IpcError } from '../lib/ipc'
 import { lookupGitForPath } from '../lib/gitUi'
+import { isGitMissingRepoMessage } from '@shared/gitErrors'
 import { isRemoteLocation } from '@shared/remotePaths'
 import { ChevronDown } from '../lib/icons'
 import {
@@ -63,7 +64,12 @@ export function GitToolbar(): JSX.Element | null {
       const res = await call(api.git.refresh({ repoRoot }))
       useAppStore.getState().mergeGitStatus(res.status)
     } catch (e) {
-      notify(e instanceof IpcError ? e.message : String(e), true)
+      const msg = e instanceof IpcError ? e.message : String(e)
+      if (isGitMissingRepoMessage(msg)) {
+        useAppStore.getState().clearGitRoot(repoRoot)
+        return
+      }
+      notify(msg, true)
     }
   }
 
