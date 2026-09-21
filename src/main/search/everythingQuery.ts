@@ -455,7 +455,7 @@ function parseDateToken(field: 'mtime' | 'birthtime' | 'atime', raw: string): Da
   const v = raw.trim().toLowerCase()
   const now = Date.now()
   const today = startOfDay()
-  if (v === 'today') return { field, op: 'range', min: today, max: now }
+  if (v === 'today') return { field, op: 'range', min: today, max: today + 86_400_000 - 1 }
   if (v === 'yesterday') return { field, op: 'range', min: today - 86400000, max: today }
   if (v === 'thisweek') return { field, op: 'range', min: today - 7 * 86400000, max: now }
   if (v === 'thismonth') {
