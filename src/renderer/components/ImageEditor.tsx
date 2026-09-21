@@ -4,34 +4,20 @@ import FilerobotImageEditor, {
   TOOLS,
   type getCurrentImgDataFunction
 } from 'react-filerobot-image-editor'
+
+type CropToolId = typeof TOOLS.CROP
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { ImageRemoveOverlay } from './ImageRemoveOverlay'
 
-/** Minimal design snapshot — Crop forces live rotation to 0 in Filerobot. */
-type DesignSnap = {
-  adjustments?: {
-    rotation?: number
-    isFlippedX?: boolean
-    isFlippedY?: boolean
-  }
-}
-
-function needsTransformBake(state: DesignSnap | null | undefined): boolean {
-  const adj = state?.adjustments
-  if (!adj) return false
-  if (Math.abs(adj.rotation ?? 0) > 0.01) return true
-  if (adj.isFlippedX || adj.isFlippedY) return true
-  return false
-}
-
 /**
  * Full-window Filerobot host. Image bytes come from main via IPC once;
  * subsequent ops stay in memory until Save.
  * Remove mode runs local LaMa ONNX inpainting, then remounts Filerobot.
- * Entering Crop after rotate/flip bakes the canvas into a new in-memory source
- * (Filerobot Crop forces live rotation to 0 — without bake it looks like undo).
+ * Before Crop / Remove, bake the current design into a new in-memory source
+ * and remount so ops chain without Save → re-open (Filerobot Crop forces live
+ * rotation to 0 — upstream #267 — and drops other in-session design).
  * Save writes tip ADS (`VER_n`); `$DATA` stays the pristine original (D27).
  */
 export function ImageEditor(): JSX.Element | null {
@@ -43,26 +29,30 @@ export function ImageEditor(): JSX.Element | null {
 
   const [src, setSrc] = useState<string | null>(null)
   const [srcKey, setSrcKey] = useState(0)
+  const [defaultToolId, setDefaultToolId] = useState<CropToolId>(TOOLS.CROP)
   const [saving, setSaving] = useState(false)
   const [removeMode, setRemoveMode] = useState(false)
   const [removeBusy, setRemoveBusy] = useState(false)
   const [baking, setBaking] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const getCurrentImgDataFnRef = useRef<getCurrentImgDataFunction | null>(null)
-  const designRef = useRef<DesignSnap | null>(null)
+  const dirtyRef = useRef(false)
   const bakingRef = useRef(false)
+
+  const fileName = editor ? basename(editor.path) : ''
 
   useEffect(() => {
     if (!editor) {
       setSrc(null)
       setRemoveMode(false)
-      designRef.current = null
+      dirtyRef.current = false
       return
     }
     let alive = true
     setSrc(null)
     setRemoveMode(false)
-    designRef.current = null
+    dirtyRef.current = false
+    setDefaultToolId(TOOLS.CROP)
     void (async () => {
       try {
         const res = await call(api.fs.readImageForEdit({ path: editor.path }))
@@ -81,37 +71,55 @@ export function ImageEditor(): JSX.Element | null {
     }
   }, [editor, notify, closeImageEditor])
 
-  const bakeTransformsIntoSource = (): boolean => {
+  function bakeWorkingSource(nextToolId?: CropToolId): boolean {
     if (bakingRef.current) return false
     const fn = getCurrentImgDataFnRef.current
-    if (typeof fn !== 'function') return false
-    if (!needsTransformBake(designRef.current)) return false
+    if (typeof fn !== 'function' || !dirtyRef.current) {
+      if (nextToolId) setDefaultToolId(nextToolId)
+      return false
+    }
     bakingRef.current = true
     setBaking(true)
     try {
-      // 2nd arg false → use config savingPixelRatio; 3rd keeps spinner until we hide.
-      const { imageData, hideLoadingSpinner } = fn({ extension: 'png' }, false, true)
+      const savedType = fileName ? extToSavedType(fileName) : 'png'
+      const extension = savedType === 'jpg' ? 'jpeg' : savedType
+      const { imageData, hideLoadingSpinner } = fn(
+        {
+          name: 'edit',
+          extension,
+          quality: extension === 'jpeg' || extension === 'webp' ? 0.95 : undefined
+        },
+        false,
+        true
+      )
       try {
         hideLoadingSpinner?.()
       } catch {
         /* ignore */
       }
-      const raw = imageData.imageBase64
+      const raw = imageData?.imageBase64
       if (!raw) return false
       const dataUrl = raw.startsWith('data:')
         ? raw
-        : `data:${imageData.mimeType ?? 'image/png'};base64,${raw}`
-      designRef.current = null
+        : `data:${imageData.mimeType ?? `image/${extension}`};base64,${raw}`
+      dirtyRef.current = false
+      if (nextToolId) setDefaultToolId(nextToolId)
       setSrc(dataUrl)
       setSrcKey((k) => k + 1)
       return true
     } catch (e) {
-      notify(e instanceof Error ? e.message : 'Could not apply transform before crop', true)
+      notify(e instanceof Error ? e.message : 'Could not apply edit in memory', true)
       return false
     } finally {
       bakingRef.current = false
       setBaking(false)
     }
+  }
+
+  const openRemoveRef = useRef<() => void>(() => undefined)
+  openRemoveRef.current = () => {
+    bakeWorkingSource()
+    setRemoveMode(true)
   }
 
   // Filename in topbar + Remove tab under Resize (same Filerobot tab chrome).
@@ -171,11 +179,7 @@ export function ImageEditor(): JSX.Element | null {
       removeTab.onclick = (e) => {
         e.preventDefault()
         e.stopPropagation()
-        // Bake pending rotate/flip before leaving Adjust (same as Crop).
-        if (needsTransformBake(designRef.current)) {
-          bakeTransformsIntoSource()
-        }
-        setRemoveMode(true)
+        openRemoveRef.current()
       }
     }
 
@@ -186,28 +190,26 @@ export function ImageEditor(): JSX.Element | null {
       window.clearInterval(id)
       window.clearTimeout(stop)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- bake uses refs
   }, [src, editor, removeMode, srcKey])
 
-  // Crop tool zeros live rotation in Filerobot — bake first when transforms are pending.
+  // Bake in-memory design before Crop so chained edits survive (upstream #267).
   useEffect(() => {
     const root = rootRef.current
     if (!root || !src || removeMode) return
 
     const onPointerDownCapture = (e: PointerEvent): void => {
+      if (!dirtyRef.current || bakingRef.current) return
       const el = e.target as Element | null
       if (!el?.closest) return
       const cropBtn = el.closest('[data-testid="FIE-tools-bar-item-button-crop"]')
       if (!cropBtn) return
-      if (!needsTransformBake(designRef.current)) return
       e.preventDefault()
       e.stopPropagation()
-      bakeTransformsIntoSource()
+      bakeWorkingSource(TOOLS.CROP)
     }
 
     root.addEventListener('pointerdown', onPointerDownCapture, true)
     return () => root.removeEventListener('pointerdown', onPointerDownCapture, true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- bake uses refs
   }, [src, srcKey, removeMode])
 
   useEffect(() => {
@@ -269,10 +271,11 @@ export function ImageEditor(): JSX.Element | null {
             onError={(msg) => notify(msg, true)}
             onCancel={() => setRemoveMode(false)}
             onApplied={(dataUrl) => {
+              dirtyRef.current = false
               setSrc(dataUrl)
               setSrcKey((k) => k + 1)
+              setDefaultToolId(TOOLS.CROP)
               setRemoveMode(false)
-              designRef.current = null
               notify('Remove applied — Save when ready', false)
             }}
           />
@@ -282,10 +285,11 @@ export function ImageEditor(): JSX.Element | null {
             source={src}
             tabsIds={[TABS.ADJUST, TABS.FINETUNE, TABS.FILTERS, TABS.ANNOTATE, TABS.RESIZE]}
             defaultTabId={TABS.ADJUST}
-            defaultToolId={TOOLS.CROP}
+            defaultToolId={defaultToolId}
             useAiTab={false}
             closeAfterSave
             avoidChangesNotSavedAlertOnLeave
+            resetOnSourceChange={false}
             // Skip Filerobot’s own “save as” modal — Save overwrites in place via onSave.
             onBeforeSave={() => false}
             defaultSavedImageName={name.replace(/\.[^.]+$/, '') || name}
@@ -293,8 +297,8 @@ export function ImageEditor(): JSX.Element | null {
             savingPixelRatio={Math.min(2, window.devicePixelRatio || 1)}
             previewPixelRatio={Math.min(2, window.devicePixelRatio || 1)}
             getCurrentImgDataFnRef={getCurrentImgDataFnRef}
-            onModify={(state) => {
-              designRef.current = state as DesignSnap
+            onModify={() => {
+              dirtyRef.current = true
             }}
             Crop={{
               // Free-form: corner moves two adjacent sides (patched in postinstall).
