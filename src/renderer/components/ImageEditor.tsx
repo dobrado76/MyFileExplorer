@@ -10,6 +10,10 @@ import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { ImageRemoveOverlay } from './ImageRemoveOverlay'
+import {
+  imageEditorShortcut,
+  isImageEditorTypingTarget
+} from './imageEditorShortcuts'
 
 /**
  * Full-window Filerobot host. Image bytes come from main via IPC once;
@@ -38,6 +42,19 @@ export function ImageEditor(): JSX.Element | null {
   const getCurrentImgDataFnRef = useRef<getCurrentImgDataFunction | null>(null)
   const dirtyRef = useRef(false)
   const bakingRef = useRef(false)
+  const editorRef = useRef(editor)
+  editorRef.current = editor
+  const savingRef = useRef(false)
+  const srcRef = useRef<string | null>(null)
+  const removeModeRef = useRef(false)
+  const removeBusyRef = useRef(false)
+  const saveAsCurrentRef = useRef<() => void>(() => undefined)
+  const readCurrentEditBase64Ref = useRef<() => string | null>(() => null)
+  const saveEditedImageRef = useRef(saveEditedImage)
+  saveEditedImageRef.current = saveEditedImage
+  srcRef.current = src
+  removeModeRef.current = removeMode
+  removeBusyRef.current = removeBusy
 
   const fileName = editor ? basename(editor.path) : ''
 
@@ -142,6 +159,43 @@ export function ImageEditor(): JSX.Element | null {
         }
         label.textContent = name
         label.title = name
+
+        const saveBtn = wrap.querySelector('[data-testid="FIE-save-button"]')
+        if (saveBtn) saveBtn.setAttribute('title', 'Save (E or Ctrl+S)')
+
+        let saveAs = wrap.querySelector('.mfe-save-as-btn') as HTMLButtonElement | null
+        if (!saveAs) {
+          saveAs = document.createElement('button')
+          saveAs.type = 'button'
+          saveAs.className = 'mfe-save-as-btn'
+          saveAs.textContent = 'Save as…'
+          const anchor =
+            wrap.querySelector('.FIE_buttons-save-btn-wrapper') ??
+            wrap.querySelector('.FIE_buttons-save-btn')
+          if (anchor) anchor.after(saveAs)
+          else wrap.appendChild(saveAs)
+        }
+        saveAs.title = 'Save the current edit as a new file (same folder by default)'
+        saveAs.disabled = savingRef.current
+        saveAs.onclick = (ev) => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          saveAsCurrentRef.current()
+        }
+      }
+
+      const shortcutTitles: Array<[string, string]> = [
+        ['FIE-tools-bar-item-button-crop', 'Crop (C)'],
+        ['FIE-tools-bar-item-button-rotate', 'Rotate (R)'],
+        ['FIE-tools-bar-item-button-flip_x', 'Flip X (F)'],
+        ['FIE-tools-bar-item-button-flip_y', 'Flip Y (Shift+F)'],
+        ['FIE-tab-resize', 'Resize (Z)'],
+        ['FIE-tab-annotate', 'Annotate (A)'],
+        ['FIE-tab-filters', 'Filters (T)'],
+        ['FIE-tab-finetune', 'Finetune (U)']
+      ]
+      for (const [testId, title] of shortcutTitles) {
+        root.querySelector(`[data-testid="${testId}"]`)?.setAttribute('title', title)
       }
 
       const tabs = root.querySelector('.FIE_tabs_navbar')
@@ -157,7 +211,7 @@ export function ImageEditor(): JSX.Element | null {
         removeTab.classList.add('mfe-remove-tab')
         removeTab.setAttribute('aria-selected', 'false')
         removeTab.setAttribute('data-testid', 'FIE-tab-remove')
-        removeTab.setAttribute('title', 'Context-aware remove')
+        removeTab.setAttribute('title', 'Remove (O)')
         removeTab.setAttribute('role', 'button')
 
         const oldSvg = removeTab.querySelector('svg')
@@ -214,44 +268,180 @@ export function ImageEditor(): JSX.Element | null {
     return () => root.removeEventListener('pointerdown', onPointerDownCapture, true)
   }, [src, srcKey, removeMode, bakeWorkingSource])
 
+  const activateAdjustTool = useCallback(
+    (root: HTMLElement, toolTestId: string, bakeCrop: boolean): void => {
+      if (bakeCrop && dirtyRef.current) {
+        bakeWorkingSource(TOOLS.CROP)
+        return
+      }
+      const clickTool = (): boolean => {
+        const btn = root.querySelector(`[data-testid="${toolTestId}"]`) as HTMLElement | null
+        if (!btn) return false
+        btn.click()
+        return true
+      }
+      if (clickTool()) return
+      ;(root.querySelector('[data-testid="FIE-tab-adjust"]') as HTMLElement | null)?.click()
+      let attempt = 0
+      const retry = (): void => {
+        if (clickTool() || attempt >= 8) return
+        attempt += 1
+        requestAnimationFrame(retry)
+      }
+      requestAnimationFrame(retry)
+    },
+    [bakeWorkingSource]
+  )
+
   useEffect(() => {
     if (!editor) return
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape') return
-      if (removeBusy || saving || baking) {
+      if (e.key === 'Escape') {
+        if (removeBusy || saving || baking) {
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
         e.preventDefault()
         e.stopPropagation()
+        if (removeMode) {
+          setRemoveMode(false)
+          return
+        }
+        closeImageEditor()
         return
       }
+
+      const action = imageEditorShortcut(e)
+      if (!action) return
+      // Letter keys must still type into resize fields and text annotations.
+      // Ctrl/Cmd-S saves even from a field.
+      if (action !== 'save' && isImageEditorTypingTarget(e.target)) return
       e.preventDefault()
       e.stopPropagation()
-      if (removeMode) {
-        setRemoveMode(false)
+      if (removeBusy || savingRef.current || bakingRef.current) return
+
+      if (action === 'save') {
+        const btn = rootRef.current?.querySelector(
+          '[data-testid="FIE-save-button"]'
+        ) as HTMLElement | null
+        if (btn) {
+          btn.click()
+          return
+        }
+        const data = readCurrentEditBase64Ref.current()
+        const ed = editorRef.current
+        if (!data || !ed) return
+        savingRef.current = true
+        setSaving(true)
+        void saveEditedImageRef
+          .current(ed.path, data)
+          .catch(() => undefined)
+          .finally(() => {
+            savingRef.current = false
+            setSaving(false)
+          })
         return
       }
-      closeImageEditor()
+
+      if (removeMode) return
+      const root = rootRef.current
+      if (!root) return
+      if (action === 'remove') {
+        openRemoveRef.current()
+        return
+      }
+      if (action === 'crop') {
+        activateAdjustTool(root, 'FIE-tools-bar-item-button-crop', true)
+        return
+      }
+      if (action === 'rotate') {
+        activateAdjustTool(root, 'FIE-tools-bar-item-button-rotate', false)
+        return
+      }
+      if (action === 'flip-x') {
+        activateAdjustTool(root, 'FIE-tools-bar-item-button-flip_x', false)
+        return
+      }
+      if (action === 'flip-y') {
+        activateAdjustTool(root, 'FIE-tools-bar-item-button-flip_y', false)
+        return
+      }
+      const tabId =
+        action === 'resize'
+          ? 'FIE-tab-resize'
+          : action === 'annotate'
+            ? 'FIE-tab-annotate'
+            : action === 'filters'
+              ? 'FIE-tab-filters'
+              : 'FIE-tab-finetune'
+      ;(root.querySelector(`[data-testid="${tabId}"]`) as HTMLElement | null)?.click()
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [editor, saving, baking, removeMode, removeBusy, closeImageEditor])
+  }, [editor, saving, baking, removeMode, removeBusy, closeImageEditor, activateAdjustTool])
 
   const runSaveAs = useCallback(
     async (dataBase64: string | undefined): Promise<void> => {
-      if (!editor || !dataBase64) {
+      const ed = editorRef.current
+      if (!ed || !dataBase64) {
         notify('Editor returned no image data', true)
         return
       }
       setSaving(true)
+      savingRef.current = true
       try {
-        await saveEditedImageAs(editor.path, dataBase64)
+        await saveEditedImageAs(ed.path, dataBase64)
       } catch {
         // notify already done in store
       } finally {
+        savingRef.current = false
         setSaving(false)
       }
     },
-    [editor, notify, saveEditedImageAs]
+    [notify, saveEditedImageAs]
   )
+
+  /** Pixels currently in the editor (crop, flip, filters), not the file on disk. */
+  const readCurrentEditBase64 = useCallback((): string | null => {
+    if (removeModeRef.current) return srcRef.current
+    const fn = getCurrentImgDataFnRef.current
+    if (typeof fn !== 'function') return null
+    try {
+      const savedType = fileName ? extToSavedType(fileName) : 'png'
+      const extension = savedType === 'jpg' ? 'jpeg' : savedType
+      const { imageData, hideLoadingSpinner } = fn(
+        {
+          name: 'edit',
+          extension,
+          quality: extension === 'jpeg' || extension === 'webp' ? 0.92 : undefined
+        },
+        false,
+        true
+      )
+      try {
+        hideLoadingSpinner?.()
+      } catch {
+        /* ignore */
+      }
+      return imageData?.imageBase64 ?? null
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not read the edited image', true)
+      return null
+    }
+  }, [fileName, notify])
+
+  readCurrentEditBase64Ref.current = readCurrentEditBase64
+
+  saveAsCurrentRef.current = () => {
+    if (savingRef.current || removeBusyRef.current || bakingRef.current) return
+    const data = readCurrentEditBase64()
+    if (!data) {
+      notify('Editor returned no image data', true)
+      return
+    }
+    void runSaveAs(data)
+  }
 
   // Filerobot is memo()'d, but a new Crop/theme/callback each parent render
   // rebuilds its config and the crop effect writes the last saved box back
@@ -295,36 +485,21 @@ export function ImageEditor(): JSX.Element | null {
         return
       }
       setSaving(true)
+      savingRef.current = true
       try {
         await saveEditedImage(editor.path, data)
       } catch {
         // notify already done in store
       } finally {
+        savingRef.current = false
         setSaving(false)
       }
     },
     [editor, notify, saveEditedImage]
   )
   const onClose = useCallback(() => {
-    if (!saving && !baking) closeImageEditor()
-  }, [saving, baking, closeImageEditor])
-  const moreSaveOptions = useMemo(
-    () => [
-      {
-        label: 'Save as…',
-        icon: 'save' as const,
-        onClick: (
-          _triggerModal: unknown,
-          triggerSave: (fn: (imageData: { imageBase64?: string }) => Promise<void>) => void
-        ) => {
-          triggerSave(async (imageData) => {
-            await runSaveAs(imageData.imageBase64)
-          })
-        }
-      }
-    ],
-    [runSaveAs]
-  )
+    if (!savingRef.current && !bakingRef.current) closeImageEditor()
+  }, [closeImageEditor])
 
   if (!editor) return null
 
@@ -377,7 +552,6 @@ export function ImageEditor(): JSX.Element | null {
             getCurrentImgDataFnRef={getCurrentImgDataFnRef}
             onModify={onEditorModify}
             Crop={cropOptions}
-            moreSaveOptions={moreSaveOptions}
             theme={editorTheme}
             onSave={onSave}
             onClose={onClose}
