@@ -9,9 +9,12 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **Search field after breadcrumb leave** — changing folder via the address bar while a search is open cancels the walk and clears the query so the toolbar search box stays editable. Previously a pending debounce or in-flight result could revive the old search and leave the field stuck.
 - **Rename keeps Del in the name box** — while a file or folder is being renamed, Del and Backspace edit the text (selected name or one character). They no longer send that item to the Recycle Bin.
 - **Rename selection drag** — highlighting part of a name and releasing the mouse outside the box stays in rename. That release is not treated as a click away.
 - **Search keeps the current view** — results no longer force Details. Thumbnails, icons, and list stay as they are; Details still shows the Folder column.
+- **Name sort matches Explorer** — filenames use Windows `StrCmpLogicalW` order (digit runs as numbers; `002` before `02` before `2`). No more Intl numeric collapsing that mixed zero-padded names.
+- **Image Edit resize ratio lock** — locked Width/Height follow the current (cropped) aspect ratio, not the original file. Changing one side no longer warps the other.
 - **Layouts include every window** — a named layout stores each explorer window’s tabs plus that window’s position, size, and maximized state. Applying it restores that set and closes extra windows. Layouts saved before this only restore the main window.
 - **Git chrome after `.git` removed** — deleting a repository’s `.git` folder clears the cached status so the toolbar and Git preview tab disappear instead of staying up and showing `fatal: not a git repository`.
 - **Image thumbs follow ADS tip edits** — thumbnail cache keys include a tip content stamp (D27 `VER_*`), folder watches pass changed filenames, and F5 refreshes image thumbs even when `$DATA` mtime/size did not change.

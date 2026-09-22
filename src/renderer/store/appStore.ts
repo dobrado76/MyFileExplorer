@@ -41,6 +41,7 @@ import {
 } from '@shared/tabHistory'
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
+import { compareFileNames } from '@shared/fileNameCompare'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
 import {
   defaultPairFoldersSettings,
@@ -523,6 +524,19 @@ const SEARCH_DEBOUNCE_MS = 500
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
 let searchSeq = 0
 
+/**
+ * Drop pending as-you-type work and invalidate in-flight IPC so a late
+ * `runSearch` / progress event cannot revive search after Clear or navigate.
+ */
+function invalidateInflightSearch(): void {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer)
+    searchDebounceTimer = null
+  }
+  searchSeq++
+  void api.search.cancel()
+}
+
 let tabCounter = 0
 function newTabId(): string {
   return `tab_${Date.now().toString(36)}_${(tabCounter++).toString(36)}`
@@ -596,7 +610,8 @@ let viewOrderCache: {
 registerViewOrderCacheClear(() => {
   viewOrderCache = null
 })
-const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+/** Explorer name order (`StrCmpLogicalW`), not Intl numeric collapsing of `02`/`2`. */
+const nameCollator = { compare: compareFileNames }
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
@@ -2645,6 +2660,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       return
     }
     const focusPath = entry.kind === 'folder' ? entry.focusPath : undefined
+    if (tab.search.active || tab.search.running || searchDebounceTimer) {
+      invalidateInflightSearch()
+    }
     updateTab(tabId, {
       path,
       back: stacks.back,
@@ -3304,17 +3322,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       const res = await call(api.fs.list({ path: parent, includeHidden: true }))
       const dirs = res.entries
         .filter((e) => e.kind === 'dir')
-        .sort((a, b) =>
-          a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
-        )
+        .sort((a, b) => compareFileNames(a.name, b.name))
       const primaryName = basename(primary)
-      const nextSibling = dirs.find(
-        (d) =>
-          d.name.localeCompare(primaryName, undefined, {
-            numeric: true,
-            sensitivity: 'base'
-          }) > 0
-      )
+      const nextSibling = dirs.find((d) => compareFileNames(d.name, primaryName) > 0)
       if (nextSibling) nextPath = nextSibling.path
     } catch {
       // parent list failed — still try to open parent
@@ -3942,7 +3952,10 @@ export const useAppStore = create<AppState>()((set, get) => {
         } else if (event.type === 'search-progress') {
           const p = event.payload
           const owner = get().tabs.find(
-            (t) => t.search.running && (p.gen == null || p.gen === t.search.gen)
+            (t) =>
+              t.search.running &&
+              t.search.gen > 0 &&
+              (p.gen == null || p.gen === t.search.gen)
           )
           if (!owner) return
           const st = owner.search
@@ -4416,13 +4429,18 @@ export const useAppStore = create<AppState>()((set, get) => {
       ) {
         historyListingCache.set(currentTab.path, currentListing.entries)
       }
-      const leavingSearch = tab.search.active
+      const leavingSearch = tab.search.active || tab.search.running
       // Inside an embedded group, Tab.path is still the .mfevirtual document. Clicking the
       // document in the tree must leave the group (like selecting a real parent folder).
       const leavingVfGroup =
         isVirtualFolderDocumentPath(path) &&
         samePath(old, path) &&
         tab.virtualFolderGroupStack.length > 0
+      // Breadcrumb / tree / Up-via-navigate must tear down search like Clear — otherwise a
+      // pending debounce or in-flight walk can reactivate the query and leave the box stuck.
+      if (leavingSearch || searchDebounceTimer) {
+        invalidateInflightSearch()
+      }
       if (push && (!samePath(old, path) || leavingSearch || leavingVfGroup)) {
         const here = currentLocation(tab)
         const last = tab.back[tab.back.length - 1]
@@ -9675,8 +9693,12 @@ export const useAppStore = create<AppState>()((set, get) => {
         entering && !(last && sameHistoryEntry(last, folderHere))
           ? [...tab.back, folderHere]
           : tab.back
-      set((s) => ({
-        tabs: s.tabs.map((t) => {
+      // Navigate / Clear may have invalidated us between reading the query and activate.
+      if (searchSeq !== seq) return
+      const latest = get().tabs.find((t) => t.id === tab.id)
+      if (!latest || latest.search.query.trim() !== query) return
+      set((s) => {
+        const tabs = s.tabs.map((t) => {
           if (t.id === tab.id) {
             return {
               ...t,
@@ -9707,8 +9729,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
           return t
         })
-      }))
-      updateTab(tab.id, {})
+        const active = tabs.find((t) => t.id === s.activeTabId)
+        return { tabs, search: active?.search ?? s.search }
+      })
       if (id === get().activeTabId) {
         set({ selectionAnchor: null, focusedPath: null })
       }
@@ -9733,6 +9756,7 @@ export const useAppStore = create<AppState>()((set, get) => {
             gen: seq
           })
         )
+        if (searchSeq !== seq) return
         const owner = get().tabs.find((t) => t.id === tab.id)
         if (!owner || owner.search.gen !== seq) return
         const walkItems = pruneSearchResultItems(res.items, owner.search.dismissed ?? [])
@@ -9751,6 +9775,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         })
         if (res.message) get().notify(res.message, true)
       } catch (e) {
+        if (searchSeq !== seq) return
         const owner = get().tabs.find((t) => t.id === tab.id)
         if (!owner || owner.search.gen !== seq) return
         updateTab(tab.id, { search: { ...owner.search, running: false, progress: null } })
@@ -9761,17 +9786,10 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     clearSearch(tabId) {
-      if (searchDebounceTimer) {
-        clearTimeout(searchDebounceTimer)
-        searchDebounceTimer = null
-      }
+      invalidateInflightSearch()
       const id = tabId ?? get().activeTabId
       const tab = get().tabs.find((t) => t.id === id)
       if (!tab) return
-      if (tab.search.running) {
-        searchSeq++
-        void api.search.cancel()
-      }
       const last = tab.back[tab.back.length - 1]
       const back =
         last?.kind === 'folder' && samePath(last.path, tab.path) ? tab.back.slice(0, -1) : tab.back

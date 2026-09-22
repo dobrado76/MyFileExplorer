@@ -26,7 +26,7 @@
     "prepare": "node scripts/install-git-hooks.mjs",
     "icons": "node scripts/make-icons.mjs",
     "samples:preview": "node scripts/generate-preview-samples.mjs",
-    "postinstall": "node scripts/patch-filerobot-crop.mjs",
+    "postinstall": "node scripts/patch-filerobot.mjs",
     "build:win": "node scripts/build-win.mjs",
     "tools:fetch-mpv": "node scripts/fetch-mpv.mjs",
     "dist": "node scripts/dist.mjs",

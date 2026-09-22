@@ -52,6 +52,7 @@ import { normalizeIconPack } from '@shared/schemas/iconPack'
 import { packIconElement } from '../lib/iconPacks'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
+import { compareFileNames } from '@shared/fileNameCompare'
 import { entrySizeSortBytes } from '../lib/sizeSort'
 import { linkBaseDirForItem } from '../lib/userMetadataLink'
 import { UserMetadataLinkCell } from './UserMetadataLinkCell'
@@ -312,7 +313,7 @@ function compareColumnValues(id: DetailsColumnId, a: string, b: string): number 
     const nb = Number(b.replace(/,/g, ''))
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
   }
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+  return compareFileNames(a, b)
 }
 
 type FileViewProps = {
@@ -1112,7 +1113,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         }
         let cmp = 0
         if (recycleSort.key === 'name') {
-          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+          cmp = compareFileNames(a.name, b.name)
         } else if (recycleSort.key === 'dateDeleted') {
           cmp = (a.mtimeMs || 0) - (b.mtimeMs || 0)
         } else if (recycleSort.key === 'size') {
@@ -1126,10 +1127,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         } else if (recycleSort.key === 'origin') {
           const ao = recycleByPath.get(a.path.toLowerCase())?.deletedFrom ?? ''
           const bo = recycleByPath.get(b.path.toLowerCase())?.deletedFrom ?? ''
-          cmp = ao.localeCompare(bo, undefined, { numeric: true, sensitivity: 'base' })
+          cmp = compareFileNames(ao, bo)
         }
         if (cmp === 0) {
-          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+          cmp = compareFileNames(a.name, b.name)
         }
         return cmp * dirMul
       })
@@ -1149,7 +1150,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           entrySizeSortBytes(a, metaForSort[a.path]?.size) -
           entrySizeSortBytes(b, metaForSort[b.path]?.size)
         if (cmp === 0) {
-          cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+          cmp = compareFileNames(a.name, b.name)
         }
         return cmp * dirMul
       })
@@ -1171,7 +1172,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       const bv = detailCellValue(colId, b, metaForSort[b.path], showFolderStatistics)
       let cmp = compareColumnValues(colId, av, bv)
       if (cmp === 0) {
-        cmp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+        cmp = compareFileNames(a.name, b.name)
       }
       return cmp * dir
     })

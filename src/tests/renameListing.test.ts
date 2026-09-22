@@ -6,6 +6,7 @@ import {
   renameShouldFollow,
   rewritePathAfterRename
 } from '../renderer/lib/renameListing'
+import { compareFileNames } from '../shared/fileNameCompare'
 
 function file(name: string, dir = '\\\\nas\\media'): DirEntry {
   return {
@@ -136,7 +137,7 @@ describe('rename then sort', () => {
     const from = `${dir}\\New folder`
     const patched = patchDirEntriesForRename(entries, from, `${dir}\\Babylon 5`, 'Babylon 5')
     const names = [...patched]
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+      .sort((a, b) => compareFileNames(a.name, b.name))
       .map((e) => e.name)
     expect(names).toEqual(['Alpha', 'Babylon 5', 'Zulu'])
   })

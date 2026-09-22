@@ -6,6 +6,7 @@ import { randomFillSync } from 'node:crypto'
 import path from 'node:path'
 import type { SlideshowOrder } from '@shared/schemas/slideshow'
 import type { LastListLine } from '@shared/slideshow/compiledLists'
+import { compareFileNames } from '@shared/fileNameCompare'
 import { readDatIndex } from './compiledLists'
 import { logMain } from '../logging'
 
@@ -44,7 +45,7 @@ function sortPathsByName(paths: string[], ascending: boolean): void {
   paths.sort((a, b) => {
     const an = path.basename(a)
     const bn = path.basename(b)
-    return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' }) * dir
+    return compareFileNames(an, bn) * dir
   })
 }
 

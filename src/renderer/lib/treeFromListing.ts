@@ -1,6 +1,7 @@
 /** Dir children for the folder tree, matching the file list sort. */
 
 import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, virtualFolderDisplayName } from '@shared/virtualFolder'
+import { compareFileNames } from '@shared/fileNameCompare'
 
 export function dirChildrenFromListing(
   entries: Array<{ path: string; name: string; kind: string; isHidden?: boolean; ext?: string }>
@@ -17,7 +18,7 @@ export function dirChildrenFromListing(
         isVirtualFolderDocumentPath(e.path) ||
         isVirtualFolderGroupPath(e.path)
     )
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+    .sort((a, b) => compareFileNames(a.name, b.name))
   const dirs = dirEntries.map((e) => e.path)
   const childHidden: Record<string, boolean> = {}
   const childLabels: Record<string, string> = {}
