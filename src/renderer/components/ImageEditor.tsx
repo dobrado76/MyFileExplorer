@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import FilerobotImageEditor, {
   TABS,
   TOOLS,
@@ -235,20 +235,96 @@ export function ImageEditor(): JSX.Element | null {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [editor, saving, baking, removeMode, removeBusy, closeImageEditor])
 
-  const runSaveAs = async (dataBase64: string | undefined): Promise<void> => {
-    if (!editor || !dataBase64) {
-      notify('Editor returned no image data', true)
-      return
-    }
-    setSaving(true)
-    try {
-      await saveEditedImageAs(editor.path, dataBase64)
-    } catch {
-      // notify already done in store
-    } finally {
-      setSaving(false)
-    }
-  }
+  const runSaveAs = useCallback(
+    async (dataBase64: string | undefined): Promise<void> => {
+      if (!editor || !dataBase64) {
+        notify('Editor returned no image data', true)
+        return
+      }
+      setSaving(true)
+      try {
+        await saveEditedImageAs(editor.path, dataBase64)
+      } catch {
+        // notify already done in store
+      } finally {
+        setSaving(false)
+      }
+    },
+    [editor, notify, saveEditedImageAs]
+  )
+
+  // Filerobot is memo()'d, but a new Crop/theme/callback each parent render
+  // rebuilds its config and the crop effect writes the last saved box back
+  // over an in-progress handle drag. Keep these identities stable.
+  const editorTabs = useMemo(
+    () => [TABS.ADJUST, TABS.FINETUNE, TABS.FILTERS, TABS.ANNOTATE, TABS.RESIZE],
+    []
+  )
+  const cropOptions = useMemo(
+    () => ({
+      ratio: 'custom' as const,
+      ratioTitleKey: 'custom',
+      noPresets: true,
+      autoResize: true
+    }),
+    []
+  )
+  const editorTheme = useMemo(
+    () => ({
+      palette: {
+        'bg-primary': '#12141a',
+        'bg-secondary': '#1a1d26',
+        'accent-primary': '#3b82f6',
+        'borders-secondary': '#2a2f3a',
+        'text-primary': '#e8eaef',
+        'text-secondary': '#9aa3b2'
+      }
+    }),
+    []
+  )
+  const pixelRatio = useMemo(() => Math.min(2, window.devicePixelRatio || 1), [])
+  const onEditorModify = useCallback(() => {
+    dirtyRef.current = true
+  }, [])
+  const onBeforeSave = useCallback(() => false, [])
+  const onSave = useCallback(
+    async (imageData: { imageBase64?: string }) => {
+      const data = imageData.imageBase64
+      if (!data || !editor) {
+        notify('Editor returned no image data', true)
+        return
+      }
+      setSaving(true)
+      try {
+        await saveEditedImage(editor.path, data)
+      } catch {
+        // notify already done in store
+      } finally {
+        setSaving(false)
+      }
+    },
+    [editor, notify, saveEditedImage]
+  )
+  const onClose = useCallback(() => {
+    if (!saving && !baking) closeImageEditor()
+  }, [saving, baking, closeImageEditor])
+  const moreSaveOptions = useMemo(
+    () => [
+      {
+        label: 'Save as…',
+        icon: 'save' as const,
+        onClick: (
+          _triggerModal: unknown,
+          triggerSave: (fn: (imageData: { imageBase64?: string }) => Promise<void>) => void
+        ) => {
+          triggerSave(async (imageData) => {
+            await runSaveAs(imageData.imageBase64)
+          })
+        }
+      }
+    ],
+    [runSaveAs]
+  )
 
   if (!editor) return null
 
@@ -285,7 +361,7 @@ export function ImageEditor(): JSX.Element | null {
           <FilerobotImageEditor
             key={srcKey}
             source={src}
-            tabsIds={[TABS.ADJUST, TABS.FINETUNE, TABS.FILTERS, TABS.ANNOTATE, TABS.RESIZE]}
+            tabsIds={editorTabs}
             defaultTabId={TABS.ADJUST}
             defaultToolId={defaultToolId}
             useAiTab={false}
@@ -293,62 +369,18 @@ export function ImageEditor(): JSX.Element | null {
             avoidChangesNotSavedAlertOnLeave
             resetOnSourceChange={false}
             // Skip Filerobot’s own “save as” modal — Save overwrites in place via onSave.
-            onBeforeSave={() => false}
+            onBeforeSave={onBeforeSave}
             defaultSavedImageName={name.replace(/\.[^.]+$/, '') || name}
             defaultSavedImageType={extToSavedType(editor.path)}
-            savingPixelRatio={Math.min(2, window.devicePixelRatio || 1)}
-            previewPixelRatio={Math.min(2, window.devicePixelRatio || 1)}
+            savingPixelRatio={pixelRatio}
+            previewPixelRatio={pixelRatio}
             getCurrentImgDataFnRef={getCurrentImgDataFnRef}
-            onModify={() => {
-              dirtyRef.current = true
-            }}
-            Crop={{
-              // Free-form: corner moves two adjacent sides (patched in postinstall).
-              ratio: 'custom',
-              ratioTitleKey: 'custom',
-              noPresets: true,
-              autoResize: true
-            }}
-            moreSaveOptions={[
-              {
-                label: 'Save as…',
-                icon: 'save',
-                onClick: (_triggerModal, triggerSave) => {
-                  // Direct save path so current crop/design is baked into imageBase64.
-                  triggerSave(async (imageData: { imageBase64?: string }) => {
-                    await runSaveAs(imageData.imageBase64)
-                  })
-                }
-              }
-            ]}
-            theme={{
-              palette: {
-                'bg-primary': '#12141a',
-                'bg-secondary': '#1a1d26',
-                'accent-primary': '#3b82f6',
-                'borders-secondary': '#2a2f3a',
-                'text-primary': '#e8eaef',
-                'text-secondary': '#9aa3b2'
-              }
-            }}
-            onSave={async (imageData) => {
-              const data = imageData.imageBase64
-              if (!data) {
-                notify('Editor returned no image data', true)
-                return
-              }
-              setSaving(true)
-              try {
-                await saveEditedImage(editor.path, data)
-              } catch {
-                // notify already done in store
-              } finally {
-                setSaving(false)
-              }
-            }}
-            onClose={() => {
-              if (!saving && !baking) closeImageEditor()
-            }}
+            onModify={onEditorModify}
+            Crop={cropOptions}
+            moreSaveOptions={moreSaveOptions}
+            theme={editorTheme}
+            onSave={onSave}
+            onClose={onClose}
           />
         )}
       </div>

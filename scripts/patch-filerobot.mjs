@@ -4,6 +4,8 @@
  *
  * 1. Crop: free-form corners (independent width/height). Upstream
  *    `keepRatio={!isCustom || !isEllipse}` is always true for custom.
+ *    Handle drags also ignore config rebuilds until pointer-up so the box
+ *    cannot snap back to the gesture start.
  * 2. Resize: ratio lock must use the *current* (cropped) size, not the
  *    original file. Otherwise e.g. 500×1000 crop becomes 499×499 when width
  *    is edited while locked (Scaleflex PR #567).
