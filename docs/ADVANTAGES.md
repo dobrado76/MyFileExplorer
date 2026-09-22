@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.19.0
+**App:** MyFileExplorer · **Version:** 0.20.0
 
 MyFileExplorer is a **local file workbench**: it keeps Explorer muscle memory (Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while turning the filesystem into a semantic, searchable, automatable workspace — without moving your files into a proprietary database or cloud repository.
 
@@ -34,7 +34,7 @@ Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, dr
 | --------- | --------------------- |
 | **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
 | **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed, last 25) — Explorer has no stack. |
-| **Named workspace layouts** | Save/apply whole tab sets + chrome (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
+| **Named workspace layouts** | Save/apply every explorer window’s tabs plus position/size (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
 | **Q-Dir-style multi-pane (1 / 2 / 3 / 4)** | Side-by-side, wide-top + two bottom, or 2×2 mini-explorers in one window; per-pane folder tree; drag tabs into panes; shared preview follows focus. |
 | **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
 | **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |

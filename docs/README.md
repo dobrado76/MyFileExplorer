@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.19.0** — detachable explorer windows, Power Search created / accessed dates and ADS stream filters, slideshow Include subfolders. Prior: **v0.18.0** Rich player polish, named-layout auto-save, icon-view thumb throttle, Size sort from folder statistics. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D73**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.20.0** — Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Prior: **v0.19.0** detachable explorer windows, Power Search created / accessed dates and ADS stream filters, slideshow Include subfolders. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D73**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -59,6 +59,15 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.20.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Name sort / rename | `StrCmpLogicalW` name order; Del/Backspace edit rename text; selection drag outside the box stays in rename — [PRODUCT_SPEC.md](PRODUCT_SPEC.md) |
+| Search (D29) | Results keep the folder’s current view; breadcrumb leave cancels the walk so the toolbar query stays editable — [SEARCH.md](SEARCH.md) |
+| Image Edit (D27) | Crop handles hold through re-renders; resize lock uses current aspect; bake before Crop/Remove; tip ADS invalidates thumbs — [PREVIEW.md](PREVIEW.md) |
+| Named layouts (D25) | Snapshot includes every explorer window’s tabs and geometry — [DECISIONS.md](DECISIONS.md) |
 
 ## Recent behavior (v0.19.0)
 

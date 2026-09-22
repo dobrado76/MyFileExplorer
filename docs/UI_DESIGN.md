@@ -1,6 +1,6 @@
 # UI design
 
-**Version:** 0.19.0
+**Version:** 0.20.0
 
 Dark-first workbench aesthetic; light and custom themes via CSS variables. This is a **tool**, not a marketing site.
 
@@ -49,7 +49,7 @@ Custom theme = user-editable map of these tokens in settings.
 - **Icons modes:** CSS grid of cells; virtualized (`@tanstack/react-virtual` or equivalent)
 - **List / Details:** virtualized rows; details header clickable for sort. Horizontal overflow: one scrollbar at the **bottom of the file pane**; the header stays lined up with the rows (it does not scroll by itself).
 - Selection: click, Ctrl, Shift range; marquee optional Phase 10; optional **item check boxes** (Settings → Behavior) for Ctrl-free multi-select
-- Rename: F2 / context, or **Explorer two-click** (select, pause, click name → rename immediately; double-click still opens / expands)
+- Rename: F2 / context, or **Explorer two-click** (select, pause, click name → rename immediately; double-click still opens / expands). While renaming, Del/Backspace edit the text; releasing a selection drag outside the box does not end rename.
 - Focus ring for keyboard nav
 - Folder tree: ↑↓ move selection; ← collapse (or select parent); → expand (or select first child). Toolbar **Collapse all** closes every expanded branch on the **current tab** (This PC default); the file list stays put until you navigate
 - Folder tree drag: hover a **collapsed** folder ~2s to expand it (continue the drop into a subfolder)
