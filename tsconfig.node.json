@@ -49,6 +49,7 @@
     "src/renderer/lib/renameListing.ts",
     "src/renderer/lib/renameGesture.ts",
     "src/renderer/lib/textEditKey.ts",
+    "src/renderer/components/imageEditorShortcuts.ts",
     "src/renderer/lib/historyFocus.ts",
     "src/renderer/lib/treeFromListing.ts",
     "src/renderer/lib/thumbMemory.ts",

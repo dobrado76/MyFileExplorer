@@ -43,7 +43,6 @@ export function ImageEditor(): JSX.Element | null {
   const dirtyRef = useRef(false)
   const bakingRef = useRef(false)
   const editorRef = useRef(editor)
-  editorRef.current = editor
   const savingRef = useRef(false)
   const srcRef = useRef<string | null>(null)
   const removeModeRef = useRef(false)
@@ -51,10 +50,14 @@ export function ImageEditor(): JSX.Element | null {
   const saveAsCurrentRef = useRef<() => void>(() => undefined)
   const readCurrentEditBase64Ref = useRef<() => string | null>(() => null)
   const saveEditedImageRef = useRef(saveEditedImage)
-  saveEditedImageRef.current = saveEditedImage
-  srcRef.current = src
-  removeModeRef.current = removeMode
-  removeBusyRef.current = removeBusy
+
+  useEffect(() => {
+    editorRef.current = editor
+    saveEditedImageRef.current = saveEditedImage
+    srcRef.current = src
+    removeModeRef.current = removeMode
+    removeBusyRef.current = removeBusy
+  }, [editor, saveEditedImage, src, removeMode, removeBusy])
 
   const fileName = editor ? basename(editor.path) : ''
 
@@ -431,17 +434,18 @@ export function ImageEditor(): JSX.Element | null {
     }
   }, [fileName, notify])
 
-  readCurrentEditBase64Ref.current = readCurrentEditBase64
-
-  saveAsCurrentRef.current = () => {
-    if (savingRef.current || removeBusyRef.current || bakingRef.current) return
-    const data = readCurrentEditBase64()
-    if (!data) {
-      notify('Editor returned no image data', true)
-      return
+  useEffect(() => {
+    readCurrentEditBase64Ref.current = readCurrentEditBase64
+    saveAsCurrentRef.current = () => {
+      if (savingRef.current || removeBusyRef.current || bakingRef.current) return
+      const data = readCurrentEditBase64()
+      if (!data) {
+        notify('Editor returned no image data', true)
+        return
+      }
+      void runSaveAs(data)
     }
-    void runSaveAs(data)
-  }
+  }, [readCurrentEditBase64, runSaveAs, notify])
 
   // Filerobot is memo()'d, but a new Crop/theme/callback each parent render
   // rebuilds its config and the crop effect writes the last saved box back
