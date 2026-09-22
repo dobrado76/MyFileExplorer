@@ -56,6 +56,15 @@ export function imageEditorShortcut(e: ShortcutEvent): ImageEditorShortcut | nul
   }
 }
 
+/**
+ * In-place Save writes a new version only after a real edit.
+ * Undo back to the loaded image is not an edit. A baked crop/remove is,
+ * even though the remounted editor has an empty undo stack.
+ */
+export function imageEditShouldWrite(opts: { hasUndo: boolean; bakedFromDisk: boolean }): boolean {
+  return opts.hasUndo || opts.bakedFromDisk
+}
+
 /** True when letter shortcuts should not steal focus from form controls. */
 export function isImageEditorTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false

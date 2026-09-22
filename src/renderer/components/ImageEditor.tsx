@@ -11,6 +11,7 @@ import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { ImageRemoveOverlay } from './ImageRemoveOverlay'
 import {
+  imageEditShouldWrite,
   imageEditorShortcut,
   isImageEditorTypingTarget
 } from './imageEditorShortcuts'
@@ -41,6 +42,8 @@ export function ImageEditor(): JSX.Element | null {
   const rootRef = useRef<HTMLDivElement>(null)
   const getCurrentImgDataFnRef = useRef<getCurrentImgDataFunction | null>(null)
   const dirtyRef = useRef(false)
+  /** True after a crop/remove was flattened into the working image. */
+  const bakedFromDiskRef = useRef(false)
   const bakingRef = useRef(false)
   const editorRef = useRef(editor)
   const savingRef = useRef(false)
@@ -66,12 +69,14 @@ export function ImageEditor(): JSX.Element | null {
       setSrc(null)
       setRemoveMode(false)
       dirtyRef.current = false
+      bakedFromDiskRef.current = false
       return
     }
     let alive = true
     setSrc(null)
     setRemoveMode(false)
     dirtyRef.current = false
+    bakedFromDiskRef.current = false
     setDefaultToolId(TOOLS.CROP)
     void (async () => {
       try {
@@ -123,6 +128,7 @@ export function ImageEditor(): JSX.Element | null {
         ? raw
         : `data:${imageData.mimeType ?? `image/${extension}`};base64,${raw}`
       dirtyRef.current = false
+      bakedFromDiskRef.current = true
       if (nextToolId) setDefaultToolId(nextToolId)
       setSrc(dataUrl)
       setSrcKey((k) => k + 1)
@@ -335,6 +341,10 @@ export function ImageEditor(): JSX.Element | null {
         const data = readCurrentEditBase64Ref.current()
         const ed = editorRef.current
         if (!data || !ed) return
+        if (!imageEditShouldWrite({ hasUndo: dirtyRef.current, bakedFromDisk: bakedFromDiskRef.current })) {
+          closeImageEditor()
+          return
+        }
         savingRef.current = true
         setSaving(true)
         void saveEditedImageRef
@@ -477,12 +487,19 @@ export function ImageEditor(): JSX.Element | null {
     []
   )
   const pixelRatio = useMemo(() => Math.min(2, window.devicePixelRatio || 1), [])
-  const onEditorModify = useCallback(() => {
-    dirtyRef.current = true
+  const onEditorModify = useCallback((state: object) => {
+    dirtyRef.current = Boolean(
+      'hasUndo' in state && (state as { hasUndo?: boolean }).hasUndo
+    )
   }, [])
   const onBeforeSave = useCallback(() => false, [])
   const onSave = useCallback(
     async (imageData: { imageBase64?: string }) => {
+      if (!editor) return
+      if (!imageEditShouldWrite({ hasUndo: dirtyRef.current, bakedFromDisk: bakedFromDiskRef.current })) {
+        closeImageEditor()
+        return
+      }
       const data = imageData.imageBase64
       if (!data || !editor) {
         notify('Editor returned no image data', true)
@@ -499,7 +516,7 @@ export function ImageEditor(): JSX.Element | null {
         setSaving(false)
       }
     },
-    [editor, notify, saveEditedImage]
+    [editor, notify, saveEditedImage, closeImageEditor]
   )
   const onClose = useCallback(() => {
     if (!savingRef.current && !bakingRef.current) closeImageEditor()
@@ -529,6 +546,7 @@ export function ImageEditor(): JSX.Element | null {
             onCancel={() => setRemoveMode(false)}
             onApplied={(dataUrl) => {
               dirtyRef.current = false
+              bakedFromDiskRef.current = true
               setSrc(dataUrl)
               setSrcKey((k) => k + 1)
               setDefaultToolId(TOOLS.CROP)
