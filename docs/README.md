@@ -66,7 +66,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | ---- | ---- |
 | Name sort / rename | `StrCmpLogicalW` name order; Del/Backspace edit rename text; selection drag outside the box stays in rename — [PRODUCT_SPEC.md](PRODUCT_SPEC.md) |
 | Search (D29) | Results keep the folder’s current view; breadcrumb leave cancels the walk so the toolbar query stays editable — [SEARCH.md](SEARCH.md) |
-| Image Edit (D27) | Crop handles hold through re-renders; resize lock uses current aspect; bake before Crop/Remove; tip ADS invalidates thumbs — [PREVIEW.md](PREVIEW.md) |
+| Image Edit (D27) | Stable Crop/theme props reduce mid-drag snap-back; resize lock uses current aspect; bake before Crop/Remove; tip ADS invalidates thumbs — [PREVIEW.md](PREVIEW.md) |
 | Named layouts (D25) | Snapshot includes every explorer window’s tabs and geometry — [DECISIONS.md](DECISIONS.md) |
 
 ## Recent behavior (v0.19.0)

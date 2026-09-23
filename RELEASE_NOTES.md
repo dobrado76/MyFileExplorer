@@ -22,7 +22,7 @@ Results stay in thumbnails, icons, list, or Details (no forced Details). Leaving
 
 ### Image Edit: crop and resize that behave
 
-Crop handles no longer jump back mid-drag when the rest of the app re-renders. Locked resize Width/Height follow the current (cropped) aspect ratio. Entering Crop or Remove after any in-session change bakes the working canvas first. Image thumbs refresh when tip ADS edits change without touching `$DATA`.
+Crop settings stay stable while you drag so a background app update does not snap handles back. Locked resize Width/Height follow the current (cropped) aspect ratio. Entering Crop or Remove after any in-session change bakes the working canvas first. Image thumbs refresh when tip ADS edits change without touching `$DATA`.
 
 ### Layouts across every window
 

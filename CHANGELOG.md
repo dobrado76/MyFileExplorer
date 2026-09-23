@@ -13,7 +13,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 Twentieth product release: Explorer-accurate name sort and rename typing, search that keeps the current view and stays editable after breadcrumb leave, Image Edit crop/resize polish, and named layouts that store every explorer window. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-- **Image Edit crop handles** — dragging a crop handle no longer jumps back to where the drag started when the rest of the app re-renders. The live crop box is kept until the mouse is released.
+- **Image Edit crop handles** — the editor keeps Crop/theme/callback props stable so a background re-render does not rebuild Filerobot config mid-drag (which snapped handles back to the gesture start).
 - **Search field after breadcrumb leave** — changing folder via the address bar while a search is open cancels the walk and clears the query so the toolbar search box stays editable. Previously a pending debounce or in-flight result could revive the old search and leave the field stuck.
 - **Rename keeps Del in the name box** — while a file or folder is being renamed, Del and Backspace edit the text (selected name or one character). They no longer send that item to the Recycle Bin.
 - **Rename selection drag** — highlighting part of a name and releasing the mouse outside the box stays in rename. That release is not treated as a click away.

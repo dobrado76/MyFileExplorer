@@ -10,7 +10,7 @@ All notable locked product/tech decisions. Through **D46** for the v0.6 product 
 
 **v0.19.0** ships **D73** detachable explorer windows (same process; menu move / merge / reopen — not drag tear-off), **D37** slideshow **Include subfolders** (default on), and Power Search created / last-accessed dates plus ADS stream filters (D34 / D38).
 
-**v0.20.0** polishes Explorer-accurate name sort (`StrCmpLogicalW`) and rename typing (Del/Backspace stay in the name box), keeps search on the current view and editable after breadcrumb leave (D29), hardens Image Edit crop handles / resize lock / bake-before-Crop (D27) plus tip-ADS thumb invalidation (D10), and extends named layouts to every explorer window’s tabs and geometry (D25 / D73).
+**v0.20.0** polishes Explorer-accurate name sort (`StrCmpLogicalW`) and rename typing (Del/Backspace stay in the name box), keeps search on the current view and editable after breadcrumb leave (D29), hardens Image Edit resize lock / bake-before-Crop (D27) plus tip-ADS thumb invalidation (D10) and stable Crop host props (fewer mid-drag snap-backs), and extends named layouts to every explorer window’s tabs and geometry (D25 / D73).
 
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 
