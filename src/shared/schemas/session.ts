@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { isAdsFieldColumnId, isBuiltinDetailsColumnId, type DetailsColumnId } from './columns'
 import { coerceHistoryList, persistHistoryEntry } from '../tabHistory'
 import { iconPackIdSchema } from './iconPack'
+import { dropShortcutSchema, dropTransferModeSchema } from '../tabDropShortcut'
 
 export const viewModeSchema = z.enum([
   'extraLargeIconsNoName',
@@ -132,7 +133,14 @@ export const tabStateSchema = z.object({
    */
   virtualFolderGroupStack: z.array(z.string().min(1)).catch([]),
   /** Explorer shell that shows this tab. `main` is the primary window (D73). */
-  windowId: z.string().min(1).catch('main')
+  windowId: z.string().min(1).catch('main'),
+  /**
+   * Keyboard chord that transfers the focused pane’s selection into this tab’s
+   * current folder (same destination as drag-onto-tab). Null = unset (D32).
+   */
+  dropShortcut: dropShortcutSchema,
+  /** How that shortcut chooses copy vs move: auto (like drop) / always move / always copy. */
+  dropTransfer: dropTransferModeSchema
 })
 export type TabState = z.infer<typeof tabStateSchema>
 
@@ -180,7 +188,9 @@ const layoutTabWireSchema = z.object({
     .catch([])
     .transform((arr) =>
       arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED)
-    )
+    ),
+  dropShortcut: dropShortcutSchema,
+  dropTransfer: dropTransferModeSchema
 })
 
 /** One secondary explorer window stored in a named layout. */

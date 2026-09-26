@@ -234,7 +234,9 @@ describe('layouts', () => {
               viewMode: 'largeIcons',
               sort: { key: 'name', dir: 'asc' },
               rootPath: null,
-              treeExpanded: []
+              treeExpanded: [],
+              dropShortcut: null,
+              dropTransfer: 'auto'
             }
           ]
         }

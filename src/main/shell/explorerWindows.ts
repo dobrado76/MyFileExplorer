@@ -398,7 +398,9 @@ function layoutTabFromState(tab: TabState): LayoutFloatWire['tabs'][number] {
     viewMode: tab.viewMode,
     sort: tab.sort,
     rootPath: tab.rootPath,
-    treeExpanded: tab.treeExpanded
+    treeExpanded: tab.treeExpanded,
+    dropShortcut: tab.dropShortcut ?? null,
+    dropTransfer: tab.dropTransfer ?? 'auto'
   })
 }
 
@@ -422,7 +424,9 @@ function stateFromLayoutTab(
     rootPath: tab.rootPath,
     treeExpanded: tab.treeExpanded,
     virtualFolderGroupStack: [],
-    windowId
+    windowId,
+    dropShortcut: tab.dropShortcut ?? null,
+    dropTransfer: tab.dropTransfer ?? 'auto'
   }
 }
 

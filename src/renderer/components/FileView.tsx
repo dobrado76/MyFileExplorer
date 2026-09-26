@@ -2749,7 +2749,6 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
                       {projectionBadge(entry)}
                       {mediaLibrary.isContainer &&
                       !recycleMode &&
-                      !searchMode &&
                       mediaMetadataEnabled ? (
                         <MediaCardHoverActions entry={entry} watched={flags?.watched} />
                       ) : null}

@@ -70,6 +70,7 @@ import { ThumbImage } from './ThumbImage'
 import { ShellIcon } from './ShellIcon'
 import { TabIconPickerDialog } from './TabIconPickerDialog'
 import { TabCustomIconDialog } from './TabCustomIconDialog'
+import { TabDropShortcutDialog } from './TabDropShortcutDialog'
 import { ItemNoteDialog } from './ItemNoteDialog'
 import { EditMediaMetadataDialog } from './EditMediaMetadataDialog'
 import { UserMetadataDialog } from './UserMetadataDialog'
@@ -358,6 +359,8 @@ export function Dialogs(): JSX.Element | null {
       return <TabIconPickerDialog tabId={dialog.tabId} />
     case 'tab-custom-icon':
       return <TabCustomIconDialog tabId={dialog.tabId} />
+    case 'tab-drop-shortcut':
+      return <TabDropShortcutDialog tabId={dialog.tabId} />
     case 'item-note':
       return <ItemNoteDialog path={dialog.path} />
     case 'user-metadata':

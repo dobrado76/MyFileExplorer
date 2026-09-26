@@ -237,7 +237,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | File-op progress | D28 — status bar; Cancel (incl. 7za ZIP compress) |
 | Image editor | D27 — Filerobot; tip ADS `VER_*` on file |
 | Recycle Bin | D7 — in-app bin view |
-| Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder |
+| Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder; optional per-tab drop shortcut |
 | Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |
 | External open | D19 — `--reveal` / `--open` / `mfe://` |
 | vs Explorer | [ADVANTAGES.md](ADVANTAGES.md) |

@@ -27,6 +27,10 @@ import {
   ICON_SIZE_PX_MAX,
   ICON_SIZE_PX_MIN
 } from '@shared/schemas/settings'
+import {
+  autoForceModifiers,
+  eventMatchesTabDropShortcut
+} from '@shared/tabDropShortcut'
 
 const ImageEditor = lazy(async () => {
   const m = await import('../components/ImageEditor')
@@ -172,6 +176,19 @@ export function ExplorerShell(): JSX.Element {
     const editing = textTarget != null || renaming || s.addressEditing
     // No file shortcuts while a text field is open — Del stays a text edit.
     if (editing) return
+
+    // Tab drop shortcuts (transfer selection into that tab’s current folder).
+    for (const t of s.tabs) {
+      if (!t.dropShortcut) continue
+      if (!eventMatchesTabDropShortcut(t.dropShortcut, e)) continue
+      e.preventDefault()
+      const force =
+        (t.dropTransfer ?? 'auto') === 'auto'
+          ? autoForceModifiers(t.dropShortcut, e)
+          : { forceCopy: false, forceMove: false }
+      void s.transferSelectionToTab(t.id, force)
+      return
+    }
 
     if (ctrl && shift && !alt && key.toLowerCase() === 't') {
       e.preventDefault()

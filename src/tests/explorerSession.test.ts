@@ -18,7 +18,9 @@ function tab(id: string, windowId = 'main'): TabState {
     rootPath: null,
     treeExpanded: [],
     virtualFolderGroupStack: [],
-    windowId
+    windowId,
+    dropShortcut: null,
+    dropTransfer: 'auto'
   }
 }
 

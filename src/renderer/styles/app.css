@@ -6514,6 +6514,43 @@ html.idle-cursor-hidden * {
   min-height: 0;
   flex: 1;
 }
+.tab-drop-shortcut-capture {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+.tab-drop-shortcut-chord {
+  flex: 1;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.95em;
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+}
+.tab-drop-shortcut-error {
+  color: var(--danger, #ef4444);
+}
+.tab-drop-shortcut-mode {
+  margin: 12px 0 0;
+  padding: 0;
+  border: none;
+}
+.tab-drop-shortcut-mode legend {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.tab-drop-shortcut-mode-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+  cursor: pointer;
+}
 .tab-icon-picker-toolbar {
   display: flex;
   align-items: center;
@@ -11521,6 +11558,10 @@ html.idle-cursor-hidden * {
   flex-direction: column;
   min-width: 180px;
   max-width: 560px;
+  /* Flex default min-height:auto grows with the tree and clips under .ai-chat
+     overflow:hidden — without this, Folders/Chats never get a vertical scrollbar. */
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-panel, var(--bg-elevated));
   border-right: 1px solid var(--border);
 }

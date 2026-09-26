@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { createPortal } from 'react-dom'
 import { useAppStore, dropOperation, type Tab } from '../store/appStore'
+import { labelDropTransfer } from '@shared/tabDropShortcut'
 import { basename, samePath, parentOf } from '../lib/paths'
 import type { ClosedTabEntry, ClosedWindowEntry } from '@shared/schemas/session'
 import {
@@ -79,6 +80,7 @@ export function TabBar(): JSX.Element {
     (s) => s.recycleBin.active && !s.recycleBin.loading && s.recycleBin.items.length === 0
   )
   const openDialog = useAppStore((s) => s.openDialog)
+  const setTabDropShortcut = useAppStore((s) => s.setTabDropShortcut)
 
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -375,9 +377,11 @@ export function TabBar(): JSX.Element {
                   ? `${tab.path} (offline)`
                   : fileDragActive
                     ? `Drop to move/copy into ${tab.path}`
-                    : iconOnly
-                      ? `${title} — ${tab.path}`
-                      : tab.path
+                    : tab.dropShortcut
+                      ? `${title} — ${tab.path} · ${tab.dropShortcut} · ${labelDropTransfer(tab.dropTransfer ?? 'auto')}`
+                      : iconOnly
+                        ? `${title} — ${tab.path}`
+                        : tab.path
               }
               data-drop-dir={tab.path}
               draggable={editingId !== tab.id && !fileDragActive}
@@ -613,6 +617,32 @@ export function TabBar(): JSX.Element {
               >
                 {menuTab.icon ? 'Change icon…' : 'Set icon…'}
               </button>
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenu(null)
+                  openDialog({ kind: 'tab-drop-shortcut', tabId: menuTab.id })
+                }}
+              >
+                {menuTab.dropShortcut
+                  ? `Drop shortcut (${menuTab.dropShortcut})…`
+                  : 'Set drop shortcut…'}
+              </button>
+              {menuTab.dropShortcut ? (
+                <button
+                  type="button"
+                  className="menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenu(null)
+                    setTabDropShortcut(menuTab.id, null, menuTab.dropTransfer ?? 'auto')
+                  }}
+                >
+                  Clear drop shortcut
+                </button>
+              ) : null}
               <div className="menu-sep" />
               <button
                 type="button"

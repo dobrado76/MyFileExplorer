@@ -93,6 +93,8 @@ import {
   upsertLayout,
   type WorkspaceLayout
 } from '@shared/layouts'
+import type { DropTransferMode } from '@shared/tabDropShortcut'
+import { validateTabDropShortcut } from '@shared/tabDropShortcut'
 import { api, call, IpcError } from '../lib/ipc'
 import { IPC } from '@shared/ipc/contract'
 import { captureDockedChromiumPlayback } from '../lib/dockedAvPlayback'
@@ -242,6 +244,13 @@ export type Tab = {
   virtualFolderGroupStack: string[]
   /** Search is a location on this tab (WFE). Other tabs keep their own results. */
   search: SearchState
+  /**
+   * Chord that transfers the focused pane’s selection into this tab’s current
+   * folder (drag-onto-tab destination). Null = unset.
+   */
+  dropShortcut: string | null
+  /** How the drop shortcut chooses copy vs move. */
+  dropTransfer: DropTransferMode
 }
 
 function currentLocation(tab: Tab): HistoryEntry {
@@ -331,6 +340,7 @@ export type DialogState =
     }
   | { kind: 'tab-icon'; tabId: string }
   | { kind: 'tab-custom-icon'; tabId: string }
+  | { kind: 'tab-drop-shortcut'; tabId: string }
   | { kind: 'item-note'; path: string }
   | { kind: 'user-metadata'; paths: string[] }
   | { kind: 'user-metadata-manager'; returnSection?: string }
@@ -902,6 +912,20 @@ type AppState = {
   nextTab(): Promise<void>
   renameTab(id: string, title: string | null): void
   setTabIcon(id: string, icon: TabIcon): void
+  /**
+   * Set or clear this tab’s drop shortcut + transfer mode. Validates against
+   * reserved app chords and other open tabs. Returns false if rejected.
+   */
+  setTabDropShortcut(
+    id: string,
+    chord: string | null,
+    mode: DropTransferMode
+  ): { ok: true } | { ok: false; reason: string }
+  /** Transfer focused-pane selection into `tabId`’s current folder (drop shortcut). */
+  transferSelectionToTab(
+    tabId: string,
+    opts?: { forceCopy?: boolean; forceMove?: boolean }
+  ): Promise<boolean>
   reorderTab(fromIndex: number, toIndex: number): void
 
   // multi-pane (D31)
@@ -1308,7 +1332,9 @@ function tabToSessionTab(t: Tab): TabState {
     scrollOffset: t.scrollOffset,
     treeExpanded: t.treeExpanded,
     virtualFolderGroupStack: t.virtualFolderGroupStack,
-    windowId: MAIN_SHELL_ID
+    windowId: MAIN_SHELL_ID,
+    dropShortcut: t.dropShortcut ?? null,
+    dropTransfer: t.dropTransfer ?? 'auto'
   }
 }
 
@@ -1332,7 +1358,9 @@ function sessionTabToTab(t: TabState): Tab {
       active: t.search?.active === true && Boolean(t.search.query?.trim()),
       query: t.search?.query ?? '',
       indexedOnly: t.search?.indexedOnly ?? false
-    }
+    },
+    dropShortcut: t.dropShortcut ?? null,
+    dropTransfer: t.dropTransfer ?? 'auto'
   }
 }
 
@@ -3781,7 +3809,9 @@ export const useAppStore = create<AppState>()((set, get) => {
             rootPath: null,
             treeExpanded: [],
             virtualFolderGroupStack: [],
-            search: emptyTabSearch()
+            search: emptyTabSearch(),
+            dropShortcut: null,
+            dropTransfer: 'auto'
           }
         ]
       }
@@ -4883,7 +4913,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         rootPath: rootPath ?? null,
         treeExpanded: [],
         virtualFolderGroupStack: groupStack,
-        search: emptyTabSearch(s.settings.searchIndexedOnly)
+        search: emptyTabSearch(s.settings.searchIndexedOnly),
+        dropShortcut: null,
+        dropTransfer: 'auto'
       }
       const focusIdx = s.focusedPaneIndex
       const nextPanes = [...s.paneTabIds]
@@ -4925,7 +4957,10 @@ export const useAppStore = create<AppState>()((set, get) => {
           running: false,
           progress: null,
           gen: 0
-        }
+        },
+        // Duplicate does not copy the drop shortcut — chords must stay unique.
+        dropShortcut: null,
+        dropTransfer: src.dropTransfer
       }
       const idx = s.tabs.findIndex((t) => t.id === id)
       const tabs = [...s.tabs]
@@ -5225,7 +5260,9 @@ export const useAppStore = create<AppState>()((set, get) => {
           running: false,
           progress: null,
           gen: 0
-        }
+        },
+        dropShortcut: null,
+        dropTransfer: src.dropTransfer
       }
       const srcIdx = s.tabs.findIndex((t) => t.id === sourceTabId)
       const tabs = [...s.tabs]
@@ -5322,6 +5359,68 @@ export const useAppStore = create<AppState>()((set, get) => {
     setTabIcon(id, icon) {
       set((s) => ({ tabs: s.tabs.map((t) => (t.id === id ? { ...t, icon } : t)) }))
       flushSessionSave()
+    },
+
+    setTabDropShortcut(id, chord, mode) {
+      const s = get()
+      if (!s.tabs.some((t) => t.id === id)) {
+        return { ok: false as const, reason: 'Tab not found' }
+      }
+      if (chord == null || chord.trim() === '') {
+        set((st) => ({
+          tabs: st.tabs.map((t) =>
+            t.id === id ? { ...t, dropShortcut: null, dropTransfer: mode } : t
+          )
+        }))
+        flushSessionSave()
+        return { ok: true as const }
+      }
+      const check = validateTabDropShortcut(
+        chord,
+        s.tabs.map((t) => ({
+          id: t.id,
+          title: t.title,
+          path: t.path,
+          dropShortcut: t.dropShortcut
+        })),
+        id
+      )
+      if (!check.ok) return check
+      set((st) => ({
+        tabs: st.tabs.map((t) =>
+          t.id === id ? { ...t, dropShortcut: check.chord, dropTransfer: mode } : t
+        )
+      }))
+      flushSessionSave()
+      return { ok: true as const }
+    },
+
+    async transferSelectionToTab(tabId, opts) {
+      const s = get()
+      if (s.recycleBin.active) return false
+      const destTab = s.tabs.find((t) => t.id === tabId)
+      if (!destTab) return false
+      const destPath = destTab.path
+      const sourceTab = s.activeTab()
+      const paths = sourceTab.selected
+      if (paths.length === 0) return false
+      const { isValidDropDest } = await import('../lib/rightDrag')
+      if (!isValidDropDest(paths, destPath)) return false
+      // Same-folder move is a no-op (sorting into the tab you're already in).
+      const forceCopy = opts?.forceCopy === true
+      const forceMove = opts?.forceMove === true
+      if (
+        paths.every((p) => samePath(parentOf(p) ?? '', destPath)) &&
+        !forceCopy
+      ) {
+        return false
+      }
+      const mode = destTab.dropTransfer ?? 'auto'
+      let op: 'copy' | 'move'
+      if (mode === 'copy') op = 'copy'
+      else if (mode === 'move') op = 'move'
+      else op = dropOperation(paths[0]!, destPath, forceCopy, forceMove)
+      return get().performTransfer(op, paths, destPath, false, false)
     },
 
     reorderTab(fromIndex, toIndex) {
@@ -5702,7 +5801,9 @@ export const useAppStore = create<AppState>()((set, get) => {
         forward: [],
         selected: [],
         scrollOffset: 0,
-        search: emptyTabSearch()
+        search: emptyTabSearch(),
+        dropShortcut: t.dropShortcut ?? null,
+        dropTransfer: t.dropTransfer ?? 'auto'
       }))
       const idx = Math.min(Math.max(0, layout.activeTabIndex), tabs.length - 1)
       const active = tabs[idx]!

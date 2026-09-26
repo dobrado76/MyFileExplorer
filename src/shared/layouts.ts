@@ -22,6 +22,11 @@ import {
   pairFoldersVisibleStatusSchema,
   type PairFoldersVisibleStatus
 } from './schemas/pairFolders'
+import {
+  dropShortcutSchema,
+  dropTransferModeSchema,
+  type DropTransferMode
+} from './tabDropShortcut'
 
 
 export const MAX_LAYOUTS = 50
@@ -39,7 +44,9 @@ export const layoutTabSchema = z.object({
     .catch([])
     .transform((arr) =>
       arr.filter((p) => typeof p === 'string' && p.length > 0).slice(0, MAX_TREE_EXPANDED)
-    )
+    ),
+  dropShortcut: dropShortcutSchema,
+  dropTransfer: dropTransferModeSchema
 })
 export type LayoutTab = z.infer<typeof layoutTabSchema>
 
@@ -114,6 +121,8 @@ export type LayoutSnapshotSource = {
     sort: SortSpec
     rootPath: string | null
     treeExpanded: string[]
+    dropShortcut?: string | null
+    dropTransfer?: DropTransferMode
   }>
   activeTabIndex: number
   splitters: Splitters
@@ -151,7 +160,9 @@ export function captureLayoutTabs(source: LayoutSnapshotSource['tabs']): LayoutT
       viewMode: t.viewMode,
       sort: t.sort,
       rootPath: t.rootPath,
-      treeExpanded: t.treeExpanded
+      treeExpanded: t.treeExpanded,
+      dropShortcut: t.dropShortcut ?? null,
+      dropTransfer: t.dropTransfer ?? 'auto'
     })
   )
 }
