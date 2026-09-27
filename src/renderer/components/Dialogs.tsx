@@ -3886,7 +3886,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               {layouts.length === 0 ? (
                 <p className="settings-help">No saved layouts yet.</p>
               ) : (
-                <div className="settings-qa-list">
+                <div className="settings-qa-list settings-qa-list-fill">
                   {layouts.map((entry, index) => (
                       <div className="settings-qa-row" key={entry.id}>
                         <div className="settings-qa-meta">
