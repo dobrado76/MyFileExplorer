@@ -1255,9 +1255,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     count: rowCount,
     getScrollElement: () => scrollEl,
     estimateSize: () => rowHeight,
-    // Keep a small buffer for scroll smoothness; ThumbImage also gates
-    // network/decode work with IntersectionObserver (~180px margin).
-    overscan: 2
+    // Extra rows keep thumbs mounted (and requests warming) while scrubbing;
+    // ThumbImage also gates fresh IPC with IntersectionObserver (~180px margin).
+    overscan: 5
   })
 
   // TanStack Virtual caches row sizes and does not re-measure when
@@ -1300,7 +1300,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     scrollTop: scrollEl?.scrollTop ?? 0,
     clientHeight: scrollBoxH || scrollEl?.clientHeight || 0,
     rowHeight,
-    overscan: 2
+    overscan: 5
   })
   const visibleRangeStart = visibleSpan?.start ?? 0
   const visibleRangeEnd = visibleSpan?.end ?? -1

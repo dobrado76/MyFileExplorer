@@ -4,7 +4,9 @@
  *
  * Waiters are LIFO so newly visible tiles run before ones the user already
  * scrolled past. Aborting a waiter before it acquires a slot drops it — in-flight
- * IPC still finishes so the memory cache can warm.
+ * IPC still finishes so the memory cache can warm. Callers should abort on
+ * unmount / cache-key change, not merely when a tile leaves the near-view
+ * IntersectionObserver margin while still mounted in the virtualizer overscan.
  */
 
 const MAX_CONCURRENT = 6

@@ -85,6 +85,7 @@ export function ThumbImage({
   const frameIdxRef = useRef(0)
   const reqIdRef = useRef(0)
   const prevKeyRef = useRef(key)
+  const abortRef = useRef<AbortController | null>(null)
   const onHasContentRef = useRef(onHasContent)
   useLayoutEffect(() => {
     onHasContentRef.current = onHasContent
@@ -92,9 +93,13 @@ export function ThumbImage({
 
   const showingContent = Boolean(displaySrc && !failed)
 
+  // Sticky preview: only report true when we have a content thumb, and false
+  // on definitive failure — never while loading / cold remount (avoids
+  // has-preview ↔ icon-only layout thrash during scroll).
   useEffect(() => {
-    onHasContentRef.current?.(showingContent)
-  }, [showingContent, path])
+    if (showingContent) onHasContentRef.current?.(true)
+    else if (failed) onHasContentRef.current?.(false)
+  }, [showingContent, failed, path])
 
   useLayoutEffect(() => {
     const el = wrapRef.current
@@ -136,6 +141,18 @@ export function ThumbImage({
     return () => io.disconnect()
   }, [scrollRoot])
 
+  // Abort the in-flight thumbs:get when this tile unmounts or the cache key
+  // changes — not when IntersectionObserver says it left the near-view margin
+  // while the virtualizer still holds the row (overscan). Dropping waiters on
+  // nearView=false left the memory cache cold and caused shell-icon flicker
+  // when scrolling back.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+      abortRef.current = null
+    }
+  }, [key, path, size])
+
   // Resolve thumb URLs when near view (memory cache skips IPC).
   // After a cover write the cache key changes — refetch even if the
   // IntersectionObserver still says off-screen (busy overlay / virtualizer).
@@ -152,31 +169,34 @@ export function ThumbImage({
     prevKeyRef.current = key
     if (!nearView && !keyChanged) return
     if (opBusy && !keyChanged) return
+    // Still warming from a prior nearView pass — do not start a second slot.
+    if (!keyChanged && abortRef.current && !abortRef.current.signal.aborted) return
 
     const ac = new AbortController()
+    abortRef.current = ac
     const reqId = ++reqIdRef.current
     const cacheKey = key
-    let stale = false
     setFailed(false)
     void withThumbRequestSlot(() => api.thumbs.get({ path, size }), ac.signal).then((res) => {
+      if (abortRef.current === ac) abortRef.current = null
       if (res === undefined) return
       if (res.ok && res.value.url) {
         const next: ThumbMemoryEntry = {
           url: res.value.url,
           frames: res.value.frames && res.value.frames.length > 1 ? res.value.frames : undefined
         }
+        // Warm memory even if this tile went off-screen / remounted.
         setThumbMemory(cacheKey, next)
-        if (stale || reqId !== reqIdRef.current) return
+        if (reqId !== reqIdRef.current) return
         setEntry(next)
         setDisplaySrc(next.url)
-      } else if (!stale && reqId === reqIdRef.current) {
+      } else if (reqId === reqIdRef.current) {
         setFailed(true)
       }
     })
-    return () => {
-      ac.abort()
-      stale = true
-    }
+    // No abort / stale flag here: nearView flicker must not cancel a warming
+    // request. Abort on key change / unmount is owned by the sibling effect;
+    // a newer request bumps reqIdRef so late results are ignored.
   }, [key, path, size, nearView, opBusy])
 
   // Animate strip frames while near view; keep current frame until the next is decoded.
