@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+  type MouseEvent,
+  type ReactNode
+} from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import type { PptSlidePreview, SpreadsheetSheet } from '@shared/schemas/preview'
@@ -8,6 +16,7 @@ import { pdfPreviewSrc } from '../../lib/pdfPreview'
 import { DEFAULT_VID_THUMB_FRAME_MS } from '@shared/vidThumbCache'
 import { useAppStore } from '../../store/appStore'
 import { usePointerIdle } from '../../lib/usePointerIdle'
+import { mpvPointerInVideoToggleZone } from '@shared/mpvClickPause'
 import { CodePreview } from './CodePreview'
 import {
   chromiumReportsHevcSupport,
@@ -449,6 +458,7 @@ export function VideoPreview({
   const [failed, setFailed] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const seekApplied = useRef(false)
+  const hideControlsAtPress = useRef(false)
   const controlsIdle = usePointerIdle(Boolean(autoHideControls && active && url && !failed), 3000)
   const showControls = !autoHideControls || !controlsIdle
 
@@ -506,6 +516,16 @@ export function VideoPreview({
       startAtSec != null && Number.isFinite(startAtSec) && startAtSec > 0
     // Avoid autoPlay-from-0 racing the handoff seek (sounds like a restart).
     const autoPlayAttr = shouldAutoplay && !needsHandoffSeek
+    const onVideoClick = (e: MouseEvent<HTMLVideoElement>): void => {
+      const el = e.currentTarget
+      const r = el.getBoundingClientRect()
+      // pointerdown already woke auto-hide; use press-time idle so the
+      // click still pauses instead of being treated as an OSC hit.
+      const oscVisible = showControls && !hideControlsAtPress.current
+      if (!mpvPointerInVideoToggleZone(e.clientY - r.top, r.height, oscVisible)) return
+      if (el.paused) void el.play().catch(() => undefined)
+      else el.pause()
+    }
     return (
       <div className="preview-media preview-av">
         <video
@@ -520,6 +540,11 @@ export function VideoPreview({
           controlsList="nofullscreen nodownload noremoteplayback"
           preload="auto"
           autoPlay={autoPlayAttr}
+          onPointerDown={(e) => {
+            if (e.button !== 0) return
+            hideControlsAtPress.current = autoHideControls && controlsIdle
+          }}
+          onClick={onVideoClick}
           onError={() => setFailed(true)}
           onLoadedMetadata={(e) => {
             if (e.currentTarget.videoWidth === 0) {

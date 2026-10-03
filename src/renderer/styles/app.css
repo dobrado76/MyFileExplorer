@@ -3365,6 +3365,12 @@ body.rename-selecting * {
   border-radius: 4px;
   outline: none;
 }
+/* Picture clicks are handled in VideoPreview; the overlay enclosure would
+   swallow them on a full-pane player (Keep playing / detached). */
+.preview-video::-webkit-media-controls-overlay-enclosure,
+.preview-video::-webkit-media-controls-overlay-play-button {
+  pointer-events: none;
+}
 .preview-audio {
   width: 100%;
   max-width: 420px;
