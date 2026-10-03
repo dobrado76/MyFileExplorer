@@ -13,7 +13,7 @@ import {
 import { isCustomTabIcon, isIconOnlyTab, isLucideTabIcon } from '@shared/tabIcons'
 import { recycleBinShowsInToolbar } from '@shared/recycleBinTree'
 import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
-import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon } from '../lib/icons'
+import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon, UndeleteIcon } from '../lib/icons'
 import { TabLucideIcon } from './TabLucideIcon'
 
 /** Stable when only selection changes — TabBar ignores `selected`. */
@@ -97,6 +97,8 @@ export function TabBar(): JSX.Element {
   const tabEqualWidth = useAppStore((s) => s.settings.tabEqualWidth)
   const showTabIcons = useAppStore((s) => s.settings.showTabIcons)
   const recycleBinPlacement = useAppStore((s) => s.settings.recycleBinPlacement)
+  const showUndeleteToolbar = useAppStore((s) => s.settings.showUndeleteToolbar)
+  const platform = useAppStore((s) => s.platform)
 
   const updateScrollState = useCallback((): void => {
     const el = tabsStripRef.current
@@ -534,6 +536,17 @@ export function TabBar(): JSX.Element {
           }}
         >
           <RecycleBinIcon size={16} />
+        </button>
+      )}
+      {showUndeleteToolbar && platform === 'win32' && (
+        <button
+          type="button"
+          className="tabbar-undelete"
+          aria-label="NTFS Undelete"
+          title="Undelete — recover permanently deleted files from NTFS"
+          onClick={() => openDialog({ kind: 'undelete' })}
+        >
+          <UndeleteIcon size={16} />
         </button>
       )}
 

@@ -82,6 +82,7 @@ import { CompiledListsConfigDialog } from './CompiledListsConfigDialog'
 import { AdsManager } from './AdsManager'
 import { UsnManager } from './UsnManager'
 import { PowerRenameDialog } from './PowerRenameDialog'
+import { UndeleteDialog } from './UndeleteDialog'
 import { PowerSearchDialog } from './PowerSearchDialog'
 import { CopyMoveToDialog } from './CopyMoveToDialog'
 import { CreateLinkDialog } from './CreateLinkDialog'
@@ -399,6 +400,8 @@ export function Dialogs(): JSX.Element | null {
       return <SyncPlanDialog />
     case 'power-rename':
       return <PowerRenameDialog paths={dialog.paths} />
+    case 'undelete':
+      return <UndeleteDialog volume={dialog.volume} />
     case 'copy-move-to':
       return <CopyMoveToDialog op={dialog.op} paths={dialog.paths} />
     case 'power-search':
@@ -2787,6 +2790,15 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 icon). Don&apos;t show hides both; the Drives header context menu still has Open /
                 Empty Recycle Bin.
               </p>
+              {platform === 'win32' && (
+                <SettingsToggle
+                  id="set-show-undelete-toolbar"
+                  label="Show Undelete toolbar button"
+                  hint="Icon next to Recycle Bin on the tab bar. Opens NTFS Undelete (recover permanently deleted files). Off by default — most people never need it."
+                  checked={settings.showUndeleteToolbar}
+                  onChange={(v) => void applySettingsPatch({ showUndeleteToolbar: v })}
+                />
+              )}
               {devGatePresent && (
                 <SettingsToggle
                   id="set-dev-gated-items"

@@ -72,6 +72,10 @@ import {
   usnClearRequestSchema,
   usnRecentRequestSchema
 } from '@shared/schemas/usn'
+import {
+  undeleteScanRequestSchema,
+  undeleteRecoverRequestSchema
+} from '@shared/schemas/undelete'
 import { networkListSharesRequestSchema } from '@shared/schemas/network'
 import { listDirectory, statPath, pathExists, requireAbsolute } from '../fs/list'
 import { listDrives, setVolumeLabel, disconnectMappedNetworkDrive } from '../fs/drives'
@@ -1580,6 +1584,20 @@ export function registerIpcHandlers(): void {
   handle(IPC.usnRecent, usnRecentRequestSchema, async (req) => {
     const { recentUsnEntries } = await import('../fs/usnJournal')
     return recentUsnEntries(req.path, req.limit ?? 200, req.elevate === true)
+  })
+
+  handle(IPC.undeleteScan, undeleteScanRequestSchema, async (req) => {
+    const { undeleteScan } = await import('../fs/undelete/service')
+    return undeleteScan(req)
+  })
+  handle(IPC.undeleteRecover, undeleteRecoverRequestSchema, async (req) => {
+    const { undeleteRecover } = await import('../fs/undelete/service')
+    return undeleteRecover(req)
+  })
+  handle(IPC.undeleteCancel, emptySchema, async () => {
+    const { cancelUndeleteOps } = await import('../fs/undelete/service')
+    cancelUndeleteOps()
+    return { cancelled: true as const }
   })
 
   handle(IPC.networkStartDiscovery, emptySchema, async () => startNetworkDiscovery())

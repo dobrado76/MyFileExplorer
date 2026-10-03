@@ -9,6 +9,7 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+- **NTFS Undelete (D74)** — Settings → Appearance **Show Undelete toolbar button** (off by default) adds a tab-bar icon next to Recycle Bin to scan deleted MFT FILE records and recover files under the chosen folder **with their relative parent paths** (not flat). Short-lived UAC when needed. Not Recycle Bin Restore — [docs/UNDELETE.md](docs/UNDELETE.md).
 - **Tab drop shortcuts** — right-click a tab → **Set drop shortcut…** to bind a chord that transfers the focused pane’s selection into that tab’s current folder (Auto / Always move / Always copy). Conflicts with built-in keys or another tab are rejected. Shortcuts persist on the live tab and in named layouts.
 
 ## [0.20.0] - 2026-09-23

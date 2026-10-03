@@ -264,6 +264,11 @@ export const IPC = {
   usnClear: 'usn:clear',
   usnRecent: 'usn:recent',
 
+  /** NTFS Undelete — classic MFT recover (D74). */
+  undeleteScan: 'undelete:scan',
+  undeleteRecover: 'undelete:recover',
+  undeleteCancel: 'undelete:cancel',
+
   /** Network neighborhood (async discovery; native map/disconnect dialogs). */
   networkStartDiscovery: 'network:startDiscovery',
   networkCancelDiscovery: 'network:cancelDiscovery',
@@ -613,6 +618,19 @@ export type MfeEvent =
         currentRelativePath?: string
         filesHashed?: number
         bytesHashed?: number
+      }
+    }
+  | {
+      type: 'undelete-progress'
+      payload: {
+        phase: 'scan' | 'recover'
+        done: number
+        total: number
+        /** Deleted candidates found so far (scan). */
+        found?: number
+        current?: string
+        /** Waiting on elevated child (indeterminate). */
+        elevated?: boolean
       }
     }
   | {

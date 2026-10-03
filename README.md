@@ -94,6 +94,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Optional gated **slideshow / categorizer** (manual crop, draw caption) for media libraries
 - NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts **and** a WinDirStat-style space map in preview (D66)
 - Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
+- **Undelete** — opt-in tab-bar icon (Settings → Appearance, off by default) for classic NTFS MFT recover after permanent delete (not Recycle Bin Restore)
 - Optional “disable hardware acceleration” when you need the GPU for training
 
 ---

@@ -345,6 +345,10 @@ const settingsFieldsSchema = z.object({
    * Tab-bar button is icon-only; tree row keeps the label.
    */
   recycleBinPlacement: recycleBinPlacementSchema.catch('both'),
+  /**
+   * Show NTFS Undelete icon on the tab bar (next to Recycle Bin). Off by default (D74).
+   */
+  showUndeleteToolbar: z.boolean().catch(false),
   foldersFirst: z.boolean().catch(true),
   /**
    * Explorer-style item checkboxes in the file view (toggle selection without Ctrl).
@@ -708,6 +712,17 @@ const settingsFieldsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Last NTFS Undelete dialog geometry (null = centered defaults). */
+  undeleteBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(480).max(10000),
+      height: z.number().min(360).max(10000),
+      maximized: z.boolean().catch(false)
+    })
+    .nullable()
+    .catch(null),
   /** Last User Metadata manager dialog geometry (null = centered defaults). */
   userMetadataManagerBounds: z
     .object({
@@ -851,6 +866,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   showTabIcons: true,
   treePinToggle: true,
   recycleBinPlacement: 'both',
+  showUndeleteToolbar: false,
   foldersFirst: true,
   itemCheckboxes: false,
   pasteNonFileClipboard: true,
@@ -913,6 +929,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   usnManagerBounds: null,
   adsManagerBounds: null,
   powerRenameBounds: null,
+  undeleteBounds: null,
   userMetadataManagerBounds: null,
   remoteConnectionBounds: null,
   compiledListsWindowBounds: null,

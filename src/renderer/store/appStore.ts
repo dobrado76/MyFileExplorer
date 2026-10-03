@@ -371,6 +371,7 @@ export type DialogState =
   | { kind: 'file-op-plan'; plan: FileOpPlanResponse; request: FileOpPlanRequest }
   | { kind: 'pair-sync-plan' }
   | { kind: 'power-rename'; paths: string[] }
+  | { kind: 'undelete'; volume?: string }
   | { kind: 'copy-move-to'; op: 'copy' | 'move'; paths: string[] }
   | { kind: 'power-search' }
   | { kind: 'change-cover'; path: string }

@@ -280,6 +280,11 @@ const api: MyFileExplorerApi = {
     clear: invoke(IPC.usnClear),
     recent: invoke(IPC.usnRecent)
   },
+  undelete: {
+    scan: invoke(IPC.undeleteScan),
+    recover: invoke(IPC.undeleteRecover),
+    cancel: invokeVoid(IPC.undeleteCancel)
+  },
   network: {
     startDiscovery: invokeVoid(IPC.networkStartDiscovery),
     cancelDiscovery: invokeVoid(IPC.networkCancelDiscovery),

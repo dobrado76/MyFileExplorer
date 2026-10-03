@@ -34,6 +34,12 @@ import { stopNowPlaying } from './preview/nowPlayingWindow'
 import { closeAllPropertiesWindows } from './properties/propertiesWindow'
 import { configureUserData } from './userData'
 import { parseUsnRecentCli, runUsnRecentCli } from './fs/usnRecentCli'
+import {
+  parseUndeleteRecoverCli,
+  parseUndeleteScanCli,
+  runUndeleteRecoverCli,
+  runUndeleteScanCli
+} from './fs/undelete/service'
 import { closeSplash, showSplash } from './splash'
 import {
   hasOpenFloats,
@@ -63,6 +69,18 @@ if (process.platform === 'win32' && process.argv.includes('--usn-recent')) {
   const usnRecentCli = parseUsnRecentCli(process.argv)
   if (!usnRecentCli) process.exit(1)
   process.exit(runUsnRecentCli(usnRecentCli.letter, usnRecentCli.outFile))
+}
+
+// Elevated NTFS Undelete helpers (must skip single-instance lock).
+if (process.platform === 'win32' && process.argv.includes('--undelete-scan')) {
+  const args = parseUndeleteScanCli(process.argv)
+  if (!args) process.exit(1)
+  process.exit(runUndeleteScanCli(args.volume, args.outFile))
+}
+if (process.platform === 'win32' && process.argv.includes('--undelete-recover')) {
+  const args = parseUndeleteRecoverCli(process.argv)
+  if (!args) process.exit(1)
+  process.exit(runUndeleteRecoverCli(args.reqFile, args.outFile))
 }
 
   // Single instance: later launches forward their argv to this process and quit.

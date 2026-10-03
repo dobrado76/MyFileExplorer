@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.20.0** — Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Prior: **v0.19.0** detachable explorer windows, Power Search created / accessed dates and ADS stream filters, slideshow Include subfolders. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D73**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.20.0** — Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Prior: **v0.19.0** detachable explorer windows, Power Search created / accessed dates and ADS stream filters, slideshow Include subfolders. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D74**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -13,7 +13,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 1. [PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ADVANTAGES.md](ADVANTAGES.md) (vs Explorer + workbench) · [BUSINESS_UVP.md](BUSINESS_UVP.md) (org UVP)
 2. [DECISIONS.md](DECISIONS.md)
 3. [ARCHITECTURE.md](ARCHITECTURE.md)
-4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, POWER_RENAME, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, POWER_RENAME, UNDELETE, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
 5. Remaining open deferrals live under [DECISIONS.md](DECISIONS.md) **Deferred** (the old `FUTURE_IDEAS.md` parking lot was cleared — those candidates shipped as D51 / D55–D62). Parked multi-phase roadmaps: [plans/](plans/)
 
 ---
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D73               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D74               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
@@ -53,6 +53,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [plans/NOW_PLAYING.md](plans/NOW_PLAYING.md) | Sticky Now Playing window — browse while video keeps playing (not mini-bar) |
 | [MEDIA_METADATA.md](MEDIA_METADATA.md)           | Opt-in movie/TV metadata (D50) |
 | [POWER_RENAME.md](POWER_RENAME.md)               | Power Rename — search/replace, DOS wildcards, Advanced options (D40) |
+| [UNDELETE.md](UNDELETE.md)                       | NTFS Undelete — classic MFT recover (D74) |
 | [SCRIPTS.md](SCRIPTS.md)                         | Universal script runner, use cases, and examples (D51) |
 | [GIT.md](GIT.md)                                 | Optional Git-aware browsing / lightweight client (D64) |
 | [../LICENSING.md](../LICENSING.md)               | GPL-3.0 |
@@ -101,6 +102,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Power Rename Advanced (D40) | BRU-style panels, DOS wildcards, Remove From/To clamp — [POWER_RENAME.md](POWER_RENAME.md) |
+| NTFS Undelete (D74) | Opt-in tab-bar icon (Appearance, off by default) — scan deleted MFT records, recover files to a folder (UAC when needed) — [UNDELETE.md](UNDELETE.md) |
 | Multi-pack glyphs | Lucide / Phosphor / Tabler picker for tabs, item icons, Quick Launch, Scripts |
 | User metadata (D70) | Manager dialog; Binary labels; child-folder exact binding; stable preview / column refresh — [USER_METADATA.md](USER_METADATA.md) |
 

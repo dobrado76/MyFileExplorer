@@ -164,6 +164,21 @@ textarea:focus {
   background: var(--bg-elevated);
   color: var(--accent);
 }
+.tabbar-undelete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+  margin-bottom: 4px;
+  padding: 5px;
+  border-radius: 6px;
+  color: var(--text-dim);
+}
+.tabbar-undelete:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
 
 .tab {
   display: flex;
@@ -5729,11 +5744,25 @@ html.idle-cursor-hidden * {
   flex-direction: column;
   overflow: hidden;
 }
-.modal.modal-power-rename .modal-title {
+.modal.modal-undelete {
+  position: fixed;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  min-width: 720px;
+  min-height: 480px;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal.modal-power-rename .modal-title,
+.modal.modal-undelete .modal-title {
   cursor: move;
   user-select: none;
 }
-.modal.modal-power-rename.is-maximized .modal-title {
+.modal.modal-power-rename.is-maximized .modal-title,
+.modal.modal-undelete.is-maximized .modal-title {
   cursor: default;
 }
 .modal.modal-remote-connection {
@@ -6288,6 +6317,147 @@ html.idle-cursor-hidden * {
   flex: 1;
   overflow: hidden;
   padding-bottom: 0;
+}
+.modal-body.modal-body-undelete {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  gap: 8px;
+}
+.undelete-help {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.35;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--panel-muted, rgba(128, 128, 128, 0.12));
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.28));
+}
+.undelete-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.undelete-help-btn {
+  align-self: flex-end;
+  margin-bottom: 1px;
+}
+.undelete-help-btn[aria-expanded='true'] {
+  color: var(--accent, #3b82f6);
+}
+.undelete-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+.undelete-field select,
+.undelete-field input {
+  min-width: 72px;
+  padding: 4px 8px;
+}
+.undelete-filter {
+  flex: 1;
+  min-width: 160px;
+}
+.undelete-filter input {
+  width: 100%;
+}
+.undelete-status {
+  font-size: 12px;
+  min-height: 1.2em;
+}
+.undelete-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border, rgba(128, 128, 128, 0.35));
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.undelete-progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--accent, #3b82f6);
+  transition: width 0.12s linear;
+}
+.undelete-progress.is-indeterminate .undelete-progress-bar {
+  width: 35%;
+  animation: undelete-progress-indeterminate 1.1s ease-in-out infinite;
+}
+@keyframes undelete-progress-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+.undelete-table-head,
+.undelete-row {
+  display: grid;
+  grid-template-columns: 28px minmax(120px, 1.2fr) minmax(140px, 1.6fr) 88px 110px 140px;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  padding: 0 6px;
+}
+.undelete-table-head {
+  font-weight: 600;
+  opacity: 0.8;
+  border-bottom: 1px solid var(--border, rgba(128, 128, 128, 0.35));
+  padding-bottom: 4px;
+}
+.undelete-table-body {
+  flex: 1;
+  min-height: 160px;
+  overflow: auto;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.35));
+  border-radius: 4px;
+}
+.undelete-row {
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+.undelete-row:hover {
+  background: var(--row-hover, rgba(128, 128, 128, 0.12));
+}
+.undelete-row.is-selected {
+  background: var(--selection, rgba(59, 130, 246, 0.22));
+}
+.undelete-row.is-disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.undelete-col-name,
+.undelete-col-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.undelete-col-size,
+.undelete-col-status,
+.undelete-col-date {
+  white-space: nowrap;
+}
+.undelete-col-status.status-good {
+  color: var(--success, #22c55e);
+}
+.undelete-col-status.status-poor {
+  color: var(--warn, #eab308);
+}
+.undelete-col-status.status-unrecoverable {
+  color: var(--danger, #ef4444);
+}
+.undelete-empty {
+  padding: 24px;
+  text-align: center;
+}
+.undelete-footer {
+  font-size: 12px;
 }
 .power-rename-layout {
   display: grid;

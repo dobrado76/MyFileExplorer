@@ -243,6 +243,16 @@ Drive-root paths only (`C:\` / `C:`). Soft-fail `unsupported` off win32. Native 
 | `usn:clear`    | `{ path, maxBytes, deltaBytes, elevate? }` | query snapshot (delete + create); may include `probeName` |
 | `usn:recent`   | `{ path, limit?, elevate? }` | `{ entries: { usn, name, isDir, reason, timeMs }[], note?, needsElevation? }` |
 
+### `undelete.*` (NTFS Undelete — D74)
+
+Local NTFS volume letter (`C:`). Soft-fail off win32. Classic `$MFT` scan of deleted FILE records; recover unnamed `$DATA` to a destination folder. Elevation uses a short-lived UAC child (`--undelete-scan` / `--undelete-recover`), not live USN enum.
+
+| Channel | Request | Response |
+| ------- | ------- | -------- |
+| `undelete:scan` | `{ volume }` | `{ volume, items: { token, name, pathHint, size, status, isDir, mtimeMs }[], scannedRecords, elevated }` — `status`: good / poor / unrecoverable; full deleted-candidate list (no hard cap) |
+| `undelete:recover` | `{ volume, tokens[], destDir, progressOffset?, progressTotal?, keepOpen? }` | `{ recovered: { token, path }[], failed: { token, message }[], elevated }` — recreates relative parent folders under `destDir`; unique names (`name (2).ext`) on conflict; UI sends small chunks with `keepOpen` so progress events stay live |
+| `undelete:cancel` | — | `{ cancelled: true }` — aborts in-process scan/recover |
+
 ### `network.*` (LAN neighborhood — D44)
 
 Discovery runs in a worker thread; results arrive on `mfe-event` `network-discovery`. Map/Disconnect open native Windows dialogs.

@@ -858,6 +858,20 @@ export type MyFileExplorerApi = {
       elevate?: boolean
     }): Promise<Result<import('../schemas/usn').UsnRecentResponse>>
   }
+  undelete: {
+    scan(req: {
+      volume: string
+    }): Promise<Result<import('../schemas/undelete').UndeleteScanResponse>>
+    recover(req: {
+      volume: string
+      tokens: string[]
+      destDir: string
+      progressOffset?: number
+      progressTotal?: number
+      keepOpen?: boolean
+    }): Promise<Result<import('../schemas/undelete').UndeleteRecoverResponse>>
+    cancel(): Promise<Result<{ cancelled: true }>>
+  }
   network: {
     startDiscovery(): Promise<Result<{ generation: number }>>
     cancelDiscovery(): Promise<Result<{ cancelled: boolean }>>

@@ -124,6 +124,15 @@ export const RecycleBinIcon = svg(
     <path d="M10 11v6M14 11v6" />
   </>
 )
+/** NTFS Undelete — restore arrow over a file. */
+export const UndeleteIcon = svg(
+  <>
+    <path d="M14 2H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6" />
+    <path d="M9.5 15.5a3.5 3.5 0 1 0-.2-2.2" />
+    <path d="M9.5 11v2.5H12" />
+  </>
+)
 export const SearchIcon = svg(
   <>
     <circle cx="11" cy="11" r="7" />
