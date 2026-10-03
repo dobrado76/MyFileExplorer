@@ -5,7 +5,9 @@
  *
  * When enabled (browse / search without Show hidden):
  *   - items matching patterns are hidden
- *   - items with the Windows Hidden attribute are hidden (Explorer “don’t show hidden”),
+ *   - **folders** with the Windows Hidden attribute are hidden (Explorer “don’t show hidden”)
+ *   - **files** with Hidden are still listed (ghosted) — a Hidden `.mp4` must not vanish
+ *     while its `.srt` sibling stays visible
  *     except `.mfevirtual` documents (always shown in MFE; Hidden is for Explorer)
  * When disabled: everything shows; Windows-hidden items are greyed in the UI.
  *
@@ -34,25 +36,30 @@ function predicateFor(patterns: string[]): ViewFilterPredicate {
   return cachedPredicate
 }
 
+export type ViewFilterEntry = {
+  path: string
+  isHidden: boolean
+  kind?: 'file' | 'dir' | 'symlink'
+}
+
 /**
- * True when the entry should be omitted from the view (patterns + Windows Hidden).
- * `.mfevirtual` documents stay visible even when Hidden on disk (Explorer-facing attr;
- * MFE always surfaces Virtual Folders).
+ * True when the entry should be omitted from the view (patterns + Hidden folders).
+ * Hidden **files** stay in the list (greyed). Hidden **folders** still omit when the eye is on.
+ * `.mfevirtual` documents stay visible even when Hidden on disk.
  */
 export function isExcludedByViewFilter(
-  entry: { path: string; isHidden: boolean },
+  entry: ViewFilterEntry,
   patterns: string[],
   enabled: boolean,
   opts?: { ignoreHiddenAttr?: boolean }
 ): boolean {
   if (!enabled) return false
-  if (
+  const hideForHiddenAttr =
     !opts?.ignoreHiddenAttr &&
     entry.isHidden &&
+    entry.kind !== 'file' &&
     !isVirtualFolderDocumentPath(entry.path)
-  ) {
-    return true
-  }
+  if (hideForHiddenAttr) return true
   if (patterns.length === 0) return false
   return predicateFor(patterns)(entry.path)
 }

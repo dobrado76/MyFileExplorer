@@ -115,7 +115,7 @@ export function SearchOptionsMenu(): JSX.Element {
             <div className="menu-hint">Scope</div>
             <label
               className="search-options-row"
-              title="On: search indexed roots. Off: current folder and subfolders (index still used when that folder is covered)."
+              title="On: search indexed roots. Off: walk the current folder and subfolders on disk (does not use the search index)."
             >
               <input
                 type="checkbox"

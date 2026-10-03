@@ -9847,7 +9847,7 @@ export const useAppStore = create<AppState>()((set, get) => {
                   type: 'folder',
                   path: get().tabs.find((t) => t.id === tab.id)?.path ?? tab.path,
                   recursive: true,
-                  useIndexIfCovered: true
+                  useIndexIfCovered: false
                 },
             limit: 2000,
             offset: 0,

@@ -16,7 +16,8 @@ import { settingsStore } from '../settings/store'
 import { pathIsHidden } from '../fs/winAttrs'
 import { searchDb } from './db'
 import { isIncompleteSearchQuery, nameMatches, queryTokens } from './queryBuilder'
-import { isBasicNameQuery, parseEverythingQuery, searchDecodeMessage } from './everythingQuery'
+import { mergeLiveSearchHits } from '@shared/searchQuery'
+import { isBasicNameQuery, parseEverythingQuery, rowMatchesStructured, searchDecodeMessage } from './everythingQuery'
 import { liveWalkSearch, type CancelToken } from './liveWalk'
 import { queryIndexStructured } from './executeQuery'
 import { isSkippedBySearchExclude } from './searchExclude'
@@ -87,6 +88,63 @@ function readyRootCovering(dirPath: string): { path: string; fileCount: number }
     }
   }
   return null
+}
+
+/** One-directory listing match — disk is the source of truth for the folder you are in. */
+async function searchImmediateChildren(
+  dir: string,
+  query: string,
+  limit: number,
+  req: SearchQueryRequest
+): Promise<SearchResultItem[]> {
+  const items: SearchResultItem[] = []
+  let dirents
+  try {
+    dirents = await fsp.readdir(dir, { withFileTypes: true })
+  } catch {
+    return items
+  }
+  const opts = parseOptsFromReq(req)
+  const basic = isBasicNameQuery(query)
+  const q = basic ? null : parseEverythingQuery(query, opts)
+  const settings = settingsStore().get()
+  const excluded = compilePathPatterns(settings.searchExcludeDirNames)
+  const showHidden = settings.searchShowHidden === true || q?.attrib?.hidden === true
+  for (const d of dirents) {
+    const full = path.join(dir, d.name)
+    if (isSkippedBySearchExclude(full, excluded, query, basic ? null : q, basic)) continue
+    const isDir = d.isDirectory()
+    const hidden =
+      d.name.toLowerCase() === VID_THUMB_CACHE_DIR.toLowerCase() ||
+      pathIsHidden(full) ||
+      isHiddenSearchHit({ path: full })
+    if (!showHidden && hidden) continue
+    let size = 0
+    let mtimeMs = 0
+    let birthtimeMs = 0
+    let atimeMs = 0
+    try {
+      const st = await fsp.stat(full)
+      size = isDir ? 0 : st.size
+      mtimeMs = st.mtimeMs
+      birthtimeMs = st.birthtimeMs
+      atimeMs = st.atimeMs
+    } catch {
+      /* zeros — still list the name; missing from index must not hide a dirent */
+    }
+    const hit = basic
+      ? nameMatches(d.name, query)
+      : rowMatchesStructured(
+          { path: full, name: d.name, size, mtimeMs, birthtimeMs, atimeMs, isDir },
+          q!,
+          { rootPrefix: dir }
+        )
+    if (hit) {
+      items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
+    }
+    if (items.length >= limit) break
+  }
+  return items
 }
 
 async function runLiveWalk(
@@ -166,58 +224,7 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
   if (!dir) throw new AppError('validation', `Not an absolute path: ${scope.path}`)
 
   if (!scope.recursive) {
-    const items: SearchResultItem[] = []
-    const dirents = await fsp.readdir(dir, { withFileTypes: true })
-    const basic = isBasicNameQuery(query)
-    const { parseEverythingQuery, rowMatchesStructured } = await import('./everythingQuery')
-    const q = basic ? null : parseEverythingQuery(query, opts)
-    const settings = settingsStore().get()
-    const excluded = compilePathPatterns(settings.searchExcludeDirNames)
-    const showHidden = settings.searchShowHidden === true || q?.attrib?.hidden === true
-    for (const d of dirents) {
-      const full = path.join(dir, d.name)
-      if (
-        isSkippedBySearchExclude(
-          full,
-          excluded,
-          query,
-          basic ? null : q,
-          basic
-        )
-      ) {
-        continue
-      }
-      const isDir = d.isDirectory()
-      const hidden =
-        d.name.toLowerCase() === VID_THUMB_CACHE_DIR.toLowerCase() ||
-        pathIsHidden(full) ||
-        isHiddenSearchHit({ path: full })
-      if (!showHidden && hidden) continue
-      let size = 0
-      let mtimeMs = 0
-      let birthtimeMs = 0
-      let atimeMs = 0
-      try {
-        const st = await fsp.stat(full)
-        size = isDir ? 0 : st.size
-        mtimeMs = st.mtimeMs
-        birthtimeMs = st.birthtimeMs
-        atimeMs = st.atimeMs
-      } catch {
-        /* zeros */
-      }
-      const hit = basic
-        ? nameMatches(d.name, query)
-        : rowMatchesStructured(
-            { path: full, name: d.name, size, mtimeMs, birthtimeMs, atimeMs, isDir },
-            q!,
-            { rootPrefix: dir, childCount: isDir ? undefined : undefined }
-          )
-      if (hit) {
-        items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
-      }
-      if (items.length >= limit) break
-    }
+    const items = await searchImmediateChildren(dir, query, limit, req)
     return { items, partial: items.length >= limit, source: 'walk' }
   }
 
@@ -228,15 +235,13 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
         type: 'search-progress',
         payload: { phase: 'querying', message: dir, gen: req.gen }
       })
-      const { items, partial, contentSlow } = await queryIndexStructured(
-        query,
-        dir,
-        limit,
-        opts
-      )
-      // Stale / incomplete index: name queries with zero hits fall back to a live walk.
-      const wantsName =
-        isBasicNameQuery(query) || decoded.textGroups.length > 0
+      const indexed = await queryIndexStructured(query, dir, limit, opts)
+      // Always overlay the current folder from disk. A stale index that still
+      // has *some* hits (e.g. .srt / .nfo) would otherwise never fall through
+      // to a live walk — hiding a sibling .mp4 that exists on disk.
+      const live = await searchImmediateChildren(dir, query, limit, req)
+      const items = mergeLiveSearchHits(indexed.items, live, limit)
+      const wantsName = isBasicNameQuery(query) || decoded.textGroups.length > 0
       if (items.length > 0 || !wantsName) {
         broadcast({
           type: 'search-progress',
@@ -244,9 +249,9 @@ export async function runSearchQuery(req: SearchQueryRequest): Promise<SearchQue
         })
         return {
           items: items.slice(offset, offset + limit),
-          partial,
+          partial: indexed.partial || items.length >= limit,
           source: 'index',
-          contentSlow
+          contentSlow: indexed.contentSlow
         }
       }
     }

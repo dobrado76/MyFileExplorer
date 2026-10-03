@@ -103,7 +103,17 @@ describe('compileViewFilter', () => {
 })
 
 describe('isExcludedByViewFilter', () => {
-  it('hides Windows Hidden items when filter is enabled', () => {
+  it('hides Windows Hidden folders when filter is enabled, not Hidden files', () => {
+    expect(
+      isExcludedByViewFilter({ path: 'C:\\hiddenDir', isHidden: true, kind: 'dir' }, [], true)
+    ).toBe(true)
+    expect(
+      isExcludedByViewFilter(
+        { path: 'E:\\Movies\\All\\Moon (2009).mp4', isHidden: true, kind: 'file' },
+        [],
+        true
+      )
+    ).toBe(false)
     expect(
       isExcludedByViewFilter({ path: 'C:\\pagefile.sys', isHidden: true }, [], true)
     ).toBe(true)

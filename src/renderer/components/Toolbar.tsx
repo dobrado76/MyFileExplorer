@@ -320,7 +320,7 @@ export function Toolbar(): JSX.Element {
           aria-label="Toggle view filter"
           title={
             settings.viewFilterEnabled
-              ? 'View filter on — hides Windows Hidden items and your filter patterns (click to show all)'
+              ? 'View filter on — hides Hidden folders and your filter patterns (Hidden files stay listed; click to show all)'
               : 'View filter off — showing Hidden items and filter matches (click to hide)'
           }
           onClick={() => void applySettingsPatch({ viewFilterEnabled: !settings.viewFilterEnabled })}

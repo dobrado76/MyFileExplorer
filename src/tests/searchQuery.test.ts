@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isSearchNarrowing,
+  mergeLiveSearchHits,
   nameMatches,
   narrowSearchItems,
   queryTokens
@@ -28,6 +29,27 @@ describe('narrowSearchItems', () => {
     const items = [hit('wine.obj'), hit('note.ogg'), hit('mesh.fbx')]
     expect(narrowSearchItems(items, '.o', '.ob').map((r) => r.name)).toEqual(['wine.obj'])
     expect(narrowSearchItems(items, '.o', '.obj').map((r) => r.name)).toEqual(['wine.obj'])
+  })
+})
+
+describe('mergeLiveSearchHits', () => {
+  it('prepends on-disk files the index missed', () => {
+    const indexed = [hit('Moon (2009).srt'), hit('Moonlight.mkv')]
+    const live = [
+      hit('Moon (2009).srt'),
+      {
+        path: 'C:\\Movies\\All\\Moon (2009).mp4',
+        name: 'Moon (2009).mp4',
+        size: 1_500_000_000,
+        mtimeMs: 1,
+        isDir: false
+      }
+    ]
+    expect(mergeLiveSearchHits(indexed, live, 2000).map((r) => r.name)).toEqual([
+      'Moon (2009).mp4',
+      'Moon (2009).srt',
+      'Moonlight.mkv'
+    ])
   })
 })
 

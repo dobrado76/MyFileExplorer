@@ -7,9 +7,11 @@ Two index kinds (both opt-in, under `userData/search-index.sqlite`):
 1. **Folder roots** — mark a directory; recursive walk + **debounced FS watch** for incremental upserts
 2. **Volume roots** — **Index this drive** on a fixed NTFS volume: MFT/USN bootstrap (`FSCTL_ENUM_USN_DATA`) + **USN journal** monitor when available; otherwise fall back to a full walk (`monitor: walk`). The indexer **does not create** a journal. Drive Properties → **USN…** (D52) can enable / resize / clear / disable the journal (Enable typically needs a UAC prompt); clearing or deleting it requires a volume **Reindex** for incremental USN updates to resume.
 
-**Live walk** remains the default when no ready root covers the folder (D15: progress + cancel; never claim indexed speed). The walk yields the main thread every ~12 ms and streams progress at most every 250 ms so preview/icon IPC stays responsive. Basic name queries `stat` hits only.
+**Live walk** is what **Folder** search does: recursive scan of the current folder (D15: progress + cancel; never claim indexed speed). The walk yields the main thread every ~12 ms and streams progress at most every 250 ms so preview/icon IPC stays responsive. Basic name queries `stat` hits only.
 
-Unchecking **indexed** in the toolbar searches the **current folder recursively** (index accelerates only when covered). If a name query returns nothing from that covering index (stale / incomplete), the app falls back to a live folder walk so items like Hidden `!Thumbnails` still appear.
+**Indexed** in the search-options menu searches the SQLite roots. Folder mode never silently switches to that index — a covering index that is missing a file (`.mp4` beside a `.srt`) would otherwise return hits and skip the disk walk. Folder search still overlays a live listing of the current directory onto any indexed query that is explicitly Indexed.
+
+Unchecking **indexed** walks the **current folder recursively from disk**.
 
 ---
 

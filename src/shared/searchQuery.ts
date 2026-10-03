@@ -80,6 +80,32 @@ export function isSearchNarrowing(from: string, to: string): boolean {
   return b.startsWith(a)
 }
 
+function searchPathKey(p: string): string {
+  return p.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
+}
+
+/**
+ * Overlay live folder hits onto an index result so files on disk in the
+ * current folder are never dropped because the SQLite index is stale.
+ * Live items that are not already in `indexed` are prepended.
+ */
+export function mergeLiveSearchHits(
+  indexed: SearchResultItem[],
+  live: SearchResultItem[],
+  limit: number
+): SearchResultItem[] {
+  const seen = new Set(indexed.map((it) => searchPathKey(it.path)))
+  const extra: SearchResultItem[] = []
+  for (const it of live) {
+    const k = searchPathKey(it.path)
+    if (seen.has(k)) continue
+    seen.add(k)
+    extra.push(it)
+  }
+  if (extra.length === 0) return indexed.length > limit ? indexed.slice(0, limit) : indexed
+  return [...extra, ...indexed].slice(0, Math.max(1, limit))
+}
+
 /** Keep walk hits that still match a narrower name query. */
 export function narrowSearchItems(
   items: SearchResultItem[],

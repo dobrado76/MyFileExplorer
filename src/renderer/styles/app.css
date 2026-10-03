@@ -3119,11 +3119,26 @@ body.rename-selecting * {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: #000;
 }
 .now-playing-body .preview-media,
+.now-playing-body .preview-media.preview-av,
 .now-playing-body .preview-mpv-host {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  max-height: none;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  gap: 0;
+}
+.now-playing-body .preview-video,
+.now-playing-body .preview-video-poster {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: contain;
+  border-radius: 0;
 }
 .now-playing-empty {
   flex: 1;

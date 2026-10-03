@@ -4097,7 +4097,7 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
               <SettingsToggle
                 id="set-filter-enabled"
                 label="Enable view filter"
-                hint="When on, hide Windows Hidden items and matching patterns from the file view, tree, and search. Attributes are not changed."
+                hint="When on, hide matching patterns and Hidden folders from the file view, tree, and search. Hidden files stay listed (greyed). Attributes are not changed."
                 checked={settings.viewFilterEnabled}
                 onChange={(v) => void applySettingsPatch({ viewFilterEnabled: v })}
               />

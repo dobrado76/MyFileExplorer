@@ -6,7 +6,7 @@ export const searchScopeSchema = z.union([
     type: z.literal('folder'),
     path: z.string().min(1),
     recursive: z.boolean().default(true),
-    useIndexIfCovered: z.boolean().default(true)
+    useIndexIfCovered: z.boolean().default(false)
   })
 ])
 export type SearchScope = z.infer<typeof searchScopeSchema>
