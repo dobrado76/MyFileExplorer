@@ -449,6 +449,69 @@ export function formatEpisodeCode(season?: number, episode?: number): string | n
   return `${s}${e}` || null
 }
 
+function coerceEpisodeNum(v: unknown): number | undefined {
+  if (v == null || v === '') return undefined
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+/**
+ * Air-order tuple for Name sort inside a media-library folder (show / season).
+ * Prefer stored S/E on episode cards; otherwise parse `SxxExx` / `1x09` from the
+ * filename so rip stems with a year (or other junk) before the code still air-sort.
+ * Missing season defaults to 1 when an episode number is present (same as formatEpisodeCode).
+ */
+export function episodeSortTuple(
+  flags: Pick<MediaLibraryItemFlags, 'kind' | 'season' | 'episode'> | undefined,
+  fileName?: string
+): { season: number; episode: number } | null {
+  const fromFlags = (): { season: number; episode: number } | null => {
+    if (!flags) return null
+    // Prefer episode cards; still accept S/E if kind was omitted/wrong but numbers exist.
+    if (flags.kind != null && flags.kind !== 'episode') return null
+    const season = coerceEpisodeNum(flags.season)
+    const episode = coerceEpisodeNum(flags.episode)
+    if (season == null && episode == null) return null
+    return {
+      season: episode != null ? (season ?? 1) : (season as number),
+      episode: episode ?? 0
+    }
+  }
+  const hit = fromFlags()
+  if (hit) return hit
+  if (!fileName) return null
+  const parsed = parseMediaFileName(fileName)
+  const season = coerceEpisodeNum(parsed.season)
+  const episode = coerceEpisodeNum(parsed.episode)
+  if (season == null && episode == null) return null
+  return {
+    season: episode != null ? (season ?? 1) : (season as number),
+    episode: episode ?? 0
+  }
+}
+
+export function compareEpisodeSortTuples(
+  a: { season: number; episode: number },
+  b: { season: number; episode: number }
+): number {
+  return a.season - b.season || a.episode - b.episode
+}
+
+/** Build a path→S/E map for Name sort when any item in the folder has episode order. */
+export function buildEpisodeSortLookup(
+  items: Readonly<Record<string, MediaLibraryItemFlags>>,
+  entries: readonly { path: string; name: string }[]
+): ((path: string) => { season: number; episode: number } | null) | undefined {
+  const byPath = new Map<string, { season: number; episode: number }>()
+  for (const e of entries) {
+    const key = e.path.toLowerCase()
+    const t = episodeSortTuple(items[key], e.name)
+    if (t) byPath.set(key, t)
+  }
+  if (byPath.size === 0) return undefined
+  return (p) => byPath.get(p.toLowerCase()) ?? null
+}
+
 /** Fill S/E from the file name; default season to 1 for episode records. */
 export function normalizeEpisodeFields(meta: MediaMetadata, fileName?: string): MediaMetadata {
   if (meta.kind !== 'episode') return meta

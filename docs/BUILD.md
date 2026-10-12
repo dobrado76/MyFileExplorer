@@ -24,11 +24,11 @@ Output: `dist/MyFileExplorer-<version>.exe` (plus `.blockmap` / `latest.yml`). O
 
 In-app **Settings → About → Updates source** accepts a local installer folder **or** a GitHub Releases URL (new installs default to https://github.com/dobrado76/MyFileExplorer/releases). When an update is available, **What's new** always downloads **`RELEASE_NOTES.md`** from the online GitHub repo (version tag, then `main`) — including when the updates source is a local folder.
 
-### `EBUSY` / `app.asar` locked
+### `EBUSY` / `EPERM` / `app.asar` locked
 
-If the build dies with `EBUSY: resource busy or locked … app.asar`, something still has `dist/win-unpacked` open — usually a **MyFileExplorer.exe you launched from that folder** (not the installed app under `%LOCALAPPDATA%\Programs\MyFileExplorer`).
+If packaging dies with `EBUSY` on `app.asar`, or `EPERM` renaming `dist\\win-unpacked.tmp` → `dist\\win-unpacked`, something still has that folder open — usually a **MyFileExplorer.exe you launched from `dist\\win-unpacked`** (not the installed app under `%LOCALAPPDATA%\\Programs\\MyFileExplorer`).
 
-`npm run dist` / `dist:nobump` now stop processes under `dist/win-unpacked` and retry deleting that folder before packaging. If it still fails: close that window (or reboot), delete `dist/win-unpacked` manually, retry.
+`npm run build:win`, `dist`, and `dist:nobump` stop processes under `dist/win-unpacked` (and a leftover `.tmp`) and retry deleting those folders before packaging. If it still fails: close that window (or reboot), delete `dist/win-unpacked` manually, retry.
 
 ### Experimental Linux
 

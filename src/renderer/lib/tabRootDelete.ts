@@ -1,4 +1,5 @@
-import { basename, isUnderPath, samePath } from './paths'
+import { createRemovalMatcher } from '@shared/removalMatch'
+import { basename } from './paths'
 
 export type TabRootHint = {
   id: string
@@ -12,10 +13,11 @@ export function tabsWhoseRootIsDeleted<T extends TabRootHint>(
   deletedPaths: readonly string[]
 ): T[] {
   if (deletedPaths.length === 0) return []
+  const gone = createRemovalMatcher(deletedPaths)
   return tabs.filter((t) => {
     const root = t.rootPath
     if (!root) return false
-    return deletedPaths.some((p) => samePath(root, p) || isUnderPath(root, p))
+    return gone.matches(root)
   })
 }
 

@@ -11,6 +11,8 @@ import {
   pickIdFromStored,
   formatMediaRating,
   formatEpisodeCode,
+  episodeSortTuple,
+  compareEpisodeSortTuples,
   normalizeEpisodeFields,
   episodeIconLabel,
   episodeIconTitle,
@@ -455,6 +457,26 @@ describe('episode icon labels', () => {
     expect(formatEpisodeCode(undefined, 9)).toBe('S01E09')
     expect(formatEpisodeCode()).toBeNull()
   })
+
+  it('builds air-order tuples for Name sort', () => {
+    expect(episodeSortTuple({ kind: 'episode', season: 2, episode: 1 })).toEqual({
+      season: 2,
+      episode: 1
+    })
+    expect(episodeSortTuple({ kind: 'episode', episode: 9 })).toEqual({ season: 1, episode: 9 })
+    expect(episodeSortTuple({ kind: 'movie', season: 1, episode: 1 })).toBeNull()
+    expect(episodeSortTuple({ kind: 'episode' })).toBeNull()
+    expect(
+      episodeSortTuple(undefined, 'Show.S02E01.Title.mkv')
+    ).toEqual({ season: 2, episode: 1 })
+    expect(
+      compareEpisodeSortTuples({ season: 1, episode: 10 }, { season: 2, episode: 1 })
+    ).toBeLessThan(0)
+    expect(
+      compareEpisodeSortTuples({ season: 2, episode: 1 }, { season: 1, episode: 10 })
+    ).toBeGreaterThan(0)
+  })
+
 
   it('fills season from the file name and defaults to 1', () => {
     const base = {

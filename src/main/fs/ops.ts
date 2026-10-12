@@ -1698,21 +1698,6 @@ type RemovedFileForStatsPatch = {
   ext: string
 }
 
-async function collectFilesForStatsPatch(paths: string[]): Promise<RemovedFileForStatsPatch[]> {
-  const out: RemovedFileForStatsPatch[] = []
-  for (const p of paths) {
-    try {
-      const st = await fsp.lstat(p)
-      if (st.isDirectory()) continue
-      const ext = path.extname(path.basename(p)).replace(/^\./, '').toLowerCase()
-      out.push({ path: p, size: st.size, ext })
-    } catch {
-      /* missing — skip */
-    }
-  }
-  return out
-}
-
 async function patchStatsForSuccessfulRemoves(
   candidates: RemovedFileForStatsPatch[],
   succeeded: string[]
@@ -1744,30 +1729,40 @@ export async function trashEntries(paths: string[]): Promise<TrashResponse> {
       })
       continue
     }
-    if (!(await pathExists(p))) {
-      issues.push({
-        kind: 'not_found',
-        code: 'not-found',
-        source: p,
-        message: `Not found: ${p}`
-      })
-      continue
-    }
     absolute.push(p)
   }
 
-  const statsFiles = await collectFilesForStatsPatch(absolute)
-
+  // Start progress before exists/stat scans so 1K+ Del shows the status bar immediately.
+  const progress = beginOp('trash', Math.max(absolute.length, 1), 'Moving to Recycle Bin…')
   suspendWatching()
   muteWatchers(8000)
 
   const trashed: string[] = []
-  const progress = beginOp('trash', Math.max(absolute.length, 1), 'Moving to Recycle Bin…')
+  const statsFiles: RemovedFileForStatsPatch[] = []
   try {
     for (const p of absolute) {
       progress.throwIfCancelled()
       await maybeYieldMain()
       progress.pulse(p)
+      if (!(await pathExists(p))) {
+        issues.push({
+          kind: 'not_found',
+          code: 'not-found',
+          source: p,
+          message: `Not found: ${p}`
+        })
+        progress.tick(p)
+        continue
+      }
+      try {
+        const st = await fsp.lstat(p)
+        if (!st.isDirectory()) {
+          const ext = path.extname(path.basename(p)).replace(/^\./, '').toLowerCase()
+          statsFiles.push({ path: p, size: st.size, ext })
+        }
+      } catch {
+        /* missing mid-flight — recycle path handles it */
+      }
       try {
         await unprojectVirtualFolderIfNeeded(p)
         if (process.platform === 'win32') {
@@ -1818,7 +1813,7 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
   const locals = absolute.filter((p) => !p.toLowerCase().startsWith('mfe-remote://'))
   const deleted: string[] = []
   const issues: OpIssue[] = []
-  const statsFiles = await collectFilesForStatsPatch(locals)
+  const statsFiles: RemovedFileForStatsPatch[] = []
   if (remotes.length > 0) {
     const { remoteDelete } = await import('../remote/sessionPool')
     const progress = beginOp('delete', remotes.length, 'Deleting…')
@@ -1844,8 +1839,10 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
   }
   if (locals.length === 0) return { deleted, issues }
 
-  const total = locals.length > 0 ? await countWorkUnits(locals) : 0
-  const progress = beginOp('delete', Math.max(total, 1), 'Deleting…')
+  // Do not pre-walk the whole tree with countWorkUnits — that blocked the UI
+  // for minutes on large Shift+Del batches before the first progress tick.
+  // Start with selected roots; deleteTree ticks expand the total as files go.
+  const progress = beginOp('delete', Math.max(locals.length, 1), 'Deleting…')
   // Keep Chromium/Node directory watches from re-arming SMB handles while a
   // permanent delete is walking a NAS recycle folder.
   suspendWatching()
@@ -1856,7 +1853,12 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
       await maybeYieldMain()
       let isDir = false
       try {
-        isDir = (await fsp.stat(p)).isDirectory()
+        const st = await fsp.lstat(p)
+        isDir = st.isDirectory()
+        if (!isDir) {
+          const ext = path.extname(path.basename(p)).replace(/^\./, '').toLowerCase()
+          statsFiles.push({ path: p, size: st.size, ext })
+        }
       } catch {
         /* ignore */
       }
@@ -1868,9 +1870,9 @@ export async function deletePermanently(paths: string[]): Promise<DeletePermanen
           // QNAP's @Recycle is a server-side special folder. Windows Explorer
           // uses the shell delete operation here; raw SMB unlink can be
           // rejected even for the same account.
-          progress?.pulse(p)
+          progress.pulse(p)
           deletePathWin32Permanent(p)
-          progress?.tick(p)
+          progress.tick(p)
         } else {
           await deleteTree(p, progress)
         }

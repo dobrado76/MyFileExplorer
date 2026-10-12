@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { DirEntry } from '@shared/schemas/fs'
-import type { SortKey } from '@shared/schemas/session'
+import { isThumbnailViewMode, type SortKey } from '@shared/schemas/session'
 import type { DetailsColumnId } from '@shared/schemas/settings'
 import {
   COLUMN_GROUP_LABELS,
@@ -94,7 +94,12 @@ import { isImageExt, isVideoExt } from '../lib/icons'
 import { displayFileName } from '@shared/hideNameExtensions'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { detailsTableMinWidth } from '../lib/detailsTable'
-import { episodeIconLabel, episodeIconTitle, parseMediaRatingsColumnValue } from '@shared/mediaMetadata'
+import {
+  buildEpisodeSortLookup,
+  episodeIconLabel,
+  episodeIconTitle,
+  parseMediaRatingsColumnValue
+} from '@shared/mediaMetadata'
 import {
   formatMediaRatingCopyLine
 } from '@shared/mediaRatings'
@@ -1156,6 +1161,19 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       })
     }
     if (SYNC_SORT_KEYS.has(sort.key)) {
+      // Thumbnail/icon + Name only: season → episode (show tiles). List/Details
+      // always follow the active column (Name = filename, Size, Date, mmSeason, …).
+      const episodeOrder =
+        !recycleMode &&
+        !searchMode &&
+        settings.mediaMetadata.enabled &&
+        isThumbnailViewMode(viewMode) &&
+        sort.key === 'name'
+          ? buildEpisodeSortLookup(mediaLibrary.items, filtered)
+          : undefined
+      if (episodeOrder) {
+        return sortEntries(filtered, sort, foldersFirst, { episodeOrder })
+      }
       // Normal folder browsing: store keeps listing sorted (loadListing / setSort).
       if (!searchMode) return filtered
       return sortEntries(filtered, sort, foldersFirst)

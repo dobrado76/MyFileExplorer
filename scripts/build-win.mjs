@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { clearWinUnpackedOutput } from './winUnpackedCleanup.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -49,6 +50,8 @@ try {
   const msg = e instanceof Error ? e.message : String(e)
   console.warn('fetch-mpv failed — Rich player will not be bundled:', msg)
 }
+
+await clearWinUnpackedOutput(root)
 
 execSync('electron-vite build && electron-builder --win --config electron-builder.yml --publish never', {
   stdio: 'inherit',

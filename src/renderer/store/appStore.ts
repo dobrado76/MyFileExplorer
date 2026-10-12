@@ -26,6 +26,7 @@ import {
   sanitizePaneTreeCollapsed,
   MAX_CLOSED_TABS,
   MAIN_SHELL_ID,
+  isThumbnailViewMode,
   type ClosedWindowEntry
 } from '@shared/schemas/session'
 import { issueKey } from '@shared/opIssues'
@@ -104,6 +105,7 @@ import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '..
 import { isEditableImagePath } from '@shared/imageEdit'
 import { resolvePreviewTargetPath } from '@shared/previewTarget'
 import { pathKey } from '@shared/paths'
+import { createRemovalMatcher, removalDirectoryKeys } from '@shared/removalMatch'
 import {
   patchDirEntriesForRename,
   renameDestOccupied,
@@ -146,12 +148,14 @@ import {
 import { isMediaApiLimitError } from '@shared/mediaApiLimit'
 import { isMediaNameMissError } from '@shared/mediaMetadata'
 import {
+  buildEpisodeSortLookup,
   isMediaMetadataVideoName,
   resolveMediaLibraryFilter,
   upsertMediaLibraryFilter,
   type MediaLibraryItemFlags,
   type MediaWatchedFilter
 } from '@shared/mediaMetadata'
+import { sortEntries, type EpisodeSortLookup } from '../lib/sortEntries'
 import { isExcludedByMediaLibrary, listingFoldersFirst } from '../lib/mediaLibrary'
 import {
   isExcludedByUserMetadataFacets,
@@ -622,7 +626,6 @@ registerViewOrderCacheClear(() => {
   viewOrderCache = null
 })
 /** Explorer name order (`StrCmpLogicalW`), not Intl numeric collapsing of `02`/`2`. */
-const nameCollator = { compare: compareFileNames }
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
@@ -1988,11 +1991,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     kind: FileOpProgress['kind'],
     label: string,
     current: string | undefined,
-    work: () => Promise<T>
+    work: () => Promise<T>,
+    opts?: { immediate?: boolean }
   ): Promise<T> {
     const localId = `local-${kind}-${++busyFeedbackSeq}`
     let active = true
-    const timer = setTimeout(() => {
+    const showLocal = (): void => {
       if (!active) return
       const cur = get().fileOp
       if (cur && !cur.opId.startsWith('local-')) return
@@ -2006,14 +2010,49 @@ export const useAppStore = create<AppState>()((set, get) => {
           label
         }
       })
-    }, BUSY_FEEDBACK_MS)
+    }
+    // Bulk trash/delete: paint status-bar busy immediately (D28 still uses a
+    // 1s grace for small ops so a single-file Del does not flash chrome).
+    let timer: ReturnType<typeof setTimeout> | null = null
+    if (opts?.immediate) {
+      showLocal()
+      // Let React paint before `work` runs sync listing prune on 1K+ selections.
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve())
+      })
+    } else {
+      timer = setTimeout(showLocal, BUSY_FEEDBACK_MS)
+    }
     try {
       return await work()
     } finally {
       active = false
-      clearTimeout(timer)
+      if (timer != null) clearTimeout(timer)
       set((s) => (s.fileOp?.opId === localId ? { fileOp: null } : {}))
     }
+  }
+
+  /** Listing/search kinds for removed paths — keeps bulk prune O(entries), not O(entries×removed). */
+  function knownEntryKinds(): Map<string, 'dir' | 'file'> {
+    const s = get()
+    const m = new Map<string, 'dir' | 'file'>()
+    for (const e of s.listing.entries) {
+      m.set(pathKey(e.path), e.kind === 'dir' ? 'dir' : 'file')
+    }
+    for (const tab of s.tabs) {
+      if (!tab.search.active) continue
+      for (const r of tab.search.results) {
+        const k = pathKey(r.path)
+        if (!m.has(k)) m.set(k, r.isDir ? 'dir' : 'file')
+      }
+    }
+    return m
+  }
+
+  function removalMatcherFor(removed: readonly string[]) {
+    return createRemovalMatcher(removed, {
+      directoryKeys: removalDirectoryKeys(removed, knownEntryKinds())
+    })
   }
 
   function openOpIssuesReview(opts: {
@@ -2066,13 +2105,17 @@ export const useAppStore = create<AppState>()((set, get) => {
 
   async function runPermanentDelete(toDelete: string[]): Promise<void> {
     try {
-      const autoSelectedPath = selectAfterDelete(toDelete)
-      await releaseMediaLocks()
+      let autoSelectedPath: string | null = null
       const res = await withBusyFeedback(
         'delete',
         'Deleting…',
         toDelete.length === 1 ? basename(toDelete[0]!) : `${toDelete.length} items`,
-        () => call(api.fs.deletePermanent({ paths: toDelete }))
+        async () => {
+          autoSelectedPath = selectAfterDelete(toDelete)
+          await releaseMediaLocks()
+          return call(api.fs.deletePermanent({ paths: toDelete }))
+        },
+        { immediate: toDelete.length >= 32 }
       )
       if (res.deleted.length > 0) {
         await afterPathsRemoved(res.deleted, {
@@ -2364,6 +2407,33 @@ export const useAppStore = create<AppState>()((set, get) => {
     })
   }
 
+  /**
+   * Thumbnail/icon Name sort only: season → episode from stored S/E or filename.
+   * List and Details keep the active column sort (never air-order).
+   */
+  function listingEpisodeOrder(
+    listingPath?: string,
+    entries?: { path: string; name: string }[],
+    opts?: { sortKey?: string; viewMode?: ViewMode }
+  ): EpisodeSortLookup | undefined {
+    const s = get()
+    if (!s.settings.mediaMetadata.enabled) return undefined
+    const folder = listingPath ?? s.listing.path
+    const tab = s.activeTab()
+    const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
+    const viewMode = opts?.viewMode ?? owning?.viewMode ?? tab.viewMode
+    const sortKey = opts?.sortKey ?? owning?.sort.key ?? tab.sort.key
+    if (!isThumbnailViewMode(viewMode) || sortKey !== 'name') return undefined
+    const list =
+      entries ??
+      (folder && samePath(folder, s.listing.path) ? s.listing.entries : undefined) ??
+      (folder
+        ? Object.values(s.listingsByTabId).find((L) => samePath(L.path, folder))?.entries
+        : undefined)
+    if (!list || list.length === 0) return undefined
+    return buildEpisodeSortLookup(s.mediaLibrary.items, list)
+  }
+
   function resortCurrentListing(): void {
     const s = get()
     const tab = s.activeTab()
@@ -2372,10 +2442,17 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (!listing.path || listing.entries.length === 0) return
     const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
     const sort = owning?.sort ?? tab.sort
+    const viewMode = owning?.viewMode ?? tab.viewMode
     const sorted = sortEntries(
       listing.entries,
       sort,
-      currentListingFoldersFirst(listing.path)
+      currentListingFoldersFirst(listing.path),
+      {
+        episodeOrder: listingEpisodeOrder(listing.path, listing.entries, {
+          sortKey: sort.key,
+          viewMode
+        })
+      }
     )
     viewOrderCache = null
     const nextListing = { ...listing, entries: sorted }
@@ -2398,8 +2475,14 @@ export const useAppStore = create<AppState>()((set, get) => {
     const tab = get().tabs.find((t) => t.id === tabId) ?? get().activeTab()
     const owning = resolveFolderViewForTab(tab, get().settings.folderViews)
     const sort = owning?.sort ?? tab.sort
+    const viewMode = owning?.viewMode ?? tab.viewMode
     const sortedEntries = dedupeDirEntries(
-      sortEntries(entries, sort, currentListingFoldersFirst(listedPath))
+      sortEntries(entries, sort, currentListingFoldersFirst(listedPath), {
+        episodeOrder: listingEpisodeOrder(listedPath, entries, {
+          sortKey: sort.key,
+          viewMode
+        })
+      })
     )
     const nextListing: Listing = {
       path: listedPath,
@@ -2807,13 +2890,16 @@ export const useAppStore = create<AppState>()((set, get) => {
         const t = s.tabs.find((x) => x.id === tid)
         const owning = t ? resolveFolderViewForTab(t, s.settings.folderViews) : undefined
         const sort = owning?.sort ?? t?.sort ?? { key: 'name' as const, dir: 'asc' as const }
+        const viewMode = owning?.viewMode ?? t?.viewMode ?? 'largeIcons'
+        const renamed = patchDirEntriesForRename(L.entries, from, to, newName)
         listingsByTabId[tid] = {
           ...L,
-          entries: sortEntries(
-            patchDirEntriesForRename(L.entries, from, to, newName),
-            sort,
-            currentListingFoldersFirst(L.path)
-          )
+          entries: sortEntries(renamed, sort, currentListingFoldersFirst(L.path), {
+            episodeOrder: listingEpisodeOrder(L.path, renamed, {
+              sortKey: sort.key,
+              viewMode
+            })
+          })
         }
       }
       const listing =
@@ -2822,12 +2908,20 @@ export const useAppStore = create<AppState>()((set, get) => {
           const tab = s.tabs.find((x) => x.id === s.activeTabId)
           const owning = tab ? resolveFolderViewForTab(tab, s.settings.folderViews) : undefined
           const sort = owning?.sort ?? tab?.sort ?? { key: 'name' as const, dir: 'asc' as const }
+          const viewMode = owning?.viewMode ?? tab?.viewMode ?? 'largeIcons'
+          const renamed = patchDirEntriesForRename(s.listing.entries, from, to, newName)
           return {
             ...s.listing,
             entries: sortEntries(
-              patchDirEntriesForRename(s.listing.entries, from, to, newName),
+              renamed,
               sort,
-              currentListingFoldersFirst(s.listing.path)
+              currentListingFoldersFirst(s.listing.path),
+              {
+                episodeOrder: listingEpisodeOrder(s.listing.path, renamed, {
+                  sortKey: sort.key,
+                  viewMode
+                })
+              }
             )
           }
         })()
@@ -2965,7 +3059,8 @@ export const useAppStore = create<AppState>()((set, get) => {
   function syncImageViewerAfterDelete(removed: string[]): void {
     const v = get().imageViewer
     if (!v) return
-    const gone = (p: string): boolean => removed.some((r) => samePath(p, r) || isUnderPath(p, r))
+    const matcher = removalMatcherFor(removed)
+    const gone = (p: string): boolean => matcher.matches(p)
     const siblings = v.siblings.filter((p) => !gone(p))
     if (!gone(v.path)) {
       if (siblings.length !== v.siblings.length) {
@@ -3022,7 +3117,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     mediaLibrary: MediaLibraryState
     userMetadataSession: UserMetadataSessionState
   }): string {
-    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}|${s.mediaLibrary.watchedFilter}|${s.mediaLibrary.genreFilter ?? ''}|${userMetadataFacetsFilterKey(s.userMetadataSession.facets)}`
+    return `${s.settings.viewFilterEnabled ? 1 : 0}|${s.settings.viewFilterPatterns.join('\n')}|${s.mediaLibrary.watchedFilter}|${s.mediaLibrary.genreFilter ?? ''}|${s.mediaLibrary.folderPath}|${Object.keys(s.mediaLibrary.items).length}|${userMetadataFacetsFilterKey(s.userMetadataSession.facets)}`
   }
 
   /** Sorted/filtered paths matching the file view (cached; pruned in place on delete). */
@@ -3105,7 +3200,15 @@ export const useAppStore = create<AppState>()((set, get) => {
         return true
       }),
       sort,
-      foldersFirst
+      foldersFirst,
+      tab.search.active
+        ? undefined
+        : {
+            episodeOrder: listingEpisodeOrder(s.listing.path, sourceEntries, {
+              sortKey: sort.key,
+              viewMode: owning?.viewMode ?? tab.viewMode
+            })
+          }
     )
     const paths = before.map((e) => e.path)
     viewOrderCache = {
@@ -3122,9 +3225,8 @@ export const useAppStore = create<AppState>()((set, get) => {
   /** Drop removed paths from in-memory listings (no full-folder re-stat). */
   function pruneListingRemoved(removed: string[]): void {
     if (removed.length === 0) return
-    const gone = new Set(removed.map((p) => p.toLowerCase()))
-    const pathGone = (p: string): boolean =>
-      gone.has(p.toLowerCase()) || removed.some((r) => isUnderPath(p, r))
+    const matcher = removalMatcherFor(removed)
+    const pathGone = (p: string): boolean => matcher.matches(p)
     set((s) => {
       const listingsByTabId: Record<string, Listing> = {}
       for (const [tid, L] of Object.entries(s.listingsByTabId)) {
@@ -3171,8 +3273,9 @@ export const useAppStore = create<AppState>()((set, get) => {
   /** Move selection to the survivor and drop cards before trash/refresh so UI stays snappy. */
   function selectAfterDelete(removed: string[]): string | null {
     const tab = get().activeTab()
+    const matcher = removalMatcherFor(removed)
     // Deleting the folder we're in (or an ancestor): navigation handles next view.
-    if (removed.some((p) => samePath(p, tab.path) || isUnderPath(tab.path, p))) {
+    if (matcher.matches(tab.path)) {
       return null
     }
     const ordered = pathsInViewOrder()
@@ -3181,17 +3284,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     pruneListingRemoved(removed)
 
     const treeFocus = get().treeFocusPath
-    const treeFocusGone =
-      treeFocus != null &&
-      removed.some((r) => samePath(treeFocus, r) || isUnderPath(treeFocus, r))
+    const treeFocusGone = treeFocus != null && matcher.matches(treeFocus)
 
     // Space Usage / preview delete of a deep file: path is not in the current listing.
     // Keep the current selection (e.g. the folder whose stats map is open).
     if (!removedInView) {
-      const stillSelected = tab.selected.filter(
-        (path) =>
-          !removed.some((r) => samePath(path, r) || isUnderPath(path, r))
-      )
+      const stillSelected = tab.selected.filter((path) => !matcher.matches(path))
       if (stillSelected.length !== tab.selected.length) {
         const focus =
           get().focusedPath && stillSelected.some((p) => samePath(p, get().focusedPath!))
@@ -3254,13 +3352,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     syncImageViewerAfterDelete(removed)
     if (removed.length > 0) {
       const np = get().nowPlayingPath
-      if (np) {
-        const playing = np.replace(/\//g, '\\').toLowerCase()
-        const hit = removed.some((r) => {
-          const p = r.replace(/\//g, '\\').toLowerCase()
-          return playing === p || playing.startsWith(p + '\\')
-        })
-        if (hit) void get().stopNowPlaying()
+      if (np && removalMatcherFor(removed).matches(np)) {
+        void get().stopNowPlaying()
       }
     }
     // Deleting a projected `.mfevirtual` must also drop the sibling mount path from the
@@ -3304,6 +3397,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     const tab = get().activeTab()
     const current = tab.path
+    const afterMatcher = removalMatcherFor(removed)
     const primary = removed.find((p) => samePath(p, current) || isUnderPath(current, p)) ?? null
 
     if (!primary) {
@@ -3312,9 +3406,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       pruneListingRemoved(removed)
       const expectedSelection = opts?.expectedSelection
       const treeFocus = get().treeFocusPath
-      const treeFocusGone =
-        treeFocus != null &&
-        removed.some((r) => samePath(treeFocus, r) || isUnderPath(treeFocus, r))
+      const treeFocusGone = treeFocus != null && afterMatcher.matches(treeFocus)
       // d8f2741: if the user changed selection while trash/delete ran, keep it.
       // Never force expectedSelection over a live change (slow NAS deletes).
       const resolved = resolveSelectionAfterLazyDelete({
@@ -3361,11 +3453,11 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     await get().navigate(nextPath)
     // Don't leave deleted folders in back/forward history.
-    const gone = (p: string): boolean => removed.some((r) => samePath(p, r) || isUnderPath(p, r))
+    const histGone = removalMatcherFor(removed)
     const t = get().activeTab()
     updateActiveTab({
-      back: t.back.filter((e) => !gone(historyLocationPath(e))),
-      forward: t.forward.filter((e) => !gone(historyLocationPath(e))),
+      back: t.back.filter((e) => !histGone.matches(historyLocationPath(e))),
+      forward: t.forward.filter((e) => !histGone.matches(historyLocationPath(e))),
       selected: []
     })
     // Tree Del on the open folder: move keyboard focus to the folder we navigated to.
@@ -5450,12 +5542,14 @@ export const useAppStore = create<AppState>()((set, get) => {
       if (tab.search.active) return
       const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       if (owning) {
+        // Optimistic folderViews update runs sync inside applySettingsPatch.
         void get().applySettingsPatch({
           folderViews: patchFolderView(s.settings.folderViews, owning.path, { viewMode: mode })
         })
-        return
+      } else {
+        updateTab(id, { viewMode: mode })
       }
-      updateTab(id, { viewMode: mode })
+      // Thumbnail ↔ list/details: air-order is thumbnail+Name only — re-sort now.
       viewOrderCache = null
       if (id === get().activeTabId) resortCurrentListing()
     },
@@ -5485,10 +5579,17 @@ export const useAppStore = create<AppState>()((set, get) => {
         listing.entries.length > 0 &&
         !(id === s.activeTabId && (s.search.active || s.recycleBin.active))
       ) {
+        const viewMode = owning?.viewMode ?? tab.viewMode
         const sorted = sortEntries(
           listing.entries,
           sort,
-          currentListingFoldersFirst(listing.path)
+          currentListingFoldersFirst(listing.path),
+          {
+            episodeOrder: listingEpisodeOrder(listing.path, listing.entries, {
+              sortKey: sort.key,
+              viewMode
+            })
+          }
         )
         set((st) => {
           const nextListing = { ...listing, entries: sorted }
@@ -7941,14 +8042,18 @@ export const useAppStore = create<AppState>()((set, get) => {
       }
       if (!finalPermanent) {
         try {
-          // Select the survivor first so the preview keeps painting while we trash.
-          const autoSelectedPath = selectAfterDelete(target)
-          await releaseMediaLocks()
+          let autoSelectedPath: string | null = null
           const res = await withBusyFeedback(
             'trash',
-            'Moving to Recycle BinΓÇª',
+            'Moving to Recycle Bin…',
             target.length === 1 ? basename(target[0]!) : `${target.length} items`,
-            () => call(api.fs.trash({ paths: target }))
+            async () => {
+              // Survivor + listing prune after busy chrome paints (large selections).
+              autoSelectedPath = selectAfterDelete(target)
+              await releaseMediaLocks()
+              return call(api.fs.trash({ paths: target }))
+            },
+            { immediate: target.length >= 32 }
           )
           if (res.trashed.length > 0) {
             recordUndo({
@@ -7963,7 +8068,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
           if (res.issues.length > 0) {
             get().notify(
-              `Moved ${res.trashed.length.toLocaleString()} ┬╖ ${res.issues.length.toLocaleString()} need review`
+              `Moved ${res.trashed.length.toLocaleString()} · ${res.issues.length.toLocaleString()} need review`
             )
             openOpIssuesReview({
               op: 'trash',
@@ -7982,9 +8087,11 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       // Paths deleted from the tree may not appear in the current listing.
+      // Map lookup — never O(selection × listing) (that froze Shift+Del on 1K+).
+      const kinds = knownEntryKinds()
       const anyDir = target.some((p) => {
-        const e = s.listing.entries.find((en) => samePath(en.path, p))
-        return e ? e.kind === 'dir' : true
+        const kind = kinds.get(pathKey(p))
+        return kind === 'dir' || kind === undefined
       })
       const needsConfirm =
         remoteDeleteFallback || target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
@@ -10031,12 +10138,12 @@ export const useAppStore = create<AppState>()((set, get) => {
       const s = get()
       const target = paths ?? s.activeTab().selected
       if (target.length === 0) return
-      const anyDir = target.some((p) => {
-        const it = s.recycleBin.items.find(
-          (i) => samePath(i.recyclePath, p) || samePath(i.originalPath, p)
-        )
-        return it?.isDir ?? true
-      })
+      const byPath = new Map<string, boolean>()
+      for (const it of s.recycleBin.items) {
+        byPath.set(pathKey(it.recyclePath), it.isDir)
+        byPath.set(pathKey(it.originalPath), it.isDir)
+      }
+      const anyDir = target.some((p) => byPath.get(pathKey(p)) ?? true)
       const needsConfirm = target.length > 1 || anyDir || s.settings.confirmPermanentDeleteAlways
       if (needsConfirm) {
         set({ dialog: { kind: 'confirm-delete-from-recycle-bin', paths: target } })
@@ -10061,7 +10168,8 @@ export const useAppStore = create<AppState>()((set, get) => {
                 (i) => samePath(i.recyclePath, paths[0]!) || samePath(i.originalPath, paths[0]!)
               )?.name ?? basename(paths[0]!))
             : `${paths.length} items`,
-          () => call(api.fs.deleteFromRecycleBin({ paths }))
+          () => call(api.fs.deleteFromRecycleBin({ paths })),
+          { immediate: paths.length >= 32 }
         )
         get().notify(
           res.missing.length > 0
@@ -10127,54 +10235,8 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 })
 
-/** Sorted entries for the current listing, honoring tab sort + folders-first. */
-export function sortEntries(
-  entries: DirEntry[],
-  sort: SortSpec,
-  foldersFirst: boolean
-): DirEntry[] {
-  // Virtual Folder Manual sort: keep document / listing order as provided.
-  if (sort.key === 'manual') return [...entries]
-  const dir = sort.dir === 'asc' ? 1 : -1
-  // Shared collator — localeCompare options-object per call is much slower on 10k+ rows.
-  const sorted = [...entries].sort((a, b) => {
-    if (foldersFirst) {
-      const ad = a.kind === 'dir' ? 0 : 1
-      const bd = b.kind === 'dir' ? 0 : 1
-      if (ad !== bd) return ad - bd
-    }
-    let cmp = 0
-    switch (sort.key) {
-      case 'name':
-        cmp = nameCollator.compare(a.name, b.name)
-        break
-      case 'mtime':
-        cmp = a.mtimeMs - b.mtimeMs
-        break
-      case 'ctime':
-        cmp = a.birthtimeMs - b.birthtimeMs
-        break
-      case 'size':
-        cmp = a.size - b.size
-        break
-      case 'type':
-      case 'ext':
-        cmp = nameCollator.compare(a.ext, b.ext) || nameCollator.compare(a.name, b.name)
-        break
-      case 'folder': {
-        const ap = parentOf(a.path) ?? ''
-        const bp = parentOf(b.path) ?? ''
-        cmp = nameCollator.compare(ap, bp)
-        break
-      }
-    }
-    if (cmp === 0 && sort.key !== 'name') {
-      cmp = nameCollator.compare(a.name, b.name)
-    }
-    return cmp * dir
-  })
-  return sorted
-}
+export type { EpisodeSortLookup } from '../lib/sortEntries'
+export { sortEntries } from '../lib/sortEntries'
 
 function clipboardFromSelection(
   get: () => { listing: AppState['listing'] },

@@ -1,5 +1,6 @@
 ﻿import { pathKey } from '@shared/paths'
-import { isUnderPath, samePath } from './paths'
+import { createRemovalMatcher } from '@shared/removalMatch'
+import { samePath } from './paths'
 
 /**
  * After deleting items from a sorted view, pick the next path to select
@@ -26,7 +27,8 @@ export function nextSelectionAfterDelete(orderedPaths: string[], removed: string
 }
 
 function pathRemovedOrUnder(path: string, removed: string[]): boolean {
-  return removed.some((r) => samePath(path, r) || isUnderPath(path, r))
+  // Unknown kinds: treat every removed path as a possible folder (safe).
+  return createRemovalMatcher(removed).matches(path)
 }
 
 /** True when the user changed selection while a slow trash/delete was in flight. */
