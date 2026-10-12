@@ -5,12 +5,24 @@
  * leftover WIN_CSC_LINK cannot re-enable signing if that flag is removed.
  */
 import { execSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { clearWinUnpackedOutput } from './winUnpackedCleanup.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+{
+  const pkgPath = path.join(root, 'package.json')
+  const raw = fs.readFileSync(pkgPath)
+  if (raw.length === 0 || (raw[0] !== 0x7b && raw[0] !== 0x5b)) {
+    throw new Error(
+      `package.json is not valid JSON (first byte 0x${raw[0]?.toString(16) ?? '??'}). Restore from git before packaging.`
+    )
+  }
+  JSON.parse(raw.toString('utf8'))
+}
 
 // 7z ultra (-mx=9) dies on this ~700MB unpacked tree (onnx/ffmpeg/asar).
 // electron-builder.yml `compression: normal` does not change 7z level — only this env does.

@@ -24,9 +24,24 @@ const args = new Set(process.argv.slice(2))
 const noBump = args.has('--no-bump')
 const noClean = args.has('--no-clean')
 
+function readPkg() {
+  const pkgPath = path.join(root, 'package.json')
+  const raw = fs.readFileSync(pkgPath)
+  // Fail fast: a binary/corrupt package.json packs into app.asar and the exe exits 1 with no log.
+  if (raw.length === 0 || (raw[0] !== 0x7b && raw[0] !== 0x5b)) {
+    throw new Error(
+      `package.json is not valid JSON (first byte 0x${raw[0]?.toString(16) ?? '??'}). Restore from git before packaging.`
+    )
+  }
+  try {
+    return JSON.parse(raw.toString('utf8'))
+  } catch (e) {
+    throw new Error(`package.json parse failed: ${e instanceof Error ? e.message : e}`, { cause: e })
+  }
+}
+
 function readPkgVersion() {
-  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
-  return String(pkg.version ?? '')
+  return String(readPkg().version ?? '')
 }
 
 function isInstallerName(name) {
