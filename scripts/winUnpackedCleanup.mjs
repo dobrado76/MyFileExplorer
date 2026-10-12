@@ -96,7 +96,7 @@ async function removeDirWithRetry(dir, label) {
             `(Installed app under %LOCALAPPDATA%\\Programs\\MyFileExplorer is fine to leave open.)\n` +
             `Last error: ${e instanceof Error ? e.message : e}` +
             `; rename: ${renameErr instanceof Error ? renameErr.message : renameErr}`,
-          { cause: e }
+          { cause: renameErr }
         )
       }
     }
