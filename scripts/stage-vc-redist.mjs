@@ -55,7 +55,7 @@ function vsInstallRoots() {
     if (fs.existsSync(vs)) {
       for (const year of fs.readdirSync(vs)) {
         const yearDir = path.join(vs, year)
-        let editions = []
+        let editions
         try {
           editions = fs.readdirSync(yearDir)
         } catch {
