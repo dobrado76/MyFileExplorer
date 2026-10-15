@@ -20,6 +20,9 @@ tools/mpv/*
 .tmp/
 
 
+# VC++ CRT DLLs staged by scripts/stage-vc-redist.mjs (not source).
+build/vc-redist/
+
 # Installers are CI / local build outputs (often >100MB — GitHub rejects git push).
 **/MyFileExplorer Setup*.exe
 **/*.exe.blockmap

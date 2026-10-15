@@ -63,6 +63,10 @@ try {
   console.warn('fetch-mpv failed — Rich player will not be bundled:', msg)
 }
 
+// koffi.node imports the VC++ CRT. Without these DLLs, Win10 machines that
+// never installed the redistributable crash on startup before main.log.
+execSync('node scripts/stage-vc-redist.mjs', { stdio: 'inherit', env: process.env })
+
 await clearWinUnpackedOutput(root)
 
 execSync('electron-vite build && electron-builder --win --config electron-builder.yml --publish never', {

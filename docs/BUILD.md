@@ -73,6 +73,7 @@ When the workflow finishes, download from:
 
 ## Notes
 
+- Windows packs stage `msvcp140.dll`, `vcruntime140.dll`, and `vcruntime140_1.dll` (`scripts/stage-vc-redist.mjs`) and ship them beside the exe and the unpacked `koffi` / `sharp` addons. `koffi.node` imports that CRT; a Windows 10 PC without the Visual C++ redistributable otherwise dies on startup with “The specified module could not be found.” The build machine must already have those DLLs (Visual Studio x64 redist, or System32).
 - Installers are **unsigned**. `electron-builder.yml` sets `win.signExecutable: false` so Windows packs skip `signtool` (icon/metadata still applied). `CSC_IDENTITY_AUTO_DISCOVERY=false` is macOS-only and does **not** stop Windows signing.
 - `electron-builder --publish never` — Releases are attached by Actions, not electron-builder.
 - Never commit `dist/*.exe` — `dist/` is in `.gitignore` on purpose.
