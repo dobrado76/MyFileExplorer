@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { compareFileNames } from '../shared/fileNameCompare'
+import { compareFileNames, compareFileNamesLiteral } from '../shared/fileNameCompare'
 
 function sorted(names: string[]): string[] {
   return [...names].sort(compareFileNames)
+}
+
+function sortedLiteral(names: string[]): string[] {
+  return [...names].sort(compareFileNamesLiteral)
 }
 
 describe('compareFileNames (Explorer StrCmpLogicalW)', () => {
@@ -64,5 +68,34 @@ describe('compareFileNames (Explorer StrCmpLogicalW)', () => {
   it('ignores ASCII letter case', () => {
     expect(compareFileNames('A', 'a')).toBe(0)
     expect(compareFileNames('img', 'IMG')).toBe(0)
+  })
+})
+
+describe('compareFileNamesLiteral', () => {
+  it('compares characters, so a digit comes before a letter', () => {
+    expect(
+      sortedLiteral([
+        'moodyKrea2Mix_v6seAsianFever4K',
+        'moodyKrea2Mix_v60',
+        'moodyKrea2Mix_v4seCUTIEINT8'
+      ])
+    ).toEqual([
+      'moodyKrea2Mix_v4seCUTIEINT8',
+      'moodyKrea2Mix_v60',
+      'moodyKrea2Mix_v6seAsianFever4K'
+    ])
+  })
+
+  it('does not treat digit runs as numbers', () => {
+    expect(sortedLiteral(['file10.txt', 'file2.txt', 'file02.txt'])).toEqual([
+      'file02.txt',
+      'file10.txt',
+      'file2.txt'
+    ])
+  })
+
+  it('ignores ASCII letter case', () => {
+    expect(compareFileNamesLiteral('A', 'a')).toBe(0)
+    expect(compareFileNamesLiteral('img', 'IMG')).toBe(0)
   })
 })

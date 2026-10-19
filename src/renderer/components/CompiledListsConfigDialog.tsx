@@ -366,7 +366,7 @@ export function CompiledListsConfigDialog({ returnSection }: Props): JSX.Element
       const usable = await call(api.slideshow.lastListUsable({ compiledRoot }))
       if (usable.usable) {
         closeDialog()
-        await startCompiledSlideshow({ resume: true })
+        await startCompiledSlideshow()
       } else {
         notify('Set counts in the lists window (or Load a saved list), then Start there')
         closeDialog()

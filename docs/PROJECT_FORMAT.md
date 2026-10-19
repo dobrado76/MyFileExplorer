@@ -1,6 +1,6 @@
 # Project / app data format
 
-**Version:** 0.20.0
+**Version:** 0.21.0
 
 MyFileExplorer browses the **real filesystem**. App-owned state lives only under Electron **`userData`** — always **`%APPDATA%\MyFileExplorer`** for both `npm run dev` and packaged installs (D17). Optional overrides: `MFE_USER_DATA`, or `MFE_ISOLATED_USER_DATA=1` for a repo-local `.dev-user-data/`.
 
@@ -47,7 +47,7 @@ Folder name is locked to `MyFileExplorer` (not the npm package name) so dev and 
 
 Compress-to-ZIP (7za) typically **omits** ADS — version history is not inside the `.zip`.
 
-Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow.cacheActive`, `slideshow.imageListCache`, capped at 100 000 paths). Categorizer mappings live in `settings.slideshow.categorizerMap` (Import copies a file in; path is not the source of truth). Optional `slideshow.invalidImagesDir` receives files that fail preview/decode during slideshow. ADS Manager geometry is `settings.adsManagerBounds` (`{ x, y, width, height }` or `null` for centered defaults).
+Slideshow **Cache** toggle + image path list live in `settings.json` (`slideshow.cacheActive`, `slideshow.imageListCache`, capped at 100 000 paths). Categorizer mappings live in `settings.slideshow.categorizerMap` (Import copies a file in; path is not the source of truth). Optional `slideshow.invalidImagesDir` receives files that fail preview/decode during slideshow. `slideshow.cameraLook` stores Camera looks (off unless `enabled` is true; frequency, checked effects, path filter, custom shaders). `cameraLookBounds` is this PC’s Camera looks window geometry and is omitted from settings export. ADS Manager geometry is `settings.adsManagerBounds` (`{ x, y, width, height }` or `null` for centered defaults).
 
 ---
 

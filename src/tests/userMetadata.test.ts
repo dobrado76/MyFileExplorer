@@ -17,7 +17,9 @@ import {
   type UserMetadataDoc,
   type UserMetadataField,
   userMetadataFieldSchema,
-  userMetadataSettingsSchema
+  userMetadataSettingsSchema,
+  userMetadataValuesForAds,
+  userMetadataValuesFromAds
 } from '../shared/schemas/userMetadata'
 import {
   canFollowUserMetadataLink,
@@ -529,5 +531,42 @@ describe('catalog undo stack', () => {
     expect(popped!.snapshot.enabled).toBe(true) // i=34 even
     expect(popped!.next.length).toBe(MAX_USER_METADATA_CATALOG_UNDO - 1)
     expect(popCatalogUndo([])).toBeNull()
+  })
+})
+
+describe('mfe_meta value keys', () => {
+  it('writes the query key and option key, and still reads legacy opaque ids', () => {
+    const rating: UserMetadataField = {
+      ...fields[1]!,
+      key: 'field_rating'
+    }
+    const review = fields[0]!
+    const catalog = [review, rating]
+    const internal = {
+      [rating.id]: 10,
+      [review.id]: reviewOpt.id
+    }
+    expect(userMetadataValuesForAds(internal, catalog)).toEqual({
+      field_rating: 10,
+      review_state: 'awaiting_review'
+    })
+
+    const fromKeys = userMetadataValuesFromAds(
+      { field_rating: 10, review_state: 'awaiting_review' },
+      catalog
+    )
+    expect(fromKeys[rating.id]).toBe(10)
+    expect(fromKeys[review.id]).toBe(reviewOpt.id)
+
+    const fromLegacy = userMetadataValuesFromAds(
+      { [rating.id]: 10, [review.id]: reviewOpt.id },
+      catalog
+    )
+    expect(fromLegacy[rating.id]).toBe(10)
+    expect(fromLegacy[review.id]).toBe(reviewOpt.id)
+    expect(userMetadataValuesForAds(fromLegacy, catalog)).toEqual({
+      field_rating: 10,
+      review_state: 'awaiting_review'
+    })
   })
 })

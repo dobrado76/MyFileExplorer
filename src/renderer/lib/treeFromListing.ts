@@ -1,10 +1,11 @@
 /** Dir children for the folder tree, matching the file list sort. */
 
 import { isVirtualFolderDocumentPath, isVirtualFolderGroupPath, virtualFolderDisplayName } from '@shared/virtualFolder'
-import { compareFileNames } from '@shared/fileNameCompare'
+import { compareNames, type NameSortMode } from '@shared/fileNameCompare'
 
 export function dirChildrenFromListing(
-  entries: Array<{ path: string; name: string; kind: string; isHidden?: boolean; ext?: string }>
+  entries: Array<{ path: string; name: string; kind: string; isHidden?: boolean; ext?: string }>,
+  nameSort: NameSortMode = 'explorer'
 ): {
   dirs: string[]
   childHidden: Record<string, boolean>
@@ -18,7 +19,7 @@ export function dirChildrenFromListing(
         isVirtualFolderDocumentPath(e.path) ||
         isVirtualFolderGroupPath(e.path)
     )
-    .sort((a, b) => compareFileNames(a.name, b.name))
+    .sort((a, b) => compareNames(a.name, b.name, nameSort))
   const dirs = dirEntries.map((e) => e.path)
   const childHidden: Record<string, boolean> = {}
   const childLabels: Record<string, string> = {}

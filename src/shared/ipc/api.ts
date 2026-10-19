@@ -670,6 +670,7 @@ export type MyFileExplorerApi = {
     folderLibrary(req: { path: string }): Promise<
       Result<{
         isContainer: boolean
+        inLibrary: boolean
         items: {
           path: string
           watched: boolean
@@ -804,7 +805,15 @@ export type MyFileExplorerApi = {
         rev?: number | null
       }>
     >
-    compiledPathAt(req: { index: number }): Promise<Result<{ path: string | null }>>
+    compiledPathAt(req: {
+      index: number
+      dir?: -1 | 1
+      loop?: boolean
+      includeIndex?: boolean
+      skipPath?: string
+      unskipPath?: string
+      commit?: boolean
+    }): Promise<Result<{ path: string | null; index: number }>>
     clearVirtualPlaylist(): Promise<Result<{ ok: true }>>
     /** @deprecated Prefer applyCompiledLines for compiled slideshow. */
     applyCompiledPlaylist(req: {

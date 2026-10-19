@@ -35,6 +35,7 @@ import {
 } from '@shared/schemas/settings'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
+import { CameraLookDialog } from './CameraLookDialog'
 import { FileOpPlanDialog } from './FileOpPlanDialog'
 import { SyncPlanDialog } from '../pairCompare/SyncPlanDialog'
 import { FileLockersPanel } from './FileLockersPanel'
@@ -343,6 +344,8 @@ export function Dialogs(): JSX.Element | null {
       return devGateActive ? (
         <CompiledListsConfigDialog returnSection={dialog.returnSection} />
       ) : null
+    case 'camera-looks':
+      return <CameraLookDialog returnSection={dialog.returnSection} />
     case 'ads-manager':
       return <AdsManager path={dialog.path} />
     case 'ads-field-column':
@@ -3049,6 +3052,51 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.slideshow.titleFilename}
                 onChange={(v) => void applySettingsPatch({ slideshow: { titleFilename: v } })}
               />
+              <SettingsToggle
+                id="set-ss-camera-look"
+                label="Camera looks"
+                hint="Off leaves every slideshow photo untouched. The effects you checked stay checked for next time. Off on a new install."
+                checked={settings.slideshow.cameraLook.enabled}
+                onChange={(v) =>
+                  void applySettingsPatch({
+                    slideshow: { cameraLook: { ...settings.slideshow.cameraLook, enabled: v } }
+                  })
+                }
+              />
+              <label className="settings-labeled-row" htmlFor="set-ss-camera-look-path">
+                <span>Path filter</span>
+                <input
+                  id="set-ss-camera-look-path"
+                  type="text"
+                  spellCheck={false}
+                  placeholder="empty = every photo"
+                  value={settings.slideshow.cameraLook.pathFilter}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      slideshow: {
+                        cameraLook: { ...settings.slideshow.cameraLook, pathFilter: e.target.value }
+                      }
+                    })
+                  }
+                />
+              </label>
+              <p className="dim" style={{ margin: '0 0 8px' }}>
+                Used only while Camera looks is on. The path must contain this text. AI matches those
+                letters anywhere. \AI\ matches a folder named AI anywhere along the path. Empty
+                applies to every photo.
+              </p>
+              <div className="settings-field">
+                <p className="dim" style={{ margin: '0 0 8px' }}>
+                  Frequency, which effects are checked, and a photo preview live in their own window.
+                </p>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openDialog({ kind: 'camera-looks', returnSection: 'slideshow' })}
+                >
+                  Camera looks…
+                </button>
+              </div>
               {devGateActive && (
               <>
               <SettingsToggle
@@ -3482,6 +3530,34 @@ function SettingsDialog({ initialSection }: { initialSection?: string }): JSX.El
                 checked={settings.foldersFirst}
                 onChange={(v) => void applySettingsPatch({ foldersFirst: v })}
               />
+              <label
+                className="settings-field"
+                htmlFor="set-name-sort"
+                title="How the Name column orders items"
+                data-settings-search="sort name order explorer logical string character digits"
+              >
+                <span>Name sort</span>
+                <select
+                  id="set-name-sort"
+                  value={settings.nameSortMode === 'literal' ? 'literal' : 'explorer'}
+                  onChange={(e) =>
+                    void applySettingsPatch({
+                      nameSortMode: e.target.value === 'literal' ? 'literal' : 'explorer'
+                    })
+                  }
+                >
+                  <option value="explorer">Windows Explorer</option>
+                  <option value="literal">Character by character</option>
+                </select>
+                <span className="settings-field-hint">
+                  Windows Explorer treats a run of digits as one number, so 6 comes before 60
+                  (`v6se` before `v60`). Character by character compares each character, so 0 comes
+                  before s (`v60` before `v6se`) and `file10` comes before `file2`. A–Z case is
+                  ignored either way. The file list, folder tree, and slideshow name order follow
+                  this choice. Thumbnail and icon views inside a media library still order episodes
+                  by season and episode, and season folders by season number.
+                </span>
+              </label>
               <SettingsToggle
                 id="set-item-checkboxes"
                 label="Item check boxes"

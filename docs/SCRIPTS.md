@@ -100,7 +100,7 @@ Every script must parse **argv**, not a single shell string.
 }
 ```
 
-The file is deleted when the process exits (same lifecycle as `--input-list`). Scripts that do not need metadata can ignore the env var.
+The file is deleted when the process exits (same lifecycle as `--input-list`). Scripts that do not need metadata can ignore the env var. `values` here use catalog field ids. The on-disk `mfe_meta` stream uses each field’s query key (`field_rating`), which is what other programs should search for.
 
 **Folder:**
 

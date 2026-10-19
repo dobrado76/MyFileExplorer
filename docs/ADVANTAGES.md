@@ -1,6 +1,6 @@
 # Advantages over classic Windows File Explorer
 
-**App:** MyFileExplorer · **Version:** 0.20.0
+**App:** MyFileExplorer · **Version:** 0.21.0
 
 MyFileExplorer is a **local file workbench**: it keeps Explorer muscle memory (Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while turning the filesystem into a semantic, searchable, automatable workspace — without moving your files into a proprietary database or cloud repository.
 
@@ -73,7 +73,7 @@ Explorer only answers “where is this stored?” Work often needs “what proje
 | **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |
 | **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
 | **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. Saves tip ADS on NTFS (`VER_*`); `$DATA` stays original. **Version Control** submenu: commit / revert / preview versions; Drop from the preview banner. Entry: preview button, context menu, **Ctrl+E**. |
-| **ACDSee-inspired slideshow** | Gated fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop) and image-list cache — Explorer has no equivalent. |
+| **ACDSee-inspired slideshow** | Fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop) and image-list cache. Optional **Camera looks** (grain, white balance, blur, and your own shader) paint on the show only — off until you enable them, and they never write the file. Explorer has no equivalent. |
 | **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
 | **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
 | **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/spreadsheet/RTF best-effort text; **`.pptx` approximate slides** (text + package images); `.ppt` text-only; shortcuts show target + open shortcut or target. |

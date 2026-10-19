@@ -32,6 +32,7 @@ import {
 } from '../lib/doubleSingleClick'
 import { isExcludedByViewFilter } from '../lib/viewFilter'
 import { dirChildrenFromListing, sameDirChildList } from '../lib/treeFromListing'
+import { nameSortModeOf } from '@shared/fileNameCompare'
 import {
   isVirtualFolderDocumentPath,
   isVirtualFolderGroupPath,
@@ -350,7 +351,8 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           const groupId = groupRef?.groupId
           const res = await call(api.virtualFolder.list({ path: docPath, groupId }))
           const { dirs, childHidden, childLabels } = dirChildrenFromListing(
-            res.entries.map((r) => r.entry)
+            res.entries.map((r) => r.entry),
+            nameSortModeOf(useAppStore.getState().settings.nameSortMode)
           )
           const childEntryIds: Record<string, string> = {}
           for (const row of res.entries) {
@@ -377,7 +379,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
           return dirs
         }
         const res = await call(api.fs.list({ path, includeHidden: true }))
-        const { dirs, childHidden, childLabels } = dirChildrenFromListing(res.entries)
+        const { dirs, childHidden, childLabels } = dirChildrenFromListing(
+          res.entries,
+          nameSortModeOf(useAppStore.getState().settings.nameSortMode)
+        )
         setNodes(
           (n) => {
             const key = resolveTreeKey(n, path)
@@ -693,7 +698,10 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     const key = Object.keys(map).find((k) => samePath(k, treeKey)) ?? treeKey
     const prev = map[key]
     if (!prev || (prev.children === null && !prev.expanded)) return
-    const { dirs, childHidden, childLabels } = dirChildrenFromListing(listingForTab.entries)
+    const { dirs, childHidden, childLabels } = dirChildrenFromListing(
+      listingForTab.entries,
+      nameSortModeOf(settings.nameSortMode)
+    )
     if (sameDirChildList(prev.children, dirs)) return
     const childEntryIds: Record<string, string> = {}
     const idMap = listingForTab.virtualFolder?.entryIdByPathKey
@@ -725,8 +733,22 @@ export function FolderTree({ tabId: tabIdProp }: FolderTreeProps = {} as FolderT
     listingForTab?.loading,
     listingForTab?.virtualFolder?.groupId,
     listingForTab?.virtualFolder?.entryIdByPathKey,
+    settings.nameSortMode,
     setNodes
   ])
+
+  const nameSortSeen = useRef(settings.nameSortMode)
+  useEffect(() => {
+    if (nameSortSeen.current === settings.nameSortMode) return
+    nameSortSeen.current = settings.nameSortMode
+    const tabId = activeTabIdRef.current
+    const map = nodesRef.current
+    for (const [path, node] of Object.entries(map)) {
+      if (node.children !== null || node.loading) {
+        void loadChildren(path, tabId, { preserveExpanded: true })
+      }
+    }
+  }, [settings.nameSortMode, loadChildren])
 
   // Refresh (F5): re-list every folder this tab has already loaded in the tree.
   useEffect(() => {

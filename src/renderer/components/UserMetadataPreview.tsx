@@ -299,7 +299,8 @@ function PreviewFieldRow({
         <input
           type="text"
           inputMode="decimal"
-          value={typeof value === 'number' ? String(value) : typeof value === 'string' ? value : ''}
+          defaultValue={typeof value === 'number' ? String(value) : ''}
+          key={`${field.id}:${String(value ?? '')}`}
           disabled={disabled}
           onBlur={(e) => {
             const t = e.target.value.trim()
@@ -310,11 +311,9 @@ function PreviewFieldRow({
             const n = Number(t)
             onCommit(Number.isFinite(n) ? n : value)
           }}
-          onChange={() => {
-            /* draft until blur — controlled via value from parent after commit */
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
           }}
-          defaultValue={typeof value === 'number' ? String(value) : ''}
-          key={`${field.id}:${String(value ?? '')}`}
         />
       </label>
     )

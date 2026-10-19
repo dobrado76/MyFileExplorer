@@ -1179,9 +1179,11 @@ function FieldEditor({
             type="text"
             spellCheck={false}
             value={key}
+            title="This name is written in the mfe_meta file"
             onChange={(e) => setKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             onBlur={commitKey}
           />
+          <span className="muted">Stored in mfe_meta under this name</span>
         </label>
         <label className="user-meta-field">
           <span>Type</span>

@@ -6,9 +6,10 @@ import { randomFillSync } from 'node:crypto'
 import path from 'node:path'
 import type { SlideshowOrder } from '@shared/schemas/slideshow'
 import type { LastListLine } from '@shared/slideshow/compiledLists'
-import { compareFileNames } from '@shared/fileNameCompare'
+import { compareNames, nameSortModeOf } from '@shared/fileNameCompare'
 import { readDatIndex } from './compiledLists'
 import { logMain } from '../logging'
+import { settingsStore } from '../settings/store'
 
 /** Match C# `int` max indexable length. */
 export const COMPILED_PLAYLIST_MAX = 2_147_483_647
@@ -35,8 +36,16 @@ type VirtualPlaylist = {
   /** Feistel key when random + total > SHUFFLE_ARRAY_MAX */
   feistelKey: number
   order: SlideshowOrder
+  ascending: boolean
+  /** Identity of the last.txt lines this session was built from. */
+  linesKey: string
+  listCounts: { path: string; fileCount: number }[]
   skip: Set<string>
 }
+
+/** Last image the slideshow actually showed. Rebuilds keep this instead of jumping to 0. */
+let committedIndex = 0
+let committedPath: string | null = null
 
 let session: VirtualPlaylist | null = null
 
@@ -45,7 +54,7 @@ function sortPathsByName(paths: string[], ascending: boolean): void {
   paths.sort((a, b) => {
     const an = path.basename(a)
     const bn = path.basename(b)
-    return compareFileNames(an, bn) * dir
+    return compareNames(an, bn, nameSortModeOf(settingsStore().get().nameSortMode)) * dir
   })
 }
 
@@ -138,6 +147,60 @@ export type CompiledPlaylistSnapshot = {
 
 export function clearVirtualPlaylist(): void {
   session = null
+  committedIndex = 0
+  committedPath = null
+}
+
+function pathIfLive(playIndex: number, vp: VirtualPlaylist): string | null {
+  if (vp.total <= 0 || playIndex < 0 || playIndex >= vp.total) return null
+  const logical = logicalFromPlayPos(playIndex, vp)
+  const p = resolveLogical(logical, vp)
+  if (!p) return null
+  if (vp.skip.has(p.toLowerCase())) return null
+  return p
+}
+
+/**
+ * Walk play indexes until a path that is still in the list is found.
+ * `includeStart` true = Home/End/seek may stay on `start`.
+ */
+export function findLivePlayIndex(
+  start: number,
+  dir: 1 | -1,
+  loop: boolean,
+  includeStart: boolean
+): { index: number; path: string } | null {
+  const vp = session
+  if (!vp || vp.total <= 0) return null
+  const n = vp.total
+  const cap = Math.min(n, 100_000)
+  let i = Math.max(0, Math.min(Math.floor(start), n - 1))
+  if (!includeStart) {
+    i += dir
+    if (i >= n || i < 0) {
+      if (!loop) return null
+      i = i >= n ? 0 : n - 1
+    }
+  }
+  for (let step = 0; step < cap; step++) {
+    const p = pathIfLive(i, vp)
+    if (p) return { index: i, path: p }
+    i += dir
+    if (i >= n || i < 0) {
+      if (!loop) return null
+      i = i >= n ? 0 : n - 1
+    }
+  }
+  return null
+}
+
+export function commitPlayCursor(index: number, path: string | null): void {
+  committedIndex = index
+  committedPath = path
+}
+
+export function committedPlayCursor(): { index: number; path: string | null } {
+  return { index: committedIndex, path: committedPath }
 }
 
 export function getVirtualPlaylistTotal(): number {
@@ -147,15 +210,8 @@ export function getVirtualPlaylistTotal(): number {
 export function pathAtPlayIndex(playIndex: number): string | null {
   const vp = session
   if (!vp || vp.total <= 0) return null
-  const maxTries = Math.min(64, vp.total)
-  for (let t = 0; t < maxTries; t++) {
-    const logical = logicalFromPlayPos(playIndex + t, vp)
-    const p = resolveLogical(logical, vp)
-    if (!p) continue
-    if (vp.skip.has(p.toLowerCase())) continue
-    return p
-  }
-  return null
+  const i = Math.max(0, Math.min(Math.floor(playIndex), vp.total - 1))
+  return pathIfLive(i, vp)
 }
 
 export function snapshotAt(playIndex: number): CompiledPlaylistSnapshot {
@@ -163,12 +219,14 @@ export function snapshotAt(playIndex: number): CompiledPlaylistSnapshot {
   if (!vp) {
     return { total: 0, index: 0, path: null, truncated: false }
   }
-  const index =
-    vp.total <= 0 ? 0 : Math.max(0, Math.min(Math.floor(playIndex), vp.total - 1))
+  const found = findLivePlayIndex(playIndex, 1, false, true)
+  if (!found) {
+    return { total: vp.total, index: 0, path: null, truncated: vp.truncated }
+  }
   return {
     total: vp.total,
-    index,
-    path: pathAtPlayIndex(index),
+    index: found.index,
+    path: found.path,
     truncated: vp.truncated
   }
 }
@@ -181,6 +239,21 @@ export async function buildVirtualPlaylist(
   order: SlideshowOrder,
   ascending: boolean
 ): Promise<CompiledPlaylistSnapshot & { built: true }> {
+  const linesKey = lines.map((l) => `${l.datPath.toLowerCase()}\0${l.count}`).join('\n')
+  if (
+    session &&
+    session.linesKey === linesKey &&
+    session.order === order &&
+    session.ascending === ascending
+  ) {
+    return {
+      ...snapshotAt(committedIndex),
+      built: true,
+      listCounts: session.listCounts
+    }
+  }
+
+  const prevSkip = session?.skip
   const segments: Segment[] = []
   const listCounts: { path: string; fileCount: number }[] = []
   let total = 0
@@ -247,7 +320,10 @@ export async function buildVirtualPlaylist(
     perm,
     feistelKey,
     order,
-    skip: new Set()
+    ascending,
+    linesKey,
+    listCounts,
+    skip: prevSkip ? new Set(prevSkip) : new Set()
   }
 
   if (truncated) {
@@ -281,6 +357,7 @@ export function snapshotPreferPath(
       // for random, just keep fallbackIndex if path still resolvable there, else 0.
       const start = seg === vp.segments[0] ? 0 : vp.segments[vp.segments.indexOf(seg) - 1]!.end
       const logical = start + idx
+      if (vp.skip.has(want)) break
       if (vp.order !== 'random') {
         return {
           total: vp.total,
@@ -289,21 +366,29 @@ export function snapshotPreferPath(
           truncated: vp.truncated
         }
       }
+      const atFallback = pathAtPlayIndex(Math.max(0, Math.min(fallbackIndex, vp.total - 1)))
+      if (atFallback && atFallback.toLowerCase() === want) {
+        return {
+          total: vp.total,
+          index: Math.max(0, Math.min(fallbackIndex, vp.total - 1)),
+          path: preferPath,
+          truncated: vp.truncated
+        }
+      }
       break
     }
   }
-  const index = Math.max(0, Math.min(fallbackIndex, vp.total - 1))
-  return {
-    total: vp.total,
-    index,
-    path: pathAtPlayIndex(index),
-    truncated: vp.truncated
-  }
+  return snapshotAt(Math.max(0, Math.min(fallbackIndex, vp.total - 1)))
 }
 
 export function markSkipped(filePath: string): void {
   if (!session) return
   session.skip.add(filePath.toLowerCase())
+}
+
+export function unmarkSkipped(filePath: string): void {
+  if (!session) return
+  session.skip.delete(filePath.toLowerCase())
 }
 
 /** Estimate flat expand size without allocating (for expandComposite guard). */

@@ -633,7 +633,7 @@ export function migrateUserMetadataSettings(raw: unknown): UserMetadataSettings 
   }
 }
 
-/** On-item ADS document (values keyed by opaque field id). */
+/** On-item ADS document. `values` keys are field query keys (legacy opaque ids still parse). */
 export const userMetadataDocSchema = z.object({
   format: z.literal(USER_METADATA_FORMAT).catch(USER_METADATA_FORMAT),
   version: z.literal(1).catch(1),
@@ -656,6 +656,92 @@ export function parseUserMetadataDoc(raw: string): UserMetadataDoc | null {
   } catch {
     return null
   }
+}
+
+function encodeAdsOptionValue(field: UserMetadataField, raw: unknown): unknown {
+  if (!fieldUsesChoiceOptions(field.type) || !field.choices?.length) return raw
+  const toKey = (token: string): string =>
+    optionById(field, token)?.key ?? optionByKey(field, token)?.key ?? token
+  if (fieldUsesMultiOptionIds(field.type)) {
+    if (!Array.isArray(raw)) return raw
+    return raw.map((id) => (typeof id === 'string' ? toKey(id) : id))
+  }
+  return typeof raw === 'string' ? toKey(raw) : raw
+}
+
+function decodeAdsOptionValue(field: UserMetadataField, raw: unknown): unknown {
+  if (!fieldUsesChoiceOptions(field.type) || !field.choices?.length) return raw
+  const toId = (token: string): string =>
+    optionByKey(field, token)?.id ?? optionById(field, token)?.id ?? token
+  if (fieldUsesMultiOptionIds(field.type)) {
+    if (!Array.isArray(raw)) return raw
+    return raw.map((id) => (typeof id === 'string' ? toId(id) : id))
+  }
+  return typeof raw === 'string' ? toId(raw) : raw
+}
+
+/**
+ * App values (field id → value, option ids) → ADS `values`
+ * (field query key → value, option query keys). Unknown keys are kept.
+ */
+export function userMetadataValuesForAds(
+  values: Record<string, unknown>,
+  fields: UserMetadataField[]
+): Record<string, unknown> {
+  const byId = new Map(fields.map((f) => [f.id, f]))
+  const byKey = new Map<string, UserMetadataField[]>()
+  for (const f of fields) {
+    const list = byKey.get(f.key) ?? []
+    list.push(f)
+    byKey.set(f.key, list)
+  }
+  const out: Record<string, unknown> = {}
+  for (const [k, raw] of Object.entries(values)) {
+    const field = byId.get(k)
+    if (field) {
+      out[field.key] = encodeAdsOptionValue(field, raw)
+      continue
+    }
+    const keyed = byKey.get(k)
+    if (keyed?.length) {
+      out[k] = encodeAdsOptionValue(keyed[0]!, raw)
+      continue
+    }
+    out[k] = raw
+  }
+  return out
+}
+
+/**
+ * ADS `values` → app values. Prefers the query key, then a legacy `mf_` / `mo_` id.
+ * A key that matches neither stays so hygiene can still see orphans.
+ */
+export function userMetadataValuesFromAds(
+  values: Record<string, unknown>,
+  fields: UserMetadataField[]
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  const claimed = new Set<string>()
+  for (const field of fields) {
+    const hasKey = Object.prototype.hasOwnProperty.call(values, field.key)
+    const hasId = Object.prototype.hasOwnProperty.call(values, field.id)
+    if (!hasKey && !hasId) continue
+    if (hasKey) claimed.add(field.key)
+    if (hasId) claimed.add(field.id)
+    const source = hasKey ? field.key : field.id
+    out[field.id] = decodeAdsOptionValue(field, values[source])
+  }
+  for (const [k, raw] of Object.entries(values)) {
+    if (!claimed.has(k)) out[k] = raw
+  }
+  return out
+}
+
+export function userMetadataDocFromAds(
+  doc: UserMetadataDoc,
+  fields: UserMetadataField[]
+): UserMetadataDoc {
+  return { ...doc, values: userMetadataValuesFromAds(doc.values, fields) }
 }
 
 export function emptyUserMetadataDoc(): UserMetadataDoc {

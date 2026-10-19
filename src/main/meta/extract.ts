@@ -18,7 +18,8 @@ import {
   formatIconTagsColumnValue,
   optionById,
   parseMetaColumnFieldId,
-  parseUserMetadataDoc
+  parseUserMetadataDoc,
+  userMetadataDocFromAds
 } from '@shared/schemas/userMetadata'
 import {
   formatMediaMetadataKindLabel,
@@ -425,11 +426,12 @@ async function extractUserMetaColumns(
   if (settingsStore().get().userMetadata?.enabled !== true) return out
   try {
     if (!streamExists(file, USER_METADATA_STREAM)) return out
-    const doc = parseUserMetadataDoc(await readStreamText(file, USER_METADATA_STREAM))
-    if (!doc) return out
+    const parsed = parseUserMetadataDoc(await readStreamText(file, USER_METADATA_STREAM))
+    if (!parsed) return out
     const fields = allUserMetadataFields(
       settingsStore().get().userMetadata ?? { enabled: false, sets: [], bindings: [] }
     )
+    const doc = userMetadataDocFromAds(parsed, fields)
     for (const colId of metaIds) {
       const fid = parseMetaColumnFieldId(colId)
       if (!fid) continue

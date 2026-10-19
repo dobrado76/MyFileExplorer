@@ -1,3 +1,10 @@
+/** How Name columns compare. `explorer` is Windows `StrCmpLogicalW`. */
+export type NameSortMode = 'explorer' | 'literal'
+
+export function nameSortModeOf(value: string | undefined): NameSortMode {
+  return value === 'literal' ? 'literal' : 'explorer'
+}
+
 /**
  * Filename order matching Windows Explorer (`StrCmpLogicalW` / shlwapi).
  *
@@ -64,4 +71,28 @@ export function compareFileNames(a: string, b: string): number {
 
   if (i === na && j === nb) return 0
   return i === na ? -1 : 1
+}
+
+/**
+ * Character-by-character order. Digits are characters (`0` before `s`, so
+ * `v60` before `v6se`, and `file10` before `file2`). A–Z case is ignored.
+ * A shorter string that is a prefix of the other sorts first.
+ */
+export function compareFileNamesLiteral(a: string, b: string): number {
+  const na = a.length
+  const nb = b.length
+  const n = na < nb ? na : nb
+  for (let i = 0; i < n; i++) {
+    let ca = a.charCodeAt(i)!
+    let cb = b.charCodeAt(i)!
+    if (ca >= 65 && ca <= 90) ca += 32
+    if (cb >= 65 && cb <= 90) cb += 32
+    if (ca !== cb) return ca < cb ? -1 : 1
+  }
+  if (na === nb) return 0
+  return na < nb ? -1 : 1
+}
+
+export function compareNames(a: string, b: string, mode: NameSortMode = 'explorer'): number {
+  return mode === 'literal' ? compareFileNamesLiteral(a, b) : compareFileNames(a, b)
 }

@@ -1,6 +1,6 @@
 # IPC contract
 
-**Version:** 0.20.0
+**Version:** 0.21.0
 
 Preload exposes `window.myFileExplorer`. Channel names are stable strings in `src/shared/ipc/contract.ts`.
 
@@ -269,7 +269,7 @@ Discovery runs in a worker thread; results arrive on `mfe-event` `network-discov
 
 ### `slideshow.*`
 
-Folder slideshow / image-list cache (gated by Settings → Slideshow).
+Folder slideshow / image-list cache (player chrome follows Settings → Slideshow → Enable slideshow UI). Camera looks are drawn in the slideshow window and have no IPC channel.
 
 | Channel | Request | Response |
 | ------- | ------- | -------- |

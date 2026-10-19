@@ -18,6 +18,7 @@ describe('settings export / import', () => {
       usnManagerBounds: { x: 0, y: 1, width: 860, height: 640 },
       adsManagerBounds: { x: 1, y: 2, width: 800, height: 600 },
       powerRenameBounds: { x: 3, y: 4, width: 900, height: 700, maximized: true },
+      cameraLookBounds: { x: 6, y: 7, width: 1080, height: 780, maximized: true, previewFraction: 0.58 },
       undeleteBounds: { x: 8, y: 9, width: 960, height: 680, maximized: false },
       userMetadataManagerBounds: { x: 4, y: 5, width: 960, height: 720, maximized: false },
       remoteConnectionBounds: { x: 7, y: 8, width: 640, height: 520, maximized: false },
@@ -49,6 +50,30 @@ describe('settings export / import', () => {
     expect(parsed.source).toBe('envelope')
     expect(parsed.settings.theme).toBe('custom')
     expect(parsed.networkHosts).toEqual([{ name: 'NEWONYX', unc: '\\\\NEWONYX' }])
+  })
+
+  it('round-trips slideshow cameraLook frequency and enabled ids', () => {
+    const doc = buildSettingsExportDocument({
+      settings: {
+        ...defaultSettings,
+        slideshow: {
+          ...defaultSettings.slideshow,
+          cameraLook: {
+            enabled: true,
+            frequencyPct: 72,
+            enabledIds: ['dslr-natural'],
+            customFragment: '',
+            customs: [],
+            params: {},
+            pathFilter: ''
+          }
+        }
+      },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.slideshow.cameraLook.frequencyPct).toBe(72)
+    expect(parsed.settings.slideshow.cameraLook.enabledIds).toEqual(['dslr-natural'])
   })
 
   it('round-trips compiledListUpdateFolders via full settingsSchema', () => {
@@ -275,6 +300,16 @@ describe('settings export / import', () => {
     const parsed = parseSettingsImport(doc)
     expect(parsed.settings.viewPresets[0]?.name).toBe('Development')
     expect(parsed.settings.viewPresets[0]?.viewMode).toBe('details')
+  })
+
+  it('round-trips nameSortMode (D75)', () => {
+    const doc = buildSettingsExportDocument({
+      settings: { ...defaultSettings, nameSortMode: 'literal' },
+      networkHosts: []
+    })
+    const parsed = parseSettingsImport(doc)
+    expect(parsed.settings.nameSortMode).toBe('literal')
+    expect(settingsSchema.parse({}).nameSortMode).toBe('explorer')
   })
 
   it('round-trips grouped quickAccess via full settingsSchema (D58)', () => {

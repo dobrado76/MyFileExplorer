@@ -1,4 +1,8 @@
-import { USER_METADATA_STREAM, parseUserMetadataDoc } from '@shared/schemas/userMetadata'
+import {
+  USER_METADATA_STREAM,
+  parseUserMetadataDoc,
+  userMetadataDocFromAds
+} from '@shared/schemas/userMetadata'
 import {
   metaFilterActive,
   metaRecordMatches,
@@ -31,7 +35,8 @@ export async function pathMatchesMetaFilter(
     if (!streamExists(filePath, USER_METADATA_STREAM)) {
       return metaRecordMatches(null, f, catalog)
     }
-    const doc = parseUserMetadataDoc(await readStreamText(filePath, USER_METADATA_STREAM))
+    const parsed = parseUserMetadataDoc(await readStreamText(filePath, USER_METADATA_STREAM))
+    const doc = parsed ? userMetadataDocFromAds(parsed, catalog) : null
     return metaRecordMatches(doc, f, catalog)
   } catch {
     return metaRecordMatches(null, f, catalog)

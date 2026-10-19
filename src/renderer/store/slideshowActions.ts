@@ -23,6 +23,7 @@ import {
 import {
   clearFolderPlaylist,
   folderPathAt,
+  folderPlaylistCursor,
   folderPlaylistFirstIndex,
   folderPlaylistLastIndex,
   folderPlaylistLiveLength,
@@ -480,7 +481,8 @@ export function createSlideshowActions(get: Get, set: Set) {
         buildFound: paths.length,
         buildCurrent: '',
         actions: [],
-        compiledMode: false
+        compiledMode: false,
+        originIndex: 0
       }
       enterSlideshowPlaying(get, set, paths, active)
     },
@@ -507,13 +509,13 @@ export function createSlideshowActions(get: Get, set: Set) {
         await call(api.slideshow.openCompiledListsWindow())
         actions.applyCompiledVirtual(
           { total: 0, index: 0, path: null, truncated: false },
-          startRev
+          startRev,
+          { resetOrigin: true }
         )
 
         const { lines } = await call(api.slideshow.readLastList({ compiledRoot: root }))
         const ss = get().settings.slideshow
-        const preferIndex =
-          opts?.resume !== false ? (ss.compiledPlaylistIndex ?? 0) : 0
+        const preferIndex = opts?.resume === true ? (ss.compiledPlaylistIndex ?? 0) : 0
 
         if (startRev < compiledApplyRev) return
 
@@ -528,7 +530,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         )
         // Broadcast already applied via event; ensure local state if event raced.
         if (get().slideshow.active?.compiledMode) {
-          actions.applyCompiledVirtual(snap, snap.rev ?? compiledApplyRev)
+          actions.applyCompiledVirtual(snap, snap.rev ?? compiledApplyRev, { resetOrigin: true })
         }
         if (snap.truncated) {
           get().notify('Compiled playlist truncated at 2,147,483,647 entries')
@@ -537,7 +539,8 @@ export function createSlideshowActions(get: Get, set: Set) {
         if (!get().slideshow.active?.compiledMode) {
           actions.applyCompiledVirtual(
             { total: 0, index: 0, path: null },
-            nextCompiledApplyRev()
+            nextCompiledApplyRev(),
+            { resetOrigin: true }
           )
         }
         get().notify(e instanceof IpcError ? e.message : String(e), true)
@@ -550,7 +553,7 @@ export function createSlideshowActions(get: Get, set: Set) {
      */
     async compiledSlideshowToolbarClick() {
       if (!compiledGateOn(get)) return
-      await actions.startCompiledSlideshow({ resume: true })
+      await actions.startCompiledSlideshow()
     },
 
     /** Apply virtual compiled playlist meta from main (not a flat path array). */
@@ -562,7 +565,8 @@ export function createSlideshowActions(get: Get, set: Set) {
         truncated?: boolean
         resumePlaying?: boolean
       },
-      rev?: number | null
+      rev?: number | null,
+      opts?: { resetOrigin?: boolean }
     ) {
       if (!compiledGateOn(get)) return
       if (rev != null) {
@@ -590,7 +594,16 @@ export function createSlideshowActions(get: Get, set: Set) {
         actions: prev?.compiledMode ? prev.actions : [],
         compiledMode: true,
         compiledTotal: meta.total,
-        compiledTruncated: meta.truncated === true
+        compiledTruncated: meta.truncated === true,
+        originIndex: opts?.resetOrigin
+          ? meta.total > 0
+            ? Math.max(0, Math.min(meta.index, meta.total - 1))
+            : undefined
+          : prev?.compiledMode && prev.originIndex != null
+            ? prev.originIndex
+            : meta.total > 0
+              ? Math.max(0, Math.min(meta.index, meta.total - 1))
+              : undefined
       }
       // First transition into compiled play: drop explorer heap. Later ± updates: cursor only.
       const firstPlay = !prev || prev.status === 'building' || !prev.compiledMode
@@ -639,7 +652,19 @@ export function createSlideshowActions(get: Get, set: Set) {
       })
     },
 
-    async setCompiledPlayIndex(index: number, status?: SlideshowState['status']) {
+    async setCompiledPlayIndex(
+      index: number,
+      status?: SlideshowState['status'],
+      move?: {
+        dir?: 1 | -1
+        loop?: boolean
+        includeIndex?: boolean
+        skipPath?: string
+        unskipPath?: string
+        /** Step ran off the end with loop off — stop playback. */
+        stopIfNone?: boolean
+      }
+    ) {
       const a = get().slideshow.active
       if (!a?.compiledMode) return
       const gen = ++compiledPlayGen
@@ -655,17 +680,43 @@ export function createSlideshowActions(get: Get, set: Set) {
       }
       const i = Math.max(0, Math.min(index, n - 1))
       try {
-        const { path } = await call(api.slideshow.compiledPathAt({ index: i }))
+        const landed = await call(
+          api.slideshow.compiledPathAt({
+            index: i,
+            dir: move?.dir,
+            loop: move?.loop,
+            includeIndex: move?.includeIndex,
+            skipPath: move?.skipPath,
+            unskipPath: move?.unskipPath,
+            commit: true
+          })
+        )
         if (gen !== compiledPlayGen) return
         const cur = get().slideshow.active
         if (!cur?.compiledMode) return
+        if (!landed.path) {
+          if (move?.stopIfNone) {
+            void actions.stopSlideshow()
+            return
+          }
+          if (move?.skipPath) {
+            set({
+              slideshow: {
+                ...get().slideshow,
+                active: { ...cur, currentPath: null, status: status ?? 'manual' }
+              }
+            })
+            get().notify('List empty — stop to commit pending actions')
+          }
+          return
+        }
         set({
           slideshow: {
             ...get().slideshow,
             active: {
               ...cur,
-              index: i,
-              currentPath: path,
+              index: landed.index,
+              currentPath: landed.path,
               status: status ?? cur.status
             }
           }
@@ -727,13 +778,11 @@ export function createSlideshowActions(get: Get, set: Set) {
       const n = slideshowLiveLength(a)
       if (n <= 0) return
       if (a.compiledMode) {
-        const next = a.index + 1
-        if (next >= n) {
-          if (get().settings.slideshow.loop) void actions.setCompiledPlayIndex(0)
-          else void actions.stopSlideshow()
-          return
-        }
-        void actions.setCompiledPlayIndex(next)
+        void actions.setCompiledPlayIndex(a.index, undefined, {
+          dir: 1,
+          loop: get().settings.slideshow.loop,
+          stopIfNone: true
+        })
         return
       }
       const next = folderPlaylistNextIndex(a.index, 1, get().settings.slideshow.loop)
@@ -769,17 +818,14 @@ export function createSlideshowActions(get: Get, set: Set) {
         const badPath = a.currentPath
         if (!badPath) return
         queueCacheDrop(badPath)
-        void call(api.slideshow.compiledPathAt({ index: a.index })).catch(() => {})
         void moveInvalidSlideshowImage(get, badPath)
         const n = a.compiledTotal ?? 0
         if (n <= 0) return
-        const next = a.index + 1
-        if (next >= n) {
-          if (get().settings.slideshow.loop) void actions.setCompiledPlayIndex(0)
-          else get().notify('No displayable images left in compiled session', true)
-          return
-        }
-        void actions.setCompiledPlayIndex(next, a.status)
+        void actions.setCompiledPlayIndex(a.index, a.status, {
+          dir: 1,
+          loop: true,
+          skipPath: badPath
+        })
         return
       }
 
@@ -822,17 +868,34 @@ export function createSlideshowActions(get: Get, set: Set) {
       const n = slideshowLiveLength(a)
       if (n <= 0) return
       const loop = get().settings.slideshow.loop
-      let index: number | null
+      const manual = a.status === 'building' ? a.status : 'manual'
       if (a.compiledMode) {
-        if (dir === 'first') index = 0
-        else if (dir === 'last') index = n - 1
-        else if (loop) index = (((a.index + dir) % n) + n) % n
-        else index = Math.max(0, Math.min(n - 1, a.index + dir))
-        void actions.setCompiledPlayIndex(index, a.status === 'building' ? a.status : 'manual')
+        if (dir === 'first') {
+          void actions.setCompiledPlayIndex(a.originIndex ?? 0, manual)
+          return
+        }
+        if (dir === 'last') {
+          void actions.setCompiledPlayIndex((a.compiledTotal ?? 1) - 1, manual, {
+            dir: -1,
+            loop: false,
+            includeIndex: true
+          })
+          return
+        }
+        void actions.setCompiledPlayIndex(a.index, manual, { dir, loop })
         return
       }
-      if (dir === 'first') index = folderPlaylistFirstIndex()
-      else if (dir === 'last') index = folderPlaylistLastIndex()
+      let index: number | null
+      if (dir === 'first') {
+        const origin = a.originIndex ?? 0
+        if (folderPlaylistCursor().skipped?.has(origin)) {
+          index = folderPlaylistNextIndex(origin, 1, false) ?? folderPlaylistFirstIndex()
+        } else if (origin >= 0 && origin < folderPlaylistPhysicalLength()) {
+          index = origin
+        } else {
+          index = folderPlaylistFirstIndex()
+        }
+      } else if (dir === 'last') index = folderPlaylistLastIndex()
       else index = folderPlaylistNextIndex(a.index, dir, loop)
       if (index == null) return
       set({
@@ -892,8 +955,11 @@ export function createSlideshowActions(get: Get, set: Set) {
         })
         const n = a.compiledTotal ?? 0
         if (n <= 0) return
-        const next = Math.min(a.index + 1, n - 1)
-        void actions.setCompiledPlayIndex(next === a.index && n > 1 ? 0 : next, 'manual')
+        void actions.setCompiledPlayIndex(insertIndex, 'manual', {
+          dir: 1,
+          loop: true,
+          skipPath: curPath
+        })
         return
       }
 
@@ -959,7 +1025,7 @@ export function createSlideshowActions(get: Get, set: Set) {
         })
         const n = a.compiledTotal ?? 0
         const idx = n <= 0 ? 0 : Math.min(last.insertIndex, Math.max(0, n - 1))
-        void actions.setCompiledPlayIndex(idx, 'manual')
+        void actions.setCompiledPlayIndex(idx, 'manual', { unskipPath: last.path })
         return
       }
       folderPlaylistUnskip(last.insertIndex)

@@ -175,8 +175,12 @@ import {
 import {
   buildVirtualPlaylist,
   clearVirtualPlaylist,
-  pathAtPlayIndex,
-  snapshotPreferPath
+  commitPlayCursor,
+  committedPlayCursor,
+  findLivePlayIndex,
+  markSkipped,
+  snapshotPreferPath,
+  unmarkSkipped
 } from '../slideshow/virtualPlaylist'
 import {
   openPath,
@@ -1438,10 +1442,14 @@ export function registerIpcHandlers(): void {
     applyCompiledLinesRequestSchema,
     async (req) => {
       const built = await buildVirtualPlaylist(req.lines, req.order, req.ascending)
+      const prev = committedPlayCursor()
       const snap =
         req.preferPath || req.preferIndex != null
           ? snapshotPreferPath(req.preferPath ?? null, req.preferIndex ?? 0)
-          : built
+          : prev.path
+            ? snapshotPreferPath(prev.path, prev.index)
+            : built
+      commitPlayCursor(snap.index, snap.path)
       const payload = {
         total: snap.total,
         index: snap.index,
@@ -1455,9 +1463,19 @@ export function registerIpcHandlers(): void {
       return payload
     }
   )
-  handleDev(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => ({
-    path: pathAtPlayIndex(req.index)
-  }))
+  handleDev(IPC.slideshowCompiledPathAt, compiledPathAtRequestSchema, (req) => {
+    if (req.skipPath) markSkipped(req.skipPath)
+    if (req.unskipPath) unmarkSkipped(req.unskipPath)
+    const found =
+      req.dir === 1 || req.dir === -1
+        ? findLivePlayIndex(req.index, req.dir, req.loop === true, req.includeIndex === true)
+        : findLivePlayIndex(req.index, 1, false, true)
+    if (req.commit === true && found) commitPlayCursor(found.index, found.path)
+    return {
+      path: found?.path ?? null,
+      index: found?.index ?? req.index
+    }
+  })
   handleDev(IPC.slideshowClearVirtualPlaylist, emptySchema, () => {
     clearVirtualPlaylist()
     return { ok: true as const }

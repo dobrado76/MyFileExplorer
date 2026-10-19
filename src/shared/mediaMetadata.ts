@@ -458,9 +458,18 @@ function coerceEpisodeNum(v: unknown): number | undefined {
 /**
  * Air-order tuple for Name sort inside a media-library folder (show / season).
  * Prefer stored S/E on episode cards; otherwise parse `SxxExx` / `1x09` from the
- * filename so rip stems with a year (or other junk) before the code still air-sort.
+ * filename. Season folders (`Season 2`, `S02`) use the season number so they stay
+ * in season order even when Name sort is character-by-character.
  * Missing season defaults to 1 when an episode number is present (same as formatEpisodeCode).
  */
+function seasonFolderSortTuple(fileName: string): { season: number; episode: number } | null {
+  const m = /^(?:season\s*(\d+)|s(\d{1,2}))$/i.exec(fileName.trim())
+  if (!m) return null
+  const season = Number(m[1] || m[2])
+  if (!Number.isFinite(season)) return null
+  return { season, episode: 0 }
+}
+
 export function episodeSortTuple(
   flags: Pick<MediaLibraryItemFlags, 'kind' | 'season' | 'episode'> | undefined,
   fileName?: string
@@ -483,11 +492,13 @@ export function episodeSortTuple(
   const parsed = parseMediaFileName(fileName)
   const season = coerceEpisodeNum(parsed.season)
   const episode = coerceEpisodeNum(parsed.episode)
-  if (season == null && episode == null) return null
-  return {
-    season: episode != null ? (season ?? 1) : (season as number),
-    episode: episode ?? 0
+  if (season != null || episode != null) {
+    return {
+      season: episode != null ? (season ?? 1) : (season as number),
+      episode: episode ?? 0
+    }
   }
+  return seasonFolderSortTuple(fileName)
 }
 
 export function compareEpisodeSortTuples(

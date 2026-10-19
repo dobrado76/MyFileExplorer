@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.20.0** — Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Prior: **v0.19.0** detachable explorer windows, Power Search created / accessed dates and ADS stream filters, slideshow Include subfolders. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D74**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.21.0** — slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Prior: **v0.20.0** Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -30,7 +30,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [ARCHITECTURE.md](ARCHITECTURE.md)               | Electron processes, layout, ownership |
 | [PROJECT_FORMAT.md](PROJECT_FORMAT.md)           | `userData` files & schemas            |
 | [IPC_CONTRACT.md](IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D74               |
+| [DECISIONS.md](DECISIONS.md)                     | Locked decisions D1…D76               |
 | [UI_DESIGN.md](UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
 | [PREVIEW.md](PREVIEW.md)                         | Preview pane, gen metadata, video strips |
 | [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
@@ -44,7 +44,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [INTEGRATION.md](INTEGRATION.md)                 | CLI / `mfe://` open from other apps   |
 | [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md) | Experimental Directory shell redirect (D72) |
 | [REMOTE_FTP.md](REMOTE_FTP.md)                   | FTP/FTPS/SFTP remotes (D46)           |
-| [SLIDESHOW.md](SLIDESHOW.md)                     | Gated slideshow / categorizer (D37) |
+| [SLIDESHOW.md](SLIDESHOW.md)                     | Slideshow / categorizer (D37) and Camera looks (D76, off until enabled) |
 | [ADS.md](ADS.md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
 | [USER_METADATA.md](USER_METADATA.md)             | Opt-in user-defined structured metadata (D70, off by default) |
 | [AI_CHAT.md](AI_CHAT.md)                         | Ask AI chat window + starters (D51) |
@@ -60,6 +60,15 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.21.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Slideshow camera looks (D76) | Settings → Slideshow → **Camera looks**, off until enabled. Frequency, path filter, and the Camera looks window. Display only — [SLIDESHOW.md](SLIDESHOW.md) |
+| NTFS Undelete (D74) | Settings → Appearance **Show Undelete toolbar button** (off by default). Recover deleted MFT files under the chosen folder with relative parent paths — [UNDELETE.md](UNDELETE.md) |
+| Tab drop shortcuts (D32) | Right-click a tab → **Set drop shortcut…** moves or copies the focused selection into that tab’s folder. Saved on the tab and in named layouts — [DECISIONS.md](DECISIONS.md) |
+| Name sort (D75) | Explorer order stays the default. Settings → Behavior → **Name sort** can use character-by-character order. Media-library thumbnail/icon order stays season then episode — [DECISIONS.md](DECISIONS.md) |
 
 ## Recent behavior (v0.20.0)
 

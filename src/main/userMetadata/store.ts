@@ -5,6 +5,8 @@ import {
   emptyUserMetadataDoc,
   fieldById,
   parseUserMetadataDoc,
+  userMetadataDocFromAds,
+  userMetadataValuesForAds,
   type UserMetadataDoc,
   type UserMetadataField,
   type UserMetadataSettings
@@ -106,7 +108,8 @@ export async function getUserMetadataMany(
         out[raw] = null
         continue
       }
-      out[raw] = parseUserMetadataDoc(await readStreamText(file, USER_METADATA_STREAM))
+      const parsed = parseUserMetadataDoc(await readStreamText(file, USER_METADATA_STREAM))
+      out[raw] = parsed ? userMetadataDocFromAds(parsed, catalog()) : null
     } catch {
       out[raw] = null
     }
@@ -145,7 +148,27 @@ export async function setUserMetadata(
     }
   }
 
-  const empty = Object.keys(cleaned).length === 0
+  let valuesOut = userMetadataValuesForAds(cleaned, fields)
+  if (values != null && streamExists(file, USER_METADATA_STREAM)) {
+    try {
+      const prev = parseUserMetadataDoc(await readStreamText(file, USER_METADATA_STREAM))
+      if (prev) {
+        const live = new Set<string>()
+        for (const field of fields) {
+          live.add(field.key)
+          live.add(field.id)
+        }
+        for (const [k, v] of Object.entries(prev.values)) {
+          if (k in valuesOut || live.has(k)) continue
+          valuesOut = { ...valuesOut, [k]: v }
+        }
+      }
+    } catch {
+      /* keep the values we were asked to write */
+    }
+  }
+
+  const empty = Object.keys(valuesOut).length === 0
   await withPreservedHostTimes(file, async () => {
     if (empty) {
       if (streamExists(file, USER_METADATA_STREAM)) {
@@ -155,7 +178,7 @@ export async function setUserMetadata(
       const doc: UserMetadataDoc = {
         ...emptyUserMetadataDoc(),
         updatedAt: new Date().toISOString(),
-        values: cleaned
+        values: valuesOut
       }
       await writeStreamText(file, USER_METADATA_STREAM, JSON.stringify(doc), false, {
         preserveHostTimes: false

@@ -1,5 +1,9 @@
 import { z } from 'zod'
 import {
+  cameraLookSettingsSchema,
+  defaultCameraLookSettings
+} from '../cameraLook'
+import {
   SLIDESHOW_DELAY_MS_DEFAULT,
   SLIDESHOW_DELAY_MS_MIN,
   SLIDESHOW_IMAGE_LIST_CAP
@@ -71,8 +75,13 @@ export const slideshowSettingsSchema = z.object({
    * `null` = never customized (treat as all selected). Empty array = none selected.
    */
   compiledListUpdateFolders: z.array(z.string()).nullable().catch(null),
-  /** Last image index within the expanded compiled playlist (resume). */
-  compiledPlaylistIndex: z.number().int().min(0).catch(0)
+  /** Saved when a compiled slideshow stops. Playback starts at the first image. */
+  compiledPlaylistIndex: z.number().int().min(0).catch(0),
+  /**
+   * Display-only camera looks (D76). Off unless `enabled` is true.
+   * Frequency 0 also leaves every slide on the plain image path.
+   */
+  cameraLook: cameraLookSettingsSchema.catch(defaultCameraLookSettings)
 })
 export type SlideshowSettings = z.infer<typeof slideshowSettingsSchema>
 
@@ -92,7 +101,8 @@ export const defaultSlideshowSettings: SlideshowSettings = {
   compiledFileListsFolder: '',
   compiledListEntries: [],
   compiledListUpdateFolders: null,
-  compiledPlaylistIndex: 0
+  compiledPlaylistIndex: 0,
+  cameraLook: defaultCameraLookSettings
 }
 
 export const slideshowListRequestSchema = z.object({

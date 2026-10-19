@@ -58,6 +58,7 @@
     "src/renderer/lib/lucideIcons.ts",
     "src/renderer/lib/iconPacks.ts",
     "src/renderer/lib/sizeSort.ts",
-    "src/renderer/lib/sortEntries.ts"
+    "src/renderer/lib/sortEntries.ts",
+    "src/renderer/lib/cameraLookShaders.ts"
   ]
 }

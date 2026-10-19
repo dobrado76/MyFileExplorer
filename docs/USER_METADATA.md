@@ -22,13 +22,13 @@ Each **field** has three separate concepts:
 
 | Concept | Example | Role |
 | --- | --- | --- |
-| **`id`** | `mf_a83f71c2` | Immutable opaque identity. ADS keys + Details column ids (`meta:<id>`). Never renamed or reused. |
-| **`key`** | `review_state` | Human query token for Power Search (`meta.review_state:…`). |
+| **`id`** | `mf_a83f71c2` | Immutable identity inside the app (Details column ids `meta:<id>`, catalog). Never renamed or reused. Not written as the `mfe_meta` value key. |
+| **`key`** | `field_rating` | Stable name stored in `mfe_meta` and used by Power Search (`meta.field_rating:…`). |
 | **`name`** | `Review state` | Display label (Settings, dialog, column headers). Freely renameable. |
 
-Each **choice / multi-choice / icon-tags option** likewise has opaque **`id`**, query **`key`**, and display **`label`**. ADS stores option **ids**, never labels — renaming “Awaiting review” → “Pending review” does not disconnect values.
+Each **choice / multi-choice / icon-tags option** likewise has an opaque **`id`**, a query **`key`**, and a display **`label`**. `mfe_meta` stores option **keys** (for example `awaiting_review`), not labels. Renaming a label does not disconnect values. Changing a field or option **key** leaves streams already written under the previous key (Hygiene can reconnect them). A confirmation warns that raw typed queries may need updates. Structured Power Search stores opaque ids and regenerates the current keys when emitting queries.
 
-Changing a field or option **`key`** requires a confirmation warning (raw typed queries may need updates). Structured Power Search stores opaque ids and regenerates the current keys when emitting queries.
+Older streams that still use `mf_…` / `mo_…` tokens are read as before. The next metadata save rewrites that item with query keys.
 
 **Cross-set keys:** the same field `key` may appear in multiple sets **only when field types are identical**. Raw `meta.<key>:` queries OR across every compatible field sharing that key. Choice option keys map to the union of matching option ids. Types that disagree cannot be saved.
 
@@ -166,14 +166,14 @@ One NTFS ADS stream: **`mfe_meta`**.
   "version": 1,
   "updatedAt": "…",
   "values": {
-    "mf_a83f71c2": "mo_9c21e4",
-    "mf_…": ["mo_aa", "mo_bb"],
-    "mf_…": 4
+    "field_rating": 10,
+    "review_state": "awaiting_review",
+    "tags": ["red", "blue"]
   }
 }
 ```
 
-Writes use `withPreservedHostTimes` (D61 pattern). win32 local NTFS only; remotes / non-NTFS: soft-fail / verb hidden (D2). Deleting a field definition or clearing a binding does **not** wipe ADS values (**orphans** remain until Hygiene clear / reconnect).
+Writes use `withPreservedHostTimes` (D61 pattern). win32 local NTFS only; remotes / non-NTFS: soft-fail / verb hidden (D2). Deleting a field definition or clearing a binding does **not** wipe ADS values (**orphans** remain until Hygiene clear / reconnect). Streams that still use an internal `mf_…` field id are read normally; the next save of that item rewrites the key to the query key.
 
 ---
 
@@ -260,7 +260,7 @@ Apply writes accepted streams with preserved host times on NTFS.
 
 ## Hygiene (orphans)
 
-After deleting field definitions, ADS may still hold unknown field ids or unknown option ids. ADS stores **opaque option ids only** — after an option is deleted there is no former key left on disk.
+After deleting field definitions, ADS may still hold unknown field keys or unknown option keys. Streams written before query-key storage may still hold `mf_…` / `mo_…` tokens; those are read and rewritten to keys on the next save.
 
 ### Catalog tombstones
 

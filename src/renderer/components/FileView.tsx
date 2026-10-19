@@ -52,7 +52,7 @@ import { normalizeIconPack } from '@shared/schemas/iconPack'
 import { packIconElement } from '../lib/iconPacks'
 import { useAppStore, sortEntries, dropOperation } from '../store/appStore'
 import { samePath, isUnderPath, parentOf, basename } from '../lib/paths'
-import { compareFileNames } from '@shared/fileNameCompare'
+import { compareNames, nameSortModeOf, type NameSortMode } from '@shared/fileNameCompare'
 import { entrySizeSortBytes } from '../lib/sizeSort'
 import { linkBaseDirForItem } from '../lib/userMetadataLink'
 import { UserMetadataLinkCell } from './UserMetadataLinkCell'
@@ -304,7 +304,12 @@ function parseDurationSort(s: string): number {
   return parts[0]! * 60 + parts[1]!
 }
 
-function compareColumnValues(id: DetailsColumnId, a: string, b: string): number {
+function compareColumnValues(
+  id: DetailsColumnId,
+  a: string,
+  b: string,
+  nameSort: NameSortMode
+): number {
   if (!a && !b) return 0
   if (!a) return 1
   if (!b) return -1
@@ -318,7 +323,7 @@ function compareColumnValues(id: DetailsColumnId, a: string, b: string): number 
     const nb = Number(b.replace(/,/g, ''))
     if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
   }
-  return compareFileNames(a, b)
+  return compareNames(a, b, nameSort)
 }
 
 type FileViewProps = {
@@ -1096,6 +1101,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           !isExcludedByUserMetadataFacets(umValuesByPath[e.path], umFacets, userMetaFields)
       )
     }
+    const nameSort = nameSortModeOf(settings.nameSortMode)
     const foldersFirst =
       recycleMode || searchMode
         ? settings.foldersFirst
@@ -1118,7 +1124,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         }
         let cmp = 0
         if (recycleSort.key === 'name') {
-          cmp = compareFileNames(a.name, b.name)
+          cmp = compareNames(a.name, b.name, nameSort)
         } else if (recycleSort.key === 'dateDeleted') {
           cmp = (a.mtimeMs || 0) - (b.mtimeMs || 0)
         } else if (recycleSort.key === 'size') {
@@ -1132,10 +1138,10 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
         } else if (recycleSort.key === 'origin') {
           const ao = recycleByPath.get(a.path.toLowerCase())?.deletedFrom ?? ''
           const bo = recycleByPath.get(b.path.toLowerCase())?.deletedFrom ?? ''
-          cmp = compareFileNames(ao, bo)
+          cmp = compareNames(ao, bo, nameSort)
         }
         if (cmp === 0) {
-          cmp = compareFileNames(a.name, b.name)
+          cmp = compareNames(a.name, b.name, nameSort)
         }
         return cmp * dirMul
       })
@@ -1155,28 +1161,29 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
           entrySizeSortBytes(a, metaForSort[a.path]?.size) -
           entrySizeSortBytes(b, metaForSort[b.path]?.size)
         if (cmp === 0) {
-          cmp = compareFileNames(a.name, b.name)
+          cmp = compareNames(a.name, b.name, nameSort)
         }
         return cmp * dirMul
       })
     }
     if (SYNC_SORT_KEYS.has(sort.key)) {
-      // Thumbnail/icon + Name only: season → episode (show tiles). List/Details
-      // always follow the active column (Name = filename, Size, Date, mmSeason, …).
+      // Thumbnail/icon: season → episode (show tiles). Name and Manual (real
+      // folders) both use it. List/Details follow the active column. Virtual
+      // Folder Manual stays document order.
       const episodeOrder =
         !recycleMode &&
         !searchMode &&
         settings.mediaMetadata.enabled &&
         isThumbnailViewMode(viewMode) &&
-        sort.key === 'name'
+        (sort.key === 'name' || (sort.key === 'manual' && !listing.virtualFolder))
           ? buildEpisodeSortLookup(mediaLibrary.items, filtered)
           : undefined
       if (episodeOrder) {
-        return sortEntries(filtered, sort, foldersFirst, { episodeOrder })
+        return sortEntries(filtered, sort, foldersFirst, { episodeOrder, nameSort })
       }
       // Normal folder browsing: store keeps listing sorted (loadListing / setSort).
       if (!searchMode) return filtered
-      return sortEntries(filtered, sort, foldersFirst)
+      return sortEntries(filtered, sort, foldersFirst, { nameSort })
     }
     const colId = sort.key as DetailsColumnId
     const dir = sort.dir === 'asc' ? 1 : -1
@@ -1188,9 +1195,9 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
       }
       const av = detailCellValue(colId, a, metaForSort[a.path], showFolderStatistics)
       const bv = detailCellValue(colId, b, metaForSort[b.path], showFolderStatistics)
-      let cmp = compareColumnValues(colId, av, bv)
+      let cmp = compareColumnValues(colId, av, bv, nameSort)
       if (cmp === 0) {
-        cmp = compareFileNames(a.name, b.name)
+        cmp = compareNames(a.name, b.name, nameSort)
       }
       return cmp * dir
     })
@@ -1198,6 +1205,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     sourceEntries,
     effectiveSort,
     settings.foldersFirst,
+    settings.nameSortMode,
     settings.mediaMetadata.enabled,
     settings.mediaMetadata.mixFilesAndFolders,
     settings.searchShowHidden,
@@ -1211,6 +1219,7 @@ export function FileView({ tabId: tabIdProp }: FileViewProps = {} as FileViewPro
     searchMode,
     showFolderStatistics,
     mediaLibrary,
+    listing.virtualFolder,
     folderPath,
     umFacetsActive,
     umFacets,

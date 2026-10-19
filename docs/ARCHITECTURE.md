@@ -1,6 +1,6 @@
 # Architecture
 
-**Version:** 0.20.0
+**Version:** 0.21.0
 
 Standalone Electron + React desktop app. Clear process boundaries; **no Node APIs in the renderer**.
 

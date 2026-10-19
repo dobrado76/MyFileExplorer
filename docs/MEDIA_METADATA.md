@@ -121,7 +121,7 @@ A **Search as** (no match, or **Search as…** on **Which title?**) sends the ty
 | Details / List | Always the filename | Always the folder name |
 | Tooltip | Always the filename | Always the folder name |
 
-**Name sort in thumbnail/icon views** (not List or Details) uses stored season → episode order when items have episode metadata (or `SxxExx` in the filename), so tiles follow air order even when rip filenames sort as S02…S03…S01. **List and Details** always sort by the active column (Name = filename, or Season / Episode / Size / Date / …). Items without S/E still use the filename in icon Name sort.
+**Thumbnail/icon views** (not List or Details), while the folder is a media library or sits under one, order episodes by stored season → episode (or `SxxExx` in the filename) when the folder sort is **Name** or **Manual**. Season folders (`Season 2`, `S02`) use the season number. That order does not follow Settings → Behavior → Name sort, so character-by-character does not put `Season 10` or `E10` before `Season 2` / `E2`. **Manual** on a Virtual Folder stays document order. **List and Details** always sort by the active column (Name = filename, or Season / Episode / Size / Date / …). Items without S/E still use the filename.
 
 Season defaults to **1** when the stored episode has a number but no season (some Plex rows omit it).
 

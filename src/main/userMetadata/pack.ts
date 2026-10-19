@@ -21,6 +21,8 @@ import {
   pruneDeletedIdentities,
   sanitizeDeletedIdentities,
   userMetadataSettingsSchema,
+  userMetadataValuesForAds,
+  userMetadataValuesFromAds,
   type DeletedIdentities,
   type UserMetadataDoc,
   type UserMetadataField,
@@ -121,10 +123,21 @@ export async function exportMetadataPack(opts?: {
     try {
       if (!streamExists(host, USER_METADATA_STREAM)) continue
       const raw = await readStreamText(host, USER_METADATA_STREAM)
+      const fields = allUserMetadataFields(definitions)
       const doc = parseUserMetadataDoc(raw)
       if (!doc || Object.keys(doc.values).length === 0) continue
       const rel = relPosix(folder, host)
-      zip.file(valuesEntryName(rel), JSON.stringify(doc, null, 2))
+      zip.file(
+        valuesEntryName(rel),
+        JSON.stringify(
+          {
+            ...doc,
+            values: userMetadataValuesForAds(userMetadataValuesFromAds(doc.values, fields), fields)
+          },
+          null,
+          2
+        )
+      )
       count++
     } catch {
       /* soft */
@@ -467,8 +480,9 @@ export async function importMetadataPack(opts?: {
         skipMissing++
         continue
       }
+      const internal = userMetadataValuesFromAds(doc.values, catalogAfter)
       const { next: filtered, skipped } = filterPackValues(
-        doc.values,
+        internal,
         catalogAfter,
         plan.blockedFieldIds
       )
@@ -490,7 +504,7 @@ export async function importMetadataPack(opts?: {
           USER_METADATA_STREAM,
           JSON.stringify({
             ...doc,
-            values: filtered,
+            values: userMetadataValuesForAds(filtered, catalogAfter),
             format: USER_METADATA_FORMAT,
             version: 1,
             updatedAt: new Date().toISOString()

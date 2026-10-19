@@ -1,6 +1,6 @@
 # NTFS Undelete (D74)
 
-**Version:** 0.20.5 · **Status:** shipped · Decision **D74**
+**Version:** 0.21.0 · **Status:** shipped · Decision **D74**
 
 Classic MFT-based file recovery for local NTFS volumes — the same model Recuva-class utilities use: scan deleted FILE records, list candidates, write selected default `$DATA` streams to a destination folder.
 

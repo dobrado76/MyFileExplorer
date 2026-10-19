@@ -717,8 +717,27 @@ export async function saveMediaMetadataFields(
   return { path: p }
 }
 
+function isDriveRootPath(abs: string): boolean {
+  const n = abs.replace(/\//g, '\\').replace(/\\+$/, '')
+  return /^[a-zA-Z]:$/i.test(n)
+}
+
+/** True when a parent of `dir` (not `dir` itself) is marked as a media library. */
+async function hasMediaLibraryAncestor(dir: string): Promise<boolean> {
+  let current = dir
+  for (let depth = 0; depth < 24; depth++) {
+    const parent = path.dirname(current)
+    if (parent === current || isDriveRootPath(parent)) return false
+    if (await hasMediaMetadataContainer(parent)) return true
+    current = parent
+  }
+  return false
+}
+
 export async function getFolderMediaLibrary(rawPath: string): Promise<{
   isContainer: boolean
+  /** This folder, or one of its parents, is marked as a media library. */
+  inLibrary: boolean
   items: {
     path: string
     watched: boolean
@@ -732,18 +751,16 @@ export async function getFolderMediaLibrary(rawPath: string): Promise<{
 }> {
   const dir = requireAbsolute(rawPath)
   if (dir.toLowerCase().startsWith('mfe-remote://')) {
-    return { isContainer: false, items: [] }
+    return { isContainer: false, inLibrary: false, items: [] }
   }
   const isContainer = await hasMediaMetadataContainer(dir)
-  const parent = path.dirname(dir)
-  const parentIsContainer =
-    !isContainer && parent !== dir && (await hasMediaMetadataContainer(parent))
-  if (!isContainer && !parentIsContainer) return { isContainer: false, items: [] }
+  const inLibrary = isContainer || (await hasMediaLibraryAncestor(dir))
+  if (!inLibrary) return { isContainer: false, inLibrary: false, items: [] }
   let names: string[]
   try {
     names = await fsp.readdir(dir)
   } catch {
-    return { isContainer, items: [] }
+    return { isContainer, inLibrary, items: [] }
   }
   const items: {
     path: string
@@ -772,5 +789,5 @@ export async function getFolderMediaLibrary(rawPath: string): Promise<{
       showTitle: ep.showTitle
     })
   }
-  return { isContainer, items }
+  return { isContainer, inLibrary, items }
 }

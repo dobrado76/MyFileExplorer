@@ -38,8 +38,35 @@ import {
   loadCropOriginalBitmap,
   type CropOriginalBitmap
 } from '../lib/slideshowCropPreview'
+import {
+  cameraLookCustomFragment,
+  cameraLookIndexRng,
+  cameraLookPathMatches,
+  cameraLookParamValues,
+  cameraLookRollPool,
+  cameraLookSeedForIndex,
+  cameraLookSettingsSchema,
+  cameraLookUniformNames,
+  isCustomCameraLookId,
+  rollCameraLook
+} from '@shared/cameraLook'
+import {
+  cameraLookSourceSize,
+  drawCameraLook,
+  loadCameraLookSource,
+  releaseCameraLookSource,
+  warmCameraLookPrograms
+} from '../lib/cameraLookGl'
 
-type Buf = { url: string; path: string; rev: number; poster: boolean; slideKey: string }
+type Buf = {
+  url: string
+  path: string
+  rev: number
+  poster: boolean
+  slideKey: string
+  shaderId: string | null
+  shaderSeed: number
+}
 
 /**
  * Fullscreen slideshow / categorizer (gate-on only).
@@ -54,6 +81,20 @@ export function SlideshowOverlay(): JSX.Element | null {
   const drawCaption = useAppStore(
     (s) => s.devGateActive && s.settings.slideshow.drawCaption
   )
+  const cameraLookPathFilter = useAppStore(
+    (s) => s.settings.slideshow.cameraLook?.pathFilter ?? ''
+  )
+  const cameraLookWarmKey = useAppStore((s) => {
+    const look = s.settings.slideshow.cameraLook
+    if (!look || look.enabled !== true || look.frequencyPct <= 0) return ''
+    const pool = cameraLookRollPool(look)
+    if (pool.length === 0) return ''
+    const customs = look.customs ?? []
+    return `${pool.join(',')}\n${customs
+      .map((item) => `${item.id}\n${(item.controls ?? []).map((control) => control.name).join(',')}\n${item.fragment}`)
+      .join('\n')}`
+  })
+  const shaderPass = Boolean(enabled && active && cameraLookWarmKey)
   const delayMs = useAppStore((s) => s.settings.slideshow.delayMs)
   const loop = useAppStore((s) => s.settings.slideshow.loop)
   const stopSlideshow = useAppStore((s) => s.stopSlideshow)
@@ -112,6 +153,17 @@ export function SlideshowOverlay(): JSX.Element | null {
   }, [])
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const imgRefs = useRef<[HTMLImageElement | null, HTMLImageElement | null]>([null, null])
+  const shaderCanvasRef = useRef<[HTMLCanvasElement | null, HTMLCanvasElement | null]>([null, null])
+  const shaderSourceRef = useRef<
+    [{ source: CanvasImageSource; w: number; h: number } | null, { source: CanvasImageSource; w: number; h: number } | null]
+  >([null, null])
+  const dropShaderHold = useCallback((idx: 0 | 1): void => {
+    const held = shaderSourceRef.current[idx]
+    shaderSourceRef.current[idx] = null
+    if (held) releaseCameraLookSource(held.source)
+  }, [])
   const loadGenRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const frontBufRef = useRef<Buf | null>(null)
@@ -137,16 +189,16 @@ export function SlideshowOverlay(): JSX.Element | null {
       setPrefetchPath(null)
       return
     }
-    const nextIdx = active.compiledMode
-      ? (active.index + 1) % listLen
-      : folderPlaylistNextIndex(active.index, 1, loop)
-    if (nextIdx == null) {
-      setPrefetchPath(null)
-      return
-    }
     if (active.compiledMode) {
       let cancelled = false
-      void call(api.slideshow.compiledPathAt({ index: nextIdx }))
+      void call(
+        api.slideshow.compiledPathAt({
+          index: active.index,
+          dir: 1,
+          loop,
+          commit: false
+        })
+      )
         .then((r) => {
           if (!cancelled) setPrefetchPath(r.path)
         })
@@ -156,6 +208,11 @@ export function SlideshowOverlay(): JSX.Element | null {
       return () => {
         cancelled = true
       }
+    }
+    const nextIdx = folderPlaylistNextIndex(active.index, 1, loop)
+    if (nextIdx == null) {
+      setPrefetchPath(null)
+      return
     }
     setPrefetchPath(folderPathAt(nextIdx))
   }, [enabled, active, skippedSize, listLen, loop])
@@ -168,11 +225,14 @@ export function SlideshowOverlay(): JSX.Element | null {
     if (!path) {
       loadGenRef.current += 1
       failStreakRef.current = 0
+      dropShaderHold(0)
+      dropShaderHold(1)
       setBufs([null, null])
       setBootLoading(false)
       return
     }
-    const slideKey = `${path}#${active.index}#${imageRevision}#${drawCaption ? '1' : '0'}`
+    const listIndex = active.index
+    const slideKey = `${path}#${listIndex}#${imageRevision}#${drawCaption ? '1' : '0'}#${cameraLookPathFilter}`
     if (frontBufRef.current?.slideKey === slideKey) {
       failStreakRef.current = 0
       setBootLoading(false)
@@ -193,6 +253,8 @@ export function SlideshowOverlay(): JSX.Element | null {
         failStreakRef.current = 0
         if (active?.compiledMode) {
           // Stay on black compiled session — lists window can add counts back.
+          dropShaderHold(0)
+          dropShaderHold(1)
           setBufs([null, null])
           return
         }
@@ -204,6 +266,8 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
 
     void (async () => {
+      let cleanPromise: Promise<CanvasImageSource | null> | null = null
+      let keptClean = false
       try {
         let mediaUrl: string | null = null
         let poster = false
@@ -214,6 +278,24 @@ export function SlideshowOverlay(): JSX.Element | null {
           return
         }
         mediaUrl = res.value.mediaUrl
+        let shaderId: string | null = null
+        let shaderSeed = 0
+        const look = cameraLookSettingsSchema.parse(
+          useAppStore.getState().settings.slideshow.cameraLook ?? {}
+        )
+        if (
+          !cropModeRef.current &&
+          look.enabled &&
+          cameraLookPathMatches(look.pathFilter, path)
+        ) {
+          shaderId = rollCameraLook(
+            cameraLookRollPool(look),
+            look.frequencyPct,
+            cameraLookIndexRng(listIndex)
+          )
+          if (shaderId) shaderSeed = cameraLookSeedForIndex(listIndex)
+        }
+        cleanPromise = shaderId ? loadCameraLookSource(mediaUrl) : null
         const probe = new Image()
         probe.decoding = 'async'
         probe.src = mediaUrl
@@ -235,12 +317,53 @@ export function SlideshowOverlay(): JSX.Element | null {
           if (framed) {
             mediaUrl = framed
             poster = true
+            shaderId = null
           }
         }
 
         failStreakRef.current = 0
         const backIdx: 0 | 1 = frontIdxRef.current === 0 ? 1 : 0
-        const slot: Buf = { url: mediaUrl, path, rev: imageRevision, poster, slideKey }
+        if (shaderId && look && cleanPromise) {
+          const clean = await cleanPromise
+          const size = clean ? cameraLookSourceSize(clean) : null
+          const canvas = shaderCanvasRef.current[backIdx]
+          const drew =
+            clean != null &&
+            size != null &&
+            canvas != null &&
+            (await drawCameraLook(
+              canvas,
+              clean,
+              size.w,
+              size.h,
+              shaderId,
+              shaderSeed,
+              cameraLookCustomFragment(look, shaderId),
+              cameraLookParamValues(shaderId, look.params, look.customs),
+              () => !cancelled && gen === loadGenRef.current,
+              isCustomCameraLookId(shaderId) ? cameraLookUniformNames(look, shaderId) : undefined
+            ))
+          if (!drew || cancelled || gen !== loadGenRef.current) {
+            shaderId = null
+          } else if (clean && size) {
+            dropShaderHold(backIdx)
+            shaderSourceRef.current[backIdx] = { source: clean, w: size.w, h: size.h }
+            keptClean = true
+          }
+        }
+        if (cancelled || gen !== loadGenRef.current) {
+          if (keptClean) dropShaderHold(backIdx)
+          return
+        }
+        const slot: Buf = {
+          url: mediaUrl,
+          path,
+          rev: imageRevision,
+          poster,
+          slideKey,
+          shaderId,
+          shaderSeed
+        }
         setBufs((prev) => {
           const next: [Buf | null, Buf | null] = [prev[0], prev[1]]
           next[backIdx] = slot
@@ -259,6 +382,12 @@ export function SlideshowOverlay(): JSX.Element | null {
         })
       } catch {
         skip()
+      } finally {
+        if (!keptClean && cleanPromise) {
+          void cleanPromise.then((src) => {
+            if (src) releaseCameraLookSource(src)
+          })
+        }
       }
     })()
 
@@ -276,9 +405,11 @@ export function SlideshowOverlay(): JSX.Element | null {
     listLen,
     imageRevision,
     drawCaption,
+    cameraLookPathFilter,
     slideshowSkipUnloadable,
     stopSlideshow,
-    notify
+    notify,
+    dropShaderHold
   ])
 
   // Prefetch / warm-decode the next frame while the current one is on screen.
@@ -296,6 +427,70 @@ export function SlideshowOverlay(): JSX.Element | null {
       cancelled = true
     }
   }, [enabled, prefetchPath, path, imageRevision])
+
+  // Redraw the visible shader pass when the stage size changes. Same seed, no extra upload
+  // beyond the texture already implied by the decoded <img>.
+  useEffect(() => {
+    const stage = stageRef.current
+    if (!enabled || !active || !stage) return
+    let raf = 0
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const idx = frontIdxRef.current
+        const buf = frontBufRef.current
+        const held = shaderSourceRef.current[idx]
+        const canvas = shaderCanvasRef.current[idx]
+        const look = cameraLookSettingsSchema.parse(
+          useAppStore.getState().settings.slideshow.cameraLook ?? {}
+        )
+        if (!buf?.shaderId || !held || !canvas || !look) return
+        void drawCameraLook(
+          canvas,
+          held.source,
+          held.w,
+          held.h,
+          buf.shaderId,
+          buf.shaderSeed,
+          cameraLookCustomFragment(look, buf.shaderId),
+          cameraLookParamValues(buf.shaderId, look.params, look.customs),
+          () => true,
+          isCustomCameraLookId(buf.shaderId) ? cameraLookUniformNames(look, buf.shaderId) : undefined
+        )
+      })
+    })
+    ro.observe(stage)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
+  }, [enabled, active])
+
+  // Link the enabled looks once per slideshow open. Programs stay on each canvas.
+  useEffect(() => {
+    if (!shaderPass) {
+      dropShaderHold(0)
+      dropShaderHold(1)
+      return
+    }
+    const timer = window.setTimeout(() => {
+      const look = cameraLookSettingsSchema.parse(
+        useAppStore.getState().settings.slideshow.cameraLook ?? {}
+      )
+      const ids = cameraLookRollPool(look)
+      for (const canvas of shaderCanvasRef.current) {
+        if (canvas) {
+          warmCameraLookPrograms(
+            canvas,
+            ids,
+            (id) => cameraLookCustomFragment(look, id),
+            (id) => (isCustomCameraLookId(id) ? cameraLookUniformNames(look, id) : [])
+          )
+        }
+      }
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [shaderPass, cameraLookWarmKey, dropShaderHold])
 
   // Auto-advance only after the front buffer matches the logical path (no early flip).
   useEffect(() => {
@@ -644,7 +839,7 @@ export function SlideshowOverlay(): JSX.Element | null {
         })
       }}
     >
-      <div className="slideshow-stage">
+      <div className="slideshow-stage" ref={stageRef}>
         {active.status === 'building' && (
           <div className="slideshow-loading">
             <SpinnerIcon />
@@ -658,7 +853,10 @@ export function SlideshowOverlay(): JSX.Element | null {
         )}
 
         <img
-          className={`slideshow-image slideshow-buf${front === 0 ? ' is-front' : ' is-back'}`}
+          ref={(el) => {
+            imgRefs.current[0] = el
+          }}
+          className={`slideshow-image slideshow-buf${front === 0 && (!bufs[0]?.shaderId || !shaderPass) ? ' is-front' : ' is-back'}`}
           src={bufs[0]?.url || undefined}
           alt=""
           draggable={false}
@@ -666,13 +864,34 @@ export function SlideshowOverlay(): JSX.Element | null {
           hidden={!bufs[0]?.url || showCropPreview}
         />
         <img
-          className={`slideshow-image slideshow-buf${front === 1 ? ' is-front' : ' is-back'}`}
+          ref={(el) => {
+            imgRefs.current[1] = el
+          }}
+          className={`slideshow-image slideshow-buf${front === 1 && (!bufs[1]?.shaderId || !shaderPass) ? ' is-front' : ' is-back'}`}
           src={bufs[1]?.url || undefined}
           alt=""
           draggable={false}
           decoding="async"
           hidden={!bufs[1]?.url || showCropPreview}
         />
+        {shaderPass && (
+          <>
+            <canvas
+              ref={(el) => {
+                shaderCanvasRef.current[0] = el
+              }}
+              className={`slideshow-image slideshow-shader${front === 0 && bufs[0]?.shaderId && !showCropPreview ? ' is-front' : ' is-back'}`}
+              aria-hidden
+            />
+            <canvas
+              ref={(el) => {
+                shaderCanvasRef.current[1] = el
+              }}
+              className={`slideshow-image slideshow-shader${front === 1 && bufs[1]?.shaderId && !showCropPreview ? ' is-front' : ' is-back'}`}
+              aria-hidden
+            />
+          </>
+        )}
 
         {showCropPreview && (
           <canvas

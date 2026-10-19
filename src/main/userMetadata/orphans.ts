@@ -14,6 +14,8 @@ import {
   optionById,
   parseUserMetadataDoc,
   sanitizeDeletedIdentities,
+  userMetadataDocFromAds,
+  userMetadataValuesForAds,
   type DeletedIdentities,
   type UserMetadataDoc,
   type UserMetadataField
@@ -135,8 +137,9 @@ export async function scanUserMetadataOrphans(opts?: {
     try {
       if (isRemoteLocation(host)) continue
       if (!streamExists(host, USER_METADATA_STREAM)) continue
-      const doc = parseUserMetadataDoc(await readStreamText(host, USER_METADATA_STREAM))
-      if (!doc || Object.keys(doc.values).length === 0) continue
+      const parsed = parseUserMetadataDoc(await readStreamText(host, USER_METADATA_STREAM))
+      if (!parsed || Object.keys(parsed.values).length === 0) continue
+      const doc = userMetadataDocFromAds(parsed, fields)
       orphans.push(...collectOrphansForDoc(host, doc, fields))
     } catch (e) {
       if (e instanceof AppError && e.code === 'cancelled') throw e
@@ -208,7 +211,7 @@ async function writeDocOrDelete(
       const doc: UserMetadataDoc = {
         ...emptyUserMetadataDoc(),
         updatedAt: new Date().toISOString(),
-        values
+        values: userMetadataValuesForAds(values, catalog())
       }
       await writeStreamText(hostPath, USER_METADATA_STREAM, JSON.stringify(doc), false, {
         preserveHostTimes: false
@@ -241,8 +244,9 @@ export async function clearUserMetadataOrphans(opts: {
     try {
       if (isRemoteLocation(hostPath)) continue
       if (!streamExists(hostPath, USER_METADATA_STREAM)) continue
-      const doc = parseUserMetadataDoc(await readStreamText(hostPath, USER_METADATA_STREAM))
-      if (!doc) continue
+      const parsed = parseUserMetadataDoc(await readStreamText(hostPath, USER_METADATA_STREAM))
+      if (!parsed) continue
+      const doc = userMetadataDocFromAds(parsed, fields)
       const { next, removed } = stripOrphansFromValues(doc.values, list, fields)
       if (removed === 0) continue
       await writeDocOrDelete(hostPath, next)
@@ -350,8 +354,9 @@ export async function reconnectUserMetadataOrphans(opts: {
     try {
       if (isRemoteLocation(hostPath)) continue
       if (!streamExists(hostPath, USER_METADATA_STREAM)) continue
-      const doc = parseUserMetadataDoc(await readStreamText(hostPath, USER_METADATA_STREAM))
-      if (!doc) continue
+      const parsed = parseUserMetadataDoc(await readStreamText(hostPath, USER_METADATA_STREAM))
+      if (!parsed) continue
+      const doc = userMetadataDocFromAds(parsed, fields)
       const values: Record<string, unknown> = { ...doc.values }
       let changed = false
 

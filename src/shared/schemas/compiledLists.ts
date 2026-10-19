@@ -79,5 +79,15 @@ export const slideshowRelayKeySchema = z.object({
 })
 
 export const compiledPathAtRequestSchema = z.object({
-  index: z.number().int().min(0)
+  index: z.number().int().min(0),
+  /** Step from index. Omit to seek at index (Home / direct). */
+  dir: z.union([z.literal(-1), z.literal(1)]).optional(),
+  loop: z.boolean().optional(),
+  /** With dir, also accept `index` itself (End). Default false when dir is set. */
+  includeIndex: z.boolean().optional(),
+  /** Drop this path from navigation until unskip (virtual delete). */
+  skipPath: z.string().min(1).optional(),
+  unskipPath: z.string().min(1).optional(),
+  /** Remember this image as the slideshow cursor so a list rebuild does not jump away. */
+  commit: z.boolean().optional()
 })

@@ -5,7 +5,7 @@ import { AppError } from '@shared/result'
 import { compilePathPatterns, type PathPatternPredicate } from '@shared/pathPatterns'
 import type { SlideshowListRequest } from '@shared/schemas/slideshow'
 import { isSlideshowImagePath, SLIDESHOW_IMAGE_LIST_CAP } from '@shared/slideshow/constants'
-import { compareFileNames } from '@shared/fileNameCompare'
+import { compareNames, nameSortModeOf } from '@shared/fileNameCompare'
 import { requireAbsolute, pathExists } from '../fs/list'
 import { pathIsHidden } from '../fs/winAttrs'
 import { broadcast } from '../ipc/events'
@@ -152,10 +152,11 @@ function sortImageEntries(
     return
   }
   const dir = ascending ? 1 : -1
+  const nameSort = nameSortModeOf(settingsStore().get().nameSortMode)
   entries.sort((a, b) => {
     let cmp: number
     if (order === 'name') {
-      cmp = compareFileNames(a.name, b.name)
+      cmp = compareNames(a.name, b.name, nameSort)
     } else if (order === 'size') {
       cmp = a.size - b.size
     } else {
@@ -163,7 +164,7 @@ function sortImageEntries(
       const bb = b.width * b.height
       cmp = aa - bb
       if (cmp === 0) {
-        cmp = compareFileNames(a.name, b.name)
+        cmp = compareNames(a.name, b.name, nameSort)
       }
     }
     return cmp * dir

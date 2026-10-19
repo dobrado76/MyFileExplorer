@@ -9,8 +9,19 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-19
+
+Twenty-first product release: slideshow Camera looks (off until you turn them on), NTFS Undelete, tab drop shortcuts, and a choice of name order. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+- **Slideshow camera looks (D76)** — Settings → Slideshow → **Camera looks** (off until you turn it on, so an existing install that never enabled it keeps plain photos). Frequency, a path filter (`AI` anywhere, or `\AI\` for a folder named AI), and **Camera looks…** for the effect list, sliders, and optional custom shaders. Display only — the file is not modified. Guide: [docs/SLIDESHOW.md](docs/SLIDESHOW.md).
 - **NTFS Undelete (D74)** — Settings → Appearance **Show Undelete toolbar button** (off by default) adds a tab-bar icon next to Recycle Bin to scan deleted MFT FILE records and recover files under the chosen folder **with their relative parent paths** (not flat). Short-lived UAC when needed. Not Recycle Bin Restore — [docs/UNDELETE.md](docs/UNDELETE.md).
 - **Tab drop shortcuts** — right-click a tab → **Set drop shortcut…** to bind a chord that transfers the focused pane’s selection into that tab’s current folder (Auto / Always move / Always copy). Conflicts with built-in keys or another tab are rejected. Shortcuts persist on the live tab and in named layouts.
+- **Name sort choice (D75)** — Explorer order stays the default. Settings → Behavior → **Name sort** can switch to character-by-character order (`0` before `s`; `file10` before `file2`). The file list, folder tree, and slideshow name order share that choice. Inside a marked media library, thumbnail and icon Name / Manual order is still season then episode.
+- **Media libraries** — show folders list by season and episode instead of raw filename order.
+- **Thumbnail scrolling** — large folders in thumbnail view no longer flash while you scroll.
+- **Detached video** — play and pause work again when the detached player is fullscreen.
+- **Image editor** — the editor no longer opens empty in some cases.
+- **Windows 10 startup** — the build ships the Visual C++ runtime DLLs the app needs, so a PC without the redistributable installed can start.
 
 ## [0.20.0] - 2026-09-23
 

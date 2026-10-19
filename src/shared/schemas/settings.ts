@@ -351,6 +351,11 @@ const settingsFieldsSchema = z.object({
   showUndeleteToolbar: z.boolean().catch(false),
   foldersFirst: z.boolean().catch(true),
   /**
+   * Name order. `explorer` = Windows StrCmpLogicalW (digit runs as numbers).
+   * `literal` = character by character (`0` before `s`). A–Z case ignored either way.
+   */
+  nameSortMode: z.enum(['explorer', 'literal']).catch('explorer'),
+  /**
    * Explorer-style item checkboxes in the file view (toggle selection without Ctrl).
    * Off by default.
    */
@@ -712,6 +717,19 @@ const settingsFieldsSchema = z.object({
     })
     .nullable()
     .catch(null),
+  /** Last Camera looks dialog geometry (null = centered defaults). */
+  cameraLookBounds: z
+    .object({
+      x: z.number(),
+      y: z.number(),
+      width: z.number().min(640).max(10000),
+      height: z.number().min(420).max(10000),
+      maximized: z.boolean().catch(false),
+      /** Share of the editor row given to the preview. The rest is the shader column. */
+      previewFraction: z.number().min(0.2).max(0.85).catch(0.58)
+    })
+    .nullable()
+    .catch(null),
   /** Last NTFS Undelete dialog geometry (null = centered defaults). */
   undeleteBounds: z
     .object({
@@ -868,6 +886,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   recycleBinPlacement: 'both',
   showUndeleteToolbar: false,
   foldersFirst: true,
+  nameSortMode: 'explorer',
   itemCheckboxes: false,
   pasteNonFileClipboard: true,
   defaultNewTabPath: '',
@@ -929,6 +948,7 @@ export const defaultSettings: Settings = settingsSchema.parse({
   usnManagerBounds: null,
   adsManagerBounds: null,
   powerRenameBounds: null,
+  cameraLookBounds: null,
   undeleteBounds: null,
   userMetadataManagerBounds: null,
   remoteConnectionBounds: null,

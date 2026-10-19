@@ -42,7 +42,7 @@ import {
 } from '@shared/tabHistory'
 import { MAX_TREE_EXPANDED } from '@shared/schemas/session'
 import { clampPaneRatio, fillPaneSlots, remapPanesOnLayoutChange } from '@shared/viewPanes'
-import { compareFileNames } from '@shared/fileNameCompare'
+import { compareNames, nameSortModeOf } from '@shared/fileNameCompare'
 import type { Settings, SettingsPatch } from '@shared/schemas/settings'
 import {
   defaultPairFoldersSettings,
@@ -332,6 +332,7 @@ export type DialogState =
   | { kind: 'settings'; section?: string }
   | { kind: 'categorizer-map'; returnSection?: string }
   | { kind: 'compiled-lists-config'; returnSection?: string }
+  | { kind: 'camera-looks'; returnSection?: string }
   | { kind: 'ads-manager'; path: string }
   | { kind: 'ads-field-column' }
   | {
@@ -428,6 +429,8 @@ export type DialogState =
 export type MediaLibraryState = {
   folderPath: string
   isContainer: boolean
+  /** Current folder is a media library, or sits under one. */
+  inLibrary: boolean
   items: Record<string, MediaLibraryItemFlags>
   watchedFilter: MediaWatchedFilter
   genreFilter: string | null
@@ -437,6 +440,7 @@ export function emptyMediaLibrary(): MediaLibraryState {
   return {
     folderPath: '',
     isContainer: false,
+    inLibrary: false,
     items: {},
     watchedFilter: 'all',
     genreFilter: null
@@ -619,6 +623,7 @@ let viewOrderCache: {
   sortKey: string
   sortDir: string
   foldersFirst: boolean
+  nameSortMode: string
   filterKey: string
   paths: string[]
 } | null = null
@@ -1762,6 +1767,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         mediaLibrary: {
           folderPath,
           isContainer: res.isContainer,
+          inLibrary: res.inLibrary === true || res.isContainer,
           items,
           watchedFilter,
           genreFilter
@@ -2408,8 +2414,9 @@ export const useAppStore = create<AppState>()((set, get) => {
   }
 
   /**
-   * Thumbnail/icon Name sort only: season → episode from stored S/E or filename.
+   * Thumbnail/icon Name or Manual sort: season → episode from stored S/E or filename.
    * List and Details keep the active column sort (never air-order).
+   * Virtual Folder Manual stays document order.
    */
   function listingEpisodeOrder(
     listingPath?: string,
@@ -2423,7 +2430,19 @@ export const useAppStore = create<AppState>()((set, get) => {
     const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
     const viewMode = opts?.viewMode ?? owning?.viewMode ?? tab.viewMode
     const sortKey = opts?.sortKey ?? owning?.sort.key ?? tab.sort.key
-    if (!isThumbnailViewMode(viewMode) || sortKey !== 'name') return undefined
+    // Name, and Manual on a real folder (filesystem order). Virtual Folder Manual
+    // stays document order.
+    if (!isThumbnailViewMode(viewMode) || (sortKey !== 'name' && sortKey !== 'manual')) {
+      return undefined
+    }
+    if (sortKey === 'manual') {
+      const listed =
+        (folder && samePath(folder, s.listing.path) ? s.listing : undefined) ??
+        (folder
+          ? Object.values(s.listingsByTabId).find((L) => samePath(L.path, folder))
+          : undefined)
+      if (listed?.virtualFolder) return undefined
+    }
     const list =
       entries ??
       (folder && samePath(folder, s.listing.path) ? s.listing.entries : undefined) ??
@@ -2448,6 +2467,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       sort,
       currentListingFoldersFirst(listing.path),
       {
+        nameSort: nameSortModeOf(s.settings.nameSortMode),
         episodeOrder: listingEpisodeOrder(listing.path, listing.entries, {
           sortKey: sort.key,
           viewMode
@@ -2478,6 +2498,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     const viewMode = owning?.viewMode ?? tab.viewMode
     const sortedEntries = dedupeDirEntries(
       sortEntries(entries, sort, currentListingFoldersFirst(listedPath), {
+        nameSort: nameSortModeOf(get().settings.nameSortMode),
         episodeOrder: listingEpisodeOrder(listedPath, entries, {
           sortKey: sort.key,
           viewMode
@@ -2895,6 +2916,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         listingsByTabId[tid] = {
           ...L,
           entries: sortEntries(renamed, sort, currentListingFoldersFirst(L.path), {
+            nameSort: nameSortModeOf(s.settings.nameSortMode),
             episodeOrder: listingEpisodeOrder(L.path, renamed, {
               sortKey: sort.key,
               viewMode
@@ -2917,6 +2939,7 @@ export const useAppStore = create<AppState>()((set, get) => {
               sort,
               currentListingFoldersFirst(s.listing.path),
               {
+                nameSort: nameSortModeOf(s.settings.nameSortMode),
                 episodeOrder: listingEpisodeOrder(s.listing.path, renamed, {
                   sortKey: sort.key,
                   viewMode
@@ -3146,6 +3169,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           containerPath: s.mediaLibrary.folderPath,
           viewMode: owning?.viewMode ?? tab.viewMode
         }) &&
+      viewOrderCache.nameSortMode === nameSortModeOf(s.settings.nameSortMode) &&
       viewOrderCache.filterKey === filterKey
     ) {
       return viewOrderCache.paths
@@ -3202,8 +3226,9 @@ export const useAppStore = create<AppState>()((set, get) => {
       sort,
       foldersFirst,
       tab.search.active
-        ? undefined
+        ? { nameSort: nameSortModeOf(s.settings.nameSortMode) }
         : {
+            nameSort: nameSortModeOf(s.settings.nameSortMode),
             episodeOrder: listingEpisodeOrder(s.listing.path, sourceEntries, {
               sortKey: sort.key,
               viewMode: owning?.viewMode ?? tab.viewMode
@@ -3216,6 +3241,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       sortKey: sort.key,
       sortDir: sort.dir,
       foldersFirst,
+      nameSortMode: nameSortModeOf(s.settings.nameSortMode),
       filterKey,
       paths
     }
@@ -3443,9 +3469,11 @@ export const useAppStore = create<AppState>()((set, get) => {
       const res = await call(api.fs.list({ path: parent, includeHidden: true }))
       const dirs = res.entries
         .filter((e) => e.kind === 'dir')
-        .sort((a, b) => compareFileNames(a.name, b.name))
+        .sort((a, b) => compareNames(a.name, b.name, nameSortModeOf(get().settings.nameSortMode)))
       const primaryName = basename(primary)
-      const nextSibling = dirs.find((d) => compareFileNames(d.name, primaryName) > 0)
+      const nextSibling = dirs.find(
+        (d) => compareNames(d.name, primaryName, nameSortModeOf(get().settings.nameSortMode)) > 0
+      )
       if (nextSibling) nextPath = nextSibling.path
     } catch {
       // parent list failed — still try to open parent
@@ -5585,6 +5613,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           sort,
           currentListingFoldersFirst(listing.path),
           {
+            nameSort: nameSortModeOf(s.settings.nameSortMode),
             episodeOrder: listingEpisodeOrder(listing.path, listing.entries, {
               sortKey: sort.key,
               viewMode
@@ -9117,6 +9146,7 @@ export const useAppStore = create<AppState>()((set, get) => {
           }
         } else if (
           patch.foldersFirst !== undefined ||
+          patch.nameSortMode !== undefined ||
           patch.folderViews !== undefined ||
           (patch.mediaMetadata && typeof patch.mediaMetadata.mixFilesAndFolders === 'boolean')
         ) {

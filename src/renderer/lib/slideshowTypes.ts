@@ -55,6 +55,11 @@ export type SlideshowState = {
   compiledTotal?: number
   /** Playlist was truncated at Int32.MaxValue. */
   compiledTruncated?: boolean
+  /**
+   * Play index of the first image this playback showed.
+   * Home returns here (the next image still in the list, if this one was removed).
+   */
+  originIndex?: number
 }
 
 export type SlideshowSession = {
