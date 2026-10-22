@@ -199,7 +199,7 @@ describe('folder copy keeps filling the destination it created', () => {
       if (String(dir).toLowerCase().endsWith('.asar')) {
         throw Object.assign(new Error('walked into asar'), { code: 'ENOENT' })
       }
-      const ents = (await readdir(dir, opts as never)) as Dirent[]
+      const ents = (await readdir(dir, opts as never)) as unknown as Dirent[]
       if (!opts || typeof opts !== 'object' || !('withFileTypes' in opts)) return ents as never
       return ents.map((ent) => {
         if (!ent.name.toLowerCase().endsWith('.asar')) return ent
@@ -270,7 +270,7 @@ describe('folder copy keeps filling the destination it created', () => {
       if (omitted(String(dir))) {
         throw Object.assign(new Error('walked into omitted asar'), { code: 'ENOENT' })
       }
-      const ents = (await readdir(dir, opts as never)) as Dirent[]
+      const ents = (await readdir(dir, opts as never)) as unknown as Dirent[]
       if (!opts || typeof opts !== 'object' || !('withFileTypes' in opts)) return ents as never
       return ents.map((ent) => {
         if (!omitted(path.join(String(dir), ent.name))) return ent

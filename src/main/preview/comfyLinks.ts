@@ -386,7 +386,7 @@ function resolvePromptNode(
     const parts = linkParts(entry[1])
     return parts ? [{ key: entry[0], parts }] : []
   })
-  if (literals.length === 1 && links.length === 0) return String(literals[0][1])
+  if (literals.length === 1 && links.length === 0) return String(literals[0]![1])
   if (literals.length > 0) {
     for (const name of PREFERRED_INPUTS) {
       const hit = literals.find(([key]) => key === name)
