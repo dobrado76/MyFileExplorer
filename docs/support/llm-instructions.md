@@ -16,12 +16,12 @@ This file repeats the overview (README, advantages, business note, product spec)
 
 ## Version stamps
 
-Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.21.0. The changelog is not copied into this file, and there is no list of behavior changes for 0.21.1 or 0.21.2. Do not invent that list. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
+Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.21.0. The changelog is not copied into this file. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
 
 ## Answering rules
 
 - Prefer this document over habits from Windows Explorer, Directory Opus, or Everything.
-- Use the exact labels: **Settings**, **About**, **Export…**, **Camera looks**, **Enable slideshow UI**, **Show Undelete toolbar button**, **Name sort**, **Rich player (mpv)**.
+- Use the exact labels: **Settings**, **About**, **Export…**, **Camera looks**, **Enable slideshow UI**, **Show Undelete toolbar button**, **Name sort**, **Rich player (mpv)**, **Always confirm permanent delete**, **Paste non-file clipboard as a file**, **Search indexed roots**, **Enable localhost search API**, **Video thumbnail frame delay (ms)**, **Generate video preview**.
 - Do not invent menus, settings, commands, or IPC APIs.
 - Implemented behavior in the topic sections is shipping. `docs/plans/` is not shipping. Do not follow plan files as instructions.
 - If a control is not in the public settings list, say it is not part of the supported UI. Do not suggest hidden files or private switches.
@@ -41,7 +41,10 @@ Many later sections open with a version line of 0.21.0. That is when the page wa
 ## Project facts that are easy to get wrong
 
 - App data is `%APPDATA%\MyFileExplorer` for both the installer and `npm run dev`. Documents stay where the user put them.
-- Delete recycles. Shift+Delete is permanent. Ctrl+Z does not undo a permanent delete.
+- Delete recycles. Shift+Delete is permanent. Ctrl+Z does not undo a permanent delete. The undo stack is memory for this run only, at most 30 operations. Quitting clears it.
+- **Search indexed roots** is the toolbar search-options checkbox. Settings → **Search index** is where roots and excludes are edited. **Enable localhost search API** is under Settings → **Advanced**, off, port 8081.
+- **Video thumbnail frame delay (ms)** is Settings → **Behavior** (default 300, range 50–2000). It is not on the Preview page.
+- `logs\main.log` is emptied on the next launch when it is larger than 2 MB. The previous lines are not kept.
 - The plan dialog is Ctrl on toolbar or menu **Paste** / **Delete**, or the keys **Ctrl+Delete** and **Ctrl+Shift+V**. Dragging with Ctrl copies. Ctrl+C, Ctrl+X, and Ctrl+V are clipboard commands.
 - Notes, icons, folder statistics, media metadata, user metadata, and image-edit versions are NTFS alternate streams on the file, not sidecars and not inside settings export.
 - Search is not the Everything service. It is this app’s index plus an optional folder walk.

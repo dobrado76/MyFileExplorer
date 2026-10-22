@@ -13,7 +13,7 @@ Rebuild with `npm run docs:support`.
 | **License** | GPL-3.0 — https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE |
 
 Links in this file jump to another section of this file. A link that leaves the project is a full https URL.
-A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 If the overview (README, advantages, business note, product spec) disagrees with the reference, FAQ, configuration, troubleshooting, or that topic's feature guide, follow the feature guide and the reference.
 
 ## Contents
@@ -80,7 +80,7 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Permanent delete and Undelete | [UNDELETE.md](#src-docs-undelete-md), [troubleshooting.md](#src-docs-troubleshooting-md) |
 | Copy stopped on an existing name | [troubleshooting.md](#src-docs-troubleshooting-md) |
 | Copy says a name inside `default_app.asar` or `release\win-unpacked\resources\app.asar` no longer exists | [troubleshooting.md](#src-docs-troubleshooting-md) |
-| Undo did nothing | [reference.md](#src-docs-reference-md) |
+| Undo did nothing, or undo is empty after a restart | [reference.md](#src-docs-reference-md), [FAQ.md](#src-docs-faq-md) |
 | Preview blank, video will not play, MKV, mpv | [PREVIEW.md](#src-docs-preview-md), [troubleshooting.md](#src-docs-troubleshooting-md) |
 | Search misses files or shows old names | [SEARCH.md](#src-docs-search-md), [troubleshooting.md](#src-docs-troubleshooting-md) |
 | Slideshow has no effect, or feels slow | [SLIDESHOW.md](#src-docs-slideshow-md), [FAQ.md](#src-docs-faq-md) |
@@ -95,7 +95,8 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Power Rename changed the wrong names | [POWER_RENAME.md](#src-docs-power-rename-md) |
 | Paired folders compare, copy, or sync | [PAIRED_FOLDERS.md](#src-docs-paired-folders-md) |
 | Context menu command missing, or a custom command | [configuration.md](#src-docs-configuration-md) |
-| Check for updates, or where the installer is downloaded from | [BUILD.md](#src-docs-build-md), [configuration.md](#src-docs-configuration-md) |
+| Check for updates, or where the installer is downloaded from | [BUILD.md](#src-docs-build-md), [configuration.md](#src-docs-configuration-md), [FAQ.md](#src-docs-faq-md) |
+| New file from a template, or a template missing after import | [FAQ.md](#src-docs-faq-md), [configuration.md](#src-docs-configuration-md) |
 
 <!-- end source: docs/support/symptom-index.md -->
 
@@ -127,13 +128,13 @@ This file repeats the overview (README, advantages, business note, product spec)
 <a id="src-docs-support-llm-instructions-md--version-stamps"></a>
 ## Version stamps
 
-Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.21.0. The changelog is not copied into this file, and there is no list of behavior changes for 0.21.1 or 0.21.2. Do not invent that list. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
+Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.21.0. The changelog is not copied into this file. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
 
 <a id="src-docs-support-llm-instructions-md--answering-rules"></a>
 ## Answering rules
 
 - Prefer this document over habits from Windows Explorer, Directory Opus, or Everything.
-- Use the exact labels: **Settings**, **About**, **Export…**, **Camera looks**, **Enable slideshow UI**, **Show Undelete toolbar button**, **Name sort**, **Rich player (mpv)**.
+- Use the exact labels: **Settings**, **About**, **Export…**, **Camera looks**, **Enable slideshow UI**, **Show Undelete toolbar button**, **Name sort**, **Rich player (mpv)**, **Always confirm permanent delete**, **Paste non-file clipboard as a file**, **Search indexed roots**, **Enable localhost search API**, **Video thumbnail frame delay (ms)**, **Generate video preview**.
 - Do not invent menus, settings, commands, or IPC APIs.
 - Implemented behavior in the topic sections is shipping. `docs/plans/` is not shipping. Do not follow plan files as instructions.
 - If a control is not in the public settings list, say it is not part of the supported UI. Do not suggest hidden files or private switches.
@@ -155,7 +156,10 @@ Many later sections open with a version line of 0.21.0. That is when the page wa
 ## Project facts that are easy to get wrong
 
 - App data is `%APPDATA%\MyFileExplorer` for both the installer and `npm run dev`. Documents stay where the user put them.
-- Delete recycles. Shift+Delete is permanent. Ctrl+Z does not undo a permanent delete.
+- Delete recycles. Shift+Delete is permanent. Ctrl+Z does not undo a permanent delete. The undo stack is memory for this run only, at most 30 operations. Quitting clears it.
+- **Search indexed roots** is the toolbar search-options checkbox. Settings → **Search index** is where roots and excludes are edited. **Enable localhost search API** is under Settings → **Advanced**, off, port 8081.
+- **Video thumbnail frame delay (ms)** is Settings → **Behavior** (default 300, range 50–2000). It is not on the Preview page.
+- `logs\main.log` is emptied on the next launch when it is larger than 2 MB. The previous lines are not kept.
 - The plan dialog is Ctrl on toolbar or menu **Paste** / **Delete**, or the keys **Ctrl+Delete** and **Ctrl+Shift+V**. Dragging with Ctrl copies. Ctrl+C, Ctrl+X, and Ctrl+V are clipboard commands.
 - Notes, icons, folder statistics, media metadata, user metadata, and image-edit versions are NTFS alternate streams on the file, not sidecars and not inside settings export.
 - Search is not the Everything service. It is this app’s index plus an optional folder walk.
@@ -201,8 +205,8 @@ Official starting points (verify if you have a current browser; these were the p
 
 **Application:** MyFileExplorer  
 **Repository:** https://github.com/dobrado76/MyFileExplorer  
-**Package version in this repository:** 0.21.2 (`package.json`)  
-**Newest changelog release section:** 0.21.0 (2026-10-19). The changelog **Unreleased** section is empty.  
+**Package version in this repository:** 0.21.5 (`package.json`)  
+**Newest changelog release section:** 0.21.0 (2026-10-19). The changelog **Unreleased** section is empty. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers.  
 **Running app version:** Settings → **About**. Use that version when it disagrees with this file.  
 **License:** GPL-3.0. The name and logo are trademarks. See [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) and [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md).
 
@@ -345,24 +349,24 @@ Settings has a search box at the top. It filters the section list (about 180 ms 
 | Section | What it controls |
 | --- | --- |
 | **Appearance** | Theme (dark, light, custom colors), font family and size, icon size, tab width and tab icons, tree pin, Recycle Bin placement. **Show Undelete toolbar button** is off by default. |
-| **Behavior** | Folders first, **Name sort**, checkboxes, paste of non-file clipboard data, default new-tab path, permanent-delete confirm, command-line shell (cmd or PowerShell), extensions hidden in labels, folder statistics, Virtual Folder OS projection (off). |
+| **Behavior** | Folders first, **Name sort**, **Item check boxes**, **Paste non-file clipboard as a file**, default new-tab path, **Always confirm permanent delete**, **Open Command Line** (cmd or PowerShell), **Hide extensions in names**, **Video thumbnail frame delay (ms)** (default 300, range 50–2000), folder statistics, Virtual Folder OS projection (off). New-file templates are **New → From Template** / **Manage Templates…** (cap 40). The catalog is in settings; the file copies are `%APPDATA%\MyFileExplorer\Templates\`. |
 | **Context menu** | Hide, reorder, and add commands. **Discover** can add static shell verbs. Custom commands are stored in settings. |
 | **Quick access** | Pinned folders and groups in the tree. |
 | **Quick launch** | Toolbar buttons that start other programs. The strip is hidden when the list is empty. Cap 24. |
 | **Layouts** | Named workspace snapshots. **Auto-save on switch** defaults on. Cap 50. Order in this list is the menu order. |
 | **Folder views** | Per-folder view mode, sort, and Details columns. Separate from layouts. |
 | **View filter** | Patterns the toolbar eye applies (hidden names such as `node_modules`, wildcards). The eye can be turned off per session. |
-| **Preview** | Text size limit (default 2 MB), word wrap (off), video autoplay (off), **Rich player (mpv)** (off), thumbnail-strip frame delay (default 300 ms, range 50–2000). |
-| **Search index** | Indexed folders, excludes, match options, bookmarks, filters, optional local HTTP API (off, port 8081). |
+| **Preview** | **Show preview by default** (on), **Max text preview bytes** (default 2 MB), **Word wrap text preview** (off), **Autoplay media in preview** (off), **Rich player (mpv)** (off). |
+| **Search index** | Indexed folders, excludes, **Show hidden files in search**, bookmarks, saved filters. The toolbar search-options checkbox **Search indexed roots** is remembered, but it is not a control on this page. |
 | **Network** | LAN discovery and mapped-drive behavior. |
-| **Windows integration** | Experimental redirect of folder Open/Explore to MyFileExplorer. Off until you opt in. See [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md). |
+| **Windows integration** | **Redirect folder openings to MyFileExplorer** (experimental, off until you opt in). Machine-local; not in a settings export. **Restore previous folder-opening configuration** puts the old verbs back. See [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md). |
 | **Remote repositories** | FTP, FTPS, and SFTP. Off until enabled. Passwords are not written into a settings export. |
 | **Slideshow** | **Enable slideshow UI** (off). Delay default 2000 ms. Include subfolders defaults on. **Camera looks** off until enabled. |
 | **Media Metadata** | Movie/TV metadata. Off. Cover height default 120 px. |
 | **Metadata** | User-defined fields. **Enable** is off. |
 | **Git** | Git overlays and actions. Off. Uses the `git` on your PATH unless you set an executable path. |
 | **Scripting and AI** | **Enable scripting** is off. Interpreters, Ask AI, providers. API keys are not stored in `settings.json`. |
-| **Advanced** | Disable hardware acceleration (off). Optional search HTTP API. |
+| **Advanced** | **Disable hardware acceleration** (off; restart required). **Enable localhost search API** (off, port 8081, loopback only). |
 | **About** | Running version, **Export…**, **Import…**, update check. **Updates source** is a local installer folder or a GitHub Releases URL. |
 
 <a id="src-docs-configuration-md--defaults-that-surprise-people"></a>
@@ -370,7 +374,7 @@ Settings has a search box at the top. It filters the section list (about 180 ms 
 
 - **Name sort** is `explorer` (Windows logical order: digit runs compare as numbers). **Literal** is character-by-character (`file10` before `file2`). The file list, the tree, and slideshow name order share this. Inside a media library, thumbnail and icon Name order is still season then episode.
 - **Folders first** is on. Media Metadata can mix files and folders in icon/thumbnail view of a library when that option is on. List and Details still follow Folders first.
-- **Delete** goes to the Recycle Bin. **Shift+Delete** is permanent. **Confirm permanent delete always** is off, so a single file may delete after less prompting than a multi-selection or a folder. Do not test this on files you need.
+- **Delete** goes to the Recycle Bin. **Shift+Delete** is permanent. **Always confirm permanent delete** is off, so a single file may delete after less prompting than a multi-selection or a folder. Do not test this on files you need.
 - **Hide name extensions** defaults to `lnk` and `mfevirtual`. The file is still there; the label omits the suffix. Rename and tooltips use the real name.
 - **Search excludes** start as `node_modules`, `.git`, `.hg`, `.svn`, `Thumbs.db`.
 - **Indexed-only search** is off, so the toolbar searches the current folder by walking it until you turn indexed search on.
@@ -387,7 +391,7 @@ Settings → **About** → **Export…** writes an envelope:
 - Network hosts and remote connection definitions are included **without passwords**.
 - The script library source is included **without AI API keys**.
 
-Not included: `session.json` (open tabs), `window-state.json`, thumbnail cache, search index, `ai-secrets.json`, custom Quick Launch PNG files.
+Not included: `session.json` (open tabs), `window-state.json`, thumbnail cache, search index, `ai-secrets.json`, custom Quick Launch PNG files, or the file bytes under `Templates\`. The template catalog (names and stored filenames) is inside the settings document; the copies themselves are not.
 
 **Import…** replaces settings (and those sidecars when the file contains them). A raw `settings.json` is also accepted. Import overwrites the current preferences. Export first if you might want the old ones back.
 
@@ -469,10 +473,10 @@ Settings → Behavior → **Name sort**.
 ## Delete, undo, conflicts
 
 - **Delete** uses the Windows Recycle Bin through the app. Restore from the in-app Recycle Bin. The app does not send you to Explorer’s bin.
-- **Shift+Delete** is permanent. Multi-select and folders ask for confirmation. A single file may not, unless **Confirm permanent delete always** is on.
+- **Shift+Delete** is permanent. Multi-select and folders ask for confirmation. A single file may not, unless Settings → Behavior → **Always confirm permanent delete** is on.
 - Long copy, move, trash, and delete show progress and **Cancel**.
 - If some names already exist, items that can proceed do so. One review at the end offers Skip, Keep both, Replace, Keep most recent, and Retry.
-- Undo/redo covers the file operations the app performed (copy, move, rename, delete, and similar). It does not undo edits made in another program. It does not restore a permanent delete; that needs **Undelete** (NTFS MFT), which is not the same as Recycle Bin restore and does not always succeed.
+- Undo/redo covers the file operations the app performed (copy, move, rename, delete, and similar). The stack is memory for this run only, at most 30 operations. Quitting clears it. It does not undo edits made in another program. It does not restore a permanent delete; that needs **Undelete** (NTFS MFT), which is not the same as Recycle Bin restore and does not always succeed.
 
 <a id="src-docs-reference-md--storage-map"></a>
 ## Storage map
@@ -483,7 +487,7 @@ Settings → Behavior → **Name sort**.
 | Open tabs | `session.json` in that folder |
 | Window position | `window-state.json` |
 | Search index | `search-index.sqlite` |
-| Logs | `logs\main.log` (truncated above 2 MB) |
+| Logs | `logs\main.log`. On the next launch, a file larger than 2 MB is emptied. Lines from before that launch are gone. |
 | Scripts | `scripts\` |
 | AI API keys | `ai-secrets.json` (not in export) |
 | Notes, icons, stats, media metadata, user metadata, image versions | NTFS ADS on the file or folder |
@@ -536,7 +540,7 @@ This app does not install Git, Python, WinFsp, or Plex for you.
 - Image-edit versions kept on the file: 4 (`VER_1`…`VER_4`).
 - Custom camera looks: 24, up to 8 sliders each.
 - Folder space-map file tiles: default 50 000 (range 100–50 000).
-- User-metadata library filter entries for media: max 200 stored Watched/Genre choices.
+- Media Metadata Watched/Genre filters: max 200 stored folder choices (`libraryFilters` on media metadata, not user metadata).
 - `main.log` truncates when larger than 2 MB.
 
 <a id="src-docs-reference-md--generation-metadata"></a>
@@ -566,7 +570,7 @@ When a step says “export settings”, use Settings → **About** → **Export�
 
 **Checks:**
 
-1. Look at `%APPDATA%\MyFileExplorer\logs\main.log`. If it is larger than 2 MB it has already been truncated, so only recent lines remain.
+1. Look at `%APPDATA%\MyFileExplorer\logs\main.log`. On the next launch, a file larger than 2 MB is emptied and logging starts over. Lines from before that launch are gone. If the app is still running and the file is already over 2 MB, those lines are still there until the next start.
 2. If the log mentions the GPU or the window flashes then dies, set hardware acceleration off. If you cannot open Settings, start once with a copy of the app data folder renamed aside (see below) so defaults load.
 
 **Resolution:** Rename `%APPDATA%\MyFileExplorer` to `MyFileExplorer.bak`. Start the app. If it opens, the previous app data was the problem. Copy `settings.json` back only after you have a working window; if the copy makes it crash again, keep the new folder and use pieces of the export you made earlier. Your documents were not in that folder.
@@ -587,7 +591,7 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 <a id="src-docs-troubleshooting-md--delete-did-not-ask-and-the-file-is-gone"></a>
 ## Delete did not ask, and the file is gone
 
-**Causes:** **Delete** recycles. **Shift+Delete** permanently deletes. A single file can skip the extra confirm when **Confirm permanent delete always** is off.
+**Causes:** **Delete** recycles. **Shift+Delete** permanently deletes. A single file can skip the extra confirm when **Always confirm permanent delete** is off.
 
 **Checks:** Open the in-app Recycle Bin (tab bar or tree). If the file is there, select it and press **Enter** or Restore.
 
@@ -849,12 +853,12 @@ Permanent delete. It does not go to the Recycle Bin. **Ctrl+Z** will not bring i
 <a id="src-docs-faq-md--16-why-was-there-no-confirm"></a>
 ### 16. Why was there no confirm?
 
-**Confirm permanent delete always** is off by default. Multiple items and folders still confirm. Turn the option on under Settings → Behavior if every permanent delete must ask.
+**Always confirm permanent delete** is off by default (Settings → Behavior). Multiple items and folders still confirm. Turn that option on if every permanent delete must ask.
 
 <a id="src-docs-faq-md--17-can-i-undo-a-copy-move-or-rename"></a>
 ### 17. Can I undo a copy, move, or rename?
 
-**Ctrl+Z** undoes the last file operation the app recorded. **Ctrl+Y** or **Ctrl+Shift+Z** redoes it. Undo does not reverse another program’s save, and it does not reverse Shift+Delete.
+**Ctrl+Z** undoes the last file operation the app recorded. **Ctrl+Y** or **Ctrl+Shift+Z** redoes it. The stack is memory for this run only, at most 30 operations. Quitting clears it. Undo does not reverse another program’s save, and it does not reverse Shift+Delete.
 
 <a id="src-docs-faq-md--18-how-does-a-name-collision-work"></a>
 ### 18. How does a name collision work?
@@ -869,7 +873,7 @@ The status bar progress has **Cancel**.
 <a id="src-docs-faq-md--20-paste-created-a-png-i-did-not-expect"></a>
 ### 20. Paste created a PNG I did not expect.
 
-Clipboard paste of an image is on by default (Settings → Behavior). A copied screenshot becomes a PNG in the folder. A copied URL becomes a `.url` shortcut and is not downloaded. Turn **paste non-file clipboard** off to stop that.
+**Paste non-file clipboard as a file** is on by default (Settings → Behavior). A copied screenshot becomes a PNG in the folder. A copied URL becomes a `.url` shortcut and is not downloaded. Turn that option off to stop that.
 
 <a id="src-docs-faq-md--21-how-do-i-create-a-symlink"></a>
 ### 21. How do I create a symlink?
@@ -993,7 +997,7 @@ That was a defect fixed for the 0.21.0 release. Update if you are on an older bu
 <a id="src-docs-faq-md--43-where-do-video-thumbnail-strips-come-from"></a>
 ### 43. Where do video thumbnail strips come from?
 
-A hidden sibling folder `!VIDTHUMB_CACHE` next to the videos. You can generate missing frames from the app. The frame delay is Settings → Preview (default 300 ms).
+A hidden sibling folder `!VIDTHUMB_CACHE` next to the videos. The context command is **Generate video preview** (one file) or **Generate video previews** (a selection). **Video thumbnail frame delay (ms)** is Settings → Behavior (default 300, range 50–2000), not the Preview page.
 
 <a id="src-docs-faq-md--44-why-is-the-preview-text-cut-off"></a>
 ### 44. Why is the preview text cut off?
@@ -1011,7 +1015,7 @@ No. The query style is similar. The index is this app’s SQLite index of roots 
 <a id="src-docs-faq-md--46-how-do-i-search-only-what-i-indexed"></a>
 ### 46. How do I search only what I indexed?
 
-Turn on indexed search (toolbar / Settings → **Search index**, `searchIndexedOnly`). Add folder roots or index a drive there.
+Open the toolbar search options and turn on **Search indexed roots**. That choice is remembered. Add the folder or drive under Settings → **Search index**. That settings page does not contain the checkbox.
 
 <a id="src-docs-faq-md--47-how-do-i-type-a-query"></a>
 ### 47. How do I type a query?
@@ -1031,7 +1035,7 @@ Current builds keep the view you had (thumbnails, icons, or list). Details adds 
 <a id="src-docs-faq-md--50-can-another-program-call-search"></a>
 ### 50. Can another program call search?
 
-An optional local HTTP API exists under Settings → **Search index**. It is off by default (port 8081). Leave it off unless you intend to use it. Do not expose that port past localhost.
+Settings → **Advanced** → **Enable localhost search API**. It is off by default (port 8081, this PC only). It searches indexed roots. Leave it off unless you intend to use it. Do not publish the token or forward the port.
 
 <a id="src-docs-faq-md--slideshow-and-camera-looks"></a>
 ## Slideshow and camera looks
@@ -1233,7 +1237,7 @@ Normal browsing, preview, search, and slideshow stay on this PC. Ask AI sends on
 <a id="src-docs-faq-md--85-can-i-back-up-the-app"></a>
 ### 85. Can I back up the app?
 
-Export settings from **About** for preferences, hosts (no passwords), and scripts (no API keys). Separately back up files **with** NTFS streams if you use notes, covers, or statistics. Copying only `settings.json` does not copy notes.
+Export settings from **About** for preferences, hosts (no passwords), and scripts (no API keys). The template catalog is in that file; the copies under `Templates\` are not, and neither are Quick Launch images. Separately back up files **with** NTFS streams if you use notes, covers, or statistics. Copying only `settings.json` does not copy notes.
 
 <a id="src-docs-faq-md--failures"></a>
 ## Failures
@@ -1256,7 +1260,37 @@ The public Slideshow settings do not include that control. If you do not see it,
 <a id="src-docs-faq-md--89-who-do-i-tell-if-this-is-a-bug"></a>
 ### 89. Who do I tell if this is a bug?
 
-https://github.com/dobrado76/MyFileExplorer/issues — version from **About**, what you expected, the exact message, and a short log excerpt with personal paths removed. Do not attach settings or API keys.
+https://github.com/dobrado76/MyFileExplorer/issues — version from **About**, what you expected, the exact message, and a short log excerpt with personal paths removed. Do not attach settings or API keys. If `logs\main.log` is empty, the app may have started after the file passed 2 MB: that launch empties it.
+
+<a id="src-docs-faq-md--90-ctrlz-is-empty-after-i-restarted-where-did-undo-go"></a>
+### 90. Ctrl+Z is empty after I restarted. Where did undo go?
+
+Nowhere to restore. Undo is a memory stack for the current run (at most 30 operations). It is not written to disk. A Recycle Bin file is still in the in-app bin. A Shift+Delete is not on the stack; Undelete is the separate NTFS scan, and it can fail.
+
+<a id="src-docs-faq-md--91-how-do-i-rename-many-files-at-once"></a>
+### 91. How do I rename many files at once?
+
+Select them, then right-click → **Power Rename…**. Search and replace can be literal, DOS `*` / `?`, or regex. **Advanced options** add case, numbering, dates, and similar transforms. Apply renames the selected names only. It does not open folders and rename what is inside. **Ctrl+Z** can reverse that batch while it is still on this session’s undo stack. [POWER_RENAME.md](#src-docs-power-rename-md).
+
+<a id="src-docs-faq-md--92-how-do-i-compare-two-folders"></a>
+### 92. How do I compare two folders?
+
+Use a two-pane layout. The centre rail is there whenever layout 2 is active. **Compare** classifies the two folders by relative path. The single-arrow copy actions work without a compare. Sync uses a reviewed plan. This is not Git and not a cloud sync. [PAIRED_FOLDERS.md](#src-docs-paired-folders-md).
+
+<a id="src-docs-faq-md--93-how-do-i-create-a-file-from-a-template"></a>
+### 93. How do I create a file from a template?
+
+**New** → **From Template**, or the same command on the context menu. **Manage Templates…** adds a file, sets the pretty name (menu label and default filename), and reorders the list. Cap 40. The copies live in `%APPDATA%\MyFileExplorer\Templates\`. Settings export keeps the catalog, not those file bytes.
+
+<a id="src-docs-faq-md--94-how-do-i-check-for-an-update"></a>
+### 94. How do I check for an update?
+
+Settings → **About** → **Check for update**. **Folder or URL** is the updates source: the default GitHub Releases URL, or a local folder of installers. The installer name is `MyFileExplorer-x.y.z.exe`. When a newer build is listed, **What's new** loads the release notes. [BUILD.md](#src-docs-build-md).
+
+<a id="src-docs-faq-md--95-can-windows-open-folders-in-myfileexplorer-instead-of-explorer"></a>
+### 95. Can Windows open folders in MyFileExplorer instead of Explorer?
+
+Only if you turn on Settings → **Windows integration** → **Redirect folder openings to MyFileExplorer**. It is off until you opt in. It is per-user, experimental, and not part of a settings export. **Restore previous folder-opening configuration** puts the old verbs back. It is not a full Explorer replacement. [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md).
 
 <!-- end source: docs/FAQ.md -->
 
@@ -1274,7 +1308,7 @@ This file separates what ships from what does not.
 <a id="src-docs-roadmap-md--shipping"></a>
 ## Shipping
 
-Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.21.2**. The newest dated section in `CHANGELOG.md` is **0.21.0** (2026-10-19). The **Unreleased** section is empty, so there is no changelog list of changes after 0.21.0 in this tree.
+Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.21.5**. The newest dated section in `CHANGELOG.md` is **0.21.0** (2026-10-19). The **Unreleased** section is empty, so there is no changelog list of changes after 0.21.0. Do not invent one.
 
 <a id="src-docs-roadmap-md--not-a-commitment"></a>
 ## Not a commitment
@@ -1892,7 +1926,7 @@ Hub for product and engineering docs. Product entry: [../README.md](#src-readme-
 <a id="src-docs-product-spec-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-product-spec-md--product-specification"></a>
@@ -2180,7 +2214,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 <a id="src-docs-advantages-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-advantages-md--advantages-over-classic-windows-file-explorer"></a>
@@ -2689,7 +2723,7 @@ This is more powerful than a collection of unrelated utilities because the same 
 <a id="src-docs-preview-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-md--preview-metadata"></a>
@@ -3149,7 +3183,7 @@ Header-only parse (8-byte length + JSON); **weights are never loaded**. No large
 <a id="src-docs-preview-extensions-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-extensions-md--preview-pane-supported-extensions"></a>
@@ -3567,7 +3601,7 @@ Use **Open with default app** (or the system help viewer for oversized CHMs) whe
 <a id="src-docs-search-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-search-md--search-indexing"></a>
@@ -4078,7 +4112,7 @@ flowchart TB
 <a id="src-docs-folder-statistics-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-folder-statistics-md--folder-statistics-space-usage"></a>
@@ -7180,7 +7214,7 @@ See [MEDIA_METADATA.md](#src-docs-media-metadata-md) — Ask AI. Four prompts pe
 <a id="src-docs-git-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-git-md--git-aware-browsing-d64"></a>
@@ -7268,7 +7302,7 @@ Built-in inline **text diff** pane, interactive rebase / Advanced rewrite, merge
 <a id="src-docs-virtual-folders-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-virtual-folders-md--virtual-folders-d67"></a>
@@ -7541,7 +7575,7 @@ Tagged GitHub Releases also publish `MfeVirtualFolderService-win-x64.zip` (self-
 <a id="src-docs-networks-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-networks-md--network-neighborhood-mapped-drives-d44-d3"></a>
@@ -7744,7 +7778,7 @@ Not exported: `window-state.json`, live `session.json` tabs (use a **named layou
 <a id="src-docs-remote-ftp-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-remote-ftp-md--remote-repositories-ftp-ftps-sftp"></a>
@@ -7936,7 +7970,7 @@ This is the same class as “zip as navigable folder”: a second location kind,
 <a id="src-docs-power-rename-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-power-rename-md--power-rename-d40"></a>
@@ -8302,7 +8336,7 @@ No dedicated `powerRename:*` IPC — rename stays on the shared filesystem API.
 <a id="src-docs-undelete-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-undelete-md--ntfs-undelete-d74"></a>
@@ -8409,7 +8443,7 @@ Shapes: [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/
 <a id="src-docs-windows-shell-redirect-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-windows-shell-redirect-md--windows-shell-redirect-experimental"></a>
@@ -8519,7 +8553,7 @@ See also [INTEGRATION.md](#src-docs-integration-md) for `--open` / `--reveal` CL
 <a id="src-docs-linux-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-linux-md--linux-setup-for-myfileexplorer-experimental"></a>
@@ -8697,7 +8731,7 @@ Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host
 <a id="src-docs-project-format-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-project-format-md--project-app-data-format"></a>
@@ -8935,7 +8969,7 @@ When persisted shapes change: add idempotent `scripts/migrate-*.ts` (or in-app v
 <a id="src-docs-security-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-security-md--security"></a>
@@ -9017,7 +9051,7 @@ Prefer maintained native modules; audit on upgrade. Sharp and better-sqlite3 (or
 <a id="src-docs-integration-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-integration-md--integrating-with-myfileexplorer"></a>
@@ -9127,7 +9161,7 @@ Settings → **Windows integration** can redirect per-user `Directory\shell\open
 <a id="src-docs-architecture-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-architecture-md--architecture"></a>
@@ -9270,7 +9304,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 <a id="src-docs-build-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-build-md--building-releases"></a>

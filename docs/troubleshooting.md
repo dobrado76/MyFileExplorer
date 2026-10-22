@@ -10,7 +10,7 @@ When a step says “export settings”, use Settings → **About** → **Export�
 
 **Checks:**
 
-1. Look at `%APPDATA%\MyFileExplorer\logs\main.log`. If it is larger than 2 MB it has already been truncated, so only recent lines remain.
+1. Look at `%APPDATA%\MyFileExplorer\logs\main.log`. On the next launch, a file larger than 2 MB is emptied and logging starts over. Lines from before that launch are gone. If the app is still running and the file is already over 2 MB, those lines are still there until the next start.
 2. If the log mentions the GPU or the window flashes then dies, set hardware acceleration off. If you cannot open Settings, start once with a copy of the app data folder renamed aside (see below) so defaults load.
 
 **Resolution:** Rename `%APPDATA%\MyFileExplorer` to `MyFileExplorer.bak`. Start the app. If it opens, the previous app data was the problem. Copy `settings.json` back only after you have a working window; if the copy makes it crash again, keep the new folder and use pieces of the export you made earlier. Your documents were not in that folder.
@@ -29,7 +29,7 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 
 ## Delete did not ask, and the file is gone
 
-**Causes:** **Delete** recycles. **Shift+Delete** permanently deletes. A single file can skip the extra confirm when **Confirm permanent delete always** is off.
+**Causes:** **Delete** recycles. **Shift+Delete** permanently deletes. A single file can skip the extra confirm when **Always confirm permanent delete** is off.
 
 **Checks:** Open the in-app Recycle Bin (tab bar or tree). If the file is there, select it and press **Enter** or Restore.
 

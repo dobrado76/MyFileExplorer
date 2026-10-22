@@ -68,11 +68,11 @@ Permanent delete. It does not go to the Recycle Bin. **Ctrl+Z** will not bring i
 
 ### 16. Why was there no confirm?
 
-**Confirm permanent delete always** is off by default. Multiple items and folders still confirm. Turn the option on under Settings → Behavior if every permanent delete must ask.
+**Always confirm permanent delete** is off by default (Settings → Behavior). Multiple items and folders still confirm. Turn that option on if every permanent delete must ask.
 
 ### 17. Can I undo a copy, move, or rename?
 
-**Ctrl+Z** undoes the last file operation the app recorded. **Ctrl+Y** or **Ctrl+Shift+Z** redoes it. Undo does not reverse another program’s save, and it does not reverse Shift+Delete.
+**Ctrl+Z** undoes the last file operation the app recorded. **Ctrl+Y** or **Ctrl+Shift+Z** redoes it. The stack is memory for this run only, at most 30 operations. Quitting clears it. Undo does not reverse another program’s save, and it does not reverse Shift+Delete.
 
 ### 18. How does a name collision work?
 
@@ -84,7 +84,7 @@ The status bar progress has **Cancel**.
 
 ### 20. Paste created a PNG I did not expect.
 
-Clipboard paste of an image is on by default (Settings → Behavior). A copied screenshot becomes a PNG in the folder. A copied URL becomes a `.url` shortcut and is not downloaded. Turn **paste non-file clipboard** off to stop that.
+**Paste non-file clipboard as a file** is on by default (Settings → Behavior). A copied screenshot becomes a PNG in the folder. A copied URL becomes a `.url` shortcut and is not downloaded. Turn that option off to stop that.
 
 ### 21. How do I create a symlink?
 
@@ -182,7 +182,7 @@ That was a defect fixed for the 0.21.0 release. Update if you are on an older bu
 
 ### 43. Where do video thumbnail strips come from?
 
-A hidden sibling folder `!VIDTHUMB_CACHE` next to the videos. You can generate missing frames from the app. The frame delay is Settings → Preview (default 300 ms).
+A hidden sibling folder `!VIDTHUMB_CACHE` next to the videos. The context command is **Generate video preview** (one file) or **Generate video previews** (a selection). **Video thumbnail frame delay (ms)** is Settings → Behavior (default 300, range 50–2000), not the Preview page.
 
 ### 44. Why is the preview text cut off?
 
@@ -196,7 +196,7 @@ No. The query style is similar. The index is this app’s SQLite index of roots 
 
 ### 46. How do I search only what I indexed?
 
-Turn on indexed search (toolbar / Settings → **Search index**, `searchIndexedOnly`). Add folder roots or index a drive there.
+Open the toolbar search options and turn on **Search indexed roots**. That choice is remembered. Add the folder or drive under Settings → **Search index**. That settings page does not contain the checkbox.
 
 ### 47. How do I type a query?
 
@@ -212,7 +212,7 @@ Current builds keep the view you had (thumbnails, icons, or list). Details adds 
 
 ### 50. Can another program call search?
 
-An optional local HTTP API exists under Settings → **Search index**. It is off by default (port 8081). Leave it off unless you intend to use it. Do not expose that port past localhost.
+Settings → **Advanced** → **Enable localhost search API**. It is off by default (port 8081, this PC only). It searches indexed roots. Leave it off unless you intend to use it. Do not publish the token or forward the port.
 
 ## Slideshow and camera looks
 
@@ -370,7 +370,7 @@ Normal browsing, preview, search, and slideshow stay on this PC. Ask AI sends on
 
 ### 85. Can I back up the app?
 
-Export settings from **About** for preferences, hosts (no passwords), and scripts (no API keys). Separately back up files **with** NTFS streams if you use notes, covers, or statistics. Copying only `settings.json` does not copy notes.
+Export settings from **About** for preferences, hosts (no passwords), and scripts (no API keys). The template catalog is in that file; the copies under `Templates\` are not, and neither are Quick Launch images. Separately back up files **with** NTFS streams if you use notes, covers, or statistics. Copying only `settings.json` does not copy notes.
 
 ## Failures
 
@@ -388,4 +388,28 @@ The public Slideshow settings do not include that control. If you do not see it,
 
 ### 89. Who do I tell if this is a bug?
 
-https://github.com/dobrado76/MyFileExplorer/issues — version from **About**, what you expected, the exact message, and a short log excerpt with personal paths removed. Do not attach settings or API keys.
+https://github.com/dobrado76/MyFileExplorer/issues — version from **About**, what you expected, the exact message, and a short log excerpt with personal paths removed. Do not attach settings or API keys. If `logs\main.log` is empty, the app may have started after the file passed 2 MB: that launch empties it.
+
+### 90. Ctrl+Z is empty after I restarted. Where did undo go?
+
+Nowhere to restore. Undo is a memory stack for the current run (at most 30 operations). It is not written to disk. A Recycle Bin file is still in the in-app bin. A Shift+Delete is not on the stack; Undelete is the separate NTFS scan, and it can fail.
+
+### 91. How do I rename many files at once?
+
+Select them, then right-click → **Power Rename…**. Search and replace can be literal, DOS `*` / `?`, or regex. **Advanced options** add case, numbering, dates, and similar transforms. Apply renames the selected names only. It does not open folders and rename what is inside. **Ctrl+Z** can reverse that batch while it is still on this session’s undo stack. [POWER_RENAME.md](POWER_RENAME.md).
+
+### 92. How do I compare two folders?
+
+Use a two-pane layout. The centre rail is there whenever layout 2 is active. **Compare** classifies the two folders by relative path. The single-arrow copy actions work without a compare. Sync uses a reviewed plan. This is not Git and not a cloud sync. [PAIRED_FOLDERS.md](PAIRED_FOLDERS.md).
+
+### 93. How do I create a file from a template?
+
+**New** → **From Template**, or the same command on the context menu. **Manage Templates…** adds a file, sets the pretty name (menu label and default filename), and reorders the list. Cap 40. The copies live in `%APPDATA%\MyFileExplorer\Templates\`. Settings export keeps the catalog, not those file bytes.
+
+### 94. How do I check for an update?
+
+Settings → **About** → **Check for update**. **Folder or URL** is the updates source: the default GitHub Releases URL, or a local folder of installers. The installer name is `MyFileExplorer-x.y.z.exe`. When a newer build is listed, **What's new** loads the release notes. [BUILD.md](BUILD.md).
+
+### 95. Can Windows open folders in MyFileExplorer instead of Explorer?
+
+Only if you turn on Settings → **Windows integration** → **Redirect folder openings to MyFileExplorer**. It is off until you opt in. It is per-user, experimental, and not part of a settings export. **Restore previous folder-opening configuration** puts the old verbs back. It is not a full Explorer replacement. [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md).

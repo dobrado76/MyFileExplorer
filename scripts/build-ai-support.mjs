@@ -16,6 +16,25 @@ const check = process.argv.includes('--check')
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 
+function assertDocumentedPackageVersion(rel, pattern) {
+  const text = fs.readFileSync(path.join(root, rel), 'utf8')
+  const match = text.match(pattern)
+  if (!match || match[1] !== pkg.version) {
+    fail([
+      `${rel} records package version ${match ? match[1] : '(missing)'}, but package.json is ${pkg.version}.`
+    ])
+  }
+}
+
+assertDocumentedPackageVersion(
+  'docs/product.md',
+  /\*\*Package version in this repository:\*\* ([0-9]+\.[0-9]+\.[0-9]+)/
+)
+assertDocumentedPackageVersion(
+  'docs/roadmap.md',
+  /`package\.json` is \*\*([0-9]+\.[0-9]+\.[0-9]+)\*\*/
+)
+
 const linkRe = /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
 const GITHUB_BLOB = 'https://github.com/dobrado76/MyFileExplorer/blob/main/'
 const GITHUB_RAW = 'https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/'
@@ -127,7 +146,7 @@ function stampVersion(text, version) {
   if (!/^(?:\*\*App:\*\*[^\n]*\*\*Version:\*\*|\*\*Version:\*\*)\s*0\.21\.0/m.test(text)) return text
   const note = [
     '> **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.',
-    `> The repository package version is ${version}. There is no changelog of behavior changes for 0.21.1 or 0.21.2.`,
+    `> The repository package version is ${version}. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.`,
     "> The running build is Settings → About. Do not quote 0.21.0 as the user's version.",
     ''
   ].join('\n')
@@ -207,7 +226,7 @@ const parts = [
   `| **License** | GPL-3.0 — https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE |`,
   ``,
   `Links in this file jump to another section of this file. A link that leaves the project is a full https URL.`,
-  `A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is ${pkg.version}. There is no changelog of behavior changes for 0.21.1 or 0.21.2.`,
+  `A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is ${pkg.version}. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.`,
   `If the overview (README, advantages, business note, product spec) disagrees with the reference, FAQ, configuration, troubleshooting, or that topic's feature guide, follow the feature guide and the reference.`,
   ``,
   `## Contents`,

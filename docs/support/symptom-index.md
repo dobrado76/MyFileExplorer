@@ -10,7 +10,7 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Permanent delete and Undelete | [UNDELETE.md](../UNDELETE.md), [troubleshooting.md](../troubleshooting.md) |
 | Copy stopped on an existing name | [troubleshooting.md](../troubleshooting.md) |
 | Copy says a name inside `default_app.asar` or `release\win-unpacked\resources\app.asar` no longer exists | [troubleshooting.md](../troubleshooting.md) |
-| Undo did nothing | [reference.md](../reference.md) |
+| Undo did nothing, or undo is empty after a restart | [reference.md](../reference.md), [FAQ.md](../FAQ.md) |
 | Preview blank, video will not play, MKV, mpv | [PREVIEW.md](../PREVIEW.md), [troubleshooting.md](../troubleshooting.md) |
 | Search misses files or shows old names | [SEARCH.md](../SEARCH.md), [troubleshooting.md](../troubleshooting.md) |
 | Slideshow has no effect, or feels slow | [SLIDESHOW.md](../SLIDESHOW.md), [FAQ.md](../FAQ.md) |
@@ -25,4 +25,5 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Power Rename changed the wrong names | [POWER_RENAME.md](../POWER_RENAME.md) |
 | Paired folders compare, copy, or sync | [PAIRED_FOLDERS.md](../PAIRED_FOLDERS.md) |
 | Context menu command missing, or a custom command | [configuration.md](../configuration.md) |
-| Check for updates, or where the installer is downloaded from | [BUILD.md](../BUILD.md), [configuration.md](../configuration.md) |
+| Check for updates, or where the installer is downloaded from | [BUILD.md](../BUILD.md), [configuration.md](../configuration.md), [FAQ.md](../FAQ.md) |
+| New file from a template, or a template missing after import | [FAQ.md](../FAQ.md), [configuration.md](../configuration.md) |

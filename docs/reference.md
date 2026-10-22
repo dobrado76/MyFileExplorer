@@ -49,10 +49,10 @@ Settings → Behavior → **Name sort**.
 ## Delete, undo, conflicts
 
 - **Delete** uses the Windows Recycle Bin through the app. Restore from the in-app Recycle Bin. The app does not send you to Explorer’s bin.
-- **Shift+Delete** is permanent. Multi-select and folders ask for confirmation. A single file may not, unless **Confirm permanent delete always** is on.
+- **Shift+Delete** is permanent. Multi-select and folders ask for confirmation. A single file may not, unless Settings → Behavior → **Always confirm permanent delete** is on.
 - Long copy, move, trash, and delete show progress and **Cancel**.
 - If some names already exist, items that can proceed do so. One review at the end offers Skip, Keep both, Replace, Keep most recent, and Retry.
-- Undo/redo covers the file operations the app performed (copy, move, rename, delete, and similar). It does not undo edits made in another program. It does not restore a permanent delete; that needs **Undelete** (NTFS MFT), which is not the same as Recycle Bin restore and does not always succeed.
+- Undo/redo covers the file operations the app performed (copy, move, rename, delete, and similar). The stack is memory for this run only, at most 30 operations. Quitting clears it. It does not undo edits made in another program. It does not restore a permanent delete; that needs **Undelete** (NTFS MFT), which is not the same as Recycle Bin restore and does not always succeed.
 
 ## Storage map
 
@@ -62,7 +62,7 @@ Settings → Behavior → **Name sort**.
 | Open tabs | `session.json` in that folder |
 | Window position | `window-state.json` |
 | Search index | `search-index.sqlite` |
-| Logs | `logs\main.log` (truncated above 2 MB) |
+| Logs | `logs\main.log`. On the next launch, a file larger than 2 MB is emptied. Lines from before that launch are gone. |
 | Scripts | `scripts\` |
 | AI API keys | `ai-secrets.json` (not in export) |
 | Notes, icons, stats, media metadata, user metadata, image versions | NTFS ADS on the file or folder |
@@ -111,7 +111,7 @@ This app does not install Git, Python, WinFsp, or Plex for you.
 - Image-edit versions kept on the file: 4 (`VER_1`…`VER_4`).
 - Custom camera looks: 24, up to 8 sliders each.
 - Folder space-map file tiles: default 50 000 (range 100–50 000).
-- User-metadata library filter entries for media: max 200 stored Watched/Genre choices.
+- Media Metadata Watched/Genre filters: max 200 stored folder choices (`libraryFilters` on media metadata, not user metadata).
 - `main.log` truncates when larger than 2 MB.
 
 ## Generation metadata
