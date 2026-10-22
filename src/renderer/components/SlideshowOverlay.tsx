@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type JSX } from 'react'
 import { useAppStore } from '../store/appStore'
 import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
@@ -266,8 +266,8 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
 
     void (async () => {
-      let cleanPromise: Promise<CanvasImageSource | null> | null = null
-      let keptClean = false
+      let heldProbe = false
+      let backIdx: 0 | 1 = 0
       try {
         let mediaUrl: string | null = null
         let poster = false
@@ -295,65 +295,79 @@ export function SlideshowOverlay(): JSX.Element | null {
           )
           if (shaderId) shaderSeed = cameraLookSeedForIndex(listIndex)
         }
-        cleanPromise = shaderId ? loadCameraLookSource(mediaUrl) : null
-        const probe = new Image()
-        probe.decoding = 'async'
-        probe.src = mediaUrl
-        try {
-          if (typeof probe.decode === 'function') await probe.decode()
-          else await waitImgLoad(probe)
-        } catch {
-          skip()
-          return
-        }
-        if (cancelled || gen !== loadGenRef.current) return
-        if (!probe.complete || probe.naturalWidth <= 0) {
-          skip()
-          return
-        }
-        if (drawCaption) {
-          const framed = await tryCaptionPosterUrl(path, probe)
+
+        // Caption posters need a decoded <img>. Untreated slides use one too, to skip
+        // unloadable files. A treated slide must not upload that <img>: mfe-media taints
+        // it, texImage2D throws, and the look was dropped for the plain photo.
+        let probe: HTMLImageElement | null = null
+        if (!shaderId || drawCaption) {
+          probe = new Image()
+          probe.decoding = 'async'
+          probe.src = mediaUrl
+          try {
+            if (typeof probe.decode === 'function') await probe.decode()
+            else await waitImgLoad(probe)
+          } catch {
+            skip()
+            return
+          }
           if (cancelled || gen !== loadGenRef.current) return
-          if (framed) {
-            mediaUrl = framed
-            poster = true
-            shaderId = null
+          if (!probe.complete || probe.naturalWidth <= 0) {
+            skip()
+            return
+          }
+          if (drawCaption) {
+            const framed = await tryCaptionPosterUrl(path, probe)
+            if (cancelled || gen !== loadGenRef.current) return
+            if (framed) {
+              mediaUrl = framed
+              poster = true
+              shaderId = null
+            }
           }
         }
 
         failStreakRef.current = 0
-        const backIdx: 0 | 1 = frontIdxRef.current === 0 ? 1 : 0
-        if (shaderId && look && cleanPromise) {
-          const clean = await cleanPromise
+        backIdx = frontIdxRef.current === 0 ? 1 : 0
+        // The canvas is the frame. The <img> omits src while shaderId is set, so the URL
+        // stays available for fallback without a second read.
+        if (shaderId) {
+          const clean = await loadCameraLookSource(mediaUrl)
+          if (cancelled || gen !== loadGenRef.current) {
+            if (clean) releaseCameraLookSource(clean)
+            return
+          }
           const size = clean ? cameraLookSourceSize(clean) : null
           const canvas = shaderCanvasRef.current[backIdx]
-          const drew =
-            clean != null &&
-            size != null &&
-            canvas != null &&
-            (await drawCameraLook(
-              canvas,
-              clean,
-              size.w,
-              size.h,
-              shaderId,
-              shaderSeed,
-              cameraLookCustomFragment(look, shaderId),
-              cameraLookParamValues(shaderId, look.params, look.customs),
-              () => !cancelled && gen === loadGenRef.current,
-              isCustomCameraLookId(shaderId) ? cameraLookUniformNames(look, shaderId) : undefined
-            ))
-          if (!drew || cancelled || gen !== loadGenRef.current) {
+          if (!clean || !size || !canvas) {
             shaderId = null
-          } else if (clean && size) {
+            if (clean) releaseCameraLookSource(clean)
+          } else {
             dropShaderHold(backIdx)
             shaderSourceRef.current[backIdx] = { source: clean, w: size.w, h: size.h }
-            keptClean = true
+            heldProbe = true
           }
         }
         if (cancelled || gen !== loadGenRef.current) {
-          if (keptClean) dropShaderHold(backIdx)
+          if (heldProbe) dropShaderHold(backIdx)
           return
+        }
+        if (!heldProbe && !probe) {
+          probe = new Image()
+          probe.decoding = 'async'
+          probe.src = mediaUrl
+          try {
+            if (typeof probe.decode === 'function') await probe.decode()
+            else await waitImgLoad(probe)
+          } catch {
+            skip()
+            return
+          }
+          if (cancelled || gen !== loadGenRef.current) return
+          if (!probe.complete || probe.naturalWidth <= 0) {
+            skip()
+            return
+          }
         }
         const slot: Buf = {
           url: mediaUrl,
@@ -370,7 +384,15 @@ export function SlideshowOverlay(): JSX.Element | null {
           return next
         })
 
-        // Two rAFs: wait until the back <img> has been committed, then swap on V-Sync.
+        if (heldProbe) {
+          // Reveal on the next paint. Waiting extra frames lets Chromium clear the
+          // drawing buffer (preserveDrawingBuffer is off) before the canvas is shown.
+          setFront(backIdx)
+          setBootLoading(false)
+          return
+        }
+
+        // Two rAFs: commit the back <img>, then swap on V-Sync.
         if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
         rafRef.current = requestAnimationFrame(() => {
           rafRef.current = requestAnimationFrame(() => {
@@ -381,13 +403,8 @@ export function SlideshowOverlay(): JSX.Element | null {
           })
         })
       } catch {
+        if (heldProbe) dropShaderHold(backIdx)
         skip()
-      } finally {
-        if (!keptClean && cleanPromise) {
-          void cleanPromise.then((src) => {
-            if (src) releaseCameraLookSource(src)
-          })
-        }
       }
     })()
 
@@ -428,8 +445,47 @@ export function SlideshowOverlay(): JSX.Element | null {
     }
   }, [enabled, prefetchPath, path, imageRevision])
 
-  // Redraw the visible shader pass when the stage size changes. Same seed, no extra upload
-  // beyond the texture already implied by the decoded <img>.
+  // Draw once the shader canvas is the front layer, before the browser paints.
+  // Drawing earlier, while it is opacity 0, is thrown away (preserveDrawingBuffer is off).
+  useLayoutEffect(() => {
+    const idx = front
+    const buf = bufs[idx]
+    const held = shaderSourceRef.current[idx]
+    const canvas = shaderCanvasRef.current[idx]
+    if (!buf?.shaderId || !held || !canvas || showCropPreview) return
+    let cancelled = false
+    const look = cameraLookSettingsSchema.parse(
+      useAppStore.getState().settings.slideshow.cameraLook ?? {}
+    )
+    void drawCameraLook(
+      canvas,
+      held.source,
+      held.w,
+      held.h,
+      buf.shaderId,
+      buf.shaderSeed,
+      cameraLookCustomFragment(look, buf.shaderId),
+      cameraLookParamValues(buf.shaderId, look.params, look.customs),
+      () => !cancelled,
+      isCustomCameraLookId(buf.shaderId) ? cameraLookUniformNames(look, buf.shaderId) : undefined
+    ).then((drew) => {
+      if (cancelled || drew) return
+      dropShaderHold(idx)
+      setBufs((prev) => {
+        const cur = prev[idx]
+        if (!cur || cur.slideKey !== buf.slideKey) return prev
+        const next: [Buf | null, Buf | null] = [prev[0], prev[1]]
+        next[idx] = { ...cur, shaderId: null }
+        return next
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [front, bufs, showCropPreview, dropShaderHold])
+
+  // Redraw the visible shader pass when the stage size changes. Same seed, from the
+  // bitmap already decoded for this slide.
   useEffect(() => {
     const stage = stageRef.current
     if (!enabled || !active || !stage) return
@@ -857,7 +913,7 @@ export function SlideshowOverlay(): JSX.Element | null {
             imgRefs.current[0] = el
           }}
           className={`slideshow-image slideshow-buf${front === 0 && (!bufs[0]?.shaderId || !shaderPass) ? ' is-front' : ' is-back'}`}
-          src={bufs[0]?.url || undefined}
+          src={bufs[0]?.shaderId && shaderPass ? undefined : bufs[0]?.url || undefined}
           alt=""
           draggable={false}
           decoding="async"
@@ -868,7 +924,7 @@ export function SlideshowOverlay(): JSX.Element | null {
             imgRefs.current[1] = el
           }}
           className={`slideshow-image slideshow-buf${front === 1 && (!bufs[1]?.shaderId || !shaderPass) ? ' is-front' : ' is-back'}`}
-          src={bufs[1]?.url || undefined}
+          src={bufs[1]?.shaderId && shaderPass ? undefined : bufs[1]?.url || undefined}
           alt=""
           draggable={false}
           decoding="async"

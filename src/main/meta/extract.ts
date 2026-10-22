@@ -29,8 +29,7 @@ import {
 import { encodeNoteChecklistColumn, itemNoteChecklistItems } from '@shared/noteSearch'
 import { listStreamNames, readStreamText, streamExists } from '../fs/adsWin32'
 import { settingsStore } from '../settings/store'
-import { parseA1111Parameters } from '../preview/a1111'
-import { resolveGenerationParametersText } from '../preview/genFields'
+import { decodeGenerationParameters } from '../preview/genFields'
 import { readMediaMetadata } from '../mediaMetadata/store'
 
 const IMAGE_EXTS = new Set([
@@ -270,21 +269,18 @@ async function extractImage(
           /* ignore */
         }
       }
-      const paramsText = resolveGenerationParametersText(buf, ext, exifBuf)
-      if (paramsText) {
-        const parsed = parseA1111Parameters(paramsText)
-        if (parsed) {
-          pick(wanted, 'genPrompt', truncate(parsed.prompt, 400), out)
-          if (parsed.negative) pick(wanted, 'genNegative', truncate(parsed.negative, 300), out)
-          const s = parsed.settings
-          pick(wanted, 'genSeed', s['Seed'], out)
-          pick(wanted, 'genModel', s['Model'], out)
-          pick(wanted, 'genModelHash', s['Model hash'], out)
-          pick(wanted, 'genSteps', s['Steps'], out)
-          pick(wanted, 'genSampler', s['Sampler'], out)
-          pick(wanted, 'genCfg', s['CFG scale'], out)
-          pick(wanted, 'genSize', s['Size'], out)
-        }
+      const parsed = decodeGenerationParameters(buf, ext, exifBuf)
+      if (parsed) {
+        pick(wanted, 'genPrompt', truncate(parsed.prompt, 400), out)
+        if (parsed.negative) pick(wanted, 'genNegative', truncate(parsed.negative, 300), out)
+        const s = parsed.settings
+        pick(wanted, 'genSeed', s['Seed'], out)
+        pick(wanted, 'genModel', s['Model'], out)
+        pick(wanted, 'genModelHash', s['Model hash'], out)
+        pick(wanted, 'genSteps', s['Steps'], out)
+        pick(wanted, 'genSampler', s['Sampler'], out)
+        pick(wanted, 'genCfg', s['CFG scale'], out)
+        pick(wanted, 'genSize', s['Size'], out)
       }
     } catch {
       // ignore

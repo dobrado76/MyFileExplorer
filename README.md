@@ -27,6 +27,24 @@ It started as a replacement for Windows File Explorer. It has grown into somethi
 
 ---
 
+## Need help with MyFileExplorer?
+
+There is no support desk. The documentation is the help that exists. Ask an AI assistant with the single support file. A GitHub issue is a public note, not a support ticket, and a reply is not promised.
+
+That file contains the guide and the full FAQ. Upload it. It tells the assistant not to guess past what the app actually does.
+
+**[MyFileExplorer — support file](AI-SUPPORT.md)**
+
+1. [Download AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/raw/main/AI-SUPPORT.md).
+2. Upload it to ChatGPT, Claude, Gemini, or another AI assistant.
+3. Ask your question about MyFileExplorer.
+
+[AI-SUPPORT.md](AI-SUPPORT.md) is the file to give an assistant. The shorter guides and [FAQ](docs/FAQ.md) stay for reading one topic.
+
+If the assistant cannot resolve the issue, you may [open a GitHub issue](https://github.com/dobrado76/MyFileExplorer/issues) with the version from **Settings → About**, your Windows version, which external tool is involved, and the error text. That does not create a support obligation.
+
+---
+
 ## Why not just use File Explorer?
 
 Explorer is fine until it isn’t — one window per rabbit hole, a preview pane that shrugs, a context menu longer than your shopping list, and search that either indexes the universe or crawls like molasses.
@@ -91,7 +109,7 @@ MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell 
 - Dark / light / custom theme, font size
 - **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
 - Per-folder view overrides, view filters, Details columns for media & generation fields
-- Optional **slideshow / categorizer** for media libraries (manual crop, draw caption). **Camera looks** add grain, color, and blur on the show only — off until you turn them on, and they do not change the file
+- Optional **slideshow / categorizer** for media libraries (manual crop). **Camera looks** add grain, color, and blur on the show only — off until you turn them on, and they do not change the file
 - NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts **and** a WinDirStat-style space map in preview (D66)
 - Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
 - **Undelete** — opt-in tab-bar icon (Settings → Appearance, off by default) for classic NTFS MFT recover after permanent delete (not Recycle Bin Restore)
@@ -149,6 +167,8 @@ Details: [docs/BUILD.md](docs/BUILD.md) · [docs/PRODUCT_SPEC.md](docs/PRODUCT_S
 
 | Doc | What it’s for |
 | --- | --- |
+| **[AI-SUPPORT.md](AI-SUPPORT.md)** | Single file to give an AI assistant for user support (generated) |
+| **[docs/FAQ.md](docs/FAQ.md)** | Support questions and answers |
 | **[docs/README.md](docs/README.md)** | Doc index & reading order |
 | **[docs/BUSINESS_UVP.md](docs/BUSINESS_UVP.md)** | Business value proposition — local file workbench for organizations |
 | **[docs/ADVANTAGES.md](docs/ADVANTAGES.md)** | vs Explorer + Virtual Folders / workbench framing |
@@ -203,7 +223,8 @@ Most backup and sync tools copy only the main file body. They silently drop ADS.
 | Script | Purpose |
 | --- | --- |
 | `npm run dev` | Electron + HMR |
-| `npm run check` | typecheck + lint + test — **same command CI runs**; also runs on `git push` |
+| `npm run check` | typecheck + lint + test + support-doc freshness — **same command CI runs**; also runs on `git push` |
+| `npm run docs:support` | Rebuild [AI-SUPPORT.md](AI-SUPPORT.md) after support docs change |
 | `npm run test` | Vitest |
 | `npm run build` | Production electron-vite build |
 | `npm run dist` | Bump patch, prune old Setup*.exe, build Windows installer (Windows host only) |

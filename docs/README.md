@@ -4,6 +4,8 @@
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
+**User support bundle:** [../AI-SUPPORT.md](../AI-SUPPORT.md) is generated from the manifest in `scripts/ai-support-manifest.json` (install, settings, FAQ, troubleshooting, and the feature guides). Do not edit it by hand. After changing a bundled page, run `npm run docs:support`. `npm run docs:support:check` fails when the bundle is stale. Start with [getting-started.md](getting-started.md), [FAQ.md](FAQ.md), and [troubleshooting.md](troubleshooting.md).
+
 ---
 
 ## Reading order
@@ -138,7 +140,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap; **Other N · size** on the Space usage heading. Plain vs **Shift+click** (skip tagged) — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) |
 | Paired folders (D69) | Side-by-side layout centre rail: directional copy, compare projection, reviewed sync plans — [PAIRED_FOLDERS.md](PAIRED_FOLDERS.md) |
 | Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
-| File op plan | Hold **Ctrl** on copy/move/paste/delete → plan dialog with Dry run |
+| File op plan | Ctrl on toolbar/menu **Paste** or **Delete**, or **Ctrl+Delete** / **Ctrl+Shift+V**, opens the plan (Dry run). Drag+Ctrl copies. Ctrl+C/Ctrl+V stay clipboard. |
 | Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](GIT.md) |
 | Tree hide control | Appearance pin vs per-pane toolbar button |
 
@@ -219,7 +221,6 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
 | Folder statistics | Depth-first **Calculate Statistics**; **Shift+click** skips already-tagged trees — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) · streams [ADS.md](ADS.md) |
 | Slideshow crop | Numpad edge trim during slideshow |
-| Draw caption | NTFS Caption ADS poster in slideshow / preview / viewer when enabled |
 | Nested custom context menus | `\` in custom command labels builds submenus |
 | Tab bar | Chrome-like shrink + overflow scroll |
 | Settings About | Updates + Export/Import + GitHub help link |

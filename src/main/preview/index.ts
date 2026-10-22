@@ -6,9 +6,9 @@ import { protocolAllowlist } from '../security/paths'
 import { requireAbsolute, statPath } from '../fs/list'
 import { settingsStore } from '../settings/store'
 import { extractPngTextChunks } from './pngText'
-import { parseA1111Parameters } from './a1111'
 import {
   pushA1111GenerationFields,
+  decodeGenerationParameters,
   resolveGenerationParametersText,
   capGenText
 } from './genFields'
@@ -702,7 +702,7 @@ function addImageGenerationFields(
 ): void {
   const paramsText = resolveGenerationParametersText(bytes, ext, exifBuf ?? null)
   if (paramsText) {
-    const parsed = parseA1111Parameters(paramsText)
+    const parsed = decodeGenerationParameters(bytes, ext, exifBuf ?? null)
     if (parsed) {
       pushA1111GenerationFields(parsed, fields, warnings)
     } else {

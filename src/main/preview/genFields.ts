@@ -1,8 +1,10 @@
 import type { PreviewField } from '@shared/schemas/preview'
 import { parseA1111Parameters, type A1111Parameters } from './a1111'
+import { resolveComfySettingLinks } from './comfyLinks'
 import {
   extractExifTextCandidates,
   extractJpegComComments,
+  extractJpegSegmentTexts,
   pickGenerationParametersText
 } from './exifText'
 import { extractPngTextChunks } from './pngText'
@@ -80,6 +82,41 @@ export function resolveGenerationParametersText(
   return pickGenerationParametersText(candidates, (s) => parseA1111Parameters(s) !== null)
 }
 
+/**
+ * A1111/Comfy parameters text, with widget links (`['153', 0]`) replaced from
+ * a prompt or workflow JSON stored on the same image when that graph is present.
+ */
+export function decodeGenerationParameters(
+  buf: Buffer,
+  ext: string,
+  exifBuf?: Buffer | null
+): A1111Parameters | null {
+  const candidates = collectGenerationParameterCandidates(buf, ext, exifBuf)
+  const paramsText = pickGenerationParametersText(candidates, (s) => parseA1111Parameters(s) !== null)
+  if (!paramsText) return null
+  const parsed = parseA1111Parameters(paramsText)
+  if (!parsed) return null
+  return resolveComfySettingLinks(parsed, comfyGraphCandidates(buf, ext, candidates))
+}
+
+function comfyGraphCandidates(buf: Buffer, ext: string, parameters: readonly string[]): string[] {
+  const out = [...parameters]
+  const push = (text: string): void => {
+    const trimmed = text.trim()
+    if (trimmed && !out.includes(trimmed)) out.push(trimmed)
+  }
+  if (ext === 'png') {
+    for (const chunk of extractPngTextChunks(buf)) {
+      const key = chunk.keyword.toLowerCase()
+      if (key === 'prompt' || key === 'workflow') push(chunk.text)
+    }
+  }
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'jfif') {
+    for (const text of extractJpegSegmentTexts(buf)) push(text)
+  }
+  return out
+}
+
 /** Append decomposed Generation fields from a parsed A1111/Comfy parameters block. */
 export function pushA1111GenerationFields(
   parsed: A1111Parameters,
@@ -133,12 +170,26 @@ export function pushA1111GenerationFields(
     })
   }
 
-  fields.push({
-    id: 'gen.rawParameters',
-    label: 'Raw parameters',
-    value: capGenText(parsed.raw, warnings, 'Raw parameters'),
-    group: 'generation',
-    mono: true,
-    copyable: true
-  })
+  // The raw blob repeats the prompt, negative, and settings. Keep it only when
+  // those text fields did not come out of the parse.
+  if (promptTextDecodeFailed(parsed)) {
+    fields.push({
+      id: 'gen.rawParameters',
+      label: 'Raw parameters',
+      value: capGenText(parsed.raw, warnings, 'Raw parameters'),
+      group: 'generation',
+      mono: true,
+      copyable: true
+    })
+  }
+}
+
+/** True when the prompt body is missing, or a negative-prompt section was present but not split out. */
+function promptTextDecodeFailed(parsed: A1111Parameters): boolean {
+  if (!parsed.prompt.trim()) return true
+  return hasNegativePromptMarker(parsed.raw) && parsed.negative == null
+}
+
+function hasNegativePromptMarker(raw: string): boolean {
+  return /(?:^|\n)\s*Negative prompt:/i.test(raw)
 }

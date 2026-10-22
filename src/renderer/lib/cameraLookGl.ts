@@ -18,7 +18,8 @@ const VERT = `
 attribute vec2 aPos;
 varying vec2 vUv;
 void main() {
-  vUv = aPos * 0.5 + 0.5;
+  // Flip here so texImage2D can leave UNPACK_FLIP_Y off (that flag copies on the CPU).
+  vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5);
   gl_Position = vec4(aPos, 0.0, 1.0);
 }
 `
@@ -104,7 +105,7 @@ function surfaceFor(canvas: HTMLCanvasElement): Surface | null {
     antialias: false,
     depth: false,
     stencil: false,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer: false,
     powerPreference: 'high-performance',
     failIfMajorPerformanceCaveat: false
   })
@@ -208,6 +209,7 @@ function frameSize(canvas: HTMLCanvasElement): { w: number; h: number } | null {
   return { w, h }
 }
 
+/** Scale an already-decoded image down to the upload cap. Does not read the file again. */
 async function uploadSource(
   source: CanvasImageSource,
   sourceW: number,
@@ -282,7 +284,7 @@ export async function drawCameraLook(
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
     gl.activeTexture(gl.TEXTURE0)
     gl.bindTexture(gl.TEXTURE_2D, surface.tex)
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0)
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)

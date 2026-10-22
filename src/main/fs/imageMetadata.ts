@@ -47,7 +47,7 @@ function classifyBridgedKeyword(text: string, hint?: string): string {
     if (/"class_type"\s*:/.test(t) || /"nodes"\s*:/.test(t)) return 'workflow'
     return 'prompt'
   }
-  if (/\nNegative prompt:/i.test(t) || /\bSteps:\s*\d+/i.test(t)) return 'parameters'
+  if (/\nNegative prompt:/i.test(t) || /\bSteps:\s*(?:\d|\[)/i.test(t)) return 'parameters'
   return 'Comment'
 }
 

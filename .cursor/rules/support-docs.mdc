@@ -1,0 +1,23 @@
+---
+description: Keep user support docs and AI-SUPPORT.md aligned with behavior changes
+alwaysApply: true
+---
+
+# MyFileExplorer support docs stay in sync
+
+When a change affects what users can see or recover, update the matching support page in the same change and rebuild the bundle.
+
+- New or renamed control, menu, or shortcut → `docs/reference.md`, `docs/FAQ.md`, and the feature doc under `docs/`.
+- New setting or default → `docs/configuration.md` and `docs/FAQ.md`.
+- New error or recovery step → `docs/troubleshooting.md`.
+- Storage path or export contents → `docs/PROJECT_FORMAT.md` and `docs/configuration.md`.
+- Removed behavior → delete the old instructions. Do not leave them as if they still work.
+- After those edits, run `npm run docs:support` and commit `AI-SUPPORT.md` with the source docs.
+
+`npm run docs:support:check` must pass. It compares `AI-SUPPORT.md` to a fresh build and does not write the file. `npm run check` includes it.
+
+Do not document unpublished developer-gated features in `AI-SUPPORT.md`, `docs/FAQ.md`, or other pages users or GitHub issues will read. Follow `project.mdc`.
+
+`docs/plans/` is not a user manual. Do not copy plan text into the support bundle as if it shipped.
+
+Do not put live `settings.json` contents into docs or examples.

@@ -143,9 +143,9 @@ Extract when present (from PNG `parameters`/`Comment`, or JPEG/WebP EXIF UserCom
 | `gen.vae`           | VAE                                 |
 | `gen.denoising`     | Denoising strength                  |
 | `gen.setting.*`     | Any other `Key: value` pairs        |
-| `gen.rawParameters` | Raw parameters (collapsible / copy) |
+| `gen.rawParameters` | Raw parameters — only when the prompt or negative prompt did not parse |
 
-Keep raw text if structured parse fails but chunk exists.
+Keep the raw text when the chunk exists but the prompt body is missing, a `Negative prompt:` section was not split out, or the block does not parse as parameters at all. When prompt and negative both come out, the raw blob is omitted.
 
 #### ComfyUI PNG
 

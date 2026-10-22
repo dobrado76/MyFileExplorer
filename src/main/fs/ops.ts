@@ -1,5 +1,6 @@
-import fs from 'node:fs'
-import fsp from 'node:fs/promises'
+import patchedFs from 'node:fs'
+import type { Dirent, Stats } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { Transform } from 'node:stream'
@@ -41,7 +42,7 @@ import {
   virtualFolderProjectedMountPath,
   virtualFolderStemFromFileName
 } from '@shared/virtualFolder'
-import { isSameOrUnder, isStrictlyInside } from '../security/paths'
+import { isSameOrUnder, isStrictlyInside, pathKey } from '../security/paths'
 import { requireAbsolute, pathExists } from './list'
 import { deletePathWin32Permanent, recyclePathWin32Robust } from './trashWin32'
 import {
@@ -53,10 +54,83 @@ import {
 } from './watch'
 import { appErrorFromFsFailure } from './fsErrors'
 import { beginOp, type OpReporter } from './opProgress'
+import { logMain } from '../logging'
 import { copyHostFileTimes } from './adsWin32'
 import { pathIsNtfs } from './drives'
 import { pathIsReadOnly } from './winAttrs'
 import { relocateVidThumbCacheFrames } from '../thumbs/vidCache'
+
+const require = createRequire(import.meta.url)
+
+/**
+ * Electron patches `node:fs` so an `.asar` file behaves like a directory.
+ * File-manager operations must always see the physical filesystem; otherwise
+ * copying an Electron app walks inside app.asar/default_app.asar and then fails
+ * with "Invalid package" or "not found in …asar" (the archive is one file).
+ *
+ * `original-fs` is an Electron builtin. Resolve it from the executable so a
+ * bundled `require` cannot fall through to the patched module.
+ */
+function loadPhysicalFs(): typeof patchedFs {
+  const read = (req: NodeRequire): typeof patchedFs | null => {
+    try {
+      return req('original-fs') as typeof patchedFs
+    } catch {
+      return null
+    }
+  }
+  if (process.versions.electron) {
+    const fromExe = read(createRequire(process.execPath))
+    if (fromExe) return fromExe
+    const fromHere = read(require)
+    if (fromHere) return fromHere
+    logMain(
+      'warn',
+      'original-fs could not be loaded; .asar packages are copied with asar support turned off for that file'
+    )
+    return patchedFs
+  }
+  return read(require) ?? patchedFs
+}
+
+const fs: typeof patchedFs = loadPhysicalFs()
+const fsp = fs.promises
+/** True when this process has no unpatched fs and `.asar` reads need `process.noAsar`. */
+const fsIsPatched = fs === patchedFs
+
+function isAsarArchivePath(filePath: string): boolean {
+  return path.basename(filePath).toLowerCase().endsWith('.asar')
+}
+
+/**
+ * Electron's own default app, and the unpacked release archive, are not project
+ * files. Opening them lists names that exist only inside the archive.
+ * Copy leaves these exact paths out. Any other `.asar` is still copied as one file.
+ */
+const OMITTED_COPY_ARCHIVE_TAILS = [
+  ['node_modules', 'electron', 'dist', 'resources', 'default_app.asar'],
+  ['release', 'win-unpacked', 'resources', 'default_app.asar'],
+  ['release', 'win-unpacked', 'resources', 'app.asar']
+] as const
+
+function isOmittedCopyArchive(filePath: string): boolean {
+  const parts = filePath.replace(/[\\/]+/g, '/').split('/').filter(Boolean)
+  return OMITTED_COPY_ARCHIVE_TAILS.some((tail) => {
+    if (parts.length < tail.length) return false
+    const start = parts.length - tail.length
+    return tail.every((seg, i) => parts[start + i]!.toLowerCase() === seg)
+  })
+}
+
+function withAsarBypass<T>(fn: () => Promise<T>): Promise<T> {
+  if (!fsIsPatched) return fn()
+  const proc = process as NodeJS.Process & { noAsar?: boolean }
+  const prev = proc.noAsar === true
+  proc.noAsar = true
+  return fn().finally(() => {
+    proc.noAsar = prev
+  })
+}
 
 /** Keep listings from refreshing for the whole copy/move, not just the first 1.5s. */
 const OP_MUTE_MS = 3_600_000
@@ -104,11 +178,21 @@ async function removeEmptyProjectedMountStub(mountPath: string | null): Promise<
 }
 
 type CopyTreeOpts = {
-  notifyParentOnCreate?: boolean
   discover?: boolean
   verify?: boolean
   preserveTimestamps?: boolean
   preserveAds?: boolean
+  /**
+   * When set, a failure of one child is recorded and the rest of the folder
+   * still copies. The destination folder this call creates is not a conflict.
+   */
+  issues?: OpIssue[]
+  /** realpath keys already being copied (junction / symlink cycles). */
+  walkReal?: string[]
+  /** realpath of the top-level folder this copy is writing. */
+  outputRoot?: string
+  /** Copy only: do not write the known-bad Electron archives. */
+  omitPackingArchives?: boolean
 }
 
 function isSameFolderCopy(sources: string[], destinationDir: string): boolean {
@@ -936,14 +1020,14 @@ async function countWorkUnits(roots: string[], progress?: OpReporter | null): Pr
     const key = p.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
-    let st: fs.Stats
+    let st: Stats
     try {
       st = await fsp.lstat(p)
     } catch {
       continue
     }
     if (st.isDirectory()) {
-      let ents: fs.Dirent[]
+      let ents: Dirent[]
       try {
         ents = await fsp.readdir(p, { withFileTypes: true })
       } catch {
@@ -1075,101 +1159,353 @@ async function copyFileWithProgress(
   await finishFile()
 }
 
-async function copyTree(
+/** mkdir the copy destination. An existing real directory is the folder we are filling, not a collision. */
+async function ensureCopyDir(target: string): Promise<void> {
+  try {
+    await fsp.mkdir(target, { recursive: true })
+  } catch (e) {
+    const code = nodeErrno(e)
+    if (code === 'EEXIST' || code === 'EPERM' || code === 'EISDIR') {
+      try {
+        const st = await fsp.lstat(target)
+        // A junction/symlink must not be written through — that is some other folder.
+        if (st.isDirectory() && !st.isSymbolicLink()) return
+      } catch {
+        /* report the original mkdir error */
+      }
+    }
+    throw e
+  }
+}
+
+/** True when `child` is the folder this copy is writing, or lives inside it. */
+function isThisCopyOutput(child: string, target: string): boolean {
+  return samePath(child, target) || isStrictlyInside(child, target)
+}
+
+/** Copy/move mutes watchers for the whole op. Bypass that so the new folder shows up immediately. */
+const announcedDirParents = new Map<string, number>()
+function announceDirParent(childPath: string): void {
+  const parent = path.dirname(childPath)
+  if (!parent || samePath(parent, childPath)) return
+  const key = parent.toLowerCase()
+  const now = Date.now()
+  const last = announcedDirParents.get(key) ?? 0
+  if (last !== 0 && now - last < 400) return
+  announcedDirParents.set(key, now)
+  emitFsChanged(parent, { bypassMute: true })
+}
+
+/** Junction targets from readlink often carry `\\?\` or `\??\` prefixes Node will not link. */
+function normalizeLinkTarget(link: string): string {
+  let t = link.trim()
+  if (t.startsWith('\\\\?\\UNC\\')) t = '\\\\' + t.slice(8)
+  else if (t.startsWith('\\\\?\\')) t = t.slice(4)
+  else if (t.startsWith('\\??\\UNC\\')) t = '\\\\' + t.slice(8)
+  else if (t.startsWith('\\??\\')) t = t.slice(4)
+  if (t.length > 3 && (t.endsWith('\\') || t.endsWith('/'))) t = t.slice(0, -1)
+  return t
+}
+
+async function readCopyEntries(source: string): Promise<Dirent[]> {
+  try {
+    return await fsp.readdir(source, { withFileTypes: true })
+  } catch (e) {
+    const code = nodeErrno(e)
+    if (code !== 'ENOTDIR' && code !== 'EINVAL' && code !== 'ENOENT') throw e
+    if (source.startsWith('\\\\?\\') || source.startsWith('\\\\')) throw e
+    return fsp.readdir(`\\\\?\\${source}`, { withFileTypes: true })
+  }
+}
+
+async function noteCopyChildFailure(
+  e: unknown,
+  source: string,
+  target: string,
+  isDir: boolean,
+  progress: OpReporter | null,
+  issues: OpIssue[] | undefined
+): Promise<void> {
+  if (isCancelled(e)) throw e
+  const notDir =
+    nodeErrno(e) === 'ENOTDIR' ||
+    (e instanceof Error && /^ENOTDIR(?:\b|:|,)/i.test(e.message.trim()))
+  if (isDir && notDir) {
+    try {
+      const st = await fsp.stat(source)
+      if (st.isDirectory()) {
+        // Last-resort native directory copy. A readable folder must not be
+        // rejected as "not a directory" by one of our metadata/path stages.
+        await fsp.cp(source, target, {
+          recursive: true,
+          force: true,
+          errorOnExist: false,
+          preserveTimestamps: true
+        })
+        logMain('warn', `Copy recovered from ENOTDIR with native folder copy: ${source} -> ${target}`)
+        announceDirParent(target)
+        progress?.tick(source)
+        return
+      }
+    } catch (fallbackError) {
+      if (isCancelled(fallbackError)) throw fallbackError
+      e = fallbackError
+    }
+  }
+  if (!issues) throw e
+  if (e instanceof Error) {
+    const detail = e as NodeJS.ErrnoException
+    logMain(
+      'warn',
+      `Copy item failed: ${detail.code ?? 'unknown'} ${detail.syscall ?? ''} ${source} -> ${target}: ${detail.message}`
+    )
+  }
+  issues.push(await toIssue(e, 'copy', source, target, isDir))
+  progress?.tick(source)
+}
+
+async function finishCopiedDirectory(
+  source: string,
+  target: string,
+  copyOpts: Pick<CopyTreeOpts, 'preserveTimestamps' | 'preserveAds'>
+): Promise<void> {
+  try {
+    if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
+    if (copyOpts.preserveAds !== false && process.platform === 'win32') {
+      const { copyStreams } = await import('./adsWin32')
+      await copyStreams(source, target)
+    }
+  } catch {
+    // The folder's files are already copied. A timestamp or stream miss is not a failed copy.
+  }
+}
+
+/** Copy a directory tree. `source` may be a junction; readdir follows it. Cycles are skipped. */
+async function copyDirectoryBody(
   source: string,
   target: string,
   progress: OpReporter | null,
   opts?: CopyTreeOpts
-): Promise<void> {
-  progress?.throwIfCancelled()
+): Promise<boolean> {
   const discover = opts?.discover !== false
   const copyOpts = {
     verify: opts?.verify,
     preserveTimestamps: opts?.preserveTimestamps,
     preserveAds: opts?.preserveAds
   }
-  let st: fs.Stats
+  const stack = opts?.walkReal ?? []
+  let pushed: string | null = null
+  try {
+    let real: string | null = null
+    try {
+      real = await fsp.realpath(source)
+    } catch {
+      real = null
+    }
+    if (real) {
+      const key = pathKey(real)
+      const out = opts?.outputRoot
+      if (
+        stack.includes(key) ||
+        (out != null && (samePath(real, out) || isStrictlyInside(real, out)))
+      ) {
+        return true
+      }
+      stack.push(key)
+      pushed = key
+    }
+
+    try {
+      await ensureCopyDir(target)
+    } catch (e) {
+      await noteCopyChildFailure(e, source, target, true, progress, opts?.issues)
+      return false
+    }
+    announceDirParent(target)
+    let outputRoot = opts?.outputRoot
+    if (!outputRoot) {
+      try {
+        outputRoot = await fsp.realpath(target)
+      } catch {
+        outputRoot = target
+      }
+    }
+
+    let ents: Dirent[]
+    try {
+      ents = await readCopyEntries(source)
+    } catch (e) {
+      if (isCancelled(e)) throw e
+      await noteCopyChildFailure(e, source, target, true, progress, opts?.issues)
+      return false
+    }
+    const childOpts: CopyTreeOpts = { ...opts, walkReal: stack, outputRoot, discover }
+    if (ents.length === 0) {
+      if (discover) progress?.addToTotal(1, source)
+      await finishCopiedDirectory(source, target, copyOpts)
+      progress?.tick(source)
+      await maybeYieldMain()
+      return true
+    }
+    const files: string[] = []
+    const dirs: string[] = []
+    for (const e of ents) {
+      if (opts?.omitPackingArchives && isOmittedCopyArchive(path.join(source, e.name))) continue
+      // A patched fs reports *.asar as a directory. It is one archive file.
+      if (isAsarArchivePath(e.name) || e.isSymbolicLink()) files.push(e.name)
+      else if (e.isDirectory()) dirs.push(e.name)
+      else files.push(e.name)
+    }
+    if (discover && files.length > 0) progress?.addToTotal(files.length, source)
+    const copyNamed = async (name: string, asDir: boolean): Promise<void> => {
+      progress?.throwIfCancelled()
+      await maybeYieldMain()
+      const childSource = path.join(source, name)
+      const childTarget = path.join(target, name)
+      if (
+        isThisCopyOutput(childSource, target) ||
+        isStrictlyInside(childTarget, childSource) ||
+        isStrictlyInside(target, childSource)
+      ) {
+        return
+      }
+      try {
+        await copyTree(childSource, childTarget, progress, {
+          ...childOpts,
+          discover: asDir ? discover : false
+        })
+      } catch (e) {
+        await noteCopyChildFailure(e, childSource, childTarget, asDir, progress, opts?.issues)
+      }
+    }
+    for (const name of files) await copyNamed(name, false)
+    for (const name of dirs) await copyNamed(name, true)
+    await finishCopiedDirectory(source, target, copyOpts)
+    await maybeYieldMain()
+    return true
+  } finally {
+    if (pushed) {
+      const at = stack.lastIndexOf(pushed)
+      if (at >= 0) stack.splice(at, 1)
+    }
+  }
+}
+
+async function copyTree(
+  source: string,
+  target: string,
+  progress: OpReporter | null,
+  opts?: CopyTreeOpts
+): Promise<boolean> {
+  progress?.throwIfCancelled()
+  if (opts?.omitPackingArchives && isOmittedCopyArchive(source)) {
+    progress?.tick(source)
+    return true
+  }
+  const copyOpts = {
+    verify: opts?.verify,
+    preserveTimestamps: opts?.preserveTimestamps,
+    preserveAds: opts?.preserveAds
+  }
+  let st: Stats
   try {
     st = await fsp.lstat(source)
   } catch (e) {
     throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })
   }
 
-  if (st.isDirectory()) {
-    await fsp.mkdir(target, { recursive: true })
-    if (opts?.notifyParentOnCreate) {
-      emitFsChanged(path.dirname(target), { bypassMute: true })
-    }
-    let ents: fs.Dirent[]
+  // Never walk inside an asar archive. Electron's patched fs lists it as a
+  // folder (default_app.asar/octicon, …) and then refuses to write those paths.
+  if (isAsarArchivePath(source)) {
     try {
-      ents = await fsp.readdir(source, { withFileTypes: true })
+      await withAsarBypass(async () => {
+        let size = st.isFile() ? st.size : 0
+        if (!st.isFile()) {
+          try {
+            const real = await fsp.lstat(source)
+            if (real.isFile()) size = real.size
+          } catch {
+            /* copyFile still writes the archive bytes */
+          }
+        }
+        await copyFileWithProgress(source, target, size, progress, source, copyOpts)
+      })
+      return true
     } catch (e) {
-      throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: true })
+      if (isCancelled(e)) throw e
+      await noteCopyChildFailure(e, source, target, false, progress, opts?.issues)
+      return false
     }
-    if (ents.length === 0) {
-      if (discover) progress?.addToTotal(1, source)
-      if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
-      if (copyOpts.preserveAds !== false && process.platform === 'win32') {
-        const { copyStreams } = await import('./adsWin32')
-        await copyStreams(source, target)
-      }
-      progress?.tick(source)
-      await maybeYieldMain()
-      return
-    }
-    const files: string[] = []
-    const dirs: string[] = []
-    for (const e of ents) {
-      if (e.isDirectory()) dirs.push(e.name)
-      else files.push(e.name)
-    }
-    if (discover && files.length > 0) progress?.addToTotal(files.length, source)
-    for (const name of files) {
-      progress?.throwIfCancelled()
-      await maybeYieldMain()
-      await copyTree(path.join(source, name), path.join(target, name), progress, {
-        ...opts,
-        discover: false
-      })
-    }
-    for (const name of dirs) {
-      progress?.throwIfCancelled()
-      await maybeYieldMain()
-      await copyTree(path.join(source, name), path.join(target, name), progress, {
-        ...opts,
-        discover
-      })
-    }
-    if (copyOpts.preserveTimestamps !== false) copyHostFileTimes(source, target)
-    if (copyOpts.preserveAds !== false && process.platform === 'win32') {
-      const { copyStreams } = await import('./adsWin32')
-      await copyStreams(source, target)
-    }
-    await maybeYieldMain()
-    return
   }
 
-  try {
-    if (st.isSymbolicLink()) {
-      const link = await fsp.readlink(source)
-      try {
-        await fsp.symlink(link, target)
-      } catch {
-        await copyFileWithProgress(source, target, st.size, progress, source, copyOpts)
-        return
-      }
-      progress?.tick(source)
-    } else {
-      await copyFileWithProgress(source, target, st.size, progress, source, copyOpts)
+  // A directory junction is still a folder. Recreate the link when that works.
+  // If it does not, copy the files. Never report ENOTDIR for a folder we can read.
+  // Do not follow a link into the folder this copy is writing.
+  if (st.isSymbolicLink()) {
+    let link: string
+    try {
+      link = normalizeLinkTarget(await fsp.readlink(source))
+    } catch {
+      link = ''
     }
+    let dirLink = st.isDirectory()
+    if (!dirLink) {
+      try {
+        dirLink = (await fsp.stat(source)).isDirectory()
+      } catch {
+        dirLink = false
+      }
+    }
+    if (link) {
+      try {
+        await fsp.symlink(
+          link,
+          target,
+          dirLink ? (process.platform === 'win32' ? 'junction' : 'dir') : 'file'
+        )
+        if (dirLink) announceDirParent(target)
+        progress?.tick(source)
+        return true
+      } catch (e) {
+        if (isCancelled(e)) throw e
+      }
+    }
+    if (dirLink) return copyDirectoryBody(source, target, progress, opts)
+    try {
+      const followed = await fsp.stat(source)
+      await copyFileWithProgress(source, target, followed.size, progress, source, copyOpts)
+      return true
+    } catch (e2) {
+      await noteCopyChildFailure(e2, source, target, false, progress, opts?.issues)
+      return false
+    }
+  }
+
+  if (st.isDirectory()) return copyDirectoryBody(source, target, progress, opts)
+
+  try {
+    await copyFileWithProgress(source, target, st.size, progress, source, copyOpts)
+    return true
   } catch (e) {
-    throw await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })
+    const code = nodeErrno(e)
+    if (code === 'ENOTDIR' || code === 'EISDIR' || code === 'EPERM') {
+      try {
+        if ((await fsp.stat(source)).isDirectory()) {
+          return copyDirectoryBody(source, target, progress, opts)
+        }
+      } catch {
+        /* report the copy error below */
+      }
+    }
+    const wrapped = await appErrorFromFsFailure(e, { action: 'copy', path: source, isDir: false })
+    await noteCopyChildFailure(wrapped, source, target, false, progress, opts?.issues)
+    return false
   }
 }
 
 async function deleteTree(target: string, progress: OpReporter | null): Promise<void> {
   progress?.throwIfCancelled()
-  let st: fs.Stats
+  let st: Stats
   try {
     st = await fsp.lstat(target)
   } catch (e) {
@@ -1389,6 +1725,7 @@ export async function copyEntries(
 
   const progress = beginOp('copy', absSources.length, 'Copying…')
   muteWatchers(OP_MUTE_MS)
+  releaseWatchersAffecting([dest])
   const copied: string[] = []
   const skipped: string[] = []
   const issues: OpIssue[] = []
@@ -1403,6 +1740,11 @@ export async function copyEntries(
       progress.throwIfCancelled()
       if ('skip' in item) continue
       await maybeYieldMain()
+      if (isOmittedCopyArchive(item.source)) {
+        skipped.push(item.source)
+        if (!('conflict' in item)) progress.tick(item.source)
+        continue
+      }
       if (fatal) {
         const src = item.source
         const dest = item.target
@@ -1437,12 +1779,15 @@ export async function copyEntries(
         if (policy === 'replace') {
           await prepareReplaceTarget(item.source, item.target, 'copy')
         }
-        await copyTree(item.source, item.target, progress, {
+        releaseWatchersAffecting([item.target])
+        const wrote = await copyTree(item.source, item.target, progress, {
           verify: transferOpts?.verify,
           preserveTimestamps: transferOpts?.preserveTimestamps,
-          preserveAds: transferOpts?.preserveAds
+          preserveAds: transferOpts?.preserveAds,
+          omitPackingArchives: true,
+          issues
         })
-        copied.push(item.target)
+        if (wrote) copied.push(item.target)
       } catch (e) {
         if (isCancelled(e)) throw e
         const issue = await toIssue(e, 'copy', item.source, item.target, isDir)
@@ -1468,6 +1813,8 @@ async function relocateOne(
     watchesHeld?: boolean
     totalIncludesThis?: boolean
     transfer?: TransferOptions
+    /** Child failures are recorded here and the rest of the folder still copies. */
+    issueSink?: OpIssue[]
   }
 ): Promise<void> {
   progress?.throwIfCancelled()
@@ -1489,6 +1836,15 @@ async function relocateOne(
   try {
     await fsp.rename(source, target)
     await relocateVidThumbCacheFrames(source, target)
+    try {
+      const moved = await fsp.lstat(target)
+      if (moved.isDirectory() || moved.isSymbolicLink()) {
+        announceDirParent(target)
+        announceDirParent(source)
+      }
+    } catch {
+      /* the end of the move still reloads */
+    }
     progress?.tick(target)
     return
   } catch (e) {
@@ -1521,22 +1877,28 @@ async function relocateOne(
     }
     const heartbeat = setInterval(() => progress.pulse(source), 500)
     try {
-      await copyTree(source, target, progress, {
+      const before = opts?.issueSink?.length ?? 0
+      const wrote = await copyTree(source, target, progress, {
         discover: false,
         verify: opts?.transfer?.verify,
         preserveTimestamps: opts?.transfer?.preserveTimestamps,
-        preserveAds: opts?.transfer?.preserveAds
+        preserveAds: opts?.transfer?.preserveAds,
+        issues: opts?.issueSink
       })
+      if (!wrote || (opts?.issueSink && opts.issueSink.length > before)) return
     } finally {
       clearInterval(heartbeat)
     }
   } else {
-    await copyTree(source, target, progress, {
+    const before = opts?.issueSink?.length ?? 0
+    const wrote = await copyTree(source, target, progress, {
       discover: !opts?.totalIncludesThis,
       verify: opts?.transfer?.verify,
       preserveTimestamps: opts?.transfer?.preserveTimestamps,
-      preserveAds: opts?.transfer?.preserveAds
+      preserveAds: opts?.transfer?.preserveAds,
+      issues: opts?.issueSink
     })
+    if (!wrote || (opts?.issueSink && opts.issueSink.length > before)) return
   }
   await deleteTree(source, null)
 }
@@ -1666,14 +2028,18 @@ export async function moveEntries(
             continue
           }
         }
+        const beforeIssues = issues.length
         await relocateOne(item.source, item.target, progress, {
           destReady: true,
           watchesHeld: true,
           totalIncludesThis: true,
-          transfer: transferOpts
+          transfer: transferOpts,
+          issueSink: issues
         })
-        moved.push(item.target)
-        moves.push({ from: item.source, to: item.target })
+        if (issues.length === beforeIssues) {
+          moved.push(item.target)
+          moves.push({ from: item.source, to: item.target })
+        }
       } catch (e) {
         if (isCancelled(e)) throw e
         const issue = await toIssue(e, 'move', item.source, item.target)
@@ -2026,11 +2392,17 @@ const PLAN_MAX_ROWS = 150
 const PLAN_MAX_FILES = 80_000
 
 async function measurePathTree(
-  root: string
+  root: string,
+  opts?: { omitPackingArchives?: boolean }
 ): Promise<{ kind: EntryKind | null; sizeBytes: number; fileCount: number }> {
+  const omit = opts?.omitPackingArchives === true
+  if (omit && isOmittedCopyArchive(root)) {
+    return { kind: 'file', sizeBytes: 0, fileCount: 0 }
+  }
   let kind: EntryKind | null = null
   let sizeBytes = 0
   let fileCount = 0
+  let omitted = 0
   try {
     const st = await fsp.lstat(root)
     kind = st.isDirectory() ? 'dir' : st.isSymbolicLink() ? 'symlink' : 'file'
@@ -2044,14 +2416,14 @@ async function measurePathTree(
       const key = p.toLowerCase()
       if (seen.has(key)) continue
       seen.add(key)
-      let st2: fs.Stats
+      let st2: Stats
       try {
         st2 = await fsp.lstat(p)
       } catch {
         continue
       }
       if (st2.isDirectory()) {
-        let ents: fs.Dirent[]
+        let ents: Dirent[]
         try {
           ents = await fsp.readdir(p, { withFileTypes: true })
         } catch {
@@ -2063,11 +2435,16 @@ async function measurePathTree(
           continue
         }
         for (const e of ents) {
-          if (e.isDirectory()) stack.push(path.join(p, e.name))
+          const child = path.join(p, e.name)
+          if (omit && isOmittedCopyArchive(child)) {
+            omitted++
+            continue
+          }
+          if (e.isDirectory()) stack.push(child)
           else {
             fileCount++
             try {
-              sizeBytes += (await fsp.stat(path.join(p, e.name))).size
+              sizeBytes += (await fsp.stat(child)).size
             } catch {
               /* skip */
             }
@@ -2078,7 +2455,7 @@ async function measurePathTree(
         sizeBytes += st2.size
       }
     }
-    return { kind, sizeBytes, fileCount: Math.max(1, fileCount) }
+    return { kind, sizeBytes, fileCount: omitted > 0 ? fileCount : Math.max(1, fileCount) }
   } catch {
     return { kind, sizeBytes, fileCount: 0 }
   }
@@ -2117,7 +2494,9 @@ export async function planFileOp(req: FileOpPlanRequest): Promise<FileOpPlanResp
       if (rows.length >= PLAN_MAX_ROWS) break
       if ('skip' in item) {
         skips++
-        const m = await measurePathTree(item.skip)
+        const m = await measurePathTree(item.skip, {
+          omitPackingArchives: req.op === 'copy'
+        })
         rows.push({
           status: 'skip',
           source: item.skip,
@@ -2127,9 +2506,23 @@ export async function planFileOp(req: FileOpPlanRequest): Promise<FileOpPlanResp
         })
         continue
       }
+      if (req.op === 'copy' && isOmittedCopyArchive(item.source)) {
+        skips++
+        rows.push({
+          status: 'skip',
+          source: item.source,
+          dest: item.target,
+          kind: 'file',
+          sizeBytes: 0,
+          fileCount: 0
+        })
+        continue
+      }
       if ('conflict' in item) {
         conflicts++
-        const m = await measurePathTree(item.source)
+        const m = await measurePathTree(item.source, {
+          omitPackingArchives: req.op === 'copy'
+        })
         rows.push({
           status: 'conflict',
           source: item.source,
@@ -2142,7 +2535,9 @@ export async function planFileOp(req: FileOpPlanRequest): Promise<FileOpPlanResp
         totalBytes += m.sizeBytes
         continue
       }
-      const m = await measurePathTree(item.source)
+      const m = await measurePathTree(item.source, {
+        omitPackingArchives: req.op === 'copy'
+      })
       rows.push({
         status: 'ok',
         source: item.source,

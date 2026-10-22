@@ -54,6 +54,27 @@ Steps: 10, Sampler: Euler`
     expect(p!.settings['Lora hashes']).toBe('a: 1, b: 2')
     expect(p!.settings['Model']).toBe('m')
   })
+
+  it('splits a ComfyUI settings line whose widgets are node links', () => {
+    const text = `woman sorceress, fantasy settings
+Negative prompt: hentai, cartoon, drawing, illustration, watermark, twisted body, 3D render, CGI render
+Steps: ['153', 0], Sampler: ['152', 0], Schedule type: ['155', 0], CFG scale: ['154', 0], Seed: 1454000321, Size: 1200x1600, Model: museByStableYogi_v35Int8Extended.safetensors, VAE: Wan2_1_VAE_fp32.safetensors, Denoising strength: ['156', 0]`
+    const p = parseA1111Parameters(text)
+    expect(p).not.toBeNull()
+    expect(p!.negative).toBe(
+      'hentai, cartoon, drawing, illustration, watermark, twisted body, 3D render, CGI render'
+    )
+    expect(p!.negative).not.toContain('Steps:')
+    expect(p!.settings['Steps']).toBe("['153', 0]")
+    expect(p!.settings['Sampler']).toBe("['152', 0]")
+    expect(p!.settings['Schedule type']).toBe("['155', 0]")
+    expect(p!.settings['CFG scale']).toBe("['154', 0]")
+    expect(p!.settings['Seed']).toBe('1454000321')
+    expect(p!.settings['Size']).toBe('1200x1600')
+    expect(p!.settings['Model']).toBe('museByStableYogi_v35Int8Extended.safetensors')
+    expect(p!.settings['VAE']).toBe('Wan2_1_VAE_fp32.safetensors')
+    expect(p!.settings['Denoising strength']).toBe("['156', 0]")
+  })
 })
 
 describe('parseSettingsPairs', () => {

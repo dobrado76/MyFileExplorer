@@ -6,14 +6,12 @@ When the gate is **off**, the app must not show slideshow toolbar buttons, folde
 
 When **on**:
 
-- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **Include subfolders** (`slideshow.recursive`, default on — off = selected folder only), **Camera looks** (off until you turn them on — [below](#camera-looks)), **draw caption** (Caption ADS poster), invalid-images folder
+- Settings → **Slideshow**: delay (`0` = as fast as decode/display allows; no upper cap), order, ascending, loop, **Include subfolders** (`slideshow.recursive`, default on — off = selected folder only), **Camera looks** (off until you turn them on — [below](#camera-looks)), invalid-images folder
 - Toolbar: Start (folder/cache walk), Cache toggle, and (when cache on) Add / Save / Load / Clear image list. **Cache toggle + image list persist** in `settings.json` across app restarts (cleared only via Clear, or overwritten by Load/walk-while-cached).
 - Folder context menu: **Start Slideshow**. **Stop** cancels an in-flight image-list build so a cancelled walk cannot later replace the playlist. Folder walks collect paths from directory listings and, when **Include subfolders** is on, descend into child folders; when it is off, only the selected folder’s images are included. `stat` / decode runs only when Settings order is **size** or **dimensions**. When the toolbar view filter is **on** (eye hiding Hidden items), the walk skips Windows Hidden files/folders and view-filter pattern matches — same as the file list — so a Hidden `!Thumbnails` sibling is not included. Turn the eye **off** to include them. Virtual delete/categorize marks indexes skipped in a module-scope playlist (not Zustand) so advances stay O(1) even at 100k paths. While playing, the explorer file grid unmounts and listing/cache path arrays are parked out of reactive state so play speed does not depend on folder size (start/build time still does). Frame advance uses `preview:getDisplayUrl` (media URL only).
 - **Categorizer map** — **Mapping Manager…** (Settings → Slideshow); Import/Export `.map` files there. Rows persist in `settings.slideshow.categorizerMap` (included in Settings → About → Export/Import). Deleting an exported file does not clear mappings.
 
-Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle (reappears on move / click / wheel).
-
-**Draw caption:** when Settings → Slideshow → **Draw caption** is on, a file with NTFS ADS `Caption` (JSON array of `{ Caption, Descriptor, Sentence }`) is shown as a demotivational-style poster: the photo (or latest `VER_n` tip) sits in the framed rectangle; one array entry is picked at random each preview / slideshow display. Border and title colors are hashed from the **full Caption ADS stream text** (before the random pick) so every display of that file shares one accent color. Missing or invalid ADS falls back to the photo plus a filename overlay. A caption poster is shown as-is: camera looks do not run on that frame.
+Fullscreen image only — no overlay toolbar/status/close chrome (window title bar, click, or Esc/Space/Enter stop). Images use contain fit across the full client area. Mouse cursor auto-hides after 2s idle (reappears on move / click / wheel). The `\` key undoes the last slideshow categorize or delete that is still buffered.
 
 ## Camera looks
 
@@ -37,7 +35,7 @@ A photo that misses the filter stays plain. The window still previews the effect
 
 **Camera looks…** is a floating window. The effect list is on the left (checkbox = included in the random pool; click the row to edit that effect). The photo is on the left of the split; sliders and, for a custom look, the shader are on the right. Drag the divider to give the photo more room. Position, size, and that split are remembered on this PC and left out of Settings export. **Browse…** picks the preview photo. The window always shows the effect you selected, including while the slideshow switch is off. **Reset** restores that effect’s slider defaults. It does not rename sliders or change their min/max.
 
-Crop mode shows the plain photo. A caption poster does too.
+Crop mode shows the plain photo.
 
 Built-in looks: DSLR natural, Fine grain, High ISO, Amateur white balance, Temperature, Point-and-shoot, Disposable camera, Direct flash, 1980s print, Slide film, Instant print, Faded snapshot, Early phone camera, Lens fringing, Dusty lens, Handshake blur, Available light. Each has its own sliders.
 
