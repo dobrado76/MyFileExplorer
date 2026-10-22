@@ -6,14 +6,14 @@ Rebuild with `npm run docs:support`.
 | | |
 | --- | --- |
 | **Application** | MyFileExplorer |
-| **Package version** | 0.21.4 |
+| **Package version** | 0.21.5 |
 | **Repository** | https://github.com/dobrado76/MyFileExplorer |
 | **Issues** | https://github.com/dobrado76/MyFileExplorer/issues |
 | **Releases** | https://github.com/dobrado76/MyFileExplorer/releases/latest |
 | **License** | GPL-3.0 — https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE |
 
 Links in this file jump to another section of this file. A link that leaves the project is a full https URL.
-A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 If the overview (README, advantages, business note, product spec) disagrees with the reference, FAQ, configuration, troubleshooting, or that topic's feature guide, follow the feature guide and the reference.
 
 ## Contents
@@ -1892,7 +1892,7 @@ Hub for product and engineering docs. Product entry: [../README.md](#src-readme-
 <a id="src-docs-product-spec-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-product-spec-md--product-specification"></a>
@@ -2180,7 +2180,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 <a id="src-docs-advantages-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-advantages-md--advantages-over-classic-windows-file-explorer"></a>
@@ -2689,7 +2689,7 @@ This is more powerful than a collection of unrelated utilities because the same 
 <a id="src-docs-preview-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-md--preview-metadata"></a>
@@ -3149,7 +3149,7 @@ Header-only parse (8-byte length + JSON); **weights are never loaded**. No large
 <a id="src-docs-preview-extensions-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-extensions-md--preview-pane-supported-extensions"></a>
@@ -3567,7 +3567,7 @@ Use **Open with default app** (or the system help viewer for oversized CHMs) whe
 <a id="src-docs-search-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-search-md--search-indexing"></a>
@@ -4078,7 +4078,7 @@ flowchart TB
 <a id="src-docs-folder-statistics-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-folder-statistics-md--folder-statistics-space-usage"></a>
@@ -7180,7 +7180,7 @@ See [MEDIA_METADATA.md](#src-docs-media-metadata-md) — Ask AI. Four prompts pe
 <a id="src-docs-git-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-git-md--git-aware-browsing-d64"></a>
@@ -7268,7 +7268,7 @@ Built-in inline **text diff** pane, interactive rebase / Advanced rewrite, merge
 <a id="src-docs-virtual-folders-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-virtual-folders-md--virtual-folders-d67"></a>
@@ -7541,7 +7541,7 @@ Tagged GitHub Releases also publish `MfeVirtualFolderService-win-x64.zip` (self-
 <a id="src-docs-networks-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-networks-md--network-neighborhood-mapped-drives-d44-d3"></a>
@@ -7744,7 +7744,7 @@ Not exported: `window-state.json`, live `session.json` tabs (use a **named layou
 <a id="src-docs-remote-ftp-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-remote-ftp-md--remote-repositories-ftp-ftps-sftp"></a>
@@ -7936,7 +7936,7 @@ This is the same class as “zip as navigable folder”: a second location kind,
 <a id="src-docs-power-rename-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-power-rename-md--power-rename-d40"></a>
@@ -8302,7 +8302,7 @@ No dedicated `powerRename:*` IPC — rename stays on the shared filesystem API.
 <a id="src-docs-undelete-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-undelete-md--ntfs-undelete-d74"></a>
@@ -8409,7 +8409,7 @@ Shapes: [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/
 <a id="src-docs-windows-shell-redirect-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-windows-shell-redirect-md--windows-shell-redirect-experimental"></a>
@@ -8519,7 +8519,7 @@ See also [INTEGRATION.md](#src-docs-integration-md) for `--open` / `--reveal` CL
 <a id="src-docs-linux-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-linux-md--linux-setup-for-myfileexplorer-experimental"></a>
@@ -8697,7 +8697,7 @@ Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host
 <a id="src-docs-project-format-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-project-format-md--project-app-data-format"></a>
@@ -8935,7 +8935,7 @@ When persisted shapes change: add idempotent `scripts/migrate-*.ts` (or in-app v
 <a id="src-docs-security-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-security-md--security"></a>
@@ -9017,7 +9017,7 @@ Prefer maintained native modules; audit on upgrade. Sharp and better-sqlite3 (or
 <a id="src-docs-integration-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-integration-md--integrating-with-myfileexplorer"></a>
@@ -9127,7 +9127,7 @@ Settings → **Windows integration** can redirect per-user `Directory\shell\open
 <a id="src-docs-architecture-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-architecture-md--architecture"></a>
@@ -9270,7 +9270,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 <a id="src-docs-build-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.4. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
+> The repository package version is 0.21.5. There is no changelog of behavior changes for 0.21.1 or 0.21.2.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-build-md--building-releases"></a>
