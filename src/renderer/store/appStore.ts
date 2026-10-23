@@ -3132,14 +3132,12 @@ export const useAppStore = create<AppState>()((set, get) => {
     if (paths.length !== 1 || !isPhotoshopExecutable(executable)) return true
     const path = paths[0]
     if (!path || !isEditableImagePath(path)) return true
-    let versionCount = 0
     try {
       const st = await call(api.fs.imageEditState({ path }))
-      versionCount = st.versionCount
+      if (st.versionCount < 1) return true
     } catch {
       return true
     }
-    if (versionCount < 1) return true
     const choice = await get().askExternalEditVersions()
     if (choice === 'cancel') return false
     if (choice === 'original') return true
@@ -8692,7 +8690,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     },
 
     async undoLastImageEdit(path) {
-      let tipVer = 0
+      let tipVer: number
       try {
         const st = await call(api.fs.imageEditState({ path }))
         tipVer = st.tipVer || st.versionCount

@@ -122,8 +122,6 @@ export function ImageEditor(): JSX.Element | null {
   const versionCountRef = useRef(0)
   const undoConfirmRef = useRef(false)
   const saveEditedImageRef = useRef(saveEditedImage)
-  versionCountRef.current = versionCount
-  undoConfirmRef.current = undoConfirm
 
   useEffect(() => {
     editorRef.current = editor
@@ -131,7 +129,9 @@ export function ImageEditor(): JSX.Element | null {
     srcRef.current = src
     removeModeRef.current = removeMode
     removeBusyRef.current = removeBusy
-  }, [editor, saveEditedImage, src, removeMode, removeBusy])
+    versionCountRef.current = versionCount
+    undoConfirmRef.current = undoConfirm
+  }, [editor, saveEditedImage, src, removeMode, removeBusy, versionCount, undoConfirm])
 
   const fileName = editor ? basename(editor.path) : ''
 
