@@ -5369,7 +5369,8 @@ button.media-metadata-hero-poster.is-clickable:hover {
   color: var(--text);
   order: 2;
 }
-.image-editor .mfe-save-as-btn {
+.image-editor .mfe-save-as-btn,
+.image-editor .mfe-undo-last-btn {
   order: 1;
   flex: 0 0 auto;
   white-space: nowrap;
@@ -5379,12 +5380,19 @@ button.media-metadata-hero-poster.is-clickable:hover {
   border: 1px solid var(--border);
   color: var(--text);
 }
-.image-editor .mfe-save-as-btn:hover:not(:disabled) {
+.image-editor .mfe-save-as-btn:hover:not(:disabled),
+.image-editor .mfe-undo-last-btn:hover:not(:disabled) {
   border-color: var(--text-dim);
 }
-.image-editor .mfe-save-as-btn:disabled {
+.image-editor .mfe-save-as-btn:disabled,
+.image-editor .mfe-undo-last-btn:disabled {
   opacity: 0.35;
   cursor: default;
+}
+.image-editor #FIE_text-content-editor {
+  user-select: text;
+  pointer-events: auto;
+  cursor: text;
 }
 .image-editor .FIE_buttons-save-btn,
 .image-editor .FIE_topbar-buttons-wrapper > *:first-child {

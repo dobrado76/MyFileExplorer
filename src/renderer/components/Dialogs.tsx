@@ -395,6 +395,8 @@ export function Dialogs(): JSX.Element | null {
           danger={dialog.danger}
         />
       )
+    case 'external-edit-versions':
+      return <ExternalEditVersionsDialog title={dialog.title} message={dialog.message} />
     case 'virtual-folder-conflict':
       return <VirtualFolderConflictDialog title={dialog.title} message={dialog.message} />
     case 'file-op-plan':
@@ -842,6 +844,41 @@ function ConfirmDialog({
             autoFocus
           >
             {confirmLabel ?? 'OK'}
+          </button>
+        </>
+      }
+    >
+      <div className="alert-message">{message}</div>
+    </Modal>
+  )
+}
+
+function ExternalEditVersionsDialog({
+  title,
+  message
+}: {
+  title: string
+  message: string
+}): JSX.Element {
+  const resolve = useAppStore((s) => s.resolveExternalEditVersions)
+  return (
+    <Modal
+      title={title}
+      onClose={() => resolve('cancel')}
+      actions={
+        <>
+          <button className="btn" onClick={() => resolve('cancel')}>
+            Cancel
+          </button>
+          <button
+            className="btn"
+            title="Open the original file. Saved versions stay on the file."
+            onClick={() => resolve('original')}
+          >
+            Edit original
+          </button>
+          <button className="btn primary" onClick={() => resolve('commit')} autoFocus>
+            Commit latest edit
           </button>
         </>
       }

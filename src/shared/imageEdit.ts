@@ -31,6 +31,13 @@ export function isEditableImagePath(filePath: string): boolean {
   return EDITABLE_IMAGE_EXTS.has(imageExt(filePath))
 }
 
+/** Photoshop.exe opens the file body (`$DATA`), not the in-app tip stream. */
+export function isPhotoshopExecutable(executable: string): boolean {
+  const trimmed = executable.trim().replace(/^"(.*)"$/, '$1')
+  const base = trimmed.replace(/^.*[/\\]/, '').toLowerCase()
+  return base === 'photoshop.exe'
+}
+
 /** Sharp output format id for a file extension (bmp → jpeg). */
 export function sharpFormatForExt(
   ext: string

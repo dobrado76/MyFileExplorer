@@ -3,6 +3,7 @@ import {
   IMAGE_VER_MAX,
   IMAGE_VER_COUNT_STREAM,
   isEditableImagePath,
+  isPhotoshopExecutable,
   isImageVersionStreamName,
   parseVerCount,
   renumberAfterDrop,
@@ -17,6 +18,14 @@ describe('imageEdit helpers', () => {
     expect(isEditableImagePath('C:\\a\\photo.jfif')).toBe(true)
     expect(isEditableImagePath('C:\\a\\photo.PNG')).toBe(true)
     expect(isEditableImagePath('C:\\a\\photo.webp')).toBe(true)
+  })
+
+  it('recognizes Photoshop.exe', () => {
+    expect(isPhotoshopExecutable('C:\\Program Files\\Adobe\\Adobe Photoshop 2026\\Photoshop.exe')).toBe(
+      true
+    )
+    expect(isPhotoshopExecutable('"D:\\Apps\\Photoshop.exe"')).toBe(true)
+    expect(isPhotoshopExecutable('C:\\Windows\\System32\\mspaint.exe')).toBe(false)
   })
 
   it('rejects svg/psd/non-images', () => {

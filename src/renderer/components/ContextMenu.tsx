@@ -2096,6 +2096,14 @@ export function ContextMenu(): JSX.Element | null {
           const n = imageVer.count
           const verItems: SubEntry[] = [
             {
+              label: n > 1 ? `Undo last edit (${n})` : 'Undo last edit',
+              title: 'Drop the newest saved version. The original file stays.',
+              action: () => {
+                close()
+                void s.undoLastImageEdit(single)
+              }
+            },
+            {
               label: 'Commit changes',
               title:
                 'Make the current tip edit the new file body and discard all version history. Other alternate streams (e.g. Zone.Identifier) are kept.',

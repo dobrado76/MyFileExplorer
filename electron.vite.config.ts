@@ -39,7 +39,9 @@ export default defineConfig({
   renderer: {
     plugins: [react()],
     resolve: {
-      alias: { '@shared': shared, '@renderer': resolve(__dirname, 'src/renderer') }
+      alias: { '@shared': shared, '@renderer': resolve(__dirname, 'src/renderer') },
+      // Filerobot's text shape must register on the same Konva react-konva draws with.
+      dedupe: ['konva']
     },
     optimizeDeps: {
       exclude: ['onnxruntime-web']
