@@ -6,14 +6,14 @@ Rebuild with `npm run docs:support`.
 | | |
 | --- | --- |
 | **Application** | MyFileExplorer |
-| **Package version** | 0.21.9 |
+| **Package version** | 0.22.0 |
 | **Repository** | https://github.com/dobrado76/MyFileExplorer |
 | **Issues** | https://github.com/dobrado76/MyFileExplorer/issues |
 | **Releases** | https://github.com/dobrado76/MyFileExplorer/releases/latest |
 | **License** | GPL-3.0 — https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE |
 
 Links in this file jump to another section of this file. A link that leaves the project is a full https URL.
-A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 If the overview (README, advantages, business note, product spec) disagrees with the reference, FAQ, configuration, troubleshooting, or that topic's feature guide, follow the feature guide and the reference.
 
 ## Contents
@@ -130,7 +130,7 @@ This file repeats the overview (README, advantages, business note, product spec)
 <a id="src-docs-support-llm-instructions-md--version-stamps"></a>
 ## Version stamps
 
-Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.21.0. The changelog is not copied into this file. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
+Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.22.0 (2026-10-23). The changelog is not copied into this file. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
 
 <a id="src-docs-support-llm-instructions-md--answering-rules"></a>
 ## Answering rules
@@ -207,8 +207,8 @@ Official starting points (verify if you have a current browser; these were the p
 
 **Application:** MyFileExplorer  
 **Repository:** https://github.com/dobrado76/MyFileExplorer  
-**Package version in this repository:** 0.21.9 (`package.json`)  
-**Newest changelog release section:** 0.21.0 (2026-10-19). The changelog **Unreleased** section is empty. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers.  
+**Package version in this repository:** 0.22.0 (`package.json`)  
+**Newest changelog release section:** 0.22.0 (2026-10-23). Search results keep the folder view. The image editor text box, **Undo last**, and the Photoshop original-or-commit prompt are in that release. The changelog **Unreleased** section is empty. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0.  
 **Running app version:** Settings → **About**. Use that version when it disagrees with this file.  
 **License:** GPL-3.0. The name and logo are trademarks. See [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) and [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md).
 
@@ -1320,7 +1320,7 @@ This file separates what ships from what does not.
 <a id="src-docs-roadmap-md--shipping"></a>
 ## Shipping
 
-Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.21.9**. The newest dated section in `CHANGELOG.md` is **0.21.0** (2026-10-19). The **Unreleased** section is empty, so there is no changelog list of changes after 0.21.0. Do not invent one.
+Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.22.0**. The newest dated section in `CHANGELOG.md` is **0.22.0** (2026-10-23). The **Unreleased** section is empty. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0.
 
 <a id="src-docs-roadmap-md--not-a-commitment"></a>
 ## Not a commitment
@@ -1571,7 +1571,7 @@ Details: [docs/BUILD.md](#src-docs-build-md) · [docs/PRODUCT_SPEC.md](#src-docs
 | **[docs/MEDIA_METADATA.md](#src-docs-media-metadata-md)** | Opt-in movie/TV metadata (D50) |
 | **[docs/SCRIPTS.md](#src-docs-scripts-md)** | Universal script runner — use cases and copy-paste examples (D51) |
 | **[CHANGELOG.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md)** | v0.21.0 product-release summary |
+| **[RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md)** | v0.22.0 product-release summary |
 
 ---
 
@@ -1660,7 +1660,7 @@ MyFileExplorer is free software under the **GNU General Public License v3.0** ([
 <a id="src-docs-readme-md--myfileexplorer-documentation"></a>
 # MyFileExplorer documentation
 
-**Status:** **v0.21.0** — slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Prior: **v0.20.0** Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Product release notes: [../RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md). Locked choices: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](#src-docs-linux-md). Licence: [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.22.0** — search keeps the folder view, image-editor text and Undo last, folder copy that continues after one unwritable file. Prior: **v0.21.0** slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Product release notes: [../RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md). Locked choices: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](#src-docs-linux-md). Licence: [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](#src-readme-md). Locked decisions: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md). Full history: [../CHANGELOG.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CHANGELOG.md).
 
@@ -1724,6 +1724,17 @@ Hub for product and engineering docs. Product entry: [../README.md](#src-readme-
 | [../TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+<a id="src-docs-readme-md--recent-behavior-v0220"></a>
+## Recent behavior (v0.22.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Search view (D29) | Results use the folder's current view and sort. The view picker writes that choice back to the folder. Date created is the file created time — [SEARCH.md](#src-docs-search-md) |
+| Image editor text (D27) | A text box stays selected and uses the same handles as a rectangle. Letters type into it. Escape leaves the box first — [PREVIEW.md](#src-docs-preview-md) |
+| Undo last (D27) | Editor top bar and **Version Control** drop only the newest saved version. The original file stays — [ADS.md](#src-docs-ads-md) |
+| Photoshop (D27) | A context command that launches Photoshop on an image with versions asks to open the original or commit the newest edit first — [ADS.md](#src-docs-ads-md) |
+| Folder copy | One unwritable file does not stop the rest of the folder. An `.asar` archive is copied as one file |
 
 <a id="src-docs-readme-md--recent-behavior-v0210"></a>
 ## Recent behavior (v0.21.0)
@@ -1941,7 +1952,7 @@ Hub for product and engineering docs. Product entry: [../README.md](#src-readme-
 <a id="src-docs-product-spec-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-product-spec-md--product-specification"></a>
@@ -2229,7 +2240,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 <a id="src-docs-advantages-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-advantages-md--advantages-over-classic-windows-file-explorer"></a>
@@ -2738,7 +2749,7 @@ This is more powerful than a collection of unrelated utilities because the same 
 <a id="src-docs-preview-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-md--preview-metadata"></a>
@@ -3198,7 +3209,7 @@ Header-only parse (8-byte length + JSON); **weights are never loaded**. No large
 <a id="src-docs-preview-extensions-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-extensions-md--preview-pane-supported-extensions"></a>
@@ -3616,7 +3627,7 @@ Use **Open with default app** (or the system help viewer for oversized CHMs) whe
 <a id="src-docs-search-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-search-md--search-indexing"></a>
@@ -4127,7 +4138,7 @@ flowchart TB
 <a id="src-docs-folder-statistics-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-folder-statistics-md--folder-statistics-space-usage"></a>
@@ -7229,7 +7240,7 @@ See [MEDIA_METADATA.md](#src-docs-media-metadata-md) — Ask AI. Four prompts pe
 <a id="src-docs-git-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-git-md--git-aware-browsing-d64"></a>
@@ -7317,7 +7328,7 @@ Built-in inline **text diff** pane, interactive rebase / Advanced rewrite, merge
 <a id="src-docs-virtual-folders-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-virtual-folders-md--virtual-folders-d67"></a>
@@ -7590,7 +7601,7 @@ Tagged GitHub Releases also publish `MfeVirtualFolderService-win-x64.zip` (self-
 <a id="src-docs-networks-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-networks-md--network-neighborhood-mapped-drives-d44-d3"></a>
@@ -7793,7 +7804,7 @@ Not exported: `window-state.json`, live `session.json` tabs (use a **named layou
 <a id="src-docs-remote-ftp-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-remote-ftp-md--remote-repositories-ftp-ftps-sftp"></a>
@@ -7985,7 +7996,7 @@ This is the same class as “zip as navigable folder”: a second location kind,
 <a id="src-docs-power-rename-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-power-rename-md--power-rename-d40"></a>
@@ -8351,7 +8362,7 @@ No dedicated `powerRename:*` IPC — rename stays on the shared filesystem API.
 <a id="src-docs-undelete-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-undelete-md--ntfs-undelete-d74"></a>
@@ -8458,7 +8469,7 @@ Shapes: [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/
 <a id="src-docs-windows-shell-redirect-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-windows-shell-redirect-md--windows-shell-redirect-experimental"></a>
@@ -8568,7 +8579,7 @@ See also [INTEGRATION.md](#src-docs-integration-md) for `--open` / `--reveal` CL
 <a id="src-docs-linux-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-linux-md--linux-setup-for-myfileexplorer-experimental"></a>
@@ -8746,7 +8757,7 @@ Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host
 <a id="src-docs-project-format-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-project-format-md--project-app-data-format"></a>
@@ -8984,7 +8995,7 @@ When persisted shapes change: add idempotent `scripts/migrate-*.ts` (or in-app v
 <a id="src-docs-security-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-security-md--security"></a>
@@ -9066,7 +9077,7 @@ Prefer maintained native modules; audit on upgrade. Sharp and better-sqlite3 (or
 <a id="src-docs-integration-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-integration-md--integrating-with-myfileexplorer"></a>
@@ -9176,7 +9187,7 @@ Settings → **Windows integration** can redirect per-user `Directory\shell\open
 <a id="src-docs-architecture-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-architecture-md--architecture"></a>
@@ -9318,14 +9329,10 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 
 <a id="src-docs-build-md"></a>
 
-> **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
-> The running build is Settings → About. Do not quote 0.21.0 as the user's version.
-
 <a id="src-docs-build-md--building-releases"></a>
 # Building & releases
 
-**Version:** 0.21.0 (tag `v0.21.0`)
+**Version:** 0.22.0 (tag `v0.22`)
 
 The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
@@ -9384,7 +9391,7 @@ Workflow: [`.github/workflows/build-windows.yml`](https://github.com/dobrado76/M
 
 | Trigger | What runs |
 | ------- | --------- |
-| Tag `v*` (e.g. `v0.21.0`) | Check + build **three** Windows executables: `MyFileExplorer.exe` + `MfeShellLauncher.exe` (bundled in the NSIS installer) and `MfeVirtualFolderService.exe` (separate zip) → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.22`) | Check + build **three** Windows executables: `MyFileExplorer.exe` + `MfeShellLauncher.exe` (bundled in the NSIS installer) and `MfeVirtualFolderService.exe` (separate zip) → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (no installer / Release) |
 | Branch push / PR | **No** Actions run — local `pre-push` hook runs `npm run check` |
 
@@ -9394,10 +9401,10 @@ CI does not build Linux installers yet. The projection zip is optional — users
 ### Ship a build for friends
 
 ```bash
-<a id="src-docs-build-md--packagejson-version-should-match-the-tag-eg-0210"></a>
-# package.json version should match the tag (e.g. 0.21.0)
-git tag v0.21.0
-git push origin v0.21.0
+<a id="src-docs-build-md--packagejson-is-0220-the-release-tag-is-v022-same-style-as-v021"></a>
+# package.json is 0.22.0; the release tag is v0.22 (same style as v0.21)
+git tag v0.22
+git push origin v0.22
 ```
 
 When the workflow finishes, download from:

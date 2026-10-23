@@ -2,8 +2,8 @@
 
 **Application:** MyFileExplorer  
 **Repository:** https://github.com/dobrado76/MyFileExplorer  
-**Package version in this repository:** 0.21.9 (`package.json`)  
-**Newest changelog release section:** 0.21.0 (2026-10-19). The changelog **Unreleased** section is empty. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers.  
+**Package version in this repository:** 0.22.0 (`package.json`)  
+**Newest changelog release section:** 0.22.0 (2026-10-23). Search results keep the folder view. The image editor text box, **Undo last**, and the Photoshop original-or-commit prompt are in that release. The changelog **Unreleased** section is empty. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0.  
 **Running app version:** Settings → **About**. Use that version when it disagrees with this file.  
 **License:** GPL-3.0. The name and logo are trademarks. See [LICENSING.md](../LICENSING.md) and [TRADEMARK.md](../TRADEMARK.md).
 

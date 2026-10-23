@@ -14,6 +14,8 @@ All notable locked product/tech decisions. Through **D46** for the v0.6 product 
 
 **v0.21.0** ships **D76** slideshow **Camera looks** (off until enabled; display only) — [SLIDESHOW.md](SLIDESHOW.md) — **D74** NTFS Undelete — [UNDELETE.md](UNDELETE.md) — **D75** optional character-by-character name sort, and tab drop shortcuts (D32).
 
+**v0.22.0** keeps search results on the folder view and sort (D29), fixes Image Edit text boxes (handles, typing, Escape) and adds **Undo last** plus a Photoshop original-or-commit prompt (D27), continues a folder copy after one unwritable file, and stops holding another application's `app.asar` open while browsing.
+
 Change only with an explicit decision update. Prefer amending this table over silent drift.
 
 | ID  | Decision                                                                                                                                                    | Why                                                                     |

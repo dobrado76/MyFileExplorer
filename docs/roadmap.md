@@ -4,7 +4,7 @@ This file separates what ships from what does not.
 
 ## Shipping
 
-Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.21.9**. The newest dated section in `CHANGELOG.md` is **0.21.0** (2026-10-19). The **Unreleased** section is empty, so there is no changelog list of changes after 0.21.0. Do not invent one.
+Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.22.0**. The newest dated section in `CHANGELOG.md` is **0.22.0** (2026-10-23). The **Unreleased** section is empty. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0.
 
 ## Not a commitment
 

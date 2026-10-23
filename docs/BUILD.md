@@ -1,6 +1,6 @@
 # Building & releases
 
-**Version:** 0.21.0 (tag `v0.21.0`)
+**Version:** 0.22.0 (tag `v0.22`)
 
 The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
@@ -55,7 +55,7 @@ Workflow: [`.github/workflows/build-windows.yml`](../.github/workflows/build-win
 
 | Trigger | What runs |
 | ------- | --------- |
-| Tag `v*` (e.g. `v0.21.0`) | Check + build **three** Windows executables: `MyFileExplorer.exe` + `MfeShellLauncher.exe` (bundled in the NSIS installer) and `MfeVirtualFolderService.exe` (separate zip) → attach to a **GitHub Release** |
+| Tag `v*` (e.g. `v0.22`) | Check + build **three** Windows executables: `MyFileExplorer.exe` + `MfeShellLauncher.exe` (bundled in the NSIS installer) and `MfeVirtualFolderService.exe` (separate zip) → attach to a **GitHub Release** |
 | **Actions → Run workflow** | Check only (no installer / Release) |
 | Branch push / PR | **No** Actions run — local `pre-push` hook runs `npm run check` |
 
@@ -64,9 +64,9 @@ CI does not build Linux installers yet. The projection zip is optional — users
 ### Ship a build for friends
 
 ```bash
-# package.json version should match the tag (e.g. 0.21.0)
-git tag v0.21.0
-git push origin v0.21.0
+# package.json is 0.22.0; the release tag is v0.22 (same style as v0.21)
+git tag v0.22
+git push origin v0.22
 ```
 
 When the workflow finishes, download from:

@@ -16,7 +16,7 @@ This file repeats the overview (README, advantages, business note, product spec)
 
 ## Version stamps
 
-Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.21.0. The changelog is not copied into this file. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
+Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.22.0 (2026-10-23). The changelog is not copied into this file. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
 
 ## Answering rules
 

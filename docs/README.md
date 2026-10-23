@@ -1,6 +1,6 @@
 # MyFileExplorer documentation
 
-**Status:** **v0.21.0** — slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Prior: **v0.20.0** Explorer name sort and rename typing, search view + breadcrumb leave, Image Edit crop/resize polish, layouts across every window. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
+**Status:** **v0.22.0** — search keeps the folder view, image-editor text and Undo last, folder copy that continues after one unwritable file. Prior: **v0.21.0** slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Product release notes: [../RELEASE_NOTES.md](../RELEASE_NOTES.md). Locked choices: [DECISIONS.md](DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](LINUX.md). Licence: [../LICENSING.md](../LICENSING.md) (**GPL-3.0**).
 
 Hub for product and engineering docs. Product entry: [../README.md](../README.md). Locked decisions: [DECISIONS.md](DECISIONS.md). Full history: [../CHANGELOG.md](../CHANGELOG.md).
 
@@ -62,6 +62,16 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | [../TRADEMARK.md](../TRADEMARK.md)               | MyFileExplorer name / logo policy |
 
 ---
+
+## Recent behavior (v0.22.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Search view (D29) | Results use the folder's current view and sort. The view picker writes that choice back to the folder. Date created is the file created time — [SEARCH.md](SEARCH.md) |
+| Image editor text (D27) | A text box stays selected and uses the same handles as a rectangle. Letters type into it. Escape leaves the box first — [PREVIEW.md](PREVIEW.md) |
+| Undo last (D27) | Editor top bar and **Version Control** drop only the newest saved version. The original file stays — [ADS.md](ADS.md) |
+| Photoshop (D27) | A context command that launches Photoshop on an image with versions asks to open the original or commit the newest edit first — [ADS.md](ADS.md) |
+| Folder copy | One unwritable file does not stop the rest of the folder. An `.asar` archive is copied as one file |
 
 ## Recent behavior (v0.21.0)
 

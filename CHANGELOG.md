@@ -9,6 +9,18 @@ User-facing summary for the latest release: [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-23
+
+Twenty-second product release: search results keep the folder view, image-editor text and Undo last, folder copy that continues after one unwritable file, and a pack that no longer holds another application's archive open. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+- **Search keeps the folder view (D29)** — results use the view and sort you already set, including thumbnails and Details sorted by date. The view picker stays enabled and writes that choice back to the folder, so Clear leaves you there. Date created uses the file's created time.
+- **Image editor text (D27)** — an annotation text box stays selected and has the same move and resize handles as a rectangle. Letters, including E, type into the box. Escape leaves the box; Escape again closes the editor. Ctrl+S still saves.
+- **Undo last edit (D27)** — the editor top bar and the **Version Control** menu drop only the newest saved version and leave the original file. Unsaved edits in the editor ask first.
+- **Photoshop and saved versions (D27)** — a context command that launches Photoshop on one image with versions asks whether to open the original or commit the newest edit into the file first.
+- **Folder copy continues** — when one file in a folder cannot be written, the rest of the folder is still copied. An `.asar` archive is copied as one file.
+- **Other applications' archives** — stating or indexing another application's `app.asar` no longer keeps that file locked until MyFileExplorer quits.
+- **Local Windows pack** — `npm run dist` packs MyFileExplorer and reuses the existing shell launcher, mpv, and Visual C++ DLLs. `npm run dist:full` rebuilds those side tools.
+
 ## [0.21.0] - 2026-10-19
 
 Twenty-first product release: slideshow Camera looks (off until you turn them on), NTFS Undelete, tab drop shortcuts, and a choice of name order. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
