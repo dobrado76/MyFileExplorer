@@ -143,6 +143,9 @@ export function ExplorerShell(): JSX.Element {
   const onKeyDown = useCallback((e: KeyboardEvent): void => {
     const s = useAppStore.getState()
     if (s.dialog || s.contextMenu) return
+    // The image editor owns the keyboard, including annotation text.
+    // Backspace, Delete, Ctrl+A, and Escape must not hit the file list.
+    if (s.imageEditor) return
 
     const key = e.key
     const ctrl = e.ctrlKey

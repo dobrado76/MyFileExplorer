@@ -65,11 +65,25 @@ export function imageEditShouldWrite(opts: { hasUndo: boolean; bakedFromDisk: bo
   return opts.hasUndo || opts.bakedFromDisk
 }
 
-/** True when letter shortcuts should not steal focus from form controls. */
-export function isImageEditorTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  const tag = target.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  if (target.isContentEditable) return true
-  return Boolean(target.closest('[contenteditable="true"]'))
+/**
+ * Ctrl/Cmd-S still saves from a text field. A bare E is the letter "e"
+ * while an annotation or resize field is focused.
+ */
+export function editorShortcutSupersedesTyping(
+  action: ImageEditorShortcut,
+  e: ShortcutEvent
+): boolean {
+  return action === 'save' && Boolean(e.ctrlKey || e.metaKey)
+}
+
+/**
+ * The annotation box is open but focus is still on the canvas.
+ * Letter keys belong in the box. A sidebar field keeps its own keys.
+ */
+export function annotationEditorClaimsKey(opts: {
+  editorOpen: boolean
+  targetIsEditor: boolean
+  targetIsTyping: boolean
+}): boolean {
+  return opts.editorOpen && !opts.targetIsEditor && !opts.targetIsTyping
 }

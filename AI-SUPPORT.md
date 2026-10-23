@@ -6,14 +6,14 @@ Rebuild with `npm run docs:support`.
 | | |
 | --- | --- |
 | **Application** | MyFileExplorer |
-| **Package version** | 0.21.5 |
+| **Package version** | 0.21.9 |
 | **Repository** | https://github.com/dobrado76/MyFileExplorer |
 | **Issues** | https://github.com/dobrado76/MyFileExplorer/issues |
 | **Releases** | https://github.com/dobrado76/MyFileExplorer/releases/latest |
 | **License** | GPL-3.0 — https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE |
 
 Links in this file jump to another section of this file. A link that leaves the project is a full https URL.
-A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+A **Version:** 0.21.0 line inside a section is when that page was last stamped, not the running build. The running build is Settings → About. This package is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 If the overview (README, advantages, business note, product spec) disagrees with the reference, FAQ, configuration, troubleshooting, or that topic's feature guide, follow the feature guide and the reference.
 
 ## Contents
@@ -83,6 +83,8 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Undo did nothing, or undo is empty after a restart | [reference.md](#src-docs-reference-md), [FAQ.md](#src-docs-faq-md) |
 | Preview blank, video will not play, MKV, mpv | [PREVIEW.md](#src-docs-preview-md), [troubleshooting.md](#src-docs-troubleshooting-md) |
 | Search misses files or shows old names | [SEARCH.md](#src-docs-search-md), [troubleshooting.md](#src-docs-troubleshooting-md) |
+| Search results stuck in one view, or will not sort by date | [SEARCH.md](#src-docs-search-md), [FAQ.md](#src-docs-faq-md) |
+| Image editor text box will not take typing, or has no resize handles | [FAQ.md](#src-docs-faq-md), [reference.md](#src-docs-reference-md) |
 | Slideshow has no effect, or feels slow | [SLIDESHOW.md](#src-docs-slideshow-md), [FAQ.md](#src-docs-faq-md) |
 | Notes, covers, or folder stats missing after backup | [ADS.md](#src-docs-ads-md), [troubleshooting.md](#src-docs-troubleshooting-md) |
 | Git buttons missing or “not a git repository” | [GIT.md](#src-docs-git-md) |
@@ -205,7 +207,7 @@ Official starting points (verify if you have a current browser; these were the p
 
 **Application:** MyFileExplorer  
 **Repository:** https://github.com/dobrado76/MyFileExplorer  
-**Package version in this repository:** 0.21.5 (`package.json`)  
+**Package version in this repository:** 0.21.9 (`package.json`)  
 **Newest changelog release section:** 0.21.0 (2026-10-19). The changelog **Unreleased** section is empty. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers.  
 **Running app version:** Settings → **About**. Use that version when it disagrees with this file.  
 **License:** GPL-3.0. The name and logo are trademarks. See [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) and [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md).
@@ -452,6 +454,11 @@ These are handled by the explorer shell when a text field is not focused. During
 | Ctrl+L | Edit the address bar |
 | Enter | Open the selection. In the Recycle Bin, restore it. |
 
+<a id="src-docs-reference-md--image-editor-keys"></a>
+## Image editor keys
+
+While the image editor is open, the file-window chords above do not run. **Ctrl+S** saves. **Escape** closes the editor. A new annotation text box stays selected and uses the same move and resize handles as a rectangle. Letters, including **E**, **Backspace**, and **Delete** type into that box. **Escape** leaves the text box first; a second **Escape** closes the editor. **Undo last** drops only the newest saved version.
+
 **Plan before a write:** hold Ctrl while clicking **Paste** or **Delete** on the toolbar or the context menu, or press **Ctrl+Delete** or **Ctrl+Shift+V**. That opens the plan dialog (dry run) before anything is written. **Ctrl+C**, **Ctrl+X**, and **Ctrl+V** are clipboard copy, cut, and paste. Dragging with Ctrl copies; it does not open the plan.
 
 A tab can have its own drop shortcut (right-click the tab → **Set drop shortcut…**). That chord moves or copies the focused selection into the tab’s folder. It cannot reuse a chord in the table above. **Auto** uses extra Shift/Ctrl on the keypress to force copy or move; the tab can instead be **Always move** or **Always copy**.
@@ -626,7 +633,7 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 <a id="src-docs-troubleshooting-md--a-file-is-in-use-or-will-not-rename"></a>
 ## A file is “in use” or will not rename
 
-**Causes:** Preview, a video player, mpv, or another process has the file open. Rich player and Chromium preview are not supposed to lock the file for the whole session; another app still might.
+**Causes:** Preview, a video player, mpv, or another process has the file open. Rich player and Chromium preview are not supposed to lock the file for the whole session; another app still might. An `.asar` file is special: Electron keeps one mapped after any look at it, until that Electron process quits. Listing or indexing it in this app does not do that. Cursor and any other Electron app that already opened the archive still will, until that process quits.
 
 **Checks:** Close preview (**Ctrl+Shift+P**), stop Now Playing, and close external players. The busy-file review can list processes and offer End task. Ending a task kills that process.
 
@@ -987,7 +994,7 @@ On a video, **Keep playing** opens **Now Playing**, which keeps that file playin
 <a id="src-docs-faq-md--41-how-do-i-edit-an-image"></a>
 ### 41. How do I edit an image?
 
-Select one editable image and press **Ctrl+E**, or use the editor command. Saves write the picture and keep up to four earlier versions in NTFS streams `VER_1`…`VER_4` on that file. Revert uses those streams. Zipping the file with a tool that drops ADS drops the versions.
+Select one editable image and press **Ctrl+E**, or use the editor command. On **Annotate**, draw a text box. It stays selected, with the same move and resize handles as a rectangle. Type in it, including **E**. **Escape** leaves the text box and brings the handles back; **Escape** again closes the editor. **Ctrl+S** still saves from that box. When the file has saved versions, **Undo last** in the editor top bar drops only the newest one and reloads the previous. The same action is **Undo last edit** on the **Version Control** menu. File-window keys such as **Backspace**, **Delete**, and **Ctrl+A** stay in the editor until it closes. Saves write the picture and keep up to four earlier versions in NTFS streams `VER_1`…`VER_4` on that file. Revert uses those streams. Zipping the file with a tool that drops ADS drops the versions. A context command that launches Photoshop on one image with versions asks whether to open the original or commit the newest edit into the file first.
 
 <a id="src-docs-faq-md--42-the-editor-opened-empty"></a>
 ### 42. The editor opened empty.
@@ -1030,7 +1037,7 @@ Leaving a search via the breadcrumb or address bar cancels the walk and clears t
 <a id="src-docs-faq-md--49-search-results-changed-my-view-to-details"></a>
 ### 49. Search results changed my view to Details.
 
-Current builds keep the view you had (thumbnails, icons, or list). Details adds a Folder column.
+Current builds keep the view you had (thumbnails, icons, list, or Details). The view picker still works on the results. Details adds a Folder column, and the column headers sort those hits.
 
 <a id="src-docs-faq-md--50-can-another-program-call-search"></a>
 ### 50. Can another program call search?
@@ -1292,6 +1299,11 @@ Settings → **About** → **Check for update**. **Folder or URL** is the update
 
 Only if you turn on Settings → **Windows integration** → **Redirect folder openings to MyFileExplorer**. It is off until you opt in. It is per-user, experimental, and not part of a settings export. **Restore previous folder-opening configuration** puts the old verbs back. It is not a full Explorer replacement. [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md).
 
+<a id="src-docs-faq-md--96-can-i-use-thumbnails-or-details-and-sort-by-date-while-search-results-are-showing"></a>
+### 96. Can I use thumbnails or Details, and sort by date, while search results are showing?
+
+Yes. Change the view picker while the results are open. Thumbnails, icons, list, and Details all show the hits. In Details, click a column header — **Date modified**, **Date created**, Size, or Name — to sort the hits. That choice is the folder’s view, so it stays after you clear the search. Details also shows a Folder column for the parent path.
+
 <!-- end source: docs/FAQ.md -->
 
 ---
@@ -1308,7 +1320,7 @@ This file separates what ships from what does not.
 <a id="src-docs-roadmap-md--shipping"></a>
 ## Shipping
 
-Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.21.5**. The newest dated section in `CHANGELOG.md` is **0.21.0** (2026-10-19). The **Unreleased** section is empty, so there is no changelog list of changes after 0.21.0. Do not invent one.
+Whatever is in the installed build and described in the user documents (preview, search, slideshow, scripts, Git, virtual folders, undelete, and the rest of the doc index) is implemented. Settings → **About** is the version of the build you are running. This repository’s `package.json` is **0.21.9**. The newest dated section in `CHANGELOG.md` is **0.21.0** (2026-10-19). The **Unreleased** section is empty, so there is no changelog list of changes after 0.21.0. Do not invent one.
 
 <a id="src-docs-roadmap-md--not-a-commitment"></a>
 ## Not a commitment
@@ -1342,7 +1354,8 @@ npm install
 npm run dev          # Electron with hot reload
 npm run check        # typecheck, lint, tests, support-doc check
 npm run docs:support # rebuild AI-SUPPORT.md after support docs change
-npm run dist:nobump  # Windows installer without bumping the version
+npm run dist:nobump  # Windows installer without bumping the version (reuses launcher, mpv, VC++ DLLs)
+npm run dist:full    # same pack, and rebuild MfeShellLauncher, mpv, and the VC++ DLLs
 ```
 
 - Specs live in `docs/`. Locked product decisions are `docs/DECISIONS.md`. When behavior changes, update the docs in the same change, then run `npm run docs:support` if a bundled support page changed.
@@ -1601,9 +1614,11 @@ Most backup and sync tools copy only the main file body. They silently drop ADS.
 | `npm run docs:support` | Rebuild [AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) after support docs change |
 | `npm run test` | Vitest |
 | `npm run build` | Production electron-vite build |
-| `npm run dist` | Bump patch, prune old Setup*.exe, build Windows installer (Windows host only) |
+| `npm run dist` | Bump patch, prune old installers, pack MyFileExplorer (reuses the shell launcher, mpv, and VC++ DLLs) |
+| `npm run dist:full` | Same as `dist`, and rebuild those side tools |
 | `npm run dist:nobump` | Installer without version bump |
-| `npm run build:win` | Windows installer only |
+| `npm run build:win` | MyFileExplorer pack only |
+| `npm run build:win:full` | Pack plus shell launcher, mpv, and VC++ DLLs |
 | `npm run build:linux` / `dist:linux` | Experimental Linux AppImage (see [docs/LINUX.md](#src-docs-linux-md)) |
 | `npm run run:unpacked` / `run:linux` | Launch Linux unpacked binary / AppImage (Linux) |
 
@@ -1926,7 +1941,7 @@ Hub for product and engineering docs. Product entry: [../README.md](#src-readme-
 <a id="src-docs-product-spec-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-product-spec-md--product-specification"></a>
@@ -2214,7 +2229,7 @@ The Settings dialog has a search box (filters as you type, no Search button) tha
 <a id="src-docs-advantages-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-advantages-md--advantages-over-classic-windows-file-explorer"></a>
@@ -2723,7 +2738,7 @@ This is more powerful than a collection of unrelated utilities because the same 
 <a id="src-docs-preview-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-md--preview-metadata"></a>
@@ -2829,7 +2844,7 @@ Details strip layout: Name (+ Dimensions when present), then a responsive pair �
 
 **Display:** image via protocol URL (respect EXIF orientation when feasible). Uses as much vertical space as possible above the details strip (`object-fit: contain`). `.tif` / `.tiff` / `.tga` / `.hdr` (Radiance RGBE) are rasterized to cached WebP (Chromium cannot paint those formats); thumbs and slideshow use the same path. HDR is Reinhard-tonemapped for display (not a linear light viewer).
 
-**Edit:** pencil button in the preview header, context menu **Edit image…**, or **Ctrl+E** (single editable image selected; otherwise ignored) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). Edits stay **in memory** for the session — rotate / filter / annotate then crop (and undo/redo) without Save between tools. Entering **Crop** or **Remove** after any in-session change bakes the canvas into a new in-memory source and remounts (Filerobot’s Crop tool otherwise drops live rotation and other design — same host bake as LoraTraining). Crop settings stay stable across host re-renders so handle drags are less likely to snap back; Resize ratio lock uses the **current** (cropped) Width/Height, not the original file. Disk is only written on **Save** / **Save as…**. **On NTFS:** **Save** writes tip ADS `VER_n` (max 4; default stream stays pristine). Context menu **Version Control** (when history exists): Commit / Revert, then **Original** / **Version k** to preview that stream (D27). While previewing a version, the dim banner has **Show current** and **Drop** (tooltips). Slideshow always uses the tip. Thumbnails for tip-edited images invalidate when the tip stream changes even if `$DATA` mtime/size did not (D10). **On non-NTFS:** Save overwrites the file in place (no version streams — FAT/exFAT have no ADS). **Copy/move to a non-ADS volume:** destination gets the tip edit as the file body (edits kept; original/history dropped). **Save as…** writes a new file via the system save dialog with no version history. Not for SVG/PSD.
+**Edit:** pencil button in the preview header, context menu **Edit image…**, or **Ctrl+E** (single editable image selected; otherwise ignored) opens Filerobot (crop / adjust / finetune / filters / annotate / resize). Edits stay **in memory** for the session — rotate / filter / annotate then crop (and undo/redo) without Save between tools. Entering **Crop** or **Remove** after any in-session change bakes the canvas into a new in-memory source and remounts (Filerobot’s Crop tool otherwise drops live rotation and other design). Crop settings stay stable across host re-renders so handle drags are less likely to snap back; Resize ratio lock uses the **current** (cropped) Width/Height, not the original file. Disk is only written on **Save** / **Save as…**. **On NTFS:** **Save** writes tip ADS `VER_n` (max 4; default stream stays pristine). Context menu **Version Control** (when history exists): **Undo last edit** / Commit / Revert, then **Original** / **Version k** to preview that stream (D27). The editor top bar shows **Undo last** for the same tip drop. An annotation text box stays selected and uses the same handles as a rectangle; letters type into it, and Escape leaves the box before it closes the editor. While previewing a version, the dim banner has **Show current** and **Drop** (tooltips). Slideshow always uses the tip. Thumbnails for tip-edited images invalidate when the tip stream changes even if `$DATA` mtime/size did not (D10). **On non-NTFS:** Save overwrites the file in place (no version streams — FAT/exFAT have no ADS). **Copy/move to a non-ADS volume:** destination gets the tip edit as the file body (edits kept; original/history dropped). **Save as…** writes a new file via the system save dialog with no version history. Not for SVG/PSD.
 
 **Generation metadata on edit (D27):** Filerobot exports pixels only. After re-encode, MyFileExplorer copies generation embeddings from the metadata source (in-place Save: pristine `$DATA`) onto the written bytes so preview can parse them again — PNG `parameters` / `Comment` / Comfy `prompt`+`workflow`, JPEG COM, EXIF UserComment / XPComment. Same-format Save keeps native channels; cross-format Save as bridges gen text into the destination channel. Every `VER_n` tip gets the original gen meta; **Commit** copies tip bytes as-is (so a successful Save is what makes Commit safe). If re-attach fails, Save still succeeds and a soft warning is shown.
 
@@ -3183,7 +3198,7 @@ Header-only parse (8-byte length + JSON); **weights are never loaded**. No large
 <a id="src-docs-preview-extensions-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-preview-extensions-md--preview-pane-supported-extensions"></a>
@@ -3601,7 +3616,7 @@ Use **Open with default app** (or the system help viewer for oversized CHMs) whe
 <a id="src-docs-search-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-search-md--search-indexing"></a>
@@ -3722,7 +3737,7 @@ Legacy plain substring + `*`/`?` globs still work when no operators are used. A 
 }
 ```
 
-Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `source: 'index' | 'walk'`, optional `contentSlow?: boolean`.
+Results: `{ path, name, score?, mtimeMs, birthtimeMs?, size, isDir }[]` plus `partial`, `source: 'index' | 'walk'`, optional `contentSlow?: boolean`.
 
 ---
 
@@ -3733,7 +3748,7 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 - Toolbar **Power Search…** — visual query builder with **Scope** / **Match** always visible, then rounded tabs: **Name & Text**, **Type**, **Attributes**, **Size**, **Date** (created / modified / last accessed), **Location**, **Advanced** (duplicates, depth, content, notes), **Metadata** (ADS stream + user metadata). Syncs with the search box. **Saved searches** (named designs) store the builder + match flags + query — not the target. Cap 80; included in Settings export (D45).
 - **ADS / stream search** (Windows NTFS, read-only): `stream:Name`, `stream:Name=value` (substring in stream text), `hasstream:` (any named stream). Aliases `ads:` / `hasads:`. Exclude with `!stream:Name` / `!hasstream:`. Power Search → **Metadata** → **ADS stream**. Value match skips streams larger than 64 KiB.
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
-- Results in normal **FileView** (D29) using the **current view** (thumbnails, icons, list, or Details). The view picker stays enabled. **Details** adds a Folder column; other views show the parent folder under the name. Banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
+- Results in normal **FileView** (D29) using the **current view** (thumbnails, icons, list, or Details). The view picker stays enabled during the search and writes the folder’s view, so the choice remains after **Clear**. **Details** adds a Folder column; column headers sort the hits (Name, Date modified, Date created, Size, and the other columns). Date modified uses each hit’s modified time. Date created uses the created time from the index or the walk. Other views show the parent folder under the name. Banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
 - **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results (or jumping via breadcrumb / tree) pushes the search onto Back and cancels any in-flight walk so the toolbar query stays editable; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.
 - **Delete / move from results** drops those hits (and children of a deleted folder) from the list immediately — unlike Explorer, which leaves stale rows until you search again. A still-running walk will not put them back.
 - Live folder walks **stream** partial results; status bar shows in-progress state (not `0 results` while still walking)
@@ -4101,7 +4116,7 @@ flowchart TB
 
 **Backup / sync:** Most backup products copy the file body only and drop ADS. For folder trees that use MyFileExplorer streams (or any other ADS), prefer an ADS-aware tool such as **[MyFileSync](https://github.com/dobrado76/MyFileSync)** — see the README section *Backing up NTFS metadata (ADS)*.
 
-**Version Control** (context submenu when `VER_COUNT ≥ 1`): Commit tip into the default stream (preserve other ADS), Revert (drop `VER_*` only), then **Original** / **Version k** items that only switch the preview override. While an override is active, the preview banner offers **Show current** and (for a version, not original) **Drop** with tooltips.
+**Version Control** (context submenu when `VER_COUNT ≥ 1`): **Undo last edit** drops only the newest version, Commit tip into the default stream (preserve other ADS), Revert (drop `VER_*` only), then **Original** / **Version k** items that only switch the preview override. The image editor top bar has the same **Undo last** when a stack exists. While an override is active, the preview banner offers **Show current** and (for a version, not original) **Drop** with tooltips. A context command that runs Photoshop on that image asks whether to open the original file or commit the tip first, because Photoshop reads the file body.
 
 <!-- end source: docs/ADS.md -->
 
@@ -4112,7 +4127,7 @@ flowchart TB
 <a id="src-docs-folder-statistics-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-folder-statistics-md--folder-statistics-space-usage"></a>
@@ -7214,7 +7229,7 @@ See [MEDIA_METADATA.md](#src-docs-media-metadata-md) — Ask AI. Four prompts pe
 <a id="src-docs-git-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-git-md--git-aware-browsing-d64"></a>
@@ -7302,7 +7317,7 @@ Built-in inline **text diff** pane, interactive rebase / Advanced rewrite, merge
 <a id="src-docs-virtual-folders-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-virtual-folders-md--virtual-folders-d67"></a>
@@ -7575,7 +7590,7 @@ Tagged GitHub Releases also publish `MfeVirtualFolderService-win-x64.zip` (self-
 <a id="src-docs-networks-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-networks-md--network-neighborhood-mapped-drives-d44-d3"></a>
@@ -7778,7 +7793,7 @@ Not exported: `window-state.json`, live `session.json` tabs (use a **named layou
 <a id="src-docs-remote-ftp-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-remote-ftp-md--remote-repositories-ftp-ftps-sftp"></a>
@@ -7970,7 +7985,7 @@ This is the same class as “zip as navigable folder”: a second location kind,
 <a id="src-docs-power-rename-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-power-rename-md--power-rename-d40"></a>
@@ -8336,7 +8351,7 @@ No dedicated `powerRename:*` IPC — rename stays on the shared filesystem API.
 <a id="src-docs-undelete-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-undelete-md--ntfs-undelete-d74"></a>
@@ -8443,7 +8458,7 @@ Shapes: [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/
 <a id="src-docs-windows-shell-redirect-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-windows-shell-redirect-md--windows-shell-redirect-experimental"></a>
@@ -8553,7 +8568,7 @@ See also [INTEGRATION.md](#src-docs-integration-md) for `--open` / `--reveal` CL
 <a id="src-docs-linux-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-linux-md--linux-setup-for-myfileexplorer-experimental"></a>
@@ -8731,7 +8746,7 @@ Windows packaging remains `npm run dist` / `npm run build:win` on a Windows host
 <a id="src-docs-project-format-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-project-format-md--project-app-data-format"></a>
@@ -8969,7 +8984,7 @@ When persisted shapes change: add idempotent `scripts/migrate-*.ts` (or in-app v
 <a id="src-docs-security-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-security-md--security"></a>
@@ -9051,7 +9066,7 @@ Prefer maintained native modules; audit on upgrade. Sharp and better-sqlite3 (or
 <a id="src-docs-integration-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-integration-md--integrating-with-myfileexplorer"></a>
@@ -9161,7 +9176,7 @@ Settings → **Windows integration** can redirect per-user `Directory\shell\open
 <a id="src-docs-architecture-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-architecture-md--architecture"></a>
@@ -9304,7 +9319,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 <a id="src-docs-build-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.21.5. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
+> The repository package version is 0.21.9. The newest changelog section is 0.21.0. There is no changelog section after that. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
 <a id="src-docs-build-md--building-releases"></a>
@@ -9314,7 +9329,7 @@ Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, 
 
 The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
-**Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](#src-docs-linux-md) (`npm run build:linux`). `npm run dist` / `dist:nobump` are **Windows-host only**.
+**Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](#src-docs-linux-md) (`npm run build:linux`). `npm run dist` / `dist:nobump` / `dist:full` are **Windows-host only**.
 
 ---
 
@@ -9324,11 +9339,14 @@ The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100�
 ```bash
 npm ci
 npm run check          # typecheck + lint + test + support-doc check — same as the GitHub “Typecheck, lint, test” job
-npm run build:win      # electron-vite + electron-builder → dist/
-<a id="src-docs-build-md--or"></a>
-# or
-npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a local path is set
+npm run dist           # bump patch, pack MyFileExplorer only → dist/
+npm run dist:nobump    # same pack, no version bump
+npm run dist:full      # same as dist, and republish MfeShellLauncher, mpv, and the VC++ DLLs
+npm run build:win      # MyFileExplorer pack only (no version bump, no updates-folder copy)
+npm run build:win:full # pack plus those side tools
 ```
+
+`dist` and `build:win` reuse `tools/MfeShellLauncher/publish/MfeShellLauncher.exe`, `tools/mpv`, and `build/vc-redist` from the last full pack. They still go into the installer. GitHub’s tag build sets `CI=true`, so `npm run build:win` there still rebuilds those side tools.
 
 `npm run check` is what the Actions job **Typecheck, lint, test** runs (including `npm run docs:support:check`). A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command for **branch** pushes so a failing lint or test never leaves the machine. Rebuild the support bundle with `npm run docs:support` before that check if you changed a bundled doc. **Tag-only** pushes skip the suite (so publishing a tag is not blocked by unrelated working-tree WIP). Skip entirely only if you must: `git push --no-verify`.
 
@@ -9339,9 +9357,11 @@ In-app **Settings → About → Updates source** accepts a local installer folde
 <a id="src-docs-build-md--ebusy-eperm-appasar-locked"></a>
 ### `EBUSY` / `EPERM` / `app.asar` locked
 
-If packaging dies with `EBUSY` on `app.asar`, or `EPERM` renaming `dist\\win-unpacked.tmp` → `dist\\win-unpacked`, something still has that folder open — usually a **MyFileExplorer.exe you launched from `dist\\win-unpacked`** (not the installed app under `%LOCALAPPDATA%\\Programs\\MyFileExplorer`).
+Packaging replaces `dist\win-unpacked\resources\app.asar`. Electron keeps every `.asar` it has stat'd mapped until that process exits, so a file manager (or Cursor, which is also Electron) that indexed or opened that archive holds it shut. The installed app does not store the repo path. A current build reads other projects' `.asar` files as ordinary files and does not keep them open. An older build still holds whatever it already opened until you quit that process.
 
-`npm run build:win`, `dist`, and `dist:nobump` stop processes under `dist/win-unpacked` (and a leftover `.tmp`) and retry deleting those folders before packaging. If it still fails: close that window (or reboot), delete `dist/win-unpacked` manually, retry.
+An exe actually started from `dist\win-unpacked` is the archive's own host. Quit that window. The Start Menu install under `%LOCALAPPDATA%\Programs\MyFileExplorer` can stay open.
+
+`npm run build:win`, `build:win:full`, `dist`, `dist:nobump`, and `dist:full` stop processes under `dist/win-unpacked` (and a leftover `.tmp`) and retry deleting those folders before packaging. If it still fails: quit the process that has the archive open, delete `dist/win-unpacked` manually, retry.
 
 <a id="src-docs-build-md--experimental-linux"></a>
 ### Experimental Linux

@@ -2,7 +2,7 @@
   "name": "my-file-explorer",
   "productName": "MyFileExplorer",
   "desktopName": "MyFileExplorer",
-  "version": "0.21.5",
+  "version": "0.21.9",
   "description": "Windows-first Electron + React file manager: tabs, rich previews, Everything-inspired search, and a universal local script runner (PowerShell / Python / cmd / bash) with optional AI that never reads your files.",
   "main": "./out/main/index.js",
   "author": "MyFileExplorer",
@@ -30,8 +30,10 @@
     "samples:preview": "node scripts/generate-preview-samples.mjs",
     "postinstall": "node scripts/patch-filerobot.mjs",
     "build:win": "node scripts/build-win.mjs",
+    "build:win:full": "node scripts/build-win.mjs --full",
     "tools:fetch-mpv": "node scripts/fetch-mpv.mjs",
     "dist": "node scripts/dist.mjs",
+    "dist:full": "node scripts/dist.mjs --full",
     "dist:nobump": "node scripts/dist.mjs --no-bump",
     "dist:linux": "npm run build:linux"
   },
@@ -64,6 +66,9 @@
     "word-extractor": "^1.0.4",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yauzl": "^3.4.0"
+  },
+  "overrides": {
+    "konva": "$konva"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

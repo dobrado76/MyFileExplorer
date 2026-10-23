@@ -50,6 +50,7 @@ function rowsToItems(rows: FileRow[], hiddenDirs?: ReadonlySet<string>): SearchR
     name: r.name,
     size: Number(r.size),
     mtimeMs: Number(r.mtime_ms),
+    birthtimeMs: Number(r.birthtime_ms ?? 0),
     isDir: Number(r.is_dir) === 1,
     isHidden: isHiddenSearchHit({ path: r.path, attrs: r.attrs, hiddenDirs })
   }))

@@ -174,7 +174,7 @@ On a video, **Keep playing** opens **Now Playing**, which keeps that file playin
 
 ### 41. How do I edit an image?
 
-Select one editable image and press **Ctrl+E**, or use the editor command. Saves write the picture and keep up to four earlier versions in NTFS streams `VER_1`…`VER_4` on that file. Revert uses those streams. Zipping the file with a tool that drops ADS drops the versions.
+Select one editable image and press **Ctrl+E**, or use the editor command. On **Annotate**, draw a text box. It stays selected, with the same move and resize handles as a rectangle. Type in it, including **E**. **Escape** leaves the text box and brings the handles back; **Escape** again closes the editor. **Ctrl+S** still saves from that box. When the file has saved versions, **Undo last** in the editor top bar drops only the newest one and reloads the previous. The same action is **Undo last edit** on the **Version Control** menu. File-window keys such as **Backspace**, **Delete**, and **Ctrl+A** stay in the editor until it closes. Saves write the picture and keep up to four earlier versions in NTFS streams `VER_1`…`VER_4` on that file. Revert uses those streams. Zipping the file with a tool that drops ADS drops the versions. A context command that launches Photoshop on one image with versions asks whether to open the original or commit the newest edit into the file first.
 
 ### 42. The editor opened empty.
 
@@ -208,7 +208,7 @@ Leaving a search via the breadcrumb or address bar cancels the walk and clears t
 
 ### 49. Search results changed my view to Details.
 
-Current builds keep the view you had (thumbnails, icons, or list). Details adds a Folder column.
+Current builds keep the view you had (thumbnails, icons, list, or Details). The view picker still works on the results. Details adds a Folder column, and the column headers sort those hits.
 
 ### 50. Can another program call search?
 
@@ -413,3 +413,7 @@ Settings → **About** → **Check for update**. **Folder or URL** is the update
 ### 95. Can Windows open folders in MyFileExplorer instead of Explorer?
 
 Only if you turn on Settings → **Windows integration** → **Redirect folder openings to MyFileExplorer**. It is off until you opt in. It is per-user, experimental, and not part of a settings export. **Restore previous folder-opening configuration** puts the old verbs back. It is not a full Explorer replacement. [WINDOWS_SHELL_REDIRECT.md](WINDOWS_SHELL_REDIRECT.md).
+
+### 96. Can I use thumbnails or Details, and sort by date, while search results are showing?
+
+Yes. Change the view picker while the results are open. Thumbnails, icons, list, and Details all show the hits. In Details, click a column header — **Date modified**, **Date created**, Size, or Name — to sort the hits. That choice is the folder’s view, so it stays after you clear the search. Details also shows a Folder column for the parent path.

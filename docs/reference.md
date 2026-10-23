@@ -31,6 +31,10 @@ These are handled by the explorer shell when a text field is not focused. During
 | Ctrl+L | Edit the address bar |
 | Enter | Open the selection. In the Recycle Bin, restore it. |
 
+## Image editor keys
+
+While the image editor is open, the file-window chords above do not run. **Ctrl+S** saves. **Escape** closes the editor. A new annotation text box stays selected and uses the same move and resize handles as a rectangle. Letters, including **E**, **Backspace**, and **Delete** type into that box. **Escape** leaves the text box first; a second **Escape** closes the editor. **Undo last** drops only the newest saved version.
+
 **Plan before a write:** hold Ctrl while clicking **Paste** or **Delete** on the toolbar or the context menu, or press **Ctrl+Delete** or **Ctrl+Shift+V**. That opens the plan dialog (dry run) before anything is written. **Ctrl+C**, **Ctrl+X**, and **Ctrl+V** are clipboard copy, cut, and paste. Dragging with Ctrl copies; it does not open the plan.
 
 A tab can have its own drop shortcut (right-click the tab → **Set drop shortcut…**). That chord moves or copies the focused selection into the tab’s folder. It cannot reuse a chord in the table above. **Auto** uses extra Shift/Ctrl on the keypress to force copy or move; the tab can instead be **Always move** or **Always copy**.

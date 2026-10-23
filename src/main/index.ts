@@ -9,6 +9,7 @@ if (process.platform === 'linux') {
   process.env['ELECTRON_DISABLE_SANDBOX'] = '1'
 }
 
+import './fs/foreignAsar'
 import fs from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'

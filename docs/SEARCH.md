@@ -111,7 +111,7 @@ Legacy plain substring + `*`/`?` globs still work when no operators are used. A 
 }
 ```
 
-Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `source: 'index' | 'walk'`, optional `contentSlow?: boolean`.
+Results: `{ path, name, score?, mtimeMs, birthtimeMs?, size, isDir }[]` plus `partial`, `source: 'index' | 'walk'`, optional `contentSlow?: boolean`.
 
 ---
 
@@ -121,7 +121,7 @@ Results: `{ path, name, score?, mtimeMs, size, isDir }[]` plus `partial`, `sourc
 - Toolbar **Power Search…** — visual query builder with **Scope** / **Match** always visible, then rounded tabs: **Name & Text**, **Type**, **Attributes**, **Size**, **Date** (created / modified / last accessed), **Location**, **Advanced** (duplicates, depth, content, notes), **Metadata** (ADS stream + user metadata). Syncs with the search box. **Saved searches** (named designs) store the builder + match flags + query — not the target. Cap 80; included in Settings export (D45).
 - **ADS / stream search** (Windows NTFS, read-only): `stream:Name`, `stream:Name=value` (substring in stream text), `hasstream:` (any named stream). Aliases `ads:` / `hasads:`. Exclude with `!stream:Name` / `!hasstream:`. Power Search → **Metadata** → **ADS stream**. Value match skips streams larger than 64 KiB.
 - Toolbar **indexed** checkbox (`searchIndexedOnly`); Match path / case / ww / regex toggles
-- Results in normal **FileView** (D29) using the **current view** (thumbnails, icons, list, or Details). The view picker stays enabled. **Details** adds a Folder column; other views show the parent folder under the name. Banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
+- Results in normal **FileView** (D29) using the **current view** (thumbnails, icons, list, or Details). The view picker stays enabled during the search and writes the folder’s view, so the choice remains after **Clear**. **Details** adds a Folder column; column headers sort the hits (Name, Date modified, Date created, Size, and the other columns). Date modified uses each hit’s modified time. Date created uses the created time from the index or the walk. Other views show the parent folder under the name. Banner with count / Clear / “Not indexed — slow” / “Content search — slow”. Live walk progress + Cancel live in the status bar (same chrome as copy/move).
 - **Per-tab search (WFE-style):** search is a location on that tab. Switching tabs or focusing another pane does **not** clear results. Opening a folder from results (or jumping via breadcrumb / tree) pushes the search onto Back and cancels any in-flight walk so the toolbar query stays editable; Back restores the query (re-runs if results were not cached). Session persists query + scope only. In multi-pane, drag hits from one pane’s results onto another tab/pane.
 - **Delete / move from results** drops those hits (and children of a deleted folder) from the list immediately — unlike Explorer, which leaves stale rows until you search again. A still-running walk will not put them back.
 - Live folder walks **stream** partial results; status bar shows in-progress state (not `0 results` while still walking)

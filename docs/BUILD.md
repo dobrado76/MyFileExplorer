@@ -4,7 +4,7 @@
 
 The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
 
-**Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](LINUX.md) (`npm run build:linux`). `npm run dist` / `dist:nobump` are **Windows-host only**.
+**Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](LINUX.md) (`npm run build:linux`). `npm run dist` / `dist:nobump` / `dist:full` are **Windows-host only**.
 
 ---
 
@@ -13,10 +13,14 @@ The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100�
 ```bash
 npm ci
 npm run check          # typecheck + lint + test + support-doc check — same as the GitHub “Typecheck, lint, test” job
-npm run build:win      # electron-vite + electron-builder → dist/
-# or
-npm run dist:nobump    # same idea; also syncs Settings → Updates folder if a local path is set
+npm run dist           # bump patch, pack MyFileExplorer only → dist/
+npm run dist:nobump    # same pack, no version bump
+npm run dist:full      # same as dist, and republish MfeShellLauncher, mpv, and the VC++ DLLs
+npm run build:win      # MyFileExplorer pack only (no version bump, no updates-folder copy)
+npm run build:win:full # pack plus those side tools
 ```
+
+`dist` and `build:win` reuse `tools/MfeShellLauncher/publish/MfeShellLauncher.exe`, `tools/mpv`, and `build/vc-redist` from the last full pack. They still go into the installer. GitHub’s tag build sets `CI=true`, so `npm run build:win` there still rebuilds those side tools.
 
 `npm run check` is what the Actions job **Typecheck, lint, test** runs (including `npm run docs:support:check`). A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command for **branch** pushes so a failing lint or test never leaves the machine. Rebuild the support bundle with `npm run docs:support` before that check if you changed a bundled doc. **Tag-only** pushes skip the suite (so publishing a tag is not blocked by unrelated working-tree WIP). Skip entirely only if you must: `git push --no-verify`.
 
@@ -26,9 +30,11 @@ In-app **Settings → About → Updates source** accepts a local installer folde
 
 ### `EBUSY` / `EPERM` / `app.asar` locked
 
-If packaging dies with `EBUSY` on `app.asar`, or `EPERM` renaming `dist\\win-unpacked.tmp` → `dist\\win-unpacked`, something still has that folder open — usually a **MyFileExplorer.exe you launched from `dist\\win-unpacked`** (not the installed app under `%LOCALAPPDATA%\\Programs\\MyFileExplorer`).
+Packaging replaces `dist\win-unpacked\resources\app.asar`. Electron keeps every `.asar` it has stat'd mapped until that process exits, so a file manager (or Cursor, which is also Electron) that indexed or opened that archive holds it shut. The installed app does not store the repo path. A current build reads other projects' `.asar` files as ordinary files and does not keep them open. An older build still holds whatever it already opened until you quit that process.
 
-`npm run build:win`, `dist`, and `dist:nobump` stop processes under `dist/win-unpacked` (and a leftover `.tmp`) and retry deleting those folders before packaging. If it still fails: close that window (or reboot), delete `dist/win-unpacked` manually, retry.
+An exe actually started from `dist\win-unpacked` is the archive's own host. Quit that window. The Start Menu install under `%LOCALAPPDATA%\Programs\MyFileExplorer` can stay open.
+
+`npm run build:win`, `build:win:full`, `dist`, `dist:nobump`, and `dist:full` stop processes under `dist/win-unpacked` (and a leftover `.tmp`) and retry deleting those folders before packaging. If it still fails: quit the process that has the archive open, delete `dist/win-unpacked` manually, retry.
 
 ### Experimental Linux
 

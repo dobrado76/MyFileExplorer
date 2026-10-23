@@ -102,7 +102,7 @@ import { captureDockedChromiumPlayback } from '../lib/dockedAvPlayback'
 import { formatBytes } from '../lib/format'
 import { clampFolderStatsTreemapMaxLeaves } from '@shared/folderStatsPreview'
 import { basename, parentOf, samePath, joinPath, driveOf, isUnderPath } from '../lib/paths'
-import { isEditableImagePath } from '@shared/imageEdit'
+import { isEditableImagePath, isPhotoshopExecutable } from '@shared/imageEdit'
 import { resolvePreviewTargetPath } from '@shared/previewTarget'
 import { pathKey } from '@shared/paths'
 import { createRemovalMatcher, removalDirectoryKeys } from '@shared/removalMatch'
@@ -367,6 +367,11 @@ export type DialogState =
       message: string
       confirmLabel?: string
       danger?: boolean
+    }
+  | {
+      kind: 'external-edit-versions'
+      title: string
+      message: string
     }
   | {
       kind: 'virtual-folder-conflict'
@@ -634,6 +639,7 @@ registerViewOrderCacheClear(() => {
 let sessionSaveTimer: ReturnType<typeof setTimeout> | null = null
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 let confirmResolve: ((confirmed: boolean) => void) | null = null
+let externalEditVersionsResolve: ((choice: 'cancel' | 'original' | 'commit') => void) | null = null
 let virtualFolderConflictResolve: ((choice: 'reload' | 'overwrite' | 'cancel') => void) | null =
   null
 let fileOpPlanResolve: ((choice: FileOpPlanChoice | null) => void) | null = null
@@ -1147,6 +1153,8 @@ type AppState = {
   saveEditedImageAs(sourcePath: string, dataBase64: string): Promise<string | null>
   revertImageOriginal(path: string): Promise<void>
   dropImageVersion(path: string, ver: number): Promise<void>
+  /** Drop the tip version. No per-version confirm. Returns the remaining count. */
+  undoLastImageEdit(path: string): Promise<number | null>
   commitImageVersion(path: string): Promise<void>
   setImageVersionPreview(preview: ImageVersionPreview | null): void
   askConfirm(opts: {
@@ -1155,6 +1163,9 @@ type AppState = {
     confirmLabel?: string
     danger?: boolean
   }): Promise<boolean>
+  /** Photoshop reads the file body. Original, commit the tip first, or cancel. */
+  askExternalEditVersions(): Promise<'cancel' | 'original' | 'commit'>
+  resolveExternalEditVersions(choice: 'cancel' | 'original' | 'commit'): void
   /** Virtual Folder external-edit conflict: reload, overwrite, or cancel. */
   askVirtualFolderConflict(opts?: { title?: string; message?: string }): Promise<'reload' | 'overwrite' | 'cancel'>
   resolveVirtualFolderConflict(choice: 'reload' | 'overwrite' | 'cancel'): void
@@ -3110,6 +3121,43 @@ export const useAppStore = create<AppState>()((set, get) => {
         window.requestAnimationFrame(() => resolve())
       })
     })
+  }
+
+  /**
+   * Photoshop opens the file body. When that image has saved versions, ask
+   * whether to open the original or commit the tip first. Returns false when
+   * the user cancels or the commit fails.
+   */
+  async function gatePhotoshopFileBody(executable: string, paths: string[]): Promise<boolean> {
+    if (paths.length !== 1 || !isPhotoshopExecutable(executable)) return true
+    const path = paths[0]
+    if (!path || !isEditableImagePath(path)) return true
+    let versionCount = 0
+    try {
+      const st = await call(api.fs.imageEditState({ path }))
+      versionCount = st.versionCount
+    } catch {
+      return true
+    }
+    if (versionCount < 1) return true
+    const choice = await get().askExternalEditVersions()
+    if (choice === 'cancel') return false
+    if (choice === 'original') return true
+    await releaseMediaLocks()
+    try {
+      const res = await call(api.fs.commitImageVersion({ path }))
+      get().notify('Committed the latest edit')
+      set({ imageVersionPreview: null, mediaHold: false })
+      get().slideshowInvalidateImage(path)
+      await api.meta.invalidate({ paths: [res.path] })
+      get().bumpColumnMeta(res.path)
+      await get().refresh()
+      return true
+    } catch (e) {
+      set({ mediaHold: false })
+      get().notify(e instanceof IpcError ? e.message : String(e), true)
+      return false
+    }
   }
 
   function clearMediaHold(): void {
@@ -5565,9 +5613,8 @@ export const useAppStore = create<AppState>()((set, get) => {
       const s = get()
       const id = tabId ?? s.activeTabId
       const tab = s.tabs.find((t) => t.id === id) ?? s.activeTab()
-      // Search uses a Details overlay only — changing view here would still write
-      // folder prefs while the list looks like Details until Clear.
-      if (tab.search.active) return
+      // Search results use this same view (D29). Changing it updates the folder
+      // view, so Clear leaves the folder in the view you picked for the hits.
       const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       if (owning) {
         // Optimistic folderViews update runs sync inside applySettingsPatch.
@@ -5739,10 +5786,6 @@ export const useAppStore = create<AppState>()((set, get) => {
       const preset = s.settings.viewPresets.find((p) => p.id === id)
       if (!preset) return
       const tab = s.activeTab()
-      if (tab.search.active) {
-        get().notify('Clear search before applying a view preset', true)
-        return
-      }
       const owning = resolveFolderViewForTab(tab, s.settings.folderViews)
       const detailsColumns = preset.detailsColumns.filter((c) => c.id !== 'folder') as Settings['detailsColumns']
       const extra = {
@@ -8501,6 +8544,31 @@ export const useAppStore = create<AppState>()((set, get) => {
       r?.(confirmed)
     },
 
+    async askExternalEditVersions() {
+      if (externalEditVersionsResolve) {
+        externalEditVersionsResolve('cancel')
+        externalEditVersionsResolve = null
+      }
+      return await new Promise<'cancel' | 'original' | 'commit'>((resolve) => {
+        externalEditVersionsResolve = resolve
+        set({
+          dialog: {
+            kind: 'external-edit-versions',
+            title: 'Edit in Photoshop',
+            message:
+              'This image has saved versions. Photoshop opens the file itself, which is still the original. Commit writes only the newest edit into the file and removes the version history, then opens Photoshop.'
+          }
+        })
+      })
+    },
+
+    resolveExternalEditVersions(choice) {
+      set({ dialog: null })
+      const r = externalEditVersionsResolve
+      externalEditVersionsResolve = null
+      r?.(choice)
+    },
+
     async askFileOpPlan(plan, request) {
       if (fileOpPlanResolve) {
         fileOpPlanResolve(null)
@@ -8620,6 +8688,41 @@ export const useAppStore = create<AppState>()((set, get) => {
       } catch (e) {
         set({ mediaHold: false })
         get().notify(e instanceof IpcError ? e.message : String(e), true)
+      }
+    },
+
+    async undoLastImageEdit(path) {
+      let tipVer = 0
+      try {
+        const st = await call(api.fs.imageEditState({ path }))
+        tipVer = st.tipVer || st.versionCount
+        if (st.versionCount < 1 || tipVer < 1) {
+          get().notify('No version history for this image', true)
+          return null
+        }
+      } catch (e) {
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        return null
+      }
+      await releaseMediaLocks()
+      try {
+        const dropped = await call(api.fs.dropImageVersion({ path, ver: tipVer }))
+        const left = dropped.versionCount
+        get().notify(
+          left > 0
+            ? `Undid last edit · ${left} version${left === 1 ? '' : 's'} left`
+            : 'Undid last edit'
+        )
+        set({ imageVersionPreview: null, mediaHold: false })
+        get().slideshowInvalidateImage(path)
+        await api.meta.invalidate({ paths: [path] })
+        get().bumpColumnMeta(path)
+        await get().refresh()
+        return left
+      } catch (e) {
+        set({ mediaHold: false })
+        get().notify(e instanceof IpcError ? e.message : String(e), true)
+        return null
       }
     },
 
@@ -8858,6 +8961,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       try {
+        if (!(await gatePhotoshopFileBody(cmd.executable, paths))) return
         const args = expandArgsTemplate(cmd.argsTemplate, paths)
         await call(api.shell.exec({ executable: cmd.executable, args }))
       } catch (e) {
@@ -8878,6 +8982,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return
       }
       try {
+        if (!(await gatePhotoshopFileBody(verb.executable, paths))) return
         const args = expandArgsTemplate(verb.argsTemplate, paths)
         await call(api.shell.exec({ executable: verb.executable, args }))
       } catch (e) {

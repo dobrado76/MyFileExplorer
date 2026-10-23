@@ -11,10 +11,74 @@ import { api, call } from '../lib/ipc'
 import { basename } from '../lib/paths'
 import { ImageRemoveOverlay } from './ImageRemoveOverlay'
 import {
+  annotationEditorClaimsKey,
+  editorShortcutSupersedesTyping,
   imageEditShouldWrite,
-  imageEditorShortcut,
-  isImageEditorTypingTarget
+  imageEditorShortcut
 } from './imageEditorShortcuts'
+
+/** Filerobot's in-canvas annotation text box. It is mounted without being focused. */
+const ANNOTATION_TEXT_EDITOR_ID = 'FIE_text-content-editor'
+
+function annotationTextEditor(): HTMLElement | null {
+  const el = document.getElementById(ANNOTATION_TEXT_EDITOR_ID)
+  return el instanceof HTMLElement ? el : null
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+  if (target.isContentEditable) return true
+  return Boolean(target.closest('[contenteditable="true"]'))
+}
+
+function focusAnnotationTextEditor(): void {
+  const el = annotationTextEditor()
+  if (!el?.isConnected) return
+  if (el === document.activeElement || el.contains(document.activeElement)) return
+  if (isTypingTarget(document.activeElement)) return
+  el.focus()
+}
+
+function placeCaretInAnnotation(el: HTMLElement): void {
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) return
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(false)
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
+
+/** Insert the key that arrived before the text box had focus. */
+function typeIntoAnnotationEditor(el: HTMLElement, e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return false
+  const command = e.key === 'Backspace' ? 'delete' : e.key === 'Delete' ? 'forwardDelete' : null
+  const lineBreak = e.key === 'Enter' && e.shiftKey
+  const text = !lineBreak && e.key.length === 1 ? e.key : null
+  if (!command && !lineBreak && text == null) return false
+  el.focus()
+  placeCaretInAnnotation(el)
+  if (command) document.execCommand(command)
+  else if (lineBreak) document.execCommand('insertLineBreak')
+  else if (text != null) document.execCommand('insertText', false, text)
+  return true
+}
+
+function forwardAnnotationKey(el: HTMLElement, e: KeyboardEvent): void {
+  e.preventDefault()
+  e.stopPropagation()
+  el.focus()
+  el.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: e.key,
+      bubbles: true,
+      cancelable: true,
+      shiftKey: e.shiftKey
+    })
+  )
+}
 
 /**
  * Full-window Filerobot host. Image bytes come from main via IPC once;
@@ -39,6 +103,8 @@ export function ImageEditor(): JSX.Element | null {
   const [removeMode, setRemoveMode] = useState(false)
   const [removeBusy, setRemoveBusy] = useState(false)
   const [baking, setBaking] = useState(false)
+  const [versionCount, setVersionCount] = useState(0)
+  const [undoConfirm, setUndoConfirm] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const getCurrentImgDataFnRef = useRef<getCurrentImgDataFunction | null>(null)
   const dirtyRef = useRef(false)
@@ -52,7 +118,12 @@ export function ImageEditor(): JSX.Element | null {
   const removeBusyRef = useRef(false)
   const saveAsCurrentRef = useRef<() => void>(() => undefined)
   const readCurrentEditBase64Ref = useRef<() => string | null>(() => null)
+  const undoLastRef = useRef<() => void>(() => undefined)
+  const versionCountRef = useRef(0)
+  const undoConfirmRef = useRef(false)
   const saveEditedImageRef = useRef(saveEditedImage)
+  versionCountRef.current = versionCount
+  undoConfirmRef.current = undoConfirm
 
   useEffect(() => {
     editorRef.current = editor
@@ -68,6 +139,8 @@ export function ImageEditor(): JSX.Element | null {
     if (!editor) {
       setSrc(null)
       setRemoveMode(false)
+      setVersionCount(0)
+      setUndoConfirm(false)
       dirtyRef.current = false
       bakedFromDiskRef.current = false
       return
@@ -75,13 +148,19 @@ export function ImageEditor(): JSX.Element | null {
     let alive = true
     setSrc(null)
     setRemoveMode(false)
+    setVersionCount(0)
+    setUndoConfirm(false)
     dirtyRef.current = false
     bakedFromDiskRef.current = false
     setDefaultToolId(TOOLS.CROP)
     void (async () => {
       try {
-        const res = await call(api.fs.readImageForEdit({ path: editor.path }))
+        const [res, versions] = await Promise.all([
+          call(api.fs.readImageForEdit({ path: editor.path })),
+          call(api.fs.imageEditState({ path: editor.path })).catch(() => null)
+        ])
         if (!alive) return
+        setVersionCount(versions?.versionCount ?? 0)
         setSrc(`data:${res.mime};base64,${res.dataBase64}`)
         setSrcKey((k) => k + 1)
       } catch (e) {
@@ -191,6 +270,34 @@ export function ImageEditor(): JSX.Element | null {
           ev.stopPropagation()
           saveAsCurrentRef.current()
         }
+
+        let undoBtn = wrap.querySelector('.mfe-undo-last-btn') as HTMLButtonElement | null
+        if (versionCountRef.current < 1) {
+          undoBtn?.remove()
+        } else {
+          if (!undoBtn) {
+            undoBtn = document.createElement('button')
+            undoBtn.type = 'button'
+            undoBtn.className = 'mfe-undo-last-btn'
+            undoBtn.textContent = 'Undo last'
+            const anchor =
+              wrap.querySelector('.mfe-save-as-btn') ??
+              wrap.querySelector('.FIE_buttons-save-btn-wrapper') ??
+              wrap.querySelector('.FIE_buttons-save-btn')
+            if (anchor) anchor.after(undoBtn)
+            else wrap.appendChild(undoBtn)
+          }
+          const n = versionCountRef.current
+          undoBtn.textContent = n > 1 ? `Undo last (${n})` : 'Undo last'
+          undoBtn.title =
+            'Drop the newest saved version and open the previous one. The original file stays.'
+          undoBtn.disabled = savingRef.current
+          undoBtn.onclick = (ev) => {
+            ev.preventDefault()
+            ev.stopPropagation()
+            undoLastRef.current()
+          }
+        }
       }
 
       const shortcutTitles: Array<[string, string]> = [
@@ -255,7 +362,7 @@ export function ImageEditor(): JSX.Element | null {
       window.clearInterval(id)
       window.clearTimeout(stop)
     }
-  }, [src, editor, removeMode, srcKey])
+  }, [src, editor, removeMode, srcKey, versionCount])
 
   // Bake in-memory design before Crop so chained edits survive (upstream #267).
   useEffect(() => {
@@ -304,28 +411,91 @@ export function ImageEditor(): JSX.Element | null {
 
   useEffect(() => {
     if (!editor) return
+    const root = rootRef.current
+    if (!root) return
+    let raf = 0
+    const focusText = (): void => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => focusAnnotationTextEditor())
+    }
+    const obs = new MutationObserver(focusText)
+    obs.observe(root, { childList: true, subtree: true })
+    const onFocusIn = (e: FocusEvent): void => {
+      const text = annotationTextEditor()
+      if (!text) return
+      const target = e.target
+      if (!(target instanceof Node) || text === target || text.contains(target)) return
+      if (isTypingTarget(target)) return
+      if (!(target instanceof Element)) return
+      const stolen = target.closest('.konvajs-content') != null || target.tagName === 'CANVAS'
+      if (!stolen) return
+      text.focus()
+    }
+    window.addEventListener('focusin', onFocusIn)
+    return () => {
+      cancelAnimationFrame(raf)
+      obs.disconnect()
+      window.removeEventListener('focusin', onFocusIn)
+    }
+  }, [editor, src])
+
+  useEffect(() => {
+    if (!editor) return
     const onKey = (e: KeyboardEvent): void => {
+      const textEditor = annotationTextEditor()
+      const targetIsEditor =
+        textEditor != null && (e.target === textEditor || textEditor.contains(e.target as Node))
+      const targetIsTyping = isTypingTarget(e.target)
+      const typing = targetIsTyping || targetIsEditor
+      if (
+        textEditor &&
+        annotationEditorClaimsKey({
+          editorOpen: true,
+          targetIsEditor,
+          targetIsTyping
+        })
+      ) {
+        if (e.key === 'Escape' || (e.key === 'Enter' && !e.shiftKey)) {
+          forwardAnnotationKey(textEditor, e)
+          return
+        }
+        if (typeIntoAnnotationEditor(textEditor, e)) {
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+        const pending = imageEditorShortcut(e)
+        if (!pending || !editorShortcutSupersedesTyping(pending, e)) {
+          textEditor.focus()
+          e.preventDefault()
+          e.stopPropagation()
+          return
+        }
+      }
       if (e.key === 'Escape') {
+        if (undoConfirmRef.current || useAppStore.getState().dialog) return
         if (removeBusy || saving || baking) {
           e.preventDefault()
           e.stopPropagation()
           return
         }
-        e.preventDefault()
-        e.stopPropagation()
         if (removeMode) {
+          e.preventDefault()
           setRemoveMode(false)
           return
         }
+        // Escape leaves the text box; Filerobot handles that. A second Escape closes.
+        if (typing || textEditor) return
+        e.preventDefault()
         closeImageEditor()
         return
       }
 
       const action = imageEditorShortcut(e)
       if (!action) return
-      // Letter keys must still type into resize fields and text annotations.
-      // Ctrl/Cmd-S saves even from a field.
-      if (action !== 'save' && isImageEditorTypingTarget(e.target)) return
+      // Letter keys type into resize fields and the annotation text box.
+      // Ctrl/Cmd-S still saves from a field.
+      if ((typing || textEditor) && !editorShortcutSupersedesTyping(action, e)) return
       e.preventDefault()
       e.stopPropagation()
       if (removeBusy || savingRef.current || bakingRef.current) return
@@ -444,8 +614,60 @@ export function ImageEditor(): JSX.Element | null {
     }
   }, [fileName, notify])
 
+  const applyUndoLast = useCallback(async () => {
+    const ed = editorRef.current
+    if (!ed || savingRef.current || versionCountRef.current < 1) return
+    setUndoConfirm(false)
+    setSaving(true)
+    savingRef.current = true
+    try {
+      const left = await useAppStore.getState().undoLastImageEdit(ed.path)
+      if (left == null) return
+      const res = await call(api.fs.readImageForEdit({ path: ed.path }))
+      dirtyRef.current = false
+      bakedFromDiskRef.current = false
+      setRemoveMode(false)
+      setDefaultToolId(TOOLS.CROP)
+      setVersionCount(left)
+      setSrc(`data:${res.mime};base64,${res.dataBase64}`)
+      setSrcKey((k) => k + 1)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!undoConfirm) return
+    let alive = true
+    undoConfirmRef.current = true
+    void (async () => {
+      const ok = await useAppStore.getState().askConfirm({
+        title: 'Undo last edit?',
+        message:
+          'This drops the newest saved version and opens the previous one. Unsaved changes in this window are discarded. The original file stays.',
+        confirmLabel: 'Undo last',
+        danger: true
+      })
+      if (!alive) return
+      setUndoConfirm(false)
+      if (ok) void applyUndoLast()
+    })()
+    return () => {
+      alive = false
+    }
+  }, [undoConfirm, applyUndoLast])
+
   useEffect(() => {
     readCurrentEditBase64Ref.current = readCurrentEditBase64
+    undoLastRef.current = () => {
+      if (savingRef.current || versionCountRef.current < 1) return
+      if (dirtyRef.current || bakedFromDiskRef.current) {
+        setUndoConfirm(true)
+        return
+      }
+      void applyUndoLast()
+    }
     saveAsCurrentRef.current = () => {
       if (savingRef.current || removeBusyRef.current || bakingRef.current) return
       const data = readCurrentEditBase64()
@@ -455,7 +677,7 @@ export function ImageEditor(): JSX.Element | null {
       }
       void runSaveAs(data)
     }
-  }, [readCurrentEditBase64, runSaveAs, notify])
+  }, [readCurrentEditBase64, runSaveAs, notify, applyUndoLast])
 
   // Filerobot is memo()'d, but a new Crop/theme/callback each parent render
   // rebuilds its config and the crop effect writes the last saved box back
@@ -469,7 +691,9 @@ export function ImageEditor(): JSX.Element | null {
       ratio: 'custom' as const,
       ratioTitleKey: 'custom',
       noPresets: true,
-      autoResize: true
+      autoResize: true,
+      // boundResizing multiplies the image box by canvasScale unless this is set.
+      noScale: true
     }),
     []
   )
@@ -570,7 +794,7 @@ export function ImageEditor(): JSX.Element | null {
             defaultSavedImageName={name.replace(/\.[^.]+$/, '') || name}
             defaultSavedImageType={extToSavedType(editor.path)}
             savingPixelRatio={pixelRatio}
-            previewPixelRatio={pixelRatio}
+            previewPixelRatio={1}
             getCurrentImgDataFnRef={getCurrentImgDataFnRef}
             onModify={onEditorModify}
             Crop={cropOptions}

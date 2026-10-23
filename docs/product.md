@@ -2,7 +2,7 @@
 
 **Application:** MyFileExplorer  
 **Repository:** https://github.com/dobrado76/MyFileExplorer  
-**Package version in this repository:** 0.21.5 (`package.json`)  
+**Package version in this repository:** 0.21.9 (`package.json`)  
 **Newest changelog release section:** 0.21.0 (2026-10-19). The changelog **Unreleased** section is empty. There is no changelog section after 0.21.0. Do not invent changes for later patch numbers.  
 **Running app version:** Settings → **About**. Use that version when it disagrees with this file.  
 **License:** GPL-3.0. The name and logo are trademarks. See [LICENSING.md](../LICENSING.md) and [TRADEMARK.md](../TRADEMARK.md).

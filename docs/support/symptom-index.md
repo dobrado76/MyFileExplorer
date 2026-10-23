@@ -13,6 +13,8 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Undo did nothing, or undo is empty after a restart | [reference.md](../reference.md), [FAQ.md](../FAQ.md) |
 | Preview blank, video will not play, MKV, mpv | [PREVIEW.md](../PREVIEW.md), [troubleshooting.md](../troubleshooting.md) |
 | Search misses files or shows old names | [SEARCH.md](../SEARCH.md), [troubleshooting.md](../troubleshooting.md) |
+| Search results stuck in one view, or will not sort by date | [SEARCH.md](../SEARCH.md), [FAQ.md](../FAQ.md) |
+| Image editor text box will not take typing, or has no resize handles | [FAQ.md](../FAQ.md), [reference.md](../reference.md) |
 | Slideshow has no effect, or feels slow | [SLIDESHOW.md](../SLIDESHOW.md), [FAQ.md](../FAQ.md) |
 | Notes, covers, or folder stats missing after backup | [ADS.md](../ADS.md), [troubleshooting.md](../troubleshooting.md) |
 | Git buttons missing or “not a git repository” | [GIT.md](../GIT.md) |

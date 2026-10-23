@@ -227,9 +227,11 @@ Most backup and sync tools copy only the main file body. They silently drop ADS.
 | `npm run docs:support` | Rebuild [AI-SUPPORT.md](AI-SUPPORT.md) after support docs change |
 | `npm run test` | Vitest |
 | `npm run build` | Production electron-vite build |
-| `npm run dist` | Bump patch, prune old Setup*.exe, build Windows installer (Windows host only) |
+| `npm run dist` | Bump patch, prune old installers, pack MyFileExplorer (reuses the shell launcher, mpv, and VC++ DLLs) |
+| `npm run dist:full` | Same as `dist`, and rebuild those side tools |
 | `npm run dist:nobump` | Installer without version bump |
-| `npm run build:win` | Windows installer only |
+| `npm run build:win` | MyFileExplorer pack only |
+| `npm run build:win:full` | Pack plus shell launcher, mpv, and VC++ DLLs |
 | `npm run build:linux` / `dist:linux` | Experimental Linux AppImage (see [docs/LINUX.md](docs/LINUX.md)) |
 | `npm run run:unpacked` / `run:linux` | Launch Linux unpacked binary / AppImage (Linux) |
 

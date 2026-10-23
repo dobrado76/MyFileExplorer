@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  annotationEditorClaimsKey,
+  editorShortcutSupersedesTyping,
   imageEditShouldWrite,
   imageEditorShortcut
 } from '../renderer/components/imageEditorShortcuts'
@@ -30,6 +32,51 @@ describe('imageEditorShortcut', () => {
     expect(imageEditorShortcut({ key: 'f', altKey: true })).toBeNull()
     expect(imageEditorShortcut({ key: 'x' })).toBeNull()
     expect(imageEditorShortcut({ key: 'Escape' })).toBeNull()
+  })
+})
+
+describe('editorShortcutSupersedesTyping', () => {
+  it('lets annotation text receive letter keys, including E', () => {
+    expect(editorShortcutSupersedesTyping('save', { key: 'e' })).toBe(false)
+    expect(editorShortcutSupersedesTyping('annotate', { key: 'a' })).toBe(false)
+    expect(editorShortcutSupersedesTyping('save', { key: 's', ctrlKey: true })).toBe(true)
+    expect(editorShortcutSupersedesTyping('save', { key: 's', metaKey: true })).toBe(true)
+  })
+})
+
+describe('annotationEditorClaimsKey', () => {
+  it('takes keys that are still aimed at the canvas', () => {
+    expect(
+      annotationEditorClaimsKey({
+        editorOpen: true,
+        targetIsEditor: false,
+        targetIsTyping: false
+      })
+    ).toBe(true)
+  })
+
+  it('leaves the text box and sidebar fields alone', () => {
+    expect(
+      annotationEditorClaimsKey({
+        editorOpen: true,
+        targetIsEditor: true,
+        targetIsTyping: true
+      })
+    ).toBe(false)
+    expect(
+      annotationEditorClaimsKey({
+        editorOpen: true,
+        targetIsEditor: false,
+        targetIsTyping: true
+      })
+    ).toBe(false)
+    expect(
+      annotationEditorClaimsKey({
+        editorOpen: false,
+        targetIsEditor: false,
+        targetIsTyping: false
+      })
+    ).toBe(false)
   })
 })
 

@@ -7,7 +7,8 @@ npm install
 npm run dev          # Electron with hot reload
 npm run check        # typecheck, lint, tests, support-doc check
 npm run docs:support # rebuild AI-SUPPORT.md after support docs change
-npm run dist:nobump  # Windows installer without bumping the version
+npm run dist:nobump  # Windows installer without bumping the version (reuses launcher, mpv, VC++ DLLs)
+npm run dist:full    # same pack, and rebuild MfeShellLauncher, mpv, and the VC++ DLLs
 ```
 
 - Specs live in `docs/`. Locked product decisions are `docs/DECISIONS.md`. When behavior changes, update the docs in the same change, then run `npm run docs:support` if a bundled support page changed.

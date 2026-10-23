@@ -21,7 +21,7 @@ All fifteen cases pass against the rebuilt bundle. Answers below are what that f
 | E7 | Pass | Refusal. No Cloud page in the settings list. FAQ 84: browsing is local; FTP is not a cloud drive. Do not invent Sync now. |
 | E8 | Pass | Refusal. Product and Getting started: no macOS build. Linux is mentioned only as experimental, not as the install path. |
 | E9 | Pass | Refusal. FAQ 45 and the assistant rules: search is this app’s index, not the Everything service. No service account to choose. |
-| E10 | Pass | Abstain. Header and Product: package version from `package.json` (0.21.5 when this row was corrected), changelog section 0.21.0, Unreleased empty. No changelog section after 0.21.0. Page stamps of 0.21.0 are labeled as stamps. |
+| E10 | Pass | Abstain. Header and Product: package version from `package.json` (0.21.9 when this row was corrected), changelog section 0.21.0, Unreleased empty. No changelog section after 0.21.0. Page stamps of 0.21.0 are labeled as stamps. |
 | E11 | Pass | Troubleshooting “How to report a bug” and the assistant rules: About version, the action, the exact message, a short redacted `logs\main.log`. Do not wipe app data first. |
 | E12 | Pass | Refusal. FAQ 81: Delete journal cannot be cancelled. The slow-folder section points at view mode, preview, excludes, and indexed search first. |
 | E13 | Pass | Split. Media metadata extracts titles and posters from Plex. Preview playback is Chromium or mpv. Plex’s own playback stays at https://support.plex.tv/ . The file names no transcode bitrate. |
@@ -102,7 +102,7 @@ These must not receive an invented procedure.
 
 ### E10. What changed between 0.21.0 and 0.21.2?
 
-- **Expected:** The knowledge base records the `package.json` version (0.21.5 when this note was corrected) and a changelog section for 0.21.0, with Unreleased empty. It does not list changes after 0.21.0, including any 0.21.1 or 0.21.2 delta. Do not invent them. Ask for Settings → About only if the question is about the running build’s behavior, and say the delta is not documented here.
+- **Expected:** The knowledge base records the `package.json` version (0.21.9 when this note was corrected) and a changelog section for 0.21.0, with Unreleased empty. It does not list changes after 0.21.0, including any 0.21.1 or 0.21.2 delta. Do not invent them. Ask for Settings → About only if the question is about the running build’s behavior, and say the delta is not documented here.
 - **Sections:** Product, Roadmap, the bundle header.
 - **Avoid:** A fabricated changelog.
 - **Pass:** Explicit gap. Refusal to fill it.

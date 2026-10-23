@@ -29,6 +29,8 @@ export type SearchResultItem = {
   path: string
   name: string
   mtimeMs: number
+  /** Created time from the index or the walk. Absent on older result payloads. */
+  birthtimeMs?: number
   size: number
   isDir: boolean
   /** Windows Hidden (or under a hidden / `!VIDTHUMB_CACHE` folder). */

@@ -150,7 +150,7 @@ export async function liveWalkSearch(
         } else if (q && queryHasStreamFilter(q) && !(await pathMatchesAdsStreamFilter(full, q))) {
           /* ADS read-only */
         } else {
-          items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
+          items.push({ path: full, name: d.name, size, mtimeMs, birthtimeMs, isDir, isHidden: hidden })
         }
       }
       if (isDir) stack.push(full)

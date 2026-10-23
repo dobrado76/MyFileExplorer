@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { mergeDismissedPaths, pruneSearchResultItems } from '../renderer/lib/searchEntries'
+import {
+  mergeDismissedPaths,
+  pruneSearchResultItems,
+  searchResultsToEntries
+} from '../renderer/lib/searchEntries'
+import { sortEntries } from '../renderer/lib/sortEntries'
 import type { SearchResultItem } from '../shared/schemas/search'
 
 function hit(path: string): SearchResultItem {
@@ -23,6 +28,34 @@ describe('pruneSearchResultItems', () => {
     const items = [hit('C:\\a.txt')]
     expect(pruneSearchResultItems(items, [])).toBe(items)
     expect(pruneSearchResultItems(items, ['C:\\other.txt'])).toEqual(items)
+  })
+})
+
+describe('searchResultsToEntries', () => {
+  it('keeps modified and created times so Details can sort search hits', () => {
+    const items: SearchResultItem[] = [
+      {
+        path: 'C:\\pics\\new.jpg',
+        name: 'new.jpg',
+        size: 10,
+        mtimeMs: 200,
+        birthtimeMs: 50,
+        isDir: false
+      },
+      {
+        path: 'C:\\pics\\old.jpg',
+        name: 'old.jpg',
+        size: 10,
+        mtimeMs: 100,
+        birthtimeMs: 80,
+        isDir: false
+      }
+    ]
+    const entries = searchResultsToEntries(items)
+    const byModified = sortEntries(entries, { key: 'mtime', dir: 'desc' }, false)
+    expect(byModified.map((e) => e.name)).toEqual(['new.jpg', 'old.jpg'])
+    const byCreated = sortEntries(entries, { key: 'ctime', dir: 'desc' }, false)
+    expect(byCreated.map((e) => e.name)).toEqual(['old.jpg', 'new.jpg'])
   })
 })
 

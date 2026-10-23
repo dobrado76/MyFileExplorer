@@ -140,7 +140,7 @@ async function searchImmediateChildren(
           { rootPrefix: dir }
         )
     if (hit) {
-      items.push({ path: full, name: d.name, size, mtimeMs, isDir, isHidden: hidden })
+      items.push({ path: full, name: d.name, size, mtimeMs, birthtimeMs, isDir, isHidden: hidden })
     }
     if (items.length >= limit) break
   }

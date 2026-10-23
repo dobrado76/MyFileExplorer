@@ -6,9 +6,13 @@
  * 4. If Settings → Updates source is a local folder (not a URL, and not dist/),
  *    copy the new installer there and delete older MyFileExplorer Setup*.exe files
  *
+ * The app pack reuses MfeShellLauncher, bundled mpv, and the VC++ CRT DLLs.
+ * `--full` republishes those first (`npm run dist:full`). CI always does that.
+ *
  * Flags:
  *   --no-bump   skip version bump (rebuild same version)
  *   --no-clean  keep prior installers in dist/ (and skip updates-folder prune)
+ *   --full      also rebuild MfeShellLauncher, mpv, and VC++ DLLs
  */
 import { execSync } from 'node:child_process'
 import console from 'node:console'
@@ -23,6 +27,7 @@ const distDir = path.join(root, 'dist')
 const args = new Set(process.argv.slice(2))
 const noBump = args.has('--no-bump')
 const noClean = args.has('--no-clean')
+const full = args.has('--full') || process.env.CI === 'true'
 
 function readPkg() {
   const pkgPath = path.join(root, 'package.json')
@@ -142,7 +147,7 @@ if (!noClean) {
 
 await clearWinUnpackedOutput(root)
 
-execSync('npm run build:win', { stdio: 'inherit' })
+execSync(full ? 'npm run build:win -- --full' : 'npm run build:win', { stdio: 'inherit' })
 
 const version = readPkgVersion()
 const setup = findNewestSetup(distDir)

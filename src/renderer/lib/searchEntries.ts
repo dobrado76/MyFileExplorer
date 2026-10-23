@@ -18,7 +18,7 @@ export function searchResultsToEntries(items: SearchResultItem[]): DirEntry[] {
         kind: item.isDir ? 'dir' : 'file',
         size: item.size,
         mtimeMs: item.mtimeMs,
-        birthtimeMs: 0,
+        birthtimeMs: item.birthtimeMs ?? 0,
         ext,
         isHidden: item.isHidden === true
       }

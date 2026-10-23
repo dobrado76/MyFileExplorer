@@ -61,7 +61,7 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 ## A file is “in use” or will not rename
 
-**Causes:** Preview, a video player, mpv, or another process has the file open. Rich player and Chromium preview are not supposed to lock the file for the whole session; another app still might.
+**Causes:** Preview, a video player, mpv, or another process has the file open. Rich player and Chromium preview are not supposed to lock the file for the whole session; another app still might. An `.asar` file is special: Electron keeps one mapped after any look at it, until that Electron process quits. Listing or indexing it in this app does not do that. Cursor and any other Electron app that already opened the archive still will, until that process quits.
 
 **Checks:** Close preview (**Ctrl+Shift+P**), stop Now Playing, and close external players. The busy-file review can list processes and offer End task. Ending a task kills that process.
 

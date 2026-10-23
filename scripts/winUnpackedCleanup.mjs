@@ -92,8 +92,9 @@ async function removeDirWithRetry(dir, label) {
       } catch (renameErr) {
         throw new Error(
           `Could not remove ${label} (file locked).\n` +
-            `Close any MyFileExplorer started from dist\\win-unpacked, then retry.\n` +
-            `(Installed app under %LOCALAPPDATA%\\Programs\\MyFileExplorer is fine to leave open.)\n` +
+            `Close any MyFileExplorer started from dist\\win-unpacked.\n` +
+            `An older installed build can also hold app.asar open if it already indexed that folder — quit that process once.\n` +
+            `A current install does not keep other projects' .asar files open.\n` +
             `Last error: ${e instanceof Error ? e.message : e}` +
             `; rename: ${renameErr instanceof Error ? renameErr.message : renameErr}`,
           { cause: renameErr }
