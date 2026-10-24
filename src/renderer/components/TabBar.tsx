@@ -13,8 +13,14 @@ import {
 import { isCustomTabIcon, isIconOnlyTab, isLucideTabIcon } from '@shared/tabIcons'
 import { recycleBinShowsInToolbar } from '@shared/recycleBinTree'
 import { isVirtualFolderDocumentPath, virtualFolderDisplayName } from '@shared/virtualFolder'
+import { CircleHelp } from 'lucide-react'
 import { ChevronLeft, ChevronRight, CloseIcon, PlusIcon, RecycleBinIcon, UndeleteIcon } from '../lib/icons'
+import { api, call } from '../lib/ipc'
 import { TabLucideIcon } from './TabLucideIcon'
+
+const GITHUB_DOCS_URL = 'https://github.com/dobrado76/MyFileExplorer/blob/main/docs/README.md'
+const AI_SUPPORT_RAW_URL =
+  'https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md'
 
 /** Stable when only selection changes — TabBar ignores `selected`. */
 function tabBarChromeSig(tabs: Tab[]): string {
@@ -27,6 +33,7 @@ type TabBarMenu =
   | { kind: 'tab'; tabId: string; x: number; y: number }
   | { kind: 'bar'; x: number; y: number }
   | { kind: 'recycle'; x: number; y: number }
+  | { kind: 'help'; x: number; y: number }
 
 /** Auto tab label from path (custom `tab.title` overrides this). */
 function defaultTabTitle(path: string): string {
@@ -90,6 +97,7 @@ export function TabBar(): JSX.Element {
   const [canScrollRight, setCanScrollRight] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
   const dragIndex = useRef<number | null>(null)
+  const helpBtnRef = useRef<HTMLButtonElement | null>(null)
   const tabsStripRef = useRef<HTMLDivElement | null>(null)
   const edgeScrollRaf = useRef<number | null>(null)
   const fileDragActive = dragPaths.length > 0
@@ -220,6 +228,32 @@ export function TabBar(): JSX.Element {
   const onRecycleClick = (): void => {
     if (recycleBinActive) closeRecycleBinView()
     else void openRecycleBinView()
+  }
+
+  const toggleHelpMenu = (): void => {
+    if (menu?.kind === 'help') {
+      setMenu(null)
+      return
+    }
+    const el = helpBtnRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    setMenu({ kind: 'help', x: rect.left, y: rect.bottom + 4 })
+  }
+
+  const openGithubDocs = (): void => {
+    setMenu(null)
+    void call(api.shell.openExternal({ url: GITHUB_DOCS_URL })).catch((e) => {
+      useAppStore.getState().notify(e instanceof Error ? e.message : 'Could not open the documentation', true)
+    })
+  }
+
+  const copyAiSupportLink = (): void => {
+    setMenu(null)
+    void navigator.clipboard.writeText(AI_SUPPORT_RAW_URL).then(
+      () => useAppStore.getState().notify('Copied the AI support link'),
+      () => useAppStore.getState().notify('Could not copy the AI support link', true)
+    )
   }
 
   useEffect(() => {
@@ -538,6 +572,19 @@ export function TabBar(): JSX.Element {
           <RecycleBinIcon size={16} />
         </button>
       )}
+      <button
+        ref={helpBtnRef}
+        type="button"
+        className="tabbar-help"
+        aria-label="Help"
+        aria-haspopup="menu"
+        aria-expanded={menu?.kind === 'help'}
+        title="Help"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={toggleHelpMenu}
+      >
+        <CircleHelp size={16} />
+      </button>
       {showUndeleteToolbar && platform === 'win32' && (
         <button
           type="button"
@@ -550,6 +597,38 @@ export function TabBar(): JSX.Element {
         </button>
       )}
 
+      {menu?.kind === 'help' && menuPos
+        ? createPortal(
+            <div
+              className="context-menu tab-context-menu"
+              role="menu"
+              style={{
+                position: 'fixed',
+                top: menuPos.top,
+                left: Math.max(8, Math.min(menu.x, window.innerWidth - 220))
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={openGithubDocs}
+              >
+                GitHub documentation
+              </button>
+              <button
+                type="button"
+                className="menu-item"
+                role="menuitem"
+                onClick={copyAiSupportLink}
+              >
+                Copy AI support link
+              </button>
+            </div>,
+            document.body
+          )
+        : null}
       {menu?.kind === 'recycle' && menuPos
         ? createPortal(
             <div

@@ -454,6 +454,11 @@ These are handled by the explorer shell when a text field is not focused. During
 | Ctrl+L | Edit the address bar |
 | Enter | Open the selection. In the Recycle Bin, restore it. |
 
+<a id="src-docs-reference-md--help"></a>
+## Help
+
+The tab bar **?** sits next to the Recycle Bin icon. Its tooltip is **Help**. The menu has **GitHub documentation** (opens [the docs](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/README.md) in your browser) and **Copy AI support link** (copies `https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md`).
+
 <a id="src-docs-reference-md--image-editor-keys"></a>
 ## Image editor keys
 
@@ -895,7 +900,7 @@ File Tools → **Create link…** — symbolic link, hard link, or junction. Win
 <a id="src-docs-faq-md--23-where-is-the-recycle-bin-in-the-window"></a>
 ### 23. Where is the Recycle Bin in the window?
 
-Settings → Appearance → placement: none, tree, toolbar, or both. Default is both.
+Settings → Appearance → placement: none, tree, toolbar, or both. Default is both. The **?** next to that icon (it stays on the tab bar even when the bin is hidden) is Help. **GitHub documentation** opens the docs in your browser. **Copy AI support link** copies `https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md`.
 
 <a id="src-docs-faq-md--24-can-i-cut-and-paste-into-explorer-and-back"></a>
 ### 24. Can I cut and paste into Explorer and back?
@@ -1735,6 +1740,7 @@ Hub for product and engineering docs. Product entry: [../README.md](#src-readme-
 | Undo last (D27) | Editor top bar and **Version Control** drop only the newest saved version. The original file stays — [ADS.md](#src-docs-ads-md) |
 | Photoshop (D27) | A context command that launches Photoshop on an image with versions asks to open the original or commit the newest edit first — [ADS.md](#src-docs-ads-md) |
 | Folder copy | One unwritable file does not stop the rest of the folder. An `.asar` archive is copied as one file |
+| Help | Tab-bar **?** next to the Recycle Bin icon. **GitHub documentation** opens in the browser. **Copy AI support link** copies the raw support file — [reference.md](#src-docs-reference-md) |
 
 <a id="src-docs-readme-md--recent-behavior-v0210"></a>
 ## Recent behavior (v0.21.0)
@@ -1998,6 +2004,7 @@ Cold start shows a small branded splash (icon + “Starting…”) until the mai
 - **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Optional **named groups** (D58). Manage in Settings → Quick access (add/remove/reorder/reset, groups) or pin/unpin from the context menu / drop on the Quick access header or a group; persisted in settings.
 - **Recycle Bin placement** — Settings → Appearance **Recycle Bin** (`recycleBinPlacement`: `none` | `tree` | `toolbar` | `both`, default `both`). Tree row after drive letters (labeled); optional icon-only tab-bar button. Opens the in-app bin. Drives header context still has Open / Empty.
 - **Undelete toolbar** — Settings → Appearance **Show Undelete toolbar button** (`showUndeleteToolbar`, default **off**). Icon-only control next to Recycle Bin; opens NTFS Undelete (D74). Windows only.
+- **Help** — tab-bar **?** next to the Recycle Bin icon. Tooltip **Help**. Menu: **GitHub documentation** (external browser, `docs/README.md` on GitHub) and **Copy AI support link** (raw `AI-SUPPORT.md` URL).
 - **Quick Launch (D63)** — toolbar pins for user-picked programs (name, path, optional args). Each pin shows **icon**, **label**, or **both**. Icon is the program glyph, a Lucide/Phosphor/Tabler + color, or a custom image. Settings → Quick Launch adds / edits / removes (no toolbar +; strip hidden when empty). Click launches; right-click Open file location / Remove; drop an `.exe` / shortcut on the strip to add when it is visible. Cap 24.
 - **Git-aware browsing (D64)** — **opt-in** (off by default). Settings → Git. System `git` CLI; overlays, folder indicators, Details Git status column, active-pane toolbar, context **Git >**. Not a full Git GUI; distinct from D27 image Version Control. [GIT.md](#src-docs-git-md).
 - **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, **Open / Empty Recycle Bin**, **Map / Disconnect network drive**, and **Properties** (This PC) — native Windows windows where applicable; Recycle Bin stays in-app.

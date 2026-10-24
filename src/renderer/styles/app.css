@@ -145,7 +145,8 @@ textarea:focus {
 .tabbar-scroll-btn.is-hidden {
   display: none;
 }
-.tabbar-recycle {
+.tabbar-recycle,
+.tabbar-help {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -156,7 +157,9 @@ textarea:focus {
   border-radius: 6px;
   color: var(--text-dim);
 }
-.tabbar-recycle:hover {
+.tabbar-recycle:hover,
+.tabbar-help:hover,
+.tabbar-help[aria-expanded='true'] {
   background: var(--bg-elevated);
   color: var(--text);
 }

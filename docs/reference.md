@@ -31,6 +31,10 @@ These are handled by the explorer shell when a text field is not focused. During
 | Ctrl+L | Edit the address bar |
 | Enter | Open the selection. In the Recycle Bin, restore it. |
 
+## Help
+
+The tab bar **?** sits next to the Recycle Bin icon. Its tooltip is **Help**. The menu has **GitHub documentation** (opens [the docs](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/README.md) in your browser) and **Copy AI support link** (copies `https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md`).
+
 ## Image editor keys
 
 While the image editor is open, the file-window chords above do not run. **Ctrl+S** saves. **Escape** closes the editor. A new annotation text box stays selected and uses the same move and resize handles as a rectangle. Letters, including **E**, **Backspace**, and **Delete** type into that box. **Escape** leaves the text box first; a second **Escape** closes the editor. **Undo last** drops only the newest saved version.

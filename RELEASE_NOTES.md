@@ -32,6 +32,10 @@ A context command that runs Photoshop on one image with versions asks whether to
 
 If one file in a folder cannot be written, the copy continues with the rest of that folder. An `.asar` archive is copied as one file.
 
+### Help
+
+The **?** on the tab bar, next to the Recycle Bin icon, is Help. **GitHub documentation** opens the docs in your browser. **Copy AI support link** copies the address of the AI support file.
+
 ---
 
 ## Install

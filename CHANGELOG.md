@@ -20,6 +20,7 @@ Twenty-second product release: search results keep the folder view, image-editor
 - **Folder copy continues** — when one file in a folder cannot be written, the rest of the folder is still copied. An `.asar` archive is copied as one file.
 - **Other applications' archives** — stating or indexing another application's `app.asar` no longer keeps that file locked until MyFileExplorer quits.
 - **Local Windows pack** — `npm run dist` packs MyFileExplorer and reuses the existing shell launcher, mpv, and Visual C++ DLLs. `npm run dist:full` rebuilds those side tools.
+- **Help** — the tab-bar **?** next to the Recycle Bin icon opens **GitHub documentation** in the browser, or copies the AI support link.
 
 ## [0.21.0] - 2026-10-19
 

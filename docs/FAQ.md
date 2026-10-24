@@ -96,7 +96,7 @@ File Tools → **Create link…** — symbolic link, hard link, or junction. Win
 
 ### 23. Where is the Recycle Bin in the window?
 
-Settings → Appearance → placement: none, tree, toolbar, or both. Default is both.
+Settings → Appearance → placement: none, tree, toolbar, or both. Default is both. The **?** next to that icon (it stays on the tab bar even when the bin is hidden) is Help. **GitHub documentation** opens the docs in your browser. **Copy AI support link** copies `https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md`.
 
 ### 24. Can I cut and paste into Explorer and back?
 

@@ -72,6 +72,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Undo last (D27) | Editor top bar and **Version Control** drop only the newest saved version. The original file stays — [ADS.md](ADS.md) |
 | Photoshop (D27) | A context command that launches Photoshop on an image with versions asks to open the original or commit the newest edit first — [ADS.md](ADS.md) |
 | Folder copy | One unwritable file does not stop the rest of the folder. An `.asar` archive is copied as one file |
+| Help | Tab-bar **?** next to the Recycle Bin icon. **GitHub documentation** opens in the browser. **Copy AI support link** copies the raw support file — [reference.md](reference.md) |
 
 ## Recent behavior (v0.21.0)
 
