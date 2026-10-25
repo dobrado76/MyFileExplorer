@@ -13,7 +13,7 @@ Settings has a search box at the top. It filters the section list (about 180 ms 
 | **Context menu** | Hide, reorder, and add commands. **Discover** can add static shell verbs. Custom commands are stored in settings. |
 | **Quick access** | Pinned folders and groups in the tree. |
 | **Quick launch** | Toolbar buttons that start other programs. The strip is hidden when the list is empty. Cap 24. |
-| **Layouts** | Named workspace snapshots. **Auto-save on switch** defaults on. Cap 50. Order in this list is the menu order. |
+| **Layouts** | Named workspace snapshots. **Auto-save when switching layouts** defaults on. Cap 50. Order in this list is the menu order. |
 | **Folder views** | Per-folder view mode, sort, and Details columns. Separate from layouts. |
 | **View filter** | Patterns the toolbar eye applies (hidden names such as `node_modules`, wildcards). The eye can be turned off per session. |
 | **Preview** | **Show preview by default** (on), **Max text preview bytes** (default 2 MB), **Word wrap text preview** (off), **Autoplay media in preview** (off), **Rich player (mpv)** (off). |
@@ -24,19 +24,19 @@ Settings has a search box at the top. It filters the section list (about 180 ms 
 | **Slideshow** | **Enable slideshow UI** (off). Delay default 2000 ms. Include subfolders defaults on. **Camera looks** off until enabled. |
 | **Media Metadata** | Movie/TV metadata. Off. Cover height default 120 px. |
 | **Metadata** | User-defined fields. **Enable** is off. |
-| **Git** | Git overlays and actions. Off. Uses the `git` on your PATH unless you set an executable path. |
+| **Git** | Git overlays and actions. **Enable Git integration** is off. Uses the `git` on your PATH unless you set **Git executable**. |
 | **Scripting and AI** | **Enable scripting** is off. Interpreters, Ask AI, providers. API keys are not stored in `settings.json`. |
 | **Advanced** | **Disable hardware acceleration** (off; restart required). **Enable localhost search API** (off, port 8081, loopback only). |
-| **About** | Running version, **Export…**, **Import…**, update check. **Updates source** is a local installer folder or a GitHub Releases URL. |
+| **About** | Running version, **Export…**, **Import…**, **Check for update**. **Folder or URL** is a local installer folder or a GitHub Releases URL. |
 
 ## Defaults that surprise people
 
-- **Name sort** is `explorer` (Windows logical order: digit runs compare as numbers). **Literal** is character-by-character (`file10` before `file2`). The file list, the tree, and slideshow name order share this. Inside a media library, thumbnail and icon Name order is still season then episode.
+- **Name sort** defaults to **Windows Explorer** (digit runs compare as numbers). **Character by character** orders `file10` before `file2`. The file list, the tree, and slideshow name order share this. Inside a media library, thumbnail and icon Name order is still season then episode.
 - **Folders first** is on. Media Metadata can mix files and folders in icon/thumbnail view of a library when that option is on. List and Details still follow Folders first.
 - **Delete** goes to the Recycle Bin. **Shift+Delete** is permanent. **Always confirm permanent delete** is off, so a single file may delete after less prompting than a multi-selection or a folder. Do not test this on files you need.
 - **Hide name extensions** defaults to `lnk` and `mfevirtual`. The file is still there; the label omits the suffix. Rename and tooltips use the real name.
 - **Search excludes** start as `node_modules`, `.git`, `.hg`, `.svn`, `Thumbs.db`.
-- **Indexed-only search** is off, so the toolbar searches the current folder by walking it until you turn indexed search on.
+- **Search indexed roots** is off, so the toolbar searches the current folder by walking it until you turn that checkbox on.
 - **Paste screenshots and text** is on. A URL becomes a `.url` shortcut. The page is not downloaded.
 - **Hardware acceleration** stays on unless you disable it under Advanced. Turn it off only when the GPU must be left to another program, then restart the app.
 

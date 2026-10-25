@@ -49,8 +49,8 @@ Esc, Space, Enter, or a click stops the show. `\` undoes the last categorize or 
 
 ## Name order
 
-- **Explorer** (default): Windows `StrCmpLogicalW`. Digit runs compare as numbers. `002` before `02` before `2`.
-- **Literal**: character by character. `0` before `s`. `file10` before `file2`.
+- **Windows Explorer** (default): Windows `StrCmpLogicalW`. Digit runs compare as numbers. `002` before `02` before `2`.
+- **Character by character**: `0` before `s`. `file10` before `file2`.
 
 Settings → Behavior → **Name sort**.
 
@@ -110,6 +110,16 @@ mfe://reveal?path=D%3A%5CProjects%5Cshot.png
 | FTP/SFTP server | Only for remotes | Client UI and transfers | The server, accounts, host keys |
 
 This app does not install Git, Python, WinFsp, or Plex for you.
+
+Which side failed:
+
+- **Windows.** If Explorer also cannot open, rename, or delete the same path, the failure is Windows permissions or a sharing lock. If Explorer can and this app cannot, quote this app’s dialog. UAC prompts are Windows.
+- **Git.** Run the same `git` command in a terminal ([Git’s documentation](https://git-scm.com/doc)). The same error there is Git’s. A missing **Commit / Pull / Push** bar with Git enabled and `git --version` working is this app’s (the folder is not a repository, or **Git executable** is wrong). This app has no password field.
+- **PowerShell, Python 3, cmd, or bash.** `python --version` must report 3.x ([Python’s documentation](https://www.python.org/doc/)). Python 2 is not used. A non-zero exit printed in the runner is the script or the interpreter. A missing **Scripts** menu means **Enable scripting** is off.
+- **mpv.** If Chromium plays the file, leave Rich player off. If the container is MKV, AVI, or WMV and playback fails with Rich player on, check `mpv` on PATH against [mpv’s manual](https://mpv.io/manual/master/). A missing mpv is not a decode bug in this app.
+- **WinFsp.** The `.mfevirtual` file still opens inside this app with the setting off. Explorer shows the tree only after WinFsp and the projection service from the release zip are installed ([WinFsp](https://winfsp.dev/)).
+- **TMDB, OMDb, Plex.** This app stores titles and posters on the folder. It does not play video through Plex. A rejected key or an empty lookup is the provider ([Plex](https://support.plex.tv/), [TMDB](https://developer.themoviedb.org/docs), [OMDb](https://www.omdbapi.com/)). Playback of the file is Chromium or mpv.
+- **FTP/SFTP.** Try the same host in another FTP client. Failure there is the server or the firewall. Success there and failure here is this app’s protocol, port, or passive mode. Do not send the password.
 
 ## Limits (verified)
 

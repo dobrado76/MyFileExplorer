@@ -24,7 +24,7 @@ Do **not** confuse with image ADS **Version Control** (D27).
 | Key | Default | Notes |
 |-----|---------|--------|
 | `enabled` | `false` | Master switch — no Git work when off |
-| `executablePath` | `''` | Optional; else PATH / common Git for Windows paths |
+| `executablePath` | `''` | Settings label **Git executable**. Empty uses PATH / common Git for Windows paths |
 | `showOverlays` / `showFolderIndicators` / `showToolbar` / `showChangedCount` / `showStatusColumn` / `showAheadBehind` | mostly `true` | Display toggles |
 | `showIgnored` | `false` | Include ignored paths in the Changes dialog. Overlays always show ignored items with an **I** badge (status always uses `--ignored=matching`) |
 | `historyPageSize` | `150` | Commits per page in repo-root history and File history (20–500; Load more uses the same size) |

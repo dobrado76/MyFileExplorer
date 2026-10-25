@@ -105,7 +105,7 @@ Hub for product and engineering docs. Product entry: [../README.md](../README.md
 | Area | Spec |
 | ---- | ---- |
 | Rich player / Now Playing | Click picture to pause; Keep playing / pop-out resume at real time; detached / Now Playing controls auto-hide after idle — [PREVIEW.md](PREVIEW.md) |
-| Named layouts (D25) | Auto-save on switch (default on); Settings list order = menu order — [DECISIONS.md](DECISIONS.md) |
+| Named layouts (D25) | **Auto-save when switching layouts** (default on); Settings list order = menu order — [DECISIONS.md](DECISIONS.md) |
 | Icon thumbs (D21) | Renderer LIFO `thumbs:get` + capped Sharp encode so scrolling cannot stall preview — [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Folder Size sort (D66) | Details Size uses calculated `TotalSize` after Calculate Statistics — [FOLDER_STATISTICS.md](FOLDER_STATISTICS.md) |
 

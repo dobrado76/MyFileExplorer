@@ -2,7 +2,7 @@
 
 Windows file manager. The support knowledge base is the single file an assistant should use for how the app behaves:
 
-https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md
+https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md
 
 - Repository: https://github.com/dobrado76/MyFileExplorer
 - Releases: https://github.com/dobrado76/MyFileExplorer/releases/latest

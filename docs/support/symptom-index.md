@@ -27,5 +27,5 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Power Rename changed the wrong names | [POWER_RENAME.md](../POWER_RENAME.md) |
 | Paired folders compare, copy, or sync | [PAIRED_FOLDERS.md](../PAIRED_FOLDERS.md) |
 | Context menu command missing, or a custom command | [configuration.md](../configuration.md) |
-| Check for updates, or where the installer is downloaded from | [BUILD.md](../BUILD.md), [configuration.md](../configuration.md), [FAQ.md](../FAQ.md) |
+| Check for updates, or where the installer is downloaded from | [FAQ.md](../FAQ.md), [configuration.md](../configuration.md) |
 | New file from a template, or a template missing after import | [FAQ.md](../FAQ.md), [configuration.md](../configuration.md) |

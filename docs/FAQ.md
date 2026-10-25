@@ -136,7 +136,7 @@ Encrypted and network paths are kept so they can reconnect. They are not deleted
 
 ### 32. Why is `file2` before `file10`?
 
-That is Explorer order (the default **Name sort**). Digit groups compare as numbers. Settings → Behavior → **Literal** uses character order, where `file10` comes first.
+That is Explorer order (the default **Name sort**, option **Windows Explorer**). Digit groups compare as numbers. Settings → Behavior → **Name sort** → **Character by character** uses character order, where `file10` comes first.
 
 ### 33. Why did sort change inside a TV folder?
 
@@ -314,7 +314,7 @@ Each global script is its own toolbar button, using the same icon style as Quick
 
 ### 73. How do I enable Git?
 
-Settings → **Git** → Enable. Git must be installed (`git` on PATH, or an executable path you set). The app does not store your Git password.
+Settings → **Git** → **Enable Git integration**. Git must be installed (`git` on PATH, or **Git executable**). The app does not store your Git password.
 
 ### 74. I deleted `.git` and the buttons stayed.
 

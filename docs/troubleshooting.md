@@ -13,13 +13,15 @@ When a step says “export settings”, use Settings → **About** → **Export�
 1. Look at `%APPDATA%\MyFileExplorer\logs\main.log`. On the next launch, a file larger than 2 MB is emptied and logging starts over. Lines from before that launch are gone. If the app is still running and the file is already over 2 MB, those lines are still there until the next start.
 2. If the log mentions the GPU or the window flashes then dies, set hardware acceleration off. If you cannot open Settings, start once with a copy of the app data folder renamed aside (see below) so defaults load.
 
-**Resolution:** Rename `%APPDATA%\MyFileExplorer` to `MyFileExplorer.bak`. Start the app. If it opens, the previous app data was the problem. Copy `settings.json` back only after you have a working window; if the copy makes it crash again, keep the new folder and use pieces of the export you made earlier. Your documents were not in that folder.
+**Resolution:** If Settings still opens, use **About** → **Export…** and keep that file offline first. Then rename `%APPDATA%\MyFileExplorer` to `MyFileExplorer.bak` and start the app. If it opens, the previous app data was the problem. Copy `settings.json` back only after you have a working window; if the copy makes it crash again, keep the new folder and use pieces of the export. If Settings never opened, the renamed folder is the backup. Documents and NTFS notes on your files are not in that folder. What changes is only the app-data folder: settings, tabs, the search index, and saved scripts sit unused until you copy them back.
 
 **Expected result:** A window on This PC or your last tabs, using either the repaired settings or fresh defaults.
 
 Windows 10 machines missing the Visual C++ runtime were a startup failure before 0.21.0. Current builds ship those DLLs. If an old build still fails before any window, install the [Microsoft Visual C++ redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) or update MyFileExplorer.
 
 ## Settings won’t open, or a change does nothing
+
+**Causes:** A second copy is using `MFE_USER_DATA`, Import replaced the settings file, or the control only applies after a restart (hardware acceleration).
 
 **Checks:** You are in the installed app, not a second copy pointed at `MFE_USER_DATA`. Confirm the path in a log line or by the fact that an export from **About** matches what you see.
 
@@ -33,21 +35,27 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 
 **Checks:** Open the in-app Recycle Bin (tab bar or tree). If the file is there, select it and press **Enter** or Restore.
 
-**Resolution:** If it is not in the bin, it was permanent. **Undelete** (Settings → Appearance → **Show Undelete toolbar button**, then the tab-bar icon) scans the NTFS MFT. It only helps on NTFS, only for data still in free space, and it needs an administrator prompt when the volume cannot be read otherwise. It is not Recycle Bin restore. Pick a **different** destination folder so you do not overwrite anything else.
+**Resolution:** If it is not in the bin, it was permanent. **Undelete** (Settings → Appearance → **Show Undelete toolbar button**, then the tab-bar icon) scans the NTFS MFT. It only helps on NTFS, only for data still in free space, and it needs an administrator prompt when the volume cannot be read otherwise. It is not Recycle Bin restore.
+
+Undelete writes new files. It does not put the original back in place. What can be lost is a destination file of the same relative path if you pick a folder that already has one; the app uses `name (2).ext` rather than a silent overwrite, and a partial parent chain is written under `_incomplete`. Copy aside anything in the destination you still need. Pick a **different**, empty folder. The scan can fail when Windows reused the disk space. The original clusters are not changed by a failed scan.
 
 **Expected result:** Either the bin restore puts the file back, or Undelete writes a copy under the folder you chose, with relative parent folders. If the clusters were reused, recovery cannot succeed. The app cannot fix that.
 
 ## Copy or move stopped on a name that already exists
 
-**Cause:** Continue-then-review. Items that do not collide finish. Copying a folder creates that destination folder and keeps filling it; the folder just created is not itself a collision, and it shows up in the list and the tree while the copy is still running. One item inside the folder that cannot be copied does not stop the rest of the folder. One dialog then lists the real collisions. A folder you can open is part of the copy. The review is for access denied and real name collisions.
+**Causes:** Continue-then-review. Items that do not collide finish. Copying a folder creates that destination folder and keeps filling it; the folder just created is not itself a collision, and it shows up in the list and the tree while the copy is still running. One item inside the folder that cannot be copied does not stop the rest of the folder. One dialog then lists the real collisions. A folder you can open is part of the copy. The review is for access denied and real name collisions.
+
+**Checks:** Read the review dialog. It names the conflicting item. The destination folder already created is not itself the collision.
 
 **Resolution:** Choose Skip, Keep both, Replace, Keep most recent, or Retry per group. Skip applies to the listed item, not to the whole folder the copy already created. **Cancel** on the progress line stops work still queued. Next time, hold Ctrl while clicking **Paste** or **Delete**, or press **Ctrl+Shift+V**, to open the plan before anything is written. Dragging with Ctrl only copies.
+
+**Replace** overwrites the destination file with the source. Copy that destination file aside first if you might still need it. **Keep both** writes a new name and leaves the destination file. **Skip** leaves the destination file. **Keep most recent** overwrites the older of the two. None of these choices touch files that were not in the review.
 
 **Expected result:** The destination folder is filled. The review, if it appears, names the conflicting item inside it. **Ctrl+Z** undoes the operation the app recorded, when undo data still exists.
 
 ## Copy leaves out two Electron archives
 
-**Cause:** These paths are not copied. Opening them reports names that exist only inside the archive (for example `octicon`), or “Invalid package”:
+**Causes:** These paths are not copied. Opening them reports names that exist only inside the archive (for example `octicon`), or “Invalid package”:
 
 - `node_modules\electron\dist\resources\default_app.asar`
 - `release\win-unpacked\resources\default_app.asar`
@@ -55,7 +63,9 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 
 The source folder is unchanged. Any other `.asar` file is copied as one file. Verify copy can stay on.
 
-**Resolution:** Nothing to restore for those paths. If an older copy left an empty folder with one of those names, delete that folder and copy again.
+**Checks:** The message names a path inside one of those three archives, or it says “Invalid package”.
+
+**Resolution:** Nothing to restore for those paths. If an older copy left an empty folder with one of those names, delete only that empty folder and copy again. Deleting it removes that empty destination folder, not the source archive and not any other folder of the same name. Confirm the folder is empty and that its path is one of the three above before you delete it.
 
 **Expected result:** The destination does not contain those archives. Copy review does not list names from inside them.
 
@@ -63,11 +73,15 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 **Causes:** Preview, a video player, mpv, or another process has the file open. Rich player and Chromium preview are not supposed to lock the file for the whole session; another app still might. An `.asar` file is special: Electron keeps one mapped after any look at it, until that Electron process quits. Listing or indexing it in this app does not do that. Cursor and any other Electron app that already opened the archive still will, until that process quits.
 
-**Checks:** Close preview (**Ctrl+Shift+P**), stop Now Playing, and close external players. The busy-file review can list processes and offer End task. Ending a task kills that process.
+**Checks:** Close preview (**Ctrl+Shift+P**), stop Now Playing, and close external players. The busy-file review can list processes and offer End task.
+
+**Resolution:** Close the preview and the other program the normal way first. Use End task only when that program will not close. End task kills that process. Unsaved work in it is lost. It does not delete the file you were renaming. Save that program’s work, or accept the loss, before you confirm End task.
 
 **Expected result:** Rename or move proceeds. If Windows still reports sharing violation, the holder is outside this app.
 
 ## Preview is blank or says it cannot display the file
+
+**Causes:** The extension has no in-app preview, the container needs mpv, or the text file is past the preview byte limit.
 
 **Checks:**
 
@@ -101,7 +115,7 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 ## Notes, covers, or folder sizes disappeared after a backup restore
 
-**Cause:** The backup copied the main file bytes and dropped NTFS alternate streams.
+**Causes:** The backup copied the main file bytes and dropped NTFS alternate streams.
 
 **Checks:** The file’s size and date look right, but **Note…**, the cover, or **Calculate Statistics** data is gone. Settings export will not contain them.
 
@@ -111,13 +125,17 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 ## Git buttons are missing, or Git says it is not a repository
 
-**Checks:** Settings → **Git** → Enable. `git` works in a terminal (`git --version`). The folder, or a parent, contains `.git`.
+**Causes:** Git is still off, `git` is not on PATH, or the folder is not inside a repository.
 
-**Resolution:** If you deleted `.git`, the toolbar is supposed to clear. Point **executable path** at `git.exe` if it is not on PATH. Credentials stay in Git’s own credential helper. This app does not store them.
+**Checks:** Settings → **Git** → **Enable Git integration**. `git` works in a terminal (`git --version`). The folder, or a parent, contains `.git`.
+
+**Resolution:** If you deleted `.git`, the toolbar is supposed to clear. Point **Git executable** at `git.exe` if it is not on PATH. Credentials stay in Git’s own credential helper. This app does not store them.
 
 **Expected result:** Status overlays and Commit / Pull / Push on a real repository. Failures printed from Git are Git’s errors. Read them in the Git output. Fix remotes and auth in Git, not by resetting MyFileExplorer settings.
 
 ## A script will not start
+
+**Causes:** Scripting is off, or the chosen interpreter is missing or is Python 2.
 
 **Checks:** Settings → **Scripting and AI** → **Enable scripting**. The runner matches the file: PowerShell, **Python 3** (not 2.x), cmd, or bash. Python 2 is not used.
 
@@ -127,15 +145,17 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 ## Ask AI fails, or you are worried it uploaded your photos
 
-**Cause of a failure:** No provider, no key, or the provider rejected the call. Keys live in `ai-secrets.json`, not in settings export.
+**Causes:** No provider, no key, or the provider rejected the call. Keys live in `ai-secrets.json`, not in settings export. The request sends the description you type and the script text involved in that request. Browsed files and paths are not attached as your documents.
 
-**What is sent:** The description you type and the script text involved in that request. Browsed files and paths are not attached as your documents.
+**Checks:** Settings → **Scripting and AI** shows a provider and a model. The key is saved there. A later run of a saved script does not call the provider.
 
-**Resolution:** Settings → **Scripting and AI**. Fix the provider URL and key. See the provider’s own status page if the key is valid and the call still fails. Do not paste the key into an issue.
+**Resolution:** Fix the provider URL and key. See the provider’s own status page if the key is valid and the call still fails. Do not paste the key into an issue.
 
 **Expected result:** A script draft you can edit and run locally afterward. Later runs of the saved script do not call the provider.
 
 ## Network drive is empty or was dropped from the tree
+
+**Causes:** The share is offline, the mapped letter is disconnected, or the session listing cache is cold.
 
 **Checks:** The share is online. A mapped letter that is disconnected can be reconnected from the tree without opening Explorer. Offline tabs are supposed to wait, not vanish, for encrypted and network paths.
 
@@ -145,6 +165,8 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 ## FTP or SFTP will not connect
 
+**Causes:** Remotes are off, or the host, port, protocol, or account does not match the server.
+
 **Checks:** Settings → **Remote repositories** is enabled. Host, port, protocol, and user match the server. A password is stored for the connection (export will not show it).
 
 **Resolution:** Test the same host with a dedicated FTP client. If that fails, the server or the firewall is the problem. If that works and this app does not, compare passive mode, FTPS versus FTP, and the exact port. Capture the error text from the connect dialog. Do not send the password.
@@ -153,7 +175,9 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 ## Virtual Folder projection does not show in Explorer
 
-**Checks:** You installed [WinFsp](https://winfsp.dev/), installed the projection service from the release zip, and turned on Settings → Behavior → **Virtual Folder OS projection**. The `.mfevirtual` file opens inside MyFileExplorer even without WinFsp.
+**Causes:** WinFsp is missing, the projection service from the release zip is not installed, or Settings → Behavior → **Virtual Folder OS projection** is off.
+
+**Checks:** You installed [WinFsp](https://winfsp.dev/), installed the projection service from the release zip, and turned that setting on. The `.mfevirtual` file opens inside MyFileExplorer even without WinFsp.
 
 **Resolution:** Follow [VIRTUAL_FOLDER_PROJECTION.md](VIRTUAL_FOLDER_PROJECTION.md). Projection is Windows-only. Without it, the collection still works inside this app.
 

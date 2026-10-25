@@ -2,7 +2,9 @@
 
 Maintainer checklist for `AI-SUPPORT.md`. These questions were written from the application’s behavior (installer, settings schema, keyboard handling, preview metadata, NTFS streams, and optional integrations), not copied from `docs/FAQ.md`.
 
-Checked on 2026-10-22 in the same session that edited the bundle, by answering each case from the rebuilt `AI-SUPPORT.md` against the criteria below. That is a coverage check by the editor, not a blind trial by a separate model that saw only this file. Do not treat the results as a measured accuracy rate.
+Checked on 2026-10-22 by answering each case from the rebuilt `AI-SUPPORT.md` against the criteria below. That is a coverage check, not a measured accuracy rate. A later model can re-answer the same cases. That still is not the article’s 40-case experiment, and these fifteen cases stay the seed suite.
+
+On 2026-10-24 the documented settings labels, defaults, and keyboard chords were compared with the settings schema and the explorer key handler. Mismatches that were fixed: **Name sort** options are **Windows Explorer** and **Character by character**; the layouts toggle is **Auto-save when switching layouts**; the About field is **Folder or URL**; the Git path field is **Git executable**; the Git switch is **Enable Git integration**. Caps that already matched were left as written: layouts 50, templates 40, Quick Launch 24, slideshow delay 2000 ms, video thumbnail frame delay 300 (50–2000), localhost search port 8081, text preview 2 MB, media cover height 120. This was a source cross-check of those labels, not a scored accuracy study.
 
 A correct refusal — stating that the product does not do something, or that the document does not establish a fact — is a pass.
 

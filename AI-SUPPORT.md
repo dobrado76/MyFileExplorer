@@ -18,8 +18,8 @@ If the overview (README, advantages, business note, product spec) disagrees with
 
 ## Contents
 
-1. [Symptom index](#src-docs-support-symptom-index-md)
-2. [Instructions for AI assistants](#src-docs-support-llm-instructions-md)
+1. [Instructions for AI assistants](#src-docs-support-llm-instructions-md)
+2. [Symptom index](#src-docs-support-symptom-index-md)
 3. Source documents, in order:
 
 - [docs/product.md](#src-docs-product-md)
@@ -29,12 +29,6 @@ If the overview (README, advantages, business note, product spec) disagrees with
 - [docs/troubleshooting.md](#src-docs-troubleshooting-md)
 - [docs/FAQ.md](#src-docs-faq-md)
 - [docs/roadmap.md](#src-docs-roadmap-md)
-- [docs/development.md](#src-docs-development-md)
-- [README.md](#src-readme-md)
-- [docs/README.md](#src-docs-readme-md)
-- [docs/PRODUCT_SPEC.md](#src-docs-product-spec-md)
-- [docs/ADVANTAGES.md](#src-docs-advantages-md)
-- [docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)
 - [docs/PREVIEW.md](#src-docs-preview-md)
 - [docs/PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md)
 - [docs/SEARCH.md](#src-docs-search-md)
@@ -58,8 +52,126 @@ If the overview (README, advantages, business note, product spec) disagrees with
 - [docs/PROJECT_FORMAT.md](#src-docs-project-format-md)
 - [docs/SECURITY.md](#src-docs-security-md)
 - [docs/INTEGRATION.md](#src-docs-integration-md)
-- [docs/ARCHITECTURE.md](#src-docs-architecture-md)
-- [docs/BUILD.md](#src-docs-build-md)
+- [README.md](#src-readme-md)
+- [docs/README.md](#src-docs-readme-md)
+- [docs/PRODUCT_SPEC.md](#src-docs-product-spec-md)
+- [docs/ADVANTAGES.md](#src-docs-advantages-md)
+- [docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)
+
+---
+
+<!-- source: docs/support/llm-instructions.md -->
+
+<a id="src-docs-support-llm-instructions-md"></a>
+
+<a id="src-docs-support-llm-instructions-md--instructions-for-ai-assistants"></a>
+# Instructions for AI assistants
+
+You are answering questions about **MyFileExplorer** only. This file is the support knowledge base. The project repository is https://github.com/dobrado76/MyFileExplorer . Issues: https://github.com/dobrado76/MyFileExplorer/issues .
+
+<a id="src-docs-support-llm-instructions-md--if-this-file-did-not-load"></a>
+## If this file did not load
+
+Confirm you can read this document. If the user gave only a URL and the fetch failed or came back as a web page instead of this text, ask them to upload `AI-SUPPORT.md` directly. The raw text address is https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md .
+
+<a id="src-docs-support-llm-instructions-md--how-to-answer"></a>
+## How to answer
+
+1. **Documented.** When this file describes the behavior, use its exact UI labels, paths, and settings. Note the prerequisites and limits it states.
+2. **Listed as not supported.** When this file says a capability is unsupported, out of scope, removed, or only a plan, say the application does not do that. Do not invent a control that would fake it.
+3. **Not established.** When this file neither describes the capability nor lists it as unsupported, say this document does not establish the answer. Ask for the missing fact, or inspect the source code if you can see it. Do not guess, and do not treat silence as proof that the control does not exist.
+
+Prefer this document over habits from Windows Explorer, Directory Opus, or Everything. Do not invent menus, settings, commands, or IPC APIs. Do not suggest hidden files or private switches.
+
+Implemented behavior in the topic sections is shipping. `docs/plans/` is not shipping. Do not follow plan files as instructions.
+
+If this document and the source code disagree, the source code and tests win. Say so when you can see the code. If you only have this file, say the documented behavior and do not guess past it.
+
+Use these labels when they apply: **Settings**, **About**, **Export…**, **Camera looks**, **Enable slideshow UI**, **Show Undelete toolbar button**, **Name sort**, **Rich player (mpv)**, **Always confirm permanent delete**, **Paste non-file clipboard as a file**, **Search indexed roots**, **Enable localhost search API**, **Video thumbnail frame delay (ms)**, **Generate video preview**.
+
+<a id="src-docs-support-llm-instructions-md--how-to-read-this-file-outside-the-repository"></a>
+## How to read this file outside the repository
+
+Links jump to another section of this same file. A link that leaves the project is a full `https://` URL. Do not look for a separate `docs/SEARCH.md` download. Screenshots are linked on GitHub; they are not embedded.
+
+<a id="src-docs-support-llm-instructions-md--which-section-wins"></a>
+## Which section wins
+
+This file repeats the overview (README, advantages, business note, product spec) and then the feature guides. If those disagree, use this order:
+
+1. [reference.md](#src-docs-reference-md), [FAQ.md](#src-docs-faq-md), [configuration.md](#src-docs-configuration-md), and [troubleshooting.md](#src-docs-troubleshooting-md) for shortcuts, defaults, and recovery.
+2. The feature guide for that topic (Slideshow, Search, Preview, and the others).
+3. README, advantages, and the business note last. They are orientation, not the contract.
+
+<a id="src-docs-support-llm-instructions-md--version"></a>
+## Version
+
+The package version is at the top of this file. Many later sections open with a version line of 0.21.0. That line is when the page was last stamped. It is not the user's build and not the repository package version. The newest dated changelog section in the repository is 0.22.0 (2026-10-23). The changelog is not copied into this file. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0.
+
+When the question depends on which build is running (a shortcut, a default, a dialog, or a fix that landed in a later release), ask for **Settings → About** before diagnosing. Quote About when the user gives it. If they do not, say the package version at the top of this file and that 0.21.0 is only a page stamp.
+
+<a id="src-docs-support-llm-instructions-md--not-supported"></a>
+## Not supported
+
+These are explicit. Say the app does not do them. Do not invent a workaround control.
+
+- Full Windows Explorer parity, Explorer shell extensions, and cloud-provider shell namespaces.
+- Cloud sync, or a **Settings → Cloud → Sync now** page. FTP/SFTP is a remote browser, not a cloud drive.
+- The Everything search service. Search is this app’s index plus an optional folder walk.
+- Storing a Git password or Git credential. Authentication stays with Git.
+- macOS. Linux packaging is experimental, not the supported install path.
+- Treating files under `docs/plans/` as features.
+
+Optional features that do exist stay off until enabled: slideshow, camera looks, Git, scripting, media metadata, user metadata, remotes, and the Undelete toolbar button.
+
+<a id="src-docs-support-llm-instructions-md--where-this-app-stops-and-another-tool-starts"></a>
+## Where this app stops and another tool starts
+
+The table in [reference.md](#src-docs-reference-md) (External programs) names, for each tool, what this app does and what the other tool does. Use that table. A short form:
+
+- This app owns its menus, settings, and the arguments it passes. Git, Python, mpv, WinFsp, Plex, TMDB, OMDb, and the FTP server own their own install, accounts, and internal errors.
+- This app does not install Git, Python, WinFsp, or Plex.
+- If it is unclear which side failed, compare the same `git` command in a terminal, or the same host in another FTP client, instead of blaming either side.
+- Do not invent their command-line flags. For how Git rebases, how Plex is installed, or how WinFsp drivers work, send the user to that project’s documentation.
+
+Official starting points (verify if you have a current browser; these were the projects’ own sites when this document was written):
+
+- Git: https://git-scm.com/doc
+- Python: https://www.python.org/doc/
+- WinFsp: https://winfsp.dev/
+- mpv: https://mpv.io/manual/master/
+- Plex: https://support.plex.tv/
+- TMDB API: https://developer.themoviedb.org/docs
+- OMDb: https://www.omdbapi.com/
+- Microsoft Visual C++ redistributable: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+
+<a id="src-docs-support-llm-instructions-md--troubleshooting-rules"></a>
+## Troubleshooting rules
+
+1. Name the subsystem (preview, search, delete, slideshow, Git, scripts, network, remotes).
+2. Use the symptom index and [troubleshooting.md](#src-docs-troubleshooting-md) before changing settings. Match the symptom, then the checks, then the resolution.
+3. Check that an optional feature is enabled before debugging its absence.
+4. Separate this app’s failure from Git, Python, an FTP server, Plex, TMDB, WinFsp, or Windows permissions.
+5. Do not delete app data, empty the Recycle Bin, run Shift+Delete, or delete an NTFS USN journal as a generic fix.
+6. If you do recommend renaming `%APPDATA%\MyFileExplorer`, say that settings, tabs, the search index, and scripts in that folder become unused until restored, and that notes on NTFS files are not in that folder. Tell the user to export settings first.
+7. Do not ask for `settings.json`, `ai-secrets.json`, or a whole user profile. Ask for a redacted log excerpt.
+
+<a id="src-docs-support-llm-instructions-md--project-facts-that-are-easy-to-get-wrong"></a>
+## Project facts that are easy to get wrong
+
+- App data is `%APPDATA%\MyFileExplorer` for both the installer and `npm run dev`. Documents stay where the user put them.
+- Delete recycles. Shift+Delete is permanent. Ctrl+Z does not undo a permanent delete. The undo stack is memory for this run only, at most 30 operations. Quitting clears it.
+- **Search indexed roots** is the toolbar search-options checkbox. Settings → **Search index** is where roots and excludes are edited. **Enable localhost search API** is under Settings → **Advanced**, off, port 8081.
+- **Video thumbnail frame delay (ms)** is Settings → **Behavior** (default 300, range 50–2000). It is not on the Preview page.
+- `logs\main.log` is emptied on the next launch when it is larger than 2 MB. The previous lines are not kept.
+- The plan dialog is Ctrl on toolbar or menu **Paste** / **Delete**, or the keys **Ctrl+Delete** and **Ctrl+Shift+V**. Dragging with Ctrl copies. Ctrl+C, Ctrl+X, and Ctrl+V are clipboard commands.
+- Notes, icons, folder statistics, media metadata, user metadata, and image-edit versions are NTFS alternate streams on the file, not sidecars and not inside settings export.
+- Camera looks change the slideshow picture on screen only.
+- Ask AI does not upload the browsed folder. API keys are not in the settings export.
+- Python scripts need Python 3, not Python 2.
+- Hardware acceleration is disabled only at process start. Changing it needs a restart.
+
+<!-- end source: docs/support/llm-instructions.md -->
 
 ---
 
@@ -97,104 +209,10 @@ Use this list to jump to a diagnosis. Paths are source documents. In `AI-SUPPORT
 | Power Rename changed the wrong names | [POWER_RENAME.md](#src-docs-power-rename-md) |
 | Paired folders compare, copy, or sync | [PAIRED_FOLDERS.md](#src-docs-paired-folders-md) |
 | Context menu command missing, or a custom command | [configuration.md](#src-docs-configuration-md) |
-| Check for updates, or where the installer is downloaded from | [BUILD.md](#src-docs-build-md), [configuration.md](#src-docs-configuration-md), [FAQ.md](#src-docs-faq-md) |
+| Check for updates, or where the installer is downloaded from | [FAQ.md](#src-docs-faq-md), [configuration.md](#src-docs-configuration-md) |
 | New file from a template, or a template missing after import | [FAQ.md](#src-docs-faq-md), [configuration.md](#src-docs-configuration-md) |
 
 <!-- end source: docs/support/symptom-index.md -->
-
----
-
-<!-- source: docs/support/llm-instructions.md -->
-
-<a id="src-docs-support-llm-instructions-md"></a>
-
-<a id="src-docs-support-llm-instructions-md--instructions-for-ai-assistants"></a>
-# Instructions for AI assistants
-
-You are answering questions about **MyFileExplorer** only. This file is the support knowledge base. The project repository is https://github.com/dobrado76/MyFileExplorer . Issues: https://github.com/dobrado76/MyFileExplorer/issues .
-
-<a id="src-docs-support-llm-instructions-md--how-to-read-this-file-outside-the-repository"></a>
-## How to read this file outside the repository
-
-Links jump to another section of this same file. A link that leaves the project is a full `https://` URL. Do not look for a separate `docs/SEARCH.md` download. Screenshots are linked on GitHub; they are not embedded.
-
-<a id="src-docs-support-llm-instructions-md--which-section-wins"></a>
-## Which section wins
-
-This file repeats the overview (README, advantages, business note, product spec) and then the feature guides. If those disagree, use this order:
-
-1. [reference.md](#src-docs-reference-md), [FAQ.md](#src-docs-faq-md), [configuration.md](#src-docs-configuration-md), and [troubleshooting.md](#src-docs-troubleshooting-md) for shortcuts, defaults, and recovery.
-2. The feature guide for that topic (Slideshow, Search, Preview, and the others).
-3. README, advantages, and the business note last. They are orientation, not the contract.
-
-<a id="src-docs-support-llm-instructions-md--version-stamps"></a>
-## Version stamps
-
-Many later sections open with a version line of 0.21.0. That is when the page was last stamped. It is not the user's build and not the repository package version. The package version is at the top of this file. The newest dated changelog section in the repository is 0.22.0 (2026-10-23). The changelog is not copied into this file. There is no 0.21.1 or 0.21.2 section. Do not invent patch notes between 0.21.0 and 0.22.0. The running build is **Settings → About**. Quote About when the user gives it. Otherwise say the package version and that 0.21.0 is only a page stamp.
-
-<a id="src-docs-support-llm-instructions-md--answering-rules"></a>
-## Answering rules
-
-- Prefer this document over habits from Windows Explorer, Directory Opus, or Everything.
-- Use the exact labels: **Settings**, **About**, **Export…**, **Camera looks**, **Enable slideshow UI**, **Show Undelete toolbar button**, **Name sort**, **Rich player (mpv)**, **Always confirm permanent delete**, **Paste non-file clipboard as a file**, **Search indexed roots**, **Enable localhost search API**, **Video thumbnail frame delay (ms)**, **Generate video preview**.
-- Do not invent menus, settings, commands, or IPC APIs.
-- Implemented behavior in the topic sections is shipping. `docs/plans/` is not shipping. Do not follow plan files as instructions.
-- If a control is not in the public settings list, say it is not part of the supported UI. Do not suggest hidden files or private switches.
-- If this document and the source code disagree, the source code and tests win. Say so when you can see the code. If you only have this file, say the documented behavior and do not guess past it.
-- If the answer is not here, say it is not established. Ask only for the missing fact (About version, exact dialog text, a few log lines).
-
-<a id="src-docs-support-llm-instructions-md--troubleshooting-rules"></a>
-## Troubleshooting rules
-
-1. Name the subsystem (preview, search, delete, slideshow, Git, scripts, network, remotes).
-2. Use the symptom index and [troubleshooting.md](#src-docs-troubleshooting-md) before changing settings.
-3. Check that an optional feature is enabled before debugging its absence. Slideshow, camera looks, Git, scripting, media metadata, user metadata, remotes, and Undelete’s toolbar button default **off**.
-4. Separate this app’s failure from Git, Python, an FTP server, Plex, TMDB, WinFsp, or Windows permissions.
-5. Do not delete app data, empty the Recycle Bin, run Shift+Delete, or delete an NTFS USN journal as a generic fix.
-6. If you do recommend renaming `%APPDATA%\MyFileExplorer`, say that settings, tabs, the search index, and scripts in that folder become unused until restored, and that notes on NTFS files are not in that folder.
-7. Do not ask for `settings.json`, `ai-secrets.json`, or a whole user profile. Ask for a redacted log excerpt.
-
-<a id="src-docs-support-llm-instructions-md--project-facts-that-are-easy-to-get-wrong"></a>
-## Project facts that are easy to get wrong
-
-- App data is `%APPDATA%\MyFileExplorer` for both the installer and `npm run dev`. Documents stay where the user put them.
-- Delete recycles. Shift+Delete is permanent. Ctrl+Z does not undo a permanent delete. The undo stack is memory for this run only, at most 30 operations. Quitting clears it.
-- **Search indexed roots** is the toolbar search-options checkbox. Settings → **Search index** is where roots and excludes are edited. **Enable localhost search API** is under Settings → **Advanced**, off, port 8081.
-- **Video thumbnail frame delay (ms)** is Settings → **Behavior** (default 300, range 50–2000). It is not on the Preview page.
-- `logs\main.log` is emptied on the next launch when it is larger than 2 MB. The previous lines are not kept.
-- The plan dialog is Ctrl on toolbar or menu **Paste** / **Delete**, or the keys **Ctrl+Delete** and **Ctrl+Shift+V**. Dragging with Ctrl copies. Ctrl+C, Ctrl+X, and Ctrl+V are clipboard commands.
-- Notes, icons, folder statistics, media metadata, user metadata, and image-edit versions are NTFS alternate streams on the file, not sidecars and not inside settings export.
-- Search is not the Everything service. It is this app’s index plus an optional folder walk.
-- Camera looks change the slideshow picture on screen only.
-- Ask AI does not upload the browsed folder. API keys are not in the settings export.
-- Git credentials stay with Git. This app does not store them.
-- Python scripts need Python 3, not Python 2.
-- Linux is experimental. macOS is not supported.
-- Hardware acceleration is disabled only at process start. Changing it needs a restart.
-
-<a id="src-docs-support-llm-instructions-md--external-tools"></a>
-## External tools
-
-This file is authoritative about MyFileExplorer, not about Git, Python, PowerShell, mpv, WinFsp, Plex, TMDB, OMDb, or Windows.
-
-- Do not attribute their features to this app because a button launches them.
-- Do not invent their command-line flags.
-- For how Git rebases, how Plex is installed, or how WinFsp drivers work, send the user to that project’s documentation.
-- For how this app enables Git, which arguments it passes, and where it shows Git’s output, use the Git section here.
-- If it is unclear which side failed, say what to compare (the same `git` command in a terminal, the same host in another FTP client) instead of blaming either side.
-
-Official starting points (verify if you have a current browser; these were the projects’ own sites when this document was written):
-
-- Git: https://git-scm.com/doc
-- Python: https://www.python.org/doc/
-- WinFsp: https://winfsp.dev/
-- mpv: https://mpv.io/manual/master/
-- Plex: https://support.plex.tv/
-- TMDB API: https://developer.themoviedb.org/docs
-- OMDb: https://www.omdbapi.com/
-- Microsoft Visual C++ redistributable: https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
-
-<!-- end source: docs/support/llm-instructions.md -->
 
 ---
 
@@ -326,7 +344,7 @@ npm install
 npm run dev
 ```
 
-`npm run check` is typecheck, lint, tests, and the support-doc freshness check. Full build and release steps: [BUILD.md](#src-docs-build-md).
+`npm run check` is typecheck, lint, tests, and the support-doc freshness check. Full build and release steps: [BUILD.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/BUILD.md).
 
 Developer dependencies (Node.js, a C++ build environment for native modules) are not required for the installer.
 
@@ -355,7 +373,7 @@ Settings has a search box at the top. It filters the section list (about 180 ms 
 | **Context menu** | Hide, reorder, and add commands. **Discover** can add static shell verbs. Custom commands are stored in settings. |
 | **Quick access** | Pinned folders and groups in the tree. |
 | **Quick launch** | Toolbar buttons that start other programs. The strip is hidden when the list is empty. Cap 24. |
-| **Layouts** | Named workspace snapshots. **Auto-save on switch** defaults on. Cap 50. Order in this list is the menu order. |
+| **Layouts** | Named workspace snapshots. **Auto-save when switching layouts** defaults on. Cap 50. Order in this list is the menu order. |
 | **Folder views** | Per-folder view mode, sort, and Details columns. Separate from layouts. |
 | **View filter** | Patterns the toolbar eye applies (hidden names such as `node_modules`, wildcards). The eye can be turned off per session. |
 | **Preview** | **Show preview by default** (on), **Max text preview bytes** (default 2 MB), **Word wrap text preview** (off), **Autoplay media in preview** (off), **Rich player (mpv)** (off). |
@@ -366,20 +384,20 @@ Settings has a search box at the top. It filters the section list (about 180 ms 
 | **Slideshow** | **Enable slideshow UI** (off). Delay default 2000 ms. Include subfolders defaults on. **Camera looks** off until enabled. |
 | **Media Metadata** | Movie/TV metadata. Off. Cover height default 120 px. |
 | **Metadata** | User-defined fields. **Enable** is off. |
-| **Git** | Git overlays and actions. Off. Uses the `git` on your PATH unless you set an executable path. |
+| **Git** | Git overlays and actions. **Enable Git integration** is off. Uses the `git` on your PATH unless you set **Git executable**. |
 | **Scripting and AI** | **Enable scripting** is off. Interpreters, Ask AI, providers. API keys are not stored in `settings.json`. |
 | **Advanced** | **Disable hardware acceleration** (off; restart required). **Enable localhost search API** (off, port 8081, loopback only). |
-| **About** | Running version, **Export…**, **Import…**, update check. **Updates source** is a local installer folder or a GitHub Releases URL. |
+| **About** | Running version, **Export…**, **Import…**, **Check for update**. **Folder or URL** is a local installer folder or a GitHub Releases URL. |
 
 <a id="src-docs-configuration-md--defaults-that-surprise-people"></a>
 ## Defaults that surprise people
 
-- **Name sort** is `explorer` (Windows logical order: digit runs compare as numbers). **Literal** is character-by-character (`file10` before `file2`). The file list, the tree, and slideshow name order share this. Inside a media library, thumbnail and icon Name order is still season then episode.
+- **Name sort** defaults to **Windows Explorer** (digit runs compare as numbers). **Character by character** orders `file10` before `file2`. The file list, the tree, and slideshow name order share this. Inside a media library, thumbnail and icon Name order is still season then episode.
 - **Folders first** is on. Media Metadata can mix files and folders in icon/thumbnail view of a library when that option is on. List and Details still follow Folders first.
 - **Delete** goes to the Recycle Bin. **Shift+Delete** is permanent. **Always confirm permanent delete** is off, so a single file may delete after less prompting than a multi-selection or a folder. Do not test this on files you need.
 - **Hide name extensions** defaults to `lnk` and `mfevirtual`. The file is still there; the label omits the suffix. Rename and tooltips use the real name.
 - **Search excludes** start as `node_modules`, `.git`, `.hg`, `.svn`, `Thumbs.db`.
-- **Indexed-only search** is off, so the toolbar searches the current folder by walking it until you turn indexed search on.
+- **Search indexed roots** is off, so the toolbar searches the current folder by walking it until you turn that checkbox on.
 - **Paste screenshots and text** is on. A URL becomes a `.url` shortcut. The page is not downloaded.
 - **Hardware acceleration** stays on unless you disable it under Advanced. Turn it off only when the GPU must be left to another program, then restart the app.
 
@@ -476,8 +494,8 @@ Esc, Space, Enter, or a click stops the show. `\` undoes the last categorize or 
 <a id="src-docs-reference-md--name-order"></a>
 ## Name order
 
-- **Explorer** (default): Windows `StrCmpLogicalW`. Digit runs compare as numbers. `002` before `02` before `2`.
-- **Literal**: character by character. `0` before `s`. `file10` before `file2`.
+- **Windows Explorer** (default): Windows `StrCmpLogicalW`. Digit runs compare as numbers. `002` before `02` before `2`.
+- **Character by character**: `0` before `s`. `file10` before `file2`.
 
 Settings → Behavior → **Name sort**.
 
@@ -543,6 +561,16 @@ mfe://reveal?path=D%3A%5CProjects%5Cshot.png
 
 This app does not install Git, Python, WinFsp, or Plex for you.
 
+Which side failed:
+
+- **Windows.** If Explorer also cannot open, rename, or delete the same path, the failure is Windows permissions or a sharing lock. If Explorer can and this app cannot, quote this app’s dialog. UAC prompts are Windows.
+- **Git.** Run the same `git` command in a terminal ([Git’s documentation](https://git-scm.com/doc)). The same error there is Git’s. A missing **Commit / Pull / Push** bar with Git enabled and `git --version` working is this app’s (the folder is not a repository, or **Git executable** is wrong). This app has no password field.
+- **PowerShell, Python 3, cmd, or bash.** `python --version` must report 3.x ([Python’s documentation](https://www.python.org/doc/)). Python 2 is not used. A non-zero exit printed in the runner is the script or the interpreter. A missing **Scripts** menu means **Enable scripting** is off.
+- **mpv.** If Chromium plays the file, leave Rich player off. If the container is MKV, AVI, or WMV and playback fails with Rich player on, check `mpv` on PATH against [mpv’s manual](https://mpv.io/manual/master/). A missing mpv is not a decode bug in this app.
+- **WinFsp.** The `.mfevirtual` file still opens inside this app with the setting off. Explorer shows the tree only after WinFsp and the projection service from the release zip are installed ([WinFsp](https://winfsp.dev/)).
+- **TMDB, OMDb, Plex.** This app stores titles and posters on the folder. It does not play video through Plex. A rejected key or an empty lookup is the provider ([Plex](https://support.plex.tv/), [TMDB](https://developer.themoviedb.org/docs), [OMDb](https://www.omdbapi.com/)). Playback of the file is Chromium or mpv.
+- **FTP/SFTP.** Try the same host in another FTP client. Failure there is the server or the firewall. Success there and failure here is this app’s protocol, port, or passive mode. Do not send the password.
+
 <a id="src-docs-reference-md--limits-verified"></a>
 ## Limits (verified)
 
@@ -585,7 +613,7 @@ When a step says “export settings”, use Settings → **About** → **Export�
 1. Look at `%APPDATA%\MyFileExplorer\logs\main.log`. On the next launch, a file larger than 2 MB is emptied and logging starts over. Lines from before that launch are gone. If the app is still running and the file is already over 2 MB, those lines are still there until the next start.
 2. If the log mentions the GPU or the window flashes then dies, set hardware acceleration off. If you cannot open Settings, start once with a copy of the app data folder renamed aside (see below) so defaults load.
 
-**Resolution:** Rename `%APPDATA%\MyFileExplorer` to `MyFileExplorer.bak`. Start the app. If it opens, the previous app data was the problem. Copy `settings.json` back only after you have a working window; if the copy makes it crash again, keep the new folder and use pieces of the export you made earlier. Your documents were not in that folder.
+**Resolution:** If Settings still opens, use **About** → **Export…** and keep that file offline first. Then rename `%APPDATA%\MyFileExplorer` to `MyFileExplorer.bak` and start the app. If it opens, the previous app data was the problem. Copy `settings.json` back only after you have a working window; if the copy makes it crash again, keep the new folder and use pieces of the export. If Settings never opened, the renamed folder is the backup. Documents and NTFS notes on your files are not in that folder. What changes is only the app-data folder: settings, tabs, the search index, and saved scripts sit unused until you copy them back.
 
 **Expected result:** A window on This PC or your last tabs, using either the repaired settings or fresh defaults.
 
@@ -593,6 +621,8 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 
 <a id="src-docs-troubleshooting-md--settings-wont-open-or-a-change-does-nothing"></a>
 ## Settings won’t open, or a change does nothing
+
+**Causes:** A second copy is using `MFE_USER_DATA`, Import replaced the settings file, or the control only applies after a restart (hardware acceleration).
 
 **Checks:** You are in the installed app, not a second copy pointed at `MFE_USER_DATA`. Confirm the path in a log line or by the fact that an export from **About** matches what you see.
 
@@ -607,23 +637,29 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 
 **Checks:** Open the in-app Recycle Bin (tab bar or tree). If the file is there, select it and press **Enter** or Restore.
 
-**Resolution:** If it is not in the bin, it was permanent. **Undelete** (Settings → Appearance → **Show Undelete toolbar button**, then the tab-bar icon) scans the NTFS MFT. It only helps on NTFS, only for data still in free space, and it needs an administrator prompt when the volume cannot be read otherwise. It is not Recycle Bin restore. Pick a **different** destination folder so you do not overwrite anything else.
+**Resolution:** If it is not in the bin, it was permanent. **Undelete** (Settings → Appearance → **Show Undelete toolbar button**, then the tab-bar icon) scans the NTFS MFT. It only helps on NTFS, only for data still in free space, and it needs an administrator prompt when the volume cannot be read otherwise. It is not Recycle Bin restore.
+
+Undelete writes new files. It does not put the original back in place. What can be lost is a destination file of the same relative path if you pick a folder that already has one; the app uses `name (2).ext` rather than a silent overwrite, and a partial parent chain is written under `_incomplete`. Copy aside anything in the destination you still need. Pick a **different**, empty folder. The scan can fail when Windows reused the disk space. The original clusters are not changed by a failed scan.
 
 **Expected result:** Either the bin restore puts the file back, or Undelete writes a copy under the folder you chose, with relative parent folders. If the clusters were reused, recovery cannot succeed. The app cannot fix that.
 
 <a id="src-docs-troubleshooting-md--copy-or-move-stopped-on-a-name-that-already-exists"></a>
 ## Copy or move stopped on a name that already exists
 
-**Cause:** Continue-then-review. Items that do not collide finish. Copying a folder creates that destination folder and keeps filling it; the folder just created is not itself a collision, and it shows up in the list and the tree while the copy is still running. One item inside the folder that cannot be copied does not stop the rest of the folder. One dialog then lists the real collisions. A folder you can open is part of the copy. The review is for access denied and real name collisions.
+**Causes:** Continue-then-review. Items that do not collide finish. Copying a folder creates that destination folder and keeps filling it; the folder just created is not itself a collision, and it shows up in the list and the tree while the copy is still running. One item inside the folder that cannot be copied does not stop the rest of the folder. One dialog then lists the real collisions. A folder you can open is part of the copy. The review is for access denied and real name collisions.
+
+**Checks:** Read the review dialog. It names the conflicting item. The destination folder already created is not itself the collision.
 
 **Resolution:** Choose Skip, Keep both, Replace, Keep most recent, or Retry per group. Skip applies to the listed item, not to the whole folder the copy already created. **Cancel** on the progress line stops work still queued. Next time, hold Ctrl while clicking **Paste** or **Delete**, or press **Ctrl+Shift+V**, to open the plan before anything is written. Dragging with Ctrl only copies.
+
+**Replace** overwrites the destination file with the source. Copy that destination file aside first if you might still need it. **Keep both** writes a new name and leaves the destination file. **Skip** leaves the destination file. **Keep most recent** overwrites the older of the two. None of these choices touch files that were not in the review.
 
 **Expected result:** The destination folder is filled. The review, if it appears, names the conflicting item inside it. **Ctrl+Z** undoes the operation the app recorded, when undo data still exists.
 
 <a id="src-docs-troubleshooting-md--copy-leaves-out-two-electron-archives"></a>
 ## Copy leaves out two Electron archives
 
-**Cause:** These paths are not copied. Opening them reports names that exist only inside the archive (for example `octicon`), or “Invalid package”:
+**Causes:** These paths are not copied. Opening them reports names that exist only inside the archive (for example `octicon`), or “Invalid package”:
 
 - `node_modules\electron\dist\resources\default_app.asar`
 - `release\win-unpacked\resources\default_app.asar`
@@ -631,7 +667,9 @@ Windows 10 machines missing the Visual C++ runtime were a startup failure before
 
 The source folder is unchanged. Any other `.asar` file is copied as one file. Verify copy can stay on.
 
-**Resolution:** Nothing to restore for those paths. If an older copy left an empty folder with one of those names, delete that folder and copy again.
+**Checks:** The message names a path inside one of those three archives, or it says “Invalid package”.
+
+**Resolution:** Nothing to restore for those paths. If an older copy left an empty folder with one of those names, delete only that empty folder and copy again. Deleting it removes that empty destination folder, not the source archive and not any other folder of the same name. Confirm the folder is empty and that its path is one of the three above before you delete it.
 
 **Expected result:** The destination does not contain those archives. Copy review does not list names from inside them.
 
@@ -640,12 +678,16 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 
 **Causes:** Preview, a video player, mpv, or another process has the file open. Rich player and Chromium preview are not supposed to lock the file for the whole session; another app still might. An `.asar` file is special: Electron keeps one mapped after any look at it, until that Electron process quits. Listing or indexing it in this app does not do that. Cursor and any other Electron app that already opened the archive still will, until that process quits.
 
-**Checks:** Close preview (**Ctrl+Shift+P**), stop Now Playing, and close external players. The busy-file review can list processes and offer End task. Ending a task kills that process.
+**Checks:** Close preview (**Ctrl+Shift+P**), stop Now Playing, and close external players. The busy-file review can list processes and offer End task.
+
+**Resolution:** Close the preview and the other program the normal way first. Use End task only when that program will not close. End task kills that process. Unsaved work in it is lost. It does not delete the file you were renaming. Save that program’s work, or accept the loss, before you confirm End task.
 
 **Expected result:** Rename or move proceeds. If Windows still reports sharing violation, the holder is outside this app.
 
 <a id="src-docs-troubleshooting-md--preview-is-blank-or-says-it-cannot-display-the-file"></a>
 ## Preview is blank or says it cannot display the file
+
+**Causes:** The extension has no in-app preview, the container needs mpv, or the text file is past the preview byte limit.
 
 **Checks:**
 
@@ -682,7 +724,7 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 <a id="src-docs-troubleshooting-md--notes-covers-or-folder-sizes-disappeared-after-a-backup-restore"></a>
 ## Notes, covers, or folder sizes disappeared after a backup restore
 
-**Cause:** The backup copied the main file bytes and dropped NTFS alternate streams.
+**Causes:** The backup copied the main file bytes and dropped NTFS alternate streams.
 
 **Checks:** The file’s size and date look right, but **Note…**, the cover, or **Calculate Statistics** data is gone. Settings export will not contain them.
 
@@ -693,14 +735,18 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 <a id="src-docs-troubleshooting-md--git-buttons-are-missing-or-git-says-it-is-not-a-repository"></a>
 ## Git buttons are missing, or Git says it is not a repository
 
-**Checks:** Settings → **Git** → Enable. `git` works in a terminal (`git --version`). The folder, or a parent, contains `.git`.
+**Causes:** Git is still off, `git` is not on PATH, or the folder is not inside a repository.
 
-**Resolution:** If you deleted `.git`, the toolbar is supposed to clear. Point **executable path** at `git.exe` if it is not on PATH. Credentials stay in Git’s own credential helper. This app does not store them.
+**Checks:** Settings → **Git** → **Enable Git integration**. `git` works in a terminal (`git --version`). The folder, or a parent, contains `.git`.
+
+**Resolution:** If you deleted `.git`, the toolbar is supposed to clear. Point **Git executable** at `git.exe` if it is not on PATH. Credentials stay in Git’s own credential helper. This app does not store them.
 
 **Expected result:** Status overlays and Commit / Pull / Push on a real repository. Failures printed from Git are Git’s errors. Read them in the Git output. Fix remotes and auth in Git, not by resetting MyFileExplorer settings.
 
 <a id="src-docs-troubleshooting-md--a-script-will-not-start"></a>
 ## A script will not start
+
+**Causes:** Scripting is off, or the chosen interpreter is missing or is Python 2.
 
 **Checks:** Settings → **Scripting and AI** → **Enable scripting**. The runner matches the file: PowerShell, **Python 3** (not 2.x), cmd, or bash. Python 2 is not used.
 
@@ -711,16 +757,18 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 <a id="src-docs-troubleshooting-md--ask-ai-fails-or-you-are-worried-it-uploaded-your-photos"></a>
 ## Ask AI fails, or you are worried it uploaded your photos
 
-**Cause of a failure:** No provider, no key, or the provider rejected the call. Keys live in `ai-secrets.json`, not in settings export.
+**Causes:** No provider, no key, or the provider rejected the call. Keys live in `ai-secrets.json`, not in settings export. The request sends the description you type and the script text involved in that request. Browsed files and paths are not attached as your documents.
 
-**What is sent:** The description you type and the script text involved in that request. Browsed files and paths are not attached as your documents.
+**Checks:** Settings → **Scripting and AI** shows a provider and a model. The key is saved there. A later run of a saved script does not call the provider.
 
-**Resolution:** Settings → **Scripting and AI**. Fix the provider URL and key. See the provider’s own status page if the key is valid and the call still fails. Do not paste the key into an issue.
+**Resolution:** Fix the provider URL and key. See the provider’s own status page if the key is valid and the call still fails. Do not paste the key into an issue.
 
 **Expected result:** A script draft you can edit and run locally afterward. Later runs of the saved script do not call the provider.
 
 <a id="src-docs-troubleshooting-md--network-drive-is-empty-or-was-dropped-from-the-tree"></a>
 ## Network drive is empty or was dropped from the tree
+
+**Causes:** The share is offline, the mapped letter is disconnected, or the session listing cache is cold.
 
 **Checks:** The share is online. A mapped letter that is disconnected can be reconnected from the tree without opening Explorer. Offline tabs are supposed to wait, not vanish, for encrypted and network paths.
 
@@ -731,6 +779,8 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 <a id="src-docs-troubleshooting-md--ftp-or-sftp-will-not-connect"></a>
 ## FTP or SFTP will not connect
 
+**Causes:** Remotes are off, or the host, port, protocol, or account does not match the server.
+
 **Checks:** Settings → **Remote repositories** is enabled. Host, port, protocol, and user match the server. A password is stored for the connection (export will not show it).
 
 **Resolution:** Test the same host with a dedicated FTP client. If that fails, the server or the firewall is the problem. If that works and this app does not, compare passive mode, FTPS versus FTP, and the exact port. Capture the error text from the connect dialog. Do not send the password.
@@ -740,7 +790,9 @@ The source folder is unchanged. Any other `.asar` file is copied as one file. Ve
 <a id="src-docs-troubleshooting-md--virtual-folder-projection-does-not-show-in-explorer"></a>
 ## Virtual Folder projection does not show in Explorer
 
-**Checks:** You installed [WinFsp](https://winfsp.dev/), installed the projection service from the release zip, and turned on Settings → Behavior → **Virtual Folder OS projection**. The `.mfevirtual` file opens inside MyFileExplorer even without WinFsp.
+**Causes:** WinFsp is missing, the projection service from the release zip is not installed, or Settings → Behavior → **Virtual Folder OS projection** is off.
+
+**Checks:** You installed [WinFsp](https://winfsp.dev/), installed the projection service from the release zip, and turned that setting on. The `.mfevirtual` file opens inside MyFileExplorer even without WinFsp.
 
 **Resolution:** Follow [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md). Projection is Windows-only. Without it, the collection still works inside this app.
 
@@ -951,7 +1003,7 @@ Encrypted and network paths are kept so they can reconnect. They are not deleted
 <a id="src-docs-faq-md--32-why-is-file2-before-file10"></a>
 ### 32. Why is `file2` before `file10`?
 
-That is Explorer order (the default **Name sort**). Digit groups compare as numbers. Settings → Behavior → **Literal** uses character order, where `file10` comes first.
+That is Explorer order (the default **Name sort**, option **Windows Explorer**). Digit groups compare as numbers. Settings → Behavior → **Name sort** → **Character by character** uses character order, where `file10` comes first.
 
 <a id="src-docs-faq-md--33-why-did-sort-change-inside-a-tv-folder"></a>
 ### 33. Why did sort change inside a TV folder?
@@ -1177,7 +1229,7 @@ Each global script is its own toolbar button, using the same icon style as Quick
 <a id="src-docs-faq-md--73-how-do-i-enable-git"></a>
 ### 73. How do I enable Git?
 
-Settings → **Git** → Enable. Git must be installed (`git` on PATH, or an executable path you set). The app does not store your Git password.
+Settings → **Git** → **Enable Git integration**. Git must be installed (`git` on PATH, or **Git executable**). The app does not store your Git password.
 
 <a id="src-docs-faq-md--74-i-deleted-git-and-the-buttons-stayed"></a>
 ### 74. I deleted `.git` and the buttons stayed.
@@ -1297,7 +1349,7 @@ Use a two-pane layout. The centre rail is there whenever layout 2 is active. **C
 <a id="src-docs-faq-md--94-how-do-i-check-for-an-update"></a>
 ### 94. How do I check for an update?
 
-Settings → **About** → **Check for update**. **Folder or URL** is the updates source: the default GitHub Releases URL, or a local folder of installers. The installer name is `MyFileExplorer-x.y.z.exe`. When a newer build is listed, **What's new** loads the release notes. [BUILD.md](#src-docs-build-md).
+Settings → **About** → **Check for update**. **Folder or URL** is the updates source: the default GitHub Releases URL, or a local folder of installers. The installer name is `MyFileExplorer-x.y.z.exe`. When a newer build is listed, **What's new** loads the release notes. [BUILD.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/BUILD.md).
 
 <a id="src-docs-faq-md--95-can-windows-open-folders-in-myfileexplorer-instead-of-explorer"></a>
 ### 95. Can Windows open folders in MyFileExplorer instead of Explorer?
@@ -1342,1412 +1394,6 @@ Whatever is in the installed build and described in the user documents (preview,
 Optional FTP/SFTP, Git, scripts, media metadata, user metadata, slideshow, OS projection, and the Windows folder-open redirect are real but **off or experimental** until you turn them on. Their own documents describe the limits.
 
 <!-- end source: docs/roadmap.md -->
-
----
-
-<!-- source: docs/development.md -->
-
-<a id="src-docs-development-md"></a>
-
-<a id="src-docs-development-md--development"></a>
-# Development
-
-End users should install a GitHub Release. This page is for people changing the application.
-
-```bash
-npm install
-npm run dev          # Electron with hot reload
-npm run check        # typecheck, lint, tests, support-doc check
-npm run docs:support # rebuild AI-SUPPORT.md after support docs change
-npm run dist:nobump  # Windows installer without bumping the version (reuses launcher, mpv, VC++ DLLs)
-npm run dist:full    # same pack, and rebuild MfeShellLauncher, mpv, and the VC++ DLLs
-```
-
-- Specs live in `docs/`. Locked product decisions are `docs/DECISIONS.md`. When behavior changes, update the docs in the same change, then run `npm run docs:support` if a bundled support page changed.
-- `npm run check` is what a branch `git push` runs locally, and what the tag workflow’s check job runs. Pull requests do not start GitHub Actions by themselves.
-- App state for a normal dev run is still `%APPDATA%\MyFileExplorer`, the same folder as the installed app. Do not commit that folder. Do not paste `settings.json` into chats or issues.
-- License for contributions: GPL-3.0. See [CONTRIBUTING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CONTRIBUTING.md).
-- Build, signing, and release layout: [BUILD.md](#src-docs-build-md). Experimental Linux: [LINUX.md](#src-docs-linux-md).
-
-Issues: https://github.com/dobrado76/MyFileExplorer/issues
-
-<!-- end source: docs/development.md -->
-
----
-
-<!-- source: README.md -->
-
-<a id="src-readme-md"></a>
-
-<a id="src-readme-md--myfileexplorer"></a>
-# MyFileExplorer
-
-[![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
-[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE)
-
-MyFileExplorer is a local file workbench that turns the filesystem from passive storage into an active workspace. It keeps the familiarity of Windows File Explorer, then adds persistent multi-pane workspaces, deep previews, fast search, Git awareness, rich folder analytics, metadata, automation, and portable Virtual Folders — without requiring you to move your files into a proprietary database or cloud service.
-
-The core idea is simple: files and folders should reveal more of what they are, where they belong, and what you can do with them. A folder can become a media library, a Git workspace, a storage map, or a reusable virtual collection. A file can expose generation metadata, notes, versions, previews, or domain-specific information. Scripts can turn recurring file work into first-class commands. Virtual Folders can bring related files together even when they physically live across different drives, projects, NAS shares, or repositories.
-
-For an individual power user, that means fewer context switches and far less friction. For a team or organization, the same architecture can become a domain-specific file workspace: engineering artifacts, research datasets, media assets, project deliverables, repositories, and internal workflows can be surfaced directly where the files already live. Because MyFileExplorer is open source, those semantics and workflows can be adapted rather than waiting for a general-purpose file manager to support them.
-
-It started as a replacement for Windows File Explorer. It has grown into something broader: a user-extensible semantic layer over the local filesystem. Organizational framing: **[docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)**.
-
-| | |
-| --- | --- |
-| **Platform** | Windows 10 / 11 (primary) · Linux packaging experimental |
-| **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
-| **License** | **GPL-3.0** — [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) · [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md) |
-
-![Tabs, details, video thumbs, and a live preview](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-workspace.jpg)
-
-![Settings → Context menu — hide, reorder, Discover, custom commands](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-context-menu.png)
-
-![Power Search visual query builder](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-power-search.png)
-
-![Script Manager — run Python / PowerShell on the folder in front of you](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-script-manager.png)
-
----
-
-<a id="src-readme-md--need-help-with-myfileexplorer"></a>
-## Need help with MyFileExplorer?
-
-There is no support desk. The documentation is the help that exists. Ask an AI assistant with the single support file. A GitHub issue is a public note, not a support ticket, and a reply is not promised.
-
-That file contains the guide and the full FAQ. Upload it. It tells the assistant not to guess past what the app actually does.
-
-**[MyFileExplorer — support file](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md)**
-
-1. [Download AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/raw/main/AI-SUPPORT.md).
-2. Upload it to ChatGPT, Claude, Gemini, or another AI assistant.
-3. Ask your question about MyFileExplorer.
-
-[AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) is the file to give an assistant. The shorter guides and [FAQ](#src-docs-faq-md) stay for reading one topic.
-
-If the assistant cannot resolve the issue, you may [open a GitHub issue](https://github.com/dobrado76/MyFileExplorer/issues) with the version from **Settings → About**, your Windows version, which external tool is involved, and the error text. That does not create a support obligation.
-
----
-
-<a id="src-readme-md--why-not-just-use-file-explorer"></a>
-## Why not just use File Explorer?
-
-Explorer is fine until it isn’t — one window per rabbit hole, a preview pane that shrugs, a context menu longer than your shopping list, and search that either indexes the universe or crawls like molasses.
-
-MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell icons, right-drag menus) and adds the stuff power users actually want — plus Virtual Folders, scripts, and a workbench framing for teams. Full list: **[docs/ADVANTAGES.md](#src-docs-advantages-md)** · organizational UVP: **[docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)**.
-
----
-
-<a id="src-readme-md--highlights"></a>
-## Highlights
-
-**Workspace that sticks**
-- Multi-tab browsing with session restore — paths, views, selection, scroll, tree expand, tab icons
-- **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed)
-- Multi-pane layouts (1 / 2 / 3 / 4) and named layouts you can switch in one click
-- **View presets** — save icon size, columns, and sort; apply without jumping folder
-- **Quick Launch** — toolbar icons for Photoshop, Visual Studio, and any other program you pin
-- Drop files onto a tab to sort into that folder
-- Offline tabs wait for encrypted / network drives instead of vanishing
-- **NAS / UNC folders reopen instantly** (session listing cache) — **[docs/NETWORKS.md](#src-docs-networks-md)**
-- **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/NETWORKS.md](#src-docs-networks-md)**
-- Opt-in **FTP / FTPS / SFTP** remotes (deploy/sync) — **[docs/REMOTE_FTP.md](#src-docs-remote-ftp-md)**
-- Portable **settings export/import** (theme, layouts, context menu, remotes metadata, Network hosts — everything except window position)
-
-**See what you’re looking at**
-- Rich preview pane: images (incl. `.jfif` / `.hdr`), video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, **PowerPoint slides** (`.pptx`), **calendar / email** (`.ics` / `.eml`), 3D meshes, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](#src-docs-preview-extensions-md)**
-- **Detached preview window** (Zen mode) — same live preview in a pop-out
-- **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
-- In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
-- Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
-- **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
-- **Folder space map** — after **Calculate Statistics**, WinDirStat-style usage treemap in the folder preview (NTFS ADS; no sidecars) — **[docs/FOLDER_STATISTICS.md](#src-docs-folder-statistics-md)** · **[docs/ADS.md](#src-docs-ads-md)**
-- **Paired folders** (2-pane layout) — centre action rail to copy, compare, and review sync plans between the two folders — **[docs/PAIRED_FOLDERS.md](#src-docs-paired-folders-md)**
-- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](#src-docs-media-metadata-md)**
-- **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
-- **User-defined metadata** (D70, **off by default**) — Settings → Metadata → Enable; define sets, assign folders, edit values on NTFS `mfe_meta`; Details columns + Power Search `meta.<key>:` — **[docs/USER_METADATA.md](#src-docs-user-metadata-md)**
-
-**Move files without the drama**
-- Status-bar progress + **Cancel** on long copy/move/trash/delete
-- **Continue-then-review** — finish every auto-ok item, then one grouped review (Skip / Keep both / Replace / Keep most recent / Retry)
-- Side-by-side conflict compare (thumbs, size, dates) when a name already exists
-- In-app Recycle Bin (restore / empty) — never forced into system Explorer
-- Undo / redo for the ops you expect (Ctrl+Z / Ctrl+Y)
-- Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
-- **Open Command Line here** (cmd or PowerShell from Settings; Shift = Administrator)
-- **Paste a screenshot / URL / text** as a new file; **From Template** for stubs you reuse
-- **Create link…** — symlink, hard link, or junction
-- **Grouped Quick access** — color and collapse pin groups in the tree
-
-**Run anything on the folder in front of you**
-- **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder, selection, or **global** (its own toolbar button when one exists, no folder needed). Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
-- Optional **AI** (same settings page) writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](#src-docs-scripts-md)**
-- **Virtual Folders** — portable `.mfevirtual` collections of path references (not copies); optional **OS projection** on Windows so Explorer sees the same tree — **[docs/VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md)** · **[docs/VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md)**
-- **Git-aware browsing** (D64, **off by default**) — Settings → Git → Enable for status overlays, toolbar Commit/Pull/Push, and context Git actions. Uses your installed `git`; never stores credentials. Guide: **[docs/GIT.md](#src-docs-git-md)**
-
-**Find things on purpose**
-- **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, content scan, filters/bookmarks
-- Search is a **tab location** (Back/Forward); each tab keeps its own results; delete/move drops stale hits
-- Search hits use the **same** file view as a normal folder
-- Built to stay smooth in folders with tens of thousands of files
-
-**Comfort**
-- Dark / light / custom theme, font size
-- **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
-- Per-folder view overrides, view filters, Details columns for media & generation fields
-- Optional **slideshow / categorizer** for media libraries (manual crop). **Camera looks** add grain, color, and blur on the show only — off until you turn them on, and they do not change the file
-- NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts **and** a WinDirStat-style space map in preview (D66)
-- Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
-- **Undelete** — opt-in tab-bar icon (Settings → Appearance, off by default) for classic NTFS MFT recover after permanent delete (not Recycle Bin Restore)
-- Optional “disable hardware acceleration” when you need the GPU for training
-
----
-
-<a id="src-readme-md--quick-start"></a>
-## Quick start
-
-```bash
-npm install
-npm run dev          # HMR — same %APPDATA%\MyFileExplorer settings as the installed app
-npm run check        # typecheck + lint + tests
-npm run dist         # bump patch, clean old Setup*.exe, build installer
-npm run dist:nobump  # rebuild without bumping version
-```
-
-Settings live in `%APPDATA%\MyFileExplorer` for both `npm run dev` and installed builds.
-
----
-
-<a id="src-readme-md--for-friends-trying-the-app"></a>
-## For friends trying the app
-
-The installer is too large to keep in git (>100 MB). Get it from a **GitHub Release** (CI attaches the Setup.exe when a `v*` tag is pushed — no Actions artifacts):
-
-1. Open [Releases](https://github.com/dobrado76/MyFileExplorer/releases/latest) (or the download badge above).
-2. Run `MyFileExplorer-x.y.z.exe`.
-3. Open a few folders as tabs. Rename a tab. Save a layout.
-4. Select an AI-generated PNG — check the preview for prompt / model fields.
-5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
-6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
-7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box. Start a search, switch tabs, then Back — the search is still there.
-8. Paste a large selection into a folder that already has some of those names — the rest copies; one review at the end.
-9. **Optional — Virtual Folder OS projection:** install [WinFsp](https://winfsp.dev/), unzip `MfeVirtualFolderService-win-x64.zip` from the same Release, run `Install-ProjectionService.ps1`, then Settings → Behavior → Virtual Folder OS projection. Guide: **[docs/VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md)**.
-9. Select a `.pptx` — preview should show real slides, not a blank gray card.
-10. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
-11. Click the tree **Drives** header — pies and free-space % for every volume (including mapped letters).
-12. Select a `.ics` or `.eml` — agenda / email preview. Optional: **Open preview window** and try Zen.
-13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
-14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
-15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try **Edit metadata…**, Change cover, Mark as Watched, and the Watched / Genre toolbar (filters stick per library).
-16. Close a tab, then `Ctrl+Shift+T` (or tab-bar **Recently closed**) — it comes back.
-17. Copy a screenshot, then Paste in a folder — you should get a `.png`. Paste a URL for a `.url` shortcut (the page is not downloaded).
-18. Right-click a file → **Note…** — add a line and a checklist item. Confirm the preview and Details **Checklist** column. Power Search → tick **Has a note** or type `todo:`.
-19. Right-click → **Set icon…** — pick a Lucide glyph (or tint). Confirm Created / Modified on the file did not change.
-20. New / Add → **From Template** (after Manage Templates… imports one). Toolbar view-presets icon → Save current as a preset, then Apply.
-21. (Optional / advanced) Settings → Scripting and AI → Enable scripting. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
-22. (Optional / advanced) Drive Properties → **USN…** — Enable on a spare NTFS volume (UAC). Confirm Recent shows the test file Create/Delete. Do **not** Delete journal on a huge library unless you mean a full-volume scan.
-
-Details: [docs/BUILD.md](#src-docs-build-md) · [docs/PRODUCT_SPEC.md](#src-docs-product-spec-md) · [docs/ADVANTAGES.md](#src-docs-advantages-md) · [docs/NETWORKS.md](#src-docs-networks-md) · [docs/REMOTE_FTP.md](#src-docs-remote-ftp-md) · [docs/MEDIA_METADATA.md](#src-docs-media-metadata-md) · [docs/SCRIPTS.md](#src-docs-scripts-md) · [RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md)
-
----
-
-<a id="src-readme-md--documentation"></a>
-## Documentation
-
-| Doc | What it’s for |
-| --- | --- |
-| **[AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md)** | Single file to give an AI assistant for user support (generated) |
-| **[docs/FAQ.md](#src-docs-faq-md)** | Support questions and answers |
-| **[docs/README.md](#src-docs-readme-md)** | Doc index & reading order |
-| **[docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)** | Business value proposition — local file workbench for organizations |
-| **[docs/ADVANTAGES.md](#src-docs-advantages-md)** | vs Explorer + Virtual Folders / workbench framing |
-| **[docs/BUILD.md](#src-docs-build-md)** | Local build + tagged GitHub Releases |
-| **[docs/LINUX.md](#src-docs-linux-md)** | Experimental Linux AppImage / Wayland helpers |
-| **[docs/PRODUCT_SPEC.md](#src-docs-product-spec-md)** | Features & UX requirements |
-| **[docs/DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md)** | Locked choices D1–D76 |
-| **[docs/NETWORKS.md](#src-docs-networks-md)** | Network neighborhood & mapped drives |
-| **[docs/REMOTE_FTP.md](#src-docs-remote-ftp-md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
-| **[docs/SEARCH.md](#src-docs-search-md)** | Everything-parity search |
-| **[docs/PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md)** | Every extension the preview pane handles |
-| **[docs/FOLDER_STATISTICS.md](#src-docs-folder-statistics-md)** | Calculate Statistics + Space usage map (plain vs Shift) |
-| **[docs/PAIRED_FOLDERS.md](#src-docs-paired-folders-md)** | Dual-pane paired folders — compare & sync (D69) |
-| **[samples/preview-extensions/](https://github.com/dobrado76/MyFileExplorer/blob/main/samples/preview-extensions)** | One small file per preview extension (`npm run samples:preview`) |
-| **[docs/SLIDESHOW.md](#src-docs-slideshow-md)** | Slideshow / categorizer |
-| **[docs/ADS.md](#src-docs-ads-md)** | NTFS Alternate Data Streams |
-| **[docs/MEDIA_METADATA.md](#src-docs-media-metadata-md)** | Opt-in movie/TV metadata (D50) |
-| **[docs/SCRIPTS.md](#src-docs-scripts-md)** | Universal script runner — use cases and copy-paste examples (D51) |
-| **[CHANGELOG.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CHANGELOG.md)** | Full history |
-| **[RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md)** | v0.22.0 product-release summary |
-
----
-
-<a id="src-readme-md--goals"></a>
-## Goals
-
-- Feel familiar like File Explorer without cloning every rarely used feature
-- Fast, clear previews with type-specific (and AI) metadata
-- Multi-tab browsing with real session restore
-- Customizable theme and UI font
-- Dramatic search speed for folders (and drives) you choose to index — Everything-style queries
-- LAN + mapped drives without depending on Explorer for reconnect
-- A universal script runner so any folder job can become a saved command (D51)
-
-<a id="src-readme-md--non-goals-still"></a>
-## Non-goals (still)
-
-Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux as primary targets (Linux AppImage helpers are experimental only — [docs/LINUX.md](#src-docs-linux-md)). Optional FTP/SFTP remotes are opt-in (D46) — see [docs/REMOTE_FTP.md](#src-docs-remote-ftp-md).
-
----
-
-<a id="src-readme-md--backing-up-ntfs-metadata-ads"></a>
-## Backing up NTFS metadata (ADS)
-
-MyFileExplorer stores a lot of meaning **on the file itself** as NTFS **Alternate Data Streams**: notes, item icons, folder statistics / space maps, media metadata, user-defined metadata (`mfe_meta`), image-edit versions, and more. None of that lives in a proprietary database under `%APPDATA%` for the browsed folder — it travels with the path on NTFS. See [docs/ADS.md](#src-docs-ads-md).
-
-Most backup and sync tools copy only the main file body. They silently drop ADS. After a “successful” restore you still have the bytes, but notes, covers, stats, and custom metadata are gone.
-
-**[MyFileSync](https://github.com/dobrado76/MyFileSync)** is a separate Windows sync/backup tool built for that gap: it compares and copies alternate streams on NTFS→NTFS (and surfaces stream diffs in the compare grid). If you use MyFileExplorer features that write ADS — or any other ADS-based metadata — prefer MyFileSync (or another ADS-aware tool) when backing up those drives or folder trees.
-
----
-
-<a id="src-readme-md--scripts"></a>
-## Scripts
-
-| Script | Purpose |
-| --- | --- |
-| `npm run dev` | Electron + HMR |
-| `npm run check` | typecheck + lint + test + support-doc freshness — **same command CI runs**; also runs on `git push` |
-| `npm run docs:support` | Rebuild [AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) after support docs change |
-| `npm run test` | Vitest |
-| `npm run build` | Production electron-vite build |
-| `npm run dist` | Bump patch, prune old installers, pack MyFileExplorer (reuses the shell launcher, mpv, and VC++ DLLs) |
-| `npm run dist:full` | Same as `dist`, and rebuild those side tools |
-| `npm run dist:nobump` | Installer without version bump |
-| `npm run build:win` | MyFileExplorer pack only |
-| `npm run build:win:full` | Pack plus shell launcher, mpv, and VC++ DLLs |
-| `npm run build:linux` / `dist:linux` | Experimental Linux AppImage (see [docs/LINUX.md](#src-docs-linux-md)) |
-| `npm run run:unpacked` / `run:linux` | Launch Linux unpacked binary / AppImage (Linux) |
-
----
-
-Open **this folder** as the workspace. Everything needed to build and ship lives here.
-
----
-
-<a id="src-readme-md--contributing"></a>
-## Contributing
-
-Contributions are welcome. Bug reports, feature ideas, documentation fixes, and pull requests all help.
-
-- Open an [issue](https://github.com/dobrado76/MyFileExplorer/issues) to report a problem or propose a change
-- Prefer a focused pull request with a clear description of what changed and why
-- Run `npm run check` before opening a PR (same checks as CI)
-
-See [CONTRIBUTING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CONTRIBUTING.md) for licence terms and development notes. Product decisions live in [docs/DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md).
-
-<a id="src-readme-md--acknowledgements"></a>
-## Acknowledgements
-
-**[ghiscoding](https://github.com/ghiscoding)** is MyFileExplorer’s primary external user and contributor, helping identify bugs and improve Linux compatibility.
-
-<a id="src-readme-md--licensing"></a>
-## Licensing
-
-MyFileExplorer is free software under the **GNU General Public License v3.0** ([LICENSE](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE)). Commercial use and redistribution are allowed; distributed modifications must remain under GPLv3 with corresponding source. The **MyFileExplorer** name and logo are trademarks — see [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md). Details: [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) · [NOTICE](https://github.com/dobrado76/MyFileExplorer/blob/main/NOTICE) · [AUTHORS](https://github.com/dobrado76/MyFileExplorer/blob/main/AUTHORS) · [CONTRIBUTING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CONTRIBUTING.md).
-
-<!-- end source: README.md -->
-
----
-
-<!-- source: docs/README.md -->
-
-<a id="src-docs-readme-md"></a>
-
-<a id="src-docs-readme-md--myfileexplorer-documentation"></a>
-# MyFileExplorer documentation
-
-**Status:** **v0.22.0** — search keeps the folder view, image-editor text and Undo last, folder copy that continues after one unwritable file. Prior: **v0.21.0** slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Product release notes: [../RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md). Locked choices: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](#src-docs-linux-md). Licence: [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) (**GPL-3.0**).
-
-Hub for product and engineering docs. Product entry: [../README.md](#src-readme-md). Locked decisions: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md). Full history: [../CHANGELOG.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CHANGELOG.md).
-
-**User support bundle:** [../AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) is generated from the manifest in `scripts/ai-support-manifest.json` (install, settings, FAQ, troubleshooting, and the feature guides). Do not edit it by hand. After changing a bundled page, run `npm run docs:support`. `npm run docs:support:check` fails when the bundle is stale. Start with [getting-started.md](#src-docs-getting-started-md), [FAQ.md](#src-docs-faq-md), and [troubleshooting.md](#src-docs-troubleshooting-md).
-
----
-
-<a id="src-docs-readme-md--reading-order"></a>
-## Reading order
-
-**New agent / implementer**
-
-1. [PRODUCT_SPEC.md](#src-docs-product-spec-md) · [ADVANTAGES.md](#src-docs-advantages-md) (vs Explorer + workbench) · [BUSINESS_UVP.md](#src-docs-business-uvp-md) (org UVP)
-2. [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md)
-3. [ARCHITECTURE.md](#src-docs-architecture-md)
-4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, POWER_RENAME, UNDELETE, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
-5. Remaining open deferrals live under [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) **Deferred** (the old `FUTURE_IDEAS.md` parking lot was cleared — those candidates shipped as D51 / D55–D62). Parked multi-phase roadmaps: [plans/](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans)
-
----
-
-<a id="src-docs-readme-md--index"></a>
-## Index
-
-| Doc                                              | Topic                                 |
-| ------------------------------------------------ | ------------------------------------- |
-| [PRODUCT_SPEC.md](#src-docs-product-spec-md)               | Features & UX requirements            |
-| [BUSINESS_UVP.md](#src-docs-business-uvp-md)               | Business UVP — semantic file workbench for organizations |
-| [ADVANTAGES.md](#src-docs-advantages-md)                   | Advantages vs Explorer + workbench / Virtual Folders framing |
-| [BUILD.md](#src-docs-build-md)                             | Local build + tagged GitHub Releases   |
-| [LINUX.md](#src-docs-linux-md)                             | Experimental Linux AppImage / Wayland helpers |
-| [ARCHITECTURE.md](#src-docs-architecture-md)               | Electron processes, layout, ownership |
-| [PROJECT_FORMAT.md](#src-docs-project-format-md)           | `userData` files & schemas            |
-| [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/IPC_CONTRACT.md)               | Typed IPC channels                    |
-| [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md)                     | Locked decisions D1…D76               |
-| [UI_DESIGN.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
-| [PREVIEW.md](#src-docs-preview-md)                         | Preview pane, gen metadata, video strips |
-| [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
-| [PAIRED_FOLDERS.md](#src-docs-paired-folders-md)           | Dual-pane paired folders — compare / sync rail (D69) |
-| [PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md)   | All preview-supported file extensions ([samples/preview-extensions/](https://github.com/dobrado76/MyFileExplorer/blob/main/samples/preview-extensions)) |
-| [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md)         | Virtual Folders — `.mfevirtual` folder-like collections (D67) |
-| [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md) | Optional WinFsp OS projection (D68, Windows) — install WinFsp + release zip |
-| [SEARCH.md](#src-docs-search-md)                           | Everything-parity indexing & search   |
-| [NETWORKS.md](#src-docs-networks-md)                       | Network neighborhood & mapped drives (D44) |
-| [SECURITY.md](#src-docs-security-md)                       | Path guards & destructive ops         |
-| [INTEGRATION.md](#src-docs-integration-md)                 | CLI / `mfe://` open from other apps   |
-| [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md) | Experimental Directory shell redirect (D72) |
-| [REMOTE_FTP.md](#src-docs-remote-ftp-md)                   | FTP/FTPS/SFTP remotes (D46)           |
-| [SLIDESHOW.md](#src-docs-slideshow-md)                     | Slideshow / categorizer (D37) and Camera looks (D76, off until enabled) |
-| [ADS.md](#src-docs-ads-md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
-| [USER_METADATA.md](#src-docs-user-metadata-md)             | Opt-in user-defined structured metadata (D70, off by default) |
-| [AI_CHAT.md](#src-docs-ai-chat-md)                         | Ask AI chat window + starters (D51) |
-| [plans/AI_SEMANTIC_WORKBENCH.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans/AI_SEMANTIC_WORKBENCH.md) | Parked future plan — document Ask AI, explicit share consent, history stewardship (not implementing now) |
-| [plans/P2P_FOLDER_SHARING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans/P2P_FOLDER_SHARING.md) | Parked DEV-gated plan — LAN P2P folder sharing (invite / host:port; per-peer write elevate) |
-| [plans/NOW_PLAYING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans/NOW_PLAYING.md) | Sticky Now Playing window — browse while video keeps playing (not mini-bar) |
-| [MEDIA_METADATA.md](#src-docs-media-metadata-md)           | Opt-in movie/TV metadata (D50) |
-| [POWER_RENAME.md](#src-docs-power-rename-md)               | Power Rename — search/replace, DOS wildcards, Advanced options (D40) |
-| [UNDELETE.md](#src-docs-undelete-md)                       | NTFS Undelete — classic MFT recover (D74) |
-| [SCRIPTS.md](#src-docs-scripts-md)                         | Universal script runner, use cases, and examples (D51) |
-| [GIT.md](#src-docs-git-md)                                 | Optional Git-aware browsing / lightweight client (D64) |
-| [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md)               | GPL-3.0 |
-| [../TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md)               | MyFileExplorer name / logo policy |
-
----
-
-<a id="src-docs-readme-md--recent-behavior-v0220"></a>
-## Recent behavior (v0.22.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Search view (D29) | Results use the folder's current view and sort. The view picker writes that choice back to the folder. Date created is the file created time — [SEARCH.md](#src-docs-search-md) |
-| Image editor text (D27) | A text box stays selected and uses the same handles as a rectangle. Letters type into it. Escape leaves the box first — [PREVIEW.md](#src-docs-preview-md) |
-| Undo last (D27) | Editor top bar and **Version Control** drop only the newest saved version. The original file stays — [ADS.md](#src-docs-ads-md) |
-| Photoshop (D27) | A context command that launches Photoshop on an image with versions asks to open the original or commit the newest edit first — [ADS.md](#src-docs-ads-md) |
-| Folder copy | One unwritable file does not stop the rest of the folder. An `.asar` archive is copied as one file |
-| Help | Tab-bar **?** next to the Recycle Bin icon. **GitHub documentation** opens in the browser. **Copy AI support link** copies the raw support file — [reference.md](#src-docs-reference-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0210"></a>
-## Recent behavior (v0.21.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Slideshow camera looks (D76) | Settings → Slideshow → **Camera looks**, off until enabled. Frequency, path filter, and the Camera looks window. Display only — [SLIDESHOW.md](#src-docs-slideshow-md) |
-| NTFS Undelete (D74) | Settings → Appearance **Show Undelete toolbar button** (off by default). Recover deleted MFT files under the chosen folder with relative parent paths — [UNDELETE.md](#src-docs-undelete-md) |
-| Tab drop shortcuts (D32) | Right-click a tab → **Set drop shortcut…** moves or copies the focused selection into that tab’s folder. Saved on the tab and in named layouts — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
-| Name sort (D75) | Explorer order stays the default. Settings → Behavior → **Name sort** can use character-by-character order. Media-library thumbnail/icon order stays season then episode — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0200"></a>
-## Recent behavior (v0.20.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Name sort / rename | `StrCmpLogicalW` name order; Del/Backspace edit rename text; selection drag outside the box stays in rename — [PRODUCT_SPEC.md](#src-docs-product-spec-md) |
-| Search (D29) | Results keep the folder’s current view; breadcrumb leave cancels the walk so the toolbar query stays editable — [SEARCH.md](#src-docs-search-md) |
-| Image Edit (D27) | Stable Crop/theme props reduce mid-drag snap-back; resize lock uses current aspect; bake before Crop/Remove; tip ADS invalidates thumbs — [PREVIEW.md](#src-docs-preview-md) |
-| Named layouts (D25) | Snapshot includes every explorer window’s tabs and geometry — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0190"></a>
-## Recent behavior (v0.19.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Explorer windows (D73) | Tab menu **Move to new window** / **Merge into main window**; float close asks Merge or Close tabs; **Reopen closed window** (cap 10). Named layouts store every window’s tabs and geometry (D25). Drag tear-off is not in this version — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
-| Power Search dates / ADS | Builder tabs; `dc:` / `dm:` / `da:` and `stream:` / `hasstream:`. Missing created or accessed times fail closed — [SEARCH.md](#src-docs-search-md) |
-| Slideshow (D37) | **Include subfolders** default on; off = selected folder only — [SLIDESHOW.md](#src-docs-slideshow-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0180"></a>
-## Recent behavior (v0.18.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Rich player / Now Playing | Click picture to pause; Keep playing / pop-out resume at real time; detached / Now Playing controls auto-hide after idle — [PREVIEW.md](#src-docs-preview-md) |
-| Named layouts (D25) | Auto-save on switch (default on); Settings list order = menu order — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
-| Icon thumbs (D21) | Renderer LIFO `thumbs:get` + capped Sharp encode so scrolling cannot stall preview — [ARCHITECTURE.md](#src-docs-architecture-md) |
-| Folder Size sort (D66) | Details Size uses calculated `TotalSize` after Calculate Statistics — [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0170"></a>
-## Recent behavior (v0.17.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Now Playing / Rich player | Keep video playing while browsing; opt-in mpv for non-Chromium containers; safer detached/overlay behavior — [PREVIEW.md](#src-docs-preview-md) |
-| Ask AI chat | Local Markdown conversation library with editable folders; Media Metadata seeds title metadata only — [AI_CHAT.md](#src-docs-ai-chat-md) |
-| User metadata (D70) | Undo, Hygiene, Pack dry-run, field extras, bulk/Details editing, Copy/Paste, facets, badges, Link fields, scripts bridge — [USER_METADATA.md](#src-docs-user-metadata-md) |
-| Media metadata (D50) | Details columns, watched card badge, show/season watched propagation, compact stored-title header — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
-| Sync / file-op safety | Concrete conflict validation, outcome-aware counts, staged folder replacement recovery, ADS preservation, realpath-only preview allowlist — [PAIRED_FOLDERS.md](#src-docs-paired-folders-md), [SECURITY.md](#src-docs-security-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0160"></a>
-## Recent behavior (v0.16.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Power Rename Advanced (D40) | BRU-style panels, DOS wildcards, Remove From/To clamp — [POWER_RENAME.md](#src-docs-power-rename-md) |
-| NTFS Undelete (D74) | Opt-in tab-bar icon (Appearance, off by default) — scan deleted MFT records, recover files to a folder (UAC when needed) — [UNDELETE.md](#src-docs-undelete-md) |
-| Multi-pack glyphs | Lucide / Phosphor / Tabler picker for tabs, item icons, Quick Launch, Scripts |
-| User metadata (D70) | Manager dialog; Binary labels; child-folder exact binding; stable preview / column refresh — [USER_METADATA.md](#src-docs-user-metadata-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0150"></a>
-## Recent behavior (v0.15.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Windows shell redirect (D72) | Experimental HKCU `Directory` open/explore → `MfeShellLauncher`; Settings → Windows integration — [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md) |
-| User metadata (D70) | Opt-in sets + folder bindings; `mfe_meta` ADS; Details / Power Search — [USER_METADATA.md](#src-docs-user-metadata-md) |
-| Licence (D71) | GPL-3.0 + trademark policy — [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md), [../TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md) |
-| Media metadata (D50) | Edit metadata dialog; card/preview icon actions; Watched/Genre filters persist per library — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0140"></a>
-## Recent behavior (v0.14.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Virtual Folders (D67) | `.mfevirtual` portable folder-like collections; Tab.path = document file; Del = remove ref; extract/absorb; Manual sort + Location column — [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md) |
-| OS projection (D68) | Optional WinFsp sibling mount; Settings → Behavior; install WinFsp + release zip — [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md) |
-
-<a id="src-docs-readme-md--recent-behavior-v0130"></a>
-## Recent behavior (v0.13.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap; **Other N · size** on the Space usage heading. Plain vs **Shift+click** (skip tagged) — [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) |
-| Paired folders (D69) | Side-by-side layout centre rail: directional copy, compare projection, reviewed sync plans — [PAIRED_FOLDERS.md](#src-docs-paired-folders-md) |
-| Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
-| File op plan | Ctrl on toolbar/menu **Paste** or **Delete**, or **Ctrl+Delete** / **Ctrl+Shift+V**, opens the plan (Dry run). Drag+Ctrl copies. Ctrl+C/Ctrl+V stay clipboard. |
-| Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](#src-docs-git-md) |
-| Tree hide control | Appearance pin vs per-pane toolbar button |
-
-<a id="src-docs-readme-md--recent-behavior-v0120"></a>
-## Recent behavior (v0.12.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Git-aware browsing (D64) | **Opt-in** Settings → Git. Overlays / folder indicators / Details Git status / toolbar Commit·Pull·Push / context Git. Select **repo root** → **Git \| Folder** preview tabs (history by default). System `git` only — [GIT.md](#src-docs-git-md) |
-| Quick Launch (D63) | Toolbar pins (icon / label / both). Settings manage; strip hidden when empty. |
-| Global scripts | Each Global script is its own toolbar button (face matches Quick Launch). |
-| Recycle Bin placement | Appearance: none / tree / toolbar / both (default both). |
-| Explorer clipboard | Native CF_HDROP + DropEffect both ways (Cut → move). |
-| Search / slideshow polish | Show hidden vs view filter; `!Name` literal; slideshow respects eye; Alt title path. |
-
-<a id="src-docs-readme-md--recent-behavior-v0110"></a>
-## Recent behavior (v0.11.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Reopen closed tabs (D55) | `Ctrl+Shift+T` / tab-bar **Recently closed** (cap 25). **Clear recently closed** empties the stack. Search results are not restored. |
-| Smart clipboard paste (D56) | Image / text / URL / HTML → new file. **Paste Special**. Settings → Behavior can disable. URL becomes `.url` — never downloaded. |
-| New-file templates (D57) | New / Add → **From Template**. Manage Templates: pretty name, ↑↓, replace, duplicate. Catalog + files under `userData`. |
-| Grouped Quick access (D58) | Named, colored, collapsible groups in the tree. Flat lists from earlier versions still load. |
-| Create link (D59) | File Tools → **Create link…** — symlink / hard link / junction. |
-| View presets (D60) | Pane view-presets control saves mode / sort / Details columns. Apply patches an existing folder override; never creates one. |
-| Attached notes (D61) | Context **Note…** → `mfe_note` ADS. Preview + Details Note / Status / Has note / Checklist. Power Search `note:` / `notestatus:` / `hasnote:` / `todo:`. Writes restore host times — [ADS.md](#src-docs-ads-md). |
-| Media metadata (D50) | Opt-in Plex / TMDB / OMDb; covers and watched — [MEDIA_METADATA.md](#src-docs-media-metadata-md). |
-| Item icons (D62) | Context **Set icon…** — Lucide / custom PNG / shell+tint. Distinct from File Tools **Change Icon…**. Host times unchanged. |
-| Copy timestamps (D53) | Copy / cross-volume move keeps source Created and Modified. |
-| Custom tab icons (D54) | Cover-crop PNG/JPG/ICO; icon-only tabs hug the image. |
-
-<a id="src-docs-readme-md--recent-behavior-v0100"></a>
-## Recent behavior (v0.10.0)
-
-| Area | Spec |
-| ---- | ---- |
-| NTFS USN journal (D52) | Drive Properties **USN…** — status, enable/resize (UAC), recent records, probe file on first Enable. **Delete journal…** is a full-volume MFT scan (cannot cancel). — [SEARCH.md](#src-docs-search-md) |
-| Settings search | Filter Settings pages from the Settings window |
-| Preview word wrap | Text / Markdown / HTML source wrap toggle (off by default) — [PREVIEW.md](#src-docs-preview-md) |
-| Properties | Detached peer OS windows; multi-select = one combined sheet (Shift = separate) |
-| Copy/move progress | File counts + left-ellipsis current path |
-| Details ADS | On-screen rows fill without a dummy scroll |
-| Slideshow | Faster start on large folders; crop steps 5% / 2.5% / 1% / 0.5% |
-
-<a id="src-docs-readme-md--recent-behavior-v090"></a>
-## Recent behavior (v0.9.0)
-
-| Area | Spec |
-| ---- | ---- |
-| Universal scripts (D51) | **Opt-in** (Settings → Scripting and AI, off by default). PowerShell / **Python 3** (not 2.x) / cmd / bash on the current folder or selection; saved library; context **Scripts**; optional AI that never sends files — [SCRIPTS.md](#src-docs-scripts-md) |
-| Git-aware browsing (D64) | **Opt-in** (Settings → Git, off by default). Status overlays, toolbar Commit/Pull/Push, context Git actions via system `git` — [GIT.md](#src-docs-git-md) |
-| Media metadata (D50) | Opt-in Plex / TMDB / OMDb cards on the file or folder (NTFS streams). Show poster on the show folder; episode `SxxExx` tiles; Change cover; consolidate Subs; watched / genre toolbar — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
-| This PC tools | Right-click **Drives** → Computer Manager / Device Manager / Control Panel / Recycle Bin / Properties |
-| Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |
-| Delete a tab root | Always confirm; warns that scoped tabs will close |
-| Details horizontal scroll | Scrollbar at the **bottom** of the file pane; header and rows move together |
-
-<a id="src-docs-readme-md--recent-behavior-v08x"></a>
-## Recent behavior (v0.8.x)
-
-| Area | Spec |
-| ---- | ---- |
-| Drive free space | Status bar `N GB free of M GB (P%)`; tree **Drives** header → pies for every volume; mapped letters included; offline / empty media do not stall the list |
-| Detached preview | **Open preview window** peer window (hides docked pane); landscape two-column in that window only (draggable splitter); Zen; bounds remembered (stripped on settings export) — [PREVIEW.md](#src-docs-preview-md) |
-| Calendar / email | `.ics` / `.ical` agenda; `.eml` headers + body (no remote images) — [PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md) |
-| NAS listing cache | D49 — session-only last listing for UNC / mapped / remotes; paint then revalidate — [NETWORKS.md](#src-docs-networks-md) |
-| More previews | 3D (`.obj` / `.fbx` / `.3ds`), `.hdr`, Unity / VS text, `.uvw`, subtitles, `.divx`; fixtures in [`samples/preview-extensions/`](https://github.com/dobrado76/MyFileExplorer/blob/main/samples/preview-extensions) |
-| Power Search designs | Name and reload a complex search (params stored; target chosen each run) |
-| Tab chrome | Default Lucide tab icons; custom image icons (D54) with icon-only tight chrome; Settings → Appearance show icons / equal-width tabs |
-| Folder statistics toggle | Settings → Behavior — hide calculated Size / Files / Folders columns |
-| Large folders | Details meta only for on-screen rows; Select All no longer rescans 200k listings |
-
-<a id="src-docs-readme-md--recent-behavior-v07x"></a>
-## Recent behavior (v0.7.x)
-
-| Area | Spec |
-| ---- | ---- |
-| Power Search | Visual query builder (toolbar) → Everything-style query string; exclude extensions via `!ext:` |
-| Per-tab search | Search is a tab history location (Back/Forward); switching tabs does not clear; delete/move prunes hits |
-| Query `!` / names | `!` is NOT after whitespace or `!ext:`; `!!name` is literal; plain queries match names only |
-| Bulk file ops | Continue-then-review (D18) — no mid-pass prompts; Keep most recent; same-folder paste auto-renames; rename clashes use the same review |
-| PowerPoint preview | `.pptx` approximate slides (text + package images); `.ppt` text-only — [PREVIEW.md](#src-docs-preview-md) |
-| Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
-| Folder statistics | Depth-first **Calculate Statistics**; **Shift+click** skips already-tagged trees — [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) · streams [ADS.md](#src-docs-ads-md) |
-| Slideshow crop | Numpad edge trim during slideshow |
-| Nested custom context menus | `\` in custom command labels builds submenus |
-| Tab bar | Chrome-like shrink + overflow scroll |
-| Settings About | Updates + Export/Import + GitHub help link |
-
-<a id="src-docs-readme-md--recent-behavior-v06x"></a>
-## Recent behavior (v0.6.x)
-
-| Area | Spec |
-| ---- | ---- |
-| Experimental Linux packaging | AppImage + Wayland helpers; Win32 APIs lazy-load; not a support matrix — [LINUX.md](#src-docs-linux-md) |
-| Remote repositories | D46 — opt-in FTP/FTPS/SFTP; toolbar + tree; stage Open/preview; FTP ops serialized — [REMOTE_FTP.md](#src-docs-remote-ftp-md) |
-| Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [NETWORKS.md](#src-docs-networks-md) |
-| Settings export / import | D45 — portable prefs + Network hosts + remote connection metadata + **full context-menu customization** (no passwords / window geometry) |
-| Context menu Discover / layout | D41 — HKCR verb scan (persist + tick to enable); Built-in drag order & separators; Custom files/folders |
-| Open Command Line | Folder context; cmd or PowerShell (Settings); click = current user; Shift = Admin |
-| Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](#src-docs-slideshow-md) |
-| NTFS ADS | D38 — Details column + manager — [ADS.md](#src-docs-ads-md) |
-| Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
-| Multi-pane | D31 — 1 / 2 / 3 / 4 panes + per-pane tree + layout persistence; empty pane Open Computer / Browse |
-| Tab icons | D32 — Lucide icon + color; tab context menu |
-| In-pane video | D33 — Chromium for MP4/M4V/WebM/MOV; no ffmpeg remux; opt-in Rich player (mpv); else Open with default app / strip-only |
-| Richer previews | HTML/Markdown Preview·Raw; Unity; PE; ZIP/7z/RAR/TAR/APK/MSI/ISO; `.chm` (D35); `.ttf` (D36) — [PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md) |
-| Windows Properties | Shell property sheet from detached Properties window |
-| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll; tree hover-expand |
-| Search results | D29 — normal `FileView` (banner + path under names) |
-| Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate |
-| File-op progress | D28 — status bar; Cancel (incl. 7za ZIP compress) |
-| Image editor | D27 — Filerobot; tip ADS `VER_*` on file |
-| Recycle Bin | D7 — in-app bin view |
-| Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder; optional per-tab drop shortcut |
-| Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |
-| External open | D19 — `--reveal` / `--open` / `mfe://` |
-| vs Explorer | [ADVANTAGES.md](#src-docs-advantages-md) |
-
-<!-- end source: docs/README.md -->
-
----
-
-<!-- source: docs/PRODUCT_SPEC.md -->
-
-<a id="src-docs-product-spec-md"></a>
-
-> **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
-> The running build is Settings → About. Do not quote 0.21.0 as the user's version.
-
-<a id="src-docs-product-spec-md--product-specification"></a>
-# Product specification
-
-**Version:** 0.21.0
-**App:** MyFileExplorer
-
-Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](#src-docs-linux-md)).
-
----
-
-<a id="src-docs-product-spec-md--personas-jobs"></a>
-## Personas & jobs
-
-| Job                     | Outcome                                                            |
-| ----------------------- | ------------------------------------------------------------------ |
-| Browse many folders     | Open several tabs; restore them next launch (offline volumes wait) |
-| Inspect AI images       | See prompt / parameters / workflow fields in preview when embedded |
-| Routine file ops        | Create, rename, cut/copy/paste, DnD, delete; Ctrl+Z / Ctrl+Y undo  |
-| Find files fast | Opt-in folder/drive index; Everything-inspired query (D34)          |
-| Comfortable UI          | Dark/light/custom theme; font family & size                        |
-
----
-
-<a id="src-docs-product-spec-md--shell-layout"></a>
-## Shell layout
-
-Cold start shows a small branded splash (icon + “Starting…”) until the main window is ready to show, so a slow launch is visibly working.
-
-```
-┌─ Tab bar (reorder, rename, icon, close, new) ───────────────────┐
-├─ New · Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
-├─ Pane grid (1 / 2 / 3 / 2×2) ─────────────────── Preview (opt) ─┤
-│  each pane: Nav + Breadcrumb + View | Tree | Files              │
-└─────────────────────────────────────────────────────────────────┘
-└─ Status: selection count, free space optional ──────────────────┘
-```
-
-- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), **3** (wide top + two bottom), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). The folder-tree toggle lives on that pane’s toolbar so you can hide one tree in a split. Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Toolbar search, keyboard nav, and **one shared preview** follow the **focused** pane; each tab keeps its own search results so you can drag hits onto another pane.
-- Preview pane **collapsible**; collapsed state + widths persisted.
-- Pane split ratios persisted in session.
-- **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Optional **named groups** (D58). Manage in Settings → Quick access (add/remove/reorder/reset, groups) or pin/unpin from the context menu / drop on the Quick access header or a group; persisted in settings.
-- **Recycle Bin placement** — Settings → Appearance **Recycle Bin** (`recycleBinPlacement`: `none` | `tree` | `toolbar` | `both`, default `both`). Tree row after drive letters (labeled); optional icon-only tab-bar button. Opens the in-app bin. Drives header context still has Open / Empty.
-- **Undelete toolbar** — Settings → Appearance **Show Undelete toolbar button** (`showUndeleteToolbar`, default **off**). Icon-only control next to Recycle Bin; opens NTFS Undelete (D74). Windows only.
-- **Help** — tab-bar **?** next to the Recycle Bin icon. Tooltip **Help**. Menu: **GitHub documentation** (external browser, `docs/README.md` on GitHub) and **Copy AI support link** (raw `AI-SUPPORT.md` URL).
-- **Quick Launch (D63)** — toolbar pins for user-picked programs (name, path, optional args). Each pin shows **icon**, **label**, or **both**. Icon is the program glyph, a Lucide/Phosphor/Tabler + color, or a custom image. Settings → Quick Launch adds / edits / removes (no toolbar +; strip hidden when empty). Click launches; right-click Open file location / Remove; drop an `.exe` / shortcut on the strip to add when it is visible. Cap 24.
-- **Git-aware browsing (D64)** — **opt-in** (off by default). Settings → Git. System `git` CLI; overlays, folder indicators, Details Git status column, active-pane toolbar, context **Git >**. Not a full Git GUI; distinct from D27 image Version Control. [GIT.md](#src-docs-git-md).
-- **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, **Open / Empty Recycle Bin**, **Map / Disconnect network drive**, and **Properties** (This PC) — native Windows windows where applicable; Recycle Bin stays in-app.
-- **Network** (D44) — below Drives when LAN discovery is running or hosts were found. Expand a computer → SMB shares (async; does not block folder listing). Open UNC like Explorer; Map / Disconnect / Refresh on the Network header. Tunables in **Settings → Network** (auto vs manual rediscovery + interval). Full detail: [NETWORKS.md](#src-docs-networks-md).
-
----
-
-<a id="src-docs-product-spec-md--tabs"></a>
-## Tabs
-
-| Requirement      | Detail                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| Multiple folders | One path + view state per tab                                                              |
-| Persist          | Tabs + active index restored on launch                                                     |
-| Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
-| Icon             | Optional **Lucide / Phosphor / Tabler** icon + color (optional `pack`, default Lucide), or a **custom** .png/.jpg/.ico (cover-cropped square). Right-click → Set icon → Custom icon… for image, label on/off, and size. Icon-only tabs use tight chrome so they work as categorizer drop bins. Session/layouts (D32 / D54) |
-| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Move to new window**, **Merge into main window** (floating shell), **Close**, **Reopen closed tab** / **Recently closed**, **Reopen closed window** / **Clear recently closed windows** |
-| Reopen           | `Ctrl+Shift+T` restores the last closed tab (stack in `session.json`, cap 25). **Reopen closed window** restores the last closed floating explorer window (cap 10, D73). **Clear recently closed** empties the tab stack (persisted). Empty tab-bar context has the same items (D55 / D73) |
-| Reorder          | Drag tabs to reorder; order persisted                                                      |
-| Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
-| Drop shortcut    | Optional per-tab keyboard chord (context **Set drop shortcut…**) transfers the focused pane’s selection into that tab’s **current** folder; mode Auto / Always move / Always copy; conflict-checked; stored on the tab and in named layouts (D25 / D32) |
-| Close            | Middle-click / close button / context menu; confirm if that tab has an in-progress destructive op (rare) |
-| New tab          | Clone current path or open profile default (This PC / home — Settings); **Duplicate** copies path/view/title/icon |
-| Named layouts    | Save/load the whole workspace — every window’s tabs, position, and size — as a named layout (see Settings → Layouts) |
-| Drop onto pane   | Drag a tab onto a multi-view pane to assign it (moves if already in another pane)          |
-
-Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable glyph `{ name, color, pack? }` or custom `{ kind: 'custom', id, showLabel, sizePx }`), `treeExpanded` (folder-tree expand/collapse paths).
-
-**Named layouts (D25):** user can save the current workspace under a name (“AI training”, “Book editing”, backup/sync pairs, …) and apply it later. The snapshot is **every explorer window**, not only the main one: each window’s tabs (paths/titles/icons/view/sort/rootPath/treeExpanded/dropShortcut/dropTransfer) plus that window’s **position, size, and maximized state**. The main window also stores tree/preview splitter chrome, multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant. Apply replaces the open workspace (new tab ids; history/selection/scroll cleared) and closes float windows that are not in the layout. **Switching layouts auto-saves** the one you were on (Settings → Layouts, on by default). Toolbar Layouts menu for quick switch (same order as Settings); Settings → Layouts for management. Orthogonal to per-folder view overrides.
-
----
-
-<a id="src-docs-product-spec-md--navigation"></a>
-## Navigation
-
-- Interactive **breadcrumb** (click segment to jump; `…` overflow menu only when the trail does not fit). **Click empty address area** (or Ctrl+L) to type a path
-- Address bar **Recent locations** dropdown from the tab’s history: **current on top**, then prior folders in Back order (newest previous first — same sequence as Back, Back, …); Forward entries follow when present
-- **Back / Forward / Up**
-- Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
-- Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred). Toolbar **Collapse all** (next to Select all) collapses every opened branch on the **current tab** only — same as a fresh This PC / Computer tree. Does not change the file list or other tabs.
-
----
-
-<a id="src-docs-product-spec-md--view-modes"></a>
-## View modes
-
-| Mode              | Behavior                                                    |
-| ----------------- | ----------------------------------------------------------- |
-| Extra large icons only, no filename | Like Extra large; hide the filename for items that show a content preview (image/PSD thumb, video strip, or a movie/show folder cover). Episode files still show `SxxExx` when stored, otherwise the filename (tooltip is always the filename). Other folders and files without a preview keep their names |
-| Extra large icons | Image/PSD content thumbs; videos use `!VIDTHUMB_CACHE` strip animation when present (generate via context menu — D26); otherwise Windows shell icons |
-| Large icons       | Same                                                        |
-| Medium icons      | Same                                                        |
-| Small icons       | Same                                                        |
-| List / Details    | Compact name + Windows shell icon (or D62 Lucide / Phosphor / Tabler / custom / tinted overlay when set) |
-| Details           | Columns: Name (pinned) + show/hide catalog via header right-click. Groups: File (modified/created/type/size/ext/**Alternate streams**, **Note** / **Status** / **Has note** / **Checklist**), Stream values (streams found in the current folder + **...** to type a name), Image (dimensions, width/height, bit depth, color space, orientation, alpha, format), Audio/video (duration, bit rate, sample rate, channels, codec, container, frame rate, media size), Tags (title/artist/album/…), Generation (A1111 seed/model/steps/sampler/CFG/size/prompts). Resizable, reorderable; layout persisted in settings. Media and ADS columns fill asynchronously (ADS lists non-empty stream names for files **and** folders when that column is visible — not on every `fs:list`). Stream-value columns show one named stream’s text preview. Context **Note…** / **Set icon…** (D61 / D62, NTFS). Context menu **Alternate streams…** opens a manager to list/add/edit/delete/import/export streams (D38). |
-
-- Sort by any visible column (incl. media once values load); asc/desc; folders-first toggle in Settings (default on). **Name** order defaults to Windows Explorer (`StrCmpLogicalW`: digit runs as numbers; more leading zeros sort first). Settings → Behavior → **Name sort** can switch to character-by-character order (`0` before `s`; `file10` before `file2`). A–Z case is ignored either way. The file list, folder tree, and slideshow name order use the same choice.
-- Virtualize grids/lists for large directories.
-- **Images:** double-click / Enter opens an in-app full-size viewer (navigate siblings with arrow keys). Preview **Edit** opens Filerobot (D27). **Open with default app** (context menu) uses the system association for external editors.
-- **Customize this folder** (context menu on folder / empty pane): save current view mode, sort, and Details columns for that path — **this folder only** or **this folder and subfolders**. Exact entry wins over the longest recursive ancestor; other folders keep the tab’s baseline view + global columns. Live view/sort/column edits while a customization applies update that owning entry. Manage in Settings → Folder views.
-
----
-
-<a id="src-docs-product-spec-md--file-operations"></a>
-## File operations
-
-| Op                 | Behavior                                                                                                                                         |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| New folder         | Inline rename or dialog                                                                                                                          |
-| New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists. **From Template** copies a user template; the catalog pretty name is the menu label and default filename stem (D57). **GitHub Repository** (menu item below From Template, not inside it) clones into a new folder (name + URL dialog; no rename mode) |
-| Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits**. **Del** / **Backspace** edit the name (selected text or one character) — they do not trash the item. Releasing a text selection drag outside the rename box stays in rename. A name that already exists opens the same D18 review as copy/move (Skip / Keep both `name (2).ext` / Replace / Keep most recent) |
-| Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex or DOS `*`/`?` wildcards, match-all, case sensitivity, apply to filename and/or extension; collapsible **Advanced options** (case, remove, add, numbering, dates, filters, …); live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40). Guide: [POWER_RENAME.md](#src-docs-power-rename-md) |
-| NTFS Undelete      | Opt-in tab-bar icon (Settings → Appearance **Show Undelete toolbar button**, off by default): scan deleted MFT FILE records, filterable results with recoverability status, recover selected files to a chosen folder (`name (2).ext` on conflict). Short-lived UAC when volume access needs elevation. **Not** Recycle Bin Restore. Windows + NTFS only; no context-menu verb (D74). Guide: [UNDELETE.md](#src-docs-undelete-md) |
-| Scripts            | **Opt-in** (off by default). Settings → Scripting and AI → Enable scripting. Then: universal runner (PowerShell / **Python 3 only — not 2.x** / cmd / bash) on the current folder, selection, or **global** (no folder/selection; each global script is a toolbar button, hidden when none exist), live output, Stop. Saved library under `userData` becomes context **Scripts >** verbs. Optional AI generate/modify (never sends files). [SCRIPTS.md](#src-docs-scripts-md) (D51) |
-| Git                | **Opt-in** (off by default). Settings → Git. Status overlays / toolbar / context Stage·Commit·Pull·Push. System `git` only; no credential storage. [GIT.md](#src-docs-git-md) (D64) |
-| Cut / Copy / Paste | Internal clipboard + OS file paths. Non-file clipboard creates a file (D56; Settings → Behavior). **Paste Special** for format/name. Never auto-download a URL. |
-| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
-| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Optional tab-bar icon and/or tree row (Settings → Appearance **Recycle Bin**) open bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer. Right-click the button or tree row for **Open** / **Empty Recycle Bin** (Empty confirms without opening the view first). **Drive roots** (`C:\`) are never deleted — Del / Shift+Del / context Delete are ignored with no message. Deleting a folder that is the **scoped root of any open tab** always confirms (Cancel / Delete) and warns those tabs will close; after a successful delete the affected tabs close (a replacement tab opens if that would leave none) |
-| Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory. Same continue-then-review as trash when some items fail |
-| Compress / Extract | Context **Compress to ZIP file** (bundled 7za, streamed) / **Extract All…** — sibling `.zip` or folder (Explorer naming); progress + Cancel (D30) |
-| Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
-| Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
-| Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
-| Properties         | Detached OS window (peer of the shell — not modal, not parent-bound) with useful detail: type, location, dates; **attributes** on files/folders only (not drives). Files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar. **Multi-select → one combined sheet** (sums size/contains; no Attributes / Windows Properties / USN). **Shift+Properties → one window per path** (soft cap 32). Size/position persist. **Windows Properties…** opens Explorer’s own property sheet for Security / Sharing / etc. (not reimplemented in-app). **Drive Properties only (win32):** **USN…** opens the NTFS USN journal manager in that window (status / enable / resize / recent records / clear / disable). First-time Enable writes then deletes a `testing USN *.txt` on that volume so Recent immediately shows Create + Delete — D52 |
-
-Copy / move / trash / delete **continue** through every item that does not need a decision. Conflicts, locks, and other per-item failures queue for one **review** at the end, grouped by similar kind, with apply-to-similar (Skip / Keep both / Replace / **Keep most recent** / Retry). Name conflicts still use side-by-side compare (thumbs for images; size/dates/type). **Replace** merges folder→folder into the existing destination (keeps folder ADS); conflicting children use staged temp + dest-aside replace (never delete the destination first). If replacement and source rollback both fail, retain the incoming item at a reported recovery path; overwrites files. **In use** rows list locking processes (Restart Manager) with **End task** / Locate / Refresh, then Retry (D65). Same-folder copy-paste auto Keep both (`name (2).ext`) with no dialog, then selects the new copies. Disk-full / destination-gone stops remaining work to that destination but still opens review. After a local **copy** (and a **move** that copies across volumes), Created and Modified on the destination match the source (D53).
-
----
-
-<a id="src-docs-product-spec-md--context-menu-curated"></a>
-## Context menu (curated)
-
-**Show only** (adjust during implementation, keep short):
-
-- Open
-- Open in new tab
-- Open as root in new tab (scoped tab: folder becomes the tree root, navigation stays inside). Deleting that folder from any tab always confirms first and closes the tabs that used it as root.
-- Pin to Quick access / Unpin from Quick access (folders)
-- Cut / Copy / Paste
-- Rename
-- Power Rename… (search/replace + advanced panels with preview; files and folders in selection only)
-- Undelete (opt-in tab-bar icon — Settings → Appearance; D74)
-- Scripts (only when Settings → Scripting and AI → Enable scripting; saved local scripts + Generate / Manage; each global script is a toolbar button; D51)
-- User-defined commands (Settings → Context menu — separate lists for files vs folders; e.g. Edit in Photoshop, Play in VLC)
-- Delete / Delete permanently
-- Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
-- Extract All… (on `.zip` selection — sibling folder named after the archive)
-- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / From Template / GitHub Repository / **Virtual Folder** / Other…
-- Copy path / Copy name
-- Show in system Explorer
-- Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
-- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / **Edit metadata…** / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](#src-docs-media-metadata-md).
-- Metadata set… / Metadata… (only when Settings → Metadata → Enable user metadata). Guide: [USER_METADATA.md](#src-docs-user-metadata-md).
-- **Calculate Statistics** (local NTFS folders and volume roots) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). On a **drive root**, compiles from each root folder’s ADS (retagging only untagged children) plus root files. After tagging, **propagates** into ancestors that already have stats (child + sibling ADS, no deep re-walk). **Shift+click** skips already-complete tags. Guide: [ADS.md](#src-docs-ads-md).
-- Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
-- Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
-- Properties
-
-**Do not** dump every Explorer verb (Send to, Share, Git overlays, 20+ third-party entries).
-
----
-
-<a id="src-docs-product-spec-md--preview-pane"></a>
-## Preview pane
-
-See [PREVIEW.md](#src-docs-preview-md).
-
-- Toggle show/hide; remember width.
-- Selection: preview the **most recently selected** item (keyboard/mouse focus); when multi-select, still show that file’s rich preview and a “N selected” badge (not a blank summary).
-- Type-specific fields; for images, parse embedded generation metadata when present.
-- Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
-- Text / code / Markdown / HTML source: **Word wrap** toggle in the preview header (remembered).
-- Inline video/audio playback in-pane for Chromium-native containers (see PREVIEW.md); **no ffmpeg remux for Preview** — MKV/TS/WMV/… default to **Open with default app**; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app unless opt-in **Rich player (mpv)** is on (D33).
-- Office docs: Word, PowerPoint (`.pptx` approximate slide layout + images; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
-- Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
-- ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
-- Other archives (`.7z`, `.rar`, `.tar`, `.tar.gz`, `.tgz`): same contents tree, list-only (no Extract All).
-- Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
-- Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
-- 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
-- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](#src-docs-media-metadata-md).
-- **User-defined metadata** (D70, opt-in): when enabled and the cwd resolves to a metadata set, preview shows a pinned Metadata editor; Details may show `showAsColumn` fields. See [USER_METADATA.md](#src-docs-user-metadata-md).
-- **Folder statistics + space map** (D66): when Calculate Statistics has tagged a folder (or volume root), preview shows the rich card and WinDirStat-style space map (ADS read-only). Volume roots keep the free-space pie and add the map below. See [PREVIEW.md](#src-docs-preview-md), [ADS.md](#src-docs-ads-md).
-- **Virtual Folders** (D67): selecting a `.mfevirtual` file shows a Virtual Folder preview (counts / sample locations), not raw JSON. Opening navigates into the collection. See [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md).
-- **Virtual Folder OS projection** (D68, Windows, opt-in): Settings → Behavior; requires [WinFsp](https://winfsp.dev/) + projection service from GitHub Releases. See [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md).
-- **Git repository root** (D64, opt-in): repo-root selection shows **Git | Folder** tabs (**Git** = commit history by default; **Folder** = normal directory / stats card). See [GIT.md](#src-docs-git-md).
-
-See [SEARCH.md](#src-docs-search-md).
-
-- Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
-- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators, including note / status / open checklist / user metadata). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
-- **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
-- Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
-- Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
-- Results use the **current view** (thumbnails, icons, list, or Details). Details adds a temporary **Folder** column (sortable; search-only, not saved); other views show the parent folder under the name. Context **Open File Path** / **Open File in new tab** open locations in-app.
-- Search is a **tab history location** (D29): Back/Forward restore folder or search (and the file-list scroll for that folder); each tab keeps its own query/results; switching tabs does not clear. Delete / move prunes those hits (and children of a removed folder).
-- Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
-
----
-
-<a id="src-docs-product-spec-md--settings"></a>
-## Settings
-
-The Settings dialog has a search box (filters as you type, no Search button) that narrows the section list and hides controls that do not match the keyword.
-
-| Area         | Fields                                                                             |
-| ------------ | ---------------------------------------------------------------------------------- |
-| Appearance   | Theme dark / light / custom; **font family** (dropdown of common Windows UI fonts; imported custom values stay listed); font size; icon size; **equal-width tabs** (`tabEqualWidth`, default off); **show tab icons** (`showTabIcons`, default on); **pin control to hide the folder tree** (`treePinToggle`, default on — off uses a per-pane toolbar button, flipped preview-panel icon); **Recycle Bin** (`recycleBinPlacement`: none / tree / toolbar / both, default both); **Show Undelete toolbar button** (`showUndeleteToolbar`, default off — D74) |
-| Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files; **Show folder statistics** (`showFolderStatistics`, default on); **Folder space map max files** (`folderStatsTreemapMaxLeaves`, default 50000, 100–50000) — N largest files kept in the Calculate Statistics space map (D66); skip-path list for Calculate failures |
-| Preview      | Show preview by default; **autoplay media in preview** (`previewVideoAutoplay`, default off); **Rich player (mpv)** (`previewRichPlayerMpv`, default off — D33); text preview max bytes; word wrap |
-| Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
-| Quick access | Manage tree shortcuts                                                              |
-| Quick Launch | Toolbar apps: add / name / path / arguments / show (icon, label, both) / icon (app, glyph pack, custom) / order (D63) |
-| Layouts      | Named workspaces: save current as…, auto-save on switch (default on), apply, update, reorder, rename, remove (D25) |
-| Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
-| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
-| Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
-| Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
-| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (off by default — Folders first; on = one A–Z list in icon/thumbnail views of a container folder; List/Details follow Behavior → Folders first). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. **Edit metadata…** plus card/preview icon actions; Watched/Genre filters persist per library folder. In media-library folders (and recognized subfolders), Details column picker offers a **Media Metadata** section (genres, year, ratings with service icons, watched, …). Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
-| Metadata | **Enable user metadata** (off by default). Optional **Show toolbar button** for the Metadata manager. **Manage sets…** opens a floating manager (sets / fields / folder assignments / Metadata pack). Context **Metadata set…** / **Metadata…**, preview editor, Details columns, and Power Search `meta.<key>:` stay hidden until enabled (D70). Guide: [USER_METADATA.md](#src-docs-user-metadata-md) |
-| Git | **Enable Git integration** (off by default). Executable / Test. Overlays, folder indicators, toolbar, status column, ahead/behind, ignored, refresh debounce, large-repo threshold, external diff tool. Guide: [GIT.md](#src-docs-git-md) (D64) |
-| Scripting and AI | **Enable scripting** (off by default — hides toolbar Scripts and context Scripts). Interpreter path overrides. Nested **Enable AI** (off = no outbound AI HTTP). OpenAI-compatible providers (base URL, model, key in `safeStorage`). Test / Refresh models; model fields are dropdowns from `GET /v1/models` (cached). Privacy: never send paths/listings/contents. Guide: [SCRIPTS.md](#src-docs-scripts-md) (D51) |
-| Slideshow | **Enable slideshow UI** (hides toolbar / folder Start when off; this section stays). Delay, order, loop, **Include subfolders** (default on). **Camera looks** (off until enabled — frequency, path filter, **Camera looks…** window; display-only, files unchanged). Categorizer **Mapping Manager…**. Guide: [SLIDESHOW.md](#src-docs-slideshow-md) (D37 / D76) |
-| Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
-| About        | App version; GitHub repository link; **Updates source** / Check / **What's new** (GitHub release notes) / Update; **Export / import settings** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
-
----
-
-<a id="src-docs-product-spec-md--keyboard-minimum"></a>
-## Keyboard (minimum)
-
-| Key             | Action                |
-| --------------- | --------------------- |
-| Backspace       | Up (when not editing) |
-| Alt+← / →       | Back / Forward (focused pane) |
-| Mouse Back / Forward | Back / Forward (focused pane) |
-| Ctrl + mouse wheel | Font size (9–28 px) |
-| Ctrl+T / W      | New tab / Close tab   |
-| Ctrl+Tab        | Next tab              |
-| F2              | Rename                |
-| Ctrl+C/X/V      | Copy / Cut / Paste    |
-| Del / Shift+Del | Trash / Permanent     |
-| ↑↓ / ←→         | Move focus in file view (grid uses all four) |
-| ←↑↓→ (folder tree focused) | Explorer nav pane: ↑↓ move selection; ← collapse / parent; → expand / first child |
-| Home / End      | First / last item     |
-| Shift+Home/End  | Select from cursor to first / last |
-| Shift+arrows    | Extend selection      |
-| PageUp / PageDown | Page through file view |
-| Ctrl+F          | Power Search          |
-| Ctrl+Shift+F    | Focus toolbar search  |
-| Ctrl+E          | Edit image (single editable image selected; otherwise ignored) |
-| Ctrl+Shift+P    | Toggle preview        |
-| F5 / Ctrl+R | Refresh current folder(s), drives, tree, and Network discovery |
-
----
-
-<a id="src-docs-product-spec-md--acceptance-highlights-v1"></a>
-## Acceptance highlights (v1)
-
-- [ ] Launch restores previous tabs and active folder
-- [ ] Splitter positions and tree / preview collapsed state restore
-- [ ] Del trashes; Shift+Del permanently deletes with confirm rules
-- [ ] DnD move vs copy respects modifiers
-- [ ] Lengthy copy/move/delete shows status-bar progress
-- [ ] Video preview strips generate from context menu (missing / recursive / regenerate)
-- [ ] PNG with A1111/Comfy metadata shows prompt fields in preview when parseable
-- [ ] Indexed folder search returns results without full-tree walk
-- [ ] Theme + font changes apply live and persist
-- [ ] CLI `--reveal` / `mfe://` opens the path in a tab
-- [x] Experimental shell redirect (D72): Settings → Windows integration enables per-user Directory verb redirect with backup/restore
-- [x] Edit media metadata (D50): dialog from context / preview / card hover; manual source when no card yet
-- [x] Media library Watched/Genre filters persist per folder (`mediaMetadata.libraryFilters`)
-
-<!-- end source: docs/PRODUCT_SPEC.md -->
-
----
-
-<!-- source: docs/ADVANTAGES.md -->
-
-<a id="src-docs-advantages-md"></a>
-
-> **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
-> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
-> The running build is Settings → About. Do not quote 0.21.0 as the user's version.
-
-<a id="src-docs-advantages-md--advantages-over-classic-windows-file-explorer"></a>
-# Advantages over classic Windows File Explorer
-
-**App:** MyFileExplorer · **Version:** 0.21.0
-
-MyFileExplorer is a **local file workbench**: it keeps Explorer muscle memory (Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while turning the filesystem into a semantic, searchable, automatable workspace — without moving your files into a proprietary database or cloud repository.
-
-> Keep the files where they already are, then make the workspace around them substantially more intelligent.
-
-That is the difference from classic Explorer (names, paths, sizes, dates) and from many enterprise content platforms (migrate everything into their store first). MFE layers richer meaning, preview, search, Git, analytics, metadata, scripts, and **Virtual Folders** on top of ordinary disks, NAS shares, and repositories. Full organizational framing: [BUSINESS_UVP.md](#src-docs-business-uvp-md). This page is the concrete “why switch from Explorer” list. Not a claim of full shell parity — see [PRODUCT_SPEC.md](#src-docs-product-spec-md) non-goals and [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md).
-
-<a id="src-docs-advantages-md--inspiration"></a>
-## Inspiration
-
-Features are deliberately patterned after tools people already trust — then folded into one local file manager:
-
-| Inspiration | What we borrow |
-| ----------- | -------------- |
-| **[Everything](https://www.voidtools.com/)** (voidtools) | Instant, operator-rich search over an opt-in index (folder roots + optional NTFS USN volume index), as-you-type, match toggles, filters/bookmarks — without forcing whole-disk indexing. |
-| **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 3 / 4** panes in one window — side-by-side, wide-top + two bottom, or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
-| **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, image-list cache. |
-| **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
-| **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, DOS wildcards or regex, match-all, case options, apply to name/extension, BRU-style advanced panels, live preview with checkboxes — without installing PowerToys. |
-| **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / **Python 3** (not 2.x) / cmd / bash on the folder or selection you are looking at. Saved scripts become context-menu verbs with live output, dry-run, and Stop. Optional AI drafts source and **never reads your files**. Explorer only opens a prompt. Guide: [SCRIPTS.md](#src-docs-scripts-md). |
-| **Git CLI + a file manager** | **Git-aware browsing** (D64, opt-in): overlays, toolbar Commit/Pull/Push, context Stage/Discard — without becoming a full Git GUI. Guide: [GIT.md](#src-docs-git-md). |
-| **[WinDirStat](https://windirstat.net/)** | Nested **space-usage treemap** for a folder — cushion tiles, extension colors — **inside** the preview pane after Calculate Statistics (ADS on the folder; “Other” summary in the heading, no separate app window). Guide: [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) (D66). |
-| **Logical collections vs physical trees** | **Virtual Folders** (`.mfevirtual`) assemble path references across drives and shares without copying; optional **WinFsp OS projection** so Explorer and other apps see the same tree. Guide: [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md), [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md). |
-
-Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](#src-docs-search-md). Slideshow: [SLIDESHOW.md](#src-docs-slideshow-md). Image editor: [PREVIEW.md](#src-docs-preview-md) (D27). Scripts: [SCRIPTS.md](#src-docs-scripts-md). Git: [GIT.md](#src-docs-git-md). Folder statistics / space map: [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) (D66). Virtual Folders: [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md).
-
----
-
-<a id="src-docs-advantages-md--workspace-navigation"></a>
-## Workspace & navigation
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
-| **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed, last 25) — Explorer has no stack. |
-| **Named workspace layouts** | Save/apply every explorer window’s tabs plus position/size (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
-| **Q-Dir-style multi-pane (1 / 2 / 3 / 4)** | Side-by-side, wide-top + two bottom, or 2×2 mini-explorers in one window; per-pane folder tree; drag tabs into panes; shared preview follows focus. |
-| **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
-| **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |
-| **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](#src-docs-networks-md). |
-| **NAS folders reopen instantly** | Last listing for UNC / mapped / remotes is kept in memory for the session — paint immediately, then revalidate (D49). Explorer re-walks every time. |
-| **Opt-in FTP / FTPS / SFTP remotes** | Bookmark hosts, browse, upload/download, and open/preview via local scratch — without leaving the file manager. Not Explorer parity over the wire. Details: [REMOTE_FTP.md](#src-docs-remote-ftp-md). |
-| **Portable settings backup** | Export / import full preferences — theme, named layouts, **view presets**, **templates catalog**, **context-menu customization**, **script library** (source yes, API keys no), network hosts, remote connection metadata, … — without window position. Move to a new PC or survive an OS reinstall in one file. |
-| **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
-| **Named view presets** | Save icon size, columns, and sort; apply without jumping folder or selection. If the folder already has a customization, Apply updates that override. Explorer has no named view catalog. |
-| **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. Optional **drop shortcut** per tab (Auto / Always move / Always copy) does the same from the keyboard; chords are conflict-checked and stored in named layouts. |
-| **Grouped Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings. Name groups, color them, collapse them in the tree, drop a folder onto a group. Explorer’s Quick access is a flat, harder-to-curate strip. |
-| **Quick Launch toolbar** | Pin Photoshop, Visual Studio, a browser — anything with an `.exe` or shortcut. Each pin can be icon, name, or both; the glyph is the program icon, a Lucide + color, or a custom image. Manage the list in Settings (the strip is hidden until you add one). Click to launch, right-click for location / remove. Explorer’s old Quick Launch is gone; this one exports with your prefs. |
-| **Git-aware browsing (opt-in)** | Settings → Git → Enable: status overlays while you browse, folder indicators, Commit / Pull / Push on the active pane, context **Git >**. Uses your system `git` — no tokens stored. Not Tortoise-style shell overlays dumped into every menu. Guide: [GIT.md](#src-docs-git-md). |
-
----
-
-<a id="src-docs-advantages-md--virtual-organization"></a>
-## Virtual organization
-
-Explorer only answers “where is this stored?” Work often needs “what project, case, release, or collection does this belong to?” Virtual Folders separate those questions.
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Portable Virtual Folders (`.mfevirtual`)** | Curated collections of path **references** (not copies) across local disks, NAS, and other trees. Nested groups, Manual order, extract/absorb — one document you can move with the project. Explorer has no portable logical collection format. Guide: [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md). |
-| **Optional OS projection (WinFsp)** | Project a Virtual Folder as a normal Windows path so other apps open the same logical tree — still references underneath. Guide: [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md). |
-| **Same workspace semantics inside VFs** | Previews, scripts on resolved paths, search of underlying objects, Git where the target is a repo — composable with the rest of MFE, not a dead-end special folder. |
-
----
-
-<a id="src-docs-advantages-md--preview-media"></a>
-## Preview & media
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detachable** preview window (same content; landscape two-column with a remembered splitter in the window; Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
-| **WinDirStat-style folder space map (D66)** | After **Calculate Statistics**, the folder preview shows counts, categories, largest/recent, and a nested cushion **space-usage** treemap. Plain click = full retag; **Shift+click** skips already-tagged subtrees. Guide: [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md). |
-| **Drive free space at a glance** | Status bar `N GB free of M GB (P%)`; click **Drives** for pies on every volume, including mapped letters. Offline / empty media do not hide the rest. |
-| **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |
-| **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
-| **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. Saves tip ADS on NTFS (`VER_*`); `$DATA` stays original. **Version Control** submenu: commit / revert / preview versions; Drop from the preview banner. Entry: preview button, context menu, **Ctrl+E**. |
-| **ACDSee-inspired slideshow** | Fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop) and image-list cache. Optional **Camera looks** (grain, white balance, blur, and your own shader) paint on the show only — off until you enable them, and they never write the file. Explorer has no equivalent. |
-| **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
-| **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
-| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/spreadsheet/RTF best-effort text; **`.pptx` approximate slides** (text + package images); `.ppt` text-only; shortcuts show target + open shortcut or target. |
-| **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
-| **Executable / archives / CHM / fonts** | PE VERSIONINFO + shell icon; ZIP / 7z / RAR / TAR(.GZ) / Unity / APK / MSI / ISO / IMG contents trees (+ APK/MSI metadata); `.ttf` sample preview; `.chm` TOC + sandboxed topic viewer. |
-| **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
-| **Movie / TV metadata + covers** | Opt-in (off by default). Pull title, year, genres, cast, synopsis, and a portrait poster from a local **Plex** library or **TMDB / OMDb**, store them on the file or folder as NTFS streams (no `.nfo`). Show poster on the show/movie folder; episode tiles show `SxxExx` + title; preview hero + Media/File tabs. Change cover (largest first). Mark watched. Watched / Genre toolbar. Consolidate ripper `Subs`. CD-split movie folders. Internet asks **Which title?** only on remakes. One folder command walks the library. Details: [MEDIA_METADATA.md](#src-docs-media-metadata-md). |
-
----
-
-<a id="src-docs-advantages-md--search-large-libraries"></a>
-## Search & large libraries
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Everything-inspired search (D34)** | Opt-in folder roots + optional **Index this drive** (NTFS USN when available). As-you-type, match toggles, operators (`size:`, `ext:`, `pic:`, `path:`, `note:`, `todo:`, …), **Power Search…** dialog, saved filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
-| **Search progress honesty** | Live walks stream partial results; status bar and banner show folder progress while searching — not a stuck `0 results` during long crawls. |
-| **Honest unindexed / content search** | Live walk with progress + cancel; `content:` scans with an honesty banner — never pretends to be instant when it isn’t. |
-| **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. Search is a **tab location** (Back/Forward); delete/move drops stale hits instead of leaving Explorer-style ghosts. |
-| **Large folders stay usable** | Virtualized lists, fast Win32 directory listing, and careful watch/scroll behavior — tens of thousands of files without the freezes Explorer often hits. |
-| **View filter** | Hide Hidden items and pattern matches (`*\name`, globs, absolute paths) from list, tree, and search — view-only declutter without deleting anything. |
-
----
-
-<a id="src-docs-advantages-md--file-operations-reliability"></a>
-## File operations & reliability
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Status-bar progress + Cancel** | Copy / move / trash / delete / rename / video-preview generation show clear progress; Cancel stops between items (and mid large-file copy). |
-| **Continue-then-review bulk ops** | Copy / move / trash / delete keep going through every auto-ok item. One review at the end groups similar issues (already exist, in use, access denied, …) with apply-to-similar — including **Keep most recent**. Name conflicts still get side-by-side compare (size/dates/thumbs). **In use** rows list lock owners with **End task** (D65). Hold Ctrl on toolbar or menu **Paste** / **Delete**, or press **Ctrl+Delete** / **Ctrl+Shift+V**, for a plan dialog with **Dry run** before execute. Drag+Ctrl copies. Ctrl+C / Ctrl+V stay clipboard. No mid-copy “do this for all” stall. |
-| **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
-| **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. Drive Properties also has **USN…** to view, enable, clear, or disable the NTFS change journal. |
-| **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
-| **In-app Power Rename** | Search/replace (literal, DOS `*`/`?`, or regex) plus Advanced options (numbering, case, dates, …) across a selection with live preview — no PowerToys shell extension required. Guide: [POWER_RENAME.md](#src-docs-power-rename-md). |
-| **Custom context commands** | Settings → Context menu: hide/reorder built-ins; **Discover** static shell verbs (tick to enable + order under Built-in); add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders — without dumping every Explorer shell verb. All of it exports with settings (D45). For captured output, parameters, and dry-run, use the **script runner** instead of a detached exe. |
-| **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses a capped userData scratch (wiped on start/quit), AV uses byte-range streaming so `<video>` actually plays. |
-| **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
-| **Smart clipboard paste** | When the clipboard is a screenshot, text, a URL, or HTML (not files), Paste creates a file in the current folder. **Paste Special** picks format. A URL becomes a `.url` shortcut — never downloaded. Explorer pastes nothing useful for a screenshot in a folder. |
-| **New-file templates** | New / Add → **From Template** copies a stub from the app Templates folder. Pretty name = menu label and default filename. Cap 40. Stored under app data, not next to your files. |
-| **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |
-| **ZIP contents preview** | Select a `.zip` and see an expand/collapse file tree in the preview pane (inspect before extract) — Explorer’s preview rarely shows a useful archive tree. |
-| **Unity package preview** | Select a `.unitypackage` and see the packaged `Assets/…` tree (GUID folders mapped via `pathname`) without extracting. |
-| **CHM help preview** | Select a `.chm` for Contents + topic HTML in the preview pane (decompile under userData; no scripts in the iframe). |
-
----
-
-<a id="src-docs-advantages-md--scripts-the-command-set-is-yours"></a>
-## Scripts — the command set is yours
-
-Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local runner (Settings → Scripting and AI, off by default) so the next job does not wait on the next app release. A saved script is a first-class command on the folder or selection you are looking at — inventory CSVs, caption joins, ffmpeg queues, hash manifests, junk cleanup, robocopy previews, whatever you can write in PowerShell, Python, cmd, or bash. Capabilities grow with **your** library. Details and copy-paste examples: [SCRIPTS.md](#src-docs-scripts-md).
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Scripts on the current view** | Folder mode passes `--root` (optional `--recursive`). Selection mode passes a temp UTF-8 `--input-list`. **Global** scripts run from the toolbar with no folder or selection. You do not retype paths or `cd` a console to the tab you already have open. |
-| **Context menu Scripts >** | After Enable scripting: eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. **Global** scripts stay off this menu and live on the toolbar instead. Hidden until you opt in. |
-| **Live Run window** | Stdout/stderr, elapsed time, **Stop**, copy output, remembered size/position. Explorer’s “Open in Terminal” is a detached prompt with no capture. D41 custom commands (`shell:exec`) stay for “open Photoshop” — not for jobs you need to watch. |
-| **Dry-run + first-run ack** | Preview-only flag when the script supports it. Destructive-looking source (`Remove-Item`, `os.remove`, `rm -rf`, …) shows a banner. Scripts run as you — the app does not pretend otherwise. |
-| **Library stays out of your folders** | Managed scripts live under `%APPDATA%\MyFileExplorer\scripts\` (D2). Share a `.mfescript` or point at an external `.ps1` / `.py` already in a repo. No hidden `.bat` next to the photos. |
-| **Optional AI that never sees your disk** | Generate / modify / repair send **task text and source only**. Saved scripts rerun with **zero** AI calls. No provider required. Keys are `safeStorage`, not `settings.json`. |
-| **Almost infinite surface** | We will not ship a button for every library job. You save “Folder inventory”, “SHA-256 selection”, “Join captions”, “ffmpeg CRF queue” once — and the file manager grew those features without a release. |
-
----
-
-<a id="src-docs-advantages-md--ui-clarity-comfort"></a>
-## UI clarity & comfort
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share dump. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). Opt-in **Git >** (D64) is a controlled submenu, not Tortoise overlays. **Open Command Line here** opens cmd or PowerShell (Settings → Behavior); click = current user; **Shift+click** = Administrator. |
-| **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Create link…** (symlink / hard link / junction); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
-| **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
-| **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
-| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column (names) plus per-stream **value** columns, and a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. **Calculate Statistics** tags folders with counts, size, and a rich preview payload (D66 space map). |
-| **Attached notes & item icons** | Right-click **Note…** / **Set icon…** on the file or folder (NTFS streams `mfe_note` / `mfe_icon`). Preview + Details Checklist; Power Search `note:` / `todo:`. Host Created / Modified / Change stay put. Explorer has no per-item note or icon overlay. |
-| **User-defined metadata (opt-in)** | Settings → Metadata → Enable (off by default). Named **sets** of typed fields + folder bindings (or No metadata). Values in ADS `mfe_meta`; context edit / preview / Details columns / Power Search `meta.<key>:`. Project-local schemas without a proprietary DB. Guide: [USER_METADATA.md](#src-docs-user-metadata-md). |
-| **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
-| **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
-| **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |
-| **No junk written into browsed folders** | App state, templates, tab icons, thumb caches, image originals, search DB, and the **script library** live under `%APPDATA%\MyFileExplorer` only. Notes and item icons are NTFS streams on the item itself — not a sidecar in the directory. Video strips use an existing `!VIDTHUMB_CACHE` convention when you generate them. |
-
----
-
-<a id="src-docs-advantages-md--integration"></a>
-## Integration
-
-| Advantage | Why it beats Explorer |
-| --------- | --------------------- |
-| **`mfe://` + CLI `--reveal` / `--open`** | Other apps can “Reveal in MyFileExplorer” into the running single-instance process (file → parent folder + selection). |
-| **Same profile for dev and installed** | `%APPDATA%\MyFileExplorer` for both — reinstall / day-to-day use doesn’t feel like a settings reset. |
-
----
-
-<a id="src-docs-advantages-md--beyond-explorer-workbench-for-teams"></a>
-## Beyond Explorer — workbench for teams
-
-For power users, the tables above are enough. For teams and organizations, the same architecture means existing storage can stay authoritative while the **workspace** gets smarter.
-
-| Advantage | Why it matters |
-| --------- | -------------- |
-| **Storage stays where it is** | Local disks, NAS, Git trees, and shares remain the source of truth — no mandatory migration into a DMS/DAM/SaaS vault. |
-| **Workflow topology ≠ storage topology** | Virtual Folders assemble project / case / release collections across physical locations without duplicating bytes. |
-| **Domain semantics in place** | Git roots, media folders, AI metadata, model files, space maps, and Virtual Folders already specialize the view; scripts and open source let you extend the pattern for your domain. |
-| **Repetitive work → local commands** | Validation, packaging, naming, checksums, media prep — saved scripts on the current folder or selection, optional AI to author, then local forever. |
-| **Open source adoption path** | Configure → extend → fork into an internal file workbench around *your* artifacts, instead of waiting for a generic product to grow every verb. |
-
-One-line UVP and deployment levels (standard → curated config → domain extensions → internal fork): [BUSINESS_UVP.md](#src-docs-business-uvp-md).
-
----
-
-<a id="src-docs-advantages-md--what-we-deliberately-do-not-chase"></a>
-## What we deliberately do *not* chase
-
-Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PRODUCT_SPEC.md](#src-docs-product-spec-md) and [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md). MFE is also **not** a replacement for every DMS, DAM, PLM, or cloud collaboration platform — it coexists with specialist systems by keeping ordinary files as ordinary files ([BUSINESS_UVP.md](#src-docs-business-uvp-md)).
-
----
-
-<a id="src-docs-advantages-md--related-docs"></a>
-## Related docs
-
-- [BUSINESS_UVP.md](#src-docs-business-uvp-md) — organizational value proposition & positioning  
-- [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) — Calculate Statistics + Space usage (plain vs Shift)  
-- [PRODUCT_SPEC.md](#src-docs-product-spec-md) — full requirements  
-- [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) — locked choices (through D70)  
-- [SCRIPTS.md](#src-docs-scripts-md) — universal script runner, use cases, and examples (D51)  
-- [GIT.md](#src-docs-git-md) — optional Git-aware browsing (D64)  
-- [PREVIEW.md](#src-docs-preview-md) — preview & generation metadata  
-- [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md) — portable `.mfevirtual` collections (D67)  
-- [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md) — optional WinFsp OS projection (D68)  
-- [SEARCH.md](#src-docs-search-md) — indexing / Everything-inspired search  
-- [NETWORKS.md](#src-docs-networks-md) — Network neighborhood & mapped drives  
-- [REMOTE_FTP.md](#src-docs-remote-ftp-md) — opt-in FTP/FTPS/SFTP remotes  
-- [MEDIA_METADATA.md](#src-docs-media-metadata-md) — opt-in movie/TV metadata (D50)
-- [USER_METADATA.md](#src-docs-user-metadata-md) — opt-in user-defined structured metadata (D70)
-- [SLIDESHOW.md](#src-docs-slideshow-md) — ACDSee-inspired slideshow / categorizer
-- [ADS.md](#src-docs-ads-md) — NTFS Alternate Data Streams
-- [../README.md](#src-readme-md) — product overview
-
-<!-- end source: docs/ADVANTAGES.md -->
-
----
-
-<!-- source: docs/BUSINESS_UVP.md -->
-
-<a id="src-docs-business-uvp-md"></a>
-
-<a id="src-docs-business-uvp-md--business-uvp-myfileexplorer"></a>
-# Business UVP — MyFileExplorer
-
-<a id="src-docs-business-uvp-md--executive-summary"></a>
-## Executive summary
-
-MyFileExplorer is more than a replacement for Windows File Explorer. It is a **local file workbench**: a semantic, scriptable, extensible layer over the ordinary filesystem.
-
-Most organizations still perform a large amount of work through files and folders — source repositories, datasets, reports, media assets, design exports, project deliverables, logs, archives, training data, generated outputs, and internal documents. Traditional file managers expose those objects mostly as names, paths, sizes, and dates. Business applications often solve the limitation by importing files into another database, cloud service, content-management system, or proprietary workflow.
-
-MyFileExplorer takes a different approach:
-
-> **Keep the files where they already are, then make the workspace around them substantially more intelligent.**
-
-It can expose richer meaning, navigation, previews, search, metadata, automation, version-control context, virtual organization, and domain-specific actions without requiring the underlying storage model to be replaced.
-
----
-
-<a id="src-docs-business-uvp-md--core-value-proposition"></a>
-## Core value proposition
-
-MyFileExplorer can reduce the friction between **storage** and **work**.
-
-Instead of forcing users to repeatedly switch between File Explorer, search tools, preview applications, Git clients, disk analyzers, metadata tools, terminals, scripts, and bespoke internal utilities, MFE can bring the most useful parts of those workflows into the same local workspace.
-
-The product already demonstrates this model through:
-
-- persistent multi-tab and multi-pane workspaces;
-- rich previews across many file formats;
-- indexed and live search;
-- Git-aware folders and repository actions;
-- WinDirStat-style folder and drive analytics;
-- media and AI-generation metadata;
-- attached notes and metadata through NTFS ADS;
-- **user-defined structured metadata** (project-local field sets on folders);
-- user-defined local scripts and optional AI-assisted script authoring;
-- portable Virtual Folders that organize files independently of physical storage topology;
-- optional WinFsp projection so Virtual Folders can also be consumed by ordinary Windows applications.
-
-The important business property is not any single feature. It is that these capabilities operate **around the files an organization already owns**.
-
----
-
-<a id="src-docs-business-uvp-md--why-this-can-matter-to-organizations"></a>
-## Why this can matter to organizations
-
-<a id="src-docs-business-uvp-md--1-existing-storage-can-remain-authoritative"></a>
-### 1. Existing storage can remain authoritative
-
-Adopting a new workflow does not necessarily require migrating content into a new database or SaaS repository.
-
-Files can remain on:
-
-- local disks;
-- shared network drives;
-- NAS appliances;
-- Git repositories;
-- removable storage;
-- existing project directory structures.
-
-MFE can provide a richer working layer without changing where those artifacts physically live.
-
-<a id="src-docs-business-uvp-md--2-physical-location-and-business-meaning-can-be-separated"></a>
-### 2. Physical location and business meaning can be separated
-
-Filesystem hierarchy answers:
-
-> Where is this file stored?
-
-Business workflows often need to answer:
-
-> What project, case, release, experiment, customer, production, investigation, or task does this belong to?
-
-Virtual Folders allow those two questions to have different answers.
-
-A Virtual Folder can assemble related artifacts from multiple drives, repositories, or shares without copying them. The same physical object can participate in multiple logical collections.
-
-This enables organizations to define **workflow topology independently of storage topology**.
-
-<a id="src-docs-business-uvp-md--3-domain-semantics-can-live-directly-in-the-file-workspace"></a>
-### 3. Domain semantics can live directly in the file workspace
-
-MFE already treats different filesystem objects differently when richer semantics are available:
-
-- Git repository roots expose history and repository actions;
-- media folders expose movie/TV metadata;
-- AI-generated images expose generation parameters;
-- attached notes let labs, media teams, and researchers attach meaning without another vertical product;
-
-- model files expose model-specific metadata;
-- ordinary folders can expose recursive composition and space maps;
-- Virtual Folders expose curated logical collections.
-
-An organization can extend this pattern for its own domain.
-
-Examples:
-
-- engineering project folders could expose build status, CAD exports, test logs, release artifacts, or review state;
-- research folders could expose dataset provenance, experiment metadata, notebooks, generated figures, and analysis scripts;
-- media-production folders could expose shot status, proxy/original relationships, editorial metadata, and delivery actions;
-- game-development folders could expose Unity projects, assets, builds, captures, profiling data, and repository state;
-- consulting or legal workspaces could expose case/project collections assembled from multiple physical sources without moving the originals.
-
-<a id="src-docs-business-uvp-md--4-repetitive-work-can-become-local-reusable-capability"></a>
-### 4. Repetitive work can become local reusable capability
-
-The universal script runner turns scripts into first-class commands attached to the current folder or selection.
-
-This means a business does not need a new product feature for every specialized file operation. Internal developers or power users can create reusable commands for tasks such as:
-
-- validation;
-- conversion;
-- packaging;
-- naming conventions;
-- report generation;
-- metadata extraction;
-- checksum creation;
-- media processing;
-- data preparation;
-- deployment or export steps.
-
-Optional AI can assist in authoring those scripts, while execution remains local and reusable without continued AI dependency.
-
-<a id="src-docs-business-uvp-md--5-open-source-changes-the-adoption-model"></a>
-### 5. Open source changes the adoption model
-
-A proprietary general-purpose file manager must remain generic.
-
-An organization with access to the MFE source can instead adapt:
-
-- semantic previews;
-- folder types;
-- context actions;
-- metadata sources;
-- Virtual Folder behavior;
-- script libraries;
-- internal integrations;
-- security and deployment policy;
-- branding and UX.
-
-The result can evolve from **MyFileExplorer** into a company-specific file workbench built around the organization's actual information architecture and operational workflows.
-
----
-
-<a id="src-docs-business-uvp-md--transformation-opportunity"></a>
-## Transformation opportunity
-
-The larger opportunity is not simply replacing Windows File Explorer on employee desktops.
-
-It is creating a workspace where the filesystem becomes an application platform for local and shared business artifacts.
-
-Conceptually:
-
-```text
-Existing files and folders
-        +
-semantic understanding
-        +
-virtual organization
-        +
-automation
-        +
-domain-specific integrations
-        =
-organization-specific file workbench
-```
-
-This can reduce the need for users to manually bridge many disconnected tools merely to understand and act on the files in front of them.
-
----
-
-<a id="src-docs-business-uvp-md--examples-by-domain"></a>
-## Examples by domain
-
-<a id="src-docs-business-uvp-md--software-engineering"></a>
-### Software / engineering
-
-A repository folder can expose Git state, build artifacts, test output, documentation, issue links, release packages, logs, and custom engineering commands in one workspace.
-
-<a id="src-docs-business-uvp-md--scientific-research"></a>
-### Scientific research
-
-A project workspace can bring together raw datasets, processed outputs, notebooks, publications, figures, experiment metadata, and analysis scripts while leaving large datasets in their existing storage locations.
-
-<a id="src-docs-business-uvp-md--media-production"></a>
-### Media / production
-
-Projects can combine footage, proxies, graphics, audio, subtitles, scripts, review exports, and delivery packages across high-capacity storage without duplicating assets.
-
-<a id="src-docs-business-uvp-md--ai-ml"></a>
-### AI / ML
-
-Datasets, checkpoints, LoRAs, generated samples, captions, training runs, metadata, and evaluation outputs can be exposed with model-aware previews and local automation.
-
-<a id="src-docs-business-uvp-md--operations-project-delivery"></a>
-### Operations / project delivery
-
-Virtual Folders can assemble project deliverables from many systems and shares into one logical workspace, while custom scripts enforce packaging, validation, naming, or hand-off procedures.
-
----
-
-<a id="src-docs-business-uvp-md--differentiation-from-document-management-systems"></a>
-## Differentiation from document-management systems
-
-MyFileExplorer is not intended to replace every DMS, DAM, PLM, source-control system, or cloud collaboration platform.
-
-Its differentiator is almost the opposite:
-
-- it does not require files to stop being ordinary files;
-- it does not require a proprietary repository to become the source of truth;
-- it can coexist with existing specialist systems;
-- it can surface useful semantics directly at the filesystem boundary where users already work.
-
-This makes MFE particularly attractive where replacing the existing storage architecture would be expensive, disruptive, unnecessary, or undesirable.
-
----
-
-<a id="src-docs-business-uvp-md--deployment-model"></a>
-## Deployment model
-
-A business deployment could range from minimal to deeply customized.
-
-<a id="src-docs-business-uvp-md--level-1-standard-mfe"></a>
-### Level 1 — Standard MFE
-
-Deploy the existing application as a substantially more capable local file manager and workbench.
-
-<a id="src-docs-business-uvp-md--level-2-curated-organizational-configuration"></a>
-### Level 2 — Curated organizational configuration
-
-Ship standard settings, layouts, search roots, context actions, scripts, and Virtual Folder templates appropriate to the organization.
-
-<a id="src-docs-business-uvp-md--level-3-domain-extensions"></a>
-### Level 3 — Domain extensions
-
-Add organization-specific previews, metadata providers, folder semantics, actions, or integrations.
-
-<a id="src-docs-business-uvp-md--level-4-internal-product-platform"></a>
-### Level 4 — Internal product / platform
-
-Fork and adapt MFE into a purpose-built internal workspace whose primary interface remains the organization's existing files and storage systems.
-
----
-
-<a id="src-docs-business-uvp-md--why-the-architecture-matters"></a>
-## Why the architecture matters
-
-MFE's value compounds because its major systems are composable.
-
-A Virtual Folder can contain real files from multiple locations. Those files can still receive normal previews. Scripts can run on their resolved paths. Git-aware folders retain repository semantics. Search can locate the underlying objects. Folder analytics can expose storage structure. Metadata remains attached to the relevant file or folder where appropriate.
-
-This is more powerful than a collection of unrelated utilities because the same filesystem objects participate across the systems.
-
----
-
-<a id="src-docs-business-uvp-md--business-uvp-in-one-sentence"></a>
-## Business UVP in one sentence
-
-> **MyFileExplorer turns existing files and folders into a richer, semantic, automatable workspace without forcing an organization to replace the storage systems it already depends on.**
-
-<a id="src-docs-business-uvp-md--short-positioning"></a>
-## Short positioning
-
-> **A local file workbench that adds semantic understanding, virtual organization, powerful inspection, search, Git, metadata, and automation directly on top of the existing filesystem.**
-
-<a id="src-docs-business-uvp-md--enterprise-oriented-positioning"></a>
-## Enterprise-oriented positioning
-
-> **An open-source foundation for building organization-specific file workspaces around existing project files, repositories, datasets, media, and shared storage — without first migrating them into a new proprietary content platform.**
-
-<!-- end source: docs/BUSINESS_UVP.md -->
 
 ---
 
@@ -7279,7 +5925,7 @@ Do **not** confuse with image ADS **Version Control** (D27).
 | Key | Default | Notes |
 |-----|---------|--------|
 | `enabled` | `false` | Master switch — no Git work when off |
-| `executablePath` | `''` | Optional; else PATH / common Git for Windows paths |
+| `executablePath` | `''` | Settings label **Git executable**. Empty uses PATH / common Git for Windows paths |
 | `showOverlays` / `showFolderIndicators` / `showToolbar` / `showChangedCount` / `showStatusColumn` / `showAheadBehind` | mostly `true` | Display toggles |
 | `showIgnored` | `false` | Include ignored paths in the Changes dialog. Overlays always show ignored items with an **I** badge (status always uses `--ignored=matching`) |
 | `historyPageSize` | `150` | Commits per page in repo-root history and File history (20–500; Load more uses the same size) |
@@ -9189,246 +7835,1376 @@ Settings → **Windows integration** can redirect per-user `Directory\shell\open
 
 ---
 
-<!-- source: docs/ARCHITECTURE.md -->
+<!-- source: README.md -->
 
-<a id="src-docs-architecture-md"></a>
+<a id="src-readme-md"></a>
+
+<a id="src-readme-md--myfileexplorer"></a>
+# MyFileExplorer
+
+[![Download Latest Release](https://img.shields.io/github/v/release/dobrado76/MyFileExplorer?label=Download%20Latest%20Executables)](https://github.com/dobrado76/MyFileExplorer/releases/latest)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE)
+
+MyFileExplorer is a local file workbench that turns the filesystem from passive storage into an active workspace. It keeps the familiarity of Windows File Explorer, then adds persistent multi-pane workspaces, deep previews, fast search, Git awareness, rich folder analytics, metadata, automation, and portable Virtual Folders — without requiring you to move your files into a proprietary database or cloud service.
+
+The core idea is simple: files and folders should reveal more of what they are, where they belong, and what you can do with them. A folder can become a media library, a Git workspace, a storage map, or a reusable virtual collection. A file can expose generation metadata, notes, versions, previews, or domain-specific information. Scripts can turn recurring file work into first-class commands. Virtual Folders can bring related files together even when they physically live across different drives, projects, NAS shares, or repositories.
+
+For an individual power user, that means fewer context switches and far less friction. For a team or organization, the same architecture can become a domain-specific file workspace: engineering artifacts, research datasets, media assets, project deliverables, repositories, and internal workflows can be surfaced directly where the files already live. Because MyFileExplorer is open source, those semantics and workflows can be adapted rather than waiting for a general-purpose file manager to support them.
+
+It started as a replacement for Windows File Explorer. It has grown into something broader: a user-extensible semantic layer over the local filesystem. Organizational framing: **[docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)**.
+
+| | |
+| --- | --- |
+| **Platform** | Windows 10 / 11 (primary) · Linux packaging experimental |
+| **Stack** | Electron · React 19 · TypeScript · Zustand · Zod · Sharp · ffmpeg · SQLite |
+| **License** | **GPL-3.0** — [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) · [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md) |
+
+![Tabs, details, video thumbs, and a live preview](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-workspace.jpg)
+
+![Settings → Context menu — hide, reorder, Discover, custom commands](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-context-menu.png)
+
+![Power Search visual query builder](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-power-search.png)
+
+![Script Manager — run Python / PowerShell on the folder in front of you](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/main/docs/image/screenshot-script-manager.png)
+
+---
+
+<a id="src-readme-md--need-help-with-myfileexplorer"></a>
+## Need help with MyFileExplorer?
+
+There is no support desk. The documentation is the help that exists. Ask an AI assistant with the single support file. A GitHub issue is a public note, not a support ticket, and a reply is not promised.
+
+That file contains the guide and the full FAQ. Upload it. It tells the assistant not to guess past what the app actually does.
+
+**[MyFileExplorer — support file](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md)**
+
+1. [Download AI-SUPPORT.md](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md).
+2. Upload it to ChatGPT, Claude, Gemini, or another AI assistant.
+3. Ask your question about MyFileExplorer.
+
+[AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) is the file to give an assistant. The shorter guides and [FAQ](#src-docs-faq-md) stay for reading one topic.
+
+If the assistant cannot resolve the issue, you may [open a GitHub issue](https://github.com/dobrado76/MyFileExplorer/issues) with the version from **Settings → About**, your Windows version, which external tool is involved, and the error text. That does not create a support obligation.
+
+---
+
+<a id="src-readme-md--why-not-just-use-file-explorer"></a>
+## Why not just use File Explorer?
+
+Explorer is fine until it isn’t — one window per rabbit hole, a preview pane that shrugs, a context menu longer than your shopping list, and search that either indexes the universe or crawls like molasses.
+
+MyFileExplorer keeps the muscle memory (Del → Recycle Bin, Ctrl = copy, shell icons, right-drag menus) and adds the stuff power users actually want — plus Virtual Folders, scripts, and a workbench framing for teams. Full list: **[docs/ADVANTAGES.md](#src-docs-advantages-md)** · organizational UVP: **[docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)**.
+
+---
+
+<a id="src-readme-md--highlights"></a>
+## Highlights
+
+**Workspace that sticks**
+- Multi-tab browsing with session restore — paths, views, selection, scroll, tree expand, tab icons
+- **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed)
+- Multi-pane layouts (1 / 2 / 3 / 4) and named layouts you can switch in one click
+- **View presets** — save icon size, columns, and sort; apply without jumping folder
+- **Quick Launch** — toolbar icons for Photoshop, Visual Studio, and any other program you pin
+- Drop files onto a tab to sort into that folder
+- Offline tabs wait for encrypted / network drives instead of vanishing
+- **NAS / UNC folders reopen instantly** (session listing cache) — **[docs/NETWORKS.md](#src-docs-networks-md)**
+- **Network neighborhood** + mapped-drive reconnect without opening Explorer — **[docs/NETWORKS.md](#src-docs-networks-md)**
+- Opt-in **FTP / FTPS / SFTP** remotes (deploy/sync) — **[docs/REMOTE_FTP.md](#src-docs-remote-ftp-md)**
+- Portable **settings export/import** (theme, layouts, context menu, remotes metadata, Network hosts — everything except window position)
+
+**See what you’re looking at**
+- Rich preview pane: images (incl. `.jfif` / `.hdr`), video/audio, PDF, HTML/Markdown (Preview/Raw), Office-ish text, **PowerPoint slides** (`.pptx`), **calendar / email** (`.ics` / `.eml`), 3D meshes, `.chm` help viewer, archives (ZIP / 7z / RAR / TAR.GZ), `.lnk`, SafeTensors, Unity packages, executables — **[full extension list](#src-docs-preview-extensions-md)**
+- **Detached preview window** (Zen mode) — same live preview in a pop-out
+- **A1111 / ComfyUI generation metadata** when it’s embedded (prompts, seed, model, …)
+- In-app image editor with Revert-to-original (versions as NTFS ADS on the file)
+- Animated video icon strips from `!VIDTHUMB_CACHE` — generate missing frames in-app
+- **Drive free space** — status bar + click **Drives** for pies (local and mapped letters)
+- **Folder space map** — after **Calculate Statistics**, WinDirStat-style usage treemap in the folder preview (NTFS ADS; no sidecars) — **[docs/FOLDER_STATISTICS.md](#src-docs-folder-statistics-md)** · **[docs/ADS.md](#src-docs-ads-md)**
+- **Paired folders** (2-pane layout) — centre action rail to copy, compare, and review sync plans between the two folders — **[docs/PAIRED_FOLDERS.md](#src-docs-paired-folders-md)**
+- **Movie / TV metadata** (opt-in) — extract from Plex or download (TMDB / OMDb); portrait cover on the show/movie folder; `SxxExx` episode tiles; watched / genre filters; consolidate ripper Subs — **[docs/MEDIA_METADATA.md](#src-docs-media-metadata-md)**
+- **Attached notes** and **per-item icons** on the file or folder (NTFS) — no sidecar in the directory; Details Checklist column; Power Search `note:` / `todo:`
+- **User-defined metadata** (D70, **off by default**) — Settings → Metadata → Enable; define sets, assign folders, edit values on NTFS `mfe_meta`; Details columns + Power Search `meta.<key>:` — **[docs/USER_METADATA.md](#src-docs-user-metadata-md)**
+
+**Move files without the drama**
+- Status-bar progress + **Cancel** on long copy/move/trash/delete
+- **Continue-then-review** — finish every auto-ok item, then one grouped review (Skip / Keep both / Replace / Keep most recent / Retry)
+- Side-by-side conflict compare (thumbs, size, dates) when a name already exists
+- In-app Recycle Bin (restore / empty) — never forced into system Explorer
+- Undo / redo for the ops you expect (Ctrl+Z / Ctrl+Y)
+- Drag out to other apps; right-drag for Copy / Move / **Create shortcuts here**
+- **Open Command Line here** (cmd or PowerShell from Settings; Shift = Administrator)
+- **Paste a screenshot / URL / text** as a new file; **From Template** for stubs you reuse
+- **Create link…** — symlink, hard link, or junction
+- **Grouped Quick access** — color and collapse pin groups in the tree
+
+**Run anything on the folder in front of you**
+- **Universal script runner** (D51, **off by default**) — Settings → Scripting and AI → Enable scripting. Then PowerShell, **Python 3** (not 2.x), cmd, or bash against the current folder, selection, or **global** (its own toolbar button when one exists, no folder needed). Live output, Stop, dry-run. Saved scripts live under app data and show up on the context menu like built-in verbs.
+- Optional **AI** (same settings page) writes or repairs source from a task description — **files and paths are never sent**. Later runs are local. Guide: **[docs/SCRIPTS.md](#src-docs-scripts-md)**
+- **Virtual Folders** — portable `.mfevirtual` collections of path references (not copies); optional **OS projection** on Windows so Explorer sees the same tree — **[docs/VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md)** · **[docs/VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md)**
+- **Git-aware browsing** (D64, **off by default**) — Settings → Git → Enable for status overlays, toolbar Commit/Pull/Push, and context Git actions. Uses your installed `git`; never stores credentials. Guide: **[docs/GIT.md](#src-docs-git-md)**
+
+**Find things on purpose**
+- **Everything-inspired search** — opt-in folder roots + optional drive index (NTFS USN), as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, content scan, filters/bookmarks
+- Search is a **tab location** (Back/Forward); each tab keeps its own results; delete/move drops stale hits
+- Search hits use the **same** file view as a normal folder
+- Built to stay smooth in folders with tens of thousands of files
+
+**Comfort**
+- Dark / light / custom theme, font size
+- **Curated context menu** — hide/reorder built-ins, Discover static shell verbs, custom file/folder commands (all in settings export)
+- Per-folder view overrides, view filters, Details columns for media & generation fields
+- Optional **slideshow / categorizer** for media libraries (manual crop). **Camera looks** add grain, color, and blur on the show only — off until you turn them on, and they do not change the file
+- NTFS **Alternate Data Streams** manager + optional Details column; **Calculate Statistics** for folder counts **and** a WinDirStat-style space map in preview (D66)
+- Drive Properties **USN…** — view / enable / resize the NTFS change journal (delete is a full-volume scan; do not use it casually)
+- **Undelete** — opt-in tab-bar icon (Settings → Appearance, off by default) for classic NTFS MFT recover after permanent delete (not Recycle Bin Restore)
+- Optional “disable hardware acceleration” when you need the GPU for training
+
+---
+
+<a id="src-readme-md--quick-start"></a>
+## Quick start
+
+```bash
+npm install
+npm run dev          # HMR — same %APPDATA%\MyFileExplorer settings as the installed app
+npm run check        # typecheck + lint + tests
+npm run dist         # bump patch, clean old Setup*.exe, build installer
+npm run dist:nobump  # rebuild without bumping version
+```
+
+Settings live in `%APPDATA%\MyFileExplorer` for both `npm run dev` and installed builds.
+
+---
+
+<a id="src-readme-md--for-friends-trying-the-app"></a>
+## For friends trying the app
+
+The installer is too large to keep in git (>100 MB). Get it from a **GitHub Release** (CI attaches the Setup.exe when a `v*` tag is pushed — no Actions artifacts):
+
+1. Open [Releases](https://github.com/dobrado76/MyFileExplorer/releases/latest) (or the download badge above).
+2. Run `MyFileExplorer-x.y.z.exe`.
+3. Open a few folders as tabs. Rename a tab. Save a layout.
+4. Select an AI-generated PNG — check the preview for prompt / model fields.
+5. Right-drag a `.exe` or folder onto another directory → **Create shortcuts here**.
+6. Hit the Recycle Bin on the tab bar — restore something without opening Explorer.
+7. Settings → Search → add a folder root (or Index this drive) → try `ext:png size:>1mb` in the search box. Start a search, switch tabs, then Back — the search is still there.
+8. Paste a large selection into a folder that already has some of those names — the rest copies; one review at the end.
+9. **Optional — Virtual Folder OS projection:** install [WinFsp](https://winfsp.dev/), unzip `MfeVirtualFolderService-win-x64.zip` from the same Release, run `Install-ProjectionService.ps1`, then Settings → Behavior → Virtual Folder OS projection. Guide: **[docs/VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md)**.
+9. Select a `.pptx` — preview should show real slides, not a blank gray card.
+10. Expand **Network** in the tree; click a disconnected mapped drive and confirm it reconnects in-app.
+11. Click the tree **Drives** header — pies and free-space % for every volume (including mapped letters).
+12. Select a `.ics` or `.eml` — agenda / email preview. Optional: **Open preview window** and try Zen.
+13. Settings → Context menu → Discover (optional) / Custom — then **About → Export…** so you can restore after a reinstall.
+14. (Optional) Settings → Remote repositories → enable, add an SFTP/FTP host, Connect.
+15. (Optional) Settings → Media Metadata → Enable, then right-click a movie/TV folder → Extract from Plex or Download from Internet. Click the preview poster; try **Edit metadata…**, Change cover, Mark as Watched, and the Watched / Genre toolbar (filters stick per library).
+16. Close a tab, then `Ctrl+Shift+T` (or tab-bar **Recently closed**) — it comes back.
+17. Copy a screenshot, then Paste in a folder — you should get a `.png`. Paste a URL for a `.url` shortcut (the page is not downloaded).
+18. Right-click a file → **Note…** — add a line and a checklist item. Confirm the preview and Details **Checklist** column. Power Search → tick **Has a note** or type `todo:`.
+19. Right-click → **Set icon…** — pick a Lucide glyph (or tint). Confirm Created / Modified on the file did not change.
+20. New / Add → **From Template** (after Manage Templates… imports one). Toolbar view-presets icon → Save current as a preset, then Apply.
+21. (Optional / advanced) Settings → Scripting and AI → Enable scripting. Toolbar **Scripts** → New (or Generate with AI…) → write something that lists the current folder → Save → Run. Right-click the folder and confirm it appears under **Scripts**.
+22. (Optional / advanced) Drive Properties → **USN…** — Enable on a spare NTFS volume (UAC). Confirm Recent shows the test file Create/Delete. Do **not** Delete journal on a huge library unless you mean a full-volume scan.
+
+Details: [docs/BUILD.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/BUILD.md) · [docs/PRODUCT_SPEC.md](#src-docs-product-spec-md) · [docs/ADVANTAGES.md](#src-docs-advantages-md) · [docs/NETWORKS.md](#src-docs-networks-md) · [docs/REMOTE_FTP.md](#src-docs-remote-ftp-md) · [docs/MEDIA_METADATA.md](#src-docs-media-metadata-md) · [docs/SCRIPTS.md](#src-docs-scripts-md) · [RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md)
+
+---
+
+<a id="src-readme-md--documentation"></a>
+## Documentation
+
+| Doc | What it’s for |
+| --- | --- |
+| **[AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md)** | Single file to give an AI assistant for user support (generated) |
+| **[docs/FAQ.md](#src-docs-faq-md)** | Support questions and answers |
+| **[docs/README.md](#src-docs-readme-md)** | Doc index & reading order |
+| **[docs/BUSINESS_UVP.md](#src-docs-business-uvp-md)** | Business value proposition — local file workbench for organizations |
+| **[docs/ADVANTAGES.md](#src-docs-advantages-md)** | vs Explorer + Virtual Folders / workbench framing |
+| **[docs/BUILD.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/BUILD.md)** | Local build + tagged GitHub Releases |
+| **[docs/LINUX.md](#src-docs-linux-md)** | Experimental Linux AppImage / Wayland helpers |
+| **[docs/PRODUCT_SPEC.md](#src-docs-product-spec-md)** | Features & UX requirements |
+| **[docs/DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md)** | Locked choices D1–D76 |
+| **[docs/NETWORKS.md](#src-docs-networks-md)** | Network neighborhood & mapped drives |
+| **[docs/REMOTE_FTP.md](#src-docs-remote-ftp-md)** | Opt-in FTP/FTPS/SFTP remotes (D46) |
+| **[docs/SEARCH.md](#src-docs-search-md)** | Everything-parity search |
+| **[docs/PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md)** | Every extension the preview pane handles |
+| **[docs/FOLDER_STATISTICS.md](#src-docs-folder-statistics-md)** | Calculate Statistics + Space usage map (plain vs Shift) |
+| **[docs/PAIRED_FOLDERS.md](#src-docs-paired-folders-md)** | Dual-pane paired folders — compare & sync (D69) |
+| **[samples/preview-extensions/](https://github.com/dobrado76/MyFileExplorer/blob/main/samples/preview-extensions)** | One small file per preview extension (`npm run samples:preview`) |
+| **[docs/SLIDESHOW.md](#src-docs-slideshow-md)** | Slideshow / categorizer |
+| **[docs/ADS.md](#src-docs-ads-md)** | NTFS Alternate Data Streams |
+| **[docs/MEDIA_METADATA.md](#src-docs-media-metadata-md)** | Opt-in movie/TV metadata (D50) |
+| **[docs/SCRIPTS.md](#src-docs-scripts-md)** | Universal script runner — use cases and copy-paste examples (D51) |
+| **[CHANGELOG.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CHANGELOG.md)** | Full history |
+| **[RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md)** | v0.22.0 product-release summary |
+
+---
+
+<a id="src-readme-md--goals"></a>
+## Goals
+
+- Feel familiar like File Explorer without cloning every rarely used feature
+- Fast, clear previews with type-specific (and AI) metadata
+- Multi-tab browsing with real session restore
+- Customizable theme and UI font
+- Dramatic search speed for folders (and drives) you choose to index — Everything-style queries
+- LAN + mapped drives without depending on Explorer for reconnect
+- A universal script runner so any folder job can become a saved command (D51)
+
+<a id="src-readme-md--non-goals-still"></a>
+## Non-goals (still)
+
+Full Explorer parity, shell-extension hosting, cloud-provider shells, macOS/Linux as primary targets (Linux AppImage helpers are experimental only — [docs/LINUX.md](#src-docs-linux-md)). Optional FTP/SFTP remotes are opt-in (D46) — see [docs/REMOTE_FTP.md](#src-docs-remote-ftp-md).
+
+---
+
+<a id="src-readme-md--backing-up-ntfs-metadata-ads"></a>
+## Backing up NTFS metadata (ADS)
+
+MyFileExplorer stores a lot of meaning **on the file itself** as NTFS **Alternate Data Streams**: notes, item icons, folder statistics / space maps, media metadata, user-defined metadata (`mfe_meta`), image-edit versions, and more. None of that lives in a proprietary database under `%APPDATA%` for the browsed folder — it travels with the path on NTFS. See [docs/ADS.md](#src-docs-ads-md).
+
+Most backup and sync tools copy only the main file body. They silently drop ADS. After a “successful” restore you still have the bytes, but notes, covers, stats, and custom metadata are gone.
+
+**[MyFileSync](https://github.com/dobrado76/MyFileSync)** is a separate Windows sync/backup tool built for that gap: it compares and copies alternate streams on NTFS→NTFS (and surfaces stream diffs in the compare grid). If you use MyFileExplorer features that write ADS — or any other ADS-based metadata — prefer MyFileSync (or another ADS-aware tool) when backing up those drives or folder trees.
+
+---
+
+<a id="src-readme-md--scripts"></a>
+## Scripts
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Electron + HMR |
+| `npm run check` | typecheck + lint + test + support-doc freshness — **same command CI runs**; also runs on `git push` |
+| `npm run docs:support` | Rebuild [AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) after support docs change |
+| `npm run test` | Vitest |
+| `npm run build` | Production electron-vite build |
+| `npm run dist` | Bump patch, prune old installers, pack MyFileExplorer (reuses the shell launcher, mpv, and VC++ DLLs) |
+| `npm run dist:full` | Same as `dist`, and rebuild those side tools |
+| `npm run dist:nobump` | Installer without version bump |
+| `npm run build:win` | MyFileExplorer pack only |
+| `npm run build:win:full` | Pack plus shell launcher, mpv, and VC++ DLLs |
+| `npm run build:linux` / `dist:linux` | Experimental Linux AppImage (see [docs/LINUX.md](#src-docs-linux-md)) |
+| `npm run run:unpacked` / `run:linux` | Launch Linux unpacked binary / AppImage (Linux) |
+
+---
+
+Open **this folder** as the workspace. Everything needed to build and ship lives here.
+
+---
+
+<a id="src-readme-md--contributing"></a>
+## Contributing
+
+Contributions are welcome. Bug reports, feature ideas, documentation fixes, and pull requests all help.
+
+- Open an [issue](https://github.com/dobrado76/MyFileExplorer/issues) to report a problem or propose a change
+- Prefer a focused pull request with a clear description of what changed and why
+- Run `npm run check` before opening a PR (same checks as CI)
+
+See [CONTRIBUTING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CONTRIBUTING.md) for licence terms and development notes. Product decisions live in [docs/DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md).
+
+<a id="src-readme-md--acknowledgements"></a>
+## Acknowledgements
+
+**[ghiscoding](https://github.com/ghiscoding)** is MyFileExplorer’s primary external user and contributor, helping identify bugs and improve Linux compatibility.
+
+<a id="src-readme-md--licensing"></a>
+## Licensing
+
+MyFileExplorer is free software under the **GNU General Public License v3.0** ([LICENSE](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSE)). Commercial use and redistribution are allowed; distributed modifications must remain under GPLv3 with corresponding source. The **MyFileExplorer** name and logo are trademarks — see [TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md). Details: [LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) · [NOTICE](https://github.com/dobrado76/MyFileExplorer/blob/main/NOTICE) · [AUTHORS](https://github.com/dobrado76/MyFileExplorer/blob/main/AUTHORS) · [CONTRIBUTING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CONTRIBUTING.md).
+
+<!-- end source: README.md -->
+
+---
+
+<!-- source: docs/README.md -->
+
+<a id="src-docs-readme-md"></a>
+
+<a id="src-docs-readme-md--myfileexplorer-documentation"></a>
+# MyFileExplorer documentation
+
+**Status:** **v0.22.0** — search keeps the folder view, image-editor text and Undo last, folder copy that continues after one unwritable file. Prior: **v0.21.0** slideshow Camera looks (off until enabled), NTFS Undelete, tab drop shortcuts, name-sort choice. Product release notes: [../RELEASE_NOTES.md](https://github.com/dobrado76/MyFileExplorer/blob/main/RELEASE_NOTES.md). Locked choices: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) (through **D76**). Experimental Linux: [LINUX.md](#src-docs-linux-md). Licence: [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md) (**GPL-3.0**).
+
+Hub for product and engineering docs. Product entry: [../README.md](#src-readme-md). Locked decisions: [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md). Full history: [../CHANGELOG.md](https://github.com/dobrado76/MyFileExplorer/blob/main/CHANGELOG.md).
+
+**User support bundle:** [../AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) is generated from the manifest in `scripts/ai-support-manifest.json` (install, settings, FAQ, troubleshooting, and the feature guides). Do not edit it by hand. After changing a bundled page, run `npm run docs:support`. `npm run docs:support:check` fails when the bundle is stale. Start with [getting-started.md](#src-docs-getting-started-md), [FAQ.md](#src-docs-faq-md), and [troubleshooting.md](#src-docs-troubleshooting-md).
+
+---
+
+<a id="src-docs-readme-md--reading-order"></a>
+## Reading order
+
+**New agent / implementer**
+
+1. [PRODUCT_SPEC.md](#src-docs-product-spec-md) · [ADVANTAGES.md](#src-docs-advantages-md) (vs Explorer + workbench) · [BUSINESS_UVP.md](#src-docs-business-uvp-md) (org UVP)
+2. [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md)
+3. [ARCHITECTURE.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/ARCHITECTURE.md)
+4. Domain docs as needed: PREVIEW, SEARCH, NETWORKS, REMOTE_FTP, MEDIA_METADATA, USER_METADATA, POWER_RENAME, UNDELETE, SCRIPTS, GIT, VIRTUAL_FOLDERS, IPC_CONTRACT, UI_DESIGN, PROJECT_FORMAT, SECURITY, INTEGRATION, SLIDESHOW, ADS
+5. Remaining open deferrals live under [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) **Deferred** (the old `FUTURE_IDEAS.md` parking lot was cleared — those candidates shipped as D51 / D55–D62). Parked multi-phase roadmaps: [plans/](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans)
+
+---
+
+<a id="src-docs-readme-md--index"></a>
+## Index
+
+| Doc                                              | Topic                                 |
+| ------------------------------------------------ | ------------------------------------- |
+| [PRODUCT_SPEC.md](#src-docs-product-spec-md)               | Features & UX requirements            |
+| [BUSINESS_UVP.md](#src-docs-business-uvp-md)               | Business UVP — semantic file workbench for organizations |
+| [ADVANTAGES.md](#src-docs-advantages-md)                   | Advantages vs Explorer + workbench / Virtual Folders framing |
+| [BUILD.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/BUILD.md)                             | Local build + tagged GitHub Releases   |
+| [LINUX.md](#src-docs-linux-md)                             | Experimental Linux AppImage / Wayland helpers |
+| [ARCHITECTURE.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/ARCHITECTURE.md)               | Electron processes, layout, ownership |
+| [PROJECT_FORMAT.md](#src-docs-project-format-md)           | `userData` files & schemas            |
+| [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/IPC_CONTRACT.md)               | Typed IPC channels                    |
+| [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md)                     | Locked decisions D1…D76               |
+| [UI_DESIGN.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/UI_DESIGN.md)                     | Layout, tabs, themes, menus           |
+| [PREVIEW.md](#src-docs-preview-md)                         | Preview pane, gen metadata, video strips |
+| [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md)     | Calculate Statistics + Space usage map (D66); plain vs Shift+click |
+| [PAIRED_FOLDERS.md](#src-docs-paired-folders-md)           | Dual-pane paired folders — compare / sync rail (D69) |
+| [PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md)   | All preview-supported file extensions ([samples/preview-extensions/](https://github.com/dobrado76/MyFileExplorer/blob/main/samples/preview-extensions)) |
+| [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md)         | Virtual Folders — `.mfevirtual` folder-like collections (D67) |
+| [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md) | Optional WinFsp OS projection (D68, Windows) — install WinFsp + release zip |
+| [SEARCH.md](#src-docs-search-md)                           | Everything-parity indexing & search   |
+| [NETWORKS.md](#src-docs-networks-md)                       | Network neighborhood & mapped drives (D44) |
+| [SECURITY.md](#src-docs-security-md)                       | Path guards & destructive ops         |
+| [INTEGRATION.md](#src-docs-integration-md)                 | CLI / `mfe://` open from other apps   |
+| [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md) | Experimental Directory shell redirect (D72) |
+| [REMOTE_FTP.md](#src-docs-remote-ftp-md)                   | FTP/FTPS/SFTP remotes (D46)           |
+| [SLIDESHOW.md](#src-docs-slideshow-md)                     | Slideshow / categorizer (D37) and Camera looks (D76, off until enabled) |
+| [ADS.md](#src-docs-ads-md)                                 | NTFS Alternate Data Streams (D38) + folder statistics (D66) |
+| [USER_METADATA.md](#src-docs-user-metadata-md)             | Opt-in user-defined structured metadata (D70, off by default) |
+| [AI_CHAT.md](#src-docs-ai-chat-md)                         | Ask AI chat window + starters (D51) |
+| [plans/AI_SEMANTIC_WORKBENCH.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans/AI_SEMANTIC_WORKBENCH.md) | Parked future plan — document Ask AI, explicit share consent, history stewardship (not implementing now) |
+| [plans/P2P_FOLDER_SHARING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans/P2P_FOLDER_SHARING.md) | Parked DEV-gated plan — LAN P2P folder sharing (invite / host:port; per-peer write elevate) |
+| [plans/NOW_PLAYING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/plans/NOW_PLAYING.md) | Sticky Now Playing window — browse while video keeps playing (not mini-bar) |
+| [MEDIA_METADATA.md](#src-docs-media-metadata-md)           | Opt-in movie/TV metadata (D50) |
+| [POWER_RENAME.md](#src-docs-power-rename-md)               | Power Rename — search/replace, DOS wildcards, Advanced options (D40) |
+| [UNDELETE.md](#src-docs-undelete-md)                       | NTFS Undelete — classic MFT recover (D74) |
+| [SCRIPTS.md](#src-docs-scripts-md)                         | Universal script runner, use cases, and examples (D51) |
+| [GIT.md](#src-docs-git-md)                                 | Optional Git-aware browsing / lightweight client (D64) |
+| [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md)               | GPL-3.0 |
+| [../TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md)               | MyFileExplorer name / logo policy |
+
+---
+
+<a id="src-docs-readme-md--recent-behavior-v0220"></a>
+## Recent behavior (v0.22.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Search view (D29) | Results use the folder's current view and sort. The view picker writes that choice back to the folder. Date created is the file created time — [SEARCH.md](#src-docs-search-md) |
+| Image editor text (D27) | A text box stays selected and uses the same handles as a rectangle. Letters type into it. Escape leaves the box first — [PREVIEW.md](#src-docs-preview-md) |
+| Undo last (D27) | Editor top bar and **Version Control** drop only the newest saved version. The original file stays — [ADS.md](#src-docs-ads-md) |
+| Photoshop (D27) | A context command that launches Photoshop on an image with versions asks to open the original or commit the newest edit first — [ADS.md](#src-docs-ads-md) |
+| Folder copy | One unwritable file does not stop the rest of the folder. An `.asar` archive is copied as one file |
+| Help | Tab-bar **?** next to the Recycle Bin icon. **GitHub documentation** opens in the browser. **Copy AI support link** copies the raw support file — [reference.md](#src-docs-reference-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0210"></a>
+## Recent behavior (v0.21.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Slideshow camera looks (D76) | Settings → Slideshow → **Camera looks**, off until enabled. Frequency, path filter, and the Camera looks window. Display only — [SLIDESHOW.md](#src-docs-slideshow-md) |
+| NTFS Undelete (D74) | Settings → Appearance **Show Undelete toolbar button** (off by default). Recover deleted MFT files under the chosen folder with relative parent paths — [UNDELETE.md](#src-docs-undelete-md) |
+| Tab drop shortcuts (D32) | Right-click a tab → **Set drop shortcut…** moves or copies the focused selection into that tab’s folder. Saved on the tab and in named layouts — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
+| Name sort (D75) | Explorer order stays the default. Settings → Behavior → **Name sort** can use character-by-character order. Media-library thumbnail/icon order stays season then episode — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0200"></a>
+## Recent behavior (v0.20.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Name sort / rename | `StrCmpLogicalW` name order; Del/Backspace edit rename text; selection drag outside the box stays in rename — [PRODUCT_SPEC.md](#src-docs-product-spec-md) |
+| Search (D29) | Results keep the folder’s current view; breadcrumb leave cancels the walk so the toolbar query stays editable — [SEARCH.md](#src-docs-search-md) |
+| Image Edit (D27) | Stable Crop/theme props reduce mid-drag snap-back; resize lock uses current aspect; bake before Crop/Remove; tip ADS invalidates thumbs — [PREVIEW.md](#src-docs-preview-md) |
+| Named layouts (D25) | Snapshot includes every explorer window’s tabs and geometry — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0190"></a>
+## Recent behavior (v0.19.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Explorer windows (D73) | Tab menu **Move to new window** / **Merge into main window**; float close asks Merge or Close tabs; **Reopen closed window** (cap 10). Named layouts store every window’s tabs and geometry (D25). Drag tear-off is not in this version — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
+| Power Search dates / ADS | Builder tabs; `dc:` / `dm:` / `da:` and `stream:` / `hasstream:`. Missing created or accessed times fail closed — [SEARCH.md](#src-docs-search-md) |
+| Slideshow (D37) | **Include subfolders** default on; off = selected folder only — [SLIDESHOW.md](#src-docs-slideshow-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0180"></a>
+## Recent behavior (v0.18.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Rich player / Now Playing | Click picture to pause; Keep playing / pop-out resume at real time; detached / Now Playing controls auto-hide after idle — [PREVIEW.md](#src-docs-preview-md) |
+| Named layouts (D25) | **Auto-save when switching layouts** (default on); Settings list order = menu order — [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) |
+| Icon thumbs (D21) | Renderer LIFO `thumbs:get` + capped Sharp encode so scrolling cannot stall preview — [ARCHITECTURE.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/ARCHITECTURE.md) |
+| Folder Size sort (D66) | Details Size uses calculated `TotalSize` after Calculate Statistics — [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0170"></a>
+## Recent behavior (v0.17.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Now Playing / Rich player | Keep video playing while browsing; opt-in mpv for non-Chromium containers; safer detached/overlay behavior — [PREVIEW.md](#src-docs-preview-md) |
+| Ask AI chat | Local Markdown conversation library with editable folders; Media Metadata seeds title metadata only — [AI_CHAT.md](#src-docs-ai-chat-md) |
+| User metadata (D70) | Undo, Hygiene, Pack dry-run, field extras, bulk/Details editing, Copy/Paste, facets, badges, Link fields, scripts bridge — [USER_METADATA.md](#src-docs-user-metadata-md) |
+| Media metadata (D50) | Details columns, watched card badge, show/season watched propagation, compact stored-title header — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
+| Sync / file-op safety | Concrete conflict validation, outcome-aware counts, staged folder replacement recovery, ADS preservation, realpath-only preview allowlist — [PAIRED_FOLDERS.md](#src-docs-paired-folders-md), [SECURITY.md](#src-docs-security-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0160"></a>
+## Recent behavior (v0.16.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Power Rename Advanced (D40) | BRU-style panels, DOS wildcards, Remove From/To clamp — [POWER_RENAME.md](#src-docs-power-rename-md) |
+| NTFS Undelete (D74) | Opt-in tab-bar icon (Appearance, off by default) — scan deleted MFT records, recover files to a folder (UAC when needed) — [UNDELETE.md](#src-docs-undelete-md) |
+| Multi-pack glyphs | Lucide / Phosphor / Tabler picker for tabs, item icons, Quick Launch, Scripts |
+| User metadata (D70) | Manager dialog; Binary labels; child-folder exact binding; stable preview / column refresh — [USER_METADATA.md](#src-docs-user-metadata-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0150"></a>
+## Recent behavior (v0.15.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Windows shell redirect (D72) | Experimental HKCU `Directory` open/explore → `MfeShellLauncher`; Settings → Windows integration — [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md) |
+| User metadata (D70) | Opt-in sets + folder bindings; `mfe_meta` ADS; Details / Power Search — [USER_METADATA.md](#src-docs-user-metadata-md) |
+| Licence (D71) | GPL-3.0 + trademark policy — [../LICENSING.md](https://github.com/dobrado76/MyFileExplorer/blob/main/LICENSING.md), [../TRADEMARK.md](https://github.com/dobrado76/MyFileExplorer/blob/main/TRADEMARK.md) |
+| Media metadata (D50) | Edit metadata dialog; card/preview icon actions; Watched/Genre filters persist per library — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0140"></a>
+## Recent behavior (v0.14.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Virtual Folders (D67) | `.mfevirtual` portable folder-like collections; Tab.path = document file; Del = remove ref; extract/absorb; Manual sort + Location column — [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md) |
+| OS projection (D68) | Optional WinFsp sibling mount; Settings → Behavior; install WinFsp + release zip — [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md) |
+
+<a id="src-docs-readme-md--recent-behavior-v0130"></a>
+## Recent behavior (v0.13.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Folder space map (D66) | After **Calculate Statistics**, non–Git-root folder preview: categories, largest/recent, WinDirStat-style nested treemap; **Other N · size** on the Space usage heading. Plain vs **Shift+click** (skip tagged) — [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) |
+| Paired folders (D69) | Side-by-side layout centre rail: directional copy, compare projection, reviewed sync plans — [PAIRED_FOLDERS.md](#src-docs-paired-folders-md) |
+| Lock owners (D65) | Busy file-op review lists processes + End task / Locate / Refresh |
+| File op plan | Ctrl on toolbar/menu **Paste** or **Delete**, or **Ctrl+Delete** / **Ctrl+Shift+V**, opens the plan (Dry run). Drag+Ctrl copies. Ctrl+C/Ctrl+V stay clipboard. |
+| Git polish | Changes dialog, commit detail, file history, clone, gitignore, repo-root toolbar / commit menu — [GIT.md](#src-docs-git-md) |
+| Tree hide control | Appearance pin vs per-pane toolbar button |
+
+<a id="src-docs-readme-md--recent-behavior-v0120"></a>
+## Recent behavior (v0.12.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Git-aware browsing (D64) | **Opt-in** Settings → Git. Overlays / folder indicators / Details Git status / toolbar Commit·Pull·Push / context Git. Select **repo root** → **Git \| Folder** preview tabs (history by default). System `git` only — [GIT.md](#src-docs-git-md) |
+| Quick Launch (D63) | Toolbar pins (icon / label / both). Settings manage; strip hidden when empty. |
+| Global scripts | Each Global script is its own toolbar button (face matches Quick Launch). |
+| Recycle Bin placement | Appearance: none / tree / toolbar / both (default both). |
+| Explorer clipboard | Native CF_HDROP + DropEffect both ways (Cut → move). |
+| Search / slideshow polish | Show hidden vs view filter; `!Name` literal; slideshow respects eye; Alt title path. |
+
+<a id="src-docs-readme-md--recent-behavior-v0110"></a>
+## Recent behavior (v0.11.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Reopen closed tabs (D55) | `Ctrl+Shift+T` / tab-bar **Recently closed** (cap 25). **Clear recently closed** empties the stack. Search results are not restored. |
+| Smart clipboard paste (D56) | Image / text / URL / HTML → new file. **Paste Special**. Settings → Behavior can disable. URL becomes `.url` — never downloaded. |
+| New-file templates (D57) | New / Add → **From Template**. Manage Templates: pretty name, ↑↓, replace, duplicate. Catalog + files under `userData`. |
+| Grouped Quick access (D58) | Named, colored, collapsible groups in the tree. Flat lists from earlier versions still load. |
+| Create link (D59) | File Tools → **Create link…** — symlink / hard link / junction. |
+| View presets (D60) | Pane view-presets control saves mode / sort / Details columns. Apply patches an existing folder override; never creates one. |
+| Attached notes (D61) | Context **Note…** → `mfe_note` ADS. Preview + Details Note / Status / Has note / Checklist. Power Search `note:` / `notestatus:` / `hasnote:` / `todo:`. Writes restore host times — [ADS.md](#src-docs-ads-md). |
+| Media metadata (D50) | Opt-in Plex / TMDB / OMDb; covers and watched — [MEDIA_METADATA.md](#src-docs-media-metadata-md). |
+| Item icons (D62) | Context **Set icon…** — Lucide / custom PNG / shell+tint. Distinct from File Tools **Change Icon…**. Host times unchanged. |
+| Copy timestamps (D53) | Copy / cross-volume move keeps source Created and Modified. |
+| Custom tab icons (D54) | Cover-crop PNG/JPG/ICO; icon-only tabs hug the image. |
+
+<a id="src-docs-readme-md--recent-behavior-v0100"></a>
+## Recent behavior (v0.10.0)
+
+| Area | Spec |
+| ---- | ---- |
+| NTFS USN journal (D52) | Drive Properties **USN…** — status, enable/resize (UAC), recent records, probe file on first Enable. **Delete journal…** is a full-volume MFT scan (cannot cancel). — [SEARCH.md](#src-docs-search-md) |
+| Settings search | Filter Settings pages from the Settings window |
+| Preview word wrap | Text / Markdown / HTML source wrap toggle (off by default) — [PREVIEW.md](#src-docs-preview-md) |
+| Properties | Detached peer OS windows; multi-select = one combined sheet (Shift = separate) |
+| Copy/move progress | File counts + left-ellipsis current path |
+| Details ADS | On-screen rows fill without a dummy scroll |
+| Slideshow | Faster start on large folders; crop steps 5% / 2.5% / 1% / 0.5% |
+
+<a id="src-docs-readme-md--recent-behavior-v090"></a>
+## Recent behavior (v0.9.0)
+
+| Area | Spec |
+| ---- | ---- |
+| Universal scripts (D51) | **Opt-in** (Settings → Scripting and AI, off by default). PowerShell / **Python 3** (not 2.x) / cmd / bash on the current folder or selection; saved library; context **Scripts**; optional AI that never sends files — [SCRIPTS.md](#src-docs-scripts-md) |
+| Git-aware browsing (D64) | **Opt-in** (Settings → Git, off by default). Status overlays, toolbar Commit/Pull/Push, context Git actions via system `git` — [GIT.md](#src-docs-git-md) |
+| Media metadata (D50) | Opt-in Plex / TMDB / OMDb cards on the file or folder (NTFS streams). Show poster on the show folder; episode `SxxExx` tiles; Change cover; consolidate Subs; watched / genre toolbar — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
+| This PC tools | Right-click **Drives** → Computer Manager / Device Manager / Control Panel / Recycle Bin / Properties |
+| Collapse all | Toolbar button next to Select all; collapses the current tab’s folder tree only |
+| Delete a tab root | Always confirm; warns that scoped tabs will close |
+| Details horizontal scroll | Scrollbar at the **bottom** of the file pane; header and rows move together |
+
+<a id="src-docs-readme-md--recent-behavior-v08x"></a>
+## Recent behavior (v0.8.x)
+
+| Area | Spec |
+| ---- | ---- |
+| Drive free space | Status bar `N GB free of M GB (P%)`; tree **Drives** header → pies for every volume; mapped letters included; offline / empty media do not stall the list |
+| Detached preview | **Open preview window** peer window (hides docked pane); landscape two-column in that window only (draggable splitter); Zen; bounds remembered (stripped on settings export) — [PREVIEW.md](#src-docs-preview-md) |
+| Calendar / email | `.ics` / `.ical` agenda; `.eml` headers + body (no remote images) — [PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md) |
+| NAS listing cache | D49 — session-only last listing for UNC / mapped / remotes; paint then revalidate — [NETWORKS.md](#src-docs-networks-md) |
+| More previews | 3D (`.obj` / `.fbx` / `.3ds`), `.hdr`, Unity / VS text, `.uvw`, subtitles, `.divx`; fixtures in [`samples/preview-extensions/`](https://github.com/dobrado76/MyFileExplorer/blob/main/samples/preview-extensions) |
+| Power Search designs | Name and reload a complex search (params stored; target chosen each run) |
+| Tab chrome | Default Lucide tab icons; custom image icons (D54) with icon-only tight chrome; Settings → Appearance show icons / equal-width tabs |
+| Folder statistics toggle | Settings → Behavior — hide calculated Size / Files / Folders columns |
+| Large folders | Details meta only for on-screen rows; Select All no longer rescans 200k listings |
+
+<a id="src-docs-readme-md--recent-behavior-v07x"></a>
+## Recent behavior (v0.7.x)
+
+| Area | Spec |
+| ---- | ---- |
+| Power Search | Visual query builder (toolbar) → Everything-style query string; exclude extensions via `!ext:` |
+| Per-tab search | Search is a tab history location (Back/Forward); switching tabs does not clear; delete/move prunes hits |
+| Query `!` / names | `!` is NOT after whitespace or `!ext:`; `!!name` is literal; plain queries match names only |
+| Bulk file ops | Continue-then-review (D18) — no mid-pass prompts; Keep most recent; same-folder paste auto-renames; rename clashes use the same review |
+| PowerPoint preview | `.pptx` approximate slides (text + package images); `.ppt` text-only — [PREVIEW.md](#src-docs-preview-md) |
+| Search progress | Live-walk streams results; status bar + banner show folder progress and running counts |
+| Folder statistics | Depth-first **Calculate Statistics**; **Shift+click** skips already-tagged trees — [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) · streams [ADS.md](#src-docs-ads-md) |
+| Slideshow crop | Numpad edge trim during slideshow |
+| Nested custom context menus | `\` in custom command labels builds submenus |
+| Tab bar | Chrome-like shrink + overflow scroll |
+| Settings About | Updates + Export/Import + GitHub help link |
+
+<a id="src-docs-readme-md--recent-behavior-v06x"></a>
+## Recent behavior (v0.6.x)
+
+| Area | Spec |
+| ---- | ---- |
+| Experimental Linux packaging | AppImage + Wayland helpers; Win32 APIs lazy-load; not a support matrix — [LINUX.md](#src-docs-linux-md) |
+| Remote repositories | D46 — opt-in FTP/FTPS/SFTP; toolbar + tree; stage Open/preview; FTP ops serialized — [REMOTE_FTP.md](#src-docs-remote-ftp-md) |
+| Network neighborhood / mapped drives | D44 / D3 — discovery, UNC, reconnect without Explorer — [NETWORKS.md](#src-docs-networks-md) |
+| Settings export / import | D45 — portable prefs + Network hosts + remote connection metadata + **full context-menu customization** (no passwords / window geometry) |
+| Context menu Discover / layout | D41 — HKCR verb scan (persist + tick to enable); Built-in drag order & separators; Custom files/folders |
+| Open Command Line | Folder context; cmd or PowerShell (Settings); click = current user; Shift = Admin |
+| Slideshow / categorizer | D37 — gated chrome; map; cache; invalid-images folder — [SLIDESHOW.md](#src-docs-slideshow-md) |
+| NTFS ADS | D38 — Details column + manager — [ADS.md](#src-docs-ads-md) |
+| Everything-parity search | D34 — hybrid folder + volume index; query language; as-you-type; content; filters/bookmarks; optional HTTP API |
+| Multi-pane | D31 — 1 / 2 / 3 / 4 panes + per-pane tree + layout persistence; empty pane Open Computer / Browse |
+| Tab icons | D32 — Lucide icon + color; tab context menu |
+| In-pane video | D33 — Chromium for MP4/M4V/WebM/MOV; no ffmpeg remux; opt-in Rich player (mpv); else Open with default app / strip-only |
+| Richer previews | HTML/Markdown Preview·Raw; Unity; PE; ZIP/7z/RAR/TAR/APK/MSI/ISO; `.chm` (D35); `.ttf` (D36) — [PREVIEW_EXTENSIONS.md](#src-docs-preview-extensions-md) |
+| Windows Properties | Shell property sheet from detached Properties window |
+| OS drag-out | D11 — left-drag in-app; leave window → `startDrag` / CF_HDROP; right-drag Copy/Move/**Create shortcuts**; opposite-button cancel; edge auto-scroll; tree hover-expand |
+| Search results | D29 — normal `FileView` (banner + path under names) |
+| Video icon strips | D26 — read/play `!VIDTHUMB_CACHE`; generate missing (folder or recursive) / regenerate |
+| File-op progress | D28 — status bar; Cancel (incl. 7za ZIP compress) |
+| Image editor | D27 — Filerobot; tip ADS `VER_*` on file |
+| Recycle Bin | D7 — in-app bin view |
+| Tabs as drop bins | Drag files onto a tab → move/copy into that tab’s folder; optional per-tab drop shortcut |
+| Large folders | Win32 listing + size-tiered watch / soft-reload + debounced scroll |
+| External open | D19 — `--reveal` / `--open` / `mfe://` |
+| vs Explorer | [ADVANTAGES.md](#src-docs-advantages-md) |
+
+<!-- end source: docs/README.md -->
+
+---
+
+<!-- source: docs/PRODUCT_SPEC.md -->
+
+<a id="src-docs-product-spec-md"></a>
 
 > **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
 > The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
 > The running build is Settings → About. Do not quote 0.21.0 as the user's version.
 
-<a id="src-docs-architecture-md--architecture"></a>
-# Architecture
+<a id="src-docs-product-spec-md--product-specification"></a>
+# Product specification
 
 **Version:** 0.21.0
+**App:** MyFileExplorer
 
-Standalone Electron + React desktop app. Clear process boundaries; **no Node APIs in the renderer**.
+Windows-first desktop file manager: Explorer-familiar core, curated UX, rich previews, tabs, persistence, Everything-inspired opt-in search (D34). Linux AppImage helpers exist for contributors only — not a support matrix ([LINUX.md](#src-docs-linux-md)).
 
 ---
 
-<a id="src-docs-architecture-md--process-model"></a>
-## Process model
+<a id="src-docs-product-spec-md--personas-jobs"></a>
+## Personas & jobs
+
+| Job                     | Outcome                                                            |
+| ----------------------- | ------------------------------------------------------------------ |
+| Browse many folders     | Open several tabs; restore them next launch (offline volumes wait) |
+| Inspect AI images       | See prompt / parameters / workflow fields in preview when embedded |
+| Routine file ops        | Create, rename, cut/copy/paste, DnD, delete; Ctrl+Z / Ctrl+Y undo  |
+| Find files fast | Opt-in folder/drive index; Everything-inspired query (D34)          |
+| Comfortable UI          | Dark/light/custom theme; font family & size                        |
+
+---
+
+<a id="src-docs-product-spec-md--shell-layout"></a>
+## Shell layout
+
+Cold start shows a small branded splash (icon + “Starting…”) until the main window is ready to show, so a slow launch is visibly working.
 
 ```
-Renderer (React + Zustand)
-        │  typed preload (contextIsolation + sandbox)
-Main (fs, shell, session, settings, preview, search, thumbs, mediaMetadata)
-        │
-   Real filesystem  +  Electron userData (app state, index, thumb cache)
+┌─ Tab bar (reorder, rename, icon, close, new) ───────────────────┐
+├─ New · Undo/Cut/Copy… | Layout 1|2|4 Search · Filter Preview Layouts Settings ─┤
+├─ Pane grid (1 / 2 / 3 / 2×2) ─────────────────── Preview (opt) ─┤
+│  each pane: Nav + Breadcrumb + View | Tree | Files              │
+└─────────────────────────────────────────────────────────────────┘
+└─ Status: selection count, free space optional ──────────────────┘
 ```
 
-| Concern                                          | Owner                                                       |
-| ------------------------------------------------ | ----------------------------------------------------------- |
-| Navigation UI, selection highlight, open dialogs | Renderer Zustand                                            |
-| Directory listings, watch, mutations             | Main `fs`                                                   |
-| Tabs/session snapshot persistence                | Main `session` (renderer proposes; main validates & writes) |
-| Settings / theme                                 | Main `settings`                                             |
-| Thumbnail generation & cache                     | Main `thumbs`                                               |
-| Preview metadata parse                           | Main `preview`                                              |
-| Movie/TV metadata + covers (D50)                 | Main `mediaMetadata` — [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
-| Search index & queries                           | Main `search`                                               |
-| OS open / trash / clipboard files                | Main `shell`                                                |
+- **Multi-pane views (D31):** toolbar control selects **1**, **2** (side-by-side), **3** (wide top + two bottom), or **4** (2×2). Each pane is a mini-explorer (own tree + files + Back/Forward/Up/breadcrumb/view). The folder-tree toggle lives on that pane’s toolbar so you can hide one tree in a split. Drag a tab onto a pane to show it there (one tab → one pane). Empty panes show a drop target. Toolbar search, keyboard nav, and **one shared preview** follow the **focused** pane; each tab keeps its own search results so you can drag hits onto another pane.
+- Preview pane **collapsible**; collapsed state + widths persisted.
+- Pane split ratios persisted in session.
+- **Quick access** — Desktop, Downloads, Documents, Pictures by default (not a lone Home entry). Optional **named groups** (D58). Manage in Settings → Quick access (add/remove/reorder/reset, groups) or pin/unpin from the context menu / drop on the Quick access header or a group; persisted in settings.
+- **Recycle Bin placement** — Settings → Appearance **Recycle Bin** (`recycleBinPlacement`: `none` | `tree` | `toolbar` | `both`, default `both`). Tree row after drive letters (labeled); optional icon-only tab-bar button. Opens the in-app bin. Drives header context still has Open / Empty.
+- **Undelete toolbar** — Settings → Appearance **Show Undelete toolbar button** (`showUndeleteToolbar`, default **off**). Icon-only control next to Recycle Bin; opens NTFS Undelete (D74). Windows only.
+- **Help** — tab-bar **?** next to the Recycle Bin icon. Tooltip **Help**. Menu: **GitHub documentation** (external browser, `docs/README.md` on GitHub) and **Copy AI support link** (raw `AI-SUPPORT.md` URL).
+- **Quick Launch (D63)** — toolbar pins for user-picked programs (name, path, optional args). Each pin shows **icon**, **label**, or **both**. Icon is the program glyph, a Lucide/Phosphor/Tabler + color, or a custom image. Settings → Quick Launch adds / edits / removes (no toolbar +; strip hidden when empty). Click launches; right-click Open file location / Remove; drop an `.exe` / shortcut on the strip to add when it is visible. Cap 24.
+- **Git-aware browsing (D64)** — **opt-in** (off by default). Settings → Git. System `git` CLI; overlays, folder indicators, Details Git status column, active-pane toolbar, context **Git >**. Not a full Git GUI; distinct from D27 image Version Control. [GIT.md](#src-docs-git-md).
+- **Drives** — live mounted letters (incl. mapped network drives). Click the **Drives** header for an all-volumes preview (pie charts) and status-bar free space. Click a letter for that volume’s free/total in the status bar (and a pie when nothing else is selected). Right-click the section header for **Computer Manager** (Windows Computer Management), **Device Manager**, **Control Panel**, **Open / Empty Recycle Bin**, **Map / Disconnect network drive**, and **Properties** (This PC) — native Windows windows where applicable; Recycle Bin stays in-app.
+- **Network** (D44) — below Drives when LAN discovery is running or hosts were found. Expand a computer → SMB shares (async; does not block folder listing). Open UNC like Explorer; Map / Disconnect / Refresh on the Network header. Tunables in **Settings → Network** (auto vs manual rediscovery + interval). Full detail: [NETWORKS.md](#src-docs-networks-md).
 
 ---
 
-<a id="src-docs-architecture-md--repository-layout-target"></a>
-## Repository layout (target)
+<a id="src-docs-product-spec-md--tabs"></a>
+## Tabs
 
+| Requirement      | Detail                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Multiple folders | One path + view state per tab                                                              |
+| Persist          | Tabs + active index restored on launch                                                     |
+| Title            | Default = current folder name; user may **rename** tab (custom title sticky until cleared) |
+| Icon             | Optional **Lucide / Phosphor / Tabler** icon + color (optional `pack`, default Lucide), or a **custom** .png/.jpg/.ico (cover-cropped square). Right-click → Set icon → Custom icon… for image, label on/off, and size. Icon-only tabs use tight chrome so they work as categorizer drop bins. Session/layouts (D32 / D54) |
+| Context menu     | Right-click tab: **Duplicate**, **Rename**, **Set/Change icon**, **Move to new window**, **Merge into main window** (floating shell), **Close**, **Reopen closed tab** / **Recently closed**, **Reopen closed window** / **Clear recently closed windows** |
+| Reopen           | `Ctrl+Shift+T` restores the last closed tab (stack in `session.json`, cap 25). **Reopen closed window** restores the last closed floating explorer window (cap 10, D73). **Clear recently closed** empties the tab stack (persisted). Empty tab-bar context has the same items (D55 / D73) |
+| Reorder          | Drag tabs to reorder; order persisted                                                      |
+| Drop files       | Drag files onto a tab to **move/copy into that tab’s folder** (Ctrl=copy); use tabs as sort bins |
+| Drop shortcut    | Optional per-tab keyboard chord (context **Set drop shortcut…**) transfers the focused pane’s selection into that tab’s **current** folder; mode Auto / Always move / Always copy; conflict-checked; stored on the tab and in named layouts (D25 / D32) |
+| Close            | Middle-click / close button / context menu; confirm if that tab has an in-progress destructive op (rare) |
+| New tab          | Clone current path or open profile default (This PC / home — Settings); **Duplicate** copies path/view/title/icon |
+| Named layouts    | Save/load the whole workspace — every window’s tabs, position, and size — as a named layout (see Settings → Layouts) |
+| Drop onto pane   | Drag a tab onto a multi-view pane to assign it (moves if already in another pane)          |
+
+Per-tab state to persist: `path`, `history` (back/forward stacks), `viewMode`, `sort`, `selection` (paths), `scrollOffset`, custom `title` (nullable), `icon` (nullable glyph `{ name, color, pack? }` or custom `{ kind: 'custom', id, showLabel, sizePx }`), `treeExpanded` (folder-tree expand/collapse paths).
+
+**Named layouts (D25):** user can save the current workspace under a name (“AI training”, “Book editing”, backup/sync pairs, …) and apply it later. The snapshot is **every explorer window**, not only the main one: each window’s tabs (paths/titles/icons/view/sort/rootPath/treeExpanded/dropShortcut/dropTransfer) plus that window’s **position, size, and maximized state**. The main window also stores tree/preview splitter chrome, multi-view `viewLayout`, pane tab assignments, **pane split ratios**, and the paired-folders compare filter when relevant. Apply replaces the open workspace (new tab ids; history/selection/scroll cleared) and closes float windows that are not in the layout. **Switching layouts auto-saves** the one you were on (Settings → Layouts, on by default). Toolbar Layouts menu for quick switch (same order as Settings); Settings → Layouts for management. Orthogonal to per-folder view overrides.
+
+---
+
+<a id="src-docs-product-spec-md--navigation"></a>
+## Navigation
+
+- Interactive **breadcrumb** (click segment to jump; `…` overflow menu only when the trail does not fit). **Click empty address area** (or Ctrl+L) to type a path
+- Address bar **Recent locations** dropdown from the tab’s history: **current on top**, then prior folders in Back order (newest previous first — same sequence as Back, Back, …); Forward entries follow when present
+- **Back / Forward / Up**
+- Address entry: paste/type absolute path or `C:\…` / UNC `\\server\share\…` / Windows `%VAR%` (e.g. `%LOCALAPPDATA%`) and Enter
+- Folder tree: expand/collapse, select opens in **current** tab (Ctrl+click or middle-click → new tab — v1 nice-to-have; document as Phase 10 if deferred). Toolbar **Collapse all** (next to Select all) collapses every opened branch on the **current tab** only — same as a fresh This PC / Computer tree. Does not change the file list or other tabs.
+
+---
+
+<a id="src-docs-product-spec-md--view-modes"></a>
+## View modes
+
+| Mode              | Behavior                                                    |
+| ----------------- | ----------------------------------------------------------- |
+| Extra large icons only, no filename | Like Extra large; hide the filename for items that show a content preview (image/PSD thumb, video strip, or a movie/show folder cover). Episode files still show `SxxExx` when stored, otherwise the filename (tooltip is always the filename). Other folders and files without a preview keep their names |
+| Extra large icons | Image/PSD content thumbs; videos use `!VIDTHUMB_CACHE` strip animation when present (generate via context menu — D26); otherwise Windows shell icons |
+| Large icons       | Same                                                        |
+| Medium icons      | Same                                                        |
+| Small icons       | Same                                                        |
+| List / Details    | Compact name + Windows shell icon (or D62 Lucide / Phosphor / Tabler / custom / tinted overlay when set) |
+| Details           | Columns: Name (pinned) + show/hide catalog via header right-click. Groups: File (modified/created/type/size/ext/**Alternate streams**, **Note** / **Status** / **Has note** / **Checklist**), Stream values (streams found in the current folder + **...** to type a name), Image (dimensions, width/height, bit depth, color space, orientation, alpha, format), Audio/video (duration, bit rate, sample rate, channels, codec, container, frame rate, media size), Tags (title/artist/album/…), Generation (A1111 seed/model/steps/sampler/CFG/size/prompts). Resizable, reorderable; layout persisted in settings. Media and ADS columns fill asynchronously (ADS lists non-empty stream names for files **and** folders when that column is visible — not on every `fs:list`). Stream-value columns show one named stream’s text preview. Context **Note…** / **Set icon…** (D61 / D62, NTFS). Context menu **Alternate streams…** opens a manager to list/add/edit/delete/import/export streams (D38). |
+
+- Sort by any visible column (incl. media once values load); asc/desc; folders-first toggle in Settings (default on). **Name** order defaults to Windows Explorer (`StrCmpLogicalW`: digit runs as numbers; more leading zeros sort first). Settings → Behavior → **Name sort** can switch to character-by-character order (`0` before `s`; `file10` before `file2`). A–Z case is ignored either way. The file list, folder tree, and slideshow name order use the same choice.
+- Virtualize grids/lists for large directories.
+- **Images:** double-click / Enter opens an in-app full-size viewer (navigate siblings with arrow keys). Preview **Edit** opens Filerobot (D27). **Open with default app** (context menu) uses the system association for external editors.
+- **Customize this folder** (context menu on folder / empty pane): save current view mode, sort, and Details columns for that path — **this folder only** or **this folder and subfolders**. Exact entry wins over the longest recursive ancestor; other folders keep the tab’s baseline view + global columns. Live view/sort/column edits while a customization applies update that owning entry. Manage in Settings → Folder views.
+
+---
+
+<a id="src-docs-product-spec-md--file-operations"></a>
+## File operations
+
+| Op                 | Behavior                                                                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| New folder         | Inline rename or dialog                                                                                                                          |
+| New file           | Type picker (e.g. `.txt`, `.md`, `.json`, empty custom ext). Creates a unique stub then inline rename (same name-clash review as F2). **Other…** uses the typed name via that same rename path when the name already exists. **From Template** copies a user template; the catalog pretty name is the menu label and default filename stem (D57). **GitHub Repository** (menu item below From Template, not inside it) clones into a new folder (name + URL dialog; no rename mode) |
+| Rename             | F2 / context; or **Explorer two-click rename**: click to select, pause past the double-click interval, click the **name** again → rename starts immediately. Fast double-click still opens / expands. Inline: Enter commits; Escape cancels; click-away / blur **commits**. **Del** / **Backspace** edit the name (selected text or one character) — they do not trash the item. Releasing a text selection drag outside the rename box stays in rename. A name that already exists opens the same D18 review as copy/move (Skip / Keep both `name (2).ext` / Replace / Keep most recent) |
+| Power Rename       | Context **Power Rename…** (one or more selected files/folders): search/replace with optional regex or DOS `*`/`?` wildcards, match-all, case sensitivity, apply to filename and/or extension; collapsible **Advanced options** (case, remove, add, numbering, dates, filters, …); live preview with per-item checkboxes; Apply via rename; dialog Undo + session undo stack. Does **not** recurse into selected folders (D40). Guide: [POWER_RENAME.md](#src-docs-power-rename-md) |
+| NTFS Undelete      | Opt-in tab-bar icon (Settings → Appearance **Show Undelete toolbar button**, off by default): scan deleted MFT FILE records, filterable results with recoverability status, recover selected files to a chosen folder (`name (2).ext` on conflict). Short-lived UAC when volume access needs elevation. **Not** Recycle Bin Restore. Windows + NTFS only; no context-menu verb (D74). Guide: [UNDELETE.md](#src-docs-undelete-md) |
+| Scripts            | **Opt-in** (off by default). Settings → Scripting and AI → Enable scripting. Then: universal runner (PowerShell / **Python 3 only — not 2.x** / cmd / bash) on the current folder, selection, or **global** (no folder/selection; each global script is a toolbar button, hidden when none exist), live output, Stop. Saved library under `userData` becomes context **Scripts >** verbs. Optional AI generate/modify (never sends files). [SCRIPTS.md](#src-docs-scripts-md) (D51) |
+| Git                | **Opt-in** (off by default). Settings → Git. Status overlays / toolbar / context Stage·Commit·Pull·Push. System `git` only; no credential storage. [GIT.md](#src-docs-git-md) (D64) |
+| Cut / Copy / Paste | Internal clipboard + OS file paths. Non-file clipboard creates a file (D56; Settings → Behavior). **Paste Special** for format/name. Never auto-download a URL. |
+| Drag-drop          | Default **move** within same volume; **copy** with Ctrl (Windows convention). Cross-volume drag = copy unless Shift forces move (match Explorer). **Right-button drag** → Copy here / Move here / **Create shortcuts here** menu on drop (`.lnk` via WScript). **Left-drag** moves/copies onto folders in-app; dragging out of the window uses `webContents.startDrag` (CF_HDROP) for other apps |
+| Delete             | **Del** → Recycle Bin (`SHFileOperation` + `FOF_ALLOWUNDO` on Windows). Per-item failures continue; leftovers open the end-of-op review (D18). Optional tab-bar icon and/or tree row (Settings → Appearance **Recycle Bin**) open bin contents in the file view (Restore / Empty / permanent delete) — not system Explorer. Right-click the button or tree row for **Open** / **Empty Recycle Bin** (Empty confirms without opening the view first). **Drive roots** (`C:\`) are never deleted — Del / Shift+Del / context Delete are ignored with no message. Deleting a folder that is the **scoped root of any open tab** always confirms (Cancel / Delete) and warns those tabs will close; after a successful delete the affected tabs close (a replacement tab opens if that would leave none) |
+| Permanent delete   | **Shift+Del** → unlink; **confirm** if more than one item or any directory. Same continue-then-review as trash when some items fail |
+| Compress / Extract | Context **Compress to ZIP file** (bundled 7za, streamed) / **Extract All…** — sibling `.zip` or folder (Explorer naming); progress + Cancel (D30) |
+| Progress           | Any file op the user waits on (>~1 s) shows status-bar feedback (D28): determinate when units/bytes advance, otherwise indeterminate busy          |
+| Open               | Double-click / Enter → `shell.openPath`; folders navigate in-tab                                                                                 |
+| Reveal             | “Show in system Explorer” via `shell.showItemInFolder`                                                                                           |
+| Properties         | Detached OS window (peer of the shell — not modal, not parent-bound) with useful detail: type, location, dates; **attributes** on files/folders only (not drives). Files show size; folders calculate recursive size + contains; **drives show capacity / used / free** with a usage bar. **Multi-select → one combined sheet** (sums size/contains; no Attributes / Windows Properties / USN). **Shift+Properties → one window per path** (soft cap 32). Size/position persist. **Windows Properties…** opens Explorer’s own property sheet for Security / Sharing / etc. (not reimplemented in-app). **Drive Properties only (win32):** **USN…** opens the NTFS USN journal manager in that window (status / enable / resize / recent records / clear / disable). First-time Enable writes then deletes a `testing USN *.txt` on that volume so Recent immediately shows Create + Delete — D52 |
+
+Copy / move / trash / delete **continue** through every item that does not need a decision. Conflicts, locks, and other per-item failures queue for one **review** at the end, grouped by similar kind, with apply-to-similar (Skip / Keep both / Replace / **Keep most recent** / Retry). Name conflicts still use side-by-side compare (thumbs for images; size/dates/type). **Replace** merges folder→folder into the existing destination (keeps folder ADS); conflicting children use staged temp + dest-aside replace (never delete the destination first). If replacement and source rollback both fail, retain the incoming item at a reported recovery path; overwrites files. **In use** rows list locking processes (Restart Manager) with **End task** / Locate / Refresh, then Retry (D65). Same-folder copy-paste auto Keep both (`name (2).ext`) with no dialog, then selects the new copies. Disk-full / destination-gone stops remaining work to that destination but still opens review. After a local **copy** (and a **move** that copies across volumes), Created and Modified on the destination match the source (D53).
+
+---
+
+<a id="src-docs-product-spec-md--context-menu-curated"></a>
+## Context menu (curated)
+
+**Show only** (adjust during implementation, keep short):
+
+- Open
+- Open in new tab
+- Open as root in new tab (scoped tab: folder becomes the tree root, navigation stays inside). Deleting that folder from any tab always confirms first and closes the tabs that used it as root.
+- Pin to Quick access / Unpin from Quick access (folders)
+- Cut / Copy / Paste
+- Rename
+- Power Rename… (search/replace + advanced panels with preview; files and folders in selection only)
+- Undelete (opt-in tab-bar icon — Settings → Appearance; D74)
+- Scripts (only when Settings → Scripting and AI → Enable scripting; saved local scripts + Generate / Manage; each global script is a toolbar button; D51)
+- User-defined commands (Settings → Context menu — separate lists for files vs folders; e.g. Edit in Photoshop, Play in VLC)
+- Delete / Delete permanently
+- Compress to ZIP file (single file, folder, or multi-select — sibling `.zip` like Explorer)
+- Extract All… (on `.zip` selection — sibling folder named after the archive)
+- Add → Folder / Text / Markdown / JSON / CSV / JS / TS / Python / HTML / CSS / PowerShell / Batch / From Template / GitHub Repository / **Virtual Folder** / Other…
+- Copy path / Copy name
+- Show in system Explorer
+- Video previews → Generate missing / Generate missing (all subfolders) / Regenerate all (folder / empty pane); Generate video preview (selected videos)
+- Media Metadata (only when Settings → Media Metadata is enabled, and only on folders or video files) → Extract from Plex / Download from Internet / Update / Clear / Consolidate subtitles / **Edit metadata…** / Change cover / Mark as Watched (toggles to Unwatched). Full guide: [MEDIA_METADATA.md](#src-docs-media-metadata-md).
+- Metadata set… / Metadata… (only when Settings → Metadata → Enable user metadata). Guide: [USER_METADATA.md](#src-docs-user-metadata-md).
+- **Calculate Statistics** (local NTFS folders and volume roots) — depth-first tag subtree with size/counts + `FolderStatsPreview` for the preview space map (D66). On a **drive root**, compiles from each root folder’s ADS (retagging only untagged children) plus root files. After tagging, **propagates** into ancestors that already have stats (child + sibling ADS, no deep re-walk). **Shift+click** skips already-complete tags. Guide: [ADS.md](#src-docs-ads-md).
+- Hide from view → All instances (`*\name`) / Only this instance (adds to the view filter)
+- Add folder to search index / Remove from index; **Index this drive** on drive roots (D34)
+- Properties
+
+**Do not** dump every Explorer verb (Send to, Share, Git overlays, 20+ third-party entries).
+
+---
+
+<a id="src-docs-product-spec-md--preview-pane"></a>
+## Preview pane
+
+See [PREVIEW.md](#src-docs-preview-md).
+
+- Toggle show/hide; remember width.
+- Selection: preview the **most recently selected** item (keyboard/mouse focus); when multi-select, still show that file’s rich preview and a “N selected” badge (not a blank summary).
+- Type-specific fields; for images, parse embedded generation metadata when present.
+- Markdown (`.md`) and HTML (`.html` / `.htm`): rendered Preview by default with a **Preview / Raw** toggle.
+- Text / code / Markdown / HTML source: **Word wrap** toggle in the preview header (remembered).
+- Inline video/audio playback in-pane for Chromium-native containers (see PREVIEW.md); **no ffmpeg remux for Preview** — MKV/TS/WMV/… default to **Open with default app**; **`.avi` / `.divx` / `.rmvb` / `.rm`** use thumb-strip + open with default app unless opt-in **Rich player (mpv)** is on (D33).
+- Office docs: Word, PowerPoint (`.pptx` approximate slide layout + images; `.ppt` best-effort text), spreadsheets, RTF — see PREVIEW.md.
+- Windows shortcuts (`.lnk`): target path, arguments, start-in folder, comment, icon, hotkey; open shortcut or target.
+- ZIP archives (`.zip`): nested contents tree in the preview pane + Extract All… (not zip-as-folder navigation).
+- Other archives (`.7z`, `.rar`, `.tar`, `.tar.gz`, `.tgz`): same contents tree, list-only (no Extract All).
+- Unity packages (`.unitypackage`): same contents tree (Unity `Assets/…` paths); list-only — no Extract All (import via Unity).
+- Compiled HTML Help (`.chm`): Contents TOC + sandboxed topic HTML in the preview pane (D35).
+- 3D meshes (`.obj` / `.fbx` / `.3ds`): WebGL orbit preview in-pane (D48).
+- **Media metadata** (D50, opt-in): when enabled and a file/folder has stored streams, preview shows a fixed title + portrait cover above the video. With no file selected, the current show/movie folder keeps its card. Movie/TV fields and extracted file metadata share **Media** / **File** tabs under the player when both exist. Click the cover for a fullscreen view of the stored image. See [MEDIA_METADATA.md](#src-docs-media-metadata-md).
+- **User-defined metadata** (D70, opt-in): when enabled and the cwd resolves to a metadata set, preview shows a pinned Metadata editor; Details may show `showAsColumn` fields. See [USER_METADATA.md](#src-docs-user-metadata-md).
+- **Folder statistics + space map** (D66): when Calculate Statistics has tagged a folder (or volume root), preview shows the rich card and WinDirStat-style space map (ADS read-only). Volume roots keep the free-space pie and add the map below. See [PREVIEW.md](#src-docs-preview-md), [ADS.md](#src-docs-ads-md).
+- **Virtual Folders** (D67): selecting a `.mfevirtual` file shows a Virtual Folder preview (counts / sample locations), not raw JSON. Opening navigates into the collection. See [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md).
+- **Virtual Folder OS projection** (D68, Windows, opt-in): Settings → Behavior; requires [WinFsp](https://winfsp.dev/) + projection service from GitHub Releases. See [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md).
+- **Git repository root** (D64, opt-in): repo-root selection shows **Git | Folder** tabs (**Git** = commit history by default; **Folder** = normal directory / stats card). See [GIT.md](#src-docs-git-md).
+
+See [SEARCH.md](#src-docs-search-md).
+
+- Search box: **as-you-type** (debounced) + Enter; scope = current folder (recursive) or “indexed roots only”.
+- Toolbar **Power Search…** — visual query builder synced with the search box (Everything-style operators, including note / status / open checklist / user metadata). Named **saved searches** in the dialog (params only; target folder vs indexed is chosen when you run).
+- **Folder roots** and optional **volume roots** (NTFS USN when available); Settings lists kind/monitor/status.
+- Everything-inspired query language + Match path/case/whole-word/regex toggles; macros (`pic:`, …); optional `content:` (slow).
+- Unindexed scope: best-effort walk with **streaming** partial results, progress in status bar + banner, cancel; never pretend to be instant (D15).
+- Results use the **current view** (thumbnails, icons, list, or Details). Details adds a temporary **Folder** column (sortable; search-only, not saved); other views show the parent folder under the name. Context **Open File Path** / **Open File in new tab** open locations in-app.
+- Search is a **tab history location** (D29): Back/Forward restore folder or search (and the file-list scroll for that folder); each tab keeps its own query/results; switching tabs does not clear. Delete / move prunes those hits (and children of a removed folder).
+- Saved **filters** / **bookmarks**; optional localhost HTTP search API (Advanced).
+
+---
+
+<a id="src-docs-product-spec-md--settings"></a>
+## Settings
+
+The Settings dialog has a search box (filters as you type, no Search button) that narrows the section list and hides controls that do not match the keyword.
+
+| Area         | Fields                                                                             |
+| ------------ | ---------------------------------------------------------------------------------- |
+| Appearance   | Theme dark / light / custom; **font family** (dropdown of common Windows UI fonts; imported custom values stay listed); font size; icon size; **equal-width tabs** (`tabEqualWidth`, default off); **show tab icons** (`showTabIcons`, default on); **pin control to hide the folder tree** (`treePinToggle`, default on — off uses a per-pane toolbar button, flipped preview-panel icon); **Recycle Bin** (`recycleBinPlacement`: none / tree / toolbar / both, default both); **Show Undelete toolbar button** (`showUndeleteToolbar`, default off — D74) |
+| Behavior     | Default new-tab path; folders-first; **item check boxes** (`itemCheckboxes`, default off) — Explorer-style selection checkboxes in the file view; video thumb frame delay (`vidThumbFrameMs`); confirm permanent delete always on/off; **hide extensions in names** (`hideNameExtensions`, default `lnk`) — display-only, does not filter files; **Show folder statistics** (`showFolderStatistics`, default on); **Folder space map max files** (`folderStatsTreemapMaxLeaves`, default 50000, 100–50000) — N largest files kept in the Calculate Statistics space map (D66); skip-path list for Calculate failures |
+| Preview      | Show preview by default; **autoplay media in preview** (`previewVideoAutoplay`, default off); **Rich player (mpv)** (`previewRichPlayerMpv`, default off — D33); text preview max bytes; word wrap |
+| Context menu | **Built-in** show/hide + drag order/separators (includes tinted enabled Discover rows); **Discover** (scan static Windows shell verbs — persist catalog, tick to enable, Rescan keeps ticks); custom external commands for **files** and **folders** (separate lists): label (`\` for nested submenu), program path (`%ENV%` ok), args (`{path}` / `{paths}` / `{dir}` / `{name}`), extension match or all files; ordered; presets (Photoshop / VLC / VS Code / Notepad++). (D4 / D41) |
+| Quick access | Manage tree shortcuts                                                              |
+| Quick Launch | Toolbar apps: add / name / path / arguments / show (icon, label, both) / icon (app, glyph pack, custom) / order (D63) |
+| Layouts      | Named workspaces: save current as…, auto-save on switch (default on), apply, update, reorder, rename, remove (D25) |
+| Folder views | List of per-folder view overrides (scope Folder/Tree, summary, go to, remove)      |
+| View filter  | When on: hide Windows Hidden items and pattern matches from listings, tree and search (`*\name`, absolute `D:\a\b`, `*`/`?`). **View-only** for patterns; Hidden attribute toggled in Properties. Toolbar eye toggle; status bar shows hidden count |
+| Search       | Folder + volume roots; monitor mode; reindex; excludes; match toggles; filters/bookmarks; persist **indexed** toggle |
+| Network      | Discovery **auto** / **manual**; auto refresh interval (1–60 min, default 5); Discover now; Map / Disconnect network drive (D44) |
+| Media Metadata | **Enable** (off by default). Preview **cover art size** (56–240 px tall, default 120). **Show season/episode and title on icon tiles** (default on). **Mix folders and files in media libraries** (off by default — Folders first; on = one A–Z list in icon/thumbnail views of a container folder; List/Details follow Behavior → Folders first). Plex URL / token / data folder; TMDB and OMDb API keys; preferred internet source. **Edit metadata…** plus card/preview icon actions; Watched/Genre filters persist per library folder. In media-library folders (and recognized subfolders), Details column picker offers a **Media Metadata** section (genres, year, ratings with service icons, watched, …). Context menu and covers stay hidden until enabled (D50). Guide: [MEDIA_METADATA.md](#src-docs-media-metadata-md) |
+| Metadata | **Enable user metadata** (off by default). Optional **Show toolbar button** for the Metadata manager. **Manage sets…** opens a floating manager (sets / fields / folder assignments / Metadata pack). Context **Metadata set…** / **Metadata…**, preview editor, Details columns, and Power Search `meta.<key>:` stay hidden until enabled (D70). Guide: [USER_METADATA.md](#src-docs-user-metadata-md) |
+| Git | **Enable Git integration** (off by default). Executable / Test. Overlays, folder indicators, toolbar, status column, ahead/behind, ignored, refresh debounce, large-repo threshold, external diff tool. Guide: [GIT.md](#src-docs-git-md) (D64) |
+| Scripting and AI | **Enable scripting** (off by default — hides toolbar Scripts and context Scripts). Interpreter path overrides. Nested **Enable AI** (off = no outbound AI HTTP). OpenAI-compatible providers (base URL, model, key in `safeStorage`). Test / Refresh models; model fields are dropdowns from `GET /v1/models` (cached). Privacy: never send paths/listings/contents. Guide: [SCRIPTS.md](#src-docs-scripts-md) (D51) |
+| Slideshow | **Enable slideshow UI** (hides toolbar / folder Start when off; this section stays). Delay, order, loop, **Include subfolders** (default on). **Camera looks** (off until enabled — frequency, path filter, **Camera looks…** window; display-only, files unchanged). Categorizer **Mapping Manager…**. Guide: [SLIDESHOW.md](#src-docs-slideshow-md) (D37 / D76) |
+| Advanced     | Clear shell-icon + thumb cache; **disable hardware acceleration** (restart; frees GPU VRAM for training); optional localhost search HTTP API |
+| About        | App version; GitHub repository link; **Folder or URL** / **Check for update** / **What's new** (GitHub release notes) / Update; **Export…** / **Import…** (D45) — portable JSON of all prefs including **context-menu customization** (built-in hide/order, Discover catalog + enabled, Custom commands), slideshow categorizer map, remembered Network hosts + remote connection metadata (not passwords / window/dialog geometry) |
+
+---
+
+<a id="src-docs-product-spec-md--keyboard-minimum"></a>
+## Keyboard (minimum)
+
+| Key             | Action                |
+| --------------- | --------------------- |
+| Backspace       | Up (when not editing) |
+| Alt+← / →       | Back / Forward (focused pane) |
+| Mouse Back / Forward | Back / Forward (focused pane) |
+| Ctrl + mouse wheel | Font size (9–28 px) |
+| Ctrl+T / W      | New tab / Close tab   |
+| Ctrl+Tab        | Next tab              |
+| F2              | Rename                |
+| Ctrl+C/X/V      | Copy / Cut / Paste    |
+| Del / Shift+Del | Trash / Permanent     |
+| ↑↓ / ←→         | Move focus in file view (grid uses all four) |
+| ←↑↓→ (folder tree focused) | Explorer nav pane: ↑↓ move selection; ← collapse / parent; → expand / first child |
+| Home / End      | First / last item     |
+| Shift+Home/End  | Select from cursor to first / last |
+| Shift+arrows    | Extend selection      |
+| PageUp / PageDown | Page through file view |
+| Ctrl+F          | Power Search          |
+| Ctrl+Shift+F    | Focus toolbar search  |
+| Ctrl+E          | Edit image (single editable image selected; otherwise ignored) |
+| Ctrl+Shift+P    | Toggle preview        |
+| F5 / Ctrl+R | Refresh current folder(s), drives, tree, and Network discovery |
+
+---
+
+<a id="src-docs-product-spec-md--acceptance-highlights-v1"></a>
+## Acceptance highlights (v1)
+
+- [ ] Launch restores previous tabs and active folder
+- [ ] Splitter positions and tree / preview collapsed state restore
+- [ ] Del trashes; Shift+Del permanently deletes with confirm rules
+- [ ] DnD move vs copy respects modifiers
+- [ ] Lengthy copy/move/delete shows status-bar progress
+- [ ] Video preview strips generate from context menu (missing / recursive / regenerate)
+- [ ] PNG with A1111/Comfy metadata shows prompt fields in preview when parseable
+- [ ] Indexed folder search returns results without full-tree walk
+- [ ] Theme + font changes apply live and persist
+- [ ] CLI `--reveal` / `mfe://` opens the path in a tab
+- [x] Experimental shell redirect (D72): Settings → Windows integration enables per-user Directory verb redirect with backup/restore
+- [x] Edit media metadata (D50): dialog from context / preview / card hover; manual source when no card yet
+- [x] Media library Watched/Genre filters persist per folder (`mediaMetadata.libraryFilters`)
+
+<!-- end source: docs/PRODUCT_SPEC.md -->
+
+---
+
+<!-- source: docs/ADVANTAGES.md -->
+
+<a id="src-docs-advantages-md"></a>
+
+> **Version stamp:** A 0.21.0 line in this section is when the page was last stamped.
+> The repository package version is 0.22.0. The newest changelog section is 0.22.0 (2026-10-23). There is no 0.21.1 or 0.21.2 section. Do not invent one.
+> The running build is Settings → About. Do not quote 0.21.0 as the user's version.
+
+<a id="src-docs-advantages-md--advantages-over-classic-windows-file-explorer"></a>
+# Advantages over classic Windows File Explorer
+
+**App:** MyFileExplorer · **Version:** 0.21.0
+
+MyFileExplorer is a **local file workbench**: it keeps Explorer muscle memory (Del → Recycle Bin, Ctrl/Shift drag modifiers, shell icons, right-drag Copy/Move/Create shortcuts) while turning the filesystem into a semantic, searchable, automatable workspace — without moving your files into a proprietary database or cloud repository.
+
+> Keep the files where they already are, then make the workspace around them substantially more intelligent.
+
+That is the difference from classic Explorer (names, paths, sizes, dates) and from many enterprise content platforms (migrate everything into their store first). MFE layers richer meaning, preview, search, Git, analytics, metadata, scripts, and **Virtual Folders** on top of ordinary disks, NAS shares, and repositories. Full organizational framing: [BUSINESS_UVP.md](#src-docs-business-uvp-md). This page is the concrete “why switch from Explorer” list. Not a claim of full shell parity — see [PRODUCT_SPEC.md](#src-docs-product-spec-md) non-goals and [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md).
+
+<a id="src-docs-advantages-md--inspiration"></a>
+## Inspiration
+
+Features are deliberately patterned after tools people already trust — then folded into one local file manager:
+
+| Inspiration | What we borrow |
+| ----------- | -------------- |
+| **[Everything](https://www.voidtools.com/)** (voidtools) | Instant, operator-rich search over an opt-in index (folder roots + optional NTFS USN volume index), as-you-type, match toggles, filters/bookmarks — without forcing whole-disk indexing. |
+| **[Q-Dir](https://www.softwareok.com/?seite=Freeware/Q-Dir)** (Quad Explorer) | **1 / 2 / 3 / 4** panes in one window — side-by-side, wide-top + two bottom, or 2×2 mini-explorers, drag tabs into panes, shared preview follows focus. |
+| **ACDSee** | Fullscreen **slideshow / categorizer** workflow: timed or manual advance, keyboard categorize/delete buffer, image-list cache. |
+| **MS Paint** (and simple editors like it) | Fast **in-app image edit** for everyday crop / rotate / resize / annotate — open from preview, context menu, or Ctrl+E; versions as NTFS ADS on the file (`VER_*`), not a sidecar in your folder. |
+| **[PowerToys PowerRename](https://learn.microsoft.com/en-us/windows/powertoys/powerrename)** | In-app **Power Rename** dialog: search/replace, DOS wildcards or regex, match-all, case options, apply to name/extension, BRU-style advanced panels, live preview with checkboxes — without installing PowerToys. |
+| **A terminal + your scripts** | **Universal script runner** (D51): PowerShell / **Python 3** (not 2.x) / cmd / bash on the folder or selection you are looking at. Saved scripts become context-menu verbs with live output, dry-run, and Stop. Optional AI drafts source and **never reads your files**. Explorer only opens a prompt. Guide: [SCRIPTS.md](#src-docs-scripts-md). |
+| **Git CLI + a file manager** | **Git-aware browsing** (D64, opt-in): overlays, toolbar Commit/Pull/Push, context Stage/Discard — without becoming a full Git GUI. Guide: [GIT.md](#src-docs-git-md). |
+| **[WinDirStat](https://windirstat.net/)** | Nested **space-usage treemap** for a folder — cushion tiles, extension colors — **inside** the preview pane after Calculate Statistics (ADS on the folder; “Other” summary in the heading, no separate app window). Guide: [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) (D66). |
+| **Logical collections vs physical trees** | **Virtual Folders** (`.mfevirtual`) assemble path references across drives and shares without copying; optional **WinFsp OS projection** so Explorer and other apps see the same tree. Guide: [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md), [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md). |
+
+Other Explorer-adjacent muscle memory stays intentional (Del → Recycle Bin, drag modifiers, shell icons). Search depth: [SEARCH.md](#src-docs-search-md). Slideshow: [SLIDESHOW.md](#src-docs-slideshow-md). Image editor: [PREVIEW.md](#src-docs-preview-md) (D27). Scripts: [SCRIPTS.md](#src-docs-scripts-md). Git: [GIT.md](#src-docs-git-md). Folder statistics / space map: [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) (D66). Virtual Folders: [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md).
+
+---
+
+<a id="src-docs-advantages-md--workspace-navigation"></a>
+## Workspace & navigation
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Everything-inspired search** | Opt-in folder + drive (NTFS USN) index, as-you-type, operators (`size:`, `ext:`, `pic:`, …), **Power Search** visual builder, match toggles, content scan, filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
+| **True multi-tab browsing** with full session restore | Tabs keep path, view mode, sort, selection, scroll, custom title, and tree expand state. Relaunch restores the workspace instead of a single window/folder. **Reopen closed tabs** (`Ctrl+Shift+T` / Recently closed, last 25) — Explorer has no stack. |
+| **Named workspace layouts** | Save/apply every explorer window’s tabs plus position/size (“AI training”, “Book editing”, …). Switch task contexts without rebuilding windows by hand. |
+| **Q-Dir-style multi-pane (1 / 2 / 3 / 4)** | Side-by-side, wide-top + two bottom, or 2×2 mini-explorers in one window; per-pane folder tree; drag tabs into panes; shared preview follows focus. |
+| **Scoped tabs** (“Open as root in new tab”) | A folder becomes the tree root; navigation stays inside that subtree — useful for large drives and project roots. |
+| **Offline tabs that wait** | Unmounted / encrypted / network paths stay open as Offline and auto-retry. Disconnected **mapped letters** stay under Drives and reconnect on open (no Explorer required). Ejected USB volumes disappear immediately. |
+| **Network neighborhood** | Async LAN discovery under the tree (never blocks browsing); remembered hosts on next launch; Settings → Network auto/manual rediscovery; Map / Disconnect via Windows dialogs. Details: [NETWORKS.md](#src-docs-networks-md). |
+| **NAS folders reopen instantly** | Last listing for UNC / mapped / remotes is kept in memory for the session — paint immediately, then revalidate (D49). Explorer re-walks every time. |
+| **Opt-in FTP / FTPS / SFTP remotes** | Bookmark hosts, browse, upload/download, and open/preview via local scratch — without leaving the file manager. Not Explorer parity over the wire. Details: [REMOTE_FTP.md](#src-docs-remote-ftp-md). |
+| **Portable settings backup** | Export / import full preferences — theme, named layouts, **view presets**, **templates catalog**, **context-menu customization**, **script library** (source yes, API keys no), network hosts, remote connection metadata, … — without window position. Move to a new PC or survive an OS reinstall in one file. |
+| **Per-folder view overrides** | Pin Extra large / Details columns / sort for one folder or a whole tree (exact path wins over recursive ancestors). Media libraries and code trees can look different without sticky global modes. |
+| **Named view presets** | Save icon size, columns, and sort; apply without jumping folder or selection. If the folder already has a customization, Apply updates that override. Explorer has no named view catalog. |
+| **Tabs as drop bins** | Drag files onto a tab to move/copy into that tab’s folder — use tabs as sort categories. Optional **drop shortcut** per tab (Auto / Always move / Always copy) does the same from the keyboard; chords are conflict-checked and stored in named layouts. |
+| **Grouped Quick access** | Default Desktop / Downloads / Documents / Pictures; pin, unpin, reorder, reset in Settings. Name groups, color them, collapse them in the tree, drop a folder onto a group. Explorer’s Quick access is a flat, harder-to-curate strip. |
+| **Quick Launch toolbar** | Pin Photoshop, Visual Studio, a browser — anything with an `.exe` or shortcut. Each pin can be icon, name, or both; the glyph is the program icon, a Lucide + color, or a custom image. Manage the list in Settings (the strip is hidden until you add one). Click to launch, right-click for location / remove. Explorer’s old Quick Launch is gone; this one exports with your prefs. |
+| **Git-aware browsing (opt-in)** | Settings → Git → Enable: status overlays while you browse, folder indicators, Commit / Pull / Push on the active pane, context **Git >**. Uses your system `git` — no tokens stored. Not Tortoise-style shell overlays dumped into every menu. Guide: [GIT.md](#src-docs-git-md). |
+
+---
+
+<a id="src-docs-advantages-md--virtual-organization"></a>
+## Virtual organization
+
+Explorer only answers “where is this stored?” Work often needs “what project, case, release, or collection does this belong to?” Virtual Folders separate those questions.
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Portable Virtual Folders (`.mfevirtual`)** | Curated collections of path **references** (not copies) across local disks, NAS, and other trees. Nested groups, Manual order, extract/absorb — one document you can move with the project. Explorer has no portable logical collection format. Guide: [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md). |
+| **Optional OS projection (WinFsp)** | Project a Virtual Folder as a normal Windows path so other apps open the same logical tree — still references underneath. Guide: [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md). |
+| **Same workspace semantics inside VFs** | Previews, scripts on resolved paths, search of underlying objects, Git where the target is a repo — composable with the rest of MFE, not a dead-end special folder. |
+
+---
+
+<a id="src-docs-advantages-md--preview-media"></a>
+## Preview & media
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Always-on rich preview pane** | Type-aware preview beside the list (toggle/width persisted), plus a **detachable** preview window (same content; landscape two-column with a remembered splitter in the window; Zen). Explorer’s preview is weaker and often disabled or pane-starved. |
+| **WinDirStat-style folder space map (D66)** | After **Calculate Statistics**, the folder preview shows counts, categories, largest/recent, and a nested cushion **space-usage** treemap. Plain click = full retag; **Shift+click** skips already-tagged subtrees. Guide: [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md). |
+| **Drive free space at a glance** | Status bar `N GB free of M GB (P%)`; click **Drives** for pies on every volume, including mapped letters. Offline / empty media do not hide the rest. |
+| **Calendar & saved email preview** | `.ics` / `.ical` agenda and `.eml` headers + body in-pane — Explorer shows almost nothing. |
+| **AI image generation metadata** | Parses A1111 / Forge / ComfyUI (and related) embeddings when present — prompts, seed, model, steps, etc. in the preview. Explorer shows none of this. |
+| **In-app image editor (Paint-like)** | Crop / rotate / finetune / filters / annotate (Filerobot) — everyday edits without leaving the file manager. Saves tip ADS on NTFS (`VER_*`); `$DATA` stays original. **Version Control** submenu: commit / revert / preview versions; Drop from the preview banner. Entry: preview button, context menu, **Ctrl+E**. |
+| **ACDSee-inspired slideshow** | Fullscreen slideshow + categorizer map (keyboard folder/delete buffer, commit on stop) and image-list cache. Optional **Camera looks** (grain, white balance, blur, and your own shader) paint on the show only — off until you enable them, and they never write the file. Explorer has no equivalent. |
+| **In-app image viewer** | Full-size view with sibling navigation; no forced hand-off to Photos for quick review. |
+| **PSD preview & thumbs** | Rasterized Photoshop previews for browsing (when Maximize Compatibility embeds exist). |
+| **Inline audio / video / PDF / Office-ish text** | Play or read in-pane for common types (byte-range video); Word/spreadsheet/RTF best-effort text; **`.pptx` approximate slides** (text + package images); `.ppt` text-only; shortcuts show target + open shortcut or target. |
+| **HTML / Markdown Preview · Raw** | Rendered HTML (sanitized) and GFM Markdown by default, with a one-click jump to syntax-highlighted source. |
+| **Executable / archives / CHM / fonts** | PE VERSIONINFO + shell icon; ZIP / 7z / RAR / TAR(.GZ) / Unity / APK / MSI / ISO / IMG contents trees (+ APK/MSI metadata); `.ttf` sample preview; `.chm` TOC + sandboxed topic viewer. |
+| **Animated video icon strips** | Reads `!VIDTHUMB_CACHE` 20-frame strips in icon views; can **generate missing** (folder or recursive) or regenerate via bundled ffmpeg — browse video libraries by content, not generic glyphs. |
+| **Movie / TV metadata + covers** | Opt-in (off by default). Pull title, year, genres, cast, synopsis, and a portrait poster from a local **Plex** library or **TMDB / OMDb**, store them on the file or folder as NTFS streams (no `.nfo`). Show poster on the show/movie folder; episode tiles show `SxxExx` + title; preview hero + Media/File tabs. Change cover (largest first). Mark watched. Watched / Genre toolbar. Consolidate ripper `Subs`. CD-split movie folders. Internet asks **Which title?** only on remakes. One folder command walks the library. Details: [MEDIA_METADATA.md](#src-docs-media-metadata-md). |
+
+---
+
+<a id="src-docs-advantages-md--search-large-libraries"></a>
+## Search & large libraries
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Everything-inspired search (D34)** | Opt-in folder roots + optional **Index this drive** (NTFS USN when available). As-you-type, match toggles, operators (`size:`, `ext:`, `pic:`, `path:`, `note:`, `todo:`, …), **Power Search…** dialog, saved filters/bookmarks, optional localhost API — without mandatory whole-disk indexing. |
+| **Search progress honesty** | Live walks stream partial results; status bar and banner show folder progress while searching — not a stuck `0 results` during long crawls. |
+| **Honest unindexed / content search** | Live walk with progress + cancel; `content:` scans with an honesty banner — never pretends to be instant when it isn’t. |
+| **Search results = normal file view** | Same icons/list/details, multi-select, preview, DnD, and context menu as a folder — not a stripped results list. Search is a **tab location** (Back/Forward); delete/move drops stale hits instead of leaving Explorer-style ghosts. |
+| **Large folders stay usable** | Virtualized lists, fast Win32 directory listing, and careful watch/scroll behavior — tens of thousands of files without the freezes Explorer often hits. |
+| **View filter** | Hide Hidden items and pattern matches (`*\name`, globs, absolute paths) from list, tree, and search — view-only declutter without deleting anything. |
+
+---
+
+<a id="src-docs-advantages-md--file-operations-reliability"></a>
+## File operations & reliability
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Status-bar progress + Cancel** | Copy / move / trash / delete / rename / video-preview generation show clear progress; Cancel stops between items (and mid large-file copy). |
+| **Continue-then-review bulk ops** | Copy / move / trash / delete keep going through every auto-ok item. One review at the end groups similar issues (already exist, in use, access denied, …) with apply-to-similar — including **Keep most recent**. Name conflicts still get side-by-side compare (size/dates/thumbs). **In use** rows list lock owners with **End task** (D65). Hold Ctrl on toolbar or menu **Paste** / **Delete**, or press **Ctrl+Delete** / **Ctrl+Shift+V**, for a plan dialog with **Dry run** before execute. Drag+Ctrl copies. Ctrl+C / Ctrl+V stay clipboard. No mid-copy “do this for all” stall. |
+| **In-app Recycle Bin** | List, restore, empty, and permanently delete bin items in the normal file view — never forced into system Explorer. |
+| **Windows Properties… when you need it** | In-app Properties covers size / dates / capacity; one click opens Explorer’s sheet for Security, Sharing, and other shell tabs. Drive Properties also has **USN…** to view, enable, clear, or disable the NTFS change journal. |
+| **Session undo / redo** | Ctrl+Z / Ctrl+Y for trash, move, copy, rename, Power Rename, new file/folder (including Recycle restore) without depending on Explorer’s undo stack. |
+| **In-app Power Rename** | Search/replace (literal, DOS `*`/`?`, or regex) plus Advanced options (numbering, case, dates, …) across a selection with live preview — no PowerToys shell extension required. Guide: [POWER_RENAME.md](#src-docs-power-rename-md). |
+| **Custom context commands** | Settings → Context menu: hide/reorder built-ins; **Discover** static shell verbs (tick to enable + order under Built-in); add “Edit in Photoshop”, “Play in VLC”, etc. for files and/or folders — without dumping every Explorer shell verb. All of it exports with settings (D45). For captured output, parameters, and dry-run, use the **script runner** instead of a detached exe. |
+| **Safer media handling** | Preview never uses `file://` on browsed paths; small media is buffered, large non-AV uses a capped userData scratch (wiped on start/quit), AV uses byte-range streaming so `<video>` actually plays. |
+| **Drag-out to other apps** | Left-drag exports real paths (CF_HDROP) to Photoshop, mail, chat, etc., while in-app folder drops and right-drag menus still work. |
+| **Smart clipboard paste** | When the clipboard is a screenshot, text, a URL, or HTML (not files), Paste creates a file in the current folder. **Paste Special** picks format. A URL becomes a `.url` shortcut — never downloaded. Explorer pastes nothing useful for a screenshot in a folder. |
+| **New-file templates** | New / Add → **From Template** copies a stub from the app Templates folder. Pretty name = menu label and default filename. Cap 40. Stored under app data, not next to your files. |
+| **Compress / Extract ZIP** | Context menu packs a file, folder, or multi-selection into a sibling `.zip`, and **Extract All…** unpacks archives into a sibling folder — progress + Cancel, zip-slip safe. |
+| **ZIP contents preview** | Select a `.zip` and see an expand/collapse file tree in the preview pane (inspect before extract) — Explorer’s preview rarely shows a useful archive tree. |
+| **Unity package preview** | Select a `.unitypackage` and see the packaged `Assets/…` tree (GUID folders mapped via `pathname`) without extracting. |
+| **CHM help preview** | Select a `.chm` for Contents + topic HTML in the preview pane (decompile under userData; no scripts in the iframe). |
+
+---
+
+<a id="src-docs-advantages-md--scripts-the-command-set-is-yours"></a>
+## Scripts — the command set is yours
+
+Explorer’s verbs are fixed. MyFileExplorer ships an **opt-in** universal local runner (Settings → Scripting and AI, off by default) so the next job does not wait on the next app release. A saved script is a first-class command on the folder or selection you are looking at — inventory CSVs, caption joins, ffmpeg queues, hash manifests, junk cleanup, robocopy previews, whatever you can write in PowerShell, Python, cmd, or bash. Capabilities grow with **your** library. Details and copy-paste examples: [SCRIPTS.md](#src-docs-scripts-md).
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Scripts on the current view** | Folder mode passes `--root` (optional `--recursive`). Selection mode passes a temp UTF-8 `--input-list`. **Global** scripts run from the toolbar with no folder or selection. You do not retype paths or `cd` a console to the tab you already have open. |
+| **Context menu Scripts >** | After Enable scripting: eligible saved items appear next to Copy / Delete, filtered by folder vs selection, extensions, min count, and optional category. **Global** scripts stay off this menu and live on the toolbar instead. Hidden until you opt in. |
+| **Live Run window** | Stdout/stderr, elapsed time, **Stop**, copy output, remembered size/position. Explorer’s “Open in Terminal” is a detached prompt with no capture. D41 custom commands (`shell:exec`) stay for “open Photoshop” — not for jobs you need to watch. |
+| **Dry-run + first-run ack** | Preview-only flag when the script supports it. Destructive-looking source (`Remove-Item`, `os.remove`, `rm -rf`, …) shows a banner. Scripts run as you — the app does not pretend otherwise. |
+| **Library stays out of your folders** | Managed scripts live under `%APPDATA%\MyFileExplorer\scripts\` (D2). Share a `.mfescript` or point at an external `.ps1` / `.py` already in a repo. No hidden `.bat` next to the photos. |
+| **Optional AI that never sees your disk** | Generate / modify / repair send **task text and source only**. Saved scripts rerun with **zero** AI calls. No provider required. Keys are `safeStorage`, not `settings.json`. |
+| **Almost infinite surface** | We will not ship a button for every library job. You save “Folder inventory”, “SHA-256 selection”, “Join captions”, “ffmpeg CRF queue” once — and the file manager grew those features without a release. |
+
+---
+
+<a id="src-docs-advantages-md--ui-clarity-comfort"></a>
+## UI clarity & comfort
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **Curated context menu** | Short allowlist of useful verbs — no Send to / Share dump. Optional **Discover** scans static Windows shell verbs; tick to enable and order them with built-ins (never auto-dumps Explorer). Opt-in **Git >** (D64) is a controlled submenu, not Tortoise overlays. **Open Command Line here** opens cmd or PowerShell (Settings → Behavior); click = current user; **Shift+click** = Administrator. |
+| **File Tools** | **Copy To…** / **Move To…** with an in-app target folder picker (multi-select); **Create link…** (symlink / hard link / junction); **Change Icon…** for a folder via `desktop.ini` + `Folder.ico`. |
+| **Themes & typography** | Dark / light / custom CSS tokens; font family and size persisted. |
+| **Details column catalog for media & generation** | Image, A/V, tags, and generation columns beyond Explorer’s usual set; layouts persist. |
+| **NTFS Alternate Data Streams (D38)** | Opt-in **Alternate streams** column (names) plus per-stream **value** columns, and a manager to list/edit/delete/import/export streams — without scanning ADS on every folder list. **Calculate Statistics** tags folders with counts, size, and a rich preview payload (D66 space map). |
+| **Attached notes & item icons** | Right-click **Note…** / **Set icon…** on the file or folder (NTFS streams `mfe_note` / `mfe_icon`). Preview + Details Checklist; Power Search `note:` / `todo:`. Host Created / Modified / Change stay put. Explorer has no per-item note or icon overlay. |
+| **User-defined metadata (opt-in)** | Settings → Metadata → Enable (off by default). Named **sets** of typed fields + folder bindings (or No metadata). Values in ADS `mfe_meta`; context edit / preview / Details columns / Power Search `meta.<key>:`. Project-local schemas without a proprietary DB. Guide: [USER_METADATA.md](#src-docs-user-metadata-md). |
+| **Hide extensions in names (display-only)** | e.g. hide `.lnk` in the list without filtering files away. |
+| **“Extra large icons only”** | Content thumbs without filename clutter when a preview exists. |
+| **Disable hardware acceleration** | Settings option to free GPU VRAM (e.g. while training) — Explorer has no such control. |
+| **No junk written into browsed folders** | App state, templates, tab icons, thumb caches, image originals, search DB, and the **script library** live under `%APPDATA%\MyFileExplorer` only. Notes and item icons are NTFS streams on the item itself — not a sidecar in the directory. Video strips use an existing `!VIDTHUMB_CACHE` convention when you generate them. |
+
+---
+
+<a id="src-docs-advantages-md--integration"></a>
+## Integration
+
+| Advantage | Why it beats Explorer |
+| --------- | --------------------- |
+| **`mfe://` + CLI `--reveal` / `--open`** | Other apps can “Reveal in MyFileExplorer” into the running single-instance process (file → parent folder + selection). |
+| **Same profile for dev and installed** | `%APPDATA%\MyFileExplorer` for both — reinstall / day-to-day use doesn’t feel like a settings reset. |
+
+---
+
+<a id="src-docs-advantages-md--beyond-explorer-workbench-for-teams"></a>
+## Beyond Explorer — workbench for teams
+
+For power users, the tables above are enough. For teams and organizations, the same architecture means existing storage can stay authoritative while the **workspace** gets smarter.
+
+| Advantage | Why it matters |
+| --------- | -------------- |
+| **Storage stays where it is** | Local disks, NAS, Git trees, and shares remain the source of truth — no mandatory migration into a DMS/DAM/SaaS vault. |
+| **Workflow topology ≠ storage topology** | Virtual Folders assemble project / case / release collections across physical locations without duplicating bytes. |
+| **Domain semantics in place** | Git roots, media folders, AI metadata, model files, space maps, and Virtual Folders already specialize the view; scripts and open source let you extend the pattern for your domain. |
+| **Repetitive work → local commands** | Validation, packaging, naming, checksums, media prep — saved scripts on the current folder or selection, optional AI to author, then local forever. |
+| **Open source adoption path** | Configure → extend → fork into an internal file workbench around *your* artifacts, instead of waiting for a generic product to grow every verb. |
+
+One-line UVP and deployment levels (standard → curated config → domain extensions → internal fork): [BUSINESS_UVP.md](#src-docs-business-uvp-md).
+
+---
+
+<a id="src-docs-advantages-md--what-we-deliberately-do-not-chase"></a>
+## What we deliberately do *not* chase
+
+Full ribbon/Libraries/cloud-provider shell parity, hosting arbitrary shell extensions, zip-as-folder deep UX, and replacing the system file dialogs. Those stay non-goals so the product stays fast and curated — see [PRODUCT_SPEC.md](#src-docs-product-spec-md) and [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md). MFE is also **not** a replacement for every DMS, DAM, PLM, or cloud collaboration platform — it coexists with specialist systems by keeping ordinary files as ordinary files ([BUSINESS_UVP.md](#src-docs-business-uvp-md)).
+
+---
+
+<a id="src-docs-advantages-md--related-docs"></a>
+## Related docs
+
+- [BUSINESS_UVP.md](#src-docs-business-uvp-md) — organizational value proposition & positioning  
+- [FOLDER_STATISTICS.md](#src-docs-folder-statistics-md) — Calculate Statistics + Space usage (plain vs Shift)  
+- [PRODUCT_SPEC.md](#src-docs-product-spec-md) — full requirements  
+- [DECISIONS.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/DECISIONS.md) — locked choices (through D70)  
+- [SCRIPTS.md](#src-docs-scripts-md) — universal script runner, use cases, and examples (D51)  
+- [GIT.md](#src-docs-git-md) — optional Git-aware browsing (D64)  
+- [PREVIEW.md](#src-docs-preview-md) — preview & generation metadata  
+- [VIRTUAL_FOLDERS.md](#src-docs-virtual-folders-md) — portable `.mfevirtual` collections (D67)  
+- [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md) — optional WinFsp OS projection (D68)  
+- [SEARCH.md](#src-docs-search-md) — indexing / Everything-inspired search  
+- [NETWORKS.md](#src-docs-networks-md) — Network neighborhood & mapped drives  
+- [REMOTE_FTP.md](#src-docs-remote-ftp-md) — opt-in FTP/FTPS/SFTP remotes  
+- [MEDIA_METADATA.md](#src-docs-media-metadata-md) — opt-in movie/TV metadata (D50)
+- [USER_METADATA.md](#src-docs-user-metadata-md) — opt-in user-defined structured metadata (D70)
+- [SLIDESHOW.md](#src-docs-slideshow-md) — ACDSee-inspired slideshow / categorizer
+- [ADS.md](#src-docs-ads-md) — NTFS Alternate Data Streams
+- [../README.md](#src-readme-md) — product overview
+
+<!-- end source: docs/ADVANTAGES.md -->
+
+---
+
+<!-- source: docs/BUSINESS_UVP.md -->
+
+<a id="src-docs-business-uvp-md"></a>
+
+<a id="src-docs-business-uvp-md--business-uvp-myfileexplorer"></a>
+# Business UVP — MyFileExplorer
+
+<a id="src-docs-business-uvp-md--executive-summary"></a>
+## Executive summary
+
+MyFileExplorer is more than a replacement for Windows File Explorer. It is a **local file workbench**: a semantic, scriptable, extensible layer over the ordinary filesystem.
+
+Most organizations still perform a large amount of work through files and folders — source repositories, datasets, reports, media assets, design exports, project deliverables, logs, archives, training data, generated outputs, and internal documents. Traditional file managers expose those objects mostly as names, paths, sizes, and dates. Business applications often solve the limitation by importing files into another database, cloud service, content-management system, or proprietary workflow.
+
+MyFileExplorer takes a different approach:
+
+> **Keep the files where they already are, then make the workspace around them substantially more intelligent.**
+
+It can expose richer meaning, navigation, previews, search, metadata, automation, version-control context, virtual organization, and domain-specific actions without requiring the underlying storage model to be replaced.
+
+---
+
+<a id="src-docs-business-uvp-md--core-value-proposition"></a>
+## Core value proposition
+
+MyFileExplorer can reduce the friction between **storage** and **work**.
+
+Instead of forcing users to repeatedly switch between File Explorer, search tools, preview applications, Git clients, disk analyzers, metadata tools, terminals, scripts, and bespoke internal utilities, MFE can bring the most useful parts of those workflows into the same local workspace.
+
+The product already demonstrates this model through:
+
+- persistent multi-tab and multi-pane workspaces;
+- rich previews across many file formats;
+- indexed and live search;
+- Git-aware folders and repository actions;
+- WinDirStat-style folder and drive analytics;
+- media and AI-generation metadata;
+- attached notes and metadata through NTFS ADS;
+- **user-defined structured metadata** (project-local field sets on folders);
+- user-defined local scripts and optional AI-assisted script authoring;
+- portable Virtual Folders that organize files independently of physical storage topology;
+- optional WinFsp projection so Virtual Folders can also be consumed by ordinary Windows applications.
+
+The important business property is not any single feature. It is that these capabilities operate **around the files an organization already owns**.
+
+---
+
+<a id="src-docs-business-uvp-md--why-this-can-matter-to-organizations"></a>
+## Why this can matter to organizations
+
+<a id="src-docs-business-uvp-md--1-existing-storage-can-remain-authoritative"></a>
+### 1. Existing storage can remain authoritative
+
+Adopting a new workflow does not necessarily require migrating content into a new database or SaaS repository.
+
+Files can remain on:
+
+- local disks;
+- shared network drives;
+- NAS appliances;
+- Git repositories;
+- removable storage;
+- existing project directory structures.
+
+MFE can provide a richer working layer without changing where those artifacts physically live.
+
+<a id="src-docs-business-uvp-md--2-physical-location-and-business-meaning-can-be-separated"></a>
+### 2. Physical location and business meaning can be separated
+
+Filesystem hierarchy answers:
+
+> Where is this file stored?
+
+Business workflows often need to answer:
+
+> What project, case, release, experiment, customer, production, investigation, or task does this belong to?
+
+Virtual Folders allow those two questions to have different answers.
+
+A Virtual Folder can assemble related artifacts from multiple drives, repositories, or shares without copying them. The same physical object can participate in multiple logical collections.
+
+This enables organizations to define **workflow topology independently of storage topology**.
+
+<a id="src-docs-business-uvp-md--3-domain-semantics-can-live-directly-in-the-file-workspace"></a>
+### 3. Domain semantics can live directly in the file workspace
+
+MFE already treats different filesystem objects differently when richer semantics are available:
+
+- Git repository roots expose history and repository actions;
+- media folders expose movie/TV metadata;
+- AI-generated images expose generation parameters;
+- attached notes let labs, media teams, and researchers attach meaning without another vertical product;
+
+- model files expose model-specific metadata;
+- ordinary folders can expose recursive composition and space maps;
+- Virtual Folders expose curated logical collections.
+
+An organization can extend this pattern for its own domain.
+
+Examples:
+
+- engineering project folders could expose build status, CAD exports, test logs, release artifacts, or review state;
+- research folders could expose dataset provenance, experiment metadata, notebooks, generated figures, and analysis scripts;
+- media-production folders could expose shot status, proxy/original relationships, editorial metadata, and delivery actions;
+- game-development folders could expose Unity projects, assets, builds, captures, profiling data, and repository state;
+- consulting or legal workspaces could expose case/project collections assembled from multiple physical sources without moving the originals.
+
+<a id="src-docs-business-uvp-md--4-repetitive-work-can-become-local-reusable-capability"></a>
+### 4. Repetitive work can become local reusable capability
+
+The universal script runner turns scripts into first-class commands attached to the current folder or selection.
+
+This means a business does not need a new product feature for every specialized file operation. Internal developers or power users can create reusable commands for tasks such as:
+
+- validation;
+- conversion;
+- packaging;
+- naming conventions;
+- report generation;
+- metadata extraction;
+- checksum creation;
+- media processing;
+- data preparation;
+- deployment or export steps.
+
+Optional AI can assist in authoring those scripts, while execution remains local and reusable without continued AI dependency.
+
+<a id="src-docs-business-uvp-md--5-open-source-changes-the-adoption-model"></a>
+### 5. Open source changes the adoption model
+
+A proprietary general-purpose file manager must remain generic.
+
+An organization with access to the MFE source can instead adapt:
+
+- semantic previews;
+- folder types;
+- context actions;
+- metadata sources;
+- Virtual Folder behavior;
+- script libraries;
+- internal integrations;
+- security and deployment policy;
+- branding and UX.
+
+The result can evolve from **MyFileExplorer** into a company-specific file workbench built around the organization's actual information architecture and operational workflows.
+
+---
+
+<a id="src-docs-business-uvp-md--transformation-opportunity"></a>
+## Transformation opportunity
+
+The larger opportunity is not simply replacing Windows File Explorer on employee desktops.
+
+It is creating a workspace where the filesystem becomes an application platform for local and shared business artifacts.
+
+Conceptually:
+
+```text
+Existing files and folders
+        +
+semantic understanding
+        +
+virtual organization
+        +
+automation
+        +
+domain-specific integrations
+        =
+organization-specific file workbench
 ```
-src/
-├─ main/
-│  ├─ ipc/           register handlers
-│  ├─ fs/            list, stat, mkdir, rename, copy, move, watch
-│  ├─ shell/         openPath, trash, showItemInFolder, clipboard
-│  ├─ session/       tabs + UI chrome persistence
-│  ├─ settings/      theme, font, behavior
-│  ├─ preview/       metadata extractors
-│  ├─ search/        indexer + FTS query
-│  ├─ thumbs/        sharp cache + `!VIDTHUMB_CACHE` resolve/generate (ffmpeg)
-│  ├─ mediaMetadata/ Plex / TMDB / OMDb + NTFS streams (D50)
-│  ├─ media/         custom protocol
-│  ├─ security/      path guards
-│  └─ logging/
-├─ preload/          window.myFileExplorer
-├─ renderer/
-│  ├─ components/
-│  ├─ screens/       ExplorerShell (primary)
-│  ├─ store/
-│  └─ styles/
-├─ shared/
-│  ├─ schemas/       zod
-│  └─ ipc/           channel names + types
-└─ tests/
-docs/
-```
+
+This can reduce the need for users to manually bridge many disconnected tools merely to understand and act on the files in front of them.
 
 ---
 
-<a id="src-docs-architecture-md--media-protocol"></a>
-## Media protocol
+<a id="src-docs-business-uvp-md--examples-by-domain"></a>
+## Examples by domain
 
-Custom protocol (e.g. `mfe-media://`) serves:
+<a id="src-docs-business-uvp-md--software-engineering"></a>
+### Software / engineering
 
-- File bytes for preview (images, text sniffs)
-- Thumbnail images from cache
-- Audio/video/PDF with **HTTP byte-range** responses (`Accept-Ranges` / `206`) so Chromium media can play and seek
+A repository folder can expose Git state, build artifacts, test output, documentation, issue links, release packages, logs, and custom engineering commands in one workspace.
 
-**Allowlist:** only paths that main has approved (currently visible tab roots, explicit preview target, thumb cache dir, and `!VIDTHUMB_CACHE` when video strip frames resolve or are generated). Never arbitrary disk read from renderer-supplied URLs without validation.
+<a id="src-docs-business-uvp-md--scientific-research"></a>
+### Scientific research
 
----
+A project workspace can bring together raw datasets, processed outputs, notebooks, publications, figures, experiment metadata, and analysis scripts while leaving large datasets in their existing storage locations.
 
-<a id="src-docs-architecture-md--folder-watching"></a>
-## Folder watching
+<a id="src-docs-business-uvp-md--media-production"></a>
+### Media / production
 
-Main watches **visible pane directories** (and usually their **parents**) via `fs.watch` (250 ms debounce). Broadcast `fs-changed` so the renderer soft-refreshes matching listings and reloads that folder’s children in the tree. Mute briefly after in-app mutations / during `fs:list` (post-list mute is shorter for small folders) to avoid selection jumps and list→watch→list loops.
+Projects can combine footage, proxies, graphics, audio, subtitles, scripts, review exports, and delivery packages across high-capacity storage without duplicating assets.
 
-**Size tiers** (re-list cost, not `fs.watch` itself):
+<a id="src-docs-business-uvp-md--ai-ml"></a>
+### AI / ML
 
-| Entries | Watch | Soft-reload min gap |
-| ------- | ----- | ------------------- |
-| &lt; 1 000 | Active dir + parent | ~400 ms |
-| 1 000–7 999 | Active dir + parent | ~4 s |
-| ≥ 8 000 | Parent only (detect folder gone/renamed); no watch-driven soft re-list | F5 / navigate |
+Datasets, checkpoints, LoRAs, generated samples, captions, training runs, metadata, and evaluation outputs can be exposed with model-aware previews and local automation.
 
-Trash/move **suspend** closes all `ReadDirectoryChanges` handles; the renderer **re-arms** visible panes afterward (including in-folder deletes that prune without a full re-list). Watcher `error` emits `fs-watch-lost` so the renderer can re-arm. **Refresh (F5)** always reloads the listing and every tree folder already loaded for the tab.
+<a id="src-docs-business-uvp-md--operations-project-delivery"></a>
+### Operations / project delivery
 
-**Remote listing memory (D49):** the renderer keeps a session-only LRU of the last listing for **UNC**, **mapped remote letters**, and **`mfe-remote://`** (about 24 folders; listings over 20 000 entries are not stored). Navigating back paints that snapshot immediately, then `fs:list` revalidates in the background. Local NTFS is never cached. The snapshot is dropped on F5, in-app mutations, and `fs-changed` for that folder. Nothing is written to disk.
+Virtual Folders can assemble project deliverables from many systems and shares into one logical workspace, while custom scripts enforce packaging, validation, naming, or hand-off procedures.
 
 ---
 
-<a id="src-docs-architecture-md--error-model"></a>
-## Error model
+<a id="src-docs-business-uvp-md--differentiation-from-document-management-systems"></a>
+## Differentiation from document-management systems
 
-IPC returns a Result envelope:
+MyFileExplorer is not intended to replace every DMS, DAM, PLM, source-control system, or cloud collaboration platform.
 
-```ts
-type Ok<T> = { ok: true; value: T }
-type Err = { ok: false; error: { code: string; message: string; remediation?: string } }
-type Result<T> = Ok<T> | Err
-```
+Its differentiator is almost the opposite:
 
-Codes (examples): `not-found`, `not-allowed`, `busy`, `conflict`, `validation`, `cancelled`, `io`.
+- it does not require files to stop being ordinary files;
+- it does not require a proprietary repository to become the source of truth;
+- it can coexist with existing specialist systems;
+- it can surface useful semantics directly at the filesystem boundary where users already work.
 
----
-
-<a id="src-docs-architecture-md--concurrency"></a>
-## Concurrency
-
-- Directory list: cancel/supersede stale requests when path changes quickly.
-- Content thumbs: renderer throttles `thumbs:get` (LIFO; drop waiters for unmounted tiles). Main Sharp encode is capped at two jobs; disk-cache hits skip that queue so scrolling an icon view cannot starve preview.
-- Search: single active query per window; cancel previous.
-- Indexer: background queue; one writer; progress events.
-- File ops / video-preview generation: throttled `op-progress` events to the status bar (D28); renderer 1 s busy fallback when main is still silent.
-- File ops: serialize destructive ops that touch the same path.
+This makes MFE particularly attractive where replacing the existing storage architecture would be expensive, disruptive, unnecessary, or undesirable.
 
 ---
 
-<a id="src-docs-architecture-md--related"></a>
-## Related
+<a id="src-docs-business-uvp-md--deployment-model"></a>
+## Deployment model
 
-[PROJECT_FORMAT.md](#src-docs-project-format-md) · [IPC_CONTRACT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/docs/IPC_CONTRACT.md) · [SECURITY.md](#src-docs-security-md)
+A business deployment could range from minimal to deeply customized.
 
-<!-- end source: docs/ARCHITECTURE.md -->
+<a id="src-docs-business-uvp-md--level-1-standard-mfe"></a>
+### Level 1 — Standard MFE
 
----
+Deploy the existing application as a substantially more capable local file manager and workbench.
 
-<!-- source: docs/BUILD.md -->
+<a id="src-docs-business-uvp-md--level-2-curated-organizational-configuration"></a>
+### Level 2 — Curated organizational configuration
 
-<a id="src-docs-build-md"></a>
+Ship standard settings, layouts, search roots, context actions, scripts, and Virtual Folder templates appropriate to the organization.
 
-<a id="src-docs-build-md--building-releases"></a>
-# Building & releases
+<a id="src-docs-business-uvp-md--level-3-domain-extensions"></a>
+### Level 3 — Domain extensions
 
-**Version:** 0.22.0 (tag `v0.22`)
+Add organization-specific previews, metadata providers, folder semantics, actions, or integrations.
 
-The Windows installer (`MyFileExplorer-x.y.z.exe`) is typically **well over 100 MB**. GitHub rejects pushing files that large into the repo — keep `dist/` gitignored. CI does **not** use Actions artifact storage (quota); installers ship only via **GitHub Releases** on version tags.
+<a id="src-docs-business-uvp-md--level-4-internal-product-platform"></a>
+### Level 4 — Internal product / platform
 
-**Primary target:** Windows. Experimental Linux AppImage packaging is documented in [LINUX.md](#src-docs-linux-md) (`npm run build:linux`). `npm run dist` / `dist:nobump` / `dist:full` are **Windows-host only**.
-
----
-
-<a id="src-docs-build-md--local"></a>
-## Local
-
-```bash
-npm ci
-npm run check          # typecheck + lint + test + support-doc check — same as the GitHub “Typecheck, lint, test” job
-npm run dist           # bump patch, pack MyFileExplorer only → dist/
-npm run dist:nobump    # same pack, no version bump
-npm run dist:full      # same as dist, and republish MfeShellLauncher, mpv, and the VC++ DLLs
-npm run build:win      # MyFileExplorer pack only (no version bump, no updates-folder copy)
-npm run build:win:full # pack plus those side tools
-```
-
-`dist` and `build:win` reuse `tools/MfeShellLauncher/publish/MfeShellLauncher.exe`, `tools/mpv`, and `build/vc-redist` from the last full pack. They still go into the installer. GitHub’s tag build sets `CI=true`, so `npm run build:win` there still rebuilds those side tools.
-
-`npm run check` is what the Actions job **Typecheck, lint, test** runs (including `npm run docs:support:check`). A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command for **branch** pushes so a failing lint or test never leaves the machine. Rebuild the support bundle with `npm run docs:support` before that check if you changed a bundled doc. **Tag-only** pushes skip the suite (so publishing a tag is not blocked by unrelated working-tree WIP). Skip entirely only if you must: `git push --no-verify`.
-
-Output: `dist/MyFileExplorer-<version>.exe` (plus `.blockmap` / `latest.yml`). Older docs may say `MyFileExplorer Setup x.y.z.exe` — both names are accepted by Check for update.
-
-In-app **Settings → About → Updates source** accepts a local installer folder **or** a GitHub Releases URL (new installs default to https://github.com/dobrado76/MyFileExplorer/releases). When an update is available, **What's new** always downloads **`RELEASE_NOTES.md`** from the online GitHub repo (version tag, then `main`) — including when the updates source is a local folder.
-
-<a id="src-docs-build-md--ebusy-eperm-appasar-locked"></a>
-### `EBUSY` / `EPERM` / `app.asar` locked
-
-Packaging replaces `dist\win-unpacked\resources\app.asar`. Electron keeps every `.asar` it has stat'd mapped until that process exits, so a file manager (or Cursor, which is also Electron) that indexed or opened that archive holds it shut. The installed app does not store the repo path. A current build reads other projects' `.asar` files as ordinary files and does not keep them open. An older build still holds whatever it already opened until you quit that process.
-
-An exe actually started from `dist\win-unpacked` is the archive's own host. Quit that window. The Start Menu install under `%LOCALAPPDATA%\Programs\MyFileExplorer` can stay open.
-
-`npm run build:win`, `build:win:full`, `dist`, `dist:nobump`, and `dist:full` stop processes under `dist/win-unpacked` (and a leftover `.tmp`) and retry deleting those folders before packaging. If it still fails: quit the process that has the archive open, delete `dist/win-unpacked` manually, retry.
-
-<a id="src-docs-build-md--experimental-linux"></a>
-### Experimental Linux
-
-On a Linux host (Wayland-oriented helpers):
-
-```bash
-npm run build:linux    # AppImage (+ linux-unpacked)
-npm run run:unpacked   # preferred launch path on many Plasma/Wayland setups
-```
-
-Details, flags, and troubleshooting: [LINUX.md](#src-docs-linux-md).
+Fork and adapt MFE into a purpose-built internal workspace whose primary interface remains the organization's existing files and storage systems.
 
 ---
 
-<a id="src-docs-build-md--github-actions"></a>
-## GitHub Actions
+<a id="src-docs-business-uvp-md--why-the-architecture-matters"></a>
+## Why the architecture matters
 
-Workflow: [`.github/workflows/build-windows.yml`](https://github.com/dobrado76/MyFileExplorer/blob/main/.github/workflows/build-windows.yml)
+MFE's value compounds because its major systems are composable.
 
-| Trigger | What runs |
-| ------- | --------- |
-| Tag `v*` (e.g. `v0.22`) | Check + build **three** Windows executables: `MyFileExplorer.exe` + `MfeShellLauncher.exe` (bundled in the NSIS installer) and `MfeVirtualFolderService.exe` (separate zip) → attach to a **GitHub Release** |
-| **Actions → Run workflow** | Check only (no installer / Release) |
-| Branch push / PR | **No** Actions run — local `pre-push` hook runs `npm run check` |
+A Virtual Folder can contain real files from multiple locations. Those files can still receive normal previews. Scripts can run on their resolved paths. Git-aware folders retain repository semantics. Search can locate the underlying objects. Folder analytics can expose storage structure. Metadata remains attached to the relevant file or folder where appropriate.
 
-CI does not build Linux installers yet. The projection zip is optional — users also install [WinFsp](https://winfsp.dev/) separately; see [VIRTUAL_FOLDER_PROJECTION.md](#src-docs-virtual-folder-projection-md). `MfeShellLauncher.exe` is built in CI and shipped inside the main installer (shell redirect, D72); see [WINDOWS_SHELL_REDIRECT.md](#src-docs-windows-shell-redirect-md).
-
-<a id="src-docs-build-md--ship-a-build-for-friends"></a>
-### Ship a build for friends
-
-```bash
-<a id="src-docs-build-md--packagejson-is-0220-the-release-tag-is-v022-same-style-as-v021"></a>
-# package.json is 0.22.0; the release tag is v0.22 (same style as v0.21)
-git tag v0.22
-git push origin v0.22
-```
-
-When the workflow finishes, download from:
-
-`https://github.com/dobrado76/MyFileExplorer/releases/latest`
-
-(or the README “Download Latest Executables” badge).
+This is more powerful than a collection of unrelated utilities because the same filesystem objects participate across the systems.
 
 ---
 
-<a id="src-docs-build-md--notes"></a>
-## Notes
+<a id="src-docs-business-uvp-md--business-uvp-in-one-sentence"></a>
+## Business UVP in one sentence
 
-- Windows packs stage `msvcp140.dll`, `vcruntime140.dll`, and `vcruntime140_1.dll` (`scripts/stage-vc-redist.mjs`) and ship them beside the exe and the unpacked `koffi` / `sharp` addons. `koffi.node` imports that CRT; a Windows 10 PC without the Visual C++ redistributable otherwise dies on startup with “The specified module could not be found.” The build machine must already have those DLLs (Visual Studio x64 redist, or System32).
-- Installers are **unsigned**. `electron-builder.yml` sets `win.signExecutable: false` so Windows packs skip `signtool` (icon/metadata still applied). `CSC_IDENTITY_AUTO_DISCOVERY=false` is macOS-only and does **not** stop Windows signing.
-- `electron-builder --publish never` — Releases are attached by Actions, not electron-builder.
-- Never commit `dist/*.exe` — `dist/` is in `.gitignore` on purpose.
-- No `actions/upload-artifact` — avoids Actions artifact storage quota.
+> **MyFileExplorer turns existing files and folders into a richer, semantic, automatable workspace without forcing an organization to replace the storage systems it already depends on.**
 
-<!-- end source: docs/BUILD.md -->
+<a id="src-docs-business-uvp-md--short-positioning"></a>
+## Short positioning
+
+> **A local file workbench that adds semantic understanding, virtual organization, powerful inspection, search, Git, metadata, and automation directly on top of the existing filesystem.**
+
+<a id="src-docs-business-uvp-md--enterprise-oriented-positioning"></a>
+## Enterprise-oriented positioning
+
+> **An open-source foundation for building organization-specific file workspaces around existing project files, repositories, datasets, media, and shared storage — without first migrating them into a new proprietary content platform.**
+
+<!-- end source: docs/BUSINESS_UVP.md -->
