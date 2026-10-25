@@ -22,7 +22,7 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "test": "vitest run",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run docs:support:check",
+    "check": "npm run docs:support:check && npm run typecheck && npm run lint && npm run test",
     "docs:support": "node scripts/build-ai-support.mjs",
     "docs:support:check": "node scripts/build-ai-support.mjs --check",
     "prepare": "node scripts/install-git-hooks.mjs",

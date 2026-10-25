@@ -1,0 +1,22 @@
+#!/bin/sh
+# Regenerate AI-SUPPORT.md when a bundled support doc is part of this commit.
+# The push hook used to discover a stale bundle only after typecheck, lint, and tests.
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+staged=$(git diff --cached --name-only)
+[ -z "$staged" ] && exit 0
+
+needs=$(printf '%s\n' "$staged" | grep -E '^(AI-SUPPORT\.md|README\.md|llms\.txt|scripts/ai-support-manifest\.json|scripts/build-ai-support\.mjs|docs/.*\.md)$' || true)
+[ -z "$needs" ] && exit 0
+
+dirty=$(git diff --name-only -- AI-SUPPORT.md README.md llms.txt scripts/ai-support-manifest.json scripts/build-ai-support.mjs docs)
+if [ -n "$dirty" ]; then
+  echo "pre-commit: support docs have unstaged edits. Stage or stash them, then commit again:"
+  printf '%s\n' "$dirty"
+  exit 1
+fi
+
+echo "pre-commit: rebuilding AI-SUPPORT.md"
+node scripts/build-ai-support.mjs || exit 1
+git add -- AI-SUPPORT.md

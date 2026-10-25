@@ -12,7 +12,7 @@ npm run dist:full    # same pack, and rebuild MfeShellLauncher, mpv, and the VC+
 ```
 
 - Specs live in `docs/`. Locked product decisions are `docs/DECISIONS.md`. When behavior changes, update the docs in the same change, then run `npm run docs:support` if a bundled support page changed.
-- `npm run check` is what a branch `git push` runs locally, and what the tag workflow’s check job runs. Pull requests do not start GitHub Actions by themselves.
+- `npm run check` is what a branch `git push` runs locally, and what the tag workflow’s check job runs. The support-bundle check is first. Committing a bundled doc also rebuilds `AI-SUPPORT.md` from the `pre-commit` hook and stages it. Pull requests do not start GitHub Actions by themselves.
 - App state for a normal dev run is still `%APPDATA%\MyFileExplorer`, the same folder as the installed app. Do not commit that folder. Do not paste `settings.json` into chats or issues.
 - License for contributions: GPL-3.0. See [CONTRIBUTING.md](../CONTRIBUTING.md).
 - Build, signing, and release layout: [BUILD.md](BUILD.md). Experimental Linux: [LINUX.md](LINUX.md).

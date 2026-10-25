@@ -22,7 +22,7 @@ npm run build:win:full # pack plus those side tools
 
 `dist` and `build:win` reuse `tools/MfeShellLauncher/publish/MfeShellLauncher.exe`, `tools/mpv`, and `build/vc-redist` from the last full pack. They still go into the installer. GitHub’s tag build sets `CI=true`, so `npm run build:win` there still rebuilds those side tools.
 
-`npm run check` is what the Actions job **Typecheck, lint, test** runs (including `npm run docs:support:check`). A `pre-push` hook (installed on `npm install` / `npm ci`) runs the same command for **branch** pushes so a failing lint or test never leaves the machine. Rebuild the support bundle with `npm run docs:support` before that check if you changed a bundled doc. **Tag-only** pushes skip the suite (so publishing a tag is not blocked by unrelated working-tree WIP). Skip entirely only if you must: `git push --no-verify`.
+`npm run check` is what the Actions job **Typecheck, lint, test** runs. It checks the support bundle first (`npm run docs:support:check`), then typecheck, lint, and tests, so a stale `AI-SUPPORT.md` fails in a few seconds and names the first line that disagrees. A `pre-commit` hook (installed on `npm install` / `npm ci`) rebuilds and stages `AI-SUPPORT.md` when the commit includes a bundled support doc. A `pre-push` hook runs `npm run check` for **branch** pushes so a failing lint or test never leaves the machine. **Tag-only** pushes skip the suite (so publishing a tag is not blocked by unrelated working-tree WIP). Skip a hook only if you must: `git commit --no-verify` or `git push --no-verify`.
 
 Output: `dist/MyFileExplorer-<version>.exe` (plus `.blockmap` / `latest.yml`). Older docs may say `MyFileExplorer Setup x.y.z.exe` — both names are accepted by Check for update.
 

@@ -270,14 +270,35 @@ if (!output.includes('](#src-docs-power-rename-md)')) {
   fail(['Link rewrite did not anchor POWER_RENAME.md'])
 }
 
+function clipLine(line) {
+  if (line == null) return '(missing line)'
+  return line.length > 220 ? `${line.slice(0, 220)}…` : line
+}
+
+function mismatchReport(current, output) {
+  const lines = [
+    'AI-SUPPORT.md is missing or out of date.',
+    'Rebuild it with: npm run docs:support',
+    'Commit that file with the doc change.'
+  ]
+  const have = current.split('\n')
+  const want = output.split('\n')
+  const n = Math.max(have.length, want.length)
+  for (let i = 0; i < n; i++) {
+    if (have[i] === want[i]) continue
+    lines.push(
+      `First difference at line ${i + 1}:`,
+      `  committed bundle: ${clipLine(have[i])}`,
+      `  rebuilt from docs: ${clipLine(want[i])}`
+    )
+    break
+  }
+  return lines
+}
+
 if (check) {
   const current = fs.existsSync(outPath) ? fs.readFileSync(outPath, 'utf8').replace(/\r\n/g, '\n') : ''
-  if (current !== output) {
-    fail([
-      'AI-SUPPORT.md is missing or out of date.',
-      'Rebuild it with: npm run docs:support'
-    ])
-  }
+  if (current !== output) fail(mismatchReport(current, output))
   console.log('AI-SUPPORT.md matches the support sources.')
 } else {
   fs.writeFileSync(outPath, output)
