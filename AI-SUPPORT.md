@@ -7882,7 +7882,7 @@ That file contains the guide and the full FAQ. Upload it. It tells the assistant
 2. Upload it to ChatGPT, Claude, Gemini, or another AI assistant.
 3. Ask your question about MyFileExplorer.
 
-[AI-SUPPORT.md](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md) is the file to give an assistant. The shorter guides and [FAQ](#src-docs-faq-md) stay for reading one topic.
+[AI-SUPPORT.md](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md) is the file to give an assistant. The shorter guides and [FAQ](#src-docs-faq-md) stay for reading one topic.
 
 If the assistant cannot resolve the issue, you may [open a GitHub issue](https://github.com/dobrado76/MyFileExplorer/issues) with the version from **Settings → About**, your Windows version, which external tool is involved, and the error text. That does not create a support obligation.
 
