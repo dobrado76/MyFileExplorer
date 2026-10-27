@@ -7876,10 +7876,10 @@ There is no support desk. The documentation is the help that exists. Ask an AI a
 
 That file contains the guide and the full FAQ. Upload it. It tells the assistant not to guess past what the app actually does.
 
-**[MyFileExplorer — support file](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md)**
+**MyFileExplorer — support file ([Human Readable](https://github.com/dobrado76/MyFileExplorer/blob/main/AI-SUPPORT.md)) ([RAW for AI](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md))**
 
-1. [Download AI-SUPPORT.md](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md).
-2. Upload it to ChatGPT, Claude, Gemini, or another AI assistant.
+1. [Download AI-SUPPORT.md (RAW) or Copy the link](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md).
+2. Upload it to (or Paste the link in) ChatGPT, Claude, Gemini, or another AI assistant.
 3. Ask your question about MyFileExplorer.
 
 [AI-SUPPORT.md](https://raw.githubusercontent.com/dobrado76/MyFileExplorer/refs/heads/main/AI-SUPPORT.md) is the file to give an assistant. The shorter guides and [FAQ](#src-docs-faq-md) stay for reading one topic.
